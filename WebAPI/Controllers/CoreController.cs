@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace WebAPI.Controllers
 {
+    [AuthorizeSession]
     public class CoreController : ControllerBase
     {
         public AppDbContext _db;
