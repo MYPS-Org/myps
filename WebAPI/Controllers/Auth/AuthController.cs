@@ -36,7 +36,12 @@ namespace WebAPI.Controllers.Auth
             var user = await _db.tUsers.FirstOrDefaultAsync(u => u.UserName == dto.UserName);
             if (user == null)
             {
-                return Unauthorized();
+                return Unauthorized(new
+                {
+                    message = "Unauthorized",
+                    data = new { Authenticated = false },
+                    user = new { }
+                });
             }
             var result = _passwordHasher.VerifyHashedPassword(user, user.Password, dto.Password);
             if (result == PasswordVerificationResult.Success)
