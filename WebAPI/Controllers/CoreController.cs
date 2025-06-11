@@ -6,19 +6,18 @@ using System.Text;
 using System.Threading.Tasks;
 using DBHelper.Data;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 namespace WebAPI.Controllers
 {
     [AuthorizeSession]
-    public class CoreController : ControllerBase
+    public abstract class CoreController : ControllerBase
     {
         public AppDbContext _db;
-        public IHttpContextAccessor _httpContextAccessor;
-        public CoreController(AppDbContext db, IHttpContextAccessor context)
+        public CoreController(AppDbContext db)
         {
             _db = db;
-            _httpContextAccessor = context;
         }
     }
 }
