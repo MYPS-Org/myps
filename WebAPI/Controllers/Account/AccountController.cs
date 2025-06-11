@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authorization;
 
 namespace WebAPI.Controllers.Account
 {
@@ -23,8 +24,8 @@ namespace WebAPI.Controllers.Account
         {
             _passwordHasher = passwordHasher; // Initialize the password hasher
         }
-
         [HttpPost]
+        [Authorize(Roles = "DPD Admin")]
         public async Task<IActionResult> RegisterUser([FromBody] User model)
         {
             if (model == null || string.IsNullOrEmpty(model.UserName) || string.IsNullOrEmpty(model.Password) || string.IsNullOrEmpty(model.Name))
