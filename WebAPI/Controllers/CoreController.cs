@@ -23,9 +23,16 @@ namespace WebAPI.Controllers
             try
             {
                 var controllerActionDescriptor = context.ActionDescriptor as ControllerActionDescriptor;
-                var hasAnonymous = controllerActionDescriptor!.MethodInfo.GetCustomAttributes(typeof(AllowAnonymousAttribute), true).Any();
+                bool hasAllowAnonymous = context.ActionDescriptor.EndpointMetadata
+                    .Any(meta => meta is AllowAnonymousAttribute);
+                if (!hasAllowAnonymous)
+                {
+                    context.Result = Unauthorized();
+                }
+
+                //Check Authentication if Not AllowAnonymous
                 bool IsAuthenticated = (HttpContext.User.Identity != null) ? HttpContext.User.Identity.IsAuthenticated : true;
-                if (!hasAnonymous && IsAuthenticated)
+                if (IsAuthenticated)
                 {
                     string userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
                     var user = _db.tUsers.FirstOrDefault(x => x.Id.ToString() == userId && x.isActive == true);
@@ -37,11 +44,12 @@ namespace WebAPI.Controllers
                             data = new { Authenticated = false },
                             user = new { }
                         };
-                        context.Result = new JsonResult(responseObj);
+                        context.Result = Unauthorized(responseObj);
                         return;
                     }
                     _Session = user;
                 }
+
                 base.OnActionExecuting(context);
             }
             catch (Exception ex)

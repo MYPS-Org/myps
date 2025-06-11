@@ -15,20 +15,6 @@ Appsetting.PrepareAppsettings(builder.Configuration);
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(Appsetting.ConnectionString));
 
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
-builder.Services.AddScoped<UserManager<User>>();
-builder.Services.AddScoped<RoleManager<IdentityRole>>();
-
-builder.Services.AddIdentity<User, IdentityRole>(options =>
-{
-    options.Password.RequiredLength = 6;
-    options.Password.RequireNonAlphanumeric = false;
-    options.Password.RequireDigit = false;
-    options.Password.RequireLowercase = false;
-    options.Password.RequireUppercase = false;
-})
-    .AddEntityFrameworkStores<AppDbContext>()
-    .AddDefaultTokenProviders();
-
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddDistributedMemoryCache();
