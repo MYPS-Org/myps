@@ -26,7 +26,6 @@ namespace WebAPI.Controllers
                 bool hasAllowAnonymous = context.ActionDescriptor.EndpointMetadata
                     .Any(meta => meta is AllowAnonymousAttribute);
 
-                //Check Authentication if Not AllowAnonymous
                 bool IsAuthenticated = (HttpContext.User.Identity != null) ? HttpContext.User.Identity.IsAuthenticated : true;
                 if (!hasAllowAnonymous && IsAuthenticated)
                 {
