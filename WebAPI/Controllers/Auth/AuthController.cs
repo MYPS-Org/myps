@@ -57,7 +57,7 @@ namespace WebAPI.Controllers.Auth
                 var authProperties = new AuthenticationProperties
                 {
                     IsPersistent = true,
-                    ExpiresUtc = DateTime.UtcNow.AddDays(1),
+                    ExpiresUtc = DateTime.UtcNow.AddDays(365),
                     AllowRefresh = true
                 };
 

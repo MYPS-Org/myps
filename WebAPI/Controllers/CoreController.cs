@@ -25,14 +25,9 @@ namespace WebAPI.Controllers
                 var controllerActionDescriptor = context.ActionDescriptor as ControllerActionDescriptor;
                 bool hasAllowAnonymous = context.ActionDescriptor.EndpointMetadata
                     .Any(meta => meta is AllowAnonymousAttribute);
-                if (!hasAllowAnonymous)
-                {
-                    context.Result = Unauthorized();
-                }
 
-                //Check Authentication if Not AllowAnonymous
                 bool IsAuthenticated = (HttpContext.User.Identity != null) ? HttpContext.User.Identity.IsAuthenticated : true;
-                if (IsAuthenticated)
+                if (!hasAllowAnonymous && IsAuthenticated)
                 {
                     string userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
                     var user = _db.tUsers.FirstOrDefault(x => x.Id.ToString() == userId && x.isActive == true);

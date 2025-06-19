@@ -26,8 +26,8 @@ builder.Services.AddAuthentication(options =>
 })
     .AddCookie(options =>
     {
-        options.Cookie.HttpOnly = true; // Protect against XSS
-        options.Cookie.SameSite = Appsetting.Environment != "Development" ? SameSiteMode.Strict : SameSiteMode.None; // Prevent CSRF attacks
+        options.Cookie.HttpOnly = builder.Environment.IsDevelopment() ? false : true; // Protect against XSS // FALSE 
+        options.Cookie.SameSite = builder.Environment.IsDevelopment() ? SameSiteMode.Strict : SameSiteMode.None; // Prevent CSRF attacks
         options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // Ensure secure transport
         options.Cookie.Name = CookieAuthenticationDefaults.AuthenticationScheme; // Custom cookie name
                                                                                  //options.LoginPath = "/login"; // Redirect unauthorized users
@@ -58,7 +58,35 @@ builder.Services.AddAuthorization(Options =>
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddSwaggerGen(options =>
+    {
+        options.AddSecurityDefinition("cookieAuth", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+        {
+            Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
+            Name = "Cookie",
+            In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+            Description = "Session-based authentication using cookies."
+        });
+
+        options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+        {
+            {
+                new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+                {
+                    Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                    {
+                        Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                        Id = "cookieAuth"
+                    }
+                },
+                new string[] { }
+            }
+        });
+    });
+}
 
 var app = builder.Build();
 
@@ -68,7 +96,10 @@ if (app.Environment.IsDevelopment())
     app.UseCors(builder => builder.WithOrigins("http://localhost:8080"));
     app.UseDeveloperExceptionPage();
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(options =>
+    {
+        options.ConfigObject.AdditionalItems["withCredentials"] = true;
+    });
 }
 else { app.MapFallbackToFile("index.html"); }
 
