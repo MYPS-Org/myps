@@ -1,6 +1,5 @@
 ﻿using DBHelper.Data;
-using DBHelper.Models.Dtos;
-using DBHelper.Models.Entities;
+using DBHelper.Models;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
@@ -20,7 +19,7 @@ namespace WebAPI.Controllers.Auth
     [Route("api/[controller]/[action]")]
     public class AuthController : CoreController
     {
-        private readonly IPasswordHasher<User> _passwordHasher; // Add this field
+        private readonly IPasswordHasher<User> _passwordHasher;
         public AuthController(AppDbContext db, IPasswordHasher<User> passwordHasher) : base (db)
         {
             _passwordHasher = passwordHasher;

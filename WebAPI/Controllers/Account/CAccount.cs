@@ -1,17 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using DBHelper.Data;
-using DBHelper.Models.Entities;
-using DBHelper.Models.Dtos;
+﻿using DBHelper.Data;
+using DBHelper.Models;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
-using System.Security.Claims;
 
 namespace WebAPI.Controllers.Account
 {

@@ -55,7 +55,10 @@ builder.Services.AddAuthorization(Options =>
     Options.AddPolicy("Club", policy => policy.RequireRole("Club"));
     Options.AddPolicy("User", policy => policy.RequireRole("User"));
 });
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddJsonOptions(options =>
+{
+    options.JsonSerializerOptions.PropertyNamingPolicy = null;
+});
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 

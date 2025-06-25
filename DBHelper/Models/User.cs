@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DBHelper.Models.Entities
+namespace DBHelper.Models
 {
     public class User
     {

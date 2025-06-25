@@ -1,5 +1,5 @@
 ﻿using DBHelper.Data;
-using DBHelper.Models.Entities;
+using DBHelper.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;

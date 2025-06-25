@@ -3,14 +3,14 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using DBHelper.Models.Entities;
+using DBHelper.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace DBHelper.Data
 {
     public class AppDbContext : DbContext
     {
-        public DbSet<User> TUsers { get; set; }
+        public DbSet<User> tUsers { get; set; }
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
         //protected override void OnModelCreating(ModelBuilder modelBuilder)
