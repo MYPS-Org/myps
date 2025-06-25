@@ -1,6 +1,0 @@
-@myps_backend_HostAddress = http://localhost:5015
-
-GET {{myps_backend_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###
