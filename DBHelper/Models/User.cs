@@ -7,15 +7,29 @@ using System.Threading.Tasks;
 
 namespace DBHelper.Models
 {
-    public class User
+    public class Users
     {
         [Key]
         public int Id { get; set; }
+        [MaxLength(50)]
         public string EmployeeId { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(200)]
+        public string UserGroup { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(50)]
+        public string UserId { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(100)]
         public string Name { get; set; } = string.Empty;
-        public string UserName { get; set; } = string.Empty; // former userid
-        public string Password { get; set; } = string.Empty; // Encrypted
-        public string UserRole { get; set; } = string.Empty; //Former UserType need to change this UserRole to Department
-        public bool IsActive { get; set; } = true;
+        [MaxLength(100)]
+        public string Email { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(50)]
+        public string RegCode { get; set; } = string.Empty;
+        [MaxLength(100)]
+        public string PlantillaOffice { get; set; } = string.Empty;
+        [Required]
+        public bool IsActive { get; set; } = false;
     }
 }
