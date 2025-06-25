@@ -1,5 +1,5 @@
 ﻿using DBHelper.Data;
-using DBHelper.Models.Entities;
+using DBHelper.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -30,7 +30,7 @@ namespace WebAPI.Controllers
                 if (!hasAllowAnonymous && IsAuthenticated)
                 {
                     string userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-                    var user = _db.tUsers.FirstOrDefault(x => x.Id.ToString() == userId && x.isActive == true);
+                    var user = _db.tUsers.FirstOrDefault(x => x.Id.ToString() == userId && x.IsActive == true);
                     if(user == null)
                     {
                         var responseObj = new
