@@ -8,7 +8,7 @@ import path from "path";
 // https://vite.dev/config/
 export default defineConfig(() => ({
 	build: {
-		outDir: 'dist/custom-folder'
+		outDir: '../Configuration/wwwroot/'
 	},	
 	server: {
 		host: "::",

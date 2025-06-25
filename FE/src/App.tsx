@@ -6,6 +6,7 @@ import LoginForm from './pages/login/Page';
 import Dashboard from './pages/Dashboard/Dashboard';
 import ProtectedRoute from './components/protectedroutes';
 import Preloader from './components/Preloader';
+import Layout from './pages/Layouts/Layout'
 
 function App() {
 	return (
@@ -20,6 +21,14 @@ function App() {
 							element={
 								<ProtectedRoute>
 									<Dashboard />
+								</ProtectedRoute>
+							} 
+						/>
+						<Route 
+							path="/layout" 
+							element={
+								<ProtectedRoute>
+									<Layout />
 								</ProtectedRoute>
 							} 
 						/>

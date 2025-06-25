@@ -1,5 +1,5 @@
 using DBHelper.Data;
-using DBHelper.Models.Entities;
+using DBHelper.Models;
 using Helpers;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
