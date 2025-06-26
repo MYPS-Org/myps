@@ -19,7 +19,7 @@ import {
 } from '@heroicons/react/16/solid'
 import { InboxIcon, MagnifyingGlassIcon } from '@heroicons/react/20/solid'
 
-export default function Example() {
+export default function NavBar() {
   return (
     <Navbar>
       <Dropdown>

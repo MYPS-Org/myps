@@ -6,7 +6,7 @@ import AppSidebar from './AppSidebar';
 const DashboardLayout: React.FC = () => (
   <div className="flex min-h-screen">
     <AppSidebar />
-    <div className="flex flex-col flex-1">
+    <div className="flex flex-col flex-1 max-h-3.5">
       <AppNavbar />
       <main className="p-4">
         <Outlet />
