@@ -8,6 +8,7 @@ import ProtectedRoute from './components/protectedroutes';
 import Preloader from './components/Preloader';
 import Layout from './pages/Layouts/Layout';
 import AppLayout from './layouts/AppLayout';
+import Profile from './pages/Profile/Profile';
 
 function App() {
 	return (
@@ -18,15 +19,23 @@ function App() {
 					<Routes>
 						{/* Dashboard Routes */}
 						<Route element={<AppLayout />}>
-						<Route path="/login" element={<LoginForm />} />
-						<Route 
-							path="/dashboard" 
-							element={
-								<ProtectedRoute>
-									<Dashboard />
-								</ProtectedRoute>
-							} 
-						/>
+							<Route path="/login" element={<LoginForm />} />
+							<Route 
+								path="/dashboard" 
+								element={
+									<ProtectedRoute>
+										<Dashboard />
+									</ProtectedRoute>
+								} 
+							/>
+							<Route 
+								path="/profile" 
+								element={
+									<ProtectedRoute>
+										<Profile />
+									</ProtectedRoute>
+								} 
+							/>
 						</Route>
 						
 						<Route 
