@@ -1,36 +1,54 @@
 import React from 'react';
-import { useAuth } from '../../contexts/AuthContext';
+
 import { Heading } from '../../components/tailwindui/heading';
+import { Avatar } from '../../components/tailwindui/avatar'
+import {
+  Dropdown,
+  DropdownButton,
+  DropdownDivider,
+  DropdownItem,
+  DropdownLabel,
+  DropdownMenu,
+} from '../../components/tailwindui/dropdown'
+import { Navbar, NavbarDivider, NavbarItem, NavbarLabel, NavbarSection, NavbarSpacer } from '../../components/tailwindui/navbar'
+import {
+  ArrowRightStartOnRectangleIcon,
+  ChevronDownIcon,
+  Cog8ToothIcon,
+  LightBulbIcon,
+  PlusIcon,
+  ShieldCheckIcon,
+  UserIcon,
+} from '@heroicons/react/16/solid'
+import { InboxIcon, MagnifyingGlassIcon } from '@heroicons/react/20/solid'
+
 
 const Profile: React.FC = () => {
-  const { user } = useAuth();
-
+	const [SelectedTab, setSelectedTab] = useState("Users")
   return (
-    <div>
-      <Heading level={1} className="mb-6">Profile</Heading>
-      
-      <div className="bg-white p-6 rounded-lg shadow">
-        <h2 className="text-xl font-semibold mb-4">User Information</h2>
-        <div className="space-y-3">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Full Name</label>
-            <p className="mt-1">{user?.FirstName} {user?.LastName}</p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Username</label>
-            <p className="mt-1">{user?.UserName}</p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Phone Number</label>
-            <p className="mt-1">{user?.PhoneNumber}</p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Role</label>
-            <p className="mt-1">{user?.UserRole}</p>
-          </div>
-        </div>
-      </div>
-    </div>
+	<div>
+	  	<Heading level={1} className="mb-6">User Permission</Heading>
+		<Navbar>
+			<NavbarDivider className="max-lg:hidden" />
+			<NavbarSection className="max-lg:hidden">
+				<NavbarItem onClick={() => {
+					setSelectedTab("Users")
+				}} {SelectedTab == "Users" && current}>
+					Users
+				</NavbarItem>
+
+				<NavbarItem href="/events">
+					Permission
+				</NavbarItem>
+
+				<NavbarItem href="/orders">
+					User Group
+				</NavbarItem>
+
+			</NavbarSection>
+		</Navbar>
+
+	</div>
   );
 };
 
