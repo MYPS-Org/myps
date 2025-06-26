@@ -24,4 +24,8 @@
     <ProjectReference Include="..\DBHelper\DBHelper.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Controllers\Dashboard\" />
+  </ItemGroup>
+
 </Project>
