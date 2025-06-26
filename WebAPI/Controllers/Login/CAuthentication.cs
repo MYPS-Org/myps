@@ -19,8 +19,8 @@ namespace WebAPI.Controllers.Auth
     [Route("api/[controller]/[action]")]
     public class AuthController : CoreController
     {
-        private readonly IPasswordHasher<User> _passwordHasher;
-        public AuthController(AppDbContext db, IPasswordHasher<User> passwordHasher) : base (db)
+        private readonly IPasswordHasher<LoginDto> _passwordHasher;
+        public AuthController(AppDbContext db, IPasswordHasher<LoginDto> passwordHasher) : base (db)
         {
             _passwordHasher = passwordHasher;
         }
@@ -32,7 +32,7 @@ namespace WebAPI.Controllers.Auth
             {
                 return BadRequest("Invalid login request.");
             }
-            var user = await _db.tUsers.FirstOrDefaultAsync(u => u.UserName == dto.UserName);
+            var user = await _db.tUsers.FirstOrDefaultAsync(u => u.UserId == dto.UserName);
             if (user == null)
             {
                 return Unauthorized(new
@@ -42,32 +42,33 @@ namespace WebAPI.Controllers.Auth
                     user = new { }
                 });
             }
-            var result = _passwordHasher.VerifyHashedPassword(user, user.Password, dto.Password);
-            if (result == PasswordVerificationResult.Success)
-            {
-                var claims = new List<Claim>
-                {
-                    new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                    new Claim(ClaimTypes.Name, user.UserName),
-                    new Claim(ClaimTypes.Role, user.UserRole)
-                };
+            return Ok();
+            //var result = _passwordHasher.VerifyHashedPassword(user, user.Password, dto.Password);
+            //if (result == PasswordVerificationResult.Success)
+            //{
+            //    var claims = new List<Claim>
+            //    {
+            //        new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            //        new Claim(ClaimTypes.Name, user.UserName),
+            //        new Claim(ClaimTypes.Role, user.UserRole)
+            //    };
 
-                var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-                var authProperties = new AuthenticationProperties
-                {
-                    IsPersistent = true,
-                    ExpiresUtc = DateTime.UtcNow.AddDays(365),
-                    AllowRefresh = true
-                };
+            //    var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            //    var authProperties = new AuthenticationProperties
+            //    {
+            //        IsPersistent = true,
+            //        ExpiresUtc = DateTime.UtcNow.AddDays(365),
+            //        AllowRefresh = true
+            //    };
 
-                await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
-                    new ClaimsPrincipal(claimsIdentity), authProperties);
-                return Ok(new { message = "Login successful", data = new { Authenticated = true, user = new { UserRole = user.UserRole, Name = user.Name } } });
-            }
-            else
-            {
-                return Unauthorized();
-            }
+            //    await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
+            //        new ClaimsPrincipal(claimsIdentity), authProperties);
+            //    return Ok(new { message = "Login successful", data = new { Authenticated = true, user = new { UserRole = user.UserRole, Name = user.Name } } });
+            //}
+            //else
+            //{
+            //    return Unauthorized();
+            //}
         }
     }
 }

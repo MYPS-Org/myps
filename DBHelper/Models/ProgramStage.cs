@@ -7,15 +7,15 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DBHelper.Models.Entities
+namespace DBHelper.Models
 {
     public class ProgramStage
     {
         [Key]
         public required string Id { get; set; }
         public string ProjectId { get; set; } = string.Empty;
-        public Project? Project { get; set; } // Navigation property to Project
+        //public Project? Project { get; set; } // Navigation property to Project
         public string ProgramId { get; set; } = string.Empty;
-        public Program? Program { get; set; }
+        //public Program? Program { get; set; }
     }
 }
