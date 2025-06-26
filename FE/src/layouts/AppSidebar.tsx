@@ -39,7 +39,7 @@ import {
   TicketIcon,
 } from '@heroicons/react/20/solid'
 
-function SideBar() {
+export default function SideBar() {
   return (
     <Sidebar>
       <SidebarHeader>

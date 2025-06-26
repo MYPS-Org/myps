@@ -17,7 +17,7 @@ function App() {
 					<Preloader />
 					<Routes>
 						{/* Dashboard Routes */}
-						<Route element={<AppLayout><Outlet /></AppLayout>}>
+						<Route element={<AppLayout />}>
 						<Route path="/login" element={<LoginForm />} />
 						<Route 
 							path="/dashboard" 
