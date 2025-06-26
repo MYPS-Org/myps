@@ -1,5 +1,5 @@
 
-import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import './App.css'
 import { AuthProvider } from './contexts/AuthContext'
 import LoginForm from './pages/login/Page';

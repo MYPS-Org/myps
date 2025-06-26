@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
+using System.DirectoryServices;
 using System.Linq;
 using System.Security.Claims;
 using System.Text;
@@ -19,10 +20,8 @@ namespace WebAPI.Controllers.Auth
     [Route("api/[controller]/[action]")]
     public class AuthController : CoreController
     {
-        private readonly IPasswordHasher<LoginDto> _passwordHasher;
-        public AuthController(AppDbContext db, IPasswordHasher<LoginDto> passwordHasher) : base (db)
+        public AuthController(AppDbContext db) : base (db)
         {
-            _passwordHasher = passwordHasher;
         }
         [AllowAnonymous]
         [HttpPost]
@@ -32,17 +31,18 @@ namespace WebAPI.Controllers.Auth
             {
                 return BadRequest("Invalid login request.");
             }
-            var user = await _db.tUsers.FirstOrDefaultAsync(u => u.UserId == dto.UserName);
-            if (user == null)
-            {
-                return Unauthorized(new
-                {
-                    message = "Unauthorized",
-                    data = new { Authenticated = false },
-                    user = new { }
-                });
-            }
-            return Ok();
+            //var user = await _db.tUsers.FirstOrDefaultAsync(u => u.UserId == dto.UserName);
+            //if (user == null)
+            //{
+            //    return Unauthorized(new
+            //    {
+            //        message = "Unauthorized",
+            //        data = new { Authenticated = false },
+            //        user = new { }
+            //    });
+            //}
+            DirectoryEntry entry = new DirectoryEntry("LDAP://172.30.208.1:389", dto.UserName, dto.Password);
+            return Ok(entry);
             //var result = _passwordHasher.VerifyHashedPassword(user, user.Password, dto.Password);
             //if (result == PasswordVerificationResult.Success)
             //{
