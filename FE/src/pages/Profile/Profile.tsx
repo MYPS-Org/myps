@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 import { Heading } from '../../components/tailwindui/heading';
 import { Avatar } from '../../components/tailwindui/avatar'
@@ -31,22 +31,33 @@ const Profile: React.FC = () => {
 		<Navbar>
 			<NavbarDivider className="max-lg:hidden" />
 			<NavbarSection className="max-lg:hidden">
-				<NavbarItem onClick={() => {
+				<NavbarItem className='!cursor-pointer' onClick={() => {
 					setSelectedTab("Users")
-				}} {SelectedTab == "Users" && current}>
+				}} current={SelectedTab=="Users"} >
 					Users
 				</NavbarItem>
 
-				<NavbarItem href="/events">
+				<NavbarItem onClick={() => {
+					setSelectedTab("Permission")
+				}} current={SelectedTab=="Permission"} >
 					Permission
 				</NavbarItem>
 
-				<NavbarItem href="/orders">
+				<NavbarItem onClick={() => {
+					setSelectedTab("UserGroup")
+				}} current={SelectedTab=="UserGroup"} >
 					User Group
 				</NavbarItem>
 
 			</NavbarSection>
 		</Navbar>
+
+        
+
+
+
+
+
 
 	</div>
   );
