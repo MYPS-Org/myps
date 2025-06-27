@@ -52,10 +52,19 @@ interface UserGroup {
   createdAt: string;
 }
 
+interface MarkyGroup {
+  id: number;
+  name: string;
+  description: string;
+  memberCount: number;
+  permissions: string[];
+  createdAt: string;
+}
+
 const Rbac: React.FC = () => {
 	const { theme } = useTheme();
-	const [selectedTab, setSelectedTab] = useState<'users' | 'permissions' | 'userGroups'>('users');
-	
+	const [selectedTab, setSelectedTab] = useState<'users' | 'permissions' | 'userGroups' | 'markyGroups'>('users');
+
 	const [users, setUsers] = useState<User[]>([
 		{ 
 			id: 1, 
@@ -162,6 +171,41 @@ const Rbac: React.FC = () => {
 		}
 	]);
 
+	const [markyGroups, setMarkyGroups] = useState<MarkyGroup[]>([
+		{ 
+			id: 1, 
+			name: 'Marky', 
+			description: 'Full system access with all permissions',
+			memberCount: 3,
+			permissions: ['User Management', 'View Reports', 'Edit Content', 'Delete Records'],
+			createdAt: '2024-01-01'
+		},
+		{ 
+			id: 2, 
+			name: 'Managers', 
+			description: 'Management level access with limited admin rights',
+			memberCount: 8,
+			permissions: ['View Reports', 'Edit Content'],
+			createdAt: '2024-01-02'
+		},
+		{ 
+			id: 3, 
+			name: 'Editors', 
+			description: 'Content management and editing permissions',
+			memberCount: 12,
+			permissions: ['Edit Content', 'View Reports'],
+			createdAt: '2024-01-03'
+		},
+		{ 
+			id: 4, 
+			name: 'Viewers', 
+			description: 'Read-only access to system data',
+			memberCount: 25,
+			permissions: ['View Reports'],
+			createdAt: '2024-01-04'
+		}
+	]);
+
 	const getStatusBadge = (status: 'active' | 'inactive') => {
 		return status === 'active' 
 			? <Badge color="green">Active</Badge>
@@ -186,7 +230,7 @@ const Rbac: React.FC = () => {
 		count 
 	}: { 
 		label: string; 
-		value: 'users' | 'permissions' | 'userGroups'; 
+		value: 'users' | 'permissions' | 'userGroups' | 'markyGroups'; 
 		icon: React.ComponentType<{ className?: string }>; 
 		count: number;
 	}) => (
@@ -240,6 +284,12 @@ const Rbac: React.FC = () => {
 					value="userGroups" 
 					icon={UserGroupIcon} 
 					count={userGroups.length} 
+				/>
+				<TabButton 
+					label="Marky Groups" 
+					value="markyGroups" 
+					icon={UserGroupIcon} 
+					count={markyGroups.length} 
 				/>
 			</div>
 			{/* Content Area */}
@@ -436,6 +486,96 @@ const Rbac: React.FC = () => {
 							</TableHead>
 							<TableBody>
 								{userGroups.map((group) => (
+									<TableRow key={group.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+										<TableCell>
+											<div className="font-medium text-gray-900 dark:text-white">
+												{group.name}
+											</div>
+										</TableCell>
+										<TableCell>
+											<div className="flex items-center space-x-2">
+												<UsersIcon className="w-4 h-4 text-gray-400" />
+												<span className="text-gray-900 dark:text-white font-medium">
+													{group.memberCount}
+												</span>
+											</div>
+										</TableCell>
+										<TableCell>
+											<div className="flex flex-wrap gap-1">
+												{group.permissions.slice(0, 2).map((permission, index) => (
+													<Badge key={index} color="blue" className="text-xs">
+														{permission}
+													</Badge>
+												))}
+												{group.permissions.length > 2 && (
+													<Badge color="zinc" className="text-xs">
+														+{group.permissions.length - 2} more
+													</Badge>
+												)}
+											</div>
+										</TableCell>
+										<TableCell className="text-gray-500 dark:text-gray-400 max-w-xs truncate">
+											{group.description}
+										</TableCell>
+										<TableCell className="text-gray-500 dark:text-gray-400">
+											{group.createdAt}
+										</TableCell>
+										<TableCell>
+											<div className="flex items-center space-x-2">
+												<Button color="green" className="p-2">
+													<EyeIcon className="w-4 h-4" />
+												</Button>
+												<Button color="yellow" className="p-2">
+													<PencilIcon className="w-4 h-4" />
+												</Button>
+												<Button color="red" className="p-2">
+													<TrashIcon className="w-4 h-4" />
+												</Button>
+											</div>
+										</TableCell>
+									</TableRow>
+								))}
+							</TableBody>
+						</Table>
+					</div>
+				)}
+
+				{/* Marky Groups Table */}
+				{selectedTab === 'markyGroups' && (
+					<div className="overflow-hidden">
+						<div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+							<div className="flex items-center justify-between">
+								<h3 className="text-lg font-medium text-gray-900 dark:text-white">Marky Groups</h3>
+								<div className="flex items-center space-x-3">
+									<div className="relative">
+										<MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+										<input
+											type="text"
+											placeholder="Search groups..."
+											className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+										/>
+									</div>
+									<Button color="blue">
+										<PlusIcon className="w-4 h-4 mr-1" />
+										Add Group
+									</Button>
+								</div>
+							</div>
+						</div>
+						
+						<Table>
+							<TableHead>
+								<TableRow>
+									<TableHeader>Group Name</TableHeader>
+									<TableHeader>Members</TableHeader>
+									<TableHeader>Permissions</TableHeader>
+									<TableHeader>Description</TableHeader>
+									<TableHeader>Created</TableHeader>
+									<TableHeader>Actions</TableHeader>
+								</TableRow>
+							</TableHead>
+							<TableBody>
+								{markyGroups.map((group) => (
 									<TableRow key={group.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
 										<TableCell>
 											<div className="font-medium text-gray-900 dark:text-white">
