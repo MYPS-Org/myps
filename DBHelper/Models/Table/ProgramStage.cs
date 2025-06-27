@@ -7,7 +7,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DBHelper.Models
+namespace DBHelper.Models.Table
 {
     public class ProgramStage
     {

@@ -1,10 +1,11 @@
 ﻿using DBHelper.Data;
-using DBHelper.Models;
+using DBHelper.Models.Table;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Filters;
+using System.Diagnostics;
 using System.Security.Claims;
 
 namespace WebAPI.Controllers
@@ -50,6 +51,24 @@ namespace WebAPI.Controllers
             catch (Exception ex)
             {
                 throw new Exception(ex.Message);
+            }
+        }
+        public string ExceptionHandler(Exception ex, string FunctionName)
+        {
+            Guid errorReferenceId = Guid.NewGuid();
+            try
+            {
+                string message = $"/========================= ERROR EVENT STARTS HERE =========================/" +
+                    $"\n\n[{errorReferenceId}] \n\nMessage: {ex.Message}\n\nStackRace:{ex.StackTrace}\n\n" +
+                    $"/========================= ERROR EVENT ENDS HERE =========================/";
+                EventLog.WriteEntry("Application", message, EventLogEntryType.Error);
+
+                return errorReferenceId.ToString();
+            }
+            catch (Exception logEx)
+            {
+                // Consider logging to a fallback mechanism here
+                return $"[{errorReferenceId}] Logging failed: {logEx.Message}\nOriginal error: {ex.Message}";
             }
         }
     }
