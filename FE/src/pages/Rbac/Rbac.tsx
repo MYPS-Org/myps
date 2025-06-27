@@ -44,7 +44,7 @@ const Profile: React.FC = () => {
 	])
 	return (
 	<div>
-		<Heading level={1} className="mb-6">User Permission</Heading>
+		<Heading level={1} className="dark:text-white">User Permission</Heading>
 		<Navbar>
 			<NavbarDivider className="max-lg:hidden" />
 			<NavbarSection className="max-lg:hidden">

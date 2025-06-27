@@ -9,7 +9,7 @@ import ProtectedRoute from './components/protectedroutes';
 import Preloader from './components/Preloader';
 import Layout from './pages/Layouts/Layout';
 import AppLayout from './layouts/AppLayout';
-import Profile from './pages/Profile/Profile';
+import Rbac from './pages/Rbac/Rbac';
 import Settings from './pages/Settings/Settings';
 
 function App() {
@@ -32,10 +32,10 @@ function App() {
 								} 
 							/>
 							<Route 
-								path="/profile" 
+								path="/rbac" 
 								element={
 									<ProtectedRoute>
-										<Profile />
+										<Rbac />
 									</ProtectedRoute>
 								} 
 							/>
