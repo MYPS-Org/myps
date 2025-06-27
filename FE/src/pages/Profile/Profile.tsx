@@ -1,3 +1,4 @@
+'use-client'
 import React, { useState } from 'react';
 
 import { Heading } from '../../components/tailwindui/heading';
@@ -22,12 +23,27 @@ import {
 } from '@heroicons/react/16/solid'
 import { InboxIcon, MagnifyingGlassIcon } from '@heroicons/react/20/solid'
 
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/tailwindui/table'
 
 const Profile: React.FC = () => {
 	const [SelectedTab, setSelectedTab] = useState("Users")
-  return (
+	const [Users, setUsers] = useState([
+		{ id: 0, name: 'Tito Mic', email: 'markybarbie@gmail.com', access: 'Police' },
+		{ id: 1, name: 'Tito Gee', email: 'boatbet@gmail.com', access: 'Gamer' }
+	])
+
+	const [Permission, setPermission] = useState([
+		{ id: 0, name: 'Daddy N', Position: 'System Analyst', access: 'IT' },
+		{ id: 1, name: 'Tito Mondz', Position: 'GIS Pwogwamer', access: 'Gamer' }
+
+	])
+	const [UserGroup, setUserGroup] = useState([
+		{ id: 0, Position: 'Tamvay', Employee: 'Yes', Role: 'Unemployed' },
+		{ id: 1, Position: 'Takatak Boy', Employee: 'Yes', Role: 'Unemployed' }
+	])
+	return (
 	<div>
-	  	<Heading level={1} className="mb-6">User Permission</Heading>
+		<Heading level={1} className="mb-6">User Permission</Heading>
 		<Navbar>
 			<NavbarDivider className="max-lg:hidden" />
 			<NavbarSection className="max-lg:hidden">
@@ -51,16 +67,67 @@ const Profile: React.FC = () => {
 
 			</NavbarSection>
 		</Navbar>
+		{SelectedTab == 'Users'&&
+		<Table>
+      		<TableHead>
+				<TableRow>
+				<TableHeader>Name</TableHeader>
+				<TableHeader>Email</TableHeader>
+				<TableHeader>Role</TableHeader>
+				</TableRow>
+			</TableHead>
+			<TableBody>
+				{Users.map((user) => (
+				<TableRow key={user.id}>
+					<TableCell className="font-medium">{user.name}</TableCell>
+					<TableCell>{user.email}</TableCell>
+					<TableCell className="text-zinc-500">{user.access}</TableCell>
+				</TableRow>
+				))}
+			</TableBody>
+		</Table>}
 
-        
+		{SelectedTab == 'Permission'&&
+		<Table>
+      		<TableHead>
+				<TableRow>
+				<TableHeader>Name</TableHeader>
+				<TableHeader>Position</TableHeader>
+				<TableHeader>Role</TableHeader>
+				</TableRow>
+			</TableHead>
+			<TableBody>
+				{Permission.map((each) => (
+				<TableRow key={each.id}>
+					<TableCell className="font-medium">{each.name}</TableCell>
+					<TableCell>{each.Position}</TableCell>
+					<TableCell className="text-zinc-500">{each.access}</TableCell>
+				</TableRow>
+				))}
+			</TableBody>
+		</Table>}
 
-
-
-
-
-
+		{SelectedTab == 'UserGroup'&&
+		<Table>
+      		<TableHead>
+				<TableRow>
+				<TableHeader>Position</TableHeader>
+				<TableHeader>Employee</TableHeader>
+				<TableHeader>Role</TableHeader>
+				</TableRow>
+			</TableHead>
+			<TableBody>
+				{UserGroup.map((each) => (
+				<TableRow key={each.id}>
+					<TableCell className="font-medium">{each.Position}</TableCell>
+					<TableCell>{each.Employee}</TableCell>
+					<TableCell className="text-zinc-500">{each.Role}</TableCell>
+				</TableRow>
+				))}
+			</TableBody>
+		</Table>}		
 	</div>
-  );
+);
 };
 
 export default Profile;
