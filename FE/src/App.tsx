@@ -2,6 +2,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import './App.css'
 import { AuthProvider } from './contexts/AuthContext'
+import { ThemeProvider } from './contexts/ThemeContext'
 import LoginForm from './pages/login/Page';
 import Dashboard from './pages/Dashboard/Dashboard';
 import ProtectedRoute from './components/protectedroutes';
@@ -9,11 +10,13 @@ import Preloader from './components/Preloader';
 import Layout from './pages/Layouts/Layout';
 import AppLayout from './layouts/AppLayout';
 import Profile from './pages/Profile/Profile';
+import Settings from './pages/Settings/Settings';
 
 function App() {
 	return (
 		<>
-			<AuthProvider>
+			<ThemeProvider>
+				<AuthProvider>
 				<Router>
 					<Preloader />
 					<Routes>
@@ -36,6 +39,14 @@ function App() {
 									</ProtectedRoute>
 								} 
 							/>
+							<Route 
+								path="/settings" 
+								element={
+									<ProtectedRoute>
+										<Settings />
+									</ProtectedRoute>
+								} 
+							/>
 						</Route>
 						
 						<Route 
@@ -50,6 +61,7 @@ function App() {
 					</Routes>
 				</Router>
 			</AuthProvider>
+			</ThemeProvider>
 		</>
 	)
 }

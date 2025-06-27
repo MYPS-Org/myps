@@ -1,5 +1,6 @@
 'use-client'
 import React, { useState } from 'react';
+import { useTheme } from '../../contexts/ThemeContext';
 
 import { Heading } from '../../components/tailwindui/heading';
 import { Avatar } from '../../components/tailwindui/avatar'
