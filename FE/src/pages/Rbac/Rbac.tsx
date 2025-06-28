@@ -1,226 +1,201 @@
 'use-client'
 import React, { useState } from 'react';
-import { useTheme } from '../../contexts/ThemeContext';
 
 import { Heading } from '../../components/tailwindui/heading';
-import { Avatar } from '../../components/tailwindui/avatar'
-import {
-  Dropdown,
-  DropdownButton,
-  DropdownDivider,
-  DropdownItem,
-  DropdownLabel,
-  DropdownMenu,
-} from '../../components/tailwindui/dropdown'
 import {
   PlusIcon,
   PencilIcon,
   TrashIcon,
   EyeIcon,
 } from '@heroicons/react/16/solid'
-import { InboxIcon, MagnifyingGlassIcon, UsersIcon, KeyIcon, UserGroupIcon } from '@heroicons/react/20/solid'
+import { MagnifyingGlassIcon, UsersIcon, KeyIcon, UserGroupIcon } from '@heroicons/react/20/solid'
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/tailwindui/table'
 import { Button } from '../../components/tailwindui/button'
 import { Badge } from '../../components/tailwindui/badge'
 
-interface User {
-  id: number;
-  name: string;
-  email: string;
-  role: string;
-  status: 'active' | 'inactive';
-  lastLogin: string;
-  avatar?: string;
-}
+// Interfaces
+import { type User, type Permission, type RawUserGroupData, type ConsolidatedUserGroup } from './Model';
 
-interface Permission {
-  id: number;
-  name: string;
-  description: string;
-  module: string;
-  type: 'read' | 'write' | 'delete' | 'admin';
-  createdAt: string;
-}
+// Dialog imports
+import { AddUserDialog, AddPermissionDialog, AddGroupDialog } from './dialogs';
 
-interface UserGroup {
-  id: number;
-  name: string;
-  description: string;
-  memberCount: number;
-  permissions: string[];
-  createdAt: string;
-}
+// interface User {
+// 	Id: number;
+// 	EmployeeId?: string;
+// 	UserGroup: string;
+// 	UserId: string;
+// 	Name: string;
+// 	Email?: string;
+// 	RegCode: string;
+// 	PlantillaOffice?: string;
+// 	IsActive: boolean;
+// }
 
-interface MarkyGroup {
-  id: number;
-  name: string;
-  description: string;
-  memberCount: number;
-  permissions: string[];
-  createdAt: string;
-}
+// interface Permission {
+// 	Id: number;
+// 	ModuleFunction: string;
+// 	CreatedBy: string;
+// 	CreatedDate?: string;
+// }
+
+// interface RawUserGroupData {
+//   Id: number;
+//   GroupName: string;
+//   Description: string;
+//   PermissionName: string;
+//   Module?: string;
+//   MemberCount?: number;
+//   CreatedDate?: string;
+// }
+
+// interface ConsolidatedUserGroup {
+//   Id: number;
+//   GroupName: string;
+//   Description: string;
+//   PermissionName: string[]; // Array of all permissions
+//   Module?: string;
+//   MemberCount: number;
+//   CreatedDate: string;
+// }
 
 const Rbac: React.FC = () => {
-	const { theme } = useTheme();
-	const [selectedTab, setSelectedTab] = useState<'users' | 'permissions' | 'userGroups' | 'markyGroups'>('users');
+	const [selectedTab, setSelectedTab] = useState<'users' | 'permissions' | 'userGroups' | 'userRoles'>('users');
+
+	// Consolidation function
+	const consolidateUserGroups = (rawData: RawUserGroupData[]): ConsolidatedUserGroup[] => {
+		const groupMap = new Map<string, ConsolidatedUserGroup>();
+
+		rawData.forEach(item => {
+			const groupName = item.GroupName;
+			
+			if (groupMap.has(groupName)) {
+				// Group already exists, add permission to existing group
+				const existingGroup = groupMap.get(groupName)!;
+				
+				// Add permission if it doesn't already exist
+				if (!existingGroup.PermissionName.includes(item.PermissionName)) {
+					existingGroup.PermissionName.push(item.PermissionName);
+				}
+				
+				// Update member count if provided
+				if (item.MemberCount && item.MemberCount > existingGroup.MemberCount) {
+					existingGroup.MemberCount = item.MemberCount;
+				}
+			} else {
+				// Create new group entry
+				groupMap.set(groupName, {
+					Id: item.Id,
+					GroupName: item.GroupName,
+					Description: item.Description,
+					PermissionName: [item.PermissionName], // Start with array containing first permission
+					Module: item.Module || '',
+					MemberCount: item.MemberCount || 0,
+					CreatedDate: item.CreatedDate || new Date().toISOString()
+				});
+			}
+		});
+		return Array.from(groupMap.values());
+	};
+
+	// Raw data example (this would come from your database/API)
+	const rawUserGroupsData: RawUserGroupData[] = [
+		{ Id: 1, GroupName: 'Admin', Description: 'System administrators', PermissionName: 'User Management', MemberCount: 5, CreatedDate: '2024-01-01' },
+		{ Id: 2, GroupName: 'Admin', Description: 'System administrators', PermissionName: 'View Reports', MemberCount: 5, CreatedDate: '2024-01-01' },
+		{ Id: 3, GroupName: 'Admin', Description: 'System administrators', PermissionName: 'Edit Content', MemberCount: 5, CreatedDate: '2024-01-01' },
+		{ Id: 4, GroupName: 'Admin', Description: 'System administrators', PermissionName: 'Delete Records', MemberCount: 5, CreatedDate: '2024-01-01' },
+		{ Id: 5, GroupName: 'Manager', Description: 'Project managers', PermissionName: 'View Reports', MemberCount: 3, CreatedDate: '2024-01-02' },
+		{ Id: 6, GroupName: 'Manager', Description: 'Project managers', PermissionName: 'Edit Content', MemberCount: 3, CreatedDate: '2024-01-02' },
+		{ Id: 7, GroupName: 'Editor', Description: 'Content editors', PermissionName: 'Edit Content', MemberCount: 8, CreatedDate: '2024-01-03' },
+		{ Id: 8, GroupName: 'Editor', Description: 'Content editors', PermissionName: 'View Reports', MemberCount: 8, CreatedDate: '2024-01-03' },
+		{ Id: 9, GroupName: 'Viewer', Description: 'Read-only access', PermissionName: 'View Reports', MemberCount: 2, CreatedDate: '2024-01-04' },
+	];
 
 	const [users, setUsers] = useState<User[]>([
 		{ 
-			id: 1, 
-			name: 'John Doe', 
-			email: 'john.doe@company.com', 
-			role: 'Administrator',
-			status: 'active',
-			lastLogin: '2024-01-15 10:30 AM',
-			avatar: '/api/placeholder/32/32'
+			Id: 1, 
+			EmployeeId: 'EMP001',
+			UserId: 'johndoe123',
+			Name: 'John Doe', 
+			Email: 'john.doe@company.com',
+			RegCode: 'REG12345',
+			UserGroup: 'Admin',
+			PlantillaOffice: 'Main Office',
+			IsActive: true,
 		},
 		{ 
-			id: 2, 
-			name: 'Jane Smith', 
-			email: 'jane.smith@company.com', 
-			role: 'Manager',
-			status: 'active',
-			lastLogin: '2024-01-14 2:15 PM'
+			Id: 2, 
+			EmployeeId: 'EMP002',
+			UserId: 'janesmith456',
+			Name: 'Jane Smith', 
+			Email: 'jane.smith@company.com', 
+			RegCode: 'REG12346',
+			UserGroup: 'Manager',
+			PlantillaOffice: 'Main Office',
+			IsActive: true,
 		},
 		{ 
-			id: 3, 
-			name: 'Mike Johnson', 
-			email: 'mike.johnson@company.com', 
-			role: 'User',
-			status: 'inactive',
-			lastLogin: '2024-01-10 9:45 AM'
+			Id: 3, 
+			EmployeeId: 'EMP003',
+			UserId: 'mikejohnson789',
+			Name: 'Mike Johnson', 
+			Email: 'mike.johnson@company.com', 
+			RegCode: 'REG12347',
+			UserGroup: 'User',
+			PlantillaOffice: 'Main Office',
+			IsActive: false,
 		},
 		{ 
-			id: 4, 
-			name: 'Sarah Wilson', 
-			email: 'sarah.wilson@company.com', 
-			role: 'Editor',
-			status: 'active',
-			lastLogin: '2024-01-15 11:20 AM'
+			Id: 4, 
+			EmployeeId: 'EMP004',
+			UserId: 'sarahwilson012',
+			Name: 'Sarah Wilson', 
+			Email: 'sarah.wilson@company.com', 
+			RegCode: 'REG12348',
+			UserGroup: 'Editor',
+			PlantillaOffice: 'Main Office',
+			IsActive: true,
 		}
 	]);
 
 	const [permissions, setPermissions] = useState<Permission[]>([
 		{ 
-			id: 1, 
-			name: 'User Management', 
-			description: 'Create, read, update, and delete user accounts',
-			module: 'Users',
-			type: 'admin',
-			createdAt: '2024-01-01'
+			Id: 1, 
+			ModuleFunction: 'User Management', 
+			CreatedBy: 'Create, read, update, and delete user accounts',
+			CreatedDate: 'Users',
 		},
 		{ 
-			id: 2, 
-			name: 'View Reports', 
-			description: 'Access to view system reports and analytics',
-			module: 'Reports',
-			type: 'read',
-			createdAt: '2024-01-02'
+			Id: 2, 
+			ModuleFunction: 'View Reports', 
+			CreatedBy: 'Access to view system reports and analytics',
+			CreatedDate: 'Reports',
 		},
 		{ 
-			id: 3, 
-			name: 'Edit Content', 
-			description: 'Ability to modify content and posts',
-			module: 'Content',
-			type: 'write',
-			createdAt: '2024-01-03'
+			Id: 3, 
+			ModuleFunction: 'Edit Content', 
+			CreatedBy: 'Ability to modify content and posts',
+			CreatedDate: 'Content',
 		},
 		{ 
-			id: 4, 
-			name: 'Delete Records', 
-			description: 'Permission to permanently delete system records',
-			module: 'System',
-			type: 'delete',
-			createdAt: '2024-01-04'
+			Id: 4, 
+			ModuleFunction: 'Delete Records', 
+			CreatedBy: 'Permission to permanently delete system records',
+			CreatedDate: 'System',
 		}
 	]);
 
-	const [userGroups, setUserGroups] = useState<UserGroup[]>([
-		{ 
-			id: 1, 
-			name: 'Administrators', 
-			description: 'Full system access with all permissions',
-			memberCount: 3,
-			permissions: ['User Management', 'View Reports', 'Edit Content', 'Delete Records'],
-			createdAt: '2024-01-01'
-		},
-		{ 
-			id: 2, 
-			name: 'Managers', 
-			description: 'Management level access with limited admin rights',
-			memberCount: 8,
-			permissions: ['View Reports', 'Edit Content'],
-			createdAt: '2024-01-02'
-		},
-		{ 
-			id: 3, 
-			name: 'Editors', 
-			description: 'Content management and editing permissions',
-			memberCount: 12,
-			permissions: ['Edit Content', 'View Reports'],
-			createdAt: '2024-01-03'
-		},
-		{ 
-			id: 4, 
-			name: 'Viewers', 
-			description: 'Read-only access to system data',
-			memberCount: 25,
-			permissions: ['View Reports'],
-			createdAt: '2024-01-04'
-		}
-	]);
+	// Initialize userGroups with consolidated data from raw data
+	const [userGroups, setUserGroups] = useState<ConsolidatedUserGroup[]>(() => consolidateUserGroups(rawUserGroupsData));
 
-	const [markyGroups, setMarkyGroups] = useState<MarkyGroup[]>([
-		{ 
-			id: 1, 
-			name: 'Marky', 
-			description: 'Full system access with all permissions',
-			memberCount: 3,
-			permissions: ['User Management', 'View Reports', 'Edit Content', 'Delete Records'],
-			createdAt: '2024-01-01'
-		},
-		{ 
-			id: 2, 
-			name: 'Managers', 
-			description: 'Management level access with limited admin rights',
-			memberCount: 8,
-			permissions: ['View Reports', 'Edit Content'],
-			createdAt: '2024-01-02'
-		},
-		{ 
-			id: 3, 
-			name: 'Editors', 
-			description: 'Content management and editing permissions',
-			memberCount: 12,
-			permissions: ['Edit Content', 'View Reports'],
-			createdAt: '2024-01-03'
-		},
-		{ 
-			id: 4, 
-			name: 'Viewers', 
-			description: 'Read-only access to system data',
-			memberCount: 25,
-			permissions: ['View Reports'],
-			createdAt: '2024-01-04'
-		}
-	]);
+	const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
+	const [isAddPermissionDialogOpen, setIsAddPermissionDialogOpen] = useState(false);
+	const [isAddGroupDialogOpen, setIsAddGroupDialogOpen] = useState(false);
 
-	const getStatusBadge = (status: 'active' | 'inactive') => {
-		return status === 'active' 
+	const getStatusBadge = (status: true | false) => {
+		return status === true
 			? <Badge color="green">Active</Badge>
 			: <Badge color="red">Inactive</Badge>;
-	};
-
-	const getPermissionTypeBadge = (type: Permission['type']) => {
-		const colors = {
-			read: 'blue',
-			write: 'yellow',
-			delete: 'red',
-			admin: 'purple'
-		} as const;
-		
-		return <Badge color={colors[type]}>{type.charAt(0).toUpperCase() + type.slice(1)}</Badge>;
 	};
 
 	const TabButton = ({ 
@@ -230,7 +205,7 @@ const Rbac: React.FC = () => {
 		count 
 	}: { 
 		label: string; 
-		value: 'users' | 'permissions' | 'userGroups' | 'markyGroups'; 
+		value: 'users' | 'permissions' | 'userGroups'; 
 		icon: React.ComponentType<{ className?: string }>; 
 		count: number;
 	}) => (
@@ -259,7 +234,7 @@ const Rbac: React.FC = () => {
 						Manage users, permissions, and user groups
 					</p>
 				</div>
-				<Button color="blue" className="flex items-center space-x-2">
+				<Button color="blue" className="flex items-center space-x-2" onClick={() => setIsAddUserDialogOpen(true)}>
 					<PlusIcon className="w-4 h-4" />
 					<span>Add New</span>
 				</Button>
@@ -285,12 +260,6 @@ const Rbac: React.FC = () => {
 					icon={UserGroupIcon} 
 					count={userGroups.length} 
 				/>
-				<TabButton 
-					label="Marky Groups" 
-					value="markyGroups" 
-					icon={UserGroupIcon} 
-					count={markyGroups.length} 
-				/>
 			</div>
 			{/* Content Area */}
 			<div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
@@ -309,7 +278,7 @@ const Rbac: React.FC = () => {
 											className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 										/>
 									</div>
-									<Button color="blue">
+									<Button color="blue" onClick={() => setIsAddUserDialogOpen(true)}>
 										<PlusIcon className="w-4 h-4 mr-1" />
 										Add User
 									</Button>
@@ -323,38 +292,29 @@ const Rbac: React.FC = () => {
 									<TableHeader>User</TableHeader>
 									<TableHeader>Role</TableHeader>
 									<TableHeader>Status</TableHeader>
-									<TableHeader>Last Login</TableHeader>
 									<TableHeader>Actions</TableHeader>
 								</TableRow>
 							</TableHead>
 							<TableBody>
 								{users.map((user) => (
-									<TableRow key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+									<TableRow key={user.Id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
 										<TableCell>
 											<div className="flex items-center space-x-3">
-												<Avatar 
-													src={user.avatar} 
-													initials={user.name.split(' ').map(n => n[0]).join('')}
-													className="w-8 h-8"
-												/>
 												<div>
 													<div className="font-medium text-gray-900 dark:text-white">
-														{user.name}
+														{user.Name}
 													</div>
 													<div className="text-sm text-gray-500 dark:text-gray-400">
-														{user.email}
+														{user.Email}
 													</div>
 												</div>
 											</div>
 										</TableCell>
 										<TableCell>
-											<Badge color="blue">{user.role}</Badge>
+											<Badge color="blue">{user.PlantillaOffice}</Badge>
 										</TableCell>
 										<TableCell>
-											{getStatusBadge(user.status)}
-										</TableCell>
-										<TableCell className="text-gray-500 dark:text-gray-400">
-											{user.lastLogin}
+											{getStatusBadge(user.IsActive)}
 										</TableCell>
 										<TableCell>
 											<div className="flex items-center space-x-2">
@@ -391,7 +351,7 @@ const Rbac: React.FC = () => {
 											className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 										/>
 									</div>
-									<Button color="blue">
+									<Button color="blue" onClick={() => setIsAddPermissionDialogOpen(true)}>
 										<PlusIcon className="w-4 h-4 mr-1" />
 										Add Permission
 									</Button>
@@ -402,40 +362,38 @@ const Rbac: React.FC = () => {
 						<Table>
 							<TableHead>
 								<TableRow>
-									<TableHeader>Permission Name</TableHeader>
-									<TableHeader>Module</TableHeader>
-									<TableHeader>Type</TableHeader>
-									<TableHeader>Description</TableHeader>
-									<TableHeader>Created</TableHeader>
+									<TableHeader>ID</TableHeader>
+									<TableHeader>Module Function</TableHeader>
+									<TableHeader>Created By</TableHeader>
+									<TableHeader>Created At</TableHeader>
 									<TableHeader>Actions</TableHeader>
 								</TableRow>
 							</TableHead>
 							<TableBody>
 								{permissions.map((permission) => (
-									<TableRow key={permission.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+									<TableRow key={permission.Id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
 										<TableCell>
 											<div className="font-medium text-gray-900 dark:text-white">
-												{permission.name}
+												{permission.Id}
 											</div>
 										</TableCell>
 										<TableCell>
-											<Badge color="zinc">{permission.module}</Badge>
+											<div className="font-medium text-gray-900 dark:text-white">
+												{permission.ModuleFunction}
+											</div>
 										</TableCell>
 										<TableCell>
-											{getPermissionTypeBadge(permission.type)}
-										</TableCell>
-										<TableCell className="text-gray-500 dark:text-gray-400 max-w-xs truncate">
-											{permission.description}
+											<Badge color="zinc">{permission.CreatedBy}</Badge>
 										</TableCell>
 										<TableCell className="text-gray-500 dark:text-gray-400">
-											{permission.createdAt}
+											{permission.CreatedDate}
 										</TableCell>
 										<TableCell>
 											<div className="flex items-center space-x-2">
-												<Button plain className="p-2">
+												<Button color="green" className="p-2">
 													<EyeIcon className="w-4 h-4" />
 												</Button>
-												<Button plain className="p-2">
+												<Button color="yellow" className="p-2">
 													<PencilIcon className="w-4 h-4" />
 												</Button>
 												<Button color="red" className="p-2">
@@ -465,7 +423,7 @@ const Rbac: React.FC = () => {
 											className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 										/>
 									</div>
-									<Button color="blue">
+									<Button color="blue" onClick={() => setIsAddGroupDialogOpen(true)}>
 										<PlusIcon className="w-4 h-4 mr-1" />
 										Add Group
 									</Button>
@@ -486,129 +444,39 @@ const Rbac: React.FC = () => {
 							</TableHead>
 							<TableBody>
 								{userGroups.map((group) => (
-									<TableRow key={group.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+									<TableRow key={group.Id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
 										<TableCell>
 											<div className="font-medium text-gray-900 dark:text-white">
-												{group.name}
+												{group.GroupName}
 											</div>
 										</TableCell>
 										<TableCell>
 											<div className="flex items-center space-x-2">
 												<UsersIcon className="w-4 h-4 text-gray-400" />
 												<span className="text-gray-900 dark:text-white font-medium">
-													{group.memberCount}
+													{/* {group.MemberCount} */}
 												</span>
 											</div>
 										</TableCell>
 										<TableCell>
 											<div className="flex flex-wrap gap-1">
-												{group.permissions.slice(0, 2).map((permission, index) => (
+												{group.PermissionName.slice(0, 2).map((permission: string, index: number) => (
 													<Badge key={index} color="blue" className="text-xs">
 														{permission}
 													</Badge>
 												))}
-												{group.permissions.length > 2 && (
+												{group.PermissionName.length > 2 && (
 													<Badge color="zinc" className="text-xs">
-														+{group.permissions.length - 2} more
+														+{group.PermissionName.length - 2} more
 													</Badge>
 												)}
 											</div>
 										</TableCell>
 										<TableCell className="text-gray-500 dark:text-gray-400 max-w-xs truncate">
-											{group.description}
+											{group.Description}
 										</TableCell>
 										<TableCell className="text-gray-500 dark:text-gray-400">
-											{group.createdAt}
-										</TableCell>
-										<TableCell>
-											<div className="flex items-center space-x-2">
-												<Button color="green" className="p-2">
-													<EyeIcon className="w-4 h-4" />
-												</Button>
-												<Button color="yellow" className="p-2">
-													<PencilIcon className="w-4 h-4" />
-												</Button>
-												<Button color="red" className="p-2">
-													<TrashIcon className="w-4 h-4" />
-												</Button>
-											</div>
-										</TableCell>
-									</TableRow>
-								))}
-							</TableBody>
-						</Table>
-					</div>
-				)}
-
-				{/* Marky Groups Table */}
-				{selectedTab === 'markyGroups' && (
-					<div className="overflow-hidden">
-						<div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-							<div className="flex items-center justify-between">
-								<h3 className="text-lg font-medium text-gray-900 dark:text-white">Marky Groups</h3>
-								<div className="flex items-center space-x-3">
-									<div className="relative">
-										<MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-										<input
-											type="text"
-											placeholder="Search groups..."
-											className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-										/>
-									</div>
-									<Button color="blue">
-										<PlusIcon className="w-4 h-4 mr-1" />
-										Add Group
-									</Button>
-								</div>
-							</div>
-						</div>
-						
-						<Table>
-							<TableHead>
-								<TableRow>
-									<TableHeader>Group Name</TableHeader>
-									<TableHeader>Members</TableHeader>
-									<TableHeader>Permissions</TableHeader>
-									<TableHeader>Description</TableHeader>
-									<TableHeader>Created</TableHeader>
-									<TableHeader>Actions</TableHeader>
-								</TableRow>
-							</TableHead>
-							<TableBody>
-								{markyGroups.map((group) => (
-									<TableRow key={group.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-										<TableCell>
-											<div className="font-medium text-gray-900 dark:text-white">
-												{group.name}
-											</div>
-										</TableCell>
-										<TableCell>
-											<div className="flex items-center space-x-2">
-												<UsersIcon className="w-4 h-4 text-gray-400" />
-												<span className="text-gray-900 dark:text-white font-medium">
-													{group.memberCount}
-												</span>
-											</div>
-										</TableCell>
-										<TableCell>
-											<div className="flex flex-wrap gap-1">
-												{group.permissions.slice(0, 2).map((permission, index) => (
-													<Badge key={index} color="blue" className="text-xs">
-														{permission}
-													</Badge>
-												))}
-												{group.permissions.length > 2 && (
-													<Badge color="zinc" className="text-xs">
-														+{group.permissions.length - 2} more
-													</Badge>
-												)}
-											</div>
-										</TableCell>
-										<TableCell className="text-gray-500 dark:text-gray-400 max-w-xs truncate">
-											{group.description}
-										</TableCell>
-										<TableCell className="text-gray-500 dark:text-gray-400">
-											{group.createdAt}
+											{group.CreatedDate}
 										</TableCell>
 										<TableCell>
 											<div className="flex items-center space-x-2">
@@ -630,6 +498,33 @@ const Rbac: React.FC = () => {
 					</div>
 				)}
 			</div>
+
+			{/* Add User Dialog */}
+			<AddUserDialog 
+				isOpen={isAddUserDialogOpen} 
+				onClose={() => setIsAddUserDialogOpen(false)} 
+				onSubmit={(newUser: any) => {
+					setUsers([...users, { ...newUser, id: users.length + 1, lastLogin: 'Never' }]);
+				}}
+			/>
+
+			{/* Add Permission Dialog */}
+			<AddPermissionDialog 
+				isOpen={isAddPermissionDialogOpen} 
+				onClose={() => setIsAddPermissionDialogOpen(false)} 
+				onSubmit={(newPermission: any) => {
+					setPermissions([...permissions, { ...newPermission, id: permissions.length + 1, createdAt: new Date().toLocaleDateString() }]);
+				}}
+			/>
+
+			{/* Add Group Dialog */}
+			<AddGroupDialog 
+				isOpen={isAddGroupDialogOpen} 
+				onClose={() => setIsAddGroupDialogOpen(false)} 
+				onSubmit={(newGroup: any) => {
+					setUserGroups([...userGroups, { ...newGroup, id: userGroups.length + 1, memberCount: 0, createdAt: new Date().toLocaleDateString() }]);
+				}}
+			/>
 		</div>
 	);
 };

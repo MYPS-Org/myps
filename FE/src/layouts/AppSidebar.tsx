@@ -51,30 +51,26 @@
 			</DropdownButton>
 			<DropdownMenu className="min-w-64" anchor="bottom start">
 				<DropdownItem href="/teams/1/settings">
-				<Cog8ToothIcon />
-				<DropdownLabel>Settings</DropdownLabel>
+					<Cog8ToothIcon />
+					<DropdownLabel>Settings</DropdownLabel>
 				</DropdownItem>
 				<DropdownDivider />
 				<DropdownItem href="/teams/1">
-				<Avatar slot="icon" src="/tailwind-logo.svg" />
-				<DropdownLabel>Tailwind Labs</DropdownLabel>
+					<Avatar slot="icon" src="/tailwind-logo.svg" />
+					<DropdownLabel>Tailwind Labs</DropdownLabel>
 				</DropdownItem>
 				<DropdownItem href="/teams/2">
-				<Avatar slot="icon" initials="WC" className="bg-purple-500 text-white" />
-				<DropdownLabel>Workcation</DropdownLabel>
+					<Avatar slot="icon" initials="WC" className="bg-purple-500 text-white" />
+					<DropdownLabel>Workcation</DropdownLabel>
 				</DropdownItem>
 				<DropdownDivider />
 				<DropdownItem href="/teams/create">
-				<PlusIcon />
-				<DropdownLabel>New team&hellip;</DropdownLabel>
+					<PlusIcon />
+					<DropdownLabel>New team&hellip;</DropdownLabel>
 				</DropdownItem>
 			</DropdownMenu>
 			</Dropdown>
 			<SidebarSection>
-			<SidebarItem href="/search">
-				<MagnifyingGlassIcon />
-				<SidebarLabel>Search</SidebarLabel>
-			</SidebarItem>
 			<SidebarItem href="/inbox">
 				<InboxIcon />
 				<SidebarLabel>Inbox</SidebarLabel>
@@ -83,9 +79,9 @@
 		</SidebarHeader>
 		<SidebarBody>
 			<SidebarSection>
-			<SidebarItem href="/home">
+			<SidebarItem href="/dashboard">
 				<HomeIcon />
-				<SidebarLabel>Home</SidebarLabel>
+				<SidebarLabel>Dashboard</SidebarLabel>
 			</SidebarItem>
 			<SidebarItem href="/events">
 				<Square2StackIcon />
@@ -99,9 +95,9 @@
 				<MegaphoneIcon />
 				<SidebarLabel>Broadcasts</SidebarLabel>
 			</SidebarItem>
-			<SidebarItem href="/settings">
+			<SidebarItem href="/rbac">
 				<Cog6ToothIcon />
-				<SidebarLabel>Settings</SidebarLabel>
+				<SidebarLabel>RBAC</SidebarLabel>
 			</SidebarItem>
 			</SidebarSection>
 			<SidebarSpacer />
