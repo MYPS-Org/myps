@@ -75,13 +75,86 @@ namespace WebAPI.Controllers.UserProfile
         }
         #endregion
         [HttpPost]
-        [Authorize(Policy = "View UserProfiles")]
+        //[Authorize(Policy = "View UserProfiles")]
+        [AllowAnonymous]
         public async Task<IActionResult> ShowPermissions()
         {
             try
             {
-                List<User> users = await _db.tUsers.AsNoTracking().ToListAsync();
-                return Ok(new { Users = users });
+                var query = _db.tPermissions.AsNoTracking(); // Apply once
+
+                // Apply filters
+                if (!string.IsNullOrEmpty(dto.Filters?.Name))
+                    query = query.Where(e => e.Name!.Contains(dto.Filters.Name));
+
+                if (dto.Filters?.Status != null)
+                    query = query.Where(e => e.Status == dto.Filters.Status);
+
+                if (!string.IsNullOrEmpty(dto.Filters?.LocationName))
+                    query = query.Where(e => e.LocationName == dto.Filters.LocationName);
+
+                // Apply sorting BEFORE pagination
+                query = !string.IsNullOrEmpty(dto.SortField)
+                    ? (dto.sortDirection == sortDirectionList.DESC
+                        ? query.OrderByDescending(e => EF.Property<object>(e, dto.SortField))
+                        : query.OrderBy(e => EF.Property<object>(e, dto.SortField)))
+                    : query.OrderByDescending(e => e.Id);
+
+                // Apply pagination BEFORE executing the query
+                query = query.Skip((dto.page - 1) * dto.limit).Take(dto.limit);
+
+                // Execute query efficiently
+                var lists = await query.ToListAsync();
+                int totalRecords = lists.Count();
+                if (lists.Count() < 1)
+                {
+                    totalRecords = await _db.tPermissions.AsNoTracking().CountAsync();
+                }
+                var response = new
+                {
+                    lists = lists,
+                    page = dto.page,
+                    limit = dto.limit,
+                    total = totalRecords,
+                    totalPages = (int)Math.Ceiling((double)totalRecords / dto.limit)
+                };
+
+                int totalRecords = await _db.vEventList.AsNoTracking().CountAsync();
+                var query = _db.vEventList.AsNoTracking(); // Apply once
+
+                // Apply filters
+                if (!string.IsNullOrEmpty(dto.Filters?.Name))
+                    query = query.Where(e => e.Name!.Contains(dto.Filters.Name));
+
+                if (dto.Filters?.Status != null)
+                    query = query.Where(e => e.Status == dto.Filters.Status);
+
+                if (!string.IsNullOrEmpty(dto.Filters?.LocationName))
+                    query = query.Where(e => e.LocationName == dto.Filters.LocationName);
+
+                // Apply sorting BEFORE pagination
+                query = !string.IsNullOrEmpty(dto.SortField)
+                    ? (dto.sortDirection == sortDirectionList.DESC
+                        ? query.OrderByDescending(e => EF.Property<object>(e, dto.SortField))
+                        : query.OrderBy(e => EF.Property<object>(e, dto.SortField)))
+                    : query.OrderByDescending(e => e.Id);
+
+                // Apply pagination BEFORE executing the query
+                query = query.Skip((dto.page - 1) * dto.limit).Take(dto.limit);
+
+                // Execute query efficiently
+                var lists = await query.ToListAsync();
+
+                var response = new
+                {
+                    lists = lists,
+                    page = dto.page,
+                    limit = dto.limit,
+                    total = totalRecords,
+                    totalPages = (int)Math.Ceiling((double)totalRecords / dto.limit)
+                };
+
+                return Ok(new { response });
             }
             catch (Exception ex)
             {

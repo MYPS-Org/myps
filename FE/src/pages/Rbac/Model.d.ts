@@ -10,12 +10,21 @@ export interface User {
 	IsActive: boolean;
 }
 
+
+//#region Permissions Models
+export interface PermissionPagination {
+	Id: number;
+	ModuleFunction: string;
+	CreatedBy: string;
+	CreatedDate?: string;
+}
 export interface Permission {
 	Id: number;
 	ModuleFunction: string;
 	CreatedBy: string;
 	CreatedDate?: string;
 }
+//#endregion
 
 export interface RawUserGroupData {
   Id: number;

@@ -1,5 +1,5 @@
 'use-client'
-import React, { useState } from 'react';
+import React, { use, useEffect, useState } from 'react';
 
 import { Heading } from '../../components/tailwindui/heading';
 import {
@@ -18,7 +18,7 @@ import { Badge } from '../../components/tailwindui/badge'
 import { type User, type Permission, type RawUserGroupData, type ConsolidatedUserGroup } from './Model.d';
 
 // Services
-import { consolidateUserGroups } from './service';
+import { consolidateUserGroups, fetchPermissions } from './service';
 
 // Dialog imports
 import { AddUserDialog, AddPermissionDialog, AddGroupDialog, ViewUserDialog, UpdateUserDialog, DeleteUserDialog, 
@@ -141,6 +141,17 @@ const Rbac: React.FC = () => {
 			: <Badge color="red">Inactive</Badge>;
 	};
 
+	const getTableData = (tabName: 'users' | 'permissions' | 'userGroups' | 'userRoles') => {
+		setSelectedTab(tabName);
+		if(tabName == 'permissions'){
+			fetchPermissions()
+			.then((res) => {
+				if(res.data.PermissionLists){
+					setPermissions(res.data.PermissionLists);
+				}
+			})
+		}
+	}
 	const TabButton = ({ 
 		label, 
 		value, 
@@ -153,7 +164,7 @@ const Rbac: React.FC = () => {
 		count: number;
 	}) => (
 		<button
-			onClick={() => setSelectedTab(value)}
+			onClick={() => getTableData(value)}
 			className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
 				selectedTab === value
 					? 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'

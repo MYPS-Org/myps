@@ -64,6 +64,16 @@ builder.Services.AddEndpointsApiExplorer();
 
 if (builder.Environment.IsDevelopment())
 {
+    builder.Services.AddCors(options =>
+    {
+        options.AddPolicy("AllowReactApp", builder =>
+        {
+            builder.WithOrigins("http://localhost:8080")
+                   .AllowCredentials()
+                   .AllowAnyMethod()
+                   .AllowAnyHeader();
+        });
+    });
     builder.Services.AddSwaggerGen(options =>
     {
         options.AddSecurityDefinition("cookieAuth", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
@@ -96,7 +106,7 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.UseCors(builder => builder.WithOrigins("http://localhost:8080"));
+    app.UseCors("AllowReactApp");
     app.UseDeveloperExceptionPage();
     app.UseSwagger();
     app.UseSwaggerUI(options =>
