@@ -5,8 +5,8 @@
   font-weight: 400;
 
   /*color-scheme: light;*/
-  color: #1f2937;
-  background-color: #f8fafc;
+  /* color: #1f2937;
+  background-color: #f8fafc; */
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -32,21 +32,21 @@ body {
 }
 
 /* Remove default button styles, use Tailwind classes instead */
-button {
+/* button {
   all: unset;
-}
+} */
 
 /* Optional: keep focus style for accessibility */
-button:focus,
+/* button:focus,
 button:focus-visible {
   outline: 2px solid #8b5cf6;
   outline-offset: 2px;
-}
+} */
 
 h1 {
   font-size: 3.2em;
   line-height: 1.1;
-  color: #1f2937;
+  /* color: #1f2937; */
 }
 
 /* Autofill styles for Tailwind input fields */

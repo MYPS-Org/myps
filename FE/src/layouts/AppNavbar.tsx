@@ -18,82 +18,25 @@ import {
   UserIcon,
 } from '@heroicons/react/16/solid'
 import { InboxIcon, MagnifyingGlassIcon } from '@heroicons/react/20/solid'
+import ThemeToggle from '../components/ThemeToggle'
 
-export default function Example() {
+export default function NavBar() {
   return (
     <Navbar>
-      <Dropdown>
-        <DropdownButton as={NavbarItem}>
-          <Avatar src="/tailwind-logo.svg" />
-          <NavbarLabel>Tailwind Labs</NavbarLabel>
-          <ChevronDownIcon />
-        </DropdownButton>
-        <DropdownMenu className="min-w-64" anchor="bottom start">
-          <DropdownItem href="/teams/1/settings">
-            <Cog8ToothIcon />
-            <DropdownLabel>Settings</DropdownLabel>
-          </DropdownItem>
-          <DropdownDivider />
-          <DropdownItem href="/teams/1">
-            <Avatar slot="icon" src="/tailwind-logo.svg" />
-            <DropdownLabel>Tailwind Labs</DropdownLabel>
-          </DropdownItem>
-          <DropdownItem href="/teams/2">
-            <Avatar slot="icon" initials="WC" className="bg-purple-500 text-white" />
-            <DropdownLabel>Workcation</DropdownLabel>
-          </DropdownItem>
-          <DropdownDivider />
-          <DropdownItem href="/teams/create">
-            <PlusIcon />
-            <DropdownLabel>New team&hellip;</DropdownLabel>
-          </DropdownItem>
-        </DropdownMenu>
-      </Dropdown>
-      <NavbarDivider className="max-lg:hidden" />
-      <NavbarSection className="max-lg:hidden">
-        <NavbarItem href="/" current>
-          Home
-        </NavbarItem>
-        <NavbarItem href="/events">Events</NavbarItem>
-        <NavbarItem href="/orders">Orders</NavbarItem>
-      </NavbarSection>
+      {/* <Link href="/" aria-label="Home">
+        <Logo className="size-10 sm:size-8" />
+      </Link> */}
       <NavbarSpacer />
       <NavbarSection>
+        <NavbarItem>
+          <ThemeToggle />
+        </NavbarItem>
         <NavbarItem href="/search" aria-label="Search">
           <MagnifyingGlassIcon />
         </NavbarItem>
         <NavbarItem href="/inbox" aria-label="Inbox">
           <InboxIcon />
         </NavbarItem>
-        <Dropdown>
-          <DropdownButton as={NavbarItem}>
-            <Avatar src="/profile-photo.jpg" square />
-          </DropdownButton>
-          <DropdownMenu className="min-w-64" anchor="bottom end">
-            <DropdownItem href="/my-profile">
-              <UserIcon />
-              <DropdownLabel>My profile</DropdownLabel>
-            </DropdownItem>
-            <DropdownItem href="/settings">
-              <Cog8ToothIcon />
-              <DropdownLabel>Settings</DropdownLabel>
-            </DropdownItem>
-            <DropdownDivider />
-            <DropdownItem href="/privacy-policy">
-              <ShieldCheckIcon />
-              <DropdownLabel>Privacy policy</DropdownLabel>
-            </DropdownItem>
-            <DropdownItem href="/share-feedback">
-              <LightBulbIcon />
-              <DropdownLabel>Share feedback</DropdownLabel>
-            </DropdownItem>
-            <DropdownDivider />
-            <DropdownItem href="/logout">
-              <ArrowRightStartOnRectangleIcon />
-              <DropdownLabel>Sign out</DropdownLabel>
-            </DropdownItem>
-          </DropdownMenu>
-        </Dropdown>
       </NavbarSection>
     </Navbar>
   )

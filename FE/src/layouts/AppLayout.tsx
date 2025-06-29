@@ -1,16 +1,20 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
-import AppNavbar from './AppNavbar';
 import AppSidebar from './AppSidebar';
+import AppNavbar from './AppNavbar';
 
 const DashboardLayout: React.FC = () => (
-  <div className="flex min-h-screen">
-    <AppSidebar />
-    <div className="flex flex-col flex-1">
-      <AppNavbar />
-      <main className="p-4">
-        <Outlet />
-      </main>
+  <div className="min-h-screen xl:flex bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
+    <div className='bg-gray-100 dark:bg-gray-800 transition-colors duration-200'>
+        <AppSidebar/>
+    </div>
+    <div className='w-full'>
+        <div className='bg-gray-100 dark:bg-gray-800 transition-colors duration-200'>
+        <AppNavbar/>
+        </div>
+        <main className="bg-white dark:bg-gray-900 transition-colors duration-200">
+            <Outlet/>
+        </main>
     </div>
   </div>
 );
