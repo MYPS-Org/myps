@@ -18,46 +18,9 @@ import { Badge } from '../../components/tailwindui/badge'
 import { type User, type Permission, type RawUserGroupData, type ConsolidatedUserGroup } from './Model';
 
 // Dialog imports
-import { AddUserDialog, AddPermissionDialog, AddGroupDialog } from './dialogs';
+import { AddUserDialog, AddPermissionDialog, AddGroupDialog, ViewUserDialog, UpdateUserDialog, DeleteUserDialog, 
+	ViewPermissionDialog, UpdatePermissionDialog, DeletePermissionDialog } from './dialogs';
 
-// interface User {
-// 	Id: number;
-// 	EmployeeId?: string;
-// 	UserGroup: string;
-// 	UserId: string;
-// 	Name: string;
-// 	Email?: string;
-// 	RegCode: string;
-// 	PlantillaOffice?: string;
-// 	IsActive: boolean;
-// }
-
-// interface Permission {
-// 	Id: number;
-// 	ModuleFunction: string;
-// 	CreatedBy: string;
-// 	CreatedDate?: string;
-// }
-
-// interface RawUserGroupData {
-//   Id: number;
-//   GroupName: string;
-//   Description: string;
-//   PermissionName: string;
-//   Module?: string;
-//   MemberCount?: number;
-//   CreatedDate?: string;
-// }
-
-// interface ConsolidatedUserGroup {
-//   Id: number;
-//   GroupName: string;
-//   Description: string;
-//   PermissionName: string[]; // Array of all permissions
-//   Module?: string;
-//   MemberCount: number;
-//   CreatedDate: string;
-// }
 
 const Rbac: React.FC = () => {
 	const [selectedTab, setSelectedTab] = useState<'users' | 'permissions' | 'userGroups' | 'userRoles'>('users');
@@ -162,26 +125,26 @@ const Rbac: React.FC = () => {
 		{ 
 			Id: 1, 
 			ModuleFunction: 'User Management', 
-			CreatedBy: 'Create, read, update, and delete user accounts',
-			CreatedDate: 'Users',
+			CreatedBy: 'Super Admin',
+			CreatedDate: '01-01-2024',
 		},
 		{ 
 			Id: 2, 
 			ModuleFunction: 'View Reports', 
-			CreatedBy: 'Access to view system reports and analytics',
-			CreatedDate: 'Reports',
+			CreatedBy: 'User',
+			CreatedDate: '01-01-2024',
 		},
 		{ 
 			Id: 3, 
 			ModuleFunction: 'Edit Content', 
-			CreatedBy: 'Ability to modify content and posts',
-			CreatedDate: 'Content',
+			CreatedBy: 'Administrator',
+			CreatedDate: '01-01-2024',
 		},
 		{ 
 			Id: 4, 
 			ModuleFunction: 'Delete Records', 
-			CreatedBy: 'Permission to permanently delete system records',
-			CreatedDate: 'System',
+			CreatedBy: 'Developer',
+			CreatedDate: '01-01-2024',
 		}
 	]);
 
@@ -191,6 +154,14 @@ const Rbac: React.FC = () => {
 	const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
 	const [isAddPermissionDialogOpen, setIsAddPermissionDialogOpen] = useState(false);
 	const [isAddGroupDialogOpen, setIsAddGroupDialogOpen] = useState(false);
+	const [isViewUserDialogOpen, setIsViewUserDialogOpen] = useState(false);
+	const [isUpdateUserDialogOpen, setIsUpdateUserDialogOpen] = useState(false);
+	const [isDeleteUserDialogOpen, setIsDeleteUserDialogOpen] = useState(false);
+	const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+	const [isViewPermissionDialogOpen, setIsViewPermissionDialogOpen] = useState(false);
+	const [isUpdatePermissionDialogOpen, setIsUpdatePermissionDialogOpen] = useState(false);
+	const [selectedPermissionId, setSelectedPermissionId] = useState<number | null>(null);
+	const [isDeletePermissionDialogOpen, setIsDeletePermissionDialogOpen] = useState(false);
 
 	const getStatusBadge = (status: true | false) => {
 		return status === true
@@ -318,13 +289,25 @@ const Rbac: React.FC = () => {
 										</TableCell>
 										<TableCell>
 											<div className="flex items-center space-x-2">
-												<Button plain className="p-2">
+												<Button color='green' className="p-2"
+												onClick={() => {
+													setIsViewUserDialogOpen(true);
+													setSelectedUserId(user.Id);
+													}}>
 													<EyeIcon className="w-4 h-4" />
 												</Button>
-												<Button plain className="p-2">
+												<Button color='yellow' className="p-2"
+												onClick={() => {
+													setIsUpdateUserDialogOpen(true);
+													setSelectedUserId(user.Id);
+												}}>
 													<PencilIcon className="w-4 h-4" />
 												</Button>
-												<Button color="blue" className="p-2">
+												<Button color="red" className="p-2"
+												onClick={() => {
+													setIsDeleteUserDialogOpen(true);
+													setSelectedUserId(user.Id);
+												}}>
 													<TrashIcon className="w-4 h-4" />
 												</Button>
 											</div>
@@ -390,13 +373,25 @@ const Rbac: React.FC = () => {
 										</TableCell>
 										<TableCell>
 											<div className="flex items-center space-x-2">
-												<Button color="green" className="p-2">
+												<Button color="green" className="p-2"
+												onClick={() => {
+													setIsViewPermissionDialogOpen(true);
+													setSelectedPermissionId(permission.Id);
+												}}>
 													<EyeIcon className="w-4 h-4" />
 												</Button>
-												<Button color="yellow" className="p-2">
+												<Button color="yellow" className="p-2"
+												onClick={() => {
+													setIsUpdatePermissionDialogOpen(true);
+													setSelectedPermissionId(permission.Id);
+												}}>
 													<PencilIcon className="w-4 h-4" />
 												</Button>
-												<Button color="red" className="p-2">
+												<Button color="red" className="p-2"
+												onClick={() => {
+													setIsDeletePermissionDialogOpen(true);
+													setSelectedPermissionId(permission.Id);
+												}}>
 													<TrashIcon className="w-4 h-4" />
 												</Button>
 											</div>
@@ -525,7 +520,89 @@ const Rbac: React.FC = () => {
 					setUserGroups([...userGroups, { ...newGroup, id: userGroups.length + 1, memberCount: 0, createdAt: new Date().toLocaleDateString() }]);
 				}}
 			/>
+			{/* View User Dialog */}
+			{isViewUserDialogOpen && selectedUserId && (
+				<ViewUserDialog
+					isOpen={isViewUserDialogOpen}
+					onClose={() => {
+						setIsViewUserDialogOpen(false);
+						setSelectedUserId(null);
+					}}
+					user={users.find(user => user.Id === selectedUserId)!}
+					// onSubmit={(updatedUser: any) => {
+					// 	setUsers(users.map(user => user.Id === updatedUser.Id ? updatedUser : user));
+					// }}
+				/>
+			)}
+			{/* Update User Dialog */}
+			{isUpdateUserDialogOpen && selectedUserId && (
+				<UpdateUserDialog
+					isOpen={isUpdateUserDialogOpen}
+					onClose={() => {
+						setIsUpdateUserDialogOpen(false);
+						setSelectedUserId(null);
+					}}
+					user={users.find(user => user.Id === selectedUserId)!}
+					onSubmit={(updatedUser: any) => {
+						setUsers(users.map(user => user.Id === updatedUser.Id ? updatedUser : user));
+					}}
+				/>
+			)}
+			{/* Delete User Dialog */}
+			{isDeleteUserDialogOpen && selectedUserId && (
+				<DeleteUserDialog
+					isOpen={isDeleteUserDialogOpen}
+					onClose={() => {
+						setIsDeleteUserDialogOpen(false);
+						setSelectedUserId(null);
+					}}
+					user={users.find(user => user.Id === selectedUserId)!}
+					onSubmit={(deletedUserId: number) => {
+						setUsers(users.filter(user => user.Id !== deletedUserId));
+					}}
+				/>
+			)}
+			{/* View Permission Dialog */}
+			{isViewPermissionDialogOpen && selectedPermissionId && (
+				<ViewPermissionDialog
+					isOpen={isViewPermissionDialogOpen}
+					onClose={() => {
+						setIsViewPermissionDialogOpen(false);
+						setSelectedPermissionId(null);
+					}}
+					permission={permissions.find(permission => permission.Id === selectedPermissionId)!}
+				/>
+			)}
+			{/* Update Permission Dialog */}
+			{isUpdatePermissionDialogOpen && selectedPermissionId && (
+				<UpdatePermissionDialog
+					isOpen={isUpdatePermissionDialogOpen}
+					onClose={() => {
+						setIsUpdatePermissionDialogOpen(false);
+						setSelectedPermissionId(null);
+					}}
+					permission={permissions.find(permission => permission.Id === selectedPermissionId)!}
+					onSubmit={(updatedPermission: any) => {
+						setPermissions(permissions.map(permission => permission.Id === updatedPermission.Id ? updatedPermission : permission));
+					}}
+				/>
+			)}
+			{/* Delete Permission Dialog */}
+			{isDeletePermissionDialogOpen && selectedPermissionId && (
+				<DeletePermissionDialog
+					isOpen={isDeletePermissionDialogOpen}
+					onClose={() => {
+						setIsDeletePermissionDialogOpen(false);
+						setSelectedPermissionId(null);
+					}}
+					permission={permissions.find(permission => permission.Id === selectedPermissionId)!}
+					onSubmit={(deletedPermissionId: number) => {
+						setPermissions(permissions.filter(permission => permission.Id !== deletedPermissionId));
+					}}
+				/>
+			)}
 		</div>
+		
 	);
 };
 
