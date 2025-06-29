@@ -11,18 +11,20 @@ interface AddGroupDialogProps {
 
 const AddGroupDialog: React.FC<AddGroupDialogProps> = ({ isOpen, onClose, onSubmit }) => {
   const [formData, setFormData] = useState({
-    name: '',
+    groupName: '',
     description: '',
     permissions: [] as string[],
-    color: '#3b82f6',
-    isActive: true
+    module: '',
+    memberCount: 0
   });
 
   const availablePermissions = [
     'User Management',
+    'View Reports',
+    'Edit Content',
+    'Delete Records',
     'Role Management',
     'System Settings',
-    'Reports',
     'Audit Logs',
     'Data Export',
     'API Access',
@@ -33,11 +35,11 @@ const AddGroupDialog: React.FC<AddGroupDialogProps> = ({ isOpen, onClose, onSubm
     e.preventDefault();
     onSubmit(formData);
     setFormData({
-      name: '',
+      groupName: '',
       description: '',
       permissions: [],
-      color: '#3b82f6',
-      isActive: true
+      module: '',
+      memberCount: 0
     });
     onClose();
   };
@@ -82,8 +84,8 @@ const AddGroupDialog: React.FC<AddGroupDialogProps> = ({ isOpen, onClose, onSubm
               </label>
               <input
                 type="text"
-                value={formData.name}
-                onChange={(e) => handleChange('name', e.target.value)}
+                value={formData.groupName}
+                onChange={(e) => handleChange('groupName', e.target.value)}
                 placeholder="Enter group name"
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                 required
@@ -103,29 +105,31 @@ const AddGroupDialog: React.FC<AddGroupDialogProps> = ({ isOpen, onClose, onSubm
               />
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Group Color
+                  Module (Optional)
                 </label>
                 <input
-                  type="color"
-                  value={formData.color}
-                  onChange={(e) => handleChange('color', e.target.value)}
-                  className="w-16 h-10 border border-gray-300 dark:border-gray-600 rounded-md"
+                  type="text"
+                  value={formData.module}
+                  onChange={(e) => handleChange('module', e.target.value)}
+                  placeholder="Enter module name"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                 />
               </div>
-              <div className="flex items-center">
-                <input
-                  id="isActive"
-                  type="checkbox"
-                  checked={formData.isActive}
-                  onChange={(e) => handleChange('isActive', e.target.checked)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
-                />
-                <label htmlFor="isActive" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
-                  Active Group
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Initial Member Count
                 </label>
+                <input
+                  type="number"
+                  value={formData.memberCount}
+                  onChange={(e) => handleChange('memberCount', parseInt(e.target.value) || 0)}
+                  placeholder="0"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                  min="0"
+                />
               </div>
             </div>
 

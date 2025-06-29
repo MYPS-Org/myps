@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import type { Permission } from '../Model';
+import type { Permission } from '../Model.d';
 
 interface ViewPermissionDialogProps {
   isOpen: boolean;

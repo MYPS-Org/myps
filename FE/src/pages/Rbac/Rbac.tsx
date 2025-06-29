@@ -15,51 +15,18 @@ import { Button } from '../../components/tailwindui/button'
 import { Badge } from '../../components/tailwindui/badge'
 
 // Interfaces
-import { type User, type Permission, type RawUserGroupData, type ConsolidatedUserGroup } from './Model';
+import { type User, type Permission, type RawUserGroupData, type ConsolidatedUserGroup } from './Model.d';
+
+// Services
+import { consolidateUserGroups } from './service';
 
 // Dialog imports
 import { AddUserDialog, AddPermissionDialog, AddGroupDialog, ViewUserDialog, UpdateUserDialog, DeleteUserDialog, 
-	ViewPermissionDialog, UpdatePermissionDialog, DeletePermissionDialog } from './dialogs';
+	ViewPermissionDialog, UpdatePermissionDialog, DeletePermissionDialog, ViewGroupDialog, UpdateGroupDialog, DeleteGroupDialog } from './dialogs';
 
 
 const Rbac: React.FC = () => {
 	const [selectedTab, setSelectedTab] = useState<'users' | 'permissions' | 'userGroups' | 'userRoles'>('users');
-
-	// Consolidation function
-	const consolidateUserGroups = (rawData: RawUserGroupData[]): ConsolidatedUserGroup[] => {
-		const groupMap = new Map<string, ConsolidatedUserGroup>();
-
-		rawData.forEach(item => {
-			const groupName = item.GroupName;
-			
-			if (groupMap.has(groupName)) {
-				// Group already exists, add permission to existing group
-				const existingGroup = groupMap.get(groupName)!;
-				
-				// Add permission if it doesn't already exist
-				if (!existingGroup.PermissionName.includes(item.PermissionName)) {
-					existingGroup.PermissionName.push(item.PermissionName);
-				}
-				
-				// Update member count if provided
-				if (item.MemberCount && item.MemberCount > existingGroup.MemberCount) {
-					existingGroup.MemberCount = item.MemberCount;
-				}
-			} else {
-				// Create new group entry
-				groupMap.set(groupName, {
-					Id: item.Id,
-					GroupName: item.GroupName,
-					Description: item.Description,
-					PermissionName: [item.PermissionName], // Start with array containing first permission
-					Module: item.Module || '',
-					MemberCount: item.MemberCount || 0,
-					CreatedDate: item.CreatedDate || new Date().toISOString()
-				});
-			}
-		});
-		return Array.from(groupMap.values());
-	};
 
 	// Raw data example (this would come from your database/API)
 	const rawUserGroupsData: RawUserGroupData[] = [
@@ -162,6 +129,11 @@ const Rbac: React.FC = () => {
 	const [isUpdatePermissionDialogOpen, setIsUpdatePermissionDialogOpen] = useState(false);
 	const [selectedPermissionId, setSelectedPermissionId] = useState<number | null>(null);
 	const [isDeletePermissionDialogOpen, setIsDeletePermissionDialogOpen] = useState(false);
+	// Group dialog states
+	const [isViewGroupDialogOpen, setIsViewGroupDialogOpen] = useState(false);
+	const [isUpdateGroupDialogOpen, setIsUpdateGroupDialogOpen] = useState(false);
+	const [isDeleteGroupDialogOpen, setIsDeleteGroupDialogOpen] = useState(false);
+	const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
 
 	const getStatusBadge = (status: true | false) => {
 		return status === true
@@ -449,7 +421,7 @@ const Rbac: React.FC = () => {
 											<div className="flex items-center space-x-2">
 												<UsersIcon className="w-4 h-4 text-gray-400" />
 												<span className="text-gray-900 dark:text-white font-medium">
-													{/* {group.MemberCount} */}
+													{group.MemberCount}
 												</span>
 											</div>
 										</TableCell>
@@ -475,13 +447,34 @@ const Rbac: React.FC = () => {
 										</TableCell>
 										<TableCell>
 											<div className="flex items-center space-x-2">
-												<Button color="green" className="p-2">
+												<Button 
+													color="green" 
+													className="p-2"
+													onClick={() => {
+														setSelectedGroupId(group.Id);
+														setIsViewGroupDialogOpen(true);
+													}}
+												>
 													<EyeIcon className="w-4 h-4" />
 												</Button>
-												<Button color="yellow" className="p-2">
+												<Button 
+													color="yellow" 
+													className="p-2"
+													onClick={() => {
+														setSelectedGroupId(group.Id);
+														setIsUpdateGroupDialogOpen(true);
+													}}
+												>
 													<PencilIcon className="w-4 h-4" />
 												</Button>
-												<Button color="red" className="p-2">
+												<Button 
+													color="red" 
+													className="p-2"
+													onClick={() => {
+														setSelectedGroupId(group.Id);
+														setIsDeleteGroupDialogOpen(true);
+													}}
+												>
 													<TrashIcon className="w-4 h-4" />
 												</Button>
 											</div>
@@ -517,7 +510,16 @@ const Rbac: React.FC = () => {
 				isOpen={isAddGroupDialogOpen} 
 				onClose={() => setIsAddGroupDialogOpen(false)} 
 				onSubmit={(newGroup: any) => {
-					setUserGroups([...userGroups, { ...newGroup, id: userGroups.length + 1, memberCount: 0, createdAt: new Date().toLocaleDateString() }]);
+					const newGroupData: ConsolidatedUserGroup = {
+						Id: userGroups.length + 1,
+						GroupName: newGroup.groupName,
+						Description: newGroup.description,
+						PermissionName: newGroup.permissions,
+						Module: newGroup.module,
+						MemberCount: newGroup.memberCount || 0,
+						CreatedDate: new Date().toISOString()
+					};
+					setUserGroups([...userGroups, newGroupData]);
 				}}
 			/>
 			{/* View User Dialog */}
@@ -598,6 +600,58 @@ const Rbac: React.FC = () => {
 					permission={permissions.find(permission => permission.Id === selectedPermissionId)!}
 					onSubmit={(deletedPermissionId: number) => {
 						setPermissions(permissions.filter(permission => permission.Id !== deletedPermissionId));
+					}}
+				/>
+			)}
+			
+			{/* Group CRUD Dialogs */}
+			{/* View Group Dialog */}
+			{isViewGroupDialogOpen && selectedGroupId && (
+				<ViewGroupDialog
+					isOpen={isViewGroupDialogOpen}
+					onClose={() => {
+						setIsViewGroupDialogOpen(false);
+						setSelectedGroupId(null);
+					}}
+					group={userGroups.find(group => group.Id === selectedGroupId)!}
+				/>
+			)}
+			
+			{/* Update Group Dialog */}
+			{isUpdateGroupDialogOpen && selectedGroupId && (
+				<UpdateGroupDialog
+					isOpen={isUpdateGroupDialogOpen}
+					onClose={() => {
+						setIsUpdateGroupDialogOpen(false);
+						setSelectedGroupId(null);
+					}}
+					group={userGroups.find(group => group.Id === selectedGroupId)!}
+					onSubmit={(updatedGroup: any) => {
+						const updatedGroupData: ConsolidatedUserGroup = {
+							Id: updatedGroup.id,
+							GroupName: updatedGroup.groupName,
+							Description: updatedGroup.description,
+							PermissionName: updatedGroup.permissions,
+							Module: updatedGroup.module,
+							MemberCount: updatedGroup.memberCount,
+							CreatedDate: userGroups.find(g => g.Id === updatedGroup.id)?.CreatedDate || new Date().toISOString()
+						};
+						setUserGroups(userGroups.map(group => group.Id === updatedGroup.id ? updatedGroupData : group));
+					}}
+				/>
+			)}
+			
+			{/* Delete Group Dialog */}
+			{isDeleteGroupDialogOpen && selectedGroupId && (
+				<DeleteGroupDialog
+					isOpen={isDeleteGroupDialogOpen}
+					onClose={() => {
+						setIsDeleteGroupDialogOpen(false);
+						setSelectedGroupId(null);
+					}}
+					group={userGroups.find(group => group.Id === selectedGroupId)!}
+					onSubmit={(deletedGroupId: number) => {
+						setUserGroups(userGroups.filter(group => group.Id !== deletedGroupId));
 					}}
 				/>
 			)}
