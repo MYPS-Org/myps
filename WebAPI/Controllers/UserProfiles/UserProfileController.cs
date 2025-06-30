@@ -117,7 +117,7 @@ namespace WebAPI.Controllers.UserProfile
 
                 var response = new
                 {
-                    PermissionLists = permissionLists, // Match your frontend expectation
+                    lists = permissionLists, // Match your frontend expectation
                     page = dto.page,
                     limit = dto.limit,
                     total = totalRecords,

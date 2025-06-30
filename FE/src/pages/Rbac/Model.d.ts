@@ -1,34 +1,33 @@
 import type { PaginationParams } from '../../types/Pagination';
 
 export interface User {
-	Id: number;
-	EmployeeId?: string;
-	UserGroup: string;
-	UserId: string;
-	Name: string;
-	Email?: string;
-	RegCode: string;
-	PlantillaOffice?: string;
-	IsActive: boolean;
+    Id: number;
+    EmployeeId?: string;
+    UserGroup: string;
+    UserId: string;
+    Name: string;
+    Email?: string;
+    RegCode: string;
+    PlantillaOffice?: string;
+    IsActive: boolean;
 }
-
 
 //#region Permissions Models
 export interface Permissions {
-	Id: number;
-	ModuleFunction?: string;
-	Description?: string;
-	CreatedBy?: string;
-	CreatedDate?: string;
+    Id: number;
+    ModuleFunction?: string;
+    Description?: string;
+    CreatedBy?: string;
+    CreatedDate?: string;
 }
 export interface PermissionPagination extends PaginationParams {
-	filters?: PermissionFilter;
-	sortField?: string = 'Id';
-	sortDirection?: 0 | 1;
+    filters?: PermissionFilter;
+    sortField?: string; // Remove the = 'Id' default value - this is invalid in TypeScript interfaces
+    sortDirection?: 0 | 1;
 }
 export interface PermissionFilter {
-	ModuleFunction?: string;
-	Description?: string;
+    ModuleFunction?: string;
+    Description?: string;
 }
 //#endregion
 
