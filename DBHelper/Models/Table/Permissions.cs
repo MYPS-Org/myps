@@ -12,11 +12,11 @@ namespace DBHelper.Models
         [Key]
         public int Id { get; set; }
         [MaxLength(100)]
-        public string ModuleFunction { get; set; } = string.Empty;
+        public string? ModuleFunction { get; set; }
         [MaxLength(200)]
-        public string Description { get; set; } = string.Empty;
+        public string? Description { get; set; }
         [MaxLength(100)]
-        public string CreatedBy { get; set; } = string.Empty;
+        public string? CreatedBy { get; set; }
         public DateTime? CreatedDate { get; set; }
     }
 }
