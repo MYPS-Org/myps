@@ -53,6 +53,7 @@ namespace WebAPI.Controllers
                 throw new Exception(ex.Message);
             }
         }
+        [NonAction]
         public string ExceptionHandler(Exception ex, string FunctionName)
         {
             Guid errorReferenceId = Guid.NewGuid();

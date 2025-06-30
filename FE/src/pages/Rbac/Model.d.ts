@@ -1,3 +1,5 @@
+import type { PaginationParams } from '../../types/Pagination';
+
 export interface User {
 	Id: number;
 	EmployeeId?: string;
@@ -21,7 +23,7 @@ export interface Permissions {
 }
 export interface PermissionPagination extends PaginationParams {
 	filters?: PermissionFilter;
-	sortField?: string;
+	sortField?: string = 'Id';
 	sortDirection?: 0 | 1;
 }
 export interface PermissionFilter {

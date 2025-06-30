@@ -12,6 +12,7 @@ using DBHelper.Models.Dtos;
 
 namespace WebAPI.Controllers.UserProfile
 {
+    [ApiController]
     [Route("api/[controller]/[action]")]
     public class UserProfileController : CoreController
     {
@@ -82,54 +83,58 @@ namespace WebAPI.Controllers.UserProfile
         {
             try
             {
-                var query = _db.tPermissions.AsNoTracking();
+                // Validate pagination parameters
+                if (dto.page < 1) dto.page = 1;
+                if (dto.limit < 1) dto.limit = 10;
+                if (dto.limit > 10) dto.limit = 10; // Prevent excessive data requests
 
-                // Apply filters
+                var baseQuery = _db.tPermissions.AsNoTracking();
+
+                // Apply filters to base query
                 if (!string.IsNullOrEmpty(dto.Filters?.ModuleFunction))
-                    query = query.Where(e => e.ModuleFunction!.Contains(dto.Filters.ModuleFunction));
+                    baseQuery = baseQuery.Where(e => e.ModuleFunction!.Contains(dto.Filters.ModuleFunction));
 
                 if (!string.IsNullOrEmpty(dto.Filters?.Description))
-                    query = query.Where(e => e.Description!.Contains(dto.Filters.Description));
+                    baseQuery = baseQuery.Where(e => e.Description!.Contains(dto.Filters.Description));
 
-                // Apply sorting BEFORE pagination
-                query = !string.IsNullOrEmpty(dto.SortField)
+                // Get total count of filtered results (before pagination)
+                var totalRecords = await baseQuery.CountAsync();
+
+                // Apply sorting and pagination
+                var sortedQuery = !string.IsNullOrEmpty(dto.SortField)
                     ? (dto.sortDirection == sortDirectionList.DESC
-                        ? query.OrderByDescending(e => EF.Property<object>(e, dto.SortField))
-                        : query.OrderBy(e => EF.Property<object>(e, dto.SortField)))
-                    : query.OrderByDescending(e => e.Id);
+                        ? baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField))
+                        : baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField)))
+                    : baseQuery.OrderByDescending(e => e.Id);
 
-                // Apply pagination BEFORE executing the query
-                query = query.Skip((dto.page - 1) * dto.limit).Take(dto.limit);
+                // Apply pagination and execute query
+                var permissionLists = await sortedQuery
+                    .Skip((dto.page - 1) * dto.limit)
+                    .Take(dto.limit)
+                    .ToListAsync();
 
-                // Execute query efficiently
-                var lists = await query.ToListAsync();
-                int totalRecords = lists.Count();
-                if (lists.Count() < 1)
-                {
-                    totalRecords = await _db.tPermissions.AsNoTracking().CountAsync();
-                }
+                var totalPages = (int)Math.Ceiling((double)totalRecords / dto.limit);
+
                 var response = new
                 {
-                    lists = lists,
+                    PermissionLists = permissionLists, // Match your frontend expectation
                     page = dto.page,
                     limit = dto.limit,
                     total = totalRecords,
-                    totalPages = (int)Math.Ceiling((double)totalRecords / dto.limit)
+                    totalPages = totalPages
                 };
 
-                return Ok(new { response });
+                return Ok(response); // Remove the extra wrapper
             }
             catch (Exception ex)
             {
-                string ErrorId = ExceptionHandler(ex, "PermissionsController-ShowUsers");
-                return Json(
-                    new
-                    {
-                        StatusCode = 500,
-                        Message = ex.Message,
-                        ErrorId = ErrorId
-                    }
-                );
+                string ErrorId = ExceptionHandler(ex, "PermissionsController-ShowPermissions");
+                return Json(new
+                {
+                    StatusCode = 500,
+                    Message = ex.Message,
+                    ErrorId = ErrorId
+                });
             }
         }
         [HttpPost]

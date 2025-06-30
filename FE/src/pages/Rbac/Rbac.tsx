@@ -1,5 +1,5 @@
 'use-client'
-import React, { use, useEffect, useState } from 'react';
+import React, { useState } from 'react';
 
 import { Heading } from '../../components/tailwindui/heading';
 import {
@@ -154,6 +154,7 @@ const Rbac: React.FC = () => {
 		page: 1,
 		limit: 10
 	});
+	const [isLoadingPermissions, setIsLoadingPermissions] = useState(false);
 
 
 	const getStatusBadge = (status: true | false) => {
@@ -162,15 +163,31 @@ const Rbac: React.FC = () => {
 			: <Badge color="red">Inactive</Badge>;
 	};
 
-	const getTableData = (tabName: 'users' | 'permissions' | 'userGroups' | 'userRoles') => {
+	const getTableData = async (e: any, tabName: 'users' | 'permissions' | 'userGroups' | 'userRoles') => {
+		e.preventDefault();
 		setSelectedTab(tabName);
 		if(tabName == 'permissions'){
-			fetchPermissions(PermissionFilter)
-			.then((res) => {
+			// Prevent multiple concurrent requests
+			if (isLoadingPermissions) {
+				console.log('Already loading permissions, skipping request');
+				return;
+			}
+			
+			try {
+				setIsLoadingPermissions(true);
+				console.log('Fetching permissions with filter:', PermissionFilter);
+				const res = await fetchPermissions(PermissionFilter);
+				console.log('Permissions response:', res);
 				if(res.data.PermissionLists){
 					setPermissions(res.data.PermissionLists);
 				}
-			})
+			} catch (error) {
+				console.error('Error fetching permissions:', error);
+				// You might want to show a toast or alert here
+				alert('Failed to fetch permissions: ' + (error instanceof Error ? error.message : 'Unknown error'));
+			} finally {
+				setIsLoadingPermissions(false);
+			}
 		}
 	}
 	const TabButton = ({ 
@@ -185,7 +202,7 @@ const Rbac: React.FC = () => {
 		count: number;
 	}) => (
 		<button
-			onClick={() => getTableData(value)}
+			onClick={(e:any) => { getTableData(e, value) }}
 			className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
 				selectedTab === value
 					? 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
