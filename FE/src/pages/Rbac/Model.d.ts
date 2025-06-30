@@ -50,6 +50,28 @@ export interface PermissionFilter {
 }
 //#endregion
 
+//#region Permissions Models
+export interface Users {
+    Id: number,
+    EmployeeId?: string,
+    UserGroup?: string,
+    UserId?: string,
+    Name?: string,
+    Email?: string,
+    RegCode?: string,
+    PlantillaOffice?: string,
+    IsActive?: boolean
+}
+export interface UserPagination extends PaginationParams {
+    filters?: UserFilter;
+    sortField?: string; // Remove the = 'Id' default value - this is invalid in TypeScript interfaces
+    sortDirection?: 0 | 1;
+}
+export interface UserFilter {
+    Name?: string;
+}
+//#endregion
+
 export interface RawUserGroupData {
   Id: number;
   GroupName: string;
