@@ -2,8 +2,8 @@
 import { httpClient, type ApiResponse } from '../../services/httpClient';
 
 export interface LoginRequest {
-  username: string;
-  password: string;
+  UserName: string;
+  Password: string;
 }
 
 export interface LoginResponse<T = any> {
@@ -30,7 +30,7 @@ class AuthService {
   async login(credentials: LoginRequest): Promise<ApiResponse<LoginResponse>> {
     console.log('🚀 Attempting login');
     const response = await httpClient.post<LoginResponse>(
-      '/auth/login', 
+      '/Auth/Login', 
       credentials,
       { preloaderMessage: "Signing you in..." }
     );

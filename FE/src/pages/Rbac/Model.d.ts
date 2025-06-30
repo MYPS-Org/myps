@@ -12,6 +12,25 @@ export interface User {
     IsActive: boolean;
 }
 
+//#region Users Models
+export interface Permissions {
+    Id: number;
+    ModuleFunction?: string;
+    Description?: string;
+    CreatedBy?: string;
+    CreatedDate?: string;
+}
+export interface PermissionPagination extends PaginationParams {
+    filters?: PermissionFilter;
+    sortField?: string; // Remove the = 'Id' default value - this is invalid in TypeScript interfaces
+    sortDirection?: 0 | 1;
+}
+export interface PermissionFilter {
+    ModuleFunction?: string;
+    Description?: string;
+}
+//#endregion
+
 //#region Permissions Models
 export interface Permissions {
     Id: number;
