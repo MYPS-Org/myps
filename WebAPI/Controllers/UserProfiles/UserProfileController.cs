@@ -8,6 +8,7 @@ using Eaf.Authorization.Roles;
 using System.Security.Claims;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Table;
+using DBHelper.Models.Dtos;
 
 namespace WebAPI.Controllers.UserProfile
 {
@@ -77,21 +78,18 @@ namespace WebAPI.Controllers.UserProfile
         [HttpPost]
         //[Authorize(Policy = "View UserProfiles")]
         [AllowAnonymous]
-        public async Task<IActionResult> ShowPermissions()
+        public async Task<IActionResult> ShowPermissions([FromBody] ShowPermissionsDTO dto)
         {
             try
             {
-                var query = _db.tPermissions.AsNoTracking(); // Apply once
+                var query = _db.tPermissions.AsNoTracking();
 
                 // Apply filters
-                if (!string.IsNullOrEmpty(dto.Filters?.Name))
-                    query = query.Where(e => e.Name!.Contains(dto.Filters.Name));
+                if (!string.IsNullOrEmpty(dto.Filters?.ModuleFunction))
+                    query = query.Where(e => e.ModuleFunction!.Contains(dto.Filters.ModuleFunction));
 
-                if (dto.Filters?.Status != null)
-                    query = query.Where(e => e.Status == dto.Filters.Status);
-
-                if (!string.IsNullOrEmpty(dto.Filters?.LocationName))
-                    query = query.Where(e => e.LocationName == dto.Filters.LocationName);
+                if (!string.IsNullOrEmpty(dto.Filters?.Description))
+                    query = query.Where(e => e.Description!.Contains(dto.Filters.Description));
 
                 // Apply sorting BEFORE pagination
                 query = !string.IsNullOrEmpty(dto.SortField)
@@ -110,41 +108,6 @@ namespace WebAPI.Controllers.UserProfile
                 {
                     totalRecords = await _db.tPermissions.AsNoTracking().CountAsync();
                 }
-                var response = new
-                {
-                    lists = lists,
-                    page = dto.page,
-                    limit = dto.limit,
-                    total = totalRecords,
-                    totalPages = (int)Math.Ceiling((double)totalRecords / dto.limit)
-                };
-
-                int totalRecords = await _db.vEventList.AsNoTracking().CountAsync();
-                var query = _db.vEventList.AsNoTracking(); // Apply once
-
-                // Apply filters
-                if (!string.IsNullOrEmpty(dto.Filters?.Name))
-                    query = query.Where(e => e.Name!.Contains(dto.Filters.Name));
-
-                if (dto.Filters?.Status != null)
-                    query = query.Where(e => e.Status == dto.Filters.Status);
-
-                if (!string.IsNullOrEmpty(dto.Filters?.LocationName))
-                    query = query.Where(e => e.LocationName == dto.Filters.LocationName);
-
-                // Apply sorting BEFORE pagination
-                query = !string.IsNullOrEmpty(dto.SortField)
-                    ? (dto.sortDirection == sortDirectionList.DESC
-                        ? query.OrderByDescending(e => EF.Property<object>(e, dto.SortField))
-                        : query.OrderBy(e => EF.Property<object>(e, dto.SortField)))
-                    : query.OrderByDescending(e => e.Id);
-
-                // Apply pagination BEFORE executing the query
-                query = query.Skip((dto.page - 1) * dto.limit).Take(dto.limit);
-
-                // Execute query efficiently
-                var lists = await query.ToListAsync();
-
                 var response = new
                 {
                     lists = lists,

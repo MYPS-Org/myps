@@ -13,6 +13,8 @@ namespace DBHelper.Models
         public int Id { get; set; }
         [MaxLength(100)]
         public string ModuleFunction { get; set; } = string.Empty;
+        [MaxLength(200)]
+        public string Description { get; set; } = string.Empty;
         [MaxLength(100)]
         public string CreatedBy { get; set; } = string.Empty;
         public DateTime? CreatedDate { get; set; }

@@ -15,7 +15,7 @@ import { Button } from '../../components/tailwindui/button'
 import { Badge } from '../../components/tailwindui/badge'
 
 // Interfaces
-import { type User, type Permission, type RawUserGroupData, type ConsolidatedUserGroup } from './Model.d';
+import { type User, type Permissions, type RawUserGroupData, type ConsolidatedUserGroup, type PermissionPagination } from './Model.d';
 
 // Services
 import { consolidateUserGroups, fetchPermissions } from './service';
@@ -88,7 +88,7 @@ const Rbac: React.FC = () => {
 		}
 	]);
 
-	const [permissions, setPermissions] = useState<Permission[]>([
+	const [permissions, setPermissions] = useState<Permissions[]>([
 		{ 
 			Id: 1, 
 			ModuleFunction: 'User Management', 
@@ -134,6 +134,17 @@ const Rbac: React.FC = () => {
 	const [isUpdateGroupDialogOpen, setIsUpdateGroupDialogOpen] = useState(false);
 	const [isDeleteGroupDialogOpen, setIsDeleteGroupDialogOpen] = useState(false);
 	const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
+	const [PermissionFilter, setPermissionFilter] = useState<PermissionPagination>({
+		filters: {
+			ModuleFunction: '',
+			Description: '',
+		},
+		sortField: '',
+		sortDirection: 1,
+		page: 1,
+		limit: 10
+	});
+
 
 	const getStatusBadge = (status: true | false) => {
 		return status === true
@@ -144,7 +155,7 @@ const Rbac: React.FC = () => {
 	const getTableData = (tabName: 'users' | 'permissions' | 'userGroups' | 'userRoles') => {
 		setSelectedTab(tabName);
 		if(tabName == 'permissions'){
-			fetchPermissions()
+			fetchPermissions(PermissionFilter)
 			.then((res) => {
 				if(res.data.PermissionLists){
 					setPermissions(res.data.PermissionLists);

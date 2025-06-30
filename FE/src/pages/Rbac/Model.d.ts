@@ -12,17 +12,21 @@ export interface User {
 
 
 //#region Permissions Models
-export interface PermissionPagination {
+export interface Permissions {
 	Id: number;
-	ModuleFunction: string;
-	CreatedBy: string;
+	ModuleFunction?: string;
+	Description?: string;
+	CreatedBy?: string;
 	CreatedDate?: string;
 }
-export interface Permission {
-	Id: number;
-	ModuleFunction: string;
-	CreatedBy: string;
-	CreatedDate?: string;
+export interface PermissionPagination extends PaginationParams {
+	filters?: PermissionFilter;
+	sortField?: string;
+	sortDirection?: 0 | 1;
+}
+export interface PermissionFilter {
+	ModuleFunction?: string;
+	Description?: string;
 }
 //#endregion
 

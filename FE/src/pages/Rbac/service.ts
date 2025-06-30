@@ -1,6 +1,6 @@
 // Service functions for RBAC operations
-import type { RawUserGroupData, ConsolidatedUserGroup, Permission } from './Model.d';
-import { httpClient, type ApiResponse } from '../../services/httpClient';
+import type { RawUserGroupData, ConsolidatedUserGroup, PermissionPagination } from './Model.d';
+import { httpClient } from '../../services/httpClient';
 
 export const consolidateUserGroups = (rawData: RawUserGroupData[]): ConsolidatedUserGroup[] => {
 	const groupMap = new Map<string, ConsolidatedUserGroup>();
@@ -60,8 +60,8 @@ export const generateGroupId = (existingGroups: ConsolidatedUserGroup[]): number
 };
 
 //#region  Permission API functions
-export const fetchPermissions = async () => {
-	const request = await httpClient.post<{PermissionLists: Permission[]}>("/UserProfile/ShowPermissions");
+export const fetchPermissions = async (data: PermissionPagination) => {
+	const request = await httpClient.post<{PermissionLists: any}>("/UserProfile/ShowPermissions", data);
 	return request;
 }
 //#endregion
