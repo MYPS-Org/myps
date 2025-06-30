@@ -15,10 +15,10 @@ import { Button } from '../../components/tailwindui/button'
 import { Badge } from '../../components/tailwindui/badge'
 
 // Interfaces
-import { type User, type Permissions, type RawUserGroupData, type ConsolidatedUserGroup, type PermissionPagination } from './Model.d';
+import { type Users, type Permissions, type RawUserGroupData, type ConsolidatedUserGroup, type PermissionPagination, type UserPagination } from './Model.d';
 
 // Services
-import { consolidateUserGroups, fetchPermissions } from './service';
+import { consolidateUserGroups, fetchPermissions, fetchUsers } from './service';
 
 // Dialog imports
 import { AddUserDialog, AddPermissionDialog, AddGroupDialog, ViewUserDialog, UpdateUserDialog, DeleteUserDialog, 
@@ -50,52 +50,60 @@ const Rbac: React.FC = () => {
 		{ Id: 9, GroupName: 'Viewer', Description: 'Read-only access', PermissionName: 'View Reports', MemberCount: 2, CreatedDate: '2024-01-04' },
 	];
 
-	const [users, setUsers] = useState<User[]>([
-		{ 
-			Id: 1, 
-			EmployeeId: 'EMP001',
-			UserId: 'johndoe123',
-			Name: 'John Doe', 
-			Email: 'john.doe@company.com',
-			RegCode: 'REG12345',
-			UserGroup: 'Admin',
-			PlantillaOffice: 'Main Office',
-			IsActive: true,
-		},
-		{ 
-			Id: 2, 
-			EmployeeId: 'EMP002',
-			UserId: 'janesmith456',
-			Name: 'Jane Smith', 
-			Email: 'jane.smith@company.com', 
-			RegCode: 'REG12346',
-			UserGroup: 'Manager',
-			PlantillaOffice: 'Main Office',
-			IsActive: true,
-		},
-		{ 
-			Id: 3, 
-			EmployeeId: 'EMP003',
-			UserId: 'mikejohnson789',
-			Name: 'Mike Johnson', 
-			Email: 'mike.johnson@company.com', 
-			RegCode: 'REG12347',
-			UserGroup: 'User',
-			PlantillaOffice: 'Main Office',
-			IsActive: false,
-		},
-		{ 
-			Id: 4, 
-			EmployeeId: 'EMP004',
-			UserId: 'sarahwilson012',
-			Name: 'Sarah Wilson', 
-			Email: 'sarah.wilson@company.com', 
-			RegCode: 'REG12348',
-			UserGroup: 'Editor',
-			PlantillaOffice: 'Main Office',
-			IsActive: true,
-		}
-	]);
+	// const [users, setUsers] = useState<User[]>([
+	// 	{ 
+	// 		Id: 1, 
+	// 		EmployeeId: 'EMP001',
+	// 		UserId: 'johndoe123',
+	// 		Name: 'John Doe', 
+	// 		Email: 'john.doe@company.com',
+	// 		RegCode: 'REG12345',
+	// 		UserGroup: 'Admin',
+	// 		PlantillaOffice: 'Main Office',
+	// 		IsActive: true,
+	// 	},
+	// 	{ 
+	// 		Id: 2, 
+	// 		EmployeeId: 'EMP002',
+	// 		UserId: 'janesmith456',
+	// 		Name: 'Jane Smith', 
+	// 		Email: 'jane.smith@company.com', 
+	// 		RegCode: 'REG12346',
+	// 		UserGroup: 'Manager',
+	// 		PlantillaOffice: 'Main Office',
+	// 		IsActive: true,
+	// 	},
+	// 	{ 
+	// 		Id: 3, 
+	// 		EmployeeId: 'EMP003',
+	// 		UserId: 'mikejohnson789',
+	// 		Name: 'Mike Johnson', 
+	// 		Email: 'mike.johnson@company.com', 
+	// 		RegCode: 'REG12347',
+	// 		UserGroup: 'User',
+	// 		PlantillaOffice: 'Main Office',
+	// 		IsActive: false,
+	// 	},
+	// 	{ 
+	// 		Id: 4, 
+	// 		EmployeeId: 'EMP004',
+	// 		UserId: 'sarahwilson012',
+	// 		Name: 'Sarah Wilson', 
+	// 		Email: 'sarah.wilson@company.com', 
+	// 		RegCode: 'REG12348',
+	// 		UserGroup: 'Editor',
+	// 		PlantillaOffice: 'Main Office',
+	// 		IsActive: true,
+	// 	}
+	// ]);
+
+	const [UsersData, setUsersData] = useState<PaginationResponse<Users>>({
+		lists: [],
+		page: 1,
+		limit: 10,
+		total: 0,
+		totalPages: 0
+	})
 
 	const [PermissionsData, setPermissionsData] = useState<PaginationResponse<Permissions>>({
 		lists: [],
@@ -137,6 +145,16 @@ const Rbac: React.FC = () => {
 	});
 	const [isLoadingPermissions, setIsLoadingPermissions] = useState(false);
 
+	const [UserFilter, setUserFilter] = useState<UserPagination>({
+		filters: {
+			Name: '',
+		},
+		sortField: '',
+		sortDirection: 1,
+		page: 1,
+		limit: 10
+	});
+	const [isLoadingUsers, setIsLoadingUsers] = useState(false);
 
 	const getStatusBadge = (status: true | false) => {
 		return status === true
@@ -171,13 +189,53 @@ const Rbac: React.FC = () => {
 				setIsLoadingPermissions(false);
 			}
 		}
+		else if (tabName == 'users'){
+			// Prevent multiple concurrent requests
+			if (isLoadingUsers) {
+				console.log('Already loading permissions, skipping request');
+				return;
+			}
+			
+			try {
+				setIsLoadingUsers(true);
+				console.log('Fetching users with filter:', UserFilter);
+				const res = await fetchUsers(UserFilter);
+				console.log('Users response:', res);
+				if(res.data.lists) {
+					console.log('Setting users data:', res);
+					setUsersData(res.data);
+				}
+			} catch (error) {
+				console.error('Error fetching users:', error);
+				// You might want to show a toast or alert here
+				alert('Failed to fetch permissions: ' + (error instanceof Error ? error.message : 'Unknown error'));
+			} finally {
+				setIsLoadingPermissions(false);
+			}
+		}
 	}
 	const Paginate = async (page: number) => {
-		setPermissionFilter(prev => ({
-			...prev,
-			page: page
-		}));
-		await getTableData('permissions');
+		if(selectedTab == 'permissions'){
+			setPermissionFilter(prev => ({
+				...prev,
+				page: page
+			}));
+			await getTableData('permissions');
+		}
+		else if (selectedTab == 'users') {
+			setPermissionFilter(prev => ({
+				...prev,
+				page: page
+			}));
+			await getTableData('users');
+		}
+		else {
+			setPermissionFilter(prev => ({
+				...prev,
+				page: page
+			}));
+			await getTableData('userGroups');
+		}
 	}
 	const TabButton = ({ 
 		label, 
@@ -227,7 +285,7 @@ const Rbac: React.FC = () => {
 					label="Users" 
 					value="users" 
 					icon={UsersIcon} 
-					count={users.length} 
+					count={UsersData.lists.length} 
 				/>
 				<TabButton 
 					label="Permissions" 
@@ -277,7 +335,7 @@ const Rbac: React.FC = () => {
 								</TableRow>
 							</TableHead>
 							<TableBody>
-								{users.map((user) => (
+								{UsersData.lists.map((user) => (
 									<TableRow key={user.Id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
 										<TableCell>
 											<div className="flex items-center space-x-3">
@@ -295,7 +353,7 @@ const Rbac: React.FC = () => {
 											<Badge color="blue">{user.PlantillaOffice}</Badge>
 										</TableCell>
 										<TableCell>
-											{getStatusBadge(user.IsActive)}
+											{getStatusBadge(user.IsActive ?? false)}
 										</TableCell>
 										<TableCell>
 											<div className="flex items-center space-x-2">
@@ -608,7 +666,17 @@ const Rbac: React.FC = () => {
 				isOpen={isAddUserDialogOpen} 
 				onClose={() => setIsAddUserDialogOpen(false)} 
 				onSubmit={(newUser: any) => {
-					setUsers([...users, { ...newUser, id: users.length + 1, lastLogin: 'Never' }]);
+					// Add the new user to the existing data
+					const newUserWithId = { 
+						...newUser, 
+						Id: (UsersData.lists?.length || 0) + 1, 
+						CreatedDate: new Date().toLocaleDateString() 
+					};
+					setUsersData(prev => ({
+						...prev,
+						lists: [...(prev.lists || []), newUserWithId],
+						total: (prev.total || 0) + 1
+					}));
 				}}
 			/>
 
@@ -656,7 +724,7 @@ const Rbac: React.FC = () => {
 						setIsViewUserDialogOpen(false);
 						setSelectedUserId(null);
 					}}
-					user={users.find(user => user.Id === selectedUserId)!}
+					user={UsersData.lists.find(user => user.Id === selectedUserId)!}
 					// onSubmit={(updatedUser: any) => {
 					// 	setUsers(users.map(user => user.Id === updatedUser.Id ? updatedUser : user));
 					// }}
@@ -670,9 +738,12 @@ const Rbac: React.FC = () => {
 						setIsUpdateUserDialogOpen(false);
 						setSelectedUserId(null);
 					}}
-					user={users.find(user => user.Id === selectedUserId)!}
+					user={UsersData.lists.find(user => user.Id === selectedUserId)!}
 					onSubmit={(updatedUser: any) => {
-						setUsers(users.map(user => user.Id === updatedUser.Id ? updatedUser : user));
+						setUsersData(prev => ({
+							...prev,
+							lists: prev.lists?.map(user => user.Id === updatedUser.Id ? updatedUser : user) || []
+						}));
 					}}
 				/>
 			)}
