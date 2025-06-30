@@ -28,9 +28,9 @@ export default function NavBar() {
       </Link> */}
       <NavbarSpacer />
       <NavbarSection>
-        <NavbarItem>
+        {/* <NavbarItem>
           <ThemeToggle />
-        </NavbarItem>
+        </NavbarItem> */}
         <NavbarItem href="/search" aria-label="Search">
           <MagnifyingGlassIcon />
         </NavbarItem>

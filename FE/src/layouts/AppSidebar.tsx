@@ -37,7 +37,12 @@
 	SparklesIcon,
 	Square2StackIcon,
 	TicketIcon,
+	FolderIcon,
+	CalendarDateRangeIcon,
+	UserGroupIcon,
+	LockClosedIcon,
 	} from '@heroicons/react/20/solid'
+	
 
 	export default function SideBar() {
 	return (
@@ -45,8 +50,8 @@
 		<SidebarHeader>
 			<Dropdown>
 			<DropdownButton as={SidebarItem} className="mb-2.5">
-				<Avatar src="/tailwind-logo.svg" />
-				<SidebarLabel>Tailwind Labs</SidebarLabel>
+				<Avatar src="./logo.svg" />
+				<SidebarLabel>MYPS</SidebarLabel>
 				<ChevronDownIcon />
 			</DropdownButton>
 			<DropdownMenu className="min-w-64" anchor="bottom start">
@@ -55,19 +60,19 @@
 					<DropdownLabel>Settings</DropdownLabel>
 				</DropdownItem>
 				<DropdownDivider />
-				<DropdownItem href="/teams/1">
+				<DropdownItem href="/profile">
 					<Avatar slot="icon" src="/tailwind-logo.svg" />
-					<DropdownLabel>Tailwind Labs</DropdownLabel>
+					<DropdownLabel>Profile</DropdownLabel>
 				</DropdownItem>
-				<DropdownItem href="/teams/2">
-					<Avatar slot="icon" initials="WC" className="bg-purple-500 text-white" />
-					<DropdownLabel>Workcation</DropdownLabel>
+				<DropdownItem href="/logout">
+					<ArrowRightStartOnRectangleIcon />
+					<DropdownLabel>Log out</DropdownLabel>
 				</DropdownItem>
-				<DropdownDivider />
+				{/* <DropdownDivider />
 				<DropdownItem href="/teams/create">
 					<PlusIcon />
 					<DropdownLabel>New team&hellip;</DropdownLabel>
-				</DropdownItem>
+				</DropdownItem> */}
 			</DropdownMenu>
 			</Dropdown>
 			<SidebarSection>
@@ -83,20 +88,20 @@
 				<HomeIcon />
 				<SidebarLabel>Dashboard</SidebarLabel>
 			</SidebarItem>
-			<SidebarItem href="/events">
+			<SidebarItem href="/programs">
+				<FolderIcon />
+				<SidebarLabel>Programs</SidebarLabel>
+			</SidebarItem>
+			<SidebarItem href="/projects">
 				<Square2StackIcon />
-				<SidebarLabel>Events</SidebarLabel>
+				<SidebarLabel>Projects</SidebarLabel>
 			</SidebarItem>
-			<SidebarItem href="/orders">
-				<TicketIcon />
-				<SidebarLabel>Orders</SidebarLabel>
-			</SidebarItem>
-			<SidebarItem href="/broadcasts">
-				<MegaphoneIcon />
-				<SidebarLabel>Broadcasts</SidebarLabel>
+			<SidebarItem href="/mult-year">
+				<CalendarDateRangeIcon />
+				<SidebarLabel>Mult-Year</SidebarLabel>
 			</SidebarItem>
 			<SidebarItem href="/rbac">
-				<Cog6ToothIcon />
+				<LockClosedIcon />
 				<SidebarLabel>RBAC</SidebarLabel>
 			</SidebarItem>
 			</SidebarSection>
@@ -106,15 +111,15 @@
 				<QuestionMarkCircleIcon />
 				<SidebarLabel>Support</SidebarLabel>
 			</SidebarItem>
-			<SidebarItem href="/changelog">
+			{/* <SidebarItem href="/changelog">
 				<SparklesIcon />
 				<SidebarLabel>Changelog</SidebarLabel>
-			</SidebarItem>
+			</SidebarItem> */}
 			</SidebarSection>
 		</SidebarBody>
 		<SidebarFooter>
 			<Dropdown>
-			<DropdownButton as={SidebarItem}>
+			{/* <DropdownButton as={SidebarItem}>
 				<span className="flex min-w-0 items-center gap-3">
 				<Avatar src="/profile-photo.jpg" className="size-10" square alt="" />
 				<span className="min-w-0">
@@ -125,8 +130,8 @@
 				</span>
 				</span>
 				<ChevronUpIcon />
-			</DropdownButton>
-			<DropdownMenu className="min-w-64" anchor="top start">
+			</DropdownButton> */}
+			{/* <DropdownMenu className="min-w-64" anchor="top start">
 				<DropdownItem href="/my-profile">
 				<UserIcon />
 				<DropdownLabel>My profile</DropdownLabel>
@@ -149,7 +154,7 @@
 				<ArrowRightStartOnRectangleIcon />
 				<DropdownLabel>Sign out</DropdownLabel>
 				</DropdownItem>
-			</DropdownMenu>
+			</DropdownMenu> */}
 			</Dropdown>
 		</SidebarFooter>
 		</Sidebar>

@@ -4,7 +4,11 @@ namespace WebAPI.Controllers.UserProfile
 {
     public class UsersPaginationDto : EnumPagination
     {
-        public User Filters { get; set; } = new User();
+        public UserFilterDTO Filters { get; set; } = new UserFilterDTO();
         public string? SortField { get; set; }
+    }
+    public class UserFilterDTO
+    {
+        public string? Name { get; set; }
     }
 }

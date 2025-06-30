@@ -20,7 +20,8 @@ namespace WebAPI.Controllers.UserProfile
 
         #region USERS TAB
         [HttpPost]
-        [Authorize(Policy = "View UserProfiles")]
+        //[Authorize(Policy = "View UserProfiles")]
+        [AllowAnonymous]
         public async Task<IActionResult> ShowUsers([FromBody] UsersPaginationDto dto)
         {
             try
@@ -30,11 +31,11 @@ namespace WebAPI.Controllers.UserProfile
                 if (!string.IsNullOrEmpty(dto.Filters?.Name))
                     query = query.Where(e => e.Name!.Contains(dto.Filters.Name));
 
-                if (dto.Filters?.UserGroup != null)
-                    query = query.Where(e => e.UserGroup == dto.Filters.UserGroup);
+                //if (dto.Filters?.UserGroup != null)
+                //    query = query.Where(e => e.UserGroup == dto.Filters.UserGroup);
 
-                if (!string.IsNullOrEmpty(dto.Filters?.IsActive.ToString()))
-                    query = query.Where(e => e.IsActive == dto.Filters.IsActive);
+                //if (!string.IsNullOrEmpty(dto.Filters?.IsActive.ToString()))
+                //    query = query.Where(e => e.IsActive == dto.Filters.IsActive);
 
                 query = !string.IsNullOrEmpty(dto.SortField)
                     ? (dto.sortDirection == sortDirectionList.DESC
