@@ -1,7 +1,6 @@
 ﻿namespace Helpers
 {
-    public class Class1
+    public static class WebApiHandler
     {
-
     }
 }

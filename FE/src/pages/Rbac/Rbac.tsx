@@ -15,14 +15,24 @@ import { Button } from '../../components/tailwindui/button'
 import { Badge } from '../../components/tailwindui/badge'
 
 // Interfaces
-import { type User, type Permission, type RawUserGroupData, type ConsolidatedUserGroup } from './Model.d';
+import { type User, type Permissions, type RawUserGroupData, type ConsolidatedUserGroup, type PermissionPagination } from './Model.d';
 
 // Services
-import { consolidateUserGroups } from './service';
+import { consolidateUserGroups, fetchPermissions } from './service';
 
 // Dialog imports
 import { AddUserDialog, AddPermissionDialog, AddGroupDialog, ViewUserDialog, UpdateUserDialog, DeleteUserDialog, 
 	ViewPermissionDialog, UpdatePermissionDialog, DeletePermissionDialog, ViewGroupDialog, UpdateGroupDialog, DeleteGroupDialog } from './dialogs';
+
+// Pagination
+import { 
+	Pagination,
+	PaginationGap,
+	PaginationList,
+	PaginationNext,
+	PaginationPrevious,
+	PaginationPage,
+ } from '../../components/tailwindui/pagination';
 
 
 const Rbac: React.FC = () => {
@@ -88,7 +98,7 @@ const Rbac: React.FC = () => {
 		}
 	]);
 
-	const [permissions, setPermissions] = useState<Permission[]>([
+	const [permissions, setPermissions] = useState<Permissions[]>([
 		{ 
 			Id: 1, 
 			ModuleFunction: 'User Management', 
@@ -134,6 +144,18 @@ const Rbac: React.FC = () => {
 	const [isUpdateGroupDialogOpen, setIsUpdateGroupDialogOpen] = useState(false);
 	const [isDeleteGroupDialogOpen, setIsDeleteGroupDialogOpen] = useState(false);
 	const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
+	const [PermissionFilter, setPermissionFilter] = useState<PermissionPagination>({
+		filters: {
+			ModuleFunction: '',
+			Description: '',
+		},
+		sortField: '',
+		sortDirection: 1,
+		page: 1,
+		limit: 10
+	});
+	const [isLoadingPermissions, setIsLoadingPermissions] = useState(false);
+
 
 	const getStatusBadge = (status: true | false) => {
 		return status === true
@@ -141,6 +163,33 @@ const Rbac: React.FC = () => {
 			: <Badge color="red">Inactive</Badge>;
 	};
 
+	const getTableData = async (e: any, tabName: 'users' | 'permissions' | 'userGroups' | 'userRoles') => {
+		e.preventDefault();
+		setSelectedTab(tabName);
+		if(tabName == 'permissions'){
+			// Prevent multiple concurrent requests
+			if (isLoadingPermissions) {
+				console.log('Already loading permissions, skipping request');
+				return;
+			}
+			
+			try {
+				setIsLoadingPermissions(true);
+				console.log('Fetching permissions with filter:', PermissionFilter);
+				const res = await fetchPermissions(PermissionFilter);
+				console.log('Permissions response:', res);
+				if(res.data.PermissionLists){
+					setPermissions(res.data.PermissionLists);
+				}
+			} catch (error) {
+				console.error('Error fetching permissions:', error);
+				// You might want to show a toast or alert here
+				alert('Failed to fetch permissions: ' + (error instanceof Error ? error.message : 'Unknown error'));
+			} finally {
+				setIsLoadingPermissions(false);
+			}
+		}
+	}
 	const TabButton = ({ 
 		label, 
 		value, 
@@ -153,7 +202,7 @@ const Rbac: React.FC = () => {
 		count: number;
 	}) => (
 		<button
-			onClick={() => setSelectedTab(value)}
+			onClick={(e:any) => { getTableData(e, value) }}
 			className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
 				selectedTab === value
 					? 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
@@ -177,10 +226,10 @@ const Rbac: React.FC = () => {
 						Manage users, permissions, and user groups
 					</p>
 				</div>
-				<Button color="blue" className="flex items-center space-x-2" onClick={() => setIsAddUserDialogOpen(true)}>
+				{/* <Button color="blue" className="flex items-center space-x-2" onClick={() => setIsAddUserDialogOpen(true)}>
 					<PlusIcon className="w-4 h-4" />
 					<span>Add New</span>
-				</Button>
+				</Button> */}
 			</div>
 
 			{/* Tab Navigation */}
@@ -288,6 +337,21 @@ const Rbac: React.FC = () => {
 								))}
 							</TableBody>
 						</Table>
+						<Pagination className="my-6">
+							<PaginationPrevious href="?page=2" />
+							<PaginationList>
+								<PaginationPage href="?page=1">1</PaginationPage>
+								<PaginationPage href="?page=2">2</PaginationPage>
+								<PaginationPage href="?page=3" current>
+									3
+								</PaginationPage>
+								<PaginationPage href="?page=4">4</PaginationPage>
+								<PaginationGap />
+								<PaginationPage href="?page=65">65</PaginationPage>
+								<PaginationPage href="?page=66">66</PaginationPage>
+							</PaginationList>
+							<PaginationNext href="?page=4" />
+						</Pagination>	
 					</div>
 				)}
 
@@ -372,6 +436,21 @@ const Rbac: React.FC = () => {
 								))}
 							</TableBody>
 						</Table>
+						<Pagination className="my-6">
+							<PaginationPrevious href="?page=2" />
+							<PaginationList>
+								<PaginationPage href="?page=1">1</PaginationPage>
+								<PaginationPage href="?page=2">2</PaginationPage>
+								<PaginationPage href="?page=3" current>
+									3
+								</PaginationPage>
+								<PaginationPage href="?page=4">4</PaginationPage>
+								<PaginationGap />
+								<PaginationPage href="?page=65">65</PaginationPage>
+								<PaginationPage href="?page=66">66</PaginationPage>
+							</PaginationList>
+							<PaginationNext href="?page=4" />
+						</Pagination>
 					</div>
 				)}
 
@@ -483,6 +562,21 @@ const Rbac: React.FC = () => {
 								))}
 							</TableBody>
 						</Table>
+						<Pagination className="my-6">
+							<PaginationPrevious href="?page=2" />
+							<PaginationList>
+								<PaginationPage href="?page=1">1</PaginationPage>
+								<PaginationPage href="?page=2">2</PaginationPage>
+								<PaginationPage href="?page=3" current>
+									3
+								</PaginationPage>
+								<PaginationPage href="?page=4">4</PaginationPage>
+								<PaginationGap />
+								<PaginationPage href="?page=65">65</PaginationPage>
+								<PaginationPage href="?page=66">66</PaginationPage>
+							</PaginationList>
+							<PaginationNext href="?page=4" />
+						</Pagination>
 					</div>
 				)}
 			</div>
@@ -656,7 +750,6 @@ const Rbac: React.FC = () => {
 				/>
 			)}
 		</div>
-		
 	);
 };
 

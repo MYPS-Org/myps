@@ -38,7 +38,7 @@ export function PaginationNext({
   children = 'Next',
 }: React.PropsWithChildren<{ href?: string | null; className?: string }>) {
   return (
-    <span className={clsx(className, 'flex grow basis-0 justify-end')}>
+    <span className={clsx(className, 'flex grow basis-0 justify-center')}>
       <Button {...(href === null ? { disabled: true } : { href })} plain aria-label="Next page">
         {children}
         <svg className="stroke-current" data-slot="icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">

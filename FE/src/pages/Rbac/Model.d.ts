@@ -1,3 +1,5 @@
+import type { PaginationParams } from '../../types/Pagination';
+
 export interface User {
 	Id: number;
 	EmployeeId?: string;
@@ -10,12 +12,25 @@ export interface User {
 	IsActive: boolean;
 }
 
-export interface Permission {
+
+//#region Permissions Models
+export interface Permissions {
 	Id: number;
-	ModuleFunction: string;
-	CreatedBy: string;
+	ModuleFunction?: string;
+	Description?: string;
+	CreatedBy?: string;
 	CreatedDate?: string;
 }
+export interface PermissionPagination extends PaginationParams {
+	filters?: PermissionFilter;
+	sortField?: string = 'Id';
+	sortDirection?: 0 | 1;
+}
+export interface PermissionFilter {
+	ModuleFunction?: string;
+	Description?: string;
+}
+//#endregion
 
 export interface RawUserGroupData {
   Id: number;

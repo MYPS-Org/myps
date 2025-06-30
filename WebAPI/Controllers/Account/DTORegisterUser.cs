@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DBHelper.Models.Dtos
+namespace WebAPI.Controllers.Account
 {
     public class RegisterUserDto
     {
