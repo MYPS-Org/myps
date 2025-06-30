@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+// import type { Users } from '../Model';
 
 interface AddUserDialogProps {
   isOpen: boolean;
@@ -9,7 +10,7 @@ interface AddUserDialogProps {
   onSubmit: (userData: any) => void;
 }
 
-const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit }) => {
+const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit}) => {
   const [formData, setFormData] = useState({
     employeeId: '',
     name: '',
@@ -20,6 +21,19 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
     plantillaOffice: '',
     isActive: 'active',
   });
+
+    const userGroups = [
+    'User Management',
+    'View Reports',
+    'Edit Content',
+    'Delete Records',
+    'Role Management',
+    'System Settings',
+    'Audit Logs',
+    'Data Export',
+    'API Access',
+    'Notifications'
+  ];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,6 +144,26 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
                 placeholder="Enter department"
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                User Group
+              </label>
+              <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto border border-gray-200 dark:border-gray-600 rounded-md p-3">
+              {userGroups.map((group) => (
+                <label key={group} className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    value={group}
+                    checked={formData.userGroup === group}
+                    onChange={(e) => handleChange('userGroup', e.target.checked ? group : '')}
+                    className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+                  />
+                  <span className="text-sm text-gray-700 dark:text-gray-300">{group}</span>
+                </label>
+              ))}
+              </div>
             </div>
 
             <div>

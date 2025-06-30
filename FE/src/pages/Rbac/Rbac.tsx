@@ -139,9 +139,9 @@ const Rbac: React.FC = () => {
 			Description: '',
 		},
 		sortField: '',
-		sortDirection: 1,
+		sortDirection: 0,
 		page: 1,
-		limit: 10
+		limit: 100
 	});
 	const [isLoadingPermissions, setIsLoadingPermissions] = useState(false);
 
@@ -755,12 +755,19 @@ const Rbac: React.FC = () => {
 						setIsDeleteUserDialogOpen(false);
 						setSelectedUserId(null);
 					}}
-					user={users.find(user => user.Id === selectedUserId)!}
-					onSubmit={(deletedUserId: number) => {
-						setUsers(users.filter(user => user.Id !== deletedUserId));
+				user={UsersData.lists.find(user => user.Id === selectedUserId)!}
+				onSubmit={(deletedUserId: number) => {
+					setUsersData(prev => ({
+						...prev,
+						lists: prev.lists?.filter(user => user.Id !== deletedUserId) || [],
+						total: Math.max(0, (prev.total || 1) - 1)
+					}));
 					}}
 				/>
 			)}
+			
+			{/* Permission CRUD Dialogs */}
+			{/* Add Permission Dialog */}
 			{/* View Permission Dialog */}
 			{isViewPermissionDialogOpen && selectedPermissionId && (
 				<ViewPermissionDialog

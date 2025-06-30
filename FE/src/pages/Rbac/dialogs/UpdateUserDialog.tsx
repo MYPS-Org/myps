@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import type { User } from '../Model.d';
+import type { Users } from '../Model.d';
 
 interface UpdateUserDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (userData: any) => void;
-  user: User;
+  user: Users;
 }
 
 const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, onSubmit, user }) => {
@@ -132,6 +132,12 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
                 placeholder="Enter department"
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                User Group
+              </label>
+              <input type="checkbox" />
             </div>
 
             <div>
