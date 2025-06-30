@@ -1,14 +1,16 @@
 "use-client";
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
-import type { Programs } from './Model.d'; // Adjust the import path as necessary
+import type { Programs } from '../Model'; // Adjust the import path as necessary
 
-import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '../../components/tailwindui/table'; // Adjust the import path as necessary
+import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '../../../components/tailwindui/table'; // Adjust the import path as necessary
 
-import { Button } from '../../components/tailwindui/button'; // Adjust the import path as necessary
+import { Button } from '../../../components/tailwindui/button'; // Adjust the import path as necessary
 import { PlusIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'; // Adjust the import path as necessary
 
 const Program: React.FC = () => {
+const navigate = useNavigate();
 const [programs, setPrograms] = useState<Programs[]>([
     // Example initial state, replace with actual data or leave empty
     { id: 1, name: 'Program A', description: 'Description A' },
@@ -16,9 +18,9 @@ const [programs, setPrograms] = useState<Programs[]>([
 ]);
 const [isLoading, setIsLoading] = useState(false);
 
-// useEffect(() => {
-//     fetchPrograms();
-// }, []);
+useEffect(() => {
+    fetchPrograms();
+}, []);
 
 const fetchPrograms = async () => {
     setIsLoading(true);
@@ -35,6 +37,23 @@ const fetchPrograms = async () => {
     alert('Failed to fetch programs: ' + (error instanceof Error ? error.message : 'Unknown error'));
     } finally {
     setIsLoading(false);
+    }
+};
+
+const handleViewDetails = (programId: number) => {
+    navigate(`/programs/${programId}`);
+};
+
+const handleEditProgram = (programId: number) => {
+    // Navigate to edit form or open modal
+    console.log('Edit program:', programId);
+};
+
+const handleDeleteProgram = (programId: number) => {
+    // Handle delete logic
+    if (window.confirm('Are you sure you want to delete this program?')) {
+        console.log('Delete program:', programId);
+        // You can add actual delete API call here
     }
 };
 
@@ -75,8 +94,29 @@ const fetchPrograms = async () => {
                     <TableCell>{program.name}</TableCell>
                     <TableCell>{program.description}</TableCell>
                     <TableCell>
-                        {/* <button onClick={() => editProgram(program.id)}>Edit</button>
-                        <button onClick={() => deleteProgram(program.id)}>Delete</button> */}
+                        <div className="flex space-x-2">
+                            <Button 
+                                color="blue" 
+                                onClick={() => handleViewDetails(program.id)}
+                                className="text-xs px-2 py-1"
+                            >
+                                View Details
+                            </Button>
+                            <Button 
+                                color="zinc" 
+                                onClick={() => handleEditProgram(program.id)}
+                                className="text-xs px-2 py-1"
+                            >
+                                Edit
+                            </Button>
+                            <Button 
+                                color="red" 
+                                onClick={() => handleDeleteProgram(program.id)}
+                                className="text-xs px-2 py-1"
+                            >
+                                Delete
+                            </Button>
+                        </div>
                     </TableCell>
                     </TableRow>
                 ))}
