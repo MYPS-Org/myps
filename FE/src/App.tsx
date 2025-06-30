@@ -10,6 +10,7 @@ import Preloader from './components/Preloader';
 import Layout from './pages/Layouts/Layout';
 import AppLayout from './layouts/AppLayout';
 import Rbac from './pages/Rbac/Rbac';
+import Programs from './pages/Program/Program';
 import Settings from './pages/Settings/Settings';
 
 function App() {
@@ -36,6 +37,14 @@ function App() {
 								element={
 									<ProtectedRoute>
 										<Rbac />
+									</ProtectedRoute>
+								} 
+							/>
+							<Route 
+								path="/programs" 
+								element={
+									<ProtectedRoute>
+										<Programs />
 									</ProtectedRoute>
 								} 
 							/>
