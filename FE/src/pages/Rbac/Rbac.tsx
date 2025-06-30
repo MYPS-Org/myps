@@ -27,7 +27,6 @@ import { AddUserDialog, AddPermissionDialog, AddGroupDialog, ViewUserDialog, Upd
 // Pagination
 import { 
 	Pagination,
-	PaginationGap,
 	PaginationList,
 	PaginationNext,
 	PaginationPrevious,
@@ -172,6 +171,13 @@ const Rbac: React.FC = () => {
 				setIsLoadingPermissions(false);
 			}
 		}
+	}
+	const Paginate = async (page: number) => {
+		setPermissionFilter(prev => ({
+			...prev,
+			page: page
+		}));
+		await getTableData('permissions');
 	}
 	const TabButton = ({ 
 		label, 
@@ -320,7 +326,7 @@ const Rbac: React.FC = () => {
 								))}
 							</TableBody>
 						</Table>
-						<Pagination className="my-6">
+						{/* <Pagination className="my-6">
 							<PaginationPrevious href="?page=2" />
 							<PaginationList>
 								<PaginationPage href="?page=1">1</PaginationPage>
@@ -334,7 +340,7 @@ const Rbac: React.FC = () => {
 								<PaginationPage href="?page=66">66</PaginationPage>
 							</PaginationList>
 							<PaginationNext href="?page=4" />
-						</Pagination>	
+						</Pagination>	 */}
 					</div>
 				)}
 
@@ -425,42 +431,41 @@ const Rbac: React.FC = () => {
 									<>
 										<PaginationPrevious 
 											onClick={async () => {
-												if (PermissionsData.page > 1) {
-													setPermissionFilter(prev => ({
-														...prev,
-														page: prev.page - 1
-													}));
-													await getTableData('permissions');
-												}
-											}} 
+												Paginate(PermissionsData.page-1);
+											}}
 											disabled={PermissionsData.page <= 1}
 										/>
 										<PaginationList>
-											{Array.from({ length: PermissionsData.totalPages }, (_, i) => i + 1).map(pageNum => (
-												<PaginationPage 
-													key={pageNum}
-													onClick={async () => {
-														setPermissionFilter(prev => ({
-															...prev,
-															page: pageNum
-														}));
-														await getTableData('permissions');
-													}}
-													current={PermissionsData.page === pageNum}
-												>
-													{pageNum}
-												</PaginationPage>
-											))}
+											{(() => {
+												for(let i = PermissionsData.page - 2; i <= PermissionsData.page + 4; i++) {
+													if (i < 1 || i > PermissionsData.totalPages) continue;
+													if (i === PermissionsData.page) {
+														return (
+															<PaginationPage
+																key={i}
+																current
+															>
+																{i}
+															</PaginationPage>
+														);
+													} else {
+														return (
+															<PaginationPage
+																key={i}
+																onClick={() => {
+																	Paginate(i);
+																}}
+															>
+																{i}
+															</PaginationPage>
+														);
+													}
+												}
+											})()}
 										</PaginationList>
 										<PaginationNext 
 											onClick={async () => {
-												if (PermissionsData.page < PermissionsData.totalPages) {
-													setPermissionFilter(prev => ({
-														...prev,
-														page: prev.page + 1
-													}));
-													await getTableData('permissions');
-												}
+												Paginate(PermissionsData.page+1);
 											}}
 											disabled={PermissionsData.page >= PermissionsData.totalPages}
 										/>
@@ -579,7 +584,7 @@ const Rbac: React.FC = () => {
 								))}
 							</TableBody>
 						</Table>
-						<Pagination className="my-6">
+						{/* <Pagination className="my-6">
 							<PaginationPrevious onClick={() => {}} />
 							<PaginationList>
 								<PaginationPage href="?page=1">1</PaginationPage>
@@ -593,7 +598,7 @@ const Rbac: React.FC = () => {
 								<PaginationPage href="?page=66">66</PaginationPage>
 							</PaginationList>
 							<PaginationNext href="?page=4" />
-						</Pagination>
+						</Pagination> */}
 					</div>
 				)}
 			</div>
@@ -612,7 +617,17 @@ const Rbac: React.FC = () => {
 				isOpen={isAddPermissionDialogOpen} 
 				onClose={() => setIsAddPermissionDialogOpen(false)} 
 				onSubmit={(newPermission: any) => {
-					setPermissions([...permissions, { ...newPermission, id: permissions.length + 1, createdAt: new Date().toLocaleDateString() }]);
+					// Add the new permission to the existing data
+					const newPermissionWithId = { 
+						...newPermission, 
+						Id: (PermissionsData.lists?.length || 0) + 1, 
+						CreatedDate: new Date().toLocaleDateString() 
+					};
+					setPermissionsData(prev => ({
+						...prev,
+						lists: [...(prev.lists || []), newPermissionWithId],
+						total: (prev.total || 0) + 1
+					}));
 				}}
 			/>
 
@@ -683,7 +698,7 @@ const Rbac: React.FC = () => {
 						setIsViewPermissionDialogOpen(false);
 						setSelectedPermissionId(null);
 					}}
-					permission={permissions.find(permission => permission.Id === selectedPermissionId)!}
+					permission={PermissionsData.lists?.find((permission: any) => permission.Id === selectedPermissionId)!}
 				/>
 			)}
 			{/* Update Permission Dialog */}
@@ -694,9 +709,12 @@ const Rbac: React.FC = () => {
 						setIsUpdatePermissionDialogOpen(false);
 						setSelectedPermissionId(null);
 					}}
-					permission={permissions.find(permission => permission.Id === selectedPermissionId)!}
+					permission={PermissionsData.lists?.find((permission: any) => permission.Id === selectedPermissionId)!}
 					onSubmit={(updatedPermission: any) => {
-						setPermissions(permissions.map(permission => permission.Id === updatedPermission.Id ? updatedPermission : permission));
+						setPermissionsData(prev => ({
+							...prev,
+							lists: prev.lists?.map((permission: any) => permission.Id === updatedPermission.Id ? updatedPermission : permission) || []
+						}));
 					}}
 				/>
 			)}
@@ -708,9 +726,13 @@ const Rbac: React.FC = () => {
 						setIsDeletePermissionDialogOpen(false);
 						setSelectedPermissionId(null);
 					}}
-					permission={permissions.find(permission => permission.Id === selectedPermissionId)!}
+					permission={PermissionsData.lists?.find((permission: any) => permission.Id === selectedPermissionId)!}
 					onSubmit={(deletedPermissionId: number) => {
-						setPermissions(permissions.filter(permission => permission.Id !== deletedPermissionId));
+						setPermissionsData(prev => ({
+							...prev,
+							lists: prev.lists?.filter((permission: any) => permission.Id !== deletedPermissionId) || [],
+							total: Math.max(0, (prev.total || 1) - 1)
+						}));
 					}}
 				/>
 			)}
