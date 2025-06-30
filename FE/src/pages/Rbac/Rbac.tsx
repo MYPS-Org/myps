@@ -223,7 +223,7 @@ const Rbac: React.FC = () => {
 			await getTableData('permissions');
 		}
 		else if (selectedTab == 'users') {
-			setPermissionFilter(prev => ({
+			setUserFilter(prev => ({
 				...prev,
 				page: page
 			}));

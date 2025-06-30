@@ -1,17 +1,5 @@
 import type { PaginationParams } from '../../types/Pagination';
 
-export interface User {
-    Id: number;
-    EmployeeId?: string;
-    UserGroup: string;
-    UserId: string;
-    Name: string;
-    Email?: string;
-    RegCode: string;
-    PlantillaOffice?: string;
-    IsActive: boolean;
-}
-
 //#region Permissions Models
 export interface Permissions {
     Id: number;
