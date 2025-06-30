@@ -20,12 +20,18 @@ using System.Threading.Tasks;
 
 namespace WebAPI.Controllers.Auth
 {
+    [ApiController]
     [Route("api/[controller]/[action]")]
     public class AuthController : CoreController
     {
         public AuthController(AppDbContext db) : base (db)
         {
         }
+        /// <summary>
+        /// Authenticate user using LDAP
+        /// </summary>
+        /// <param name="dto">Login credentials</param>
+        /// <returns>Authentication result</returns>
         [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> Login([FromBody] LoginDto dto)

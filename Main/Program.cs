@@ -74,8 +74,24 @@ if (builder.Environment.IsDevelopment())
                    .AllowAnyHeader();
         });
     });
+    
     builder.Services.AddSwaggerGen(options =>
     {
+        options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+        {
+            Title = "MyPS Backend API",
+            Version = "v1",
+            Description = "API for MyPS Backend Application"
+        });
+        
+        // Include XML comments
+        var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+        var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+        if (File.Exists(xmlPath))
+        {
+            options.IncludeXmlComments(xmlPath);
+        }
+        
         options.AddSecurityDefinition("cookieAuth", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
         {
             Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
@@ -111,12 +127,22 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI(options =>
     {
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "MyPS Backend API v1");
+        options.RoutePrefix = "swagger";
         options.ConfigObject.AdditionalItems["withCredentials"] = true;
+        options.DocExpansion(Swashbuckle.AspNetCore.SwaggerUI.DocExpansion.None);
+        options.DefaultModelsExpandDepth(-1);
     });
 }
 else { app.MapFallbackToFile("index.html"); }
 
 app.UseStaticFiles();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseCors("AllowReactApp");
+}
+
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();

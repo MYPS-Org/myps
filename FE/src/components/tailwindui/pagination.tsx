@@ -11,13 +11,14 @@ export function Pagination({
 }
 
 export function PaginationPrevious({
-  href = null,
+  onClick,
+  disabled = false,
   className,
   children = 'Previous',
-}: React.PropsWithChildren<{ href?: string | null; className?: string }>) {
+}: React.PropsWithChildren<{ onClick?: () => void; disabled?: boolean; className?: string }>) {
   return (
     <span className={clsx(className, 'grow basis-0')}>
-      <Button {...(href === null ? { disabled: true } : { href })} plain aria-label="Previous page">
+      <Button onClick={onClick} disabled={disabled} plain aria-label="Previous page">
         <svg className="stroke-current" data-slot="icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
           <path
             d="M2.75 8H13.25M2.75 8L5.25 5.5M2.75 8L5.25 10.5"
@@ -33,13 +34,14 @@ export function PaginationPrevious({
 }
 
 export function PaginationNext({
-  href = null,
+  onClick,
+  disabled = false,
   className,
   children = 'Next',
-}: React.PropsWithChildren<{ href?: string | null; className?: string }>) {
+}: React.PropsWithChildren<{ onClick?: () => void; disabled?: boolean; className?: string }>) {
   return (
     <span className={clsx(className, 'flex grow basis-0 justify-center')}>
-      <Button {...(href === null ? { disabled: true } : { href })} plain aria-label="Next page">
+      <Button onClick={onClick} disabled={disabled} plain aria-label="Next page">
         {children}
         <svg className="stroke-current" data-slot="icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
           <path
@@ -59,14 +61,14 @@ export function PaginationList({ className, ...props }: React.ComponentPropsWith
 }
 
 export function PaginationPage({
-  href,
+  onClick,
   className,
   current = false,
   children,
-}: React.PropsWithChildren<{ href: string; className?: string; current?: boolean }>) {
+}: React.PropsWithChildren<{ onClick?: () => void; className?: string; current?: boolean }>) {
   return (
     <Button
-      href={href}
+      onClick={onClick}
       plain
       aria-label={`Page ${children}`}
       aria-current={current ? 'page' : undefined}

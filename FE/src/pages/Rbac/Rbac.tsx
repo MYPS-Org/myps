@@ -1,5 +1,5 @@
 'use-client'
-import React, { use, useEffect, useState } from 'react';
+import React, { useState } from 'react';
 
 import { Heading } from '../../components/tailwindui/heading';
 import {
@@ -98,32 +98,14 @@ const Rbac: React.FC = () => {
 		}
 	]);
 
-	const [permissions, setPermissions] = useState<Permissions[]>([
-		{ 
-			Id: 1, 
-			ModuleFunction: 'User Management', 
-			CreatedBy: 'Super Admin',
-			CreatedDate: '01-01-2024',
-		},
-		{ 
-			Id: 2, 
-			ModuleFunction: 'View Reports', 
-			CreatedBy: 'User',
-			CreatedDate: '01-01-2024',
-		},
-		{ 
-			Id: 3, 
-			ModuleFunction: 'Edit Content', 
-			CreatedBy: 'Administrator',
-			CreatedDate: '01-01-2024',
-		},
-		{ 
-			Id: 4, 
-			ModuleFunction: 'Delete Records', 
-			CreatedBy: 'Developer',
-			CreatedDate: '01-01-2024',
-		}
-	]);
+	const [PermissionsData, setPermissionsData] = useState<PaginationResponse<Permissions>>({
+		lists: [],
+		page: 1,
+		limit: 10,
+		total: 0,
+		totalPages: 0
+	}
+	);
 
 	// Initialize userGroups with consolidated data from raw data
 	const [userGroups, setUserGroups] = useState<ConsolidatedUserGroup[]>(() => consolidateUserGroups(rawUserGroupsData));
@@ -154,6 +136,7 @@ const Rbac: React.FC = () => {
 		page: 1,
 		limit: 10
 	});
+	const [isLoadingPermissions, setIsLoadingPermissions] = useState(false);
 
 
 	const getStatusBadge = (status: true | false) => {
@@ -162,15 +145,32 @@ const Rbac: React.FC = () => {
 			: <Badge color="red">Inactive</Badge>;
 	};
 
-	const getTableData = (tabName: 'users' | 'permissions' | 'userGroups' | 'userRoles') => {
+	const getTableData = async (tabName: 'users' | 'permissions' | 'userGroups' | 'userRoles') => {
+		console.log('Switching to tab:', tabName);
 		setSelectedTab(tabName);
 		if(tabName == 'permissions'){
-			fetchPermissions(PermissionFilter)
-			.then((res) => {
-				if(res.data.PermissionLists){
-					setPermissions(res.data.PermissionLists);
+			// Prevent multiple concurrent requests
+			if (isLoadingPermissions) {
+				console.log('Already loading permissions, skipping request');
+				return;
+			}
+			
+			try {
+				setIsLoadingPermissions(true);
+				console.log('Fetching permissions with filter:', PermissionFilter);
+				const res = await fetchPermissions(PermissionFilter);
+				console.log('Permissions response:', res);
+				if(res.data.lists) {
+					console.log('Setting permissions data:', res);
+					setPermissionsData(res.data);
 				}
-			})
+			} catch (error) {
+				console.error('Error fetching permissions:', error);
+				// You might want to show a toast or alert here
+				alert('Failed to fetch permissions: ' + (error instanceof Error ? error.message : 'Unknown error'));
+			} finally {
+				setIsLoadingPermissions(false);
+			}
 		}
 	}
 	const TabButton = ({ 
@@ -185,11 +185,11 @@ const Rbac: React.FC = () => {
 		count: number;
 	}) => (
 		<button
-			onClick={() => getTableData(value)}
+			onClick={() => { if(selectedTab != value) getTableData(value); }}
 			className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
 				selectedTab === value
 					? 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
-					: 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'
+					: 'cursor-pointer text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'
 			}`}
 		>
 			<Icon className="w-5 h-5" />
@@ -227,7 +227,7 @@ const Rbac: React.FC = () => {
 					label="Permissions" 
 					value="permissions" 
 					icon={KeyIcon} 
-					count={permissions.length} 
+					count={100} 
 				/>
 				<TabButton 
 					label="User Groups" 
@@ -372,7 +372,7 @@ const Rbac: React.FC = () => {
 								</TableRow>
 							</TableHead>
 							<TableBody>
-								{permissions.map((permission) => (
+								{PermissionsData.lists.map((permission) => (
 									<TableRow key={permission.Id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
 										<TableCell>
 											<div className="font-medium text-gray-900 dark:text-white">
@@ -420,19 +420,53 @@ const Rbac: React.FC = () => {
 							</TableBody>
 						</Table>
 						<Pagination className="my-6">
-							<PaginationPrevious href="?page=2" />
-							<PaginationList>
-								<PaginationPage href="?page=1">1</PaginationPage>
-								<PaginationPage href="?page=2">2</PaginationPage>
-								<PaginationPage href="?page=3" current>
-									3
-								</PaginationPage>
-								<PaginationPage href="?page=4">4</PaginationPage>
-								<PaginationGap />
-								<PaginationPage href="?page=65">65</PaginationPage>
-								<PaginationPage href="?page=66">66</PaginationPage>
-							</PaginationList>
-							<PaginationNext href="?page=4" />
+							{
+								PermissionsData.totalPages > 1 && (
+									<>
+										<PaginationPrevious 
+											onClick={async () => {
+												if (PermissionsData.page > 1) {
+													setPermissionFilter(prev => ({
+														...prev,
+														page: prev.page - 1
+													}));
+													await getTableData('permissions');
+												}
+											}} 
+											disabled={PermissionsData.page <= 1}
+										/>
+										<PaginationList>
+											{Array.from({ length: PermissionsData.totalPages }, (_, i) => i + 1).map(pageNum => (
+												<PaginationPage 
+													key={pageNum}
+													onClick={async () => {
+														setPermissionFilter(prev => ({
+															...prev,
+															page: pageNum
+														}));
+														await getTableData('permissions');
+													}}
+													current={PermissionsData.page === pageNum}
+												>
+													{pageNum}
+												</PaginationPage>
+											))}
+										</PaginationList>
+										<PaginationNext 
+											onClick={async () => {
+												if (PermissionsData.page < PermissionsData.totalPages) {
+													setPermissionFilter(prev => ({
+														...prev,
+														page: prev.page + 1
+													}));
+													await getTableData('permissions');
+												}
+											}}
+											disabled={PermissionsData.page >= PermissionsData.totalPages}
+										/>
+									</>
+								)
+							}
 						</Pagination>
 					</div>
 				)}
@@ -452,7 +486,7 @@ const Rbac: React.FC = () => {
 											className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 										/>
 									</div>
-									<Button color="blue" onClick={() => setIsAddGroupDialogOpen(true)}>
+									<Button color="blue" onClick={() => { setIsAddGroupDialogOpen(true) }}>
 										<PlusIcon className="w-4 h-4 mr-1" />
 										Add Group
 									</Button>
@@ -546,7 +580,7 @@ const Rbac: React.FC = () => {
 							</TableBody>
 						</Table>
 						<Pagination className="my-6">
-							<PaginationPrevious href="?page=2" />
+							<PaginationPrevious onClick={() => {}} />
 							<PaginationList>
 								<PaginationPage href="?page=1">1</PaginationPage>
 								<PaginationPage href="?page=2">2</PaginationPage>

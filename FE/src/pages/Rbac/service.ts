@@ -1,5 +1,6 @@
 // Service functions for RBAC operations
-import type { RawUserGroupData, ConsolidatedUserGroup, PermissionPagination } from './Model.d';
+import type { RawUserGroupData, ConsolidatedUserGroup, PermissionPagination, Permissions } from './Model.d';
+import type { PaginationResponse } from '../../types/Pagination';
 import { httpClient } from '../../services/httpClient';
 
 export const consolidateUserGroups = (rawData: RawUserGroupData[]): ConsolidatedUserGroup[] => {
@@ -61,7 +62,15 @@ export const generateGroupId = (existingGroups: ConsolidatedUserGroup[]): number
 
 //#region  Permission API functions
 export const fetchPermissions = async (data: PermissionPagination) => {
-	const request = await httpClient.post<{PermissionLists: any}>("/UserProfile/ShowPermissions", data);
-	return request;
+    try {
+        console.log('Service: Making API call to /UserProfile/ShowPermissions with data:', data);
+        const request = await httpClient.post<PaginationResponse<Permissions>>("/UserProfile/ShowPermissions", data);
+        console.log('Service: API response received:', request);
+        return request;
+    } catch (error) {
+        console.error('Service: Error in fetchPermissions:', error);
+        // Re-throw the error so the calling component can handle it
+        throw error;
+    }
 }
 //#endregion

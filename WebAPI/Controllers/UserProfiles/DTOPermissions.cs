@@ -10,11 +10,11 @@ namespace DBHelper.Models.Dtos
     public class ShowPermissionsDTO : EnumPagination
     {
         public ShowPermissionFilterDTO Filters { get; set; } = new ShowPermissionFilterDTO();
-        public string? SortField { get; set; }
+        public string SortField { get; set; } = "Id";
     }
     public class ShowPermissionFilterDTO
     {
-        public string ModuleFunction { get; set; } = string.Empty;
-        public string Description { get; set; } = string.Empty;
+        public string? ModuleFunction { get; set; }
+        public string? Description { get; set; }
     }
 }
