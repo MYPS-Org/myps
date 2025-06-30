@@ -24,6 +24,16 @@ import { consolidateUserGroups, fetchPermissions } from './service';
 import { AddUserDialog, AddPermissionDialog, AddGroupDialog, ViewUserDialog, UpdateUserDialog, DeleteUserDialog, 
 	ViewPermissionDialog, UpdatePermissionDialog, DeletePermissionDialog, ViewGroupDialog, UpdateGroupDialog, DeleteGroupDialog } from './dialogs';
 
+// Pagination
+import { 
+	Pagination,
+	PaginationGap,
+	PaginationList,
+	PaginationNext,
+	PaginationPrevious,
+	PaginationPage,
+ } from '../../components/tailwindui/pagination';
+
 
 const Rbac: React.FC = () => {
 	const [selectedTab, setSelectedTab] = useState<'users' | 'permissions' | 'userGroups' | 'userRoles'>('users');
@@ -216,10 +226,10 @@ const Rbac: React.FC = () => {
 						Manage users, permissions, and user groups
 					</p>
 				</div>
-				<Button color="blue" className="flex items-center space-x-2" onClick={() => setIsAddUserDialogOpen(true)}>
+				{/* <Button color="blue" className="flex items-center space-x-2" onClick={() => setIsAddUserDialogOpen(true)}>
 					<PlusIcon className="w-4 h-4" />
 					<span>Add New</span>
-				</Button>
+				</Button> */}
 			</div>
 
 			{/* Tab Navigation */}
@@ -327,6 +337,21 @@ const Rbac: React.FC = () => {
 								))}
 							</TableBody>
 						</Table>
+						<Pagination className="my-6">
+							<PaginationPrevious href="?page=2" />
+							<PaginationList>
+								<PaginationPage href="?page=1">1</PaginationPage>
+								<PaginationPage href="?page=2">2</PaginationPage>
+								<PaginationPage href="?page=3" current>
+									3
+								</PaginationPage>
+								<PaginationPage href="?page=4">4</PaginationPage>
+								<PaginationGap />
+								<PaginationPage href="?page=65">65</PaginationPage>
+								<PaginationPage href="?page=66">66</PaginationPage>
+							</PaginationList>
+							<PaginationNext href="?page=4" />
+						</Pagination>	
 					</div>
 				)}
 
@@ -411,6 +436,21 @@ const Rbac: React.FC = () => {
 								))}
 							</TableBody>
 						</Table>
+						<Pagination className="my-6">
+							<PaginationPrevious href="?page=2" />
+							<PaginationList>
+								<PaginationPage href="?page=1">1</PaginationPage>
+								<PaginationPage href="?page=2">2</PaginationPage>
+								<PaginationPage href="?page=3" current>
+									3
+								</PaginationPage>
+								<PaginationPage href="?page=4">4</PaginationPage>
+								<PaginationGap />
+								<PaginationPage href="?page=65">65</PaginationPage>
+								<PaginationPage href="?page=66">66</PaginationPage>
+							</PaginationList>
+							<PaginationNext href="?page=4" />
+						</Pagination>
 					</div>
 				)}
 
@@ -522,6 +562,21 @@ const Rbac: React.FC = () => {
 								))}
 							</TableBody>
 						</Table>
+						<Pagination className="my-6">
+							<PaginationPrevious href="?page=2" />
+							<PaginationList>
+								<PaginationPage href="?page=1">1</PaginationPage>
+								<PaginationPage href="?page=2">2</PaginationPage>
+								<PaginationPage href="?page=3" current>
+									3
+								</PaginationPage>
+								<PaginationPage href="?page=4">4</PaginationPage>
+								<PaginationGap />
+								<PaginationPage href="?page=65">65</PaginationPage>
+								<PaginationPage href="?page=66">66</PaginationPage>
+							</PaginationList>
+							<PaginationNext href="?page=4" />
+						</Pagination>
 					</div>
 				)}
 			</div>
@@ -695,7 +750,6 @@ const Rbac: React.FC = () => {
 				/>
 			)}
 		</div>
-		
 	);
 };
 

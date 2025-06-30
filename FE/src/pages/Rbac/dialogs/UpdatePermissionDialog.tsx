@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import type { Permission } from '../Model.d';
+import type { Permissions } from '../Model.d';
 
 interface UpdatePermissionDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (permissionData: any) => void;
-  permission: Permission;
+  permission: Permissions;
 }
 
 const UpdatePermissionDialog: React.FC<UpdatePermissionDialogProps> = ({ isOpen, onClose, onSubmit, permission }) => {
