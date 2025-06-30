@@ -32,7 +32,7 @@ namespace WebAPI.Controllers.Auth
                 data = new { Authenticated = false },
                 user = new { }
             };
-            string ldap_host = "192.168.50.146";
+            string ldap_host = "192.168.1.93";
             if (dto == null || string.IsNullOrEmpty(dto.UserName) || string.IsNullOrEmpty(dto.Password))
             {
                 return BadRequest("Invalid login request.");
@@ -64,7 +64,7 @@ namespace WebAPI.Controllers.Auth
 
                     await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
                         new ClaimsPrincipal(claimsIdentity), authProperties);
-                    return Ok(new { message = "Login successful", data = new { Authenticated = true, user = new { UserRole = "", Name = "" } } });
+                    return Ok(new { message = "Login successful", data = new { Authenticated = true, user = new { id = "dev-user", name = "Development User", UserRole = "admin" } } });
                 }
                 else
                 {
@@ -83,7 +83,12 @@ namespace WebAPI.Controllers.Auth
             bool hasUserId = string.IsNullOrEmpty(_Session.UserId);
             if (!hasUserId)
                 return Unauthorized(new { message = "Invalid credentials" });
-            return Ok(new { message = "Session authenticated", data = new { Authenticated = true } });
+            return Ok(new
+            {
+                message = "Session authenticated",
+                Authenticated = true,
+                user = new { id = "dev-user", name = "Development User", UserRole = "admin" }
+            });
         }
     }
 }

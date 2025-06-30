@@ -144,8 +144,9 @@ namespace WebAPI.Controllers.UserProfile
         {
             try
             {
-                List<User> users = await _db.tUsers.AsNoTracking().ToListAsync();
-                return Ok(new { Users = users });
+                var Permissions = await _db.vUserGroupPermissions.AsNoTracking().ToListAsync();
+                var UserGroups = await _db.tUserGroups.AsNoTracking().ToListAsync();
+                return Ok(new { Groups = UserGroups, GroupPermissions = Permissions});
             }
             catch (Exception ex)
             {

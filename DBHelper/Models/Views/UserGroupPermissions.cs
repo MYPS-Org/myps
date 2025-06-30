@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace DBHelper.Models
 {
-    public class UserRoles
+    public class UserGroupPermissions
     {
         [Key]
         public int Id { get; set; }

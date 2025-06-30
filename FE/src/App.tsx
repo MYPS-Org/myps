@@ -20,9 +20,9 @@ function App() {
 				<Router>
 					<Preloader />
 					<Routes>
+						<Route path="/login" element={<LoginForm />} />
 						{/* Dashboard Routes */}
 						<Route element={<AppLayout />}>
-							<Route path="/login" element={<LoginForm />} />
 							<Route 
 								path="/dashboard" 
 								element={
