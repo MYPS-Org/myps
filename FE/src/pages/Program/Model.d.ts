@@ -1,7 +1,7 @@
 export interface Programs {
-  id: number;
-  name: string;
-  description: string;
+  Id: number;
+  Name: string;
+  Description: string;
 //   startDate: string;
 //   endDate: string;
 }
