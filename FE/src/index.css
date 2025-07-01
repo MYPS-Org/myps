@@ -14,14 +14,14 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
+/* a {
   font-weight: 500;
-  color: #8b5cf6; /* Tailwind violet-600 */
+  color: #8b5cf6;
   text-decoration: inherit;
 }
 a:hover {
-  color: #7c3aed; /* Tailwind violet-700 */
-}
+  color: #7c3aed;
+} */
 
 /* Remove body centering and background, Tailwind handles this */
 body {

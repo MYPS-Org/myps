@@ -1,50 +1,51 @@
 	import { Avatar } from '../components/tailwindui/avatar'
-	import {
-	Dropdown,
-	DropdownButton,
-	DropdownDivider,
-	DropdownItem,
-	DropdownLabel,
-	DropdownMenu,
-	} from '../components/tailwindui/dropdown'
-	import {
-	Sidebar,
-	SidebarBody,
-	SidebarFooter,
-	SidebarHeader,
-	SidebarItem,
-	SidebarLabel,
-	SidebarSection,
-	SidebarSpacer,
-	} from '../components/tailwindui/sidebar'
-	import {
-	ArrowRightStartOnRectangleIcon,
-	ChevronDownIcon,
-	ChevronUpIcon,
-	Cog8ToothIcon,
-	LightBulbIcon,
-	PlusIcon,
-	ShieldCheckIcon,
-	UserIcon,
-	} from '@heroicons/react/16/solid'
-	import {
-	Cog6ToothIcon,
-	HomeIcon,
-	InboxIcon,
-	MagnifyingGlassIcon,
-	MegaphoneIcon,
-	QuestionMarkCircleIcon,
-	SparklesIcon,
-	Square2StackIcon,
-	TicketIcon,
-	FolderIcon,
-	CalendarDateRangeIcon,
-	UserGroupIcon,
-	LockClosedIcon,
-	} from '@heroicons/react/20/solid'
-	
+import {
+Dropdown,
+DropdownButton,
+DropdownDivider,
+DropdownItem,
+DropdownLabel,
+DropdownMenu,
+} from '../components/tailwindui/dropdown'
+import {
+Sidebar,
+SidebarBody,
+SidebarFooter,
+SidebarHeader,
+SidebarItem,
+SidebarLabel,
+SidebarSection,
+SidebarSpacer,
+SidebarDropdown,
+SidebarDropdownItem,
+} from '../components/tailwindui/sidebar'
+import {
+ArrowRightStartOnRectangleIcon,
+ChevronDownIcon,
+Cog8ToothIcon,
+} from '@heroicons/react/16/solid'
+import {
+Cog6ToothIcon,
+HomeIcon,
+InboxIcon,
+QuestionMarkCircleIcon,
+Square2StackIcon,
+FolderIcon,
+CalendarDateRangeIcon,
+LockClosedIcon,
+} from '@heroicons/react/20/solid'
 
-	export default function SideBar() {
+// If using React Router, you can import useLocation
+// import { useLocation } from 'react-router-dom'
+
+export default function SideBar() {
+// If using React Router, uncomment this to get current path
+// const location = useLocation()
+// const currentPath = location.pathname
+
+// For now, you can manually set which item should be current
+// Change this to your actual routing logic or pass it as a prop
+const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/dashboard'
 	return (
 		<Sidebar>
 		<SidebarHeader>
@@ -84,30 +85,42 @@
 		</SidebarHeader>
 		<SidebarBody>
 			<SidebarSection>
-			<SidebarItem href="/dashboard">
+			<SidebarItem href="/dashboard" current={currentPath === '/dashboard'}>
 				<HomeIcon />
 				<SidebarLabel>Dashboard</SidebarLabel>
 			</SidebarItem>
-			<SidebarItem href="/programs">
+			<SidebarItem href="/programs" current={currentPath === '/programs'}>
 				<FolderIcon />
 				<SidebarLabel>Programs</SidebarLabel>
 			</SidebarItem>
-			<SidebarItem href="/projects">
+			<SidebarItem href="/projects" current={currentPath === '/projects'}>
 				<Square2StackIcon />
 				<SidebarLabel>Projects</SidebarLabel>
 			</SidebarItem>
-			<SidebarItem href="/mult-year">
+			<SidebarItem href="/mult-year" current={currentPath === '/mult-year'}>
 				<CalendarDateRangeIcon />
 				<SidebarLabel>Mult-Year</SidebarLabel>
 			</SidebarItem>
-			<SidebarItem href="/rbac">
+			<SidebarDropdown
+				label="Settings"
+				defaultOpen={false}
+				>
+				<Cog6ToothIcon />
+				<SidebarDropdownItem href="/settings/general" current={currentPath === '/settings/general'}>
+					<SidebarLabel>General</SidebarLabel>
+				</SidebarDropdownItem>
+				<SidebarDropdownItem href="/settings/security" current={currentPath === '/settings/security'}>
+					<SidebarLabel>Security</SidebarLabel>
+				</SidebarDropdownItem>
+			</SidebarDropdown>
+			<SidebarItem href="/rbac" current={currentPath === '/rbac'}>
 				<LockClosedIcon />
 				<SidebarLabel>RBAC</SidebarLabel>
 			</SidebarItem>
 			</SidebarSection>
 			<SidebarSpacer />
 			<SidebarSection>
-			<SidebarItem href="/support">
+			<SidebarItem href="/support" current={currentPath === '/support'}>
 				<QuestionMarkCircleIcon />
 				<SidebarLabel>Support</SidebarLabel>
 			</SidebarItem>
