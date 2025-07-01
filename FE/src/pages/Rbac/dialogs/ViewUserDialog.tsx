@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import type { User } from '../Model.d';
+import type { Users } from '../Model.d';
 
 interface VIewUserDialogProps {
   isOpen: boolean;
   onClose: () => void;
 //   onSubmit: (userData: any) => void;
-  user: User;
+  user: Users;
 }
 
 const VIewUserDialog: React.FC<VIewUserDialogProps> = ({ isOpen, onClose, /*onSubmit,*/ user }) => {
