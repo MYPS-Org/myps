@@ -12,7 +12,7 @@ namespace DBHelper.Models.Table
         [Key]
         public int Id { get; set; }
         [MaxLength(50)]
-        public string EmployeeId { get; set; } = string.Empty;
+        public string? EmployeeId { get; set; }
         [Required]
         [MaxLength(200)]
         public string UserGroup { get; set; } = string.Empty;
@@ -23,13 +23,13 @@ namespace DBHelper.Models.Table
         [MaxLength(100)]
         public string Name { get; set; } = string.Empty;
         [MaxLength(100)]
-        public string Email { get; set; } = string.Empty;
+        public string? Email { get; set; }
         [Required]
         [MaxLength(50)]
         public string RegCode { get; set; } = string.Empty;
         [MaxLength(100)]
-        public string PlantillaOffice { get; set; } = string.Empty;
+        public string? PlantillaOffice { get; set; }
         [Required]
-        public bool IsActive { get; set; } = false;
+        public bool IsActive { get; set; }
     }
 }

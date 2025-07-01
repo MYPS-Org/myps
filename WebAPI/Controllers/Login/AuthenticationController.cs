@@ -1,4 +1,5 @@
 ﻿using DBHelper.Data;
+using DBHelper.Models.Table;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
@@ -83,7 +84,8 @@ namespace WebAPI.Controllers.Auth
             bool hasUserId = string.IsNullOrEmpty(_Session.UserId);
             if (!hasUserId)
                 return Unauthorized(new { message = "Invalid credentials" });
-            return Ok(new { message = "Session authenticated", data = new { Authenticated = true } });
+            return Ok(new { message = "Session authenticated", data = new { Authenticated = true }, user= new { id = "dev-user", name= "Development User", UserRole= "admin" }
+            });
         }
     }
 }

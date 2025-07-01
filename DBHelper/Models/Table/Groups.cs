@@ -7,16 +7,16 @@ using System.Threading.Tasks;
 
 namespace DBHelper.Models
 {
-    public class UserRoles
+    public class Groups
     {
         [Key]
         public int Id { get; set; }
         [MaxLength(100)]
-        public string UserId { get; set; } = string.Empty;
-        [MaxLength(100)]
-        public string PermissionId { get; set; } = string.Empty;
-        [MaxLength(100)]
-        public string CreatedBy { get; set; } = string.Empty;
+        public string? GroupName { get; set; }
+        [MaxLength(200)]
+        public string? Description { get; set; }
+        [MaxLength(50)]
+        public string? CreatedBy { get; set; }
         public DateTime? CreatedDate { get; set; }
     }
 }
