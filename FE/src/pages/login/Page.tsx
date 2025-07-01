@@ -4,16 +4,18 @@ import { authService, type LoginRequest } from './Service';
 import { Input } from '../../components/tailwindui/input';
 import { Text } from '../../components/tailwindui/text';
 import LoginWebp from '../../assets/webp/login.webp';
+import { useNavigate } from 'react-router-dom';
 
 const LoginForm: React.FC = () => {
   const [credentials, setCredentials] = useState<LoginRequest>({
-	username: '',
-	password: ''
+	UserName: '',
+	Password: ''
   });
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const { validateSession } = useAuth();
+  const Navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
 	e.preventDefault();
@@ -23,6 +25,7 @@ const LoginForm: React.FC = () => {
 	try {
 	  await authService.login(credentials);
 	  await validateSession();
+	  Navigate('/rbac');
 	} catch (err: any) {
 	  setError(err.message || 'Login failed. Please try again.');
 	} finally {
@@ -51,8 +54,8 @@ const LoginForm: React.FC = () => {
 					<Input
 						id="username"
 						type="text"
-						value={credentials.username}
-						onChange={handleInputChange('username')}
+						value={credentials.UserName}
+						onChange={handleInputChange('UserName')}
 						required
 						autoComplete="username"
 						disabled={isLoading}
@@ -64,8 +67,8 @@ const LoginForm: React.FC = () => {
 					<Input
 						id="password"
 						type="password"
-						value={credentials.password}
-						onChange={handleInputChange('password')}
+						value={credentials.Password}
+						onChange={handleInputChange('Password')}
 						required
 						autoComplete="current-password"
 						disabled={isLoading}

@@ -13,6 +13,8 @@ namespace DBHelper.Data
     {
         public DbSet<User> tUsers { get; set; }
         public DbSet<Permissions> tPermissions { get; set; }
+        public DbSet<UserGroups> tUserGroups { get; set; }
+        public DbSet<UserGroupPermissions> vUserGroupPermissions { get; set; }
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
         //protected override void OnModelCreating(ModelBuilder modelBuilder)

@@ -7,7 +7,11 @@ using System.Threading.Tasks;
 
 namespace DBHelper.Models
 {
+<<<<<<<< HEAD:DBHelper/Models/Table/Groups.cs
     public class Groups
+========
+    public class UserGroupPermissions
+>>>>>>>> 2b09187e7b8ceeec4feb9a5ffc28fac3031f9b77:DBHelper/Models/Views/UserGroupPermissions.cs
     {
         [Key]
         public int Id { get; set; }

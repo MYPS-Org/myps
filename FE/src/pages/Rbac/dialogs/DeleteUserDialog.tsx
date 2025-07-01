@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import type { User } from '../Model.d';
+import type { Users } from '../Model.d';
 
 interface DeleteUserDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (userData: any) => void;
-  user: User;
+  user: Users;
 }
 
 const DeleteUserDialog: React.FC<DeleteUserDialogProps> = ({ isOpen, onClose, onSubmit, user }) => {
