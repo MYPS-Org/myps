@@ -139,7 +139,7 @@ const Rbac: React.FC = () => {
 			Description: '',
 		},
 		sortField: '',
-		sortDirection: 1,
+		sortDirection: 0,
 		page: 1,
 		limit: 10
 	});
@@ -150,7 +150,7 @@ const Rbac: React.FC = () => {
 			Name: '',
 		},
 		sortField: '',
-		sortDirection: 1,
+		sortDirection: 0,
 		page: 1,
 		limit: 10
 	});
@@ -329,7 +329,8 @@ const Rbac: React.FC = () => {
 							<TableHead>
 								<TableRow>
 									<TableHeader>User</TableHeader>
-									<TableHeader>Role</TableHeader>
+									<TableHeader>UserGroup</TableHeader>
+									<TableHeader>Office</TableHeader>
 									<TableHeader>Status</TableHeader>
 									<TableHeader>Actions</TableHeader>
 								</TableRow>
@@ -350,6 +351,9 @@ const Rbac: React.FC = () => {
 											</div>
 										</TableCell>
 										<TableCell>
+											<Badge color="blue">{user.UserGroup}</Badge>
+										</TableCell>
+										<TableCell>
 											<Badge color="blue">{user.PlantillaOffice}</Badge>
 										</TableCell>
 										<TableCell>
@@ -357,13 +361,6 @@ const Rbac: React.FC = () => {
 										</TableCell>
 										<TableCell>
 											<div className="flex items-center space-x-2">
-												<Button color='green' className="p-2"
-												onClick={() => {
-													setIsViewUserDialogOpen(true);
-													setSelectedUserId(user.Id);
-													}}>
-													<EyeIcon className="w-4 h-4" />
-												</Button>
 												<Button color='yellow' className="p-2"
 												onClick={() => {
 													setIsUpdateUserDialogOpen(true);
@@ -430,6 +427,7 @@ const Rbac: React.FC = () => {
 								<TableRow>
 									<TableHeader>ID</TableHeader>
 									<TableHeader>Module Function</TableHeader>
+									<TableHeader>Description</TableHeader>
 									<TableHeader>Created By</TableHeader>
 									<TableHeader>Created At</TableHeader>
 									<TableHeader>Actions</TableHeader>
@@ -449,6 +447,11 @@ const Rbac: React.FC = () => {
 											</div>
 										</TableCell>
 										<TableCell>
+											<div className="font-medium text-gray-900 dark:text-white">
+												{permission.Description}
+											</div>
+										</TableCell>
+										<TableCell>
 											<Badge color="zinc">{permission.CreatedBy}</Badge>
 										</TableCell>
 										<TableCell className="text-gray-500 dark:text-gray-400">
@@ -456,13 +459,6 @@ const Rbac: React.FC = () => {
 										</TableCell>
 										<TableCell>
 											<div className="flex items-center space-x-2">
-												<Button color="green" className="p-2"
-												onClick={() => {
-													setIsViewPermissionDialogOpen(true);
-													setSelectedPermissionId(permission.Id);
-												}}>
-													<EyeIcon className="w-4 h-4" />
-												</Button>
 												<Button color="yellow" className="p-2"
 												onClick={() => {
 													setIsUpdatePermissionDialogOpen(true);
@@ -606,16 +602,6 @@ const Rbac: React.FC = () => {
 										</TableCell>
 										<TableCell>
 											<div className="flex items-center space-x-2">
-												<Button 
-													color="green" 
-													className="p-2"
-													onClick={() => {
-														setSelectedGroupId(group.Id);
-														setIsViewGroupDialogOpen(true);
-													}}
-												>
-													<EyeIcon className="w-4 h-4" />
-												</Button>
 												<Button 
 													color="yellow" 
 													className="p-2"
