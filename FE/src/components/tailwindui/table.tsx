@@ -5,6 +5,31 @@ import type React from 'react'
 import { createContext, useContext, useState } from 'react'
 import { Link } from './link'
 
+// Sorting icons
+function ChevronUpIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 15.75 7.5-7.5 7.5 7.5" />
+    </svg>
+  )
+}
+
+function ChevronDownIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+    </svg>
+  )
+}
+
+function ChevronUpDownIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 15 12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" />
+    </svg>
+  )
+}
+
 const TableContext = createContext<{ bleed: boolean; dense: boolean; grid: boolean; striped: boolean }>({
   bleed: false,
   dense: false,
@@ -26,7 +51,7 @@ export function Table({
       <div className="flow-root">
         <div {...props} className={clsx(className, '-mx-(--gutter) overflow-x-auto whitespace-nowrap')}>
           <div className={clsx('inline-block min-w-full align-middle', !bleed && 'sm:px-(--gutter)')}>
-            <table className="min-w-full text-left text-sm/6 text-zinc-950 dark:text-white">{children}</table>
+            <table className="min-w-full text-left text-sm/6 text-zinc-950">{children}</table>
           </div>
         </div>
       </div>
@@ -35,7 +60,7 @@ export function Table({
 }
 
 export function TableHead({ className, ...props }: React.ComponentPropsWithoutRef<'thead'>) {
-  return <thead {...props} className={clsx(className, 'text-center text-zinc-500 dark:text-zinc-400')} />
+  return <thead {...props} className={clsx(className, 'text-center text-zinc-500')} />
 }
 
 export function TableBody(props: React.ComponentPropsWithoutRef<'tbody'>) {
@@ -64,29 +89,72 @@ export function TableRow({
         className={clsx(
           className,
           href &&
-            'has-[[data-row-link][data-focus]]:outline-2 has-[[data-row-link][data-focus]]:-outline-offset-2 has-[[data-row-link][data-focus]]:outline-blue-500 dark:focus-within:bg-white/2.5',
-          striped && 'even:bg-zinc-950/2.5 dark:even:bg-white/2.5',
-          href && striped && 'hover:bg-zinc-950/5 dark:hover:bg-white/5',
-          href && !striped && 'hover:bg-zinc-950/2.5 dark:hover:bg-white/2.5'
+            'has-[[data-row-link][data-focus]]:outline-2 has-[[data-row-link][data-focus]]:-outline-offset-2 has-[[data-row-link][data-focus]]:outline-blue-500',
+          striped && 'even:bg-zinc-950/2.5',
+          href && striped && 'hover:bg-zinc-950/5',
+          href && !striped && 'hover:bg-zinc-950/2.5'
         )}
       />
     </TableRowContext.Provider>
   )
 }
 
-export function TableHeader({ className, ...props }: React.ComponentPropsWithoutRef<'th'>) {
+export function TableHeader({ 
+  className, 
+  sortable = false,
+  sortDirection,
+  onSort,
+  children,
+  ...props 
+}: { 
+  sortable?: boolean;
+  sortDirection?: 0 | 1 | null; // 0 = asc, 1 = desc, null = no sort
+  onSort?: (direction: 0 | 1) => void;
+} & React.ComponentPropsWithoutRef<'th'>) {
   let { bleed, grid } = useContext(TableContext)
+
+  const handleSort = () => {
+    if (!sortable || !onSort) return
+    
+    // Cycle through: null -> asc (0) -> desc (1) -> null
+    if (sortDirection === null) {
+      onSort(0) // Set to ascending
+    } else if (sortDirection === 0) {
+      onSort(1) // Set to descending
+    } else {
+      onSort(0) // Reset to ascending (or you could set to null for no sort)
+    }
+  }
+
+  const getSortIcon = () => {
+    if (!sortable) return null
+    
+    if (sortDirection === 0) {
+      return <ChevronUpIcon className="ml-2 h-4 w-4" />
+    } else if (sortDirection === 1) {
+      return <ChevronDownIcon className="ml-2 h-4 w-4" />
+    } else {
+      return <ChevronUpDownIcon className="ml-2 h-4 w-4 opacity-50" />
+    }
+  }
 
   return (
     <th
       {...props}
       className={clsx(
         className,
-        'border-b border-b-zinc-950/10 px-4 py-2 font-medium first:pl-(--gutter,--spacing(2)) last:pr-(--gutter,--spacing(2)) dark:border-b-white/10',
-        grid && 'border-l border-l-zinc-950/5 first:border-l-0 dark:border-l-white/5',
-        !bleed && 'sm:first:pl-1 sm:last:pr-1'
+        'border-b border-b-zinc-950/10 px-4 py-2 font-medium first:pl-(--gutter,--spacing(2)) last:pr-(--gutter,--spacing(2))',
+        grid && 'border-l border-l-zinc-950/5 first:border-l-0',
+        !bleed && 'sm:first:pl-1 sm:last:pr-1',
+        sortable && 'cursor-pointer select-none hover:bg-zinc-50 transition-colors'
       )}
-    />
+      onClick={handleSort}
+    >
+      <div className="flex items-center justify-between">
+        <span>{children}</span>
+        {getSortIcon()}
+      </div>
+    </th>
   )
 }
 
@@ -101,9 +169,9 @@ export function TableCell({ className, children, ...props }: React.ComponentProp
       {...props}
       className={clsx(
         className,
-        'text-center relative px-4 first:pl-(--gutter,--spacing(2)) last:pr-(--gutter,--spacing(2))',
-        !striped && 'border-b border-zinc-950/5 dark:border-white/5',
-        grid && 'border-l border-l-zinc-950/5 first:border-l-0 dark:border-l-white/5',
+        'relative px-4 first:pl-(--gutter,--spacing(2)) last:pr-(--gutter,--spacing(2))',
+        !striped && 'border-b border-zinc-950/5',
+        grid && 'border-l border-l-zinc-950/5 first:border-l-0',
         dense ? 'py-2.5' : 'py-4',
         !bleed && 'sm:first:pl-1 sm:last:pr-1'
       )}
