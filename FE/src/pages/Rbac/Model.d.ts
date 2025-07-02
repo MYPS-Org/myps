@@ -9,7 +9,7 @@ export interface Permissions {
     CreatedDate?: string;
 }
 export interface PermissionPagination extends PaginationParams {
-    filters?: PermissionFilter;
+    Filters?: PermissionFilter;
     sortField?: string; // Remove the = 'Id' default value - this is invalid in TypeScript interfaces
     sortDirection?: 0 | 1;
 }

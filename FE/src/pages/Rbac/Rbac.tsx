@@ -7,8 +7,9 @@ import {
   PencilIcon,
   TrashIcon,
   EyeIcon,
+  AdjustmentsHorizontalIcon,
 } from '@heroicons/react/16/solid'
-import { MagnifyingGlassIcon, UsersIcon, KeyIcon, UserGroupIcon } from '@heroicons/react/20/solid'
+import { MagnifyingGlassIcon, UsersIcon, KeyIcon, UserGroupIcon, AdjustmentsVerticalIcon } from '@heroicons/react/20/solid'
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/tailwindui/table'
 import { Button } from '../../components/tailwindui/button'
@@ -22,7 +23,9 @@ import { consolidateUserGroups, fetchPermissions, fetchUsers } from './service';
 
 // Dialog imports
 import { AddUserDialog, AddPermissionDialog, AddGroupDialog, ViewUserDialog, UpdateUserDialog, DeleteUserDialog, 
-	ViewPermissionDialog, UpdatePermissionDialog, DeletePermissionDialog, ViewGroupDialog, UpdateGroupDialog, DeleteGroupDialog } from './dialogs';
+	ViewPermissionDialog, UpdatePermissionDialog, DeletePermissionDialog, ViewGroupDialog, UpdateGroupDialog, DeleteGroupDialog, 
+	FilterUserDialog,
+	FilterPermissionDialog} from './dialogs';
 
 // Pagination
 import { 
@@ -133,15 +136,21 @@ const Rbac: React.FC = () => {
 	const [isUpdateGroupDialogOpen, setIsUpdateGroupDialogOpen] = useState(false);
 	const [isDeleteGroupDialogOpen, setIsDeleteGroupDialogOpen] = useState(false);
 	const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
+
+	//Filter Dialog
+	const [isFilterUserDialogOpen, setIsFilterUserDialogOpen] = useState(false);
+	const [isPermissionFilterDialogOpen, setIsPermissionFilterDialogOpen] = useState(false);
+
+	//Permission Filter
 	const [PermissionFilter, setPermissionFilter] = useState<PermissionPagination>({
-		filters: {
+		Filters: {
 			ModuleFunction: '',
 			Description: '',
 		},
 		sortField: '',
 		sortDirection: 0,
 		page: 1,
-		limit: 100
+		limit: 10
 	});
 	const [isLoadingPermissions, setIsLoadingPermissions] = useState(false);
 
@@ -186,7 +195,7 @@ const Rbac: React.FC = () => {
 			// Update permission filter and refetch data
 			setPermissionFilter(prev => ({
 				...prev,
-				sortField: field === 0 ? 'ModuleFunction' : field === 1 ? 'Description' : '',
+				sortField: field === 0 ? 'Id' : field === 1 ? 'ModuleFunction' : field === 2 ? 'Description' : field === 3 ? 'CreatedBy' : field === 4 ? 'CreatedDate' : '',
 				sortDirection: direction || 0,
 				page: 1 // Reset to first page when sorting
 			}));
@@ -275,6 +284,15 @@ const Rbac: React.FC = () => {
 			await getTableData('userGroups');
 		}
 	}
+	const updatePermissionSort = async(sortField: string) => {
+		setPermissionFilter(prev => ({
+			...prev,
+			sortField: sortField,
+			sortDirection: prev.sortDirection === 1 ? 0 : 1,
+			page: 1
+		}));
+		await getTableData('permissions');
+	}
 	const TabButton = ({ 
 		label, 
 		value, 
@@ -347,14 +365,10 @@ const Rbac: React.FC = () => {
 							<div className="flex items-center justify-between">
 								<h3 className="text-lg font-medium text-gray-900">Users</h3>
 								<div className="flex items-center space-x-3">
-									<div className="relative">
-										<MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-										<input
-											type="text"
-											placeholder="Search users..."
-											className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-										/>
-									</div>
+									<Button color="white" className='shadow-md' onClick={() => setIsFilterUserDialogOpen(true)}>
+										<AdjustmentsVerticalIcon className="w-4 h-4 mr-1" />
+										Filter
+									</Button>
 									<Button color="blue" onClick={() => setIsAddUserDialogOpen(true)}>
 										<PlusIcon className="w-4 h-4 mr-1" />
 										Add User
@@ -446,14 +460,10 @@ const Rbac: React.FC = () => {
 							<div className="flex items-center justify-between">
 								<h3 className="text-lg font-medium text-gray-900">Permissions</h3>
 								<div className="flex items-center space-x-3">
-									<div className="relative">
-										<MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-										<input
-											type="text"
-											placeholder="Search permissions..."
-											className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-										/>
-									</div>
+									<Button color="white" className='shadow-md' onClick={() => setIsPermissionFilterDialogOpen(true)}>
+										<AdjustmentsHorizontalIcon className="w-4 h-4 mr-1" />
+										Filter
+									</Button>
 									<Button color="blue" onClick={() => setIsAddPermissionDialogOpen(true)}>
 										<PlusIcon className="w-4 h-4 mr-1" />
 										Add Permission
@@ -465,11 +475,11 @@ const Rbac: React.FC = () => {
 						<Table>
 							<TableHead>
 								<TableRow>
-									<TableHeader className="text-gray-500">ID</TableHeader>
-									<TableHeader className="text-gray-500">Module Function</TableHeader>
-									<TableHeader className="text-gray-500">Description</TableHeader>
-									<TableHeader className="text-gray-500">Created By</TableHeader>
-									<TableHeader className="text-gray-500">Created At</TableHeader>
+									{/* <TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(0, direction)} className="text-gray-500">ID</TableHeader> */}
+									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(1, direction)} className="text-gray-500">Module Function</TableHeader>
+									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(2, direction)} className="text-gray-500">Description</TableHeader>
+									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(3, direction)} className="text-gray-500">Created By</TableHeader>
+									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(4, direction)} className="text-gray-500">Created At</TableHeader>
 									<TableHeader className="text-gray-500">Actions</TableHeader>
 								</TableRow>
 							</TableHead>
@@ -478,11 +488,11 @@ const Rbac: React.FC = () => {
 									<TableRow key={permission.Id} className={`hover:bg-gray-50 ${
 										index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
 									}`}>
-										<TableCell>
+										{/* <TableCell>
 											<div className="font-medium text-gray-900">
 												{permission.Id}
 											</div>
-										</TableCell>
+										</TableCell> */}
 										<TableCell>
 											<div className="font-medium text-gray-900">
 												{permission.ModuleFunction}
@@ -532,32 +542,32 @@ const Rbac: React.FC = () => {
 											disabled={PermissionsData.page <= 1}
 										/>
 										<PaginationList>
-											{(() => {
-												for(let i = PermissionsData.page - 2; i <= PermissionsData.page + 4; i++) {
-													if (i < 1 || i > PermissionsData.totalPages) continue;
-													if (i === PermissionsData.page) {
-														return (
-															<PaginationPage
-																key={i}
-																current
-															>
-																{i}
-															</PaginationPage>
-														);
-													} else {
-														return (
-															<PaginationPage
-																key={i}
-																onClick={() => {
-																	Paginate(i);
-																}}
-															>
-																{i}
-															</PaginationPage>
-														);
-													}
+											{Array.from({ length: Math.min(7, PermissionsData.totalPages) }, (_, index) => {
+												const pageNum = Math.max(1, PermissionsData.page - 3) + index;
+												if (pageNum > PermissionsData.totalPages) return null;
+												
+												if (pageNum === PermissionsData.page) {
+													return (
+														<PaginationPage
+															key={pageNum}
+															current
+														>
+															{pageNum}
+														</PaginationPage>
+													);
+												} else {
+													return (
+														<PaginationPage
+															key={pageNum}
+															onClick={() => {
+																Paginate(pageNum);
+															}}
+														>
+															{pageNum}
+														</PaginationPage>
+													);
 												}
-											})()}
+											})}
 										</PaginationList>
 										<PaginationNext 
 											onClick={async () => {
@@ -599,14 +609,14 @@ const Rbac: React.FC = () => {
 							<TableHead className='text-[20px]'>
 								<TableRow className="text-center">
 									<TableHeader
-										sortable={true}
+										sortable
 										sortDirection={sortDirection}
 										onSort={(direction) => handleSort(0, direction)}
 										className="text-gray-700"
 									>
 										Group Name
 									</TableHeader>
-									<TableHeader className="text-gray-700">Members</TableHeader>
+									<TableHeader sortable={true} className="text-gray-700">Members</TableHeader>
 									<TableHeader className="text-gray-700">Permissions</TableHeader>
 									<TableHeader className="text-gray-700">Description</TableHeader>
 									<TableHeader className="text-gray-700">Created</TableHeader>
@@ -899,6 +909,47 @@ const Rbac: React.FC = () => {
 					onSubmit={(deletedGroupId: number) => {
 						setUserGroups(userGroups.filter(group => group.Id !== deletedGroupId));
 					}}
+				/>
+			)}
+
+			{/* Filter User Dialog */}
+			{isFilterUserDialogOpen && (
+				<FilterUserDialog 
+				isOpen={isFilterUserDialogOpen}
+				onClose={() => setIsFilterUserDialogOpen(false)}
+				onSubmit={() => {console.log()}}
+				/>
+			)}
+
+			{/* Filter Permission Dialog */}
+			{isPermissionFilterDialogOpen && (
+				<FilterPermissionDialog 
+				isOpen={isPermissionFilterDialogOpen}
+				onClose={() => setIsPermissionFilterDialogOpen(false)}
+				onSubmit={(filterData) => {
+					console.log('Filter data received:', filterData);
+					setPermissionFilter(prev => ({
+						...prev,
+						Filters: filterData,
+						page: 1 // Reset to first page when applying filter
+					}));
+					// Refresh the data with new filter
+					getTableData('permissions');
+				}}
+				onClear={() => {
+					console.log('Clearing permission filters');
+					setPermissionFilter(prev => ({
+						...prev,
+						Filters: {
+							ModuleFunction: '',
+							Description: ''
+						},
+						page: 1
+					}));
+					// Refresh the data without filters
+					getTableData('permissions');
+				}}
+				initialData={PermissionFilter.Filters}
 				/>
 			)}
 		</div>
