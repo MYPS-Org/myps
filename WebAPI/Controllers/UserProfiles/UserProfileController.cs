@@ -16,7 +16,7 @@ namespace WebAPI.Controllers.UserProfile
     {
         public UserProfileController(AppDbContext db) : base(db) { }
 
-
+        [HttpPost]
         [AllowAnonymous]
         public async Task<IActionResult> InitUserManagement([FromBody] UsersPaginationDto dto)
         {
