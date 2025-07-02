@@ -35,7 +35,7 @@ export function Table({
 }
 
 export function TableHead({ className, ...props }: React.ComponentPropsWithoutRef<'thead'>) {
-  return <thead {...props} className={clsx(className, 'text-zinc-500 dark:text-zinc-400')} />
+  return <thead {...props} className={clsx(className, 'text-center text-zinc-500 dark:text-zinc-400')} />
 }
 
 export function TableBody(props: React.ComponentPropsWithoutRef<'tbody'>) {
@@ -101,7 +101,7 @@ export function TableCell({ className, children, ...props }: React.ComponentProp
       {...props}
       className={clsx(
         className,
-        'relative px-4 first:pl-(--gutter,--spacing(2)) last:pr-(--gutter,--spacing(2))',
+        'text-center relative px-4 first:pl-(--gutter,--spacing(2)) last:pr-(--gutter,--spacing(2))',
         !striped && 'border-b border-zinc-950/5 dark:border-white/5',
         grid && 'border-l border-l-zinc-950/5 first:border-l-0 dark:border-l-white/5',
         dense ? 'py-2.5' : 'py-4',

@@ -559,7 +559,7 @@ const Rbac: React.FC = () => {
 						
 						<Table>
 							<TableHead>
-								<TableRow>
+								<TableRow className="text-center">
 									<TableHeader className="text-gray-500">Group Name</TableHeader>
 									<TableHeader className="text-gray-500">Members</TableHeader>
 									<TableHeader className="text-gray-500">Permissions</TableHeader>
@@ -579,7 +579,7 @@ const Rbac: React.FC = () => {
 											</div>
 										</TableCell>
 										<TableCell>
-											<div className="flex items-center space-x-2">
+											<div className="flex justify-center items-center space-x-2">
 												<UsersIcon className="w-4 h-4 text-gray-400" />
 												<span className="text-gray-900 font-medium">
 													{group.MemberCount}
@@ -587,7 +587,7 @@ const Rbac: React.FC = () => {
 											</div>
 										</TableCell>
 										<TableCell>
-											<div className="flex flex-wrap gap-1">
+											<div className="flex justify-center flex-wrap gap-1">
 												{group.PermissionName.slice(0, 2).map((permission: string, index: number) => (
 													<Badge key={index} color="blue" className="text-xs">
 														{permission}
