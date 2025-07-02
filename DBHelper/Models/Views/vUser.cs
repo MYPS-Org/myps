@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace DBHelper.Models.Views
 {
-    public class vUser
+    public class Users
     {
         public int Id { get; set; }
         public string? UserGroups { get; set; }

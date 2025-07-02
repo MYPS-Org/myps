@@ -42,9 +42,9 @@ namespace WebAPI.Controllers.UserProfile
                         return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort!", Title = "Parameter Error" });
                     }
                 }
-                dto.sortDirection = dto.sortDirection ?? sortDirectionList.DESC;
+                dto.sortDirection = string.IsNullOrEmpty(dto.sortDirection.ToString()) ? sortDirectionList.DESC : dto.sortDirection;
 
-                bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection);
+                bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!);
                 if (!isValidDirection)
                 {
                     return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed!", Title = "Invalid sort option" });
@@ -138,9 +138,9 @@ namespace WebAPI.Controllers.UserProfile
                         return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort!", Title = "Parameter Error" });
                     }
                 }
-                dto.sortDirection = dto.sortDirection ?? sortDirectionList.DESC;
+                dto.sortDirection = string.IsNullOrEmpty(dto.sortDirection.ToString()) ? sortDirectionList.DESC : dto.sortDirection;
 
-                bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection);
+                bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!);
                 if (!isValidDirection)
                 {
                     return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed!", Title = "Invalid sort option" });
@@ -191,20 +191,20 @@ namespace WebAPI.Controllers.UserProfile
                 return ExceptionHandler(ex);
             }
         }
-        [HttpPost]
-        [Authorize(Policy = "View UserProfiles")]
-        public async Task<IActionResult> ShowUserGroups()
-        {
-            try
-            {
-                var Permissions = await _db.vUserGroupPermissions.AsNoTracking().ToListAsync();
-                var UserGroups = await _db.tUserGroups.AsNoTracking().ToListAsync();
-                return Ok(new { Groups = UserGroups, GroupPermissions = Permissions});
-            }
-            catch (Exception ex)
-            {
-                return ExceptionHandler(ex);
-            }
-        }
+        //[HttpPost]
+        //[Authorize(Policy = "View UserProfiles")]
+        //public async Task<IActionResult> ShowUserGroups()
+        //{
+        //    try
+        //    {
+        //        var Permissions = await _db.vUserGroupPermissions.AsNoTracking().ToListAsync();
+        //        var UserGroups = await _db.tUserGroups.AsNoTracking().ToListAsync();
+        //        return Ok(new { Groups = UserGroups, GroupPermissions = Permissions});
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return ExceptionHandler(ex);
+        //    }
+        //}
     }
 }

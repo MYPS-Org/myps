@@ -4,7 +4,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using DBHelper.Models;
-using DBHelper.Models.Table;
 using Microsoft.EntityFrameworkCore;
 
 namespace DBHelper.Data
@@ -13,13 +12,12 @@ namespace DBHelper.Data
     {
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
         #region Tables
-        public DbSet<Users> tUsers { get; set; }
-        public DbSet<Permissions> tPermissions { get; set; }
-        public DbSet<UserGroups> tUserGroups { get; set; }
-        public DbSet<UserGroupPermissions> vUserGroupPermissions { get; set; }
+        public DbSet<Models.Table.Users> tUsers { get; set; }
+        public DbSet<Models.Table.Permissions> tPermissions { get; set; }
+        public DbSet<Models.Table.UserGroups> tUserGroups { get; set; }
         #endregion
         #region Views
-        public DbSet<vUser> vUsers { get; set; }
+        public DbSet<Models.Views.Users> vUsers { get; set; }
         #endregion
 
         //protected override void OnModelCreating(ModelBuilder modelBuilder)
