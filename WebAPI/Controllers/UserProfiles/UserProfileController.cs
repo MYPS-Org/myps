@@ -134,6 +134,7 @@ namespace WebAPI.Controllers.UserProfile
             }
         }
         #endregion
+        #region PERMISSIONS TAB
         [HttpPost]
         //[Authorize(Policy = "View UserProfiles")]
         [AllowAnonymous]
@@ -208,6 +209,7 @@ namespace WebAPI.Controllers.UserProfile
                 return ExceptionHandler(ex);
             }
         }
+        #endregion
         //[HttpPost]
         //[Authorize(Policy = "View UserProfiles")]
         //public async Task<IActionResult> ShowUserGroups()
