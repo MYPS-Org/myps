@@ -86,7 +86,9 @@ const LoginForm: React.FC = () => {
 						/>
 						<span className="text-gray-700">Remember me</span>
 					</label>
-					<a href="#" className="text-violet-600 hover:underline font-medium">Forgot Password?</a>
+					<span className="text-gray-600">
+						Forgot Password? Contact Support Service Desk
+					</span>
 					</div>
 					{error && (
 					<div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
@@ -98,12 +100,6 @@ const LoginForm: React.FC = () => {
 					)}
 					
 					<button className='!bg-[#051344] !w-full !h-[50px] !rounded-md !text-white hover:!bg-[#051344]/80 !cursor-pointer'>Sign In</button>
-					<div className="text-center mt-4">
-						<Text className="text-xs text-gray-500">
-							Don&apos;t have an account?{' '}
-							<a href="#" className="text-violet-600 hover:underline font-medium">Sign Up</a>
-						</Text>
-					</div>
 				</form>
 				</div>
 				{/* Right: Illustration */}
