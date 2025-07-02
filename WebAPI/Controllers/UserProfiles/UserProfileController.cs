@@ -20,6 +20,27 @@ namespace WebAPI.Controllers.UserProfile
     {
         public UserProfileController(AppDbContext db) : base(db) { }
 
+
+        [AllowAnonymous]
+        public async Task<IActionResult> InitUserManagement([FromBody] UsersPaginationDto dto)
+        {
+            try
+            {
+                var CountUsers = await _db.vUsers.CountAsync();
+                var CountPermissions = await _db.tPermissions.CountAsync();
+                var response = new
+                {
+                    NumberOfUsers = CountUsers,
+                    NumberOfPermissions = CountPermissions
+                };
+
+                return Ok(response); // Remove the extra wrapper
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
         #region USERS TAB
         [HttpPost]
         //[Authorize(Policy = "User Management")]

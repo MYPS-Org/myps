@@ -39,13 +39,12 @@ class HttpClient {
     this.client.interceptors.request.use(
       (config: InternalAxiosRequestConfig) => {
         const customConfig = config as InternalAxiosRequestConfig & { preloaderMessage?: string };
-        if (customConfig.preloaderMessage) {
           this.updatePreloader({
             loading: true,
             progress: 0,
-            message: customConfig.preloaderMessage
+            message: customConfig.preloaderMessage ?? 'Getting data...'
           });
-        }
+        
         console.log('🚀 HTTP Request:', config.method?.toUpperCase(), config.url);
         return config;
       },

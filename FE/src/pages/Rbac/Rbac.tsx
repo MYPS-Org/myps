@@ -1,5 +1,5 @@
 'use-client'
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 import { Heading } from '../../components/tailwindui/heading';
 import {
@@ -19,7 +19,7 @@ import { Badge } from '../../components/tailwindui/badge'
 import { type Users, type Permissions, type RawUserGroupData, type ConsolidatedUserGroup, type PermissionPagination, type UserPagination } from './Model.d';
 
 // Services
-import { consolidateUserGroups, fetchPermissions, fetchUsers } from './service';
+import { consolidateUserGroups, fetchInitialData, fetchPermissions, fetchUsers } from './service';
 
 // Dialog imports
 import { AddUserDialog, AddPermissionDialog, AddGroupDialog, ViewUserDialog, UpdateUserDialog, DeleteUserDialog, 
@@ -52,53 +52,6 @@ const Rbac: React.FC = () => {
 		{ Id: 8, GroupName: 'Editor', Description: 'Content editors', PermissionName: 'View Reports', MemberCount: 8, CreatedDate: '2024-01-03' },
 		{ Id: 9, GroupName: 'Viewer', Description: 'Read-only access', PermissionName: 'View Reports', MemberCount: 2, CreatedDate: '2024-01-04' },
 	];
-
-	// const [users, setUsers] = useState<User[]>([
-	// 	{ 
-	// 		Id: 1, 
-	// 		EmployeeId: 'EMP001',
-	// 		UserId: 'johndoe123',
-	// 		Name: 'John Doe', 
-	// 		Email: 'john.doe@company.com',
-	// 		RegCode: 'REG12345',
-	// 		UserGroup: 'Admin',
-	// 		PlantillaOffice: 'Main Office',
-	// 		IsActive: true,
-	// 	},
-	// 	{ 
-	// 		Id: 2, 
-	// 		EmployeeId: 'EMP002',
-	// 		UserId: 'janesmith456',
-	// 		Name: 'Jane Smith', 
-	// 		Email: 'jane.smith@company.com', 
-	// 		RegCode: 'REG12346',
-	// 		UserGroup: 'Manager',
-	// 		PlantillaOffice: 'Main Office',
-	// 		IsActive: true,
-	// 	},
-	// 	{ 
-	// 		Id: 3, 
-	// 		EmployeeId: 'EMP003',
-	// 		UserId: 'mikejohnson789',
-	// 		Name: 'Mike Johnson', 
-	// 		Email: 'mike.johnson@company.com', 
-	// 		RegCode: 'REG12347',
-	// 		UserGroup: 'User',
-	// 		PlantillaOffice: 'Main Office',
-	// 		IsActive: false,
-	// 	},
-	// 	{ 
-	// 		Id: 4, 
-	// 		EmployeeId: 'EMP004',
-	// 		UserId: 'sarahwilson012',
-	// 		Name: 'Sarah Wilson', 
-	// 		Email: 'sarah.wilson@company.com', 
-	// 		RegCode: 'REG12348',
-	// 		UserGroup: 'Editor',
-	// 		PlantillaOffice: 'Main Office',
-	// 		IsActive: true,
-	// 	}
-	// ]);
 
 	const [UsersData, setUsersData] = useState<PaginationResponse<Users>>({
 		lists: [],
@@ -164,7 +117,19 @@ const Rbac: React.FC = () => {
 		limit: 10
 	});
 	const [isLoadingUsers, setIsLoadingUsers] = useState(false);
-
+	useEffect(() => {
+		// Fetch initial data when component mounts
+		const fetchData = async () => {
+			try {
+				const initialData = await fetchInitialData();
+				console.log('Initial data fetched:', initialData);
+			} catch (error) {
+				console.error('Error fetching initial data:', error);
+				alert('Failed to fetch initial data: ' + (error instanceof Error ? error.message : 'Unknown error'));
+			}
+		};
+		fetchData();
+	},[])
 	// Sorting state
 	const [sortDirection, setSortDirection] = useState<0 | 1 | null>(null);
 	const [sortField, setSortField] = useState<number | null>(null);
