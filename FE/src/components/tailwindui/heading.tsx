@@ -2,9 +2,9 @@
 import clsx from 'clsx'
 
 const styles = {
-  1: 'text-2xl/8 font-semibold text-zinc-950 sm:text-xl/8 dark:text-white',
-  2: 'text-base/7 font-semibold text-zinc-950 sm:text-sm/6 dark:text-white',
-  3: 'text-base/7 font-semibold text-zinc-950 sm:text-sm/6 dark:text-white',
+  1: 'text-2xl/8 font-semibold text-zinc-950 sm:text-xl/8',
+  2: 'text-base/7 font-semibold text-zinc-950 sm:text-sm/6',
+  3: 'text-base/7 font-semibold text-zinc-950 sm:text-sm/6',
 }
 
 export function Heading({

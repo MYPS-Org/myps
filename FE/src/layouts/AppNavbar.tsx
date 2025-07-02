@@ -18,7 +18,7 @@ import {
   UserIcon,
 } from '@heroicons/react/16/solid'
 import { InboxIcon, MagnifyingGlassIcon } from '@heroicons/react/20/solid'
-import ThemeToggle from '../components/ThemeToggle'
+// import ThemeToggle from '../components/ThemeToggle'
 
 export default function NavBar() {
   return (

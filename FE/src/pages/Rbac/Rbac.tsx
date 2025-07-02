@@ -252,8 +252,8 @@ const Rbac: React.FC = () => {
 			onClick={() => { if(selectedTab != value) getTableData(value); }}
 			className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
 				selectedTab === value
-					? 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
-					: 'cursor-pointer text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'
+					? 'bg-primary-100 text-primary-700 border border-primary-200'
+					: 'cursor-pointer text-gray-600 hover:text-gray-900 hover:bg-gray-100'
 			}`}
 		>
 			<Icon className="w-5 h-5" />
@@ -266,10 +266,10 @@ const Rbac: React.FC = () => {
 		<div className="max-w-10xl mx-auto p-6 space-y-6">
 			<div className="flex items-center justify-center">
 				<div>
-					<Heading level={1} className="text-gray-900 dark:text-white">
+					<Heading level={1} className="">
 						Role-Based Access Control
 					</Heading>
-					<p className="text-gray-600 dark:text-gray-400 mt-1">
+					<p className="text-gray-600 mt-1">
 						Manage users, permissions, and user groups
 					</p>
 				</div>
@@ -280,7 +280,7 @@ const Rbac: React.FC = () => {
 			</div>
 
 			{/* Tab Navigation */}
-			<div className="flex space-x-2 p-1 bg-gray-100 dark:bg-gray-800 rounded-lg">
+			<div className="flex space-x-2 p-1 bg-gray-100 rounded-lg">
 				<TabButton 
 					label="Users" 
 					value="users" 
@@ -301,20 +301,20 @@ const Rbac: React.FC = () => {
 				/>
 			</div>
 			{/* Content Area */}
-			<div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+			<div className="bg-white rounded-lg shadow-sm border border-gray-200">
 				{/* Users Table */}
 				{selectedTab === 'users' && (
 					<div className="overflow-hidden">
-						<div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+						<div className="px-6 py-4 border-b border-gray-200">
 							<div className="flex items-center justify-between">
-								<h3 className="text-lg font-medium text-gray-900 dark:text-white">Users</h3>
+								<h3 className="text-lg font-medium text-gray-900">Users</h3>
 								<div className="flex items-center space-x-3">
 									<div className="relative">
 										<MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
 										<input
 											type="text"
 											placeholder="Search users..."
-											className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+											className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
 										/>
 									</div>
 									<Button color="blue" onClick={() => setIsAddUserDialogOpen(true)}>
@@ -328,23 +328,25 @@ const Rbac: React.FC = () => {
 						<Table>
 							<TableHead>
 								<TableRow>
-									<TableHeader>User</TableHeader>
-									<TableHeader>UserGroup</TableHeader>
-									<TableHeader>Office</TableHeader>
-									<TableHeader>Status</TableHeader>
-									<TableHeader>Actions</TableHeader>
+									<TableHeader className='text-gray-500'>User</TableHeader>
+									<TableHeader className='text-gray-500'>UserGroup</TableHeader>
+									<TableHeader className='text-gray-500'>Office</TableHeader>
+									<TableHeader className='text-gray-500'>Status</TableHeader>
+									<TableHeader className='text-gray-500'>Actions</TableHeader>
 								</TableRow>
 							</TableHead>
 							<TableBody>
-								{UsersData.lists.map((user) => (
-									<TableRow key={user.Id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+								{UsersData.lists.map((user, index) => (
+									<TableRow key={user.Id} className={`hover:bg-gray-50 ${
+										index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+									}`}>
 										<TableCell>
-											<div className="flex items-center space-x-3">
+											<div className="flex items-center space-x-3s">
 												<div>
-													<div className="font-medium text-gray-900 dark:text-white">
+													<div className="font-medium text-gray-900">
 														{user.Name}
 													</div>
-													<div className="text-sm text-gray-500 dark:text-gray-400">
+													<div className="text-sm text-gray-500">
 														{user.Email}
 													</div>
 												</div>
@@ -402,16 +404,16 @@ const Rbac: React.FC = () => {
 				{/* Permissions Table */}
 				{selectedTab === 'permissions' && (
 					<div className="overflow-hidden">
-						<div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+						<div className="px-6 py-4 border-b border-gray-200">
 							<div className="flex items-center justify-between">
-								<h3 className="text-lg font-medium text-gray-900 dark:text-white">Permissions</h3>
+								<h3 className="text-lg font-medium text-gray-900">Permissions</h3>
 								<div className="flex items-center space-x-3">
 									<div className="relative">
 										<MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
 										<input
 											type="text"
 											placeholder="Search permissions..."
-											className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+											className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
 										/>
 									</div>
 									<Button color="blue" onClick={() => setIsAddPermissionDialogOpen(true)}>
@@ -425,36 +427,38 @@ const Rbac: React.FC = () => {
 						<Table>
 							<TableHead>
 								<TableRow>
-									<TableHeader>ID</TableHeader>
-									<TableHeader>Module Function</TableHeader>
-									<TableHeader>Description</TableHeader>
-									<TableHeader>Created By</TableHeader>
-									<TableHeader>Created At</TableHeader>
-									<TableHeader>Actions</TableHeader>
+									<TableHeader className="text-gray-500">ID</TableHeader>
+									<TableHeader className="text-gray-500">Module Function</TableHeader>
+									<TableHeader className="text-gray-500">Description</TableHeader>
+									<TableHeader className="text-gray-500">Created By</TableHeader>
+									<TableHeader className="text-gray-500">Created At</TableHeader>
+									<TableHeader className="text-gray-500">Actions</TableHeader>
 								</TableRow>
 							</TableHead>
 							<TableBody>
-								{PermissionsData.lists.map((permission) => (
-									<TableRow key={permission.Id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+								{PermissionsData.lists.map((permission, index) => (
+									<TableRow key={permission.Id} className={`hover:bg-gray-50 ${
+										index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+									}`}>
 										<TableCell>
-											<div className="font-medium text-gray-900 dark:text-white">
+											<div className="font-medium text-gray-900">
 												{permission.Id}
 											</div>
 										</TableCell>
 										<TableCell>
-											<div className="font-medium text-gray-900 dark:text-white">
+											<div className="font-medium text-gray-900">
 												{permission.ModuleFunction}
 											</div>
 										</TableCell>
 										<TableCell>
-											<div className="font-medium text-gray-900 dark:text-white">
+											<div className="font-medium text-gray-900">
 												{permission.Description}
 											</div>
 										</TableCell>
 										<TableCell>
 											<Badge color="zinc">{permission.CreatedBy}</Badge>
 										</TableCell>
-										<TableCell className="text-gray-500 dark:text-gray-400">
+										<TableCell className="text-gray-500">
 											{permission.CreatedDate}
 										</TableCell>
 										<TableCell>
@@ -533,16 +537,16 @@ const Rbac: React.FC = () => {
 				{/* User Groups Table */}
 				{selectedTab === 'userGroups' && (
 					<div className="overflow-hidden">
-						<div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+						<div className="px-6 py-4 border-b border-gray-200">
 							<div className="flex items-center justify-between">
-								<h3 className="text-lg font-medium text-gray-900 dark:text-white">User Groups</h3>
+								<h3 className="text-lg font-medium text-gray-900">User Groups</h3>
 								<div className="flex items-center space-x-3">
 									<div className="relative">
 										<MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
 										<input
 											type="text"
 											placeholder="Search groups..."
-											className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+											className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
 										/>
 									</div>
 									<Button color="blue" onClick={() => { setIsAddGroupDialogOpen(true) }}>
@@ -556,26 +560,28 @@ const Rbac: React.FC = () => {
 						<Table>
 							<TableHead>
 								<TableRow>
-									<TableHeader>Group Name</TableHeader>
-									<TableHeader>Members</TableHeader>
-									<TableHeader>Permissions</TableHeader>
-									<TableHeader>Description</TableHeader>
-									<TableHeader>Created</TableHeader>
-									<TableHeader>Actions</TableHeader>
+									<TableHeader className="text-gray-500">Group Name</TableHeader>
+									<TableHeader className="text-gray-500">Members</TableHeader>
+									<TableHeader className="text-gray-500">Permissions</TableHeader>
+									<TableHeader className="text-gray-500">Description</TableHeader>
+									<TableHeader className="text-gray-500">Created</TableHeader>
+									<TableHeader className="text-gray-500">Actions</TableHeader>
 								</TableRow>
 							</TableHead>
 							<TableBody>
-								{userGroups.map((group) => (
-									<TableRow key={group.Id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+								{userGroups.map((group, index) => (
+									<TableRow key={group.Id} className={`hover:bg-gray-50 ${
+										index % 2 === 0 ? 'bg-white' : 'bg-gray-100'
+									}`}>
 										<TableCell>
-											<div className="font-medium text-gray-900 dark:text-white">
+											<div className="font-medium text-gray-900">
 												{group.GroupName}
 											</div>
 										</TableCell>
 										<TableCell>
 											<div className="flex items-center space-x-2">
 												<UsersIcon className="w-4 h-4 text-gray-400" />
-												<span className="text-gray-900 dark:text-white font-medium">
+												<span className="text-gray-900 font-medium">
 													{group.MemberCount}
 												</span>
 											</div>
@@ -594,10 +600,10 @@ const Rbac: React.FC = () => {
 												)}
 											</div>
 										</TableCell>
-										<TableCell className="text-gray-500 dark:text-gray-400 max-w-xs truncate">
+										<TableCell className="text-gray-500 max-w-xs truncate">
 											{group.Description}
 										</TableCell>
-										<TableCell className="text-gray-500 dark:text-gray-400">
+										<TableCell className="text-gray-500">
 											{group.CreatedDate}
 										</TableCell>
 										<TableCell>
