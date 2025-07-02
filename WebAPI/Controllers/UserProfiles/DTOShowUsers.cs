@@ -10,5 +10,7 @@ namespace WebAPI.Controllers.UserProfile
     public class UserFilterDTO
     {
         public string? Name { get; set; }
+        public string? UserGroup { get; set; }
+        public bool? IsActive { get; set; }
     }
 }

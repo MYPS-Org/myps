@@ -7,15 +7,12 @@ using System.Threading.Tasks;
 
 namespace DBHelper.Models.Table
 {
-    public class User
+    public class Users
     {
         [Key]
         public int Id { get; set; }
         [MaxLength(50)]
         public string? EmployeeId { get; set; }
-        [Required]
-        [MaxLength(200)]
-        public string UserGroup { get; set; } = string.Empty;
         [Required]
         [MaxLength(50)]
         public string UserId { get; set; } = string.Empty;

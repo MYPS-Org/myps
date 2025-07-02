@@ -14,7 +14,7 @@ builder.Configuration.AddJsonFile(file, optional: true, reloadOnChange: true);
 Appsetting.PrepareAppsettings(builder.Configuration);
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(Appsetting.ConnectionString));
 
-builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
+builder.Services.AddScoped<IPasswordHasher<Users>, PasswordHasher<Users>>();
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddDistributedMemoryCache();
@@ -51,7 +51,7 @@ builder.Services.AddAuthentication(options =>
     });
 builder.Services.AddAuthorization(Options =>
 {
-    Options.AddPolicy("Admin", policy => policy.RequireRole("Admin"));
+    Options.AddPolicy("User Management", policy => policy.RequireRole("Admin"));
     Options.AddPolicy("Club", policy => policy.RequireRole("Club"));
     Options.AddPolicy("User", policy => policy.RequireRole("User"));
 });
