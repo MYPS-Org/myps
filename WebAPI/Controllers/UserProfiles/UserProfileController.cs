@@ -1,16 +1,12 @@
 ﻿using DBHelper.Data;
-using DBHelper.Models;
 using DBHelper.Models.Dtos;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Table;
-using Eaf.Authorization.Roles;
+using DBHelper.Models.Views;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using System.Reflection;
-using System.Security.Claims;
 
 namespace WebAPI.Controllers.UserProfile
 {
@@ -55,7 +51,7 @@ namespace WebAPI.Controllers.UserProfile
                 }
                 if (!string.IsNullOrEmpty(dto.SortField))
                 {
-                    bool isValid = typeof(Users)
+                    bool isValid = typeof(DBHelper.Models.Views.Users)
                         .GetProperties(BindingFlags.Public | BindingFlags.Instance)
                         .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
                     if (!isValid)
@@ -74,7 +70,7 @@ namespace WebAPI.Controllers.UserProfile
                 if (dto.page < 1) dto.page = 1;
                 if (dto.limit < 1) dto.limit = 10;
 
-                var baseQuery = _db.tUsers.AsNoTracking();
+                var baseQuery = _db.vUsers.AsNoTracking();
 
                 // Apply filters to base query
                 if (!string.IsNullOrEmpty(dto.Filters?.Name))
@@ -96,7 +92,7 @@ namespace WebAPI.Controllers.UserProfile
                         : baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField)));
 
                 // Apply pagination and execute query
-                List<Users> permissionLists = await sortedQuery
+                List<DBHelper.Models.Views.Users> permissionLists = await sortedQuery
                     .Skip((dto.page - 1) * dto.limit)
                     .Take(dto.limit)
                     .ToListAsync();
@@ -121,7 +117,7 @@ namespace WebAPI.Controllers.UserProfile
         }
         [HttpPost]
         [AllowAnonymous]
-        public IActionResult UpdateUser([FromBody] Users user)
+        public IActionResult UpdateUser([FromBody] DBHelper.Models.Views.Users user)
         {
             try
             {
