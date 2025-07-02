@@ -5,11 +5,11 @@ import AppNavbar from './AppNavbar';
 
 const DashboardLayout: React.FC = () => (
   <div className="min-h-screen xl:flex bg-gray-50 transition-colors duration-200">
-    <div className='theme-secondary-bg transition-colors duration-200'>
+    <div className='bg-gray-50 shadow-blue-50 transition-colors duration-200'>
         <AppSidebar/>
     </div>
     <div className='w-full'>
-        <div className='theme-primary-bg transition-colors duration-200'>
+        <div className='bg-gray-50 transition-colors duration-200'>
         <AppNavbar/>
         </div>
         <main className="bg-white transition-colors duration-200">

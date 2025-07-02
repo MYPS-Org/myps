@@ -17,7 +17,7 @@ export function SidebarHeader({ className, ...props }: React.ComponentPropsWitho
       {...props}
       className={clsx(
         className,
-        'flex flex-col border-b border-zinc-950/5 p-4 dark:border-white/5 [&>[data-slot=section]+[data-slot=section]]:mt-2.5'
+        'flex flex-col border-b border-zinc-950/5 p-4 [&>[data-slot=section]+[data-slot=section]]:mt-2.5'
       )}
     />
   )
@@ -41,7 +41,7 @@ export function SidebarFooter({ className, ...props }: React.ComponentPropsWitho
       {...props}
       className={clsx(
         className,
-        'flex flex-col border-t border-zinc-950/5 p-4 dark:border-white/5 [&>[data-slot=section]+[data-slot=section]]:mt-2.5'
+        'flex flex-col border-t border-zinc-950/5 p-4 [&>[data-slot=section]+[data-slot=section]]:mt-2.5'
       )}
     />
   )
@@ -58,7 +58,7 @@ export function SidebarSection({ className, ...props }: React.ComponentPropsWith
 }
 
 export function SidebarDivider({ className, ...props }: React.ComponentPropsWithoutRef<'hr'>) {
-  return <hr {...props} className={clsx(className, 'my-4 border-t border-zinc-950/5 lg:-mx-4 dark:border-white/5')} />
+  return <hr {...props} className={clsx(className, 'my-4 border-t border-zinc-950/5 lg:-mx-4')} />
 }
 
 export function SidebarSpacer({ className, ...props }: React.ComponentPropsWithoutRef<'div'>) {
@@ -67,7 +67,7 @@ export function SidebarSpacer({ className, ...props }: React.ComponentPropsWitho
 
 export function SidebarHeading({ className, ...props }: React.ComponentPropsWithoutRef<'h3'>) {
   return (
-    <h3 {...props} className={clsx(className, 'mb-1 px-2 text-xs/6 font-medium text-zinc-500 dark:text-zinc-400')} />
+    <h3 {...props} className={clsx(className, 'mb-1 px-2 text-xs/6 font-medium text-zinc-500')} />
   )
 }
 
@@ -99,10 +99,7 @@ export const SidebarItem = forwardRef(function SidebarItem(
     // Current
     'data-current:*:data-[slot=icon]:fill-zinc-950',
     // Dark mode
-    'dark:text-white dark:*:data-[slot=icon]:fill-zinc-400',
-    'dark:data-hover:bg-white/5 dark:data-hover:*:data-[slot=icon]:fill-white',
-    'dark:data-active:bg-white/5 dark:data-active:*:data-[slot=icon]:fill-white',
-    'dark:data-current:*:data-[slot=icon]:fill-white'
+    
   )
 
   return (
@@ -110,7 +107,7 @@ export const SidebarItem = forwardRef(function SidebarItem(
       {current && (
         <motion.span
           layoutId="current-indicator"
-          className="absolute inset-y-2 -left-4 w-0.5 rounded-full bg-zinc-950 dark:bg-white"
+          className="absolute inset-y-2 -left-4 w-0.5 rounded-full bg-zinc-950"
         />
       )}
       {'href' in props ? (
@@ -196,7 +193,7 @@ export function SidebarDropdown({
 
   const buttonClasses = clsx(
     // Base - match SidebarItem styling
-    'flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left text-base/6 font-medium text-zinc-950 sm:py-2 sm:text-sm/5',
+    'flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left text-base/6 font-medium text-gray-500 sm:py-2 sm:text-sm/5',
     // Leading icon/icon-only - match SidebarItem
     '*:data-[slot=icon]:size-6 *:data-[slot=icon]:shrink-0 *:data-[slot=icon]:fill-zinc-500 sm:*:data-[slot=icon]:size-5',
     // Trailing icon (down chevron or similar) - match SidebarItem
@@ -209,11 +206,6 @@ export function SidebarDropdown({
     'data-active:bg-zinc-950/5 data-active:*:data-[slot=icon]:fill-zinc-950',
     // Current - match SidebarItem
     'data-current:*:data-[slot=icon]:fill-zinc-950',
-    // Dark mode - match SidebarItem
-    'dark:text-white dark:*:data-[slot=icon]:fill-zinc-400',
-    'dark:data-hover:bg-white/5 dark:data-hover:*:data-[slot=icon]:fill-white',
-    'dark:data-active:bg-white/5 dark:data-active:*:data-[slot=icon]:fill-white',
-    'dark:data-current:*:data-[slot=icon]:fill-white'
   )
 
   return (
@@ -221,7 +213,7 @@ export function SidebarDropdown({
       {hasCurrentChild && (
         <motion.span
           layoutId="current-indicator"
-          className="absolute inset-y-2 -left-4 w-0.5 rounded-full bg-zinc-950 dark:bg-white"
+          className="absolute inset-y-2 -left-4 w-0.5 rounded-full bg-zinc-950"
         />
       )}
       {href ? (
@@ -283,7 +275,7 @@ export function SidebarDropdown({
             transition={{ duration: 0.2, ease: 'easeInOut' }}
             className="overflow-hidden"
           >
-            <div className="ml-6 mt-1 space-y-1 border-l border-zinc-200 pl-4 dark:border-zinc-700">
+            <div className="ml-6 mt-1 space-y-1 border-l border-zinc-200 pl-4">
               {dropdownItems}
             </div>
           </motion.div>
@@ -316,12 +308,7 @@ export function SidebarDropdownItem({
     // Active
     'data-active:bg-zinc-950/5 data-active:text-zinc-950 data-active:*:data-[slot=icon]:fill-zinc-600',
     // Current
-    'data-current:text-zinc-950 data-current:*:data-[slot=icon]:fill-zinc-600',
-    // Dark mode
-    'dark:text-zinc-300 dark:*:data-[slot=icon]:fill-zinc-500',
-    'dark:data-hover:bg-white/5 dark:data-hover:text-white dark:data-hover:*:data-[slot=icon]:fill-zinc-300',
-    'dark:data-active:bg-white/5 dark:data-active:text-white dark:data-active:*:data-[slot=icon]:fill-zinc-300',
-    'dark:data-current:text-white dark:data-current:*:data-[slot=icon]:fill-zinc-300'
+    'data-current:text-zinc-950 data-current:*:data-[slot=icon]:fill-zinc-600'
   )
 
   return (
@@ -329,7 +316,7 @@ export function SidebarDropdownItem({
       {current && (
         <motion.span
           layoutId="current-dropdown-indicator"
-          className="absolute inset-y-1 -left-5 w-0.5 rounded-full bg-zinc-950 dark:bg-white"
+          className="absolute inset-y-1 -left-5 w-0.5 rounded-full bg-zinc-950"
         />
       )}
       {'href' in props ? (

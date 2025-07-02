@@ -252,7 +252,7 @@ const Rbac: React.FC = () => {
 			onClick={() => { if(selectedTab != value) getTableData(value); }}
 			className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
 				selectedTab === value
-					? 'bg-blue-100 text-blue-700 border border-blue-200'
+					? 'bg-primary-100 text-primary-700 border border-primary-200'
 					: 'cursor-pointer text-gray-600 hover:text-gray-900 hover:bg-gray-100'
 			}`}
 		>
@@ -280,7 +280,7 @@ const Rbac: React.FC = () => {
 			</div>
 
 			{/* Tab Navigation */}
-			<div className="flex space-x-2 p-1 theme-primary-bg rounded-lg">
+			<div className="flex space-x-2 p-1 bg-gray-100 rounded-lg">
 				<TabButton 
 					label="Users" 
 					value="users" 
@@ -301,11 +301,11 @@ const Rbac: React.FC = () => {
 				/>
 			</div>
 			{/* Content Area */}
-			<div className="bg-white rounded-lg shadow-sm border border-gray-500">
+			<div className="bg-white rounded-lg shadow-sm border border-gray-200">
 				{/* Users Table */}
 				{selectedTab === 'users' && (
 					<div className="overflow-hidden">
-						<div className="px-6 py-4 border-b border-gray-400">
+						<div className="px-6 py-4 border-b border-gray-200">
 							<div className="flex items-center justify-between">
 								<h3 className="text-lg font-medium text-gray-900">Users</h3>
 								<div className="flex items-center space-x-3">
@@ -314,7 +314,7 @@ const Rbac: React.FC = () => {
 										<input
 											type="text"
 											placeholder="Search users..."
-											className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+											className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
 										/>
 									</div>
 									<Button color="blue" onClick={() => setIsAddUserDialogOpen(true)}>
@@ -336,8 +336,10 @@ const Rbac: React.FC = () => {
 								</TableRow>
 							</TableHead>
 							<TableBody>
-								{UsersData.lists.map((user) => (
-									<TableRow key={user.Id} className="hover:bg-gray-50">
+								{UsersData.lists.map((user, index) => (
+									<TableRow key={user.Id} className={`hover:bg-gray-50 ${
+										index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+									}`}>
 										<TableCell>
 											<div className="flex items-center space-x-3s">
 												<div>
@@ -402,7 +404,7 @@ const Rbac: React.FC = () => {
 				{/* Permissions Table */}
 				{selectedTab === 'permissions' && (
 					<div className="overflow-hidden">
-						<div className="px-6 py-4 border-b border-gray-400">
+						<div className="px-6 py-4 border-b border-gray-200">
 							<div className="flex items-center justify-between">
 								<h3 className="text-lg font-medium text-gray-900">Permissions</h3>
 								<div className="flex items-center space-x-3">
@@ -411,7 +413,7 @@ const Rbac: React.FC = () => {
 										<input
 											type="text"
 											placeholder="Search permissions..."
-											className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+											className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
 										/>
 									</div>
 									<Button color="blue" onClick={() => setIsAddPermissionDialogOpen(true)}>
@@ -425,17 +427,19 @@ const Rbac: React.FC = () => {
 						<Table>
 							<TableHead>
 								<TableRow>
-									<TableHeader>ID</TableHeader>
-									<TableHeader>Module Function</TableHeader>
-									<TableHeader>Description</TableHeader>
-									<TableHeader>Created By</TableHeader>
-									<TableHeader>Created At</TableHeader>
-									<TableHeader>Actions</TableHeader>
+									<TableHeader className="text-gray-500">ID</TableHeader>
+									<TableHeader className="text-gray-500">Module Function</TableHeader>
+									<TableHeader className="text-gray-500">Description</TableHeader>
+									<TableHeader className="text-gray-500">Created By</TableHeader>
+									<TableHeader className="text-gray-500">Created At</TableHeader>
+									<TableHeader className="text-gray-500">Actions</TableHeader>
 								</TableRow>
 							</TableHead>
 							<TableBody>
-								{PermissionsData.lists.map((permission) => (
-									<TableRow key={permission.Id} className="hover:bg-gray-50">
+								{PermissionsData.lists.map((permission, index) => (
+									<TableRow key={permission.Id} className={`hover:bg-gray-50 ${
+										index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+									}`}>
 										<TableCell>
 											<div className="font-medium text-gray-900">
 												{permission.Id}
@@ -542,7 +546,7 @@ const Rbac: React.FC = () => {
 										<input
 											type="text"
 											placeholder="Search groups..."
-											className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+											className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
 										/>
 									</div>
 									<Button color="blue" onClick={() => { setIsAddGroupDialogOpen(true) }}>
@@ -556,17 +560,19 @@ const Rbac: React.FC = () => {
 						<Table>
 							<TableHead>
 								<TableRow>
-									<TableHeader>Group Name</TableHeader>
-									<TableHeader>Members</TableHeader>
-									<TableHeader>Permissions</TableHeader>
-									<TableHeader>Description</TableHeader>
-									<TableHeader>Created</TableHeader>
-									<TableHeader>Actions</TableHeader>
+									<TableHeader className="text-gray-500">Group Name</TableHeader>
+									<TableHeader className="text-gray-500">Members</TableHeader>
+									<TableHeader className="text-gray-500">Permissions</TableHeader>
+									<TableHeader className="text-gray-500">Description</TableHeader>
+									<TableHeader className="text-gray-500">Created</TableHeader>
+									<TableHeader className="text-gray-500">Actions</TableHeader>
 								</TableRow>
 							</TableHead>
 							<TableBody>
-								{userGroups.map((group) => (
-									<TableRow key={group.Id} className="hover:bg-gray-50">
+								{userGroups.map((group, index) => (
+									<TableRow key={group.Id} className={`hover:bg-gray-50 ${
+										index % 2 === 0 ? 'bg-white' : 'bg-gray-100'
+									}`}>
 										<TableCell>
 											<div className="font-medium text-gray-900">
 												{group.GroupName}

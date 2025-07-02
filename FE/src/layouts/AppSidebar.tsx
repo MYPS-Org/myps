@@ -52,7 +52,7 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 			<Dropdown>
 			<DropdownButton as={SidebarItem} className="mb-2.5">
 				<Avatar src="./logo.svg" />
-				<SidebarLabel>MYPS</SidebarLabel>
+				<SidebarLabel className="text-gray-500">MYPS</SidebarLabel>
 				<ChevronDownIcon />
 			</DropdownButton>
 			<DropdownMenu className="min-w-64" anchor="bottom start">
@@ -79,7 +79,7 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 			<SidebarSection>
 			<SidebarItem href="/inbox">
 				<InboxIcon />
-				<SidebarLabel>Inbox</SidebarLabel>
+				<SidebarLabel className="text-gray-500">Inbox</SidebarLabel>
 			</SidebarItem>
 			</SidebarSection>
 		</SidebarHeader>
@@ -87,23 +87,24 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 			<SidebarSection>
 			<SidebarItem href="/dashboard" current={currentPath === '/dashboard'}>
 				<HomeIcon />
-				<SidebarLabel>Dashboard</SidebarLabel>
+				<SidebarLabel className="text-gray-500">Dashboard</SidebarLabel>
 			</SidebarItem>
 			<SidebarItem href="/programs" current={currentPath === '/programs'}>
 				<FolderIcon />
-				<SidebarLabel>Programs</SidebarLabel>
+				<SidebarLabel className="text-gray-500">Programs</SidebarLabel>
 			</SidebarItem>
 			<SidebarItem href="/projects" current={currentPath === '/projects'}>
 				<Square2StackIcon />
-				<SidebarLabel>Projects</SidebarLabel>
+				<SidebarLabel className="text-gray-500">Projects</SidebarLabel>
 			</SidebarItem>
 			<SidebarItem href="/mult-year" current={currentPath === '/mult-year'}>
 				<CalendarDateRangeIcon />
-				<SidebarLabel>Mult-Year</SidebarLabel>
+				<SidebarLabel className="text-gray-500">Mult-Year</SidebarLabel>
 			</SidebarItem>
 			<SidebarDropdown
 				label="Settings"
 				defaultOpen={false}
+				className="text-gray-500"
 				>
 				<Cog6ToothIcon />
 				<SidebarDropdownItem href="/settings/general" current={currentPath === '/settings/general'}>
@@ -115,7 +116,7 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 			</SidebarDropdown>
 			<SidebarItem href="/rbac" current={currentPath === '/rbac'}>
 				<LockClosedIcon />
-				<SidebarLabel>RBAC</SidebarLabel>
+				<SidebarLabel className="text-gray-500">RBAC</SidebarLabel>
 			</SidebarItem>
 			</SidebarSection>
 			<SidebarSpacer />
