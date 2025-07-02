@@ -11,3 +11,5 @@ export { default as ViewPermissionDialog } from './ViewPermissionDialog';
 export { default as DeletePermissionDialog } from './DeletePermissionDialog';
 export { default as UpdateGroupDialog } from './UpdateGroupDialog';
 export { default as DeleteGroupDialog } from './DeleteGroupDialog';
+export { default as FilterUserDialog } from './FilterUserDialog';
+export { default as FilterPermissionDialog } from './FilterPermissionDialog';
