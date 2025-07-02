@@ -117,6 +117,19 @@ namespace WebAPI.Controllers.UserProfile
         }
         [HttpPost]
         [AllowAnonymous]
+        public async Task<IActionResult> DeleteUser([FromBody] DBHelper.Models.Views.Users user)
+        {
+            try
+            {
+
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
+        [HttpPost]
+        [AllowAnonymous]
         public IActionResult UpdateUser([FromBody] DBHelper.Models.Views.Users user)
         {
             try
@@ -148,7 +161,7 @@ namespace WebAPI.Controllers.UserProfile
                 }
                 if (!string.IsNullOrEmpty(dto.SortField))
                 {
-                    bool isValid = typeof(Permissions)
+                    bool isValid = typeof(DBHelper.Models.Views.Permissions)
                         .GetProperties(BindingFlags.Public | BindingFlags.Instance)
                         .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
                     if (!isValid)
@@ -167,7 +180,7 @@ namespace WebAPI.Controllers.UserProfile
                 if (dto.page < 1) dto.page = 1;
                 if (dto.limit < 1) dto.limit = 10;
 
-                var baseQuery = _db.tPermissions.AsNoTracking();
+                var baseQuery = _db.vPermissions.AsNoTracking();
 
                 // Apply filters to base query
                 if (!string.IsNullOrEmpty(dto.Filters?.ModuleFunction))
@@ -209,21 +222,45 @@ namespace WebAPI.Controllers.UserProfile
                 return ExceptionHandler(ex);
             }
         }
-        #endregion
-        //[HttpPost]
-        //[Authorize(Policy = "View UserProfiles")]
-        //public async Task<IActionResult> ShowUserGroups()
-        //{
-        //    try
-        //    {
-        //        var Permissions = await _db.vUserGroupPermissions.AsNoTracking().ToListAsync();
-        //        var UserGroups = await _db.tUserGroups.AsNoTracking().ToListAsync();
-        //        return Ok(new { Groups = UserGroups, GroupPermissions = Permissions});
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return ExceptionHandler(ex);
-        //    }
-        //}
+        [HttpPost]
+        [AllowAnonymous]
+        public async Task<IActionResult> UpdatePermission([FromBody] DBHelper.Models.Views.Permissions dto)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var getPermission = await _db.tPermissions.FirstOrDefaultAsync(x => x.Id == dto.Id);
+                if (getPermission == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Permission '{dto.PermissionGroupName}' does not exists in the System!", Title = "Permission not found" });
+                }
+                getPermission.Description = dto.Description;
+                getPermission.PermissionGroupId = dto.PermissionGroupId;
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return Ok(new { Message = $"{dto.PermissionGroupName} updated successfully!", Title = "Update Complete" });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+            #endregion
+            //[HttpPost]
+            //[Authorize(Policy = "View UserProfiles")]
+            //public async Task<IActionResult> ShowUserGroups()
+            //{
+            //    try
+            //    {
+            //        var Permissions = await _db.vUserGroupPermissions.AsNoTracking().ToListAsync();
+            //        var UserGroups = await _db.tUserGroups.AsNoTracking().ToListAsync();
+            //        return Ok(new { Groups = UserGroups, GroupPermissions = Permissions});
+            //    }
+            //    catch (Exception ex)
+            //    {
+            //        return ExceptionHandler(ex);
+            //    }
+            //}
+        }
     }
 }

@@ -9,14 +9,20 @@ namespace DBHelper.Models.Table
 {
     public class Permissions
     {
-        [Key]
+        [Required]
         public int Id { get; set; }
+        [Required]
+        public int PermissionGroupId { get; set; }
+        [Required]
         [MaxLength(100)]
-        public string? ModuleFunction { get; set; }
+        public string ModuleFunction { get; set; } = string.Empty;
+        [Required]
         [MaxLength(200)]
-        public string? Description { get; set; }
+        public string Description { get; set; } = string.Empty;
+        [Required]
         [MaxLength(100)]
-        public string? CreatedBy { get; set; }
-        public DateTime? CreatedDate { get; set; }
+        public string CreatedBy { get; set; } = string.Empty;
+        [Required]
+        public DateTime CreatedDate { get; set; }
     }
 }
