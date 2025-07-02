@@ -156,6 +156,44 @@ const Rbac: React.FC = () => {
 	});
 	const [isLoadingUsers, setIsLoadingUsers] = useState(false);
 
+	// Sorting state
+	const [sortDirection, setSortDirection] = useState<0 | 1 | null>(null);
+	const [sortField, setSortField] = useState<number | null>(null);
+
+	const handleSort = (field: number, direction: 0 | 1 | null) => {
+		setSortField(field);
+		setSortDirection(direction);
+		// Update filter based on the current tab and sort parameters
+		if (selectedTab === 'userGroups') {
+			// For user groups, sort the local array
+			if (field === 0) { // GroupName column
+				const sortedGroups = [...userGroups].sort((a, b) => {
+					const comparison = a.GroupName.localeCompare(b.GroupName);
+					return direction === 1 ? comparison : -comparison;
+				});
+				setUserGroups(sortedGroups);
+			}
+		} else if (selectedTab === 'users') {
+			// Update user filter and refetch data
+			setUserFilter(prev => ({
+				...prev,
+				sortField: field === 0 ? 'Name' : '', // Assuming field 0 maps to Name for users
+				sortDirection: direction || 0,
+				page: 1 // Reset to first page when sorting
+			}));
+			getTableData('users');
+		} else if (selectedTab === 'permissions') {
+			// Update permission filter and refetch data
+			setPermissionFilter(prev => ({
+				...prev,
+				sortField: field === 0 ? 'ModuleFunction' : field === 1 ? 'Description' : '',
+				sortDirection: direction || 0,
+				page: 1 // Reset to first page when sorting
+			}));
+			getTableData('permissions');
+		}
+	};
+
 	const getStatusBadge = (status: true | false) => {
 		return status === true
 			? <Badge color="green">Active</Badge>
@@ -280,7 +318,7 @@ const Rbac: React.FC = () => {
 			</div>
 
 			{/* Tab Navigation */}
-			<div className="flex space-x-2 p-1 bg-gray-100 rounded-lg">
+			<div className="flex space-x-2 p-1 bg-white shadow-md rounded-lg">
 				<TabButton 
 					label="Users" 
 					value="users" 
@@ -326,13 +364,13 @@ const Rbac: React.FC = () => {
 						</div>
 						
 						<Table>
-							<TableHead>
+							<TableHead className='text-xl'>
 								<TableRow>
-									<TableHeader className='text-gray-500'>User</TableHeader>
-									<TableHeader className='text-gray-500'>UserGroup</TableHeader>
-									<TableHeader className='text-gray-500'>Office</TableHeader>
-									<TableHeader className='text-gray-500'>Status</TableHeader>
-									<TableHeader className='text-gray-500'>Actions</TableHeader>
+									<TableHeader sortable className='text-gray-500'>User</TableHeader>
+									<TableHeader sortable className='text-gray-500'>UserGroup</TableHeader>
+									<TableHeader sortable className='text-gray-500'>Office</TableHeader>
+									<TableHeader sortable className='text-gray-500'>Status</TableHeader>
+									<TableHeader sortable className='text-gray-500'>Actions</TableHeader>
 								</TableRow>
 							</TableHead>
 							<TableBody>
@@ -558,14 +596,21 @@ const Rbac: React.FC = () => {
 						</div>
 						
 						<Table>
-							<TableHead>
+							<TableHead className='text-[20px]'>
 								<TableRow className="text-center">
-									<TableHeader className="text-gray-500">Group Name</TableHeader>
-									<TableHeader className="text-gray-500">Members</TableHeader>
-									<TableHeader className="text-gray-500">Permissions</TableHeader>
-									<TableHeader className="text-gray-500">Description</TableHeader>
-									<TableHeader className="text-gray-500">Created</TableHeader>
-									<TableHeader className="text-gray-500">Actions</TableHeader>
+									<TableHeader
+										sortable={true}
+										sortDirection={sortDirection}
+										onSort={(direction) => handleSort(0, direction)}
+										className="text-gray-700"
+									>
+										Group Name
+									</TableHeader>
+									<TableHeader className="text-gray-700">Members</TableHeader>
+									<TableHeader className="text-gray-700">Permissions</TableHeader>
+									<TableHeader className="text-gray-700">Description</TableHeader>
+									<TableHeader className="text-gray-700">Created</TableHeader>
+									<TableHeader className="text-gray-700">Actions</TableHeader>
 								</TableRow>
 							</TableHead>
 							<TableBody>
@@ -579,7 +624,7 @@ const Rbac: React.FC = () => {
 											</div>
 										</TableCell>
 										<TableCell>
-											<div className="flex justify-center items-center space-x-2">
+											<div className="flex items-center space-x-2">
 												<UsersIcon className="w-4 h-4 text-gray-400" />
 												<span className="text-gray-900 font-medium">
 													{group.MemberCount}
@@ -587,7 +632,7 @@ const Rbac: React.FC = () => {
 											</div>
 										</TableCell>
 										<TableCell>
-											<div className="flex justify-center flex-wrap gap-1">
+											<div className="flex flex-wrap gap-1">
 												{group.PermissionName.slice(0, 2).map((permission: string, index: number) => (
 													<Badge key={index} color="blue" className="text-xs">
 														{permission}
@@ -607,7 +652,7 @@ const Rbac: React.FC = () => {
 											{group.CreatedDate}
 										</TableCell>
 										<TableCell>
-											<div className="flex items-center space-x-2">
+											<div className="flex justify-center space-x-2">
 												<Button 
 													color="yellow" 
 													className="p-2"
@@ -634,21 +679,19 @@ const Rbac: React.FC = () => {
 								))}
 							</TableBody>
 						</Table>
-						{/* <Pagination className="my-6">
+						<Pagination className="my-6">
 							<PaginationPrevious onClick={() => {}} />
 							<PaginationList>
-								<PaginationPage href="?page=1">1</PaginationPage>
-								<PaginationPage href="?page=2">2</PaginationPage>
-								<PaginationPage href="?page=3" current>
+								<PaginationPage>1</PaginationPage>
+								<PaginationPage>2</PaginationPage>
+								<PaginationPage current>
 									3
 								</PaginationPage>
-								<PaginationPage href="?page=4">4</PaginationPage>
-								<PaginationGap />
-								<PaginationPage href="?page=65">65</PaginationPage>
-								<PaginationPage href="?page=66">66</PaginationPage>
+								<PaginationPage>4</PaginationPage>
+								<PaginationPage>5</PaginationPage>
 							</PaginationList>
-							<PaginationNext href="?page=4" />
-						</Pagination> */}
+							<PaginationNext/>
+						</Pagination>
 					</div>
 				)}
 			</div>
