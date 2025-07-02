@@ -316,7 +316,7 @@ export function SidebarDropdownItem({
       {current && (
         <motion.span
           layoutId="current-dropdown-indicator"
-          className="absolute inset-y-1 -left-5 w-0.5 rounded-full bg-zinc-950"
+          className="absolute inset-y-1 -left-19 w-0.5 rounded-full bg-zinc-950"
         />
       )}
       {'href' in props ? (
@@ -334,7 +334,7 @@ export function SidebarDropdownItem({
           className={clsx('cursor-default', classes)}
           data-current={current ? 'true' : undefined}
         >
-          <TouchTarget>{children}</TouchTarget>
+          <TouchTarget>{children}rine?</TouchTarget>
         </Headless.Button>
       )}
     </span>

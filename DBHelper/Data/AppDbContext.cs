@@ -18,6 +18,7 @@ namespace DBHelper.Data
         #endregion
         #region Views
         public DbSet<Models.Views.Users> vUsers { get; set; }
+        public DbSet<Models.Views.UserGroups> vUserGroups { get; set; }
         #endregion
 
         //protected override void OnModelCreating(ModelBuilder modelBuilder)
