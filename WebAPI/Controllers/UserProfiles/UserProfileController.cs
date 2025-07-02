@@ -1,14 +1,16 @@
 ﻿using DBHelper.Data;
 using DBHelper.Models;
+using DBHelper.Models.Dtos;
+using DBHelper.Models.Enums;
+using DBHelper.Models.Table;
+using Eaf.Authorization.Roles;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Authorization;
-using Eaf.Authorization.Roles;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using System.Reflection;
 using System.Security.Claims;
-using DBHelper.Models.Enums;
-using DBHelper.Models.Table;
-using DBHelper.Models.Dtos;
 
 namespace WebAPI.Controllers.UserProfile
 {
@@ -20,60 +22,93 @@ namespace WebAPI.Controllers.UserProfile
 
         #region USERS TAB
         [HttpPost]
-        //[Authorize(Policy = "View UserProfiles")]
+        //[Authorize(Policy = "User Management")]
         [AllowAnonymous]
         public async Task<IActionResult> ShowUsers([FromBody] UsersPaginationDto dto)
         {
             try
             {
-                var query = _db.tUsers.AsNoTracking();
-
-                if (!string.IsNullOrEmpty(dto.Filters?.Name))
-                    query = query.Where(e => e.Name!.Contains(dto.Filters.Name));
-
-                //if (dto.Filters?.UserGroup != null)
-                //    query = query.Where(e => e.UserGroup == dto.Filters.UserGroup);
-
-                //if (!string.IsNullOrEmpty(dto.Filters?.IsActive.ToString()))
-                //    query = query.Where(e => e.IsActive == dto.Filters.IsActive);
-
-                query = !string.IsNullOrEmpty(dto.SortField)
-                    ? (dto.sortDirection == sortDirectionList.DESC
-                        ? query.OrderByDescending(e => EF.Property<object>(e, dto.SortField))
-                        : query.OrderBy(e => EF.Property<object>(e, dto.SortField)))
-                    : query.OrderByDescending(e => e.Id);
-
-                query = query.Skip((dto.page - 1) * dto.limit).Take(dto.limit);
-
-                var lists = await query.ToListAsync();
-                int totalRecords = lists.Count();
-                if (totalRecords < 1)
+                if (dto.Filters == null)
                 {
-                    totalRecords = await _db.tUsers.AsNoTracking().CountAsync();
+                    return new BadRequestObjectResult(new { Message = "Expected Parametes missing!", Title = "Parameter Error" });
                 }
+                if (!string.IsNullOrEmpty(dto.SortField))
+                {
+                    bool isValid = typeof(Users)
+                        .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                        .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
+                    if (!isValid)
+                    {
+                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort!", Title = "Parameter Error" });
+                    }
+                }
+                dto.sortDirection = dto.sortDirection ?? sortDirectionList.DESC;
+
+                bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection);
+                if (!isValidDirection)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed!", Title = "Invalid sort option" });
+                }
+                // Validate pagination parameters
+                if (dto.page < 1) dto.page = 1;
+                if (dto.limit < 1) dto.limit = 10;
+
+                var baseQuery = _db.tUsers.AsNoTracking();
+
+                // Apply filters to base query
+                if (!string.IsNullOrEmpty(dto.Filters?.Name))
+                    baseQuery = baseQuery.Where(e => e.Name!.Contains(dto.Filters.Name));
+
+                //if (!string.IsNullOrEmpty(dto.Filters?.UserGroup))
+                //    baseQuery = baseQuery.Where(e => e.UserGroup!.Contains(dto.Filters.UserGroup));
+
+                if (dto.Filters?.IsActive != null)
+                    baseQuery = baseQuery.Where(e => e.IsActive == dto.Filters.IsActive);
+
+                // Get total count of filtered results (before pagination)
+                var totalRecords = await baseQuery.CountAsync();
+
+                // Apply sorting and pagination
+                dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "Id";
+                var sortedQuery = (dto.sortDirection == sortDirectionList.DESC
+                        ? baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField))
+                        : baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField)));
+
+                // Apply pagination and execute query
+                List<Users> permissionLists = await sortedQuery
+                    .Skip((dto.page - 1) * dto.limit)
+                    .Take(dto.limit)
+                    .ToListAsync();
+
+                var totalPages = (int)Math.Ceiling((double)totalRecords / dto.limit);
 
                 var response = new
                 {
-                    lists = lists,
+                    lists = permissionLists,
                     page = dto.page,
                     limit = dto.limit,
                     total = totalRecords,
-                    totalPages = (int)Math.Ceiling((double)totalRecords / dto.limit)
+                    totalPages = totalPages
                 };
 
-                return Ok(response);
+                return Ok(response); // Remove the extra wrapper
             }
-            catch (Exception ex) 
+            catch (Exception ex)
             {
-                string ErrorId = ExceptionHandler(ex, "PermissionsController-ShowUsers");
-                return Json(
-                    new
-                    {
-                        StatusCode = 500,
-                        Message = ex.Message,
-                        ErrorId = ErrorId
-                    }
-                );
+                return ExceptionHandler(ex);
+            }
+        }
+        [HttpPost]
+        [AllowAnonymous]
+        public async Task<IActionResult> UpdateUser([FromBody] Users user)
+        {
+            try
+            {
+                return Ok(user);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
             }
         }
         #endregion
@@ -84,10 +119,30 @@ namespace WebAPI.Controllers.UserProfile
         {
             try
             {
+                if (dto.Filters == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Expected Parametes missing!", Title = "Parameter Error" });
+                }
+                if (!string.IsNullOrEmpty(dto.SortField))
+                {
+                    bool isValid = typeof(Permissions)
+                        .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                        .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
+                    if (!isValid)
+                    {
+                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort!", Title = "Parameter Error" });
+                    }
+                }
+                dto.sortDirection = dto.sortDirection ?? sortDirectionList.DESC;
+
+                bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection);
+                if (!isValidDirection)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed!", Title = "Invalid sort option" });
+                }
                 // Validate pagination parameters
                 if (dto.page < 1) dto.page = 1;
                 if (dto.limit < 1) dto.limit = 10;
-                if (dto.limit > 10) dto.limit = 10; // Prevent excessive data requests
 
                 var baseQuery = _db.tPermissions.AsNoTracking();
 
@@ -100,13 +155,12 @@ namespace WebAPI.Controllers.UserProfile
 
                 // Get total count of filtered results (before pagination)
                 var totalRecords = await baseQuery.CountAsync();
-
+                dto.sortDirection = string.IsNullOrEmpty(dto.SortField) ? sortDirectionList.DESC : dto.sortDirection;
+                dto.SortField = dto.SortField ?? "Id";
                 // Apply sorting and pagination
-                var sortedQuery = !string.IsNullOrEmpty(dto.SortField)
-                    ? (dto.sortDirection == sortDirectionList.DESC
+                var sortedQuery = (dto.sortDirection == sortDirectionList.DESC
                         ? baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField))
-                        : baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField)))
-                    : baseQuery.OrderByDescending(e => e.Id);
+                        : baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField)));
 
                 // Apply pagination and execute query
                 var permissionLists = await sortedQuery
@@ -129,13 +183,7 @@ namespace WebAPI.Controllers.UserProfile
             }
             catch (Exception ex)
             {
-                string ErrorId = ExceptionHandler(ex, "PermissionsController-ShowPermissions");
-                return Json(new
-                {
-                    StatusCode = 500,
-                    Message = ex.Message,
-                    ErrorId = ErrorId
-                });
+                return ExceptionHandler(ex);
             }
         }
         [HttpPost]
@@ -150,15 +198,40 @@ namespace WebAPI.Controllers.UserProfile
             }
             catch (Exception ex)
             {
-                string ErrorId = ExceptionHandler(ex, "PermissionsController-ShowUsers");
-                return Json(
+                return ExceptionHandler(ex);
+            }
+        }
+        public class RegisterDTO
+        {
+            public string SeachUserId { get; set; } = string.Empty;
+            public string Name { get; set; } = string.Empty;
+        }
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> SearchUser([FromBody] RegisterDTO dto)
+        {
+            try
+            {
+                string PayloadNaName = dto.Name;
+
+                if (string.IsNullOrEmpty(PayloadNaName))
+                {
+                    //dito yung code
+                }
+
+                var IsearchAngPayloadNaNameNgIsaLang = await _db.tUsers.FirstOrDefaultAsync(x => x.Name.Contains(PayloadNaName));
+                var IsearchAngPayloadNgMaramingName = await _db.tUsers.Where(x => x.Name.Contains(PayloadNaName)).ToListAsync();
+                return Ok(
                     new
                     {
-                        StatusCode = 500,
-                        Message = ex.Message,
-                        ErrorId = ErrorId
+                        ReturnNgMarami = IsearchAngPayloadNgMaramingName,
+                        Isalang = IsearchAngPayloadNaNameNgIsaLang
                     }
                 );
+            }
+            catch (Exception error)
+            {
+                return ExceptionHandler(error);
             }
         }
     }

@@ -20,6 +20,6 @@ namespace DBHelper.Models.Table
         public int ProgramStageId { get; set; }
         public ProgramStage? ProgramStage { get; set; }
         public string UsertId { get; set; } = string.Empty;
-        public User? User { get; set; } // User who created the project
+        public Users? User { get; set; } // User who created the project
     }
 }

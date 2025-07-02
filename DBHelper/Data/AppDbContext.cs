@@ -11,7 +11,7 @@ namespace DBHelper.Data
 {
     public class AppDbContext : DbContext
     {
-        public DbSet<User> tUsers { get; set; }
+        public DbSet<Users> tUsers { get; set; }
         public DbSet<Permissions> tPermissions { get; set; }
         public DbSet<UserGroups> tUserGroups { get; set; }
         public DbSet<UserGroupPermissions> vUserGroupPermissions { get; set; }

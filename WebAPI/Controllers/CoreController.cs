@@ -1,4 +1,5 @@
 ﻿using DBHelper.Data;
+using DBHelper.Models.Enums;
 using DBHelper.Models.Table;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -6,7 +7,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Filters;
 using System.Diagnostics;
+using System.Reflection;
 using System.Security.Claims;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace WebAPI.Controllers
 {
@@ -14,7 +17,7 @@ namespace WebAPI.Controllers
     public abstract class CoreController : Controller
     {
         public AppDbContext _db;
-        public User _Session = new User();
+        public Users _Session = new Users();
         public CoreController(AppDbContext db)
         {
             _db = db;
@@ -54,23 +57,48 @@ namespace WebAPI.Controllers
             }
         }
         [NonAction]
-        public string ExceptionHandler(Exception ex, string FunctionName)
+        public BadRequestObjectResult ExceptionHandler(Exception ex)
         {
             Guid errorReferenceId = Guid.NewGuid();
             try
             {
-                string message = $"/========================= ERROR EVENT STARTS HERE =========================/" +
+                string message = $"\n\n/========================= MYPS ERROR EVENT STARTS HERE =========================/" +
                     $"\n\n[{errorReferenceId}] \n\nMessage: {ex.Message}\n\nStackRace:{ex.StackTrace}\n\n" +
-                    $"/========================= ERROR EVENT ENDS HERE =========================/";
+                    $"/========================= MYPS ERROR EVENT ENDS HERE =========================/\n\n";
                 EventLog.WriteEntry("Application", message, EventLogEntryType.Error);
-
-                return errorReferenceId.ToString();
+                string ErrorId = errorReferenceId.ToString();
+                return new BadRequestObjectResult(
+                    new
+                    {
+                        ErrorId = ErrorId,
+                        Message = ex.Message,
+                        Title = "Application Error"
+                    }
+                );
             }
-            catch (Exception logEx)
+            catch (Exception)
             {
-                // Consider logging to a fallback mechanism here
-                return $"[{errorReferenceId}] Logging failed: {logEx.Message}\nOriginal error: {ex.Message}";
+                return new BadRequestObjectResult(
+                    new
+                    {
+                        ErrorId = "No ErrorId",
+                        Message = ex.Message,
+                        Title = "Application Error"
+                    }
+                );
             }
+        }
+
+        [NonAction]
+        public IActionResult UnauthorizedUser()
+        {
+            var responseObj = new
+            {
+                message = "Unauthorized",
+                data = new { Authenticated = false, user = new { } },
+
+            };
+            return Unauthorized(responseObj);
         }
     }
 }
