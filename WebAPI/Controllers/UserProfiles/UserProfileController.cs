@@ -117,32 +117,55 @@ namespace WebAPI.Controllers.UserProfile
         }
         [HttpPost]
         [AllowAnonymous]
-        public async Task<IActionResult> DeleteUser([FromBody] DBHelper.Models.Views.Users user)
+        public async Task<IActionResult> DeleteUser([FromBody] DBHelper.Models.Views.Users dto)
         {
+            using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-
+                var getUser = await _db.tUsers.FirstOrDefaultAsync(x => x.UserId == dto.UserId);
+                if (getUser == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"User '{dto.UserId}' does not exists in the System!", Title = "User not found" });
+                }
+                _db.tUsers.Remove(getUser);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return Ok(new
+                {
+                    Message = "User deleted updated successfully",
+                    Title = "Delete Complete"
+                });
             }
             catch (Exception ex)
             {
+                await transaction.RollbackAsync();
                 return ExceptionHandler(ex);
             }
         }
         [HttpPost]
         [AllowAnonymous]
-        public IActionResult UpdateUser([FromBody] DBHelper.Models.Views.Users user)
+        public async Task<IActionResult> UpdateUser([FromBody] DBHelper.Models.Views.Users dto)
         {
+            using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                var getUser = await _db.tUsers.FirstOrDefaultAsync(x => x.UserId == dto.UserId);
+                if(getUser == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"User '{dto.UserId}' does not exists in the System!", Title = "User not found" });
+                }
+                _db.tUsers.Remove(getUser);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
                 return Ok(new
                 {
                     Message = "User Info updated successfully",
-                    Title = "Under Maintenance",
-                    Status = true
+                    Title = "Under Maintenance"
                 });
             }
             catch (Exception ex)
             {
+                await transaction.RollbackAsync();
                 return ExceptionHandler(ex);
             }
         }
