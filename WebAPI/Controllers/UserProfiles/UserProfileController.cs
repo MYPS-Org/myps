@@ -42,9 +42,9 @@ namespace WebAPI.Controllers.UserProfile
                         return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort!", Title = "Parameter Error" });
                     }
                 }
-                dto.sortDirection = dto.sortDirection ?? sortDirectionList.DESC;
+                dto.sortDirection = string.IsNullOrEmpty(dto.sortDirection.ToString()) ? sortDirectionList.DESC : dto.sortDirection;
 
-                bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection);
+                bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!);
                 if (!isValidDirection)
                 {
                     return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed!", Title = "Invalid sort option" });
@@ -100,11 +100,16 @@ namespace WebAPI.Controllers.UserProfile
         }
         [HttpPost]
         [AllowAnonymous]
-        public async Task<IActionResult> UpdateUser([FromBody] Users user)
+        public IActionResult UpdateUser([FromBody] Users user)
         {
             try
             {
-                return Ok(user);
+                return Ok(new
+                {
+                    Message = "User Info updated successfully",
+                    Title = "Under Maintenance",
+                    Status = true
+                });
             }
             catch (Exception ex)
             {
@@ -133,9 +138,9 @@ namespace WebAPI.Controllers.UserProfile
                         return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort!", Title = "Parameter Error" });
                     }
                 }
-                dto.sortDirection = dto.sortDirection ?? sortDirectionList.DESC;
+                dto.sortDirection = string.IsNullOrEmpty(dto.sortDirection.ToString()) ? sortDirectionList.DESC : dto.sortDirection;
 
-                bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection);
+                bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!);
                 if (!isValidDirection)
                 {
                     return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed!", Title = "Invalid sort option" });
@@ -156,7 +161,7 @@ namespace WebAPI.Controllers.UserProfile
                 // Get total count of filtered results (before pagination)
                 var totalRecords = await baseQuery.CountAsync();
                 dto.sortDirection = string.IsNullOrEmpty(dto.SortField) ? sortDirectionList.DESC : dto.sortDirection;
-                dto.SortField = dto.SortField ?? "Id";
+                dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "Id";
                 // Apply sorting and pagination
                 var sortedQuery = (dto.sortDirection == sortDirectionList.DESC
                         ? baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField))
@@ -186,53 +191,20 @@ namespace WebAPI.Controllers.UserProfile
                 return ExceptionHandler(ex);
             }
         }
-        [HttpPost]
-        [Authorize(Policy = "View UserProfiles")]
-        public async Task<IActionResult> ShowUserGroups()
-        {
-            try
-            {
-                var Permissions = await _db.vUserGroupPermissions.AsNoTracking().ToListAsync();
-                var UserGroups = await _db.tUserGroups.AsNoTracking().ToListAsync();
-                return Ok(new { Groups = UserGroups, GroupPermissions = Permissions});
-            }
-            catch (Exception ex)
-            {
-                return ExceptionHandler(ex);
-            }
-        }
-        public class RegisterDTO
-        {
-            public string SeachUserId { get; set; } = string.Empty;
-            public string Name { get; set; } = string.Empty;
-        }
-        [AllowAnonymous]
-        [HttpPost]
-        public async Task<IActionResult> SearchUser([FromBody] RegisterDTO dto)
-        {
-            try
-            {
-                string PayloadNaName = dto.Name;
-
-                if (string.IsNullOrEmpty(PayloadNaName))
-                {
-                    //dito yung code
-                }
-
-                var IsearchAngPayloadNaNameNgIsaLang = await _db.tUsers.FirstOrDefaultAsync(x => x.Name.Contains(PayloadNaName));
-                var IsearchAngPayloadNgMaramingName = await _db.tUsers.Where(x => x.Name.Contains(PayloadNaName)).ToListAsync();
-                return Ok(
-                    new
-                    {
-                        ReturnNgMarami = IsearchAngPayloadNgMaramingName,
-                        Isalang = IsearchAngPayloadNaNameNgIsaLang
-                    }
-                );
-            }
-            catch (Exception error)
-            {
-                return ExceptionHandler(error);
-            }
-        }
+        //[HttpPost]
+        //[Authorize(Policy = "View UserProfiles")]
+        //public async Task<IActionResult> ShowUserGroups()
+        //{
+        //    try
+        //    {
+        //        var Permissions = await _db.vUserGroupPermissions.AsNoTracking().ToListAsync();
+        //        var UserGroups = await _db.tUserGroups.AsNoTracking().ToListAsync();
+        //        return Ok(new { Groups = UserGroups, GroupPermissions = Permissions});
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return ExceptionHandler(ex);
+        //    }
+        //}
     }
 }
