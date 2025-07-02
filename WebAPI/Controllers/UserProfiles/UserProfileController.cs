@@ -100,11 +100,16 @@ namespace WebAPI.Controllers.UserProfile
         }
         [HttpPost]
         [AllowAnonymous]
-        public async Task<IActionResult> UpdateUser([FromBody] Users user)
+        public IActionResult UpdateUser([FromBody] Users user)
         {
             try
             {
-                return Ok(user);
+                return Ok(new
+                {
+                    Message = "User Info updated successfully",
+                    Title = "Under Maintenance",
+                    Status = true
+                });
             }
             catch (Exception ex)
             {
@@ -156,7 +161,7 @@ namespace WebAPI.Controllers.UserProfile
                 // Get total count of filtered results (before pagination)
                 var totalRecords = await baseQuery.CountAsync();
                 dto.sortDirection = string.IsNullOrEmpty(dto.SortField) ? sortDirectionList.DESC : dto.sortDirection;
-                dto.SortField = dto.SortField ?? "Id";
+                dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "Id";
                 // Apply sorting and pagination
                 var sortedQuery = (dto.sortDirection == sortDirectionList.DESC
                         ? baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField))
@@ -199,39 +204,6 @@ namespace WebAPI.Controllers.UserProfile
             catch (Exception ex)
             {
                 return ExceptionHandler(ex);
-            }
-        }
-        public class RegisterDTO
-        {
-            public string SeachUserId { get; set; } = string.Empty;
-            public string Name { get; set; } = string.Empty;
-        }
-        [AllowAnonymous]
-        [HttpPost]
-        public async Task<IActionResult> SearchUser([FromBody] RegisterDTO dto)
-        {
-            try
-            {
-                string PayloadNaName = dto.Name;
-
-                if (string.IsNullOrEmpty(PayloadNaName))
-                {
-                    //dito yung code
-                }
-
-                var IsearchAngPayloadNaNameNgIsaLang = await _db.tUsers.FirstOrDefaultAsync(x => x.Name.Contains(PayloadNaName));
-                var IsearchAngPayloadNgMaramingName = await _db.tUsers.Where(x => x.Name.Contains(PayloadNaName)).ToListAsync();
-                return Ok(
-                    new
-                    {
-                        ReturnNgMarami = IsearchAngPayloadNgMaramingName,
-                        Isalang = IsearchAngPayloadNaNameNgIsaLang
-                    }
-                );
-            }
-            catch (Exception error)
-            {
-                return ExceptionHandler(error);
             }
         }
     }
