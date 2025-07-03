@@ -36,6 +36,7 @@ import {
 	PaginationPrevious,
 	PaginationPage,
  } from '../../components/tailwindui/pagination';
+import type { ErrorResponse } from 'react-router-dom';
 
 
 const Rbac: React.FC = () => {
@@ -138,7 +139,7 @@ const Rbac: React.FC = () => {
 			try {
 				const initialData = await fetchInitialData();
 				console.log('Initial data fetched:', initialData);
-			} catch (error) {
+			} catch (error : any) {
 				console.error('Error fetching initial data:', error);
 				alert('Failed to fetch initial data: ' + (error instanceof Error ? error.message : 'Unknown error'));
 			}
@@ -179,9 +180,9 @@ const Rbac: React.FC = () => {
 				console.log('Fetching users with new sort:', newFilter);
 				const res = await fetchUsers(newFilter);
 				console.log('Users response:', res);
-				if(res.data.lists) {
+				if(res.Data.lists) {
 					console.log('Setting users data:', res);
-					setUsersData(res.data);
+					setUsersData(res.Data);
 				}
 			} catch (error) {
 				console.error('Error fetching users:', error);
@@ -207,9 +208,9 @@ const Rbac: React.FC = () => {
 				console.log('Fetching permissions with new sort:', newFilter);
 				const res = await fetchPermissions(newFilter);
 				console.log('Permissions response:', res);
-				if(res.data.lists) {
+				if(res.Data.lists) {
 					console.log('Setting permissions data:', res);
-					setPermissionsData(res.data);
+					setPermissionsData(res.Data);
 				}
 			} catch (error) {
 				console.error('Error fetching permissions:', error);
@@ -242,9 +243,9 @@ const Rbac: React.FC = () => {
 				console.log('Fetching permissions with current filter:', PermissionFilter);
 				const res = await fetchPermissions(PermissionFilter);
 				console.log('Permissions response:', res);
-				if(res.data.lists) {
+				if(res.Data.lists) {
 					console.log('Setting permissions data:', res);
-					setPermissionsData(res.data);
+					setPermissionsData(res.Data);
 				}
 			} catch (error) {
 				console.error('Error fetching permissions:', error);
@@ -265,9 +266,9 @@ const Rbac: React.FC = () => {
 				console.log('Fetching users with current filter:', UserFilter);
 				const res = await fetchUsers(UserFilter);
 				console.log('Users response:', res);
-				if(res.data.lists) {
+				if(res.Data.lists) {
 					console.log('Setting users data:', res);
-					setUsersData(res.data);
+					setUsersData(res.Data);
 				}
 			} catch (error) {
 				console.error('Error fetching users:', error);
@@ -298,9 +299,9 @@ const Rbac: React.FC = () => {
 				console.log('Fetching permissions for page:', page, 'with filter:', newFilter);
 				const res = await fetchPermissions(newFilter);
 				console.log('Permissions response:', res);
-				if(res.data.lists) {
+				if(res.Data.lists) {
 					console.log('Setting permissions data:', res);
-					setPermissionsData(res.data);
+					setPermissionsData(res.Data);
 				}
 			} catch (error) {
 				console.error('Error fetching permissions:', error);
@@ -325,9 +326,9 @@ const Rbac: React.FC = () => {
 				console.log('Fetching users for page:', page, 'with filter:', newFilter);
 				const res = await fetchUsers(newFilter);
 				console.log('Users response:', res);
-				if(res.data.lists) {
+				if(res.Data.lists) {
 					console.log('Setting users data:', res);
-					setUsersData(res.data);
+					setUsersData(res.Data);
 				}
 			} catch (error) {
 				console.error('Error fetching users:', error);
@@ -1110,9 +1111,9 @@ const Rbac: React.FC = () => {
 						console.log('Fetching users with new filter:', newFilter);
 						const res = await fetchUsers(newFilter);
 						console.log('Users response:', res);
-						if(res.data.lists) {
+						if(res.Data.lists) {
 							console.log('Setting users data:', res);
-							setUsersData(res.data);
+							setUsersData(res.Data);
 						}
 					} catch (error) {
 						console.error('Error fetching users:', error);
@@ -1142,9 +1143,9 @@ const Rbac: React.FC = () => {
 						console.log('Fetching users without filters:', newFilter);
 						const res = await fetchUsers(newFilter);
 						console.log('Users response:', res);
-						if(res.data.lists) {
+						if(res.Data.lists) {
 							console.log('Setting users data:', res);
-							setUsersData(res.data);
+							setUsersData(res.Data);
 						}
 					} catch (error) {
 						console.error('Error fetching users:', error);
@@ -1181,9 +1182,9 @@ const Rbac: React.FC = () => {
 						console.log('Fetching permissions with new filter:', newFilter);
 						const res = await fetchPermissions(newFilter);
 						console.log('Permissions response:', res);
-						if(res.data.lists) {
+						if(res.Data.lists) {
 							console.log('Setting permissions data:', res);
-							setPermissionsData(res.data);
+							setPermissionsData(res.Data);
 						}
 					} catch (error) {
 						console.error('Error fetching permissions:', error);
@@ -1214,9 +1215,9 @@ const Rbac: React.FC = () => {
 						console.log('Fetching permissions without filters:', newFilter);
 						const res = await fetchPermissions(newFilter);
 						console.log('Permissions response:', res);
-						if(res.data.lists) {
+						if(res.Data.lists) {
 							console.log('Setting permissions data:', res);
-							setPermissionsData(res.data);
+							setPermissionsData(res.Data);
 						}
 					} catch (error) {
 						console.error('Error fetching permissions:', error);

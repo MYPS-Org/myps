@@ -1,7 +1,8 @@
 // Service functions for RBAC operations
 import type { RawUserGroupData, ConsolidatedUserGroup, PermissionPagination, Permissions, Users, UserPagination, UserGroups, UserGroupPagination, Pis } from './Model.d';
 import type { PaginationResponse } from '../../types/Pagination.d';
-import { httpClient } from '../../services/httpClient';
+import { httpClient, type ErrorResponse } from '../../services/httpClient';
+// import type { ErrorResponse } from '';
 
 export const consolidateUserGroups = (rawData: RawUserGroupData[]): ConsolidatedUserGroup[] => {
 	const groupMap = new Map<string, ConsolidatedUserGroup>();
@@ -109,9 +110,13 @@ export const fetchUserData = async (data: Pis) => {
     try {
         const request = await httpClient.post<Users>('/MockUps/SearchUser', data);
         return request;
-    } catch (error) {
-		console.error('Service: Error in fetchUserData:', error);
-        throw error;
-    }
+	} catch (error : any) {
+		const errorResponse: ErrorResponse = {
+			Message: error.response.Message,
+			Status: error.response.Status,
+			Title: error.response.Title,
+		};
+		throw errorResponse;
+	}
 }
 //#endregion

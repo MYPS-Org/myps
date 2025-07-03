@@ -114,18 +114,18 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
         console.log('User data fetched:', userData);
         setFormData(prev => ({
           ...prev,
-          name: userData.data.Name || '',
-          userId: userData.data.UserId || '',
-          email: userData.data.Email || '',
-          plantillaOffice: userData.data.PlantillaOffice || ''
+          name: userData.Data.Name || '',
+          userId: userData.Data.UserId || '',
+          email: userData.Data.Email || '',
+          plantillaOffice: userData.Data.PlantillaOffice || ''
         }));
         setIsDataLoaded(true);
       } else {
         setError('Employee ID not found');
         setIsDataLoaded(false);
       }
-    } catch (error) {
-      setError("Failed to fetch user data");
+    } catch (error: any) {
+      setError(error.Message);
       setIsDataLoaded(false);
     } finally {
       setIsLoading(false);
