@@ -169,6 +169,33 @@ namespace WebAPI.Controllers.UserProfile
                 return ExceptionHandler(ex);
             }
         }
+        [HttpPost]
+        [AllowAnonymous]
+        public async Task<IActionResult> AddUser([FromBody] DBHelper.Models.Views.Users dto)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var getUser = await _db.tUsers.FirstOrDefaultAsync(x => x.UserId == dto.UserId);
+                if (getUser == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"User '{dto.UserId}' does not exists in the System!", Title = "User not found" });
+                }
+                //_db.tUsers.Remove(getUser);
+                //await _db.SaveChangesAsync();
+                //await transaction.CommitAsync();
+                return Ok(new
+                {
+                    Message = "User Info updated successfully",
+                    Title = "Under Maintenance"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
         #endregion
         #region PERMISSIONS TAB
         [HttpPost]
@@ -206,6 +233,9 @@ namespace WebAPI.Controllers.UserProfile
                 var baseQuery = _db.vPermissions.AsNoTracking();
 
                 // Apply filters to base query
+                if (!string.IsNullOrEmpty(dto.Filters?.PermissionGroupName))
+                    baseQuery = baseQuery.Where(e => e.PermissionGroupName!.Contains(dto.Filters.PermissionGroupName));
+
                 if (!string.IsNullOrEmpty(dto.Filters?.ModuleFunction))
                     baseQuery = baseQuery.Where(e => e.ModuleFunction!.Contains(dto.Filters.ModuleFunction));
 
@@ -258,7 +288,6 @@ namespace WebAPI.Controllers.UserProfile
                     return new BadRequestObjectResult(new { Message = $"Permission '{dto.PermissionGroupName}' does not exists in the System!", Title = "Permission not found" });
                 }
                 getPermission.Description = dto.Description;
-                getPermission.PermissionGroupId = dto.PermissionGroupId;
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
                 return Ok(new { Message = $"{dto.PermissionGroupName} updated successfully!", Title = "Update Complete" });
