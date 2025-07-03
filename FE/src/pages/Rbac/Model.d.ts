@@ -2,11 +2,13 @@ import type { PaginationParams } from '../../types/Pagination';
 
 //#region Permissions Models
 export interface Permissions {
-    Id: number;
-    ModuleFunction?: string;
-    Description?: string;
-    CreatedBy?: string;
-    CreatedDate?: string;
+	Id: number;
+	PermissionGroupId: number;
+	PermissionGroupName?: string;
+	ModuleFunction: string;
+	Description: string;
+	CreatedBy: string;
+	CreatedDate: string;
 }
 export interface PermissionPagination extends PaginationParams {
     Filters?: PermissionFilter;
@@ -14,6 +16,7 @@ export interface PermissionPagination extends PaginationParams {
     sortDirection?: 0 | 1;
 }
 export interface PermissionFilter {
+    PermissionGroupName?: string;
     ModuleFunction?: string;
     Description?: string;
 }
@@ -44,7 +47,6 @@ export interface UserFilter {
 //#region Permissions Models
 export interface UserGroups {
     Id: number,
-    EmployeeId?: string,
     UserGroup?: string,
     UserId?: string,
     Name?: string,

@@ -20,6 +20,7 @@ const FilterPermissionDialog: React.FC<FilterPermissionDialogProps> = ({
   initialData 
 }) => {
   const [formData, setFormData] = useState({
+    PermissionGroupName: initialData?.PermissionGroupName || '',
     ModuleFunction: initialData?.ModuleFunction || '',
     Description: initialData?.Description || ''
   });
@@ -28,6 +29,7 @@ const FilterPermissionDialog: React.FC<FilterPermissionDialogProps> = ({
   useEffect(() => {
     if (isOpen) {
       setFormData({
+        PermissionGroupName: initialData?.PermissionGroupName || '',
         ModuleFunction: initialData?.ModuleFunction || '',
         Description: initialData?.Description || ''
       });
@@ -42,6 +44,7 @@ const FilterPermissionDialog: React.FC<FilterPermissionDialogProps> = ({
 
   const handleClear = () => {
     setFormData({
+      PermissionGroupName: '',
       ModuleFunction: '',
       Description: ''
     });
@@ -80,6 +83,18 @@ const FilterPermissionDialog: React.FC<FilterPermissionDialogProps> = ({
             </div>
             
             <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Permission Group Name
+                </label>
+                <input
+                  type="text"
+                  value={formData.PermissionGroupName || ''}
+                  onChange={(e) => handleChange('PermissionGroupName', e.target.value)}
+                  placeholder="Search by permission group name..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
+                />
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Module Function
