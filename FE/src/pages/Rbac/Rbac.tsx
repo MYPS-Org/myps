@@ -427,7 +427,7 @@ const Rbac: React.FC = () => {
 			<div className="flex items-center justify-center">
 				<div>
 					<Heading level={1} className="">
-						Role-Based Access Control
+						User Management
 					</Heading>
 					<p className="text-gray-600 mt-1">
 						Manage users, permissions, and user groups
