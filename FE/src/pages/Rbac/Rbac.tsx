@@ -178,7 +178,7 @@ const Rbac: React.FC = () => {
 			// Create new filter with updated sort
 			const newFilter: UserPagination = {
 				...UserFilter,
-				sortField: field === 0 ? 'Name' : '', // Assuming field 0 maps to Name for users
+				sortField: field === 0 ? 'Name' : field === 1 ? 'Email' : field === 2 ? 'Office' : field === 3 ? 'Status' : '', // Assuming field 0 maps to Name for users
 				sortDirection: (direction || 0) as 0 | 1,
 				page: 1 // Reset to first page when sorting
 			};
@@ -490,14 +490,14 @@ const Rbac: React.FC = () => {
 							</div>
 						</div>
 						
-						<Table>
+						<Table className='px-5'>
 							<TableHead className='text-xl'>
 								<TableRow>
-									<TableHeader sortable className='text-gray-500'>User</TableHeader>
-									<TableHeader sortable className='text-gray-500'>UserGroup</TableHeader>
-									<TableHeader sortable className='text-gray-500'>Office</TableHeader>
-									<TableHeader sortable className='text-gray-500'>Status</TableHeader>
-									<TableHeader sortable className='text-gray-500'>Actions</TableHeader>
+									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(0, direction)} className='text-gray-500'>User</TableHeader>
+									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(1, direction)} className='text-gray-500'>UserGroup</TableHeader>
+									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(2, direction)} className='text-gray-500'>Office</TableHeader>
+									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(3, direction)} className='text-gray-500'>Status</TableHeader>
+									<TableHeader className='text-gray-500'>Actions</TableHeader>
 								</TableRow>
 							</TableHead>
 							<TableBody>
@@ -644,7 +644,7 @@ const Rbac: React.FC = () => {
 							</div>
 						</div>
 						
-						<Table>
+						<Table className='px-5'>
 							<TableHead>
 								<TableRow>
 									{/* <TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(0, direction)} className="text-gray-500">ID</TableHeader> */}
@@ -786,7 +786,7 @@ const Rbac: React.FC = () => {
 							</div>
 						</div>
 						
-						<Table>
+						<Table className='px-5'>
 							<TableHead className='text-[20px]'>
 								<TableRow className="text-center">
 									<TableHeader
@@ -797,10 +797,10 @@ const Rbac: React.FC = () => {
 									>
 										Group Name
 									</TableHeader>
-									<TableHeader sortable={true} className="text-gray-700">Members</TableHeader>
-									<TableHeader className="text-gray-700">Permissions</TableHeader>
-									<TableHeader className="text-gray-700">Description</TableHeader>
-									<TableHeader className="text-gray-700">Created</TableHeader>
+									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(1, direction)} className="text-gray-700">Members</TableHeader>
+									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(2, direction)} className="text-gray-700">Permissions</TableHeader>
+									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(3, direction)} className="text-gray-700">Description</TableHeader>
+									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(4, direction)} className="text-gray-700">Created</TableHeader>
 									<TableHeader className="text-gray-700">Actions</TableHeader>
 								</TableRow>
 							</TableHead>

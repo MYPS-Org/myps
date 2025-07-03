@@ -190,10 +190,8 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
                   value={formData.userId}
                   onChange={(e) => handleChange('userId', e.target.value)}
                   placeholder="Enter user ID"
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 ${
-                    !isDataLoaded ? 'bg-gray-100 text-gray-500' : ''
-                  }`}
-                  disabled={!isDataLoaded}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-700"
+                  disabled={true}
                   required
                 />
               </div>
@@ -208,10 +206,8 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
                 value={formData.name}
                 onChange={(e) => handleChange('name', e.target.value)}
                 placeholder="Enter name"
-                className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 ${
-                  !isDataLoaded ? 'bg-gray-100 text-gray-500' : ''
-                }`}
-                disabled={!isDataLoaded}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-700"
+                disabled={true}
                 required
               />
             </div>
@@ -225,10 +221,8 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
                 value={formData.email}
                 onChange={(e) => handleChange('email', e.target.value)}
                 placeholder="Enter email"
-                className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 ${
-                  !isDataLoaded ? 'bg-gray-100 text-gray-500' : ''
-                }`}
-                disabled={!isDataLoaded}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-700"
+                disabled={true}
                 required
               />
             </div>
@@ -242,10 +236,8 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
                 value={formData.plantillaOffice}
                 onChange={(e) => handleChange('plantillaOffice', e.target.value)}
                 placeholder="Enter department"
-                className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 ${
-                  !isDataLoaded ? 'bg-gray-100 text-gray-500' : ''
-                }`}
-                disabled={!isDataLoaded}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-700"
+                disabled={true}
               />
             </div>
 
@@ -265,6 +257,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
                           checked={formData.userGroups.includes(group.GroupName || '')}
                           onChange={(e) => handleUserGroupChange(group.GroupName || '', e.target.checked)}
                           className="mr-2 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          disabled={!isDataLoaded}
                         />
                         <span className="text-sm">{group.GroupName}</span>
                         {group.Description && (
@@ -286,9 +279,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
               <select
                 value={formData.isActive}
                 onChange={(e) => handleChange('isActive', e.target.value)}
-                className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 ${
-                  !isDataLoaded ? 'bg-gray-100 text-gray-500' : ''
-                }`}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                 disabled={!isDataLoaded}
               >
                 <option value="active">Active</option>
