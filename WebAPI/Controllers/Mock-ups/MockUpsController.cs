@@ -45,6 +45,32 @@ namespace WebAPI.Controllers.MockUps
             }
         }
         [HttpPost]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetUserInfo([FromBody] SearchUserDTO dto)
+        {
+            try
+            {
+                var checifExists = await _db.tUsers.FirstOrDefaultAsync(x => x.EmployeeId == dto.EmployeeId);
+                if (checifExists == null)
+                {
+                    return new BadRequestObjectResult(
+                        new
+                        {
+                            Message = $"Employee: '{dto.EmployeeId}' already exists",
+                            Title = "User Exists"
+                        }
+                    );
+                }
+                //var request = new XMLRequest<EmployeeResponse>();
+                //var data = await APIRequest.XML<EmployeeResponse>();
+                return Ok(checifExists);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
+        [HttpPost]
         [Consumes("text/xml")]
         [AllowAnonymous]
         public async Task<IActionResult> ReceiveSoap()
