@@ -18,7 +18,7 @@ namespace WebAPI.Controllers.UserProfile
 
         [HttpPost]
         [AllowAnonymous]
-        public async Task<IActionResult> InitUserManagement([FromBody] UsersPaginationDto dto)
+        public async Task<IActionResult> InitUserManagement()
         {
             try
             {
@@ -169,33 +169,33 @@ namespace WebAPI.Controllers.UserProfile
                 return ExceptionHandler(ex);
             }
         }
-        //[HttpPost]
-        //[AllowAnonymous]
-        //public async Task<IActionResult> AddUser([FromBody] DBHelper.Models.Views.Users dto)
-        //{
-        //    using var transaction = await _db.Database.BeginTransactionAsync();
-        //    try
-        //    {
-        //        var getUser = await _db.tUsers.FirstOrDefaultAsync(x => x.UserId == dto.UserId);
-        //        if (getUser == null)
-        //        {
-        //            return new BadRequestObjectResult(new { Message = $"User '{dto.UserId}' does not exists in the System!", Title = "User not found" });
-        //        }
-        //        //_db.tUsers.Remove(getUser);
-        //        //await _db.SaveChangesAsync();
-        //        //await transaction.CommitAsync();
-        //        return Ok(new
-        //        {
-        //            Message = "User Info updated successfully",
-        //            Title = "Under Maintenance"
-        //        });
-        //    }
-        //    catch (Exception ex)
-        //    {nzzj8tlh
-        //        await transaction.RollbackAsync();
-        //        return ExceptionHandler(ex);
-        //    }%%82.Southern.Tube.East.14%%
-        //}
+        [HttpPost]
+        [AllowAnonymous]
+        public async Task<IActionResult> AddUser([FromBody] DBHelper.Models.Views.Users dto)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var getUser = await _db.tUsers.FirstOrDefaultAsync(x => x.UserId == dto.UserId);
+                if (getUser == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"User '{dto.UserId}' does not exists in the System!", Title = "User not found" });
+                }
+                //_db.tUsers.Remove(getUser);
+                //await _db.SaveChangesAsync();
+                //await transaction.CommitAsync();
+                return Ok(new
+                {
+                    Message = "User Info updated successfully",
+                    Title = "Under Maintenance"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
         #endregion
         #region PERMISSIONS TAB
         [HttpPost]
@@ -299,10 +299,8 @@ namespace WebAPI.Controllers.UserProfile
             }
         }
         #endregion
-
         #region USER GROUP TAB
         [HttpPost]
-        //[Authorize(Policy = "View UserProfiles")]
         [AllowAnonymous]
         public async Task<IActionResult> ShowUserGroups([FromBody] UserGroupsPaginationDto dto)
         {
@@ -373,9 +371,8 @@ namespace WebAPI.Controllers.UserProfile
             }
         }
         [HttpPost]
-        //[Authorize(Policy = "View UserProfiles")]
         [AllowAnonymous]
-        public async Task<IActionResult> AddUserGroups([FromBody] DBHelper.Models.Views.UserGroups dto)
+        public async Task<IActionResult> AddUserGroup([FromBody] DBHelper.Models.Table.Groups dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -400,6 +397,38 @@ namespace WebAPI.Controllers.UserProfile
                     {
                         Message = "New Group added successfully!",
                         Title = "Add Complete"
+                    }
+                );
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+
+        }
+        [HttpPost]
+        [AllowAnonymous]
+        public async Task<IActionResult> EditUserGroup([FromBody] DBHelper.Models.Views.UserGroups dto)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var checkSameName = await _db.tGroups.FirstOrDefaultAsync(x => x.GroupName == dto.GroupName);
+                if (checkSameName == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Group Name '{dto.GroupName}' does no exists!", Title = "Group not found" });
+                }
+                checkSameName.GroupName = dto.GroupName;
+                checkSameName.Description = dto.Description;
+                _db.tGroups.Update(checkSameName);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return Ok(
+                    new
+                    {
+                        Message = $"Group {dto.GroupName} updated successfully!",
+                        Title = "Update Complete"
                     }
                 );
             }
