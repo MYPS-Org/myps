@@ -36,7 +36,7 @@ import {
 	PaginationPrevious,
 	PaginationPage,
  } from '../../components/tailwindui/pagination';
-import type { ErrorResponse } from '../../services/httpClient';
+// import type { ErrorResponse } from '../../services/httpClient';
 
 
 const Rbac: React.FC = () => {

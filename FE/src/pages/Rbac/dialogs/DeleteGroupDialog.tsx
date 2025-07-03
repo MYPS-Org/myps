@@ -3,18 +3,20 @@ import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { Badge } from '../../../components/tailwindui/badge';
-import type { ConsolidatedUserGroup } from '../Model.d';
+import type { UserGroups } from '../Model.d';
+import { deleteUserGroup } from '../service';
 
 interface DeleteGroupDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (groupId: number) => void;
-  group: ConsolidatedUserGroup;
+  group: UserGroups;
 }
 
 const DeleteGroupDialog: React.FC<DeleteGroupDialogProps> = ({ isOpen, onClose, onSubmit, group }) => {
   const [confirmText, setConfirmText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+  const [error, setError] = useState<string>('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,11 +26,21 @@ const DeleteGroupDialog: React.FC<DeleteGroupDialogProps> = ({ isOpen, onClose, 
     }
 
     setIsDeleting(true);
+    setError('');
+    
     try {
-      await onSubmit(group.Id);
+      // Call the actual delete API
+      await deleteUserGroup(group.Id);
+      
+      // Call the parent component's onSubmit handler to update the UI
+      onSubmit(group.Id);
       handleClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting group:', error);
+      
+      // Extract error message from the API response
+      const errorMessage = error?.response?.data?.Message || error?.Message || 'Failed to delete group. Please try again.';
+      setError(errorMessage);
     } finally {
       setIsDeleting(false);
     }
@@ -37,6 +49,7 @@ const DeleteGroupDialog: React.FC<DeleteGroupDialogProps> = ({ isOpen, onClose, 
   const handleClose = () => {
     setConfirmText('');
     setIsDeleting(false);
+    setError('');
     onClose();
   };
 
@@ -89,18 +102,20 @@ const DeleteGroupDialog: React.FC<DeleteGroupDialogProps> = ({ isOpen, onClose, 
                 
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Members:</span>
-                  <Badge color="blue">{group.MemberCount} members</Badge>
+                  <Badge color="blue">{group.NumberOfUsers || 0} members</Badge>
                 </div>
                 
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Permissions:</span>
-                  <Badge color="green">{group.PermissionName.length} permissions</Badge>
+                  <Badge color="green">
+                    {group.PermissionsName ? group.PermissionsName.split(',').filter(p => p.trim()).length : 0} permissions
+                  </Badge>
                 </div>
               </div>
             </div>
 
             {/* Member Impact Warning */}
-            {group.MemberCount > 0 && (
+            {(group.NumberOfUsers || 0) > 0 && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                 <div className="flex">
                   <ExclamationTriangleIcon className="h-5 w-5 text-yellow-400 mt-0.5 mr-3" />
@@ -109,7 +124,7 @@ const DeleteGroupDialog: React.FC<DeleteGroupDialogProps> = ({ isOpen, onClose, 
                       Impact on Members
                     </h4>
                     <p className="text-sm text-yellow-700 mt-1">
-                      This group has {group.MemberCount} member(s). Deleting this group may affect their access permissions.
+                      This group has {group.NumberOfUsers || 0} member(s). Deleting this group may affect their access permissions.
                     </p>
                   </div>
                 </div>
@@ -130,6 +145,20 @@ const DeleteGroupDialog: React.FC<DeleteGroupDialogProps> = ({ isOpen, onClose, 
                 autoComplete="off"
               />
             </div>
+
+            {/* Error Message */}
+            {error && (
+              <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-4">
+                {error}
+              </div>
+            )}
+
+            {/* Error Message */}
+            {error && (
+              <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-4">
+                {error}
+              </div>
+            )}
 
             <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
               <Button color="zinc" onClick={handleClose} disabled={isDeleting}>

@@ -64,7 +64,7 @@ const AddGroupDialog: React.FC<AddGroupDialogProps> = ({ isOpen, onClose, onSubm
 
       {/* Full-screen container */}
       <div className="fixed inset-0 flex items-center justify-center p-4">
-        <DialogPanel className="w-full max-w-lg bg-white rounded-lg shadow-xl">
+        <DialogPanel className="w-full max-w-4xl bg-white rounded-lg shadow-xl">
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <DialogTitle className="text-lg font-semibold text-gray-900">
               Add New Group
@@ -106,7 +106,7 @@ const AddGroupDialog: React.FC<AddGroupDialogProps> = ({ isOpen, onClose, onSubm
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
+              {/* <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Module (Optional)
                 </label>
@@ -117,13 +117,13 @@ const AddGroupDialog: React.FC<AddGroupDialogProps> = ({ isOpen, onClose, onSubm
                   placeholder="Enter module name"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
                 />
-              </div>
+              </div> */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Initial Member Count
                 </label>
                 <input
-                  type="number"
+                  type="text"
                   value={formData.memberCount}
                   onChange={(e) => handleChange('memberCount', parseInt(e.target.value) || 0)}
                   placeholder="0"
@@ -137,7 +137,7 @@ const AddGroupDialog: React.FC<AddGroupDialogProps> = ({ isOpen, onClose, onSubm
               <label className="block text-sm font-medium text-gray-700 mb-3">
                 Permissions
               </label>
-              <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto border border-gray-200 rounded-md p-3">
+              <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto border border-gray-200 rounded-md p-3">
                 {availablePermissions.map((permission) => (
                   <label key={permission} className="flex items-center space-x-2">
                     <input

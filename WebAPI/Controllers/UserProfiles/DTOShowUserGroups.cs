@@ -11,4 +11,9 @@ namespace WebAPI.Controllers.UserProfile
     {
         public string? GroupName { get; set; }
     }
+    
+    public class DeleteUserGroupDto
+    {
+        public int Id { get; set; }
+    }
 }

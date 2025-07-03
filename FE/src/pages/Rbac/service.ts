@@ -66,6 +66,15 @@ export const fetchUserGroups = async (data: UserGroupPagination) => {
         throw error;
     }
 }
+
+export const deleteUserGroup = async (groupId: number) => {
+    try {
+        const request = await httpClient.post('/UserProfile/DeleteUserGroup', { Id: groupId });
+        return request;
+    } catch (error) {
+        throw error;
+    }
+}
 //#endregion
 
 //#region  PIS API functions

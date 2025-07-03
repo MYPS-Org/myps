@@ -439,6 +439,51 @@ namespace WebAPI.Controllers.UserProfile
             }
 
         }
+
+        [HttpPost]
+        [AllowAnonymous]
+        public async Task<IActionResult> DeleteUserGroup([FromBody] DeleteUserGroupDto dto)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var getGroup = await _db.tGroups.FirstOrDefaultAsync(x => x.Id == dto.Id);
+                if (getGroup == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Group with ID '{dto.Id}' does not exist in the System!", Title = "Group not found" });
+                }
+
+                // Check if there are users assigned to this group
+                var usersInGroup = await _db.tUserGroups.Where(x => x.GroupId == dto.Id).CountAsync();
+                if (usersInGroup > 0)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Cannot delete group '{getGroup.GroupName}' because it has {usersInGroup} user(s) assigned to it. Please remove all users from this group first.", Title = "Group has members" });
+                }
+
+                // Remove group permissions first (if any)
+                var groupPermissions = await _db.tGroupPermissions.Where(x => x.GroupId == dto.Id).ToListAsync();
+                if (groupPermissions.Any())
+                {
+                    _db.tGroupPermissions.RemoveRange(groupPermissions);
+                }
+
+                // Remove the group
+                _db.tGroups.Remove(getGroup);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+                
+                return Ok(new
+                {
+                    Message = $"Group '{getGroup.GroupName}' deleted successfully!",
+                    Title = "Delete Complete"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
         #endregion
     }
 }
