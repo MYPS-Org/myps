@@ -35,9 +35,10 @@ namespace WebAPI.Controllers.MockUps
                         }
                     );
                 }
-                //var request = new XMLRequest<EmployeeResponse>();
-                //var data = await APIRequest.XML<EmployeeResponse>();
-                return Ok(checifExists);
+                var request = new GetEmployeeRequest(dto.EmployeeId);
+                var employee = await APIRequest.XML(request);
+
+                return Ok(employee);
             }
             catch (Exception ex)
             {
@@ -61,8 +62,8 @@ namespace WebAPI.Controllers.MockUps
                         }
                     );
                 }
-                //var request = new XMLRequest<EmployeeResponse>();
-                //var data = await APIRequest.XML<EmployeeResponse>();
+                var request = new GetEmployeeRequest(dto.EmployeeId);
+                var employee = await APIRequest.XML(request);
                 return Ok(checifExists);
             }
             catch (Exception ex)

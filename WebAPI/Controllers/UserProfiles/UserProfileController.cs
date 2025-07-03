@@ -127,6 +127,11 @@ namespace WebAPI.Controllers.UserProfile
                 {
                     return new BadRequestObjectResult(new { Message = $"User '{dto.UserId}' does not exists in the System!", Title = "User not found" });
                 }
+                var getUserGroups = await _db.tUserGroups.Where(x => x.UserId == getUser.UserId).ToListAsync();
+                if(getUserGroups.Count > 0)
+                {
+                    _db.tUserGroups.RemoveRange(getUserGroups);
+                }
                 _db.tUsers.Remove(getUser);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
@@ -149,14 +154,48 @@ namespace WebAPI.Controllers.UserProfile
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                var getUser = await _db.tUsers.FirstOrDefaultAsync(x => x.UserId == dto.UserId);
+                var getUser = await _db.tUsers.FirstOrDefaultAsync(x => x.UserId == dto.UserId && x.Id == dto.Id);
                 if (getUser == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"User '{dto.UserId}' does not exists in the System!", Title = "User not found" });
                 }
-                //_db.tUsers.Remove(getUser);
-                //await _db.SaveChangesAsync();
-                //await transaction.CommitAsync();
+                getUser.Name = dto.Name;
+                getUser.Email = dto.Email;
+                getUser.IsActive = dto.IsActive;
+                getUser.PlantillaOffice = dto.PlantillaOffice;
+                getUser.EmployeeId = dto.EmployeeId;
+                getUser.RegCode = dto.RegCode;
+                if (!string.IsNullOrEmpty(dto.UserGroups) && dto.UserGroups.Contains(","))
+                {
+                    string[] groups = dto.UserGroups.Split(',');
+                    var getUserGroups = await _db.tUserGroups.Where(x => x.UserId == getUser.UserId).ToListAsync();
+                    if (getUserGroups.Count() > 0)
+                    {
+                        var getGroups = await _db.tGroups.Where(x => groups.Contains(x.GroupName)).Select(x => x.Id).ToListAsync();
+                        var toRemoveGroups = getUserGroups.Where(x => !getGroups.Contains(x.GroupId)).ToList();
+                        var toAddGroups = getGroups.Where(selected => !getUserGroups.Any(ug => ug.GroupId == selected)).ToList();
+                        if(toRemoveGroups.Count > 0)
+                        {
+                            _db.tUserGroups.RemoveRange(toRemoveGroups);
+                        }
+                        if (toAddGroups.Count > 0)
+                        {
+                            _db.tUserGroups.AddRange(toAddGroups.Select(x =>
+                                new DBHelper.Models.Table.UserGroups()
+                                {
+                                    UserId = getUser.UserId,
+                                    GroupId = x,
+                                    CreatedBy = _Session.UserId,
+                                    CreatedDate = DateTime.UtcNow
+                                }
+                            ));
+                        }
+                    }
+                }
+
+                _db.tUsers.Update(getUser);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
                 return Ok(new
                 {
                     Message = "User Info updated successfully",
@@ -453,21 +492,12 @@ namespace WebAPI.Controllers.UserProfile
                     return new BadRequestObjectResult(new { Message = $"Group with ID '{dto.Id}' does not exist in the System!", Title = "Group not found" });
                 }
 
-                // Check if there are users assigned to this group
                 var usersInGroup = await _db.tUserGroups.Where(x => x.GroupId == dto.Id).CountAsync();
                 if (usersInGroup > 0)
                 {
                     return new BadRequestObjectResult(new { Message = $"Cannot delete group '{getGroup.GroupName}' because it has {usersInGroup} user(s) assigned to it. Please remove all users from this group first.", Title = "Group has members" });
                 }
 
-                // Remove group permissions first (if any)
-                var groupPermissions = await _db.tGroupPermissions.Where(x => x.GroupId == dto.Id).ToListAsync();
-                if (groupPermissions.Any())
-                {
-                    _db.tGroupPermissions.RemoveRange(groupPermissions);
-                }
-
-                // Remove the group
                 _db.tGroups.Remove(getGroup);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
