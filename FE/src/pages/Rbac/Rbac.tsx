@@ -9,14 +9,14 @@ import {
 //   EyeIcon,
   AdjustmentsHorizontalIcon,
 } from '@heroicons/react/16/solid'
-import { MagnifyingGlassIcon, UsersIcon, KeyIcon, UserGroupIcon, AdjustmentsVerticalIcon } from '@heroicons/react/20/solid'
+import { UsersIcon, KeyIcon, UserGroupIcon, AdjustmentsVerticalIcon } from '@heroicons/react/20/solid'
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/tailwindui/table'
 import { Button } from '../../components/tailwindui/button'
 import { Badge } from '../../components/tailwindui/badge'
 
 // Interfaces
-import { type Users, type Permissions, type RawUserGroupData, type ConsolidatedUserGroup, type PermissionPagination, type UserPagination, type UserGroupPagination } from './Model.d';
+import { type Users, type Permissions, type RawUserGroupData, type ConsolidatedUserGroup, type PermissionPagination, type UserPagination } from './Model.d';
 
 // Services
 import { consolidateUserGroups, fetchInitialData, fetchPermissions, fetchUsers } from './service';
@@ -147,11 +147,10 @@ const Rbac: React.FC = () => {
 	},[])
 	// Sorting state
 	const [sortDirection, setSortDirection] = useState<0 | 1 | null>(null);
-	const [sortField, setSortField] = useState<number | null>(null);
 
-	const handleSort = (field: number, direction: 0 | 1 | null) => {
-		setSortField(field);
+	const handleSort = async (field: number, direction: 0 | 1 | null) => {
 		setSortDirection(direction);
+		
 		// Update filter based on the current tab and sort parameters
 		if (selectedTab === 'userGroups') {
 			// For user groups, sort the local array
@@ -163,23 +162,61 @@ const Rbac: React.FC = () => {
 				setUserGroups(sortedGroups);
 			}
 		} else if (selectedTab === 'users') {
-			// Update user filter and refetch data
-			setUserFilter(prev => ({
-				...prev,
+			// Create new filter with updated sort
+			const newFilter: UserPagination = {
+				...UserFilter,
 				sortField: field === 0 ? 'Name' : '', // Assuming field 0 maps to Name for users
-				sortDirection: direction || 0,
+				sortDirection: (direction || 0) as 0 | 1,
 				page: 1 // Reset to first page when sorting
-			}));
-			getTableData('users');
+			};
+			
+			// Update state
+			setUserFilter(newFilter);
+			
+			// Fetch data with new sort immediately
+			try {
+				setIsLoadingUsers(true);
+				console.log('Fetching users with new sort:', newFilter);
+				const res = await fetchUsers(newFilter);
+				console.log('Users response:', res);
+				if(res.data.lists) {
+					console.log('Setting users data:', res);
+					setUsersData(res.data);
+				}
+			} catch (error) {
+				console.error('Error fetching users:', error);
+				alert('Failed to fetch users: ' + (error instanceof Error ? error.message : 'Unknown error'));
+			} finally {
+				setIsLoadingUsers(false);
+			}
 		} else if (selectedTab === 'permissions') {
-			// Update permission filter and refetch data
-			setPermissionFilter(prev => ({
-				...prev,
+			// Create new filter with updated sort
+			const newFilter: PermissionPagination = {
+				...PermissionFilter,
 				sortField: field === 0 ? 'Id' : field === 1 ? 'ModuleFunction' : field === 2 ? 'Description' : field === 3 ? 'CreatedBy' : field === 4 ? 'CreatedDate' : '',
-				sortDirection: direction || 0,
+				sortDirection: (direction || 0) as 0 | 1,
 				page: 1 // Reset to first page when sorting
-			}));
-			getTableData('permissions');
+			};
+			
+			// Update state
+			setPermissionFilter(newFilter);
+			
+			// Fetch data with new sort immediately
+			try {
+				setIsLoadingPermissions(true);
+				console.log('Fetching permissions with new sort:', newFilter);
+				const res = await fetchPermissions(newFilter);
+				console.log('Permissions response:', res);
+				if(res.data.lists) {
+					console.log('Setting permissions data:', res);
+					setPermissionsData(res.data);
+				}
+			} catch (error) {
+				console.error('Error fetching permissions:', error);
+				alert('Failed to fetch permissions: ' + (error instanceof Error ? error.message : 'Unknown error'));
+			} finally {
+				setIsLoadingPermissions(false);
+			}
 		}
 	};
 
@@ -192,6 +229,7 @@ const Rbac: React.FC = () => {
 	const getTableData = async (tabName: 'users' | 'permissions' | 'userGroups' | 'userRoles') => {
 		console.log('Switching to tab:', tabName);
 		setSelectedTab(tabName);
+		
 		if(tabName == 'permissions'){
 			// Prevent multiple concurrent requests
 			if (isLoadingPermissions) {
@@ -201,7 +239,7 @@ const Rbac: React.FC = () => {
 			
 			try {
 				setIsLoadingPermissions(true);
-				console.log('Fetching permissions with filter:', PermissionFilter);
+				console.log('Fetching permissions with current filter:', PermissionFilter);
 				const res = await fetchPermissions(PermissionFilter);
 				console.log('Permissions response:', res);
 				if(res.data.lists) {
@@ -210,7 +248,6 @@ const Rbac: React.FC = () => {
 				}
 			} catch (error) {
 				console.error('Error fetching permissions:', error);
-				// You might want to show a toast or alert here
 				alert('Failed to fetch permissions: ' + (error instanceof Error ? error.message : 'Unknown error'));
 			} finally {
 				setIsLoadingPermissions(false);
@@ -219,13 +256,13 @@ const Rbac: React.FC = () => {
 		else if (tabName == 'users'){
 			// Prevent multiple concurrent requests
 			if (isLoadingUsers) {
-				console.log('Already loading permissions, skipping request');
+				console.log('Already loading users, skipping request');
 				return;
 			}
 			
 			try {
 				setIsLoadingUsers(true);
-				console.log('Fetching users with filter:', UserFilter);
+				console.log('Fetching users with current filter:', UserFilter);
 				const res = await fetchUsers(UserFilter);
 				console.log('Users response:', res);
 				if(res.data.lists) {
@@ -234,34 +271,74 @@ const Rbac: React.FC = () => {
 				}
 			} catch (error) {
 				console.error('Error fetching users:', error);
-				// You might want to show a toast or alert here
+				alert('Failed to fetch users: ' + (error instanceof Error ? error.message : 'Unknown error'));
+			} finally {
+				setIsLoadingUsers(false);
+			}
+		}
+		else if (tabName == 'userGroups') {
+			// User groups are static data, no API call needed
+			console.log('User groups tab selected - using static data');
+		}
+	}
+	const Paginate = async (page: number) => {
+		if(selectedTab == 'permissions'){
+			// Create new filter with updated page
+			const newFilter: PermissionPagination = {
+				...PermissionFilter,
+				page: page
+			};
+			
+			// Update state
+			setPermissionFilter(newFilter);
+			
+			// Fetch data with updated pagination immediately
+			try {
+				setIsLoadingPermissions(true);
+				console.log('Fetching permissions for page:', page, 'with filter:', newFilter);
+				const res = await fetchPermissions(newFilter);
+				console.log('Permissions response:', res);
+				if(res.data.lists) {
+					console.log('Setting permissions data:', res);
+					setPermissionsData(res.data);
+				}
+			} catch (error) {
+				console.error('Error fetching permissions:', error);
 				alert('Failed to fetch permissions: ' + (error instanceof Error ? error.message : 'Unknown error'));
 			} finally {
 				setIsLoadingPermissions(false);
 			}
 		}
-	}
-	const Paginate = async (page: number) => {
-		if(selectedTab == 'permissions'){
-			setPermissionFilter(prev => ({
-				...prev,
-				page: page
-			}));
-			await getTableData('permissions');
-		}
 		else if (selectedTab == 'users') {
-			setUserFilter(prev => ({
-				...prev,
+			// Create new filter with updated page
+			const newFilter: UserPagination = {
+				...UserFilter,
 				page: page
-			}));
-			await getTableData('users');
+			};
+			
+			// Update state
+			setUserFilter(newFilter);
+			
+			// Fetch data with updated pagination immediately
+			try {
+				setIsLoadingUsers(true);
+				console.log('Fetching users for page:', page, 'with filter:', newFilter);
+				const res = await fetchUsers(newFilter);
+				console.log('Users response:', res);
+				if(res.data.lists) {
+					console.log('Setting users data:', res);
+					setUsersData(res.data);
+				}
+			} catch (error) {
+				console.error('Error fetching users:', error);
+				alert('Failed to fetch users: ' + (error instanceof Error ? error.message : 'Unknown error'));
+			} finally {
+				setIsLoadingUsers(false);
+			}
 		}
 		else {
-			setPermissionFilter(prev => ({
-				...prev,
-				page: page
-			}));
-			await getTableData('userGroups');
+			// For user groups, just update local state since it's static data
+			console.log('User groups pagination not implemented yet');
 		}
 	}
 	
@@ -337,9 +414,18 @@ const Rbac: React.FC = () => {
 							<div className="flex items-center justify-between">
 								<h3 className="text-lg font-medium text-gray-900">Users</h3>
 								<div className="flex items-center space-x-3">
-									<Button color="white" className='shadow-md' onClick={() => setIsFilterUserDialogOpen(true)}>
+									<Button 
+										color="white" 
+										className={`shadow-md ${UserFilter.filters?.Name ? 'ring-2 ring-orange-500 bg-orange-50' : ''}`}
+										onClick={() => setIsFilterUserDialogOpen(true)}
+									>
 										<AdjustmentsVerticalIcon className="w-4 h-4 mr-1" />
 										Filter
+										{UserFilter.filters?.Name && (
+											<span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
+												1
+											</span>
+										)}
 									</Button>
 									<Button color="blue" onClick={() => setIsAddUserDialogOpen(true)}>
 										<PlusIcon className="w-4 h-4 mr-1" />
@@ -478,14 +564,23 @@ const Rbac: React.FC = () => {
 							<div className="flex items-center justify-between">
 								<h3 className="text-lg font-medium text-gray-900">Permissions</h3>
 								<div className="flex items-center space-x-3">
-									<Button color="white" className='shadow-md' onClick={() => setIsPermissionFilterDialogOpen(true)}>
+									<Button 
+										color="white" 
+										className={`shadow-md ${(PermissionFilter.Filters?.ModuleFunction || PermissionFilter.Filters?.Description) ? 'ring-2 ring-orange-500 bg-orange-50' : ''}`}
+										onClick={() => setIsPermissionFilterDialogOpen(true)}
+									>
 										<AdjustmentsHorizontalIcon className="w-4 h-4 mr-1" />
 										Filter
+										{(PermissionFilter.Filters?.ModuleFunction || PermissionFilter.Filters?.Description) && (
+											<span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
+												{[PermissionFilter.Filters?.ModuleFunction, PermissionFilter.Filters?.Description].filter(Boolean).length}
+											</span>
+										)}
 									</Button>
-									<Button color="blue" onClick={() => setIsAddPermissionDialogOpen(true)}>
+									{/* <Button color="blue" onClick={() => setIsAddPermissionDialogOpen(true)}>
 										<PlusIcon className="w-4 h-4 mr-1" />
 										Add Permission
-									</Button>
+									</Button> */}
 								</div>
 							</div>
 						</div>
@@ -498,7 +593,7 @@ const Rbac: React.FC = () => {
 									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(2, direction)} className="text-gray-500">Description</TableHeader>
 									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(3, direction)} className="text-gray-500">Created By</TableHeader>
 									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(4, direction)} className="text-gray-500">Created At</TableHeader>
-									<TableHeader className="text-gray-500">Actions</TableHeader>
+									{/* <TableHeader className="text-gray-500">Actions</TableHeader> */}
 								</TableRow>
 							</TableHead>
 							<TableBody>
@@ -527,7 +622,7 @@ const Rbac: React.FC = () => {
 										<TableCell className="text-gray-500">
 											{permission.CreatedDate}
 										</TableCell>
-										<TableCell>
+										{/* <TableCell>
 											<div className="flex items-center space-x-2">
 												<Button color="yellow" className="p-2"
 												onClick={() => {
@@ -544,7 +639,7 @@ const Rbac: React.FC = () => {
 													<TrashIcon className="w-4 h-4" />
 												</Button>
 											</div>
-										</TableCell>
+										</TableCell> */}
 									</TableRow>
 								))}
 							</TableBody>
@@ -992,7 +1087,69 @@ const Rbac: React.FC = () => {
 				<FilterUserDialog 
 				isOpen={isFilterUserDialogOpen}
 				onClose={() => setIsFilterUserDialogOpen(false)}
-				onSubmit={() => {console.log()}}
+				onSubmit={async (filterData) => {
+					console.log('User filter data received:', filterData);
+					
+					// Create new filter object
+					const newFilter: UserPagination = {
+						...UserFilter,
+						filters: filterData,
+						page: 1 // Reset to first page when applying filter
+					};
+					
+					// Update state
+					setUserFilter(newFilter);
+					
+					// Fetch data with new filter immediately
+					try {
+						setIsLoadingUsers(true);
+						console.log('Fetching users with new filter:', newFilter);
+						const res = await fetchUsers(newFilter);
+						console.log('Users response:', res);
+						if(res.data.lists) {
+							console.log('Setting users data:', res);
+							setUsersData(res.data);
+						}
+					} catch (error) {
+						console.error('Error fetching users:', error);
+						alert('Failed to fetch users: ' + (error instanceof Error ? error.message : 'Unknown error'));
+					} finally {
+						setIsLoadingUsers(false);
+					}
+				}}
+				onClear={async () => {
+					console.log('Clearing user filters');
+					
+					// Create new filter object with cleared filters
+					const newFilter: UserPagination = {
+						...UserFilter,
+						filters: {
+							Name: ''
+						},
+						page: 1
+					};
+					
+					// Update state
+					setUserFilter(newFilter);
+					
+					// Fetch data without filters immediately
+					try {
+						setIsLoadingUsers(true);
+						console.log('Fetching users without filters:', newFilter);
+						const res = await fetchUsers(newFilter);
+						console.log('Users response:', res);
+						if(res.data.lists) {
+							console.log('Setting users data:', res);
+							setUsersData(res.data);
+						}
+					} catch (error) {
+						console.error('Error fetching users:', error);
+						alert('Failed to fetch users: ' + (error instanceof Error ? error.message : 'Unknown error'));
+					} finally {
+						setIsLoadingUsers(false);
+					}
+				}}
+				initialData={UserFilter.filters}
 				/>
 			)}
 
@@ -1001,34 +1158,74 @@ const Rbac: React.FC = () => {
 				<FilterPermissionDialog 
 				isOpen={isPermissionFilterDialogOpen}
 				onClose={() => setIsPermissionFilterDialogOpen(false)}
-				onSubmit={(filterData) => {
+				onSubmit={async (filterData) => {
 					console.log('Filter data received:', filterData);
-					setPermissionFilter(prev => ({
-						...prev,
+					
+					// Create new filter object
+					const newFilter: PermissionPagination = {
+						...PermissionFilter,
 						Filters: filterData,
 						page: 1 // Reset to first page when applying filter
-					}));
-					// Refresh the data with new filter
-					getTableData('permissions');
+					};
+					
+					// Update state
+					setPermissionFilter(newFilter);
+					
+					// Fetch data with new filter immediately
+					try {
+						setIsLoadingPermissions(true);
+						console.log('Fetching permissions with new filter:', newFilter);
+						const res = await fetchPermissions(newFilter);
+						console.log('Permissions response:', res);
+						if(res.data.lists) {
+							console.log('Setting permissions data:', res);
+							setPermissionsData(res.data);
+						}
+					} catch (error) {
+						console.error('Error fetching permissions:', error);
+						alert('Failed to fetch permissions: ' + (error instanceof Error ? error.message : 'Unknown error'));
+					} finally {
+						setIsLoadingPermissions(false);
+					}
 				}}
-				onClear={() => {
+				onClear={async () => {
 					console.log('Clearing permission filters');
-					setPermissionFilter(prev => ({
-						...prev,
+					
+					// Create new filter object with cleared filters
+					const newFilter: PermissionPagination = {
+						...PermissionFilter,
 						Filters: {
 							ModuleFunction: '',
 							Description: ''
 						},
 						page: 1
-					}));
-					// Refresh the data without filters
-					getTableData('permissions');
+					};
+					
+					// Update state
+					setPermissionFilter(newFilter);
+					
+					// Fetch data without filters immediately
+					try {
+						setIsLoadingPermissions(true);
+						console.log('Fetching permissions without filters:', newFilter);
+						const res = await fetchPermissions(newFilter);
+						console.log('Permissions response:', res);
+						if(res.data.lists) {
+							console.log('Setting permissions data:', res);
+							setPermissionsData(res.data);
+						}
+					} catch (error) {
+						console.error('Error fetching permissions:', error);
+						alert('Failed to fetch permissions: ' + (error instanceof Error ? error.message : 'Unknown error'));
+					} finally {
+						setIsLoadingPermissions(false);
+					}
 				}}
 				initialData={PermissionFilter.Filters}
 				/>
 			)}
 			{/* Filter UserGroup Dialog */}
-			{isPermissionFilterDialogOpen && (
+			{isUserGroupFilterDialogOpen && (
 				<FilterUserGroupDialog 
 				isOpen={isUserGroupFilterDialogOpen}
 				onClose={() => setIsUserGroupFilterDialogOpen(false)}
