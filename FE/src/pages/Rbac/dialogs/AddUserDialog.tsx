@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassCircleIcon, MagnifyingGlassIcon } from '@heroicons/react/16/solid';
+import { fetchUserData } from '../service';
 // import type { Users } from '../Model';
 
 interface AddUserDialogProps {
@@ -10,19 +12,55 @@ interface AddUserDialogProps {
   onSubmit: (userData: any) => void;
 }
 
+// Mock user data for testing
+const mockUserData = [
+  {
+    employeeId: 'EMP001',
+    name: 'John Doe',
+    userId: 'johndoe',
+    email: 'john.doe@company.com',
+    plantillaOffice: 'IT Department'
+  },
+  {
+    employeeId: 'EMP002',
+    name: 'Jane Smith',
+    userId: 'janesmith',
+    email: 'jane.smith@company.com',
+    plantillaOffice: 'HR Department'
+  },
+  {
+    employeeId: 'EMP003',
+    name: 'Mike Johnson',
+    userId: 'mikejohnson',
+    email: 'mike.johnson@company.com',
+    plantillaOffice: 'Finance Department'
+  },
+  {
+    employeeId: 'EMP004',
+    name: 'Sarah Williams',
+    userId: 'sarahwilliams',
+    email: 'sarah.williams@company.com',
+    plantillaOffice: 'Marketing Department'
+  }
+];
+
 const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit}) => {
   const [formData, setFormData] = useState({
     employeeId: '',
     name: '',
     userId: '',
     email: '',
-    userGroup: '',
+    userGroup: [] as string[],
     regCode: '',
     plantillaOffice: '',
     isActive: 'active',
   });
 
-    const userGroups = [
+  const [isLoading, setIsLoading] = useState(false);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
+  const [error, setError] = useState('');
+
+  const userGroups = [
     'User Management',
     'View Reports',
     'Edit Content',
@@ -35,24 +73,102 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
     'Notifications'
   ];
 
+  // Mock API call to fetch user data
+  // const fetchUserData = async (employeeId: string) => {
+  //   setIsLoading(true);
+  //   setError('');
+    
+  //   try {
+  //     // Simulate API delay
+  //     await new Promise(resolve => setTimeout(resolve, 1000));
+      
+  //     const userData = mockUserData.find(user => user.employeeId === employeeId);
+      
+  //     if (userData) {
+  //       setFormData(prev => ({
+  //         ...prev,
+  //         name: userData.name,
+  //         userId: userData.userId,
+  //         email: userData.email,
+  //         plantillaOffice: userData.plantillaOffice
+  //       }));
+  //       setIsDataLoaded(true);
+  //     } else {
+  //       setError('Employee ID not found');
+  //       setIsDataLoaded(false);
+  //     }
+  //   } catch (err) {
+  //     setError('Failed to fetch user data');
+  //     setIsDataLoaded(false);
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
+  const handleSearch = async (value: string) => {
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const userData = await fetchUserData({ EmployeeId: value });
+      if (userData) {
+        console.log('User data fetched:', userData);
+        setFormData(prev => ({
+          ...prev,
+          name: userData.data.Name || '',
+          userId: userData.data.UserId || '',
+          email: userData.data.Email || '',
+          plantillaOffice: userData.data.PlantillaOffice || ''
+        }));
+        setIsDataLoaded(true);
+      } else {
+        setError('Employee ID not found');
+        setIsDataLoaded(false);
+      }
+    } catch (error) {
+      setError("Failed to fetch user data");
+      setIsDataLoaded(false);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isDataLoaded) {
+      setError('Please enter a valid Employee ID first');
+      return;
+    }
     onSubmit(formData);
-    setFormData({
-        employeeId: '',
-        name: '',
-        userId: '',
-        email: '',
-        userGroup: '',
-        regCode: '',
-        plantillaOffice: '',
-        isActive: 'active',
-    });
+    resetForm();
     onClose();
+  };
+
+  const resetForm = () => {
+    setFormData({
+      employeeId: '',
+      name: '',
+      userId: '',
+      email: '',
+      userGroup: [],
+      regCode: '',
+      plantillaOffice: '',
+      isActive: 'active',
+    });
+    setIsDataLoaded(false);
+    setError('');
   };
 
   const handleChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleUserGroupChange = (group: string, checked: boolean) => {
+    setFormData(prev => ({
+      ...prev,
+      userGroup: checked 
+        ? [...prev.userGroup, group]
+        : prev.userGroup.filter(g => g !== group)
+    }));
   };
 
   return (
@@ -76,19 +192,38 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
           </div>
 
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            {/* Error message */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                <p className="text-sm text-red-600">{error}</p>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Employee Id
                 </label>
-                <input
-                  type="text"
-                  value={formData.employeeId}
-                  onChange={(e) => handleChange('employeeId', e.target.value)}
-                  placeholder="Enter employee ID"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                  required
-                />
+                <div className='flex items-center overflow-hidden border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500'>
+                  <input
+                    type="text"
+                    value={formData.employeeId}
+                    onChange={(e) => handleChange('employeeId', e.target.value)}
+                    className="w-full px-3 py-2"
+                    placeholder='Enter employee ID'
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleSearch(formData.employeeId)}
+                    className="px-3 py-2.5 bg-gray-500 text-gray-400 hover:text-gray-700 focus:outline-none"
+                  >
+                    <MagnifyingGlassIcon className="text-center w-5 h-5 text-gray-400" />
+                  </button>
+                </div>
+                {isLoading && (
+                  <p className="text-sm text-blue-600 mt-1">Loading user data...</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -99,7 +234,10 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
                   value={formData.userId}
                   onChange={(e) => handleChange('userId', e.target.value)}
                   placeholder="Enter user ID"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 ${
+                    !isDataLoaded ? 'bg-gray-100 text-gray-500' : ''
+                  }`}
+                  disabled={!isDataLoaded}
                   required
                 />
               </div>
@@ -110,11 +248,14 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
                 Name
               </label>
               <input
-                type="email"
+                type="text"
                 value={formData.name}
                 onChange={(e) => handleChange('name', e.target.value)}
                 placeholder="Enter name"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 ${
+                  !isDataLoaded ? 'bg-gray-100 text-gray-500' : ''
+                }`}
+                disabled={!isDataLoaded}
                 required
               />
             </div>
@@ -128,7 +269,10 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
                 value={formData.email}
                 onChange={(e) => handleChange('email', e.target.value)}
                 placeholder="Enter email"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 ${
+                  !isDataLoaded ? 'bg-gray-100 text-gray-500' : ''
+                }`}
+                disabled={!isDataLoaded}
                 required
               />
             </div>
@@ -140,9 +284,12 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
               <input
                 type="text"
                 value={formData.plantillaOffice}
-                onChange={(e) => handleChange('department', e.target.value)}
+                onChange={(e) => handleChange('plantillaOffice', e.target.value)}
                 placeholder="Enter department"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 ${
+                  !isDataLoaded ? 'bg-gray-100 text-gray-500' : ''
+                }`}
+                disabled={!isDataLoaded}
               />
             </div>
 
@@ -150,17 +297,24 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 User Group
               </label>
-              <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto border border-gray-200 rounded-md p-3">
+              <div className={`grid grid-cols-2 gap-2 max-h-48 overflow-y-auto border border-gray-200 rounded-md p-3 ${
+                !isDataLoaded ? 'bg-gray-50' : ''
+              }`}>
               {userGroups.map((group) => (
                 <label key={group} className="flex items-center space-x-2">
                   <input
                     type="checkbox"
                     value={group}
-                    checked={formData.userGroup === group}
-                    onChange={(e) => handleChange('userGroup', e.target.checked ? group : '')}
-                    className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    checked={formData.userGroup.includes(group)}
+                    onChange={(e) => handleUserGroupChange(group, e.target.checked)}
+                    disabled={!isDataLoaded}
+                    className={`h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 ${
+                      !isDataLoaded ? 'text-gray-400' : ''
+                    }`}
                   />
-                  <span className="text-sm text-gray-700">{group}</span>
+                  <span className={`text-sm ${!isDataLoaded ? 'text-gray-400' : 'text-gray-700'}`}>
+                    {group}
+                  </span>
                 </label>
               ))}
               </div>
@@ -173,7 +327,10 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
               <select
                 value={formData.isActive}
                 onChange={(e) => handleChange('isActive', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 ${
+                  !isDataLoaded ? 'bg-gray-100 text-gray-500' : ''
+                }`}
+                disabled={!isDataLoaded}
               >
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
@@ -181,11 +338,15 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
             </div>
 
             <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-              <Button type="button" onClick={onClose} color="zinc">
+              <Button type="button" onClick={() => { resetForm(); onClose(); }} color="zinc">
                 Cancel
               </Button>
-              <Button type="submit" color="orange">
-                Add User
+              <Button 
+                type="submit" 
+                color="orange"
+                disabled={!isDataLoaded || isLoading}
+              >
+                {isLoading ? 'Loading...' : 'Add User'}
               </Button>
             </div>
           </form>

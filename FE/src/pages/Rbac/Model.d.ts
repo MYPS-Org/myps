@@ -22,17 +22,17 @@ export interface PermissionFilter {
 }
 //#endregion
 
-//#region Permissions Models
+//#region Users Models
 export interface Users {
-    Id: number,
-    EmployeeId?: string,
-    UserGroup?: string,
-    UserId?: string,
-    Name?: string,
-    Email?: string,
-    RegCode?: string,
-    PlantillaOffice?: string,
-    IsActive?: boolean
+	Id: number;
+	UserGroups?: string;
+	EmployeeId?: string;
+	UserId: string;
+	Name: string;
+	Email?: string;
+	RegCode: string;
+	PlantillaOffice?: string;
+	IsActive: boolean;
 }
 export interface UserPagination extends PaginationParams {
     filters?: UserFilter;
@@ -83,4 +83,8 @@ export interface ConsolidatedUserGroup {
   Module?: string;
   MemberCount: number;
   CreatedDate: string;
+}
+
+export interface Pis {
+ EmployeeId?: string;
 }

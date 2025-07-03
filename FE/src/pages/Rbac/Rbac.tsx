@@ -463,7 +463,11 @@ const Rbac: React.FC = () => {
 											</div>
 										</TableCell>
 										<TableCell>
-											<Badge color="blue">{user.UserGroup}</Badge>
+											{user.UserGroups?.split(',').map((group, idx) => (
+												<Badge key={idx} color="blue" className="mr-1 mb-1">
+													{group.trim()}
+												</Badge>
+											))}
 										</TableCell>
 										<TableCell>
 											<Badge color="blue">{user.PlantillaOffice}</Badge>
