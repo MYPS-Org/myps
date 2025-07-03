@@ -73,20 +73,30 @@ export const fetchInitialData = async () => {
 }
 //#endregion
 
+//#region  Users API functions
+export const fetchUsers = async (data: UserPagination) => {
+	try {
+		const request = await httpClient.post<PaginationResponse<Users>>('/UserProfile/ShowUsers', data);
+		return request;
+	} catch (error) {
+		throw error;
+	}
+}
+
+export const editUser = async (data: Users) => {
+	try {
+		const request = await httpClient.post<Users>(`/UserProfile/UpdateUser`, data);
+		return request;
+	} catch (error) {
+		throw error;
+	}
+}
+//#endregion
+
 //#region  Permission API functions
 export const fetchPermissions = async (data: PermissionPagination) => {
     try {
         const request = await httpClient.post<PaginationResponse<Permissions>>('/UserProfile/ShowPermissions', data);
-        return request;
-    } catch (error) {
-        throw error;
-    }
-}
-//#endregion
-//#region  Permission API functions
-export const fetchUsers = async (data: UserPagination) => {
-    try {
-        const request = await httpClient.post<PaginationResponse<Users>>('/UserProfile/ShowUsers', data);
         return request;
     } catch (error) {
         throw error;

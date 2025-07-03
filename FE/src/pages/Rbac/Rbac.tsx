@@ -36,7 +36,7 @@ import {
 	PaginationPrevious,
 	PaginationPage,
  } from '../../components/tailwindui/pagination';
-import type { ErrorResponse } from 'react-router-dom';
+import type { ErrorResponse } from '../../services/httpClient';
 
 
 const Rbac: React.FC = () => {
@@ -138,10 +138,15 @@ const Rbac: React.FC = () => {
 		const fetchData = async () => {
 			try {
 				const initialData = await fetchInitialData();
+				const res = await fetchUsers(UserFilter);
+				if(res.Data.lists) {
+					console.log('Setting users data:', res);
+					setUsersData(res.Data);
+				}
 				console.log('Initial data fetched:', initialData);
 			} catch (error : any) {
 				console.error('Error fetching initial data:', error);
-				alert('Failed to fetch initial data: ' + (error instanceof Error ? error.message : 'Unknown error'));
+				// alert('Failed to fetch initial data: ' + (error instanceof Error ? error.message : 'Unknown error'));
 			}
 		};
 		fetchData();
@@ -186,7 +191,7 @@ const Rbac: React.FC = () => {
 				}
 			} catch (error) {
 				console.error('Error fetching users:', error);
-				alert('Failed to fetch users: ' + (error instanceof Error ? error.message : 'Unknown error'));
+				// alert('Failed to fetch users: ' + (error instanceof Error ? error.message : 'Unknown error'));
 			} finally {
 				setIsLoadingUsers(false);
 			}

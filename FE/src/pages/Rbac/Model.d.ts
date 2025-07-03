@@ -44,16 +44,14 @@ export interface UserFilter {
 }
 //#endregion
 
-//#region Permissions Models
+//#region UserGroup Models
 export interface UserGroups {
-    Id: number,
-    UserGroup?: string,
-    UserId?: string,
-    Name?: string,
-    Email?: string,
-    RegCode?: string,
-    PlantillaOffice?: string,
-    IsActive?: boolean
+	Id: number;
+	GroupName?: string;
+	NumberOfUsers?: number;
+	Description?: string;
+	CreatedBy?: string;
+	CreatedDate?: string;
 }
 export interface UserGroupPagination extends PaginationParams {
     filters?: UserGroupFilter;

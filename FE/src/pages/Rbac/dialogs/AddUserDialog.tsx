@@ -125,7 +125,8 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
         setIsDataLoaded(false);
       }
     } catch (error: any) {
-      setError(error.Message);
+
+      setError(error.Message || 'Failed to fetch user data');
       setIsDataLoaded(false);
     } finally {
       setIsLoading(false);
