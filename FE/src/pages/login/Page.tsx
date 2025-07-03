@@ -3,7 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { authService, type LoginRequest } from './Service';
 import { Input } from '../../components/tailwindui/input';
 import { Text } from '../../components/tailwindui/text';
-import LoginWebp from '../../assets/webp/login.webp';
+import Logo from '../../assets/img/logo.png';
 import { useNavigate } from 'react-router-dom';
 
 const LoginForm: React.FC = () => {
@@ -76,8 +76,8 @@ const LoginForm: React.FC = () => {
 						placeholder="••••••••••••"
 					/>
 					</div>
-					<div className="flex items-center justify-between text-sm">
-					<label className="flex items-center gap-2">
+					<div className="flex flex-col items-center justify-between text-sm">
+					{/* <label className="flex items-center gap-2">
 						<input
 						type="checkbox"
 						checked={rememberMe}
@@ -85,10 +85,7 @@ const LoginForm: React.FC = () => {
 						className="accent-violet-600"
 						/>
 						<span className="text-gray-700">Remember me</span>
-					</label>
-					<span className="text-gray-600">
-						Forgot Password? Contact Support Service Desk
-					</span>
+					</label> */}
 					</div>
 					{error && (
 					<div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
@@ -99,12 +96,12 @@ const LoginForm: React.FC = () => {
 					</div>
 					)}
 					
-					<button className='!bg-[#051344] !w-full !h-[50px] !rounded-md !text-white hover:!bg-[#051344]/80 !cursor-pointer'>Sign In</button>
+					<button className='!bg-[#f0750f] !w-full !h-[50px] !rounded-md !text-white hover:!bg-[#4726ae]/80 !cursor-pointer'>Sign In</button>
 				</form>
 				</div>
 				{/* Right: Illustration */}
-				<div className="bg-[#051344]/80 hidden md:flex w-1/2 items-center justify-center relative">
-				<img src={LoginWebp} className="w-4/5 h-auto text-white" />
+				<div className="bg-[#f0750f]/80 hidden md:flex w-1/2 items-center justify-center relative">
+				<img src={Logo} className="w-4/5 h-auto text-white" />
 			</div>
 		</div>
 	</div>
