@@ -60,16 +60,24 @@ export const generateGroupId = (existingGroups: ConsolidatedUserGroup[]): number
 	return maxId + 1;
 };
 
+//#region  Initial API Request
+export const fetchInitialData = async () => {
+	try {
+		const request = await httpClient.post<PaginationResponse<Permissions>>('/UserProfile/InitUserManagement', null,{preloaderMessage: 'Loading initial data...'});
+		return request;
+	} catch (error) {
+		console.error('Service: Error in fetchInitialData:', error);
+		throw error;
+	}
+}
+//#endregion
+
 //#region  Permission API functions
 export const fetchPermissions = async (data: PermissionPagination) => {
     try {
-        console.log('Service: Making API call to /UserProfile/ShowPermissions with data:', data);
-        const request = await httpClient.post<PaginationResponse<Permissions>>("/UserProfile/ShowPermissions", data);
-        console.log('Service: API response received:', request);
+        const request = await httpClient.post<PaginationResponse<Permissions>>('/UserProfile/ShowPermissions', data);
         return request;
     } catch (error) {
-        console.error('Service: Error in fetchPermissions:', error);
-        // Re-throw the error so the calling component can handle it
         throw error;
     }
 }
@@ -77,13 +85,9 @@ export const fetchPermissions = async (data: PermissionPagination) => {
 //#region  Permission API functions
 export const fetchUsers = async (data: UserPagination) => {
     try {
-        console.log('Service: Making API call to /UserProfile/ShowPermissions with data:', data);
-        const request = await httpClient.post<PaginationResponse<Users>>("/UserProfile/ShowUsers", data);
-        console.log('Service: API response received:', request);
+        const request = await httpClient.post<PaginationResponse<Users>>('/UserProfile/ShowUsers', data);
         return request;
     } catch (error) {
-        console.error('Service: Error in fetchPermissions:', error);
-        // Re-throw the error so the calling component can handle it
         throw error;
     }
 }
@@ -92,13 +96,9 @@ export const fetchUsers = async (data: UserPagination) => {
 //#region  Permission API functions
 export const fetchUserGroups = async (data: UserGroupPagination) => {
     try {
-        console.log('Service: Making API call to /UserProfile/ShowPermissions with data:', data);
-        const request = await httpClient.post<PaginationResponse<UserGroups>>("/UserProfile/ShowUserGroups", data);
-        console.log('Service: API response received:', request);
+        const request = await httpClient.post<PaginationResponse<UserGroups>>('/UserProfile/ShowUserGroups', data);
         return request;
     } catch (error) {
-        console.error('Service: Error in fetchUserGroups:', error);
-        // Re-throw the error so the calling component can handle it
         throw error;
     }
 }

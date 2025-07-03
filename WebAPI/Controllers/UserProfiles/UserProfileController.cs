@@ -1,16 +1,12 @@
 ﻿using DBHelper.Data;
-using DBHelper.Models;
 using DBHelper.Models.Dtos;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Table;
-using Eaf.Authorization.Roles;
+using DBHelper.Models.Views;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using System.Reflection;
-using System.Security.Claims;
 
 namespace WebAPI.Controllers.UserProfile
 {
@@ -20,6 +16,27 @@ namespace WebAPI.Controllers.UserProfile
     {
         public UserProfileController(AppDbContext db) : base(db) { }
 
+        [HttpPost]
+        [AllowAnonymous]
+        public async Task<IActionResult> InitUserManagement([FromBody] UsersPaginationDto dto)
+        {
+            try
+            {
+                var CountUsers = await _db.vUsers.CountAsync();
+                var CountPermissions = await _db.tPermissions.CountAsync();
+                var response = new
+                {
+                    NumberOfUsers = CountUsers,
+                    NumberOfPermissions = CountPermissions
+                };
+
+                return Ok(response); // Remove the extra wrapper
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
         #region USERS TAB
         [HttpPost]
         //[Authorize(Policy = "User Management")]
@@ -34,7 +51,7 @@ namespace WebAPI.Controllers.UserProfile
                 }
                 if (!string.IsNullOrEmpty(dto.SortField))
                 {
-                    bool isValid = typeof(Users)
+                    bool isValid = typeof(DBHelper.Models.Views.Users)
                         .GetProperties(BindingFlags.Public | BindingFlags.Instance)
                         .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
                     if (!isValid)
@@ -53,7 +70,7 @@ namespace WebAPI.Controllers.UserProfile
                 if (dto.page < 1) dto.page = 1;
                 if (dto.limit < 1) dto.limit = 10;
 
-                var baseQuery = _db.tUsers.AsNoTracking();
+                var baseQuery = _db.vUsers.AsNoTracking();
 
                 // Apply filters to base query
                 if (!string.IsNullOrEmpty(dto.Filters?.Name))
@@ -75,7 +92,7 @@ namespace WebAPI.Controllers.UserProfile
                         : baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField)));
 
                 // Apply pagination and execute query
-                List<Users> permissionLists = await sortedQuery
+                List<DBHelper.Models.Views.Users> permissionLists = await sortedQuery
                     .Skip((dto.page - 1) * dto.limit)
                     .Take(dto.limit)
                     .ToListAsync();
@@ -100,23 +117,60 @@ namespace WebAPI.Controllers.UserProfile
         }
         [HttpPost]
         [AllowAnonymous]
-        public IActionResult UpdateUser([FromBody] Users user)
+        public async Task<IActionResult> DeleteUser([FromBody] DBHelper.Models.Views.Users dto)
         {
+            using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                var getUser = await _db.tUsers.FirstOrDefaultAsync(x => x.UserId == dto.UserId);
+                if (getUser == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"User '{dto.UserId}' does not exists in the System!", Title = "User not found" });
+                }
+                _db.tUsers.Remove(getUser);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
                 return Ok(new
                 {
-                    Message = "User Info updated successfully",
-                    Title = "Under Maintenance",
-                    Status = true
+                    Message = "User deleted updated successfully",
+                    Title = "Delete Complete"
                 });
             }
             catch (Exception ex)
             {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
+        [HttpPost]
+        [AllowAnonymous]
+        public async Task<IActionResult> UpdateUser([FromBody] DBHelper.Models.Views.Users dto)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var getUser = await _db.tUsers.FirstOrDefaultAsync(x => x.UserId == dto.UserId);
+                if(getUser == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"User '{dto.UserId}' does not exists in the System!", Title = "User not found" });
+                }
+                _db.tUsers.Remove(getUser);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return Ok(new
+                {
+                    Message = "User Info updated successfully",
+                    Title = "Under Maintenance"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
                 return ExceptionHandler(ex);
             }
         }
         #endregion
+        #region PERMISSIONS TAB
         [HttpPost]
         //[Authorize(Policy = "View UserProfiles")]
         [AllowAnonymous]
@@ -130,7 +184,7 @@ namespace WebAPI.Controllers.UserProfile
                 }
                 if (!string.IsNullOrEmpty(dto.SortField))
                 {
-                    bool isValid = typeof(Permissions)
+                    bool isValid = typeof(DBHelper.Models.Views.Permissions)
                         .GetProperties(BindingFlags.Public | BindingFlags.Instance)
                         .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
                     if (!isValid)
@@ -149,7 +203,7 @@ namespace WebAPI.Controllers.UserProfile
                 if (dto.page < 1) dto.page = 1;
                 if (dto.limit < 1) dto.limit = 10;
 
-                var baseQuery = _db.tPermissions.AsNoTracking();
+                var baseQuery = _db.vPermissions.AsNoTracking();
 
                 // Apply filters to base query
                 if (!string.IsNullOrEmpty(dto.Filters?.ModuleFunction))
@@ -191,20 +245,45 @@ namespace WebAPI.Controllers.UserProfile
                 return ExceptionHandler(ex);
             }
         }
-        //[HttpPost]
-        //[Authorize(Policy = "View UserProfiles")]
-        //public async Task<IActionResult> ShowUserGroups()
-        //{
-        //    try
-        //    {
-        //        var Permissions = await _db.vUserGroupPermissions.AsNoTracking().ToListAsync();
-        //        var UserGroups = await _db.tUserGroups.AsNoTracking().ToListAsync();
-        //        return Ok(new { Groups = UserGroups, GroupPermissions = Permissions});
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return ExceptionHandler(ex);
-        //    }
-        //}
+        [HttpPost]
+        [AllowAnonymous]
+        public async Task<IActionResult> UpdatePermission([FromBody] DBHelper.Models.Views.Permissions dto)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var getPermission = await _db.tPermissions.FirstOrDefaultAsync(x => x.Id == dto.Id);
+                if (getPermission == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Permission '{dto.PermissionGroupName}' does not exists in the System!", Title = "Permission not found" });
+                }
+                getPermission.Description = dto.Description;
+                getPermission.PermissionGroupId = dto.PermissionGroupId;
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return Ok(new { Message = $"{dto.PermissionGroupName} updated successfully!", Title = "Update Complete" });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+            #endregion
+            //[HttpPost]
+            //[Authorize(Policy = "View UserProfiles")]
+            //public async Task<IActionResult> ShowUserGroups()
+            //{
+            //    try
+            //    {
+            //        var Permissions = await _db.vUserGroupPermissions.AsNoTracking().ToListAsync();
+            //        var UserGroups = await _db.tUserGroups.AsNoTracking().ToListAsync();
+            //        return Ok(new { Groups = UserGroups, GroupPermissions = Permissions});
+            //    }
+            //    catch (Exception ex)
+            //    {
+            //        return ExceptionHandler(ex);
+            //    }
+            //}
+        }
     }
 }

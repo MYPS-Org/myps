@@ -56,10 +56,6 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 				<ChevronDownIcon />
 			</DropdownButton>
 			<DropdownMenu className="min-w-64" anchor="bottom start">
-				<DropdownItem href="/teams/1/settings">
-					<Cog8ToothIcon />
-					<DropdownLabel>Settings</DropdownLabel>
-				</DropdownItem>
 				<DropdownDivider />
 				<DropdownItem href="/profile">
 					<Avatar slot="icon" src="/tailwind-logo.svg" />
@@ -76,12 +72,6 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 				</DropdownItem> */}
 			</DropdownMenu>
 			</Dropdown>
-			<SidebarSection>
-			<SidebarItem href="/inbox">
-				<InboxIcon />
-				<SidebarLabel className="text-gray-500">Inbox</SidebarLabel>
-			</SidebarItem>
-			</SidebarSection>
 		</SidebarHeader>
 		<SidebarBody>
 			<SidebarSection>
@@ -113,11 +103,10 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 				<SidebarDropdownItem href="/settings/security" current={currentPath === '/settings/security'}>
 					<SidebarLabel>Security</SidebarLabel>
 				</SidebarDropdownItem>
+				<SidebarDropdownItem href="/rbac" current={currentPath === '/rbac'}>
+					<SidebarLabel>User Management</SidebarLabel>
+				</SidebarDropdownItem>
 			</SidebarDropdown>
-			<SidebarItem href="/rbac" current={currentPath === '/rbac'}>
-				<LockClosedIcon />
-				<SidebarLabel className="text-gray-500">RBAC</SidebarLabel>
-			</SidebarItem>
 			</SidebarSection>
 			<SidebarSpacer />
 			<SidebarSection>
