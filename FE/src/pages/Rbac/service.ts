@@ -1,5 +1,5 @@
 // Service functions for RBAC operations
-import type { RawUserGroupData, ConsolidatedUserGroup, PermissionPagination, Permissions, Users, UserPagination, UserGroups, UserGroupPagination } from './Model.d';
+import type { RawUserGroupData, ConsolidatedUserGroup, PermissionPagination, Permissions, Users, UserPagination, UserGroups, UserGroupPagination, Pis } from './Model.d';
 import type { PaginationResponse } from '../../types/Pagination.d';
 import { httpClient } from '../../services/httpClient';
 
@@ -99,6 +99,18 @@ export const fetchUserGroups = async (data: UserGroupPagination) => {
         const request = await httpClient.post<PaginationResponse<UserGroups>>('/UserProfile/ShowUserGroups', data);
         return request;
     } catch (error) {
+        throw error;
+    }
+}
+//#endregion
+
+//#region  PIS API functions
+export const fetchUserData = async (data: Pis) => {
+    try {
+        const request = await httpClient.post<Users>('/MockUps/SearchUser', data);
+        return request;
+    } catch (error) {
+		console.error('Service: Error in fetchUserData:', error);
         throw error;
     }
 }
