@@ -9,6 +9,12 @@ namespace Helpers
         public int Port { get; set; } = 389;
         public string DN { get; set; } = String.Empty;
     }
+    public class PISConfig
+    {
+        public string Host { get; set; } = string.Empty;
+        public string userName { get; set; } = string.Empty;
+        public string password { get; set; } = string.Empty;
+    }
     public static class Appsetting
     {
         public static string ConnectionString { get; set; } = string.Empty;
@@ -16,11 +22,13 @@ namespace Helpers
         public static string MachineName { get; set; } = System.Environment.MachineName;
         public static string AppName { get; } = "MYPS";
         public static LDAPConfig LDAP { get; set; } = new LDAPConfig();
+        public static PISConfig PIS { get; set; } = new PISConfig();
         public static void PrepareAppsettings(IConfiguration config)
         {
             /* PREPARE DATABASE CONNECTIONS */
             ConnectionString = config.GetConnectionString("DbConnection")!;
             LDAP = config.GetSection("LDAP").Get<LDAPConfig>()!;
+            PIS = config.GetSection("PIS").Get<PISConfig>()!;
         }
     }
 }

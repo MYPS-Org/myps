@@ -169,6 +169,33 @@ namespace WebAPI.Controllers.UserProfile
                 return ExceptionHandler(ex);
             }
         }
+        [HttpPost]
+        [AllowAnonymous]
+        public async Task<IActionResult> AddUser([FromBody] DBHelper.Models.Views.Users dto)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var getUser = await _db.tUsers.FirstOrDefaultAsync(x => x.UserId == dto.UserId);
+                if (getUser == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"User '{dto.UserId}' does not exists in the System!", Title = "User not found" });
+                }
+                //_db.tUsers.Remove(getUser);
+                //await _db.SaveChangesAsync();
+                //await transaction.CommitAsync();
+                return Ok(new
+                {
+                    Message = "User Info updated successfully",
+                    Title = "Under Maintenance"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
         #endregion
         #region PERMISSIONS TAB
         [HttpPost]
