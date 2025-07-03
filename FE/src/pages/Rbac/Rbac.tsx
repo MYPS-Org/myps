@@ -42,19 +42,6 @@ import {
 const Rbac: React.FC = () => {
 	const [selectedTab, setSelectedTab] = useState<'users' | 'permissions' | 'userGroups' | 'userRoles'>('users');
 
-	// Raw data example (this would come from your database/API)
-	// const rawUserGroupsData: RawUserGroupData[] = [
-	// 	{ Id: 1, GroupName: 'Admin', Description: 'System administrators', PermissionName: 'User Management', MemberCount: 5, CreatedDate: '2024-01-01' },
-	// 	{ Id: 2, GroupName: 'Admin', Description: 'System administrators', PermissionName: 'View Reports', MemberCount: 5, CreatedDate: '2024-01-01' },
-	// 	{ Id: 3, GroupName: 'Admin', Description: 'System administrators', PermissionName: 'Edit Content', MemberCount: 5, CreatedDate: '2024-01-01' },
-	// 	{ Id: 4, GroupName: 'Admin', Description: 'System administrators', PermissionName: 'Delete Records', MemberCount: 5, CreatedDate: '2024-01-01' },
-	// 	{ Id: 5, GroupName: 'Manager', Description: 'Project managers', PermissionName: 'View Reports', MemberCount: 3, CreatedDate: '2024-01-02' },
-	// 	{ Id: 6, GroupName: 'Manager', Description: 'Project managers', PermissionName: 'Edit Content', MemberCount: 3, CreatedDate: '2024-01-02' },
-	// 	{ Id: 7, GroupName: 'Editor', Description: 'Content editors', PermissionName: 'Edit Content', MemberCount: 8, CreatedDate: '2024-01-03' },
-	// 	{ Id: 8, GroupName: 'Editor', Description: 'Content editors', PermissionName: 'View Reports', MemberCount: 8, CreatedDate: '2024-01-03' },
-	// 	{ Id: 9, GroupName: 'Viewer', Description: 'Read-only access', PermissionName: 'View Reports', MemberCount: 2, CreatedDate: '2024-01-04' },
-	// ];
-
 	const [UsersData, setUsersData] = useState<PaginationResponse<Users>>({
 		lists: [],
 		page: 1,
@@ -381,9 +368,32 @@ const Rbac: React.FC = () => {
 				setIsLoadingUsers(false);
 			}
 		}
-		else {
-			// For user groups, just update local state since it's static data
-			console.log('User groups pagination not implemented yet');
+		else if (selectedTab == 'userGroups') {
+			// Create new filter with updated page
+			const newFilter: UserGroupPagination = {
+				...UserGroupFilter,
+				page: page
+			};
+			
+			// Update state
+			setUserGroupFilter(newFilter);
+			
+			// Fetch data with updated pagination immediately
+			try {
+				setIsLoadingUserGroups(true);
+				console.log('Fetching user groups for page:', page, 'with filter:', newFilter);
+				const res = await fetchUserGroups(newFilter);
+				console.log('UserGroups response:', res);
+				if(res.Data.lists) {
+					console.log('Setting userGroups data:', res);
+					setUserGroups(res.Data);
+				}
+			} catch (error) {
+				console.error('Error fetching user groups:', error);
+				alert('Failed to fetch user groups: ' + (error instanceof Error ? error.message : 'Unknown error'));
+			} finally {
+				setIsLoadingUserGroups(false);
+			}
 		}
 	}
 	
@@ -594,11 +604,11 @@ const Rbac: React.FC = () => {
 							{
 								UsersData.lists.length > 0 ? (
 									<p className="text-sm text-gray-500">
-										Showing {UsersData.limit * (UsersData.page - 1) + 1} to {Math.min(UsersData.limit * UsersData.page, UsersData.total)} of {UsersData.total} permissions
+										Showing {UsersData.limit * (UsersData.page - 1) + 1} to {Math.min(UsersData.limit * UsersData.page, UsersData.total)} of {UsersData.total} users
 									</p>
 								) : (
 									<p className="text-sm text-gray-500">
-										No permissions found
+										No users found
 									</p>
 								)
 							}
@@ -871,22 +881,22 @@ const Rbac: React.FC = () => {
 								))}
 							</TableBody>
 						</Table>
-						{/* <Pagination className="my-6">
+						<Pagination className="my-6">
 							{
-								userGroups.totalPages > 1 && (
+								UserGroupsData.totalPages > 1 && (
 									<>
 										<PaginationPrevious 
 											onClick={async () => {
-												Paginate(userGroups.page-1);
+												Paginate(UserGroupsData.page - 1);
 											}}
-											disabled={userGroups.page <= 1}
+											disabled={UserGroupsData.page <= 1}
 										/>
 										<PaginationList>
-											{Array.from({ length: Math.min(7, userGroups.totalPages) }, (_, index) => {
-												const pageNum = Math.max(1, userGroups.page - 3) + index;
-												if (pageNum > userGroups.totalPages) return null;
+											{Array.from({ length: Math.min(7, UserGroupsData.totalPages) }, (_, index) => {
+												const pageNum = Math.max(1, UserGroupsData.page - 3) + index;
+												if (pageNum > UserGroupsData.totalPages) return null;
 
-												if (pageNum === userGroups.page) {
+												if (pageNum === UserGroupsData.page) {
 													return (
 														<PaginationPage
 															key={pageNum}
@@ -911,9 +921,9 @@ const Rbac: React.FC = () => {
 										</PaginationList>
 										<PaginationNext 
 											onClick={async () => {
-												Paginate(UsersData.page+1);
+												Paginate(UserGroupsData.page+1);
 											}}
-											disabled={UsersData.page >= UsersData.totalPages}
+											disabled={UserGroupsData.page >= UserGroupsData.totalPages}
 										/>
 									</>
 								)
@@ -921,17 +931,17 @@ const Rbac: React.FC = () => {
 						</Pagination>
 						<div className='mb-3.5'>
 							{
-								userGroups.lists.length > 0 ? (
+								UserGroupsData.lists.length > 0 ? (
 									<p className="text-sm text-gray-500">
-										Showing {userGroups.limit * (userGroups.page - 1) + 1} to {Math.min(userGroups.limit * userGroups.page, userGroups.total)} of {userGroups.total} permissions
+										Showing {UserGroupsData.limit * (UserGroupsData.page - 1) + 1} to {Math.min(UserGroupsData.limit * UserGroupsData.page, UserGroupsData.total)} of {UserGroupsData.total} user groups
 									</p>
 								) : (
 									<p className="text-sm text-gray-500">
-										No permissions found
+										No user groups found
 									</p>
 								)
 							}
-						</div> */}
+						</div>
 					</div>
 				)}
 			</div>
