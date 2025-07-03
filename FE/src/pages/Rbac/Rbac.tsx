@@ -6,7 +6,7 @@ import {
   PlusIcon,
   PencilIcon,
   TrashIcon,
-  EyeIcon,
+//   EyeIcon,
   AdjustmentsHorizontalIcon,
 } from '@heroicons/react/16/solid'
 import { MagnifyingGlassIcon, UsersIcon, KeyIcon, UserGroupIcon, AdjustmentsVerticalIcon } from '@heroicons/react/20/solid'
@@ -16,7 +16,7 @@ import { Button } from '../../components/tailwindui/button'
 import { Badge } from '../../components/tailwindui/badge'
 
 // Interfaces
-import { type Users, type Permissions, type RawUserGroupData, type ConsolidatedUserGroup, type PermissionPagination, type UserPagination } from './Model.d';
+import { type Users, type Permissions, type RawUserGroupData, type ConsolidatedUserGroup, type PermissionPagination, type UserPagination, type UserGroupPagination } from './Model.d';
 
 // Services
 import { consolidateUserGroups, fetchInitialData, fetchPermissions, fetchUsers } from './service';
@@ -25,7 +25,8 @@ import { consolidateUserGroups, fetchInitialData, fetchPermissions, fetchUsers }
 import { AddUserDialog, AddPermissionDialog, AddGroupDialog, ViewUserDialog, UpdateUserDialog, DeleteUserDialog, 
 	ViewPermissionDialog, UpdatePermissionDialog, DeletePermissionDialog, ViewGroupDialog, UpdateGroupDialog, DeleteGroupDialog, 
 	FilterUserDialog,
-	FilterPermissionDialog} from './dialogs';
+	FilterPermissionDialog,
+	FilterUserGroupDialog} from './dialogs';
 
 // Pagination
 import { 
@@ -67,8 +68,7 @@ const Rbac: React.FC = () => {
 		limit: 10,
 		total: 0,
 		totalPages: 0
-	}
-	);
+	});
 
 	// Initialize userGroups with consolidated data from raw data
 	const [userGroups, setUserGroups] = useState<ConsolidatedUserGroup[]>(() => consolidateUserGroups(rawUserGroupsData));
@@ -93,6 +93,7 @@ const Rbac: React.FC = () => {
 	//Filter Dialog
 	const [isFilterUserDialogOpen, setIsFilterUserDialogOpen] = useState(false);
 	const [isPermissionFilterDialogOpen, setIsPermissionFilterDialogOpen] = useState(false);
+	const [isUserGroupFilterDialogOpen, setIsUserGroupFilterDialogOpen] = useState(false);
 
 	//Permission Filter
 	const [PermissionFilter, setPermissionFilter] = useState<PermissionPagination>({
@@ -107,6 +108,19 @@ const Rbac: React.FC = () => {
 	});
 	const [isLoadingPermissions, setIsLoadingPermissions] = useState(false);
 
+	//User Group Filter
+	// const [UserGroupFilter, setUserGroupFilter] = useState<UserGroupPagination>({
+	// 	Filters: {
+	// 		ModuleFunction: '',
+	// 		Description: '',
+	// 	},
+	// 	sortField: '',
+	// 	sortDirection: 0,
+	// 	page: 1,
+	// 	limit: 10
+	// });
+
+	// User Filter
 	const [UserFilter, setUserFilter] = useState<UserPagination>({
 		filters: {
 			Name: '',
@@ -116,6 +130,7 @@ const Rbac: React.FC = () => {
 		page: 1,
 		limit: 10
 	});
+
 	const [isLoadingUsers, setIsLoadingUsers] = useState(false);
 	useEffect(() => {
 		// Fetch initial data when component mounts
@@ -249,15 +264,7 @@ const Rbac: React.FC = () => {
 			await getTableData('userGroups');
 		}
 	}
-	const updatePermissionSort = async(sortField: string) => {
-		setPermissionFilter(prev => ({
-			...prev,
-			sortField: sortField,
-			sortDirection: prev.sortDirection === 1 ? 0 : 1,
-			page: 1
-		}));
-		await getTableData('permissions');
-	}
+	
 	const TabButton = ({ 
 		label, 
 		value, 
@@ -400,21 +407,67 @@ const Rbac: React.FC = () => {
 								))}
 							</TableBody>
 						</Table>
-						{/* <Pagination className="my-6">
-							<PaginationPrevious href="?page=2" />
-							<PaginationList>
-								<PaginationPage href="?page=1">1</PaginationPage>
-								<PaginationPage href="?page=2">2</PaginationPage>
-								<PaginationPage href="?page=3" current>
-									3
-								</PaginationPage>
-								<PaginationPage href="?page=4">4</PaginationPage>
-								<PaginationGap />
-								<PaginationPage href="?page=65">65</PaginationPage>
-								<PaginationPage href="?page=66">66</PaginationPage>
-							</PaginationList>
-							<PaginationNext href="?page=4" />
-						</Pagination>	 */}
+						<Pagination className="my-6">
+							{
+								UsersData.totalPages > 1 && (
+									<>
+										<PaginationPrevious 
+											onClick={async () => {
+												Paginate(UsersData.page-1);
+											}}
+											disabled={UsersData.page <= 1}
+										/>
+										<PaginationList>
+											{Array.from({ length: Math.min(7, UsersData.totalPages) }, (_, index) => {
+												const pageNum = Math.max(1, UsersData.page - 3) + index;
+												if (pageNum > UsersData.totalPages) return null;
+
+												if (pageNum === UsersData.page) {
+													return (
+														<PaginationPage
+															key={pageNum}
+															current
+														>
+															{pageNum}
+														</PaginationPage>
+													);
+												} else {
+													return (
+														<PaginationPage
+															key={pageNum}
+															onClick={() => {
+																Paginate(pageNum);
+															}}
+														>
+															{pageNum}
+														</PaginationPage>
+													);
+												}
+											})}
+										</PaginationList>
+										<PaginationNext 
+											onClick={async () => {
+												Paginate(UsersData.page+1);
+											}}
+											disabled={UsersData.page >= UsersData.totalPages}
+										/>
+									</>
+								)
+							}
+						</Pagination>
+						<div className='mb-3.5'>
+							{
+								UsersData.lists.length > 0 ? (
+									<p className="text-sm text-gray-500">
+										Showing {UsersData.limit * (UsersData.page - 1) + 1} to {Math.min(UsersData.limit * UsersData.page, UsersData.total)} of {UsersData.total} permissions
+									</p>
+								) : (
+									<p className="text-sm text-gray-500">
+										No permissions found
+									</p>
+								)
+							}
+						</div>
 					</div>
 				)}
 
@@ -544,6 +597,19 @@ const Rbac: React.FC = () => {
 								)
 							}
 						</Pagination>
+						<div className='mb-3.5'>
+							{
+								PermissionsData.lists.length > 0 ? (
+									<p className="text-sm text-gray-500">
+										Showing {PermissionsData.limit * (PermissionsData.page - 1) + 1} to {Math.min(PermissionsData.limit * PermissionsData.page, PermissionsData.total)} of {PermissionsData.total} permissions
+									</p>
+								) : (
+									<p className="text-sm text-gray-500">
+										No permissions found
+									</p>
+								)
+							}
+						</div>
 					</div>
 				)}
 
@@ -554,14 +620,10 @@ const Rbac: React.FC = () => {
 							<div className="flex items-center justify-between">
 								<h3 className="text-lg font-medium text-gray-900">User Groups</h3>
 								<div className="flex items-center space-x-3">
-									<div className="relative">
-										<MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-										<input
-											type="text"
-											placeholder="Search groups..."
-											className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-										/>
-									</div>
+									<Button color="white" className='shadow-md' onClick={() => { setIsUserGroupFilterDialogOpen(true) }}>
+										<AdjustmentsVerticalIcon className="w-4 h-4 mr-1" />
+										Filter Group
+									</Button>
 									<Button color="blue" onClick={() => { setIsAddGroupDialogOpen(true) }}>
 										<PlusIcon className="w-4 h-4 mr-1" />
 										Add Group
@@ -654,19 +716,67 @@ const Rbac: React.FC = () => {
 								))}
 							</TableBody>
 						</Table>
-						<Pagination className="my-6">
-							<PaginationPrevious onClick={() => {}} />
-							<PaginationList>
-								<PaginationPage>1</PaginationPage>
-								<PaginationPage>2</PaginationPage>
-								<PaginationPage current>
-									3
-								</PaginationPage>
-								<PaginationPage>4</PaginationPage>
-								<PaginationPage>5</PaginationPage>
-							</PaginationList>
-							<PaginationNext/>
+						{/* <Pagination className="my-6">
+							{
+								userGroups.totalPages > 1 && (
+									<>
+										<PaginationPrevious 
+											onClick={async () => {
+												Paginate(userGroups.page-1);
+											}}
+											disabled={userGroups.page <= 1}
+										/>
+										<PaginationList>
+											{Array.from({ length: Math.min(7, userGroups.totalPages) }, (_, index) => {
+												const pageNum = Math.max(1, userGroups.page - 3) + index;
+												if (pageNum > userGroups.totalPages) return null;
+
+												if (pageNum === userGroups.page) {
+													return (
+														<PaginationPage
+															key={pageNum}
+															current
+														>
+															{pageNum}
+														</PaginationPage>
+													);
+												} else {
+													return (
+														<PaginationPage
+															key={pageNum}
+															onClick={() => {
+																Paginate(pageNum);
+															}}
+														>
+															{pageNum}
+														</PaginationPage>
+													);
+												}
+											})}
+										</PaginationList>
+										<PaginationNext 
+											onClick={async () => {
+												Paginate(UsersData.page+1);
+											}}
+											disabled={UsersData.page >= UsersData.totalPages}
+										/>
+									</>
+								)
+							}
 						</Pagination>
+						<div className='mb-3.5'>
+							{
+								userGroups.lists.length > 0 ? (
+									<p className="text-sm text-gray-500">
+										Showing {userGroups.limit * (userGroups.page - 1) + 1} to {Math.min(userGroups.limit * userGroups.page, userGroups.total)} of {userGroups.total} permissions
+									</p>
+								) : (
+									<p className="text-sm text-gray-500">
+										No permissions found
+									</p>
+								)
+							}
+						</div> */}
 					</div>
 				)}
 			</div>
@@ -891,6 +1001,37 @@ const Rbac: React.FC = () => {
 				<FilterPermissionDialog 
 				isOpen={isPermissionFilterDialogOpen}
 				onClose={() => setIsPermissionFilterDialogOpen(false)}
+				onSubmit={(filterData) => {
+					console.log('Filter data received:', filterData);
+					setPermissionFilter(prev => ({
+						...prev,
+						Filters: filterData,
+						page: 1 // Reset to first page when applying filter
+					}));
+					// Refresh the data with new filter
+					getTableData('permissions');
+				}}
+				onClear={() => {
+					console.log('Clearing permission filters');
+					setPermissionFilter(prev => ({
+						...prev,
+						Filters: {
+							ModuleFunction: '',
+							Description: ''
+						},
+						page: 1
+					}));
+					// Refresh the data without filters
+					getTableData('permissions');
+				}}
+				initialData={PermissionFilter.Filters}
+				/>
+			)}
+			{/* Filter UserGroup Dialog */}
+			{isPermissionFilterDialogOpen && (
+				<FilterUserGroupDialog 
+				isOpen={isUserGroupFilterDialogOpen}
+				onClose={() => setIsUserGroupFilterDialogOpen(false)}
 				onSubmit={(filterData) => {
 					console.log('Filter data received:', filterData);
 					setPermissionFilter(prev => ({
