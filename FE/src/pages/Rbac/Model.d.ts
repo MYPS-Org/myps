@@ -49,6 +49,7 @@ export interface UserGroups {
 	Id: number;
 	GroupName?: string;
 	NumberOfUsers?: number;
+    PermissionsName?: string;
 	Description?: string;
 	CreatedBy?: string;
 	CreatedDate?: string;
@@ -59,29 +60,9 @@ export interface UserGroupPagination extends PaginationParams {
     sortDirection?: 0 | 1;
 }
 export interface UserGroupFilter {
-    Name?: string;
+    GroupName?: string;
 }
 //#endregion
-
-export interface RawUserGroupData {
-  Id: number;
-  GroupName: string;
-  Description: string;
-  PermissionName: string;
-  Module?: string;
-  MemberCount?: number;
-  CreatedDate?: string;
-}
-
-export interface ConsolidatedUserGroup {
-  Id: number;
-  GroupName: string;
-  Description: string;
-  PermissionName: string[]; // Array of all permissions
-  Module?: string;
-  MemberCount: number;
-  CreatedDate: string;
-}
 
 export interface Pis {
  EmployeeId?: string;

@@ -57,7 +57,7 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
         page: 1,
         limit: 100, // Get all groups
         filters: {
-          Name: ''
+          GroupName: ''
         }
       });
       
@@ -71,6 +71,7 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
     }
   };
 
+  // Handle form submission
   const handleSubmit = async(e: React.FormEvent) => {
     e.preventDefault();
     
@@ -87,8 +88,21 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
       IsActive: formData.isActive === 'active',
     };
     
-    onSubmit(submissionData);
     setFormData({
+      id: 0,
+      employeeId: '',
+      name: '',
+      userId: '',
+      email: '',
+      userGroups: [],
+      regCode: '',
+      plantillaOffice: '',
+      isActive: 'active',
+    });
+    try {
+      await editUser(submissionData);
+      onSubmit(submissionData);
+      setFormData({
         id: 0,
         employeeId: '',
         name: '',
@@ -97,14 +111,12 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
         userGroups: [],
         regCode: '',
         plantillaOffice: '',
-        isActive: 'active',
-    });
-    try {
-      await editUser(submissionData);
+        isActive: '',
+      });
+      onClose();
     } catch (error) {
       console.error('Error updating user:', error);
     }
-    onClose();
   };
 
   const handleChange = (field: string, value: string) => {
@@ -126,8 +138,8 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
       <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
       
       {/* Full-screen container */}
-      <div className="fixed inset-0 flex items-center justify-center p-4">
-        <DialogPanel className="w-full max-w-md bg-white rounded-lg shadow-xl">
+      <div className="fixed inset-1 flex items-center justify-center p-4">
+        <DialogPanel className="w-full max-w-4xl bg-white rounded-lg shadow-xl">
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <DialogTitle className="text-lg font-semibold text-gray-900">
               Update User
@@ -204,7 +216,7 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
               <input
                 type="text"
                 value={formData.plantillaOffice}
-                onChange={(e) => handleChange('department', e.target.value)}
+                onChange={(e) => handleChange('plantillaOffice', e.target.value)}
                 placeholder="Enter department"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
               />
@@ -216,7 +228,7 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
               {isLoadingGroups ? (
                 <div className="text-sm text-gray-500">Loading user groups...</div>
               ) : (
-                <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-md p-2">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 max-h-48 overflow-y-auto border border-gray-200 rounded-md p-2">
                   {availableGroups.length > 0 ? (
                     availableGroups.map((group) => (
                       <div key={group.Id} className="flex items-center mb-2">

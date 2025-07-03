@@ -2,37 +2,69 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import type { ConsolidatedUserGroup } from '../Model.d';
+import type { UserGroups, Permissions } from '../Model.d';
+import { fetchPermissions as fetchPermissionsAPI } from '../service';
 
 interface UpdateGroupDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (groupData: any) => void;
-  group: ConsolidatedUserGroup;
-}
+  group: UserGroups;
+};
 
 const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({ isOpen, onClose, onSubmit, group }) => {
   const [formData, setFormData] = useState({
     id: group.Id,
     groupName: group.GroupName || '',
     description: group.Description || '',
-    permissions: group.PermissionName || [],
-    module: group.Module || '',
-    memberCount: group.MemberCount || 0
+    permissionsName: group.PermissionsName ? group.PermissionsName.split(',').map(p => p.trim()) : [],
+    numberOfUsers: group.NumberOfUsers || 0
   });
 
-  const availablePermissions = [
-    'User Management',
-    'View Reports',
-    'Edit Content',
-    'Delete Records',
-    'Role Management',
-    'System Settings',
-    'Audit Logs',
-    'Data Export',
-    'API Access',
-    'Notifications'
-  ];
+  const [availablePermissions, setAvailablePermissions] = useState<Permissions[]>([]);
+  const [isLoadingPermissions, setIsLoadingPermissions] = useState(false);
+
+  // const availablePermissions = [
+  //   'User Management',
+  //   'View Reports',
+  //   'Edit Content',
+  //   'Delete Records',
+  //   'Role Management',
+  //   'System Settings',
+  //   'Audit Logs',
+  //   'Data Export',
+  //   'API Access',
+  //   'Notifications'
+  // ];
+  useEffect(() => {
+    // Fetch available permissions when the dialog opens
+    const fetchAvailablePermissions = async () => {
+      try {
+        setIsLoadingPermissions(true);
+        const response = await fetchPermissionsAPI({
+          page: 1,
+          limit: 100, // Get all permissions
+          Filters: {
+            PermissionGroupName: '',
+            ModuleFunction: '',
+            Description: ''
+          }
+        });
+        
+        if (response.Data && response.Data.lists) {
+          setAvailablePermissions(response.Data.lists);
+        }
+      } catch (error) {
+        console.error('Error fetching permissions:', error);
+      } finally {
+        setIsLoadingPermissions(false);
+      }
+    };
+
+    if (isOpen) {
+      fetchAvailablePermissions();
+    }
+  }, [isOpen]);
 
   // Update form data when group prop changes
   useEffect(() => {
@@ -40,15 +72,24 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({ isOpen, onClose, 
       id: group.Id,
       groupName: group.GroupName || '',
       description: group.Description || '',
-      permissions: group.PermissionName || [],
-      module: group.Module || '',
-      memberCount: group.MemberCount || 0
+      permissionsName: group.PermissionsName ? group.PermissionsName.split(',').map(p => p.trim()) : [],
+      numberOfUsers: group.NumberOfUsers || 0
     });
   }, [group]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    
+    // Convert permissions array back to comma-separated string
+    const submissionData = {
+      Id: formData.id,
+      GroupName: formData.groupName,
+      Description: formData.description,
+      PermissionsName: formData.permissionsName.join(','),
+      NumberOfUsers: formData.numberOfUsers
+    };
+    
+    onSubmit(submissionData);
     onClose();
   };
 
@@ -56,12 +97,12 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({ isOpen, onClose, 
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handlePermissionToggle = (permission: string) => {
+  const handlePermissionToggle = (permissionName: string) => {
     setFormData(prev => ({
       ...prev,
-      permissions: prev.permissions.includes(permission)
-        ? prev.permissions.filter(p => p !== permission)
-        : [...prev.permissions, permission]
+      permissionsName: prev.permissionsName.includes(permissionName)
+        ? prev.permissionsName.filter(p => p !== permissionName)
+        : [...prev.permissionsName, permissionName]
     }));
   };
 
@@ -72,7 +113,7 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({ isOpen, onClose, 
       
       {/* Full-screen container */}
       <div className="fixed inset-0 flex items-center justify-center p-4">
-        <DialogPanel className="w-full max-w-2xl bg-white rounded-lg shadow-xl max-h-[90vh] overflow-y-auto">
+        <DialogPanel className="w-full max-w-4xl bg-white rounded-lg shadow-xl max-h-[90vh] overflow-y-auto">
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <DialogTitle className="text-lg font-semibold text-gray-900">
               Update Group
@@ -107,8 +148,8 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({ isOpen, onClose, 
                 </label>
                 <input
                   type="number"
-                  value={formData.memberCount}
-                  onChange={(e) => handleChange('memberCount', parseInt(e.target.value) || 0)}
+                  value={formData.numberOfUsers}
+                  onChange={(e) => handleChange('numberOfUsers', parseInt(e.target.value) || 0)}
                   placeholder="0"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
                   min="0"
@@ -130,7 +171,7 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({ isOpen, onClose, 
               />
             </div>
 
-            <div>
+            {/* <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Module (Optional)
               </label>
@@ -141,29 +182,42 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({ isOpen, onClose, 
                 placeholder="Enter module name"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
               />
-            </div>
+            </div> */}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-3">
                 Permissions
               </label>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-48 overflow-y-auto border border-gray-200 rounded-md p-3 bg-gray-50">
-                {availablePermissions.map((permission) => (
-                  <label key={permission} className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.permissions.includes(permission)}
-                      onChange={() => handlePermissionToggle(permission)}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-gray-700">
-                      {permission}
-                    </span>
-                  </label>
-                ))}
-              </div>
+              {isLoadingPermissions ? (
+                <div className="text-sm text-gray-500 p-4">Loading permissions...</div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 max-h-48 overflow-y-auto border border-gray-200 rounded-md p-3 bg-gray-50">
+                  {availablePermissions.length > 0 ? (
+                    availablePermissions.map((permission) => (
+                      <label key={permission.Id} className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.permissionsName.includes(permission.ModuleFunction)}
+                          onChange={() => handlePermissionToggle(permission.ModuleFunction)}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-gray-700">
+                          {permission.ModuleFunction}
+                        </span>
+                        {/* {permission.Description && (
+                          <span className="text-xs text-gray-500 ml-1">
+                            ({permission.Description})
+                          </span>
+                        )} */}
+                      </label>
+                    ))
+                  ) : (
+                    <div className="text-sm text-gray-500">No permissions available</div>
+                  )}
+                </div>
+              )}
               <p className="text-xs text-gray-500 mt-2">
-                Selected: {formData.permissions.length} permission(s)
+                Selected: {formData.permissionsName.length} permission(s)
               </p>
             </div>
 

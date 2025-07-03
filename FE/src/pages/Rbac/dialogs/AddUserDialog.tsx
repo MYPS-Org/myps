@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { MagnifyingGlassCircleIcon, MagnifyingGlassIcon } from '@heroicons/react/16/solid';
-import { fetchUserData } from '../service';
-// import type { Users } from '../Model';
+import { MagnifyingGlassIcon } from '@heroicons/react/16/solid';
+import { fetchUserData, fetchUserGroups } from '../service';
+import type { UserGroups } from '../Model.d';
 
 interface AddUserDialogProps {
   isOpen: boolean;
@@ -12,98 +12,53 @@ interface AddUserDialogProps {
   onSubmit: (userData: any) => void;
 }
 
-// Mock user data for testing
-const mockUserData = [
-  {
-    employeeId: 'EMP001',
-    name: 'John Doe',
-    userId: 'johndoe',
-    email: 'john.doe@company.com',
-    plantillaOffice: 'IT Department'
-  },
-  {
-    employeeId: 'EMP002',
-    name: 'Jane Smith',
-    userId: 'janesmith',
-    email: 'jane.smith@company.com',
-    plantillaOffice: 'HR Department'
-  },
-  {
-    employeeId: 'EMP003',
-    name: 'Mike Johnson',
-    userId: 'mikejohnson',
-    email: 'mike.johnson@company.com',
-    plantillaOffice: 'Finance Department'
-  },
-  {
-    employeeId: 'EMP004',
-    name: 'Sarah Williams',
-    userId: 'sarahwilliams',
-    email: 'sarah.williams@company.com',
-    plantillaOffice: 'Marketing Department'
-  }
-];
-
 const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit}) => {
   const [formData, setFormData] = useState({
     employeeId: '',
     name: '',
     userId: '',
     email: '',
-    userGroup: [] as string[],
+    userGroups: [] as string[],
     regCode: '',
     plantillaOffice: '',
     isActive: 'active',
   });
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingGroups, setIsLoadingGroups] = useState(false);
+  const [availableGroups, setAvailableGroups] = useState<UserGroups[]>([]);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [error, setError] = useState('');
 
-  const userGroups = [
-    'User Management',
-    'View Reports',
-    'Edit Content',
-    'Delete Records',
-    'Role Management',
-    'System Settings',
-    'Audit Logs',
-    'Data Export',
-    'API Access',
-    'Notifications'
-  ];
+  // Fetch available user groups when dialog opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchAvailableGroups();
+    }
+  }, [isOpen]);
 
-  // Mock API call to fetch user data
-  // const fetchUserData = async (employeeId: string) => {
-  //   setIsLoading(true);
-  //   setError('');
-    
-  //   try {
-  //     // Simulate API delay
-  //     await new Promise(resolve => setTimeout(resolve, 1000));
-      
-  //     const userData = mockUserData.find(user => user.employeeId === employeeId);
-      
-  //     if (userData) {
-  //       setFormData(prev => ({
-  //         ...prev,
-  //         name: userData.name,
-  //         userId: userData.userId,
-  //         email: userData.email,
-  //         plantillaOffice: userData.plantillaOffice
-  //       }));
-  //       setIsDataLoaded(true);
-  //     } else {
-  //       setError('Employee ID not found');
-  //       setIsDataLoaded(false);
-  //     }
-  //   } catch (err) {
-  //     setError('Failed to fetch user data');
-  //     setIsDataLoaded(false);
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // };
+  const fetchAvailableGroups = async () => {
+    try {
+      setIsLoadingGroups(true);
+      const response = await fetchUserGroups({
+        page: 1,
+        limit: 100, // Fetch all groups
+        filters: {
+          GroupName: ''
+        }
+      })
+      if (response.Data && response.Data.lists) {
+        setAvailableGroups(response.Data.lists);
+      }
+    }
+    catch (error: any) {
+      console.error('Error fetching user groups:', error);
+    }
+    finally{
+      setIsLoadingGroups(false);
+    }``
+  };
+
   const handleSearch = async (value: string) => {
     setIsLoading(true);
     setError('');
@@ -150,7 +105,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
       name: '',
       userId: '',
       email: '',
-      userGroup: [],
+      userGroups: [],
       regCode: '',
       plantillaOffice: '',
       isActive: 'active',
@@ -167,8 +122,8 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
     setFormData(prev => ({
       ...prev,
       userGroup: checked 
-        ? [...prev.userGroup, group]
-        : prev.userGroup.filter(g => g !== group)
+        ? [...prev.userGroups, group]
+        : prev.userGroups.filter(g => g !== group)
     }));
   };
 
@@ -179,7 +134,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
       
       {/* Full-screen container */}
       <div className="fixed inset-0 flex items-center justify-center p-4">
-        <DialogPanel className="w-full max-w-md bg-white rounded-lg shadow-xl">
+        <DialogPanel className="w-full max-w-4xl bg-white rounded-lg shadow-xl">
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <DialogTitle className="text-lg font-semibold text-gray-900">
               Add New User
@@ -298,27 +253,30 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 User Group
               </label>
-              <div className={`grid grid-cols-2 gap-2 max-h-48 overflow-y-auto border border-gray-200 rounded-md p-3 ${
-                !isDataLoaded ? 'bg-gray-50' : ''
-              }`}>
-              {userGroups.map((group) => (
-                <label key={group} className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    value={group}
-                    checked={formData.userGroup.includes(group)}
-                    onChange={(e) => handleUserGroupChange(group, e.target.checked)}
-                    disabled={!isDataLoaded}
-                    className={`h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 ${
-                      !isDataLoaded ? 'text-gray-400' : ''
-                    }`}
-                  />
-                  <span className={`text-sm ${!isDataLoaded ? 'text-gray-400' : 'text-gray-700'}`}>
-                    {group}
-                  </span>
-                </label>
-              ))}
-              </div>
+              {isLoadingGroups ? (
+                <div className="text-sm text-gray-500">Loading user groups...</div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 max-h-48 overflow-y-auto border border-gray-200 rounded-md p-2">
+                  {availableGroups.length > 0 ? (
+                    availableGroups.map((group) => (
+                      <div key={group.Id} className="flex items-center mb-2">
+                        <input
+                          type="checkbox"
+                          checked={formData.userGroups.includes(group.GroupName || '')}
+                          onChange={(e) => handleUserGroupChange(group.GroupName || '', e.target.checked)}
+                          className="mr-2 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <span className="text-sm">{group.GroupName}</span>
+                        {group.Description && (
+                          <span className="text-xs text-gray-500 ml-2">({group.Description})</span>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-sm text-gray-500">No user groups available</div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div>

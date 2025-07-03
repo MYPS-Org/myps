@@ -16,10 +16,10 @@ import { Button } from '../../components/tailwindui/button'
 import { Badge } from '../../components/tailwindui/badge'
 
 // Interfaces
-import { type Users, type Permissions, type RawUserGroupData, type ConsolidatedUserGroup, type PermissionPagination, type UserPagination } from './Model.d';
+import type { Users, Permissions, PermissionPagination, UserPagination, UserGroupPagination, UserGroups} from './Model.d';
 
 // Services
-import { consolidateUserGroups, fetchInitialData, fetchPermissions, fetchUsers } from './service';
+import { fetchInitialData, fetchPermissions, fetchUsers, fetchUserGroups } from './service';
 
 // Dialog imports
 import { AddUserDialog, AddPermissionDialog, AddGroupDialog, ViewUserDialog, UpdateUserDialog, DeleteUserDialog, 
@@ -43,17 +43,17 @@ const Rbac: React.FC = () => {
 	const [selectedTab, setSelectedTab] = useState<'users' | 'permissions' | 'userGroups' | 'userRoles'>('users');
 
 	// Raw data example (this would come from your database/API)
-	const rawUserGroupsData: RawUserGroupData[] = [
-		{ Id: 1, GroupName: 'Admin', Description: 'System administrators', PermissionName: 'User Management', MemberCount: 5, CreatedDate: '2024-01-01' },
-		{ Id: 2, GroupName: 'Admin', Description: 'System administrators', PermissionName: 'View Reports', MemberCount: 5, CreatedDate: '2024-01-01' },
-		{ Id: 3, GroupName: 'Admin', Description: 'System administrators', PermissionName: 'Edit Content', MemberCount: 5, CreatedDate: '2024-01-01' },
-		{ Id: 4, GroupName: 'Admin', Description: 'System administrators', PermissionName: 'Delete Records', MemberCount: 5, CreatedDate: '2024-01-01' },
-		{ Id: 5, GroupName: 'Manager', Description: 'Project managers', PermissionName: 'View Reports', MemberCount: 3, CreatedDate: '2024-01-02' },
-		{ Id: 6, GroupName: 'Manager', Description: 'Project managers', PermissionName: 'Edit Content', MemberCount: 3, CreatedDate: '2024-01-02' },
-		{ Id: 7, GroupName: 'Editor', Description: 'Content editors', PermissionName: 'Edit Content', MemberCount: 8, CreatedDate: '2024-01-03' },
-		{ Id: 8, GroupName: 'Editor', Description: 'Content editors', PermissionName: 'View Reports', MemberCount: 8, CreatedDate: '2024-01-03' },
-		{ Id: 9, GroupName: 'Viewer', Description: 'Read-only access', PermissionName: 'View Reports', MemberCount: 2, CreatedDate: '2024-01-04' },
-	];
+	// const rawUserGroupsData: RawUserGroupData[] = [
+	// 	{ Id: 1, GroupName: 'Admin', Description: 'System administrators', PermissionName: 'User Management', MemberCount: 5, CreatedDate: '2024-01-01' },
+	// 	{ Id: 2, GroupName: 'Admin', Description: 'System administrators', PermissionName: 'View Reports', MemberCount: 5, CreatedDate: '2024-01-01' },
+	// 	{ Id: 3, GroupName: 'Admin', Description: 'System administrators', PermissionName: 'Edit Content', MemberCount: 5, CreatedDate: '2024-01-01' },
+	// 	{ Id: 4, GroupName: 'Admin', Description: 'System administrators', PermissionName: 'Delete Records', MemberCount: 5, CreatedDate: '2024-01-01' },
+	// 	{ Id: 5, GroupName: 'Manager', Description: 'Project managers', PermissionName: 'View Reports', MemberCount: 3, CreatedDate: '2024-01-02' },
+	// 	{ Id: 6, GroupName: 'Manager', Description: 'Project managers', PermissionName: 'Edit Content', MemberCount: 3, CreatedDate: '2024-01-02' },
+	// 	{ Id: 7, GroupName: 'Editor', Description: 'Content editors', PermissionName: 'Edit Content', MemberCount: 8, CreatedDate: '2024-01-03' },
+	// 	{ Id: 8, GroupName: 'Editor', Description: 'Content editors', PermissionName: 'View Reports', MemberCount: 8, CreatedDate: '2024-01-03' },
+	// 	{ Id: 9, GroupName: 'Viewer', Description: 'Read-only access', PermissionName: 'View Reports', MemberCount: 2, CreatedDate: '2024-01-04' },
+	// ];
 
 	const [UsersData, setUsersData] = useState<PaginationResponse<Users>>({
 		lists: [],
@@ -71,8 +71,16 @@ const Rbac: React.FC = () => {
 		totalPages: 0
 	});
 
+	const [UserGroupsData, setUserGroups] = useState<PaginationResponse<UserGroups>>({
+		lists: [],
+		page: 1,
+		limit: 10,
+		total: 0,
+		totalPages: 0
+	});
+
 	// Initialize userGroups with consolidated data from raw data
-	const [userGroups, setUserGroups] = useState<ConsolidatedUserGroup[]>(() => consolidateUserGroups(rawUserGroupsData));
+	// const [userGroups, setUserGroups] = useState<ConsolidatedUserGroup[]>(() => consolidateUserGroups(rawUserGroupsData));
 
 	const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
 	const [isAddPermissionDialogOpen, setIsAddPermissionDialogOpen] = useState(false);
@@ -96,6 +104,25 @@ const Rbac: React.FC = () => {
 	const [isPermissionFilterDialogOpen, setIsPermissionFilterDialogOpen] = useState(false);
 	const [isUserGroupFilterDialogOpen, setIsUserGroupFilterDialogOpen] = useState(false);
 
+	const [UserFilter, setUserFilter] = useState<UserPagination>({
+		filters: {
+			Name: '',
+		},
+		sortField: '',
+		sortDirection: 0,
+		page: 1,
+		limit: 10
+	});
+	//UserGroup Filter
+	const [UserGroupFilter, setUserGroupFilter] = useState<UserGroupPagination>({
+		filters: {
+			GroupName: '',
+		},
+		sortField: '',
+		sortDirection: 0,
+		page: 1,
+		limit: 10
+	});
 	//Permission Filter
 	const [PermissionFilter, setPermissionFilter] = useState<PermissionPagination>({
 		Filters: {
@@ -108,30 +135,7 @@ const Rbac: React.FC = () => {
 		limit: 10
 	});
 	const [isLoadingPermissions, setIsLoadingPermissions] = useState(false);
-
-	//User Group Filter
-	// const [UserGroupFilter, setUserGroupFilter] = useState<UserGroupPagination>({
-	// 	Filters: {
-	// 		ModuleFunction: '',
-	// 		Description: '',
-	// 	},
-	// 	sortField: '',
-	// 	sortDirection: 0,
-	// 	page: 1,
-	// 	limit: 10
-	// });
-
-	// User Filter
-	const [UserFilter, setUserFilter] = useState<UserPagination>({
-		filters: {
-			Name: '',
-		},
-		sortField: '',
-		sortDirection: 0,
-		page: 1,
-		limit: 10
-	});
-
+	const [isLoadingUserGroups, setIsLoadingUserGroups] = useState(false);
 	const [isLoadingUsers, setIsLoadingUsers] = useState(false);
 	useEffect(() => {
 		// Fetch initial data when component mounts
@@ -160,13 +164,29 @@ const Rbac: React.FC = () => {
 		// Update filter based on the current tab and sort parameters
 		if (selectedTab === 'userGroups') {
 			// For user groups, sort the local array
-			if (field === 0) { // GroupName column
-				const sortedGroups = [...userGroups].sort((a, b) => {
-					const comparison = a.GroupName.localeCompare(b.GroupName);
-					return direction === 1 ? comparison : -comparison;
-				});
-				setUserGroups(sortedGroups);
+			const newFilter: UserGroupPagination = {
+				...UserGroupFilter,
+				sortField: field === 0 ? 'GroupName' : '',
+				sortDirection: (direction || 0) as 0 | 1,
+				page: 1 // Reset to first page when sorting
+			};
+			setUserGroupFilter(newFilter);
+
+			try {
+				setIsLoadingUserGroups(true);
+				const res = await fetchUserGroups(newFilter);
+				console.log('UserGroups response:', res);
+				if(res.Data.lists) {
+					console.log('Setting userGroups data:', res);
+					setUserGroups(res.Data);
+				}
+			} catch (error) {
+				console.error('Error fetching userGroups:', error);
+				// alert('Failed to fetch userGroups: ' + (error instanceof Error ? error.message : 'Unknown error'));
+			} finally {
+				setIsLoadingUserGroups(false);
 			}
+
 		} else if (selectedTab === 'users') {
 			// Create new filter with updated sort
 			const newFilter: UserPagination = {
@@ -283,8 +303,27 @@ const Rbac: React.FC = () => {
 			}
 		}
 		else if (tabName == 'userGroups') {
-			// User groups are static data, no API call needed
-			console.log('User groups tab selected - using static data');
+			try {
+				// Prevent multiple concurrent requests
+				if (isLoadingUserGroups) {
+					console.log('Already loading user groups, skipping request');
+					return;
+				}
+				
+				setIsLoadingUserGroups(true);
+				console.log('Fetching user groups with current filter:', UserGroupFilter);
+				const res = await fetchUserGroups(UserGroupFilter);
+				console.log('UserGroups response:', res);
+				if(res.Data.lists) {
+					console.log('Setting userGroups data:', res);
+					setUserGroups(res.Data);
+				}
+			} catch (error) {
+				console.error('Error fetching userGroups:', error);
+				alert('Failed to fetch userGroups: ' + (error instanceof Error ? error.message : 'Unknown error'));
+			} finally {
+				setIsLoadingUserGroups(false);
+			}
 		}
 	}
 	const Paginate = async (page: number) => {
@@ -408,7 +447,7 @@ const Rbac: React.FC = () => {
 					label="User Groups" 
 					value="userGroups" 
 					icon={UserGroupIcon} 
-					count={userGroups.length} 
+					count={UserGroupsData.lists.length} 
 				/>
 			</div>
 			{/* Content Area */}
@@ -756,7 +795,7 @@ const Rbac: React.FC = () => {
 								</TableRow>
 							</TableHead>
 							<TableBody>
-								{userGroups.map((group, index) => (
+								{UserGroupsData.lists.map((group, index) => (
 									<TableRow key={group.Id} className={`hover:bg-gray-50 ${
 										index % 2 === 0 ? 'bg-white' : 'bg-gray-100'
 									}`}>
@@ -769,24 +808,35 @@ const Rbac: React.FC = () => {
 											<div className="flex items-center space-x-2">
 												<UsersIcon className="w-4 h-4 text-gray-400" />
 												<span className="text-gray-900 font-medium">
-													{group.MemberCount}
+													{group.NumberOfUsers}
 												</span>
 											</div>
 										</TableCell>
-										<TableCell>
-											<div className="flex flex-wrap gap-1">
-												{group.PermissionName.slice(0, 2).map((permission: string, index: number) => (
-													<Badge key={index} color="blue" className="text-xs">
-														{permission}
-													</Badge>
-												))}
-												{group.PermissionName.length > 2 && (
-													<Badge color="zinc" className="text-xs">
-														+{group.PermissionName.length - 2} more
-													</Badge>
-												)}
-											</div>
-										</TableCell>
+											<TableCell>
+												<div className="flex flex-wrap gap-1">
+													{(() => {
+													// Convert comma-separated string to array and trim whitespace
+													const permissionsArray = group.PermissionsName 
+														? group.PermissionsName.split(',').map(p => p.trim())
+														: [];
+													
+													return (
+														<>
+														{permissionsArray.slice(0, 2).map((permission: string, index: number) => (
+															<Badge key={index} color="blue" className="text-xs">
+															{permission}
+															</Badge>
+														))}
+														{permissionsArray.length > 2 && (
+															<Badge color="zinc" className="text-xs">
+															+{permissionsArray.length - 2} more
+															</Badge>
+														)}
+														</>
+													);
+													})()}
+												</div>
+											</TableCell>
 										<TableCell className="text-gray-500 max-w-xs truncate">
 											{group.Description}
 										</TableCell>
@@ -929,16 +979,17 @@ const Rbac: React.FC = () => {
 				isOpen={isAddGroupDialogOpen} 
 				onClose={() => setIsAddGroupDialogOpen(false)} 
 				onSubmit={(newGroup: any) => {
-					const newGroupData: ConsolidatedUserGroup = {
-						Id: userGroups.length + 1,
-						GroupName: newGroup.groupName,
-						Description: newGroup.description,
-						PermissionName: newGroup.permissions,
-						Module: newGroup.module,
-						MemberCount: newGroup.memberCount || 0,
-						CreatedDate: new Date().toISOString()
+					// Add the new group to the existing data
+					const newGroupWithId= { 
+						...newGroup, 
+						Id: (UserGroupsData.lists?.length || 0) + 1, 
+						CreatedDate: new Date().toLocaleDateString()
 					};
-					setUserGroups([...userGroups, newGroupData]);
+					setUserGroups(prev => ({
+						...prev,
+						lists: [...prev.lists, newGroupWithId],
+						total: prev.total + 1
+					}));
 				}}
 			/>
 			{/* View User Dialog */}
@@ -1049,7 +1100,7 @@ const Rbac: React.FC = () => {
 						setIsViewGroupDialogOpen(false);
 						setSelectedGroupId(null);
 					}}
-					group={userGroups.find(group => group.Id === selectedGroupId)!}
+					group={UserGroupsData.lists.find(group => group.Id === selectedGroupId)!}
 				/>
 			)}
 			
@@ -1061,18 +1112,21 @@ const Rbac: React.FC = () => {
 						setIsUpdateGroupDialogOpen(false);
 						setSelectedGroupId(null);
 					}}
-					group={userGroups.find(group => group.Id === selectedGroupId)!}
+					group={UserGroupsData.lists.find(group => group.Id === selectedGroupId)!}
 					onSubmit={(updatedGroup: any) => {
-						const updatedGroupData: ConsolidatedUserGroup = {
+						const updatedGroupData: UserGroups = {
 							Id: updatedGroup.id,
 							GroupName: updatedGroup.groupName,
 							Description: updatedGroup.description,
-							PermissionName: updatedGroup.permissions,
-							Module: updatedGroup.module,
-							MemberCount: updatedGroup.memberCount,
-							CreatedDate: userGroups.find(g => g.Id === updatedGroup.id)?.CreatedDate || new Date().toISOString()
+							PermissionsName: updatedGroup.permissions,
+							// Module: updatedGroup.module,
+							NumberOfUsers: updatedGroup.numberOfUsers,
+							CreatedDate: UserGroupsData.lists.find(g => g.Id === updatedGroup.id)?.CreatedDate || new Date().toISOString()
 						};
-						setUserGroups(userGroups.map(group => group.Id === updatedGroup.id ? updatedGroupData : group));
+						setUserGroups(prev => ({
+							...prev,
+							lists: prev.lists?.map(group => group.Id === updatedGroup.id ? updatedGroupData : group) || []
+						}));
 					}}
 				/>
 			)}
@@ -1085,9 +1139,13 @@ const Rbac: React.FC = () => {
 						setIsDeleteGroupDialogOpen(false);
 						setSelectedGroupId(null);
 					}}
-					group={userGroups.find(group => group.Id === selectedGroupId)!}
+					group={UserGroupsData.lists.find(group => group.Id === selectedGroupId)!}
 					onSubmit={(deletedGroupId: number) => {
-						setUserGroups(userGroups.filter(group => group.Id !== deletedGroupId));
+						setUserGroups(prev => ({
+							...prev,
+							lists: prev.lists?.filter(group => group.Id !== deletedGroupId) || [],
+							total: Math.max(0, (prev.total || 1) - 1)
+						}));
 					}}
 				/>
 			)}
