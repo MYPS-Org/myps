@@ -14,6 +14,7 @@ namespace DBHelper.Models.Dtos
     }
     public class ShowPermissionFilterDTO
     {
+        public string? PermissionGroupName { get; set; }
         public string? ModuleFunction { get; set; }
         public string? Description { get; set; }
     }
