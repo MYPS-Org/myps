@@ -8,6 +8,11 @@ namespace Helpers
 {
     public abstract class XMLRequest<T>
     {
+        private readonly string _employeeId;
+        public XMLRequest(string employeeId)
+        {
+            _employeeId = employeeId;
+        }
         internal abstract string RequestUri { get; }
         internal HttpRequestMessage ToHttpRequest()
         {
@@ -26,7 +31,7 @@ namespace Helpers
                         </soap:Header>
                         <soap:Body>
                             <pis_get_employee xmlns=""https://www.dpwh.gov.ph/"">
-                                <employee_id>[[EMPLOYEEID]]</employee_id>
+                                <employee_id>{_employeeId}</employee_id>
                             </pis_get_employee>
                         </soap:Body>
                     </soap:Envelope>",
