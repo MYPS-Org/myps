@@ -339,6 +339,22 @@ namespace WebAPI.Controllers.UserProfile
         }
         [HttpPost]
         [AllowAnonymous]
+        public async Task<IActionResult> ShowPermissionGroups()
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                List<PermissionGroups> Groups = await _db.tPermissionGroups.ToListAsync();
+                return Ok(Groups);
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
+        [HttpPost]
+        [AllowAnonymous]
         public async Task<IActionResult> AddPermission([FromBody] AddPermissionsDTO dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
