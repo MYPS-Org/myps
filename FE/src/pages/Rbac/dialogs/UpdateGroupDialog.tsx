@@ -127,98 +127,83 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({ isOpen, onClose, 
           </div>
 
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className='grid grid-cols-3 gap-4 mb-4'>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Group Name
-                </label>
-                <input
-                  type="text"
-                  value={formData.groupName}
-                  onChange={(e) => handleChange('groupName', e.target.value)}
-                  placeholder="Enter group name"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
-                  required
-                />
-              </div>
+                <div className="grid grid-cols-1 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Group Name
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.groupName}
+                      onChange={(e) => handleChange('groupName', e.target.value)}
+                      placeholder="Enter group name"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
+                      required
+                    />
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Member Count
-                </label>
-                <input
-                  type="number"
-                  value={formData.numberOfUsers}
-                  onChange={(e) => handleChange('numberOfUsers', parseInt(e.target.value) || 0)}
-                  placeholder="0"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
-                  min="0"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Description
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => handleChange('description', e.target.value)}
-                placeholder="Enter group description"
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
-                required
-              />
-            </div>
-
-            {/* <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Module (Optional)
-              </label>
-              <input
-                type="text"
-                value={formData.module}
-                onChange={(e) => handleChange('module', e.target.value)}
-                placeholder="Enter module name"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
-              />
-            </div> */}
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">
-                Permissions
-              </label>
-              {isLoadingPermissions ? (
-                <div className="text-sm text-gray-500 p-4">Loading permissions...</div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 max-h-48 overflow-y-auto border border-gray-200 rounded-md p-3 bg-gray-50">
-                  {availablePermissions.length > 0 ? (
-                    availablePermissions.map((permission) => (
-                      <label key={permission.Id} className="flex items-center space-x-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={formData.permissionsName.includes(permission.ModuleFunction)}
-                          onChange={() => handlePermissionToggle(permission.ModuleFunction)}
-                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                        <span className="text-sm text-gray-700">
-                          {permission.ModuleFunction}
-                        </span>
-                        {/* {permission.Description && (
-                          <span className="text-xs text-gray-500 ml-1">
-                            ({permission.Description})
-                          </span>
-                        )} */}
-                      </label>
-                    ))
-                  ) : (
-                    <div className="text-sm text-gray-500">No permissions available</div>
-                  )}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Member Count
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.numberOfUsers}
+                      onChange={(e) => handleChange('numberOfUsers', parseInt(e.target.value) || 0)}
+                      placeholder="0"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
+                      min="0"
+                    />
+                  </div>
                 </div>
-              )}
-              <p className="text-xs text-gray-500 mt-2">
-                Selected: {formData.permissionsName.length} permission(s)
-              </p>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => handleChange('description', e.target.value)}
+                    placeholder="Enter group description"
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Permissions
+                </label>
+                {isLoadingPermissions ? (
+                  <div className="text-sm text-gray-500 p-4">Loading permissions...</div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-100 overflow-y-auto border border-gray-200 rounded-md p-3 bg-gray-50">
+                    {availablePermissions.length > 0 ? (
+                      availablePermissions.map((permission) => (
+                        <label key={permission.Id} className="flex items-center space-x-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={formData.permissionsName.includes(permission.ModuleFunction)}
+                            onChange={() => handlePermissionToggle(permission.ModuleFunction)}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="text-sm text-gray-700">
+                            {permission.ModuleFunction}
+                          </span>
+                        </label>
+                      ))
+                    ) : (
+                      <div className="text-sm text-gray-500">No permissions available</div>
+                    )}
+                  </div>
+                )}
+                <p className="text-xs text-gray-500 mt-2">
+                  Selected: {formData.permissionsName.length} permission(s)
+                </p>
+              </div>
             </div>
 
             <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">

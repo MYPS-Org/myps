@@ -80,7 +80,7 @@ export const deleteUserGroup = async (groupId: number) => {
 //#region  PIS API functions
 export const fetchUserData = async (data: Pis) => {
     try {
-        const request = await httpClient.post<Users>('/MockUps/SearchUser', data);
+        const request = await httpClient.post<Users>('/PIS/SearchUser', data);
         return request;
 	} catch (error : any) {
 		const errorResponse: ErrorResponse = {
