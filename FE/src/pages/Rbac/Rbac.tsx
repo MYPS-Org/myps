@@ -525,7 +525,9 @@ const Rbac: React.FC = () => {
 											))}
 										</TableCell>
 										<TableCell>
-											<Badge color="blue">{user.PlantillaOffice}</Badge>
+											{
+												user.PlantillaOffice && <Badge color="blue">{user.PlantillaOffice}</Badge>
+											}
 										</TableCell>
 										<TableCell>
 											{getStatusBadge(user.IsActive ?? false)}
@@ -650,7 +652,7 @@ const Rbac: React.FC = () => {
 									{/* <TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(0, direction)} className="text-gray-500">ID</TableHeader> */}
 									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(1, direction)} className="text-gray-500">Module Function</TableHeader>
 									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(2, direction)} className="text-gray-500">Description</TableHeader>
-									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(3, direction)} className="text-gray-500">Created By</TableHeader>
+									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(3, direction)} className="text-gray-500">Permission Group</TableHeader>
 									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(4, direction)} className="text-gray-500">Created At</TableHeader>
 									<TableHeader className="text-gray-500">Actions</TableHeader>
 								</TableRow>
@@ -671,15 +673,20 @@ const Rbac: React.FC = () => {
 											</div>
 										</TableCell>
 										<TableCell>
-											<div className="font-medium text-gray-900">
+											<div className="text-gray-900">
 												{permission.Description}
 											</div>
 										</TableCell>
 										<TableCell>
-											<Badge color="zinc">{permission.CreatedBy}</Badge>
+											{permission.PermissionGroupName}
+											{/* <Badge color="zinc">{permission.CreatedBy}</Badge> */}
 										</TableCell>
-										<TableCell className="text-gray-500">
-											{permission.CreatedDate}
+										<TableCell className="text-gray-900">
+											{new Date(permission.CreatedDate).toLocaleDateString('en-US', {
+												year: 'numeric',
+												month: 'numeric',
+												day: 'numeric'
+											})}
 										</TableCell>
 										<TableCell>
 											<div className="flex items-center space-x-2">

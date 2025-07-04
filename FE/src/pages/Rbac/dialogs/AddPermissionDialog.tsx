@@ -1,32 +1,81 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import type { AddPermission, PermissionGroup } from '../Model.d'; // Adjust the import path as necessary
+import { fetchPermissionGroups, addPermission } from '../service';
 
 interface AddPermissionDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (permissionData: any) => void;
+  onSubmit: (permissionData: AddPermission) => void;
 }
 
 const AddPermissionDialog: React.FC<AddPermissionDialogProps> = ({ isOpen, onClose, onSubmit }) => {
   const [formData, setFormData] = useState({
-    name: '',
-    module: '',
-    type: 'read',
-    description: ''
+    Id: 0,
+    PermissionGroupId: 0,
+    ModuleFunction: '',
+    Description: '',
+    CreatedBy: '',
+    CreatedDate: new Date().toISOString(),
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [isLoadingGroups, setIsLoadingGroups] = useState(false);
+  const [availableGroups, setAvailableGroups] = useState<PermissionGroup[]>([]);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchAvailableGroups();
+    }
+  }, [isOpen]);
+
+  const fetchAvailableGroups = async () => {
+    try {
+      setIsLoadingGroups(true);
+      const response = await fetchPermissionGroups();
+      console.log('Available Groups:', response);
+      if (response.Data && response.Data) {
+         setAvailableGroups(response.Data);
+      }
+    } catch (error) {
+      console.error('Error fetching user groups:', error);
+    } finally {
+      setIsLoadingGroups(false);
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+
+    try {
+      await addPermission(formData);
+      onSubmit(formData);
+      setFormData({
+        Id: 0,
+        PermissionGroupId: 0,
+  
+        ModuleFunction: '',
+        Description: '',
+        CreatedBy: '',
+        CreatedDate: new Date().toISOString(),
+      });
+      onClose();
+      resetFormData();
+    } catch (error) {
+      console.error('Error submitting form:', error);
+    }
+
+  };
+  const resetFormData = () => {
     setFormData({
-      name: '',
-      module: '',
-      type: 'read',
-      description: ''
+      Id: 0,
+      PermissionGroupId: 0,
+      ModuleFunction: '',
+      Description: '',
+      CreatedBy: '',
+      CreatedDate: new Date().toISOString(),
     });
-    onClose();
   };
 
   const handleChange = (field: string, value: string) => {
@@ -54,12 +103,12 @@ const AddPermissionDialog: React.FC<AddPermissionDialogProps> = ({ isOpen, onClo
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Permission Name
+                Module Function
               </label>
               <input
                 type="text"
-                value={formData.name}
-                onChange={(e) => handleChange('name', e.target.value)}
+                value={formData.ModuleFunction}
+                onChange={(e) => handleChange('ModuleFunction', e.target.value)}
                 placeholder="e.g., manage_users"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                 required
@@ -68,50 +117,39 @@ const AddPermissionDialog: React.FC<AddPermissionDialogProps> = ({ isOpen, onClo
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Module
-              </label>
-              <select
-                value={formData.module}
-                onChange={(e) => handleChange('module', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                required
-              >
-                <option value="">Select a module</option>
-                <option value="Users">Users</option>
-                <option value="Content">Content</option>
-                <option value="Settings">Settings</option>
-                <option value="Reports">Reports</option>
-                <option value="System">System</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Permission Type
-              </label>
-              <select
-                value={formData.type}
-                onChange={(e) => handleChange('type', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="read">Read</option>
-                <option value="write">Write</option>
-                <option value="delete">Delete</option>
-                <option value="admin">Admin</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Description
               </label>
               <textarea
-                value={formData.description}
-                onChange={(e) => handleChange('description', e.target.value)}
+                value={formData.Description}
+                onChange={(e) => handleChange('Description', e.target.value)}
                 placeholder="Describe what this permission allows..."
                 rows={3}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Permission Group
+              </label>
+              <select
+                value={formData.PermissionGroupId}
+                onChange={(e) => handleChange('PermissionGroupId', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                required
+              >
+                <div >Select a group</div>
+                {isLoadingGroups ? (
+                  <option disabled>Loading groups...</option>
+                ) : (
+                  availableGroups.map(group => (
+                    <option key={group.Id} value={group.Id}>
+                      {group.Name}
+                    </option>
+                  ))
+                )}
+              </select>
+
             </div>
 
             <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">

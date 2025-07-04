@@ -1,6 +1,21 @@
 import type { PaginationParams } from '../../types/Pagination';
 
 //#region Permissions Models
+export interface AddPermission {
+    PermissionGroupId: number;
+    ModuleFunction: string;
+    Description: string;
+}
+
+export interface PermissionGroup {
+     Id: number;
+     Name: string;
+     UpdatedBy: string;
+     UpdatedDate: string;
+     CreatedDate: string;
+     CreatedBy: string;
+}
+
 export interface Permissions {
 	Id: number;
 	PermissionGroupId: number;

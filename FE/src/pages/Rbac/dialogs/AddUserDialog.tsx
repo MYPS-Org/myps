@@ -107,7 +107,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
         RegCode: formData.regCode || '',
         PlantillaOffice: formData.plantillaOffice,
         IsActive: formData.isActive === 'active',
-        UserGroups: formData.userGroups.join(', ') // Convert array to comma-separated string
+        UserGroups: formData.userGroups.join(',') // Convert array to comma-separated string
       };
       
       const response = await addUser(userData);
@@ -250,10 +250,10 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
                 <input
                   type="text"
                   value={formData.regCode}
-                  onChange={(e) => handleChange('regionCode', e.target.value)}
+                  onChange={(e) => handleChange('regCode', e.target.value)}
                   placeholder="Enter region code"
                   className={"w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-700" 
-                    + (formData.regCode ? '' : ' bg-gray-100')}
+                    + (formData.regCode ? ' bg-gray-100' : '')}
                   readOnly={!isDataLoaded || isLoading}
                   required
                 />
