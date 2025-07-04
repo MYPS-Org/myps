@@ -252,8 +252,8 @@ namespace WebAPI.Controllers.UserProfile
                 await transaction.CommitAsync();
                 return Ok(new
                 {
-                    Message = "User Info updated successfully",
-                    Title = "Under Maintenance"
+                    Message = "User added successfully",
+                    Title = "Add Complete"
                 });
             }
             catch (Exception ex)
@@ -501,7 +501,6 @@ namespace WebAPI.Controllers.UserProfile
             }
 
         }
-
         [HttpPost]
         [AllowAnonymous]
         public async Task<IActionResult> DeleteUserGroup([FromBody] DBHelper.Models.Views.UserGroups dto)
