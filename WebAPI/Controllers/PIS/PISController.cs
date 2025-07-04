@@ -1,0 +1,85 @@
+﻿using DBHelper.Data;
+using DBHelper.Models.Dtos;
+using DBHelper.Models.Enums;
+using DBHelper.Models.Table;
+using DBHelper.Models.Views;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Helpers;
+using System.Text;
+using DBHelper.Models.Extra;
+
+namespace WebAPI.Controllers.MockUps
+{
+    [ApiController]
+    [Route("api/[controller]/[action]")]
+    public class PISController : CoreController
+    {
+        public PISController(AppDbContext db) : base(db) { }
+
+        [HttpPost]
+        [AllowAnonymous]
+        public async Task<IActionResult> SearchUser([FromBody] SearchUserDTO dto)
+        {
+            try
+            {
+                var checifExists = await _db.tUsers.FirstOrDefaultAsync(x => x.EmployeeId == dto.EmployeeId);
+                if (checifExists != null)
+                {
+                    return new BadRequestObjectResult(
+                        new
+                        {
+                            Message = $"Employee: '{dto.EmployeeId}' already exists",
+                            Title = "User Exists"
+                        }
+                    );
+                }
+                var request = new GetEmployeeRequest(dto.EmployeeId);
+                var employee = await APIRequest.XML(request);
+                string UserId = $"{employee.PersonFamilyName?.Replace(" ","")}{employee.PersonForename?[0]}{employee.PersonMiddleInitial1?[0]}".ToLower();
+                DBHelper.Models.Table.Users newuser = new DBHelper.Models.Table.Users()
+                {
+                    EmployeeId = employee.EmployeeId,
+                    UserId = UserId,
+                    Name = $"{employee.PersonForename} {employee.PersonMiddleInitial1}. {employee.PersonFamilyName}",
+                    Email = "",
+                    RegCode = employee.CentralOrRegionId!,
+                    PlantillaOffice = employee.PlantillaOfficeId,
+                    IsActive = false
+                };
+                return Ok(newuser);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
+        [HttpPost]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetUserInfo([FromBody] SearchUserDTO dto)
+        {
+            try
+            {
+                var checifExists = await _db.tUsers.FirstOrDefaultAsync(x => x.EmployeeId == dto.EmployeeId);
+                if (checifExists == null)
+                {
+                    return new BadRequestObjectResult(
+                        new
+                        {
+                            Message = $"Employee: '{dto.EmployeeId}' already exists",
+                            Title = "User Exists"
+                        }
+                    );
+                }
+                var request = new GetEmployeeRequest(dto.EmployeeId);
+                var employee = await APIRequest.XML(request);
+                return Ok(checifExists);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
+    }
+}
