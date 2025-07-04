@@ -18,4 +18,10 @@ namespace DBHelper.Models.Dtos
         public string? ModuleFunction { get; set; }
         public string? Description { get; set; }
     }
+    public class  AddPermissionsDTO
+    {
+        public int? PermissionGroupId { get; set; }
+        public string? ModuleFunction { get; set; }
+        public string? Description { get; set; }
+    }
 }
