@@ -36,10 +36,29 @@ export const fetchUsers = async (data: UserPagination) => {
 	}
 }
 
+export const addUser = async (data: Users) => {
+	try {
+		const request = await httpClient.post<Users>('/UserProfile/AddUser', data);
+		return request;
+	} catch (error) {
+		throw error;
+	}
+}
+
 export const editUser = async (data: Users) => {
 	try {
 		const request = await httpClient.post<Users>(`/UserProfile/UpdateUser`, data);
 		return request;
+	} catch (error) {
+		throw error;
+	}
+}
+
+export const deleteUser = async (data: Users) => {
+	try {
+		const request = await httpClient.post('/UserProfile/DeleteUser', data );
+		return request;
+		
 	} catch (error) {
 		throw error;
 	}

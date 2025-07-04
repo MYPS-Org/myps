@@ -3,7 +3,7 @@ import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { MagnifyingGlassIcon } from '@heroicons/react/16/solid';
-import { fetchUserData, fetchUserGroups } from '../service';
+import { addUser, fetchUserData, fetchUserGroups } from '../service';
 import type { UserGroups } from '../Model.d';
 
 interface AddUserDialogProps {
@@ -56,7 +56,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
     }
     finally{
       setIsLoadingGroups(false);
-    }``
+    }
   };
 
   const handleSearch = async (value: string) => {
@@ -88,15 +88,45 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async(e: React.FormEvent) => {
     e.preventDefault();
-    if (!isDataLoaded) {
-      setError('Please enter a valid Employee ID first');
-      return;
+
+    try {
+      if (!isDataLoaded) {
+        setError('Please enter a valid Employee ID first');
+        return;
+      }
+      
+      // Map form data to Users interface
+      const userData = {
+        Id: 0, // Will be set by the backend
+        EmployeeId: formData.employeeId,
+        UserId: formData.userId,
+        Name: formData.name,
+        Email: formData.email,
+        RegCode: formData.regCode || '',
+        PlantillaOffice: formData.plantillaOffice,
+        IsActive: formData.isActive === 'active',
+        UserGroups: formData.userGroups.join(', ') // Convert array to comma-separated string
+      };
+      
+      const response = await addUser(userData);
+      console.log('Add user response:', response);
+      
+      // Pass the newly created user data to parent
+      const newUserData = {
+        ...userData,
+        Id: response?.Data?.Id || Date.now(), // Use response ID or fallback to timestamp
+        CreatedDate: new Date().toISOString()
+      };
+      
+      onSubmit(newUserData);
+      resetForm();
+      onClose();
+    } catch (error: any) {
+      console.error('Error submitting form:', error);
+      setError(error.Message || 'Failed to add user');
     }
-    onSubmit(formData);
-    resetForm();
-    onClose();
   };
 
   const resetForm = () => {
@@ -121,7 +151,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
   const handleUserGroupChange = (group: string, checked: boolean) => {
     setFormData(prev => ({
       ...prev,
-      userGroup: checked 
+      userGroups: checked 
         ? [...prev.userGroups, group]
         : prev.userGroups.filter(g => g !== group)
     }));
@@ -198,21 +228,37 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Name
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => handleChange('name', e.target.value)}
-                placeholder="Enter name"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-700"
-                disabled={true}
-                required
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Name
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => handleChange('name', e.target.value)}
+                  placeholder="Enter name"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-700"
+                  disabled={true}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Region Code
+                </label>
+                <input
+                  type="text"
+                  value={formData.regCode}
+                  onChange={(e) => handleChange('regionCode', e.target.value)}
+                  placeholder="Enter region code"
+                  className={"w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-700" 
+                    + (formData.regCode ? '' : ' bg-gray-100')}
+                  readOnly={!isDataLoaded || isLoading}
+                  required
+                />
+              </div>
             </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Email

@@ -636,10 +636,10 @@ const Rbac: React.FC = () => {
 											</span>
 										)}
 									</Button>
-									{/* <Button color="blue" onClick={() => setIsAddPermissionDialogOpen(true)}>
+									<Button color="blue" onClick={() => setIsAddPermissionDialogOpen(true)}>
 										<PlusIcon className="w-4 h-4 mr-1" />
 										Add Permission
-									</Button> */}
+									</Button>
 								</div>
 							</div>
 						</div>
@@ -652,7 +652,7 @@ const Rbac: React.FC = () => {
 									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(2, direction)} className="text-gray-500">Description</TableHeader>
 									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(3, direction)} className="text-gray-500">Created By</TableHeader>
 									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(4, direction)} className="text-gray-500">Created At</TableHeader>
-									{/* <TableHeader className="text-gray-500">Actions</TableHeader> */}
+									<TableHeader className="text-gray-500">Actions</TableHeader>
 								</TableRow>
 							</TableHead>
 							<TableBody>
@@ -681,7 +681,7 @@ const Rbac: React.FC = () => {
 										<TableCell className="text-gray-500">
 											{permission.CreatedDate}
 										</TableCell>
-										{/* <TableCell>
+										<TableCell>
 											<div className="flex items-center space-x-2">
 												<Button color="yellow" className="p-2"
 												onClick={() => {
@@ -698,7 +698,7 @@ const Rbac: React.FC = () => {
 													<TrashIcon className="w-4 h-4" />
 												</Button>
 											</div>
-										</TableCell> */}
+										</TableCell>
 									</TableRow>
 								))}
 							</TableBody>

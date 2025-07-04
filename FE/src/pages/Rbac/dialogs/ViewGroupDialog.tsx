@@ -3,12 +3,12 @@ import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { Badge } from '../../../components/tailwindui/badge';
-import type { ConsolidatedUserGroup } from '../Model.d';
+import type { UserGroups } from '../Model.d';
 
 interface ViewGroupDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  group: ConsolidatedUserGroup;
+  group: UserGroups;
 }
 
 const ViewGroupDialog: React.FC<ViewGroupDialogProps> = ({ isOpen, onClose, group }) => {
@@ -69,7 +69,7 @@ const ViewGroupDialog: React.FC<ViewGroupDialogProps> = ({ isOpen, onClose, grou
                   Member Count
                 </label>
                 <div className="px-3 py-2 bg-gray-50 rounded-md text-gray-900">
-                  <Badge color="blue">{group.MemberCount} members</Badge>
+                  <Badge color="blue">{group.NumberOfUsers} members</Badge>
                 </div>
               </div>
               
@@ -78,15 +78,15 @@ const ViewGroupDialog: React.FC<ViewGroupDialogProps> = ({ isOpen, onClose, grou
                   Created Date
                 </label>
                 <div className="px-3 py-2 bg-gray-50 rounded-md text-gray-900">
-                  {new Date(group.CreatedDate).toLocaleDateString()}
+                  {/* {new Date(group.CreatedDate).toLocaleDateString()} */}
                 </div>
               </div>
             </div>
 
             {/* Permissions Section */}
-            <div>
+            {/* <div>
               <label className="block text-sm font-medium text-gray-700 mb-3">
-                Permissions ({group.PermissionName.length})
+                Permissions ({group.PermissionsName.length})
               </label>
               <div className="bg-gray-50 rounded-md p-4">
                 {group.PermissionName.length > 0 ? (
@@ -101,9 +101,9 @@ const ViewGroupDialog: React.FC<ViewGroupDialogProps> = ({ isOpen, onClose, grou
                   <p className="text-gray-500 text-sm">No permissions assigned</p>
                 )}
               </div>
-            </div>
+            </div> */}
 
-            {group.Module && (
+            {/* {group.Module && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Module
@@ -112,7 +112,7 @@ const ViewGroupDialog: React.FC<ViewGroupDialogProps> = ({ isOpen, onClose, grou
                   {group.Module}
                 </div>
               </div>
-            )}
+            )} */}
           </div>
 
           <div className="flex justify-end space-x-3 px-6 py-4 border-t border-gray-200">

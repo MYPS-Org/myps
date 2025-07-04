@@ -1,47 +1,34 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import type { Users } from '../Model.d';
+import { deleteUser } from '../service';
 
 interface DeleteUserDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (userData: any) => void;
+  onSubmit: (userId: number) => void;
   user: Users;
 }
 
 const DeleteUserDialog: React.FC<DeleteUserDialogProps> = ({ isOpen, onClose, onSubmit, user }) => {
-  const [formData, setFormData] = useState({
-    employeeId: user.EmployeeId || '',
-    name: user.Name || '',
-    userId: user.UserId || '',
-    email: user.Email || '',
-    userGroup: user.UserGroup || '',
-    regCode: user.RegCode || '',
-    plantillaOffice: user.PlantillaOffice || '',
-    isActive: user.IsActive ? 'active' : 'inactive',
-  });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async(e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
-    setFormData({
-        employeeId: '',
-        name: '',
-        userId: '',
-        email: '',
-        userGroup: '',
-        regCode: '',
-        plantillaOffice: '',
-        isActive: 'active',
-    });
-    onClose();
-  };
 
-//   const handleChange = (field: string, value: string) => {
-//     setFormData(prev => ({ ...prev, [field]: value }));
-//   };
+    try {
+        if (!user.Id) {
+            throw new Error('User ID is required for deletion.');
+        }
+        await deleteUser(user);
+        onSubmit(user.Id);
+        onClose();
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        return;
+    }
+  };
 
   return (
     <Dialog open={isOpen} onClose={onClose} className="relative z-50">
@@ -67,7 +54,7 @@ const DeleteUserDialog: React.FC<DeleteUserDialogProps> = ({ isOpen, onClose, on
             <div className="grid grid-cols-1 gap-4">
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Are you sure you want to delete this user? {formData.name}
+                    Are you sure you want to delete this user? {user.Name}
                     </label>
                 </div>
             </div>
