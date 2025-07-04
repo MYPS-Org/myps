@@ -339,11 +339,19 @@ namespace WebAPI.Controllers.UserProfile
         }
         [HttpPost]
         [AllowAnonymous]
-        public async Task<IActionResult> AddPermission([FromBody] DBHelper.Models.Table.Permissions dto)
+        public async Task<IActionResult> AddPermission([FromBody] AddPermissionsDTO dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                if (string.IsNullOrEmpty(dto.ModuleFunction))
+                {
+                    return new BadRequestObjectResult(new { Message = "Module Function is required!", Title = "Parameter Error" });
+                }
+                if (string.IsNullOrEmpty(dto.Description))
+                {
+                    return new BadRequestObjectResult(new { Message = "Module Description is required!", Title = "Parameter Error" });
+                }
                 var getPermission = await _db.tPermissions.FirstOrDefaultAsync(x => x.ModuleFunction == dto.ModuleFunction);
                 if (getPermission != null)
                 {
