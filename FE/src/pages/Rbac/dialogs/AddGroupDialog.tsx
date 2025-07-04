@@ -78,84 +78,61 @@ const AddGroupDialog: React.FC<AddGroupDialogProps> = ({ isOpen, onClose, onSubm
           </div>
 
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Group Name
-              </label>
-              <input
-                type="text"
-                value={formData.groupName}
-                onChange={(e) => handleChange('groupName', e.target.value)}
-                placeholder="Enter group name"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
-                required
-              />
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Description
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => handleChange('description', e.target.value)}
-                placeholder="Enter group description"
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Module (Optional)
-                </label>
-                <input
-                  type="text"
-                  value={formData.module}
-                  onChange={(e) => handleChange('module', e.target.value)}
-                  placeholder="Enter module name"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
-                />
-              </div> */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Initial Member Count
-                </label>
-                <input
-                  type="text"
-                  value={formData.memberCount}
-                  onChange={(e) => handleChange('memberCount', parseInt(e.target.value) || 0)}
-                  placeholder="0"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
-                  min="0"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">
-                Permissions
-              </label>
-              <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto border border-gray-200 rounded-md p-3">
-                {availablePermissions.map((permission) => (
-                  <label key={permission} className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={formData.permissions.includes(permission)}
-                      onChange={() => handlePermissionToggle(permission)}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <span className="text-sm text-gray-700">
-                      {permission}
-                    </span>
+            <div className="grid grid-cols-3 gap-4">
+              <div className='col-span-1'>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Group Name
                   </label>
-                ))}
+                  <input
+                    type="text"
+                    value={formData.groupName}
+                    onChange={(e) => handleChange('groupName', e.target.value)}
+                    placeholder="Enter group name"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => handleChange('description', e.target.value)}
+                    placeholder="Enter group description"
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
+                  />
+                </div>
               </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Selected: {formData.permissions.length} permissions
-              </p>
+
+              <div className='col-span-2'>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Permissions
+                </label>
+                <div className="grid grid-cols-2 gap-2 max-h-100 overflow-y-auto border border-gray-200 rounded-md p-3">
+                  {availablePermissions.map((permission) => (
+                    <label key={permission} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={formData.permissions.includes(permission)}
+                        onChange={() => handlePermissionToggle(permission)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <span className="text-sm text-gray-700">
+                        {permission}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Selected: {formData.permissions.length} permissions
+                </p>
+              </div>
             </div>
+
 
             <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
               <Button type="button" onClick={onClose} color="zinc">

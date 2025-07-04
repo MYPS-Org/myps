@@ -23,19 +23,6 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({ isOpen, onClose, 
 
   const [availablePermissions, setAvailablePermissions] = useState<Permissions[]>([]);
   const [isLoadingPermissions, setIsLoadingPermissions] = useState(false);
-
-  // const availablePermissions = [
-  //   'User Management',
-  //   'View Reports',
-  //   'Edit Content',
-  //   'Delete Records',
-  //   'Role Management',
-  //   'System Settings',
-  //   'Audit Logs',
-  //   'Data Export',
-  //   'API Access',
-  //   'Notifications'
-  // ];
   useEffect(() => {
     // Fetch available permissions when the dialog opens
     const fetchAvailablePermissions = async () => {
