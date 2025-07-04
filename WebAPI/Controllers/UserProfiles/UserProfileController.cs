@@ -122,7 +122,7 @@ namespace WebAPI.Controllers.UserProfile
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                var getUser = await _db.tUsers.FirstOrDefaultAsync(x => x.UserId == dto.UserId);
+                var getUser = await _db.tUsers.FirstOrDefaultAsync(x => x.UserId == dto.UserId && x.Id == dto.Id);
                 if (getUser == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"User '{dto.UserId}' does not exists in the System!", Title = "User not found" });
@@ -215,14 +215,41 @@ namespace WebAPI.Controllers.UserProfile
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                var getUser = await _db.tUsers.FirstOrDefaultAsync(x => x.UserId == dto.UserId);
-                if (getUser == null)
+                var getUser = await _db.tUsers.FirstOrDefaultAsync(x => x.UserId == dto.UserId && x.Id == dto.Id);
+                if (getUser != null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"User '{dto.UserId}' does not exists in the System!", Title = "User not found" });
+                    return new BadRequestObjectResult(new { Message = $"User '{dto.UserId}' already exists in the System!", Title = "User Already Exists" });
                 }
-                //_db.tUsers.Remove(getUser);
-                //await _db.SaveChangesAsync();
-                //await transaction.CommitAsync();
+                DBHelper.Models.Table.Users addUser = new DBHelper.Models.Table.Users()
+                {
+                    UserId = dto.UserId,
+                    Name = dto.Name,
+                    Email = dto.Email,
+                    IsActive = dto.IsActive,
+                    PlantillaOffice = dto.PlantillaOffice,
+                    EmployeeId = dto.EmployeeId,
+                    RegCode = dto.RegCode!,
+                };
+                if (!string.IsNullOrEmpty(dto.UserGroups) && dto.UserGroups.Contains(","))
+                {
+                    string[] groups = dto.UserGroups.Split(',');
+                    var getGroups = await _db.tGroups.Where(x => groups.Contains(x.GroupName)).Select(x => x.Id).ToListAsync();
+                    if (getGroups.Count > 0)
+                    {
+                        _db.tUserGroups.AddRange(getGroups.Select(GrouId =>
+                            new DBHelper.Models.Table.UserGroups()
+                            {
+                                UserId = dto.UserId,
+                                GroupId = GrouId,
+                                CreatedBy = _Session.UserId,
+                                CreatedDate = DateTime.UtcNow
+                            }
+                        ));
+                    }
+                }
+                _db.tUsers.Add(addUser);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
                 return Ok(new
                 {
                     Message = "User Info updated successfully",
@@ -270,10 +297,6 @@ namespace WebAPI.Controllers.UserProfile
                 if (dto.limit < 1) dto.limit = 10;
 
                 var baseQuery = _db.vPermissions.AsNoTracking();
-
-                // Apply filters to base query
-                if (!string.IsNullOrEmpty(dto.Filters?.PermissionGroupName))
-                    baseQuery = baseQuery.Where(e => e.PermissionGroupName!.Contains(dto.Filters.PermissionGroupName));
 
                 if (!string.IsNullOrEmpty(dto.Filters?.ModuleFunction))
                     baseQuery = baseQuery.Where(e => e.ModuleFunction!.Contains(dto.Filters.ModuleFunction));
@@ -411,7 +434,7 @@ namespace WebAPI.Controllers.UserProfile
         }
         [HttpPost]
         [AllowAnonymous]
-        public async Task<IActionResult> AddUserGroup([FromBody] DBHelper.Models.Table.Groups dto)
+        public async Task<IActionResult> AddUserGroup([FromBody] Groups dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -481,7 +504,7 @@ namespace WebAPI.Controllers.UserProfile
 
         [HttpPost]
         [AllowAnonymous]
-        public async Task<IActionResult> DeleteUserGroup([FromBody] DeleteUserGroupDto dto)
+        public async Task<IActionResult> DeleteUserGroup([FromBody] DBHelper.Models.Views.UserGroups dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
