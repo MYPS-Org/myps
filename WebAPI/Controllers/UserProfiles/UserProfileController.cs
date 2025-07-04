@@ -339,6 +339,36 @@ namespace WebAPI.Controllers.UserProfile
         }
         [HttpPost]
         [AllowAnonymous]
+        public async Task<IActionResult> AddPermission([FromBody] DBHelper.Models.Table.Permissions dto)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var getPermission = await _db.tPermissions.FirstOrDefaultAsync(x => x.ModuleFunction == dto.ModuleFunction);
+                if (getPermission != null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Permission '{dto.ModuleFunction}' already exists!", Title = "Permission Exists" });
+                }
+                DBHelper.Models.Table.Permissions Add = new DBHelper.Models.Table.Permissions()
+                {
+                    ModuleFunction = dto.ModuleFunction,
+                    Description = dto.Description,
+                    CreatedBy = _Session.UserId,
+                    CreatedDate = DateTime.UtcNow
+                };
+                _db.tPermissions.Add(Add);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return Ok(new { Message = $"{dto.ModuleFunction} added successfully!", Title = "Add Complete" });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
+        [HttpPost]
+        [AllowAnonymous]
         public async Task<IActionResult> UpdatePermission([FromBody] DBHelper.Models.Views.Permissions dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -350,6 +380,35 @@ namespace WebAPI.Controllers.UserProfile
                     return new BadRequestObjectResult(new { Message = $"Permission '{dto.PermissionGroupName}' does not exists in the System!", Title = "Permission not found" });
                 }
                 getPermission.Description = dto.Description;
+                getPermission.PermissionGroupId = dto.PermissionGroupId;
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return Ok(new { Message = $"{dto.PermissionGroupName} updated successfully!", Title = "Update Complete" });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
+        [HttpPost]
+        [AllowAnonymous]
+        public async Task<IActionResult> DeletePermission([FromBody] DBHelper.Models.Views.Permissions dto)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var getPermission = await _db.tPermissions.FirstOrDefaultAsync(x => x.Id == dto.Id);
+                if (getPermission == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Permission '{dto.PermissionGroupName}' does not exists in the System!", Title = "Permission not found" });
+                }
+                var usersInGroup = await _db.tUserGroups.Where(x => x.GroupId == dto.Id).CountAsync();
+                if (usersInGroup > 0)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Cannot delete permission '{dto.PermissionGroupName}' because it has {usersInGroup} user(s) assigned to it. Please remove all users from this group first.", Title = "Group has members" });
+                }
+                _db.tPermissions.Remove(getPermission);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
                 return Ok(new { Message = $"{dto.PermissionGroupName} updated successfully!", Title = "Update Complete" });
