@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 
 import type { Programs } from '../Model'; // Adjust the import path as necessary
 import { Button } from '../../../components/tailwindui/button';
-import { Badge } from '../../../components/tailwindui/badge';
+// import { Badge } from '../../../components/tailwindui/badge';
 
 // Mock projects data for the table
 const mockProjects = [
