@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import type { UserGroups, Permissions, PermissionGroup } from '../Model.d';
-import { fetchPermissions as fetchPermissionsAPI, fetchPermissionGroups } from '../service';
+import type { UserGroups, Permissions, PermissionGroup, AddUserGroups } from '../Model.d';
+import { fetchPermissions as fetchPermissionsAPI, fetchPermissionGroups, editUserGroup } from '../service';
 
 interface UpdateGroupDialogProps {
   isOpen: boolean;
@@ -80,15 +80,11 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({ isOpen, onClose, 
     }
   }, [availablePermissions]);
 
-  // Update form data when group prop changes and convert permission names to IDs
+  // Update form data when group prop changes and use PermissionIds directly
   useEffect(() => {
-    if (availablePermissions.length > 0) {
-      // Convert permission names from the group to permission IDs
-      const permissionNames = group.PermissionsName ? group.PermissionsName.split(',').map(p => p.trim()) : [];
-      const permissionIds = permissionNames.map(name => {
-        const permission = availablePermissions.find(p => p.ModuleFunction === name);
-        return permission ? permission.Id : null;
-      }).filter(id => id !== null) as number[];
+    if (group && availablePermissions.length > 0) {
+      // Use PermissionIds directly from the group data
+      const permissionIds = group.PermissionIds || [];
       
       setFormData({
         id: group.Id,
@@ -100,27 +96,40 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({ isOpen, onClose, 
     }
   }, [group, availablePermissions]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Convert permission IDs back to names for submission
-    const permissionNames = formData.permissions.map(id => {
-      const permission = availablePermissions.find(p => p.Id === id);
-      return permission ? permission.ModuleFunction : '';
-    }).filter(name => name !== '');
-    
-    const submissionData = {
-      Id: formData.id,
-      GroupName: formData.groupName,
-      Description: formData.description,
-      PermissionsName: permissionNames.join(','),
-      NumberOfUsers: formData.numberOfUsers,
-      permissionIds: formData.permissions, // Include permission IDs
-      permissionNames: permissionNames // Include permission names
-    };
-    
-    onSubmit(submissionData);
-    onClose();
+    try {
+      // Prepare API payload according to AddUserGroups interface
+      const apiPayload: AddUserGroups = {
+        Id: formData.id, // Include ID for update
+        GroupName: formData.groupName,
+        Description: formData.description,
+        PermissionIds: formData.permissions
+      };
+      
+      // Call the API to update the group
+      await editUserGroup(apiPayload);
+      
+      // Prepare data for parent component with additional info
+      const submissionData = {
+        id: formData.id,
+        groupName: formData.groupName,
+        description: formData.description,
+        permissionIds: formData.permissions,
+        numberOfUsers: formData.numberOfUsers,
+        // Add permission names for display purposes if needed
+        permissionNames: formData.permissions.map(id => {
+          const permission = availablePermissions.find(p => p.Id === id);
+          return permission ? permission.ModuleFunction : '';
+        }).filter(name => name !== '')
+      };
+      
+      onSubmit(submissionData);
+      onClose();
+    } catch (error) {
+      console.error('Error updating group:', error);
+    }
   };
 
   const handleChange = (field: string, value: any) => {

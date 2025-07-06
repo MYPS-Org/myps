@@ -87,6 +87,7 @@ const AddGroupDialog: React.FC<AddGroupDialogProps> = ({ isOpen, onClose, onSubm
       const submissionData = {
         GroupName: formData.groupName,
         Description: formData.description,
+        PermissionIds: formData.permissions, // Include permission IDs in API call
       };
       await addUserGroup(submissionData);
       
