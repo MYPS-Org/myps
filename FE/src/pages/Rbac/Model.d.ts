@@ -77,6 +77,7 @@ export interface UserGroupPagination extends PaginationParams {
 export interface UserGroupFilter {
     GroupName?: string;
 }
+
 //#endregion
 
 export interface Pis {

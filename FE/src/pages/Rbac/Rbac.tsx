@@ -299,6 +299,7 @@ const Rbac: React.FC = () => {
 				
 				setIsLoadingUserGroups(true);
 				console.log('Fetching user groups with current filter:', UserGroupFilter);
+				const permission = await fetchPermissions(UserGroupFilter);
 				const res = await fetchUserGroups(UserGroupFilter);
 				console.log('UserGroups response:', res);
 				if(res.Data.lists) {
@@ -560,10 +561,12 @@ const Rbac: React.FC = () => {
 									<>
 										<PaginationPrevious 
 											onClick={async () => {
-												Paginate(UsersData.page-1);
+												Paginate(1);
 											}}
 											disabled={UsersData.page <= 1}
-										/>
+										>
+											First
+										</PaginationPrevious>
 										<PaginationList>
 											{Array.from({ length: Math.min(7, UsersData.totalPages) }, (_, index) => {
 												const pageNum = Math.max(1, UsersData.page - 3) + index;
@@ -594,10 +597,12 @@ const Rbac: React.FC = () => {
 										</PaginationList>
 										<PaginationNext 
 											onClick={async () => {
-												Paginate(UsersData.page+1);
+												Paginate(UsersData.totalPages);
 											}}
 											disabled={UsersData.page >= UsersData.totalPages}
-										/>
+										>
+											Last
+										</PaginationNext>
 									</>
 								)
 							}
@@ -716,10 +721,12 @@ const Rbac: React.FC = () => {
 									<>
 										<PaginationPrevious 
 											onClick={async () => {
-												Paginate(PermissionsData.page-1);
+												Paginate(1);
 											}}
 											disabled={PermissionsData.page <= 1}
-										/>
+										>
+											First
+										</PaginationPrevious>
 										<PaginationList>
 											{Array.from({ length: Math.min(7, PermissionsData.totalPages) }, (_, index) => {
 												const pageNum = Math.max(1, PermissionsData.page - 3) + index;
@@ -750,10 +757,12 @@ const Rbac: React.FC = () => {
 										</PaginationList>
 										<PaginationNext 
 											onClick={async () => {
-												Paginate(PermissionsData.page+1);
+												Paginate(PermissionsData.totalPages);
 											}}
 											disabled={PermissionsData.page >= PermissionsData.totalPages}
-										/>
+										>
+											Last
+										</PaginationNext>
 									</>
 								)
 							}
@@ -894,10 +903,12 @@ const Rbac: React.FC = () => {
 									<>
 										<PaginationPrevious 
 											onClick={async () => {
-												Paginate(UserGroupsData.page - 1);
+												Paginate(1);
 											}}
 											disabled={UserGroupsData.page <= 1}
-										/>
+										>
+											First
+										</PaginationPrevious>
 										<PaginationList>
 											{Array.from({ length: Math.min(7, UserGroupsData.totalPages) }, (_, index) => {
 												const pageNum = Math.max(1, UserGroupsData.page - 3) + index;
@@ -928,10 +939,12 @@ const Rbac: React.FC = () => {
 										</PaginationList>
 										<PaginationNext 
 											onClick={async () => {
-												Paginate(UserGroupsData.page+1);
+												Paginate(UserGroupsData.totalPages);
 											}}
 											disabled={UserGroupsData.page >= UserGroupsData.totalPages}
-										/>
+										>
+											Last
+										</PaginationNext>
 									</>
 								)
 							}

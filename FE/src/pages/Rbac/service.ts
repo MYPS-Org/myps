@@ -122,6 +122,15 @@ export const fetchUserGroups = async (data: UserGroupPagination) => {
     }
 }
 
+export const addUserGroup = async (data: UserGroups) => {
+	try {
+		const request = await httpClient.post<UserGroups>('/UserProfile/AddUserGroup', data);
+		return request;
+	} catch (error) {
+		throw error;
+	}
+}
+
 export const deleteUserGroup = async (groupId: number) => {
     try {
         const request = await httpClient.post('/UserProfile/DeleteUserGroup', { Id: groupId });
