@@ -1081,11 +1081,27 @@ const Rbac: React.FC = () => {
 						setSelectedPermissionId(null);
 					}}
 					permission={PermissionsData.lists?.find((permission: any) => permission.Id === selectedPermissionId)!}
-					onSubmit={(updatedPermission: any) => {
-						setPermissionsData(prev => ({
-							...prev,
-							lists: prev.lists?.map((permission: any) => permission.Id === updatedPermission.Id ? updatedPermission : permission) || []
-						}));
+					onSubmit={async (updatedPermission: any) => {
+						// Refresh permissions data from server after update
+						try {
+							setIsLoadingPermissions(true);
+							console.log('Refreshing permissions after update');
+							const res = await fetchPermissions(PermissionFilter);
+							console.log('Permissions response after update:', res);
+							if(res.Data.lists) {
+								console.log('Setting updated permissions data:', res);
+								setPermissionsData(res.Data);
+							}
+						} catch (error) {
+							console.error('Error refreshing permissions:', error);
+							// Fallback to local update if server refresh fails
+							setPermissionsData(prev => ({
+								...prev,
+								lists: prev.lists?.map((permission: any) => permission.Id === updatedPermission.Id ? updatedPermission : permission) || []
+							}));
+						} finally {
+							setIsLoadingPermissions(false);
+						}
 					}}
 				/>
 			)}

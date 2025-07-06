@@ -1,37 +1,29 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import type { Permissions } from '../Model.d';
+import { deletePermission } from '../service';
 
 interface DeletePermissionDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (permissionData: any) => void;
+  onSubmit: (permissionId: number) => void;
   permission: Permissions;
 }
 
 const DeletePermissionDialog: React.FC<DeletePermissionDialogProps> = ({ isOpen, onClose, onSubmit, permission }) => {
-  const [formData, setFormData] = useState({
-    moduleFunction: permission.ModuleFunction || '',
-    createdBy: permission.CreatedBy || '',
-    createdDate: permission.CreatedDate || '',
-  });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
-    setFormData({
-      moduleFunction: '',
-      createdBy: '',
-      createdDate: ''
-    });
-    onClose();
+    try {
+      await deletePermission(permission);
+      onSubmit(permission.Id);
+      onClose();
+    } catch (error) {
+      console.error('Error deleting permission:', error);
+    }
   };
-
-  // const handleChange = (field: string, value: string) => {
-  //   setFormData(prev => ({ ...prev, [field]: value }));
-  // };
 
   return (
     <Dialog open={isOpen} onClose={onClose} className="relative z-50">
@@ -41,7 +33,7 @@ const DeletePermissionDialog: React.FC<DeletePermissionDialogProps> = ({ isOpen,
         <DialogPanel className="w-full max-w-md bg-white rounded-lg shadow-xl">
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <DialogTitle className="text-lg font-semibold text-gray-900">
-              Update Permission
+              Delete Permission
             </DialogTitle>
             <button
               onClick={onClose}
@@ -54,7 +46,7 @@ const DeletePermissionDialog: React.FC<DeletePermissionDialogProps> = ({ isOpen,
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Are you sure you want to delete the permission for {formData.moduleFunction}?
+                Are you sure you want to delete the permission for {permission.ModuleFunction}?
               </label>
             </div>
 
