@@ -122,9 +122,9 @@ export const fetchUserGroups = async (data: UserGroupPagination) => {
     }
 }
 
-export const addUserGroup = async (data: UserGroups) => {
+export const addUserGroup = async (data: { GroupName: string; Description: string }) => {
 	try {
-		const request = await httpClient.post<UserGroups>('/UserProfile/AddUserGroup', data);
+		const request = await httpClient.post('/UserProfile/AddUserGroup', data);
 		return request;
 	} catch (error) {
 		throw error;

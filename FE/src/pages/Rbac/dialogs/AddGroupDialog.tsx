@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import type { Permissions, PermissionGroup, UserGroups } from '../Model.d';
+import type { Permissions, PermissionGroup } from '../Model.d';
 import { fetchPermissions, fetchPermissionGroups, addUserGroup } from '../service';
 
 interface AddGroupDialogProps {
@@ -82,21 +82,35 @@ const AddGroupDialog: React.FC<AddGroupDialogProps> = ({ isOpen, onClose, onSubm
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const submissionData = {
-      ...formData,
-      permissionIds: formData.permissions, // Include permission IDs
-      permissionNames: getSelectedPermissionNames() // Include permission names
-    };
-    onSubmit(submissionData);
-    setFormData({
-      groupName: '',
-      description: '',
-      permissions: [],
-      module: '',
-      memberCount: 0
-    });
-    onClose();
+
+    try {
+      const submissionData = {
+        GroupName: formData.groupName,
+        Description: formData.description,
+      };
+      await addUserGroup(submissionData);
+      
+      // Include additional data for the parent component
+      const responseData = {
+        ...submissionData,
+        permissionIds: formData.permissions, // Include permission IDs
+        permissionNames: getSelectedPermissionNames() // Include permission names
+      };
+      
+      onSubmit(responseData);
+      setFormData({
+        groupName: '',
+        description: '',
+        permissions: [],
+        module: '',
+        memberCount: 0
+      });
+      onClose();
+    } catch (error) {
+      console.error('Error submitting form:', error);
+    }
   };
+  
 
   const handleChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
