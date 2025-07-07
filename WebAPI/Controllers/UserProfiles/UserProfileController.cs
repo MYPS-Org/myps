@@ -6,6 +6,8 @@ using DBHelper.Models.Views;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Migrations.Operations;
+using Newtonsoft.Json;
 using System.Reflection;
 
 namespace WebAPI.Controllers.UserProfile
@@ -368,6 +370,11 @@ namespace WebAPI.Controllers.UserProfile
                 {
                     return new BadRequestObjectResult(new { Message = "Module Description is required!", Title = "Parameter Error" });
                 }
+                var checkPermissionGroup = await _db.tPermissionGroups.FirstOrDefaultAsync(x => x.Id == dto.PermissionGroupId);
+                if(checkPermissionGroup == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Selected Permission Group with ID '{dto.PermissionGroupId}' does not exist!", Title = "Permission Group not found" });
+                }
                 var getPermission = await _db.tPermissions.FirstOrDefaultAsync(x => x.ModuleFunction == dto.ModuleFunction);
                 if (getPermission != null)
                 {
@@ -376,6 +383,7 @@ namespace WebAPI.Controllers.UserProfile
                 DBHelper.Models.Table.Permissions Add = new DBHelper.Models.Table.Permissions()
                 {
                     ModuleFunction = dto.ModuleFunction,
+                    PermissionGroupId = dto.PermissionGroupId,
                     Description = dto.Description,
                     CreatedBy = _Session.UserId,
                     CreatedDate = DateTime.UtcNow
@@ -480,7 +488,7 @@ namespace WebAPI.Controllers.UserProfile
 
                 // Apply filters to base query
                 if (!string.IsNullOrEmpty(dto.Filters?.GroupName))
-                    baseQuery = baseQuery.Where(e => e.GroupName!.Contains(dto.Filters.GroupName));
+                    baseQuery = _db.vUserGroups.AsNoTracking().Where(e => e.GroupName!.Contains(dto.Filters.GroupName));
 
                 // Get total count of filtered results (before pagination)
                 var totalRecords = await baseQuery.CountAsync();
@@ -517,7 +525,7 @@ namespace WebAPI.Controllers.UserProfile
         }
         [HttpPost]
         [AllowAnonymous]
-        public async Task<IActionResult> AddUserGroup([FromBody] Groups dto)
+        public async Task<IActionResult> AddUserGroup([FromBody] AddUserGroupsDTO dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -527,6 +535,7 @@ namespace WebAPI.Controllers.UserProfile
                 {
                     return new BadRequestObjectResult(new { Message = $"Group Name '{dto.GroupName}' already exists!", Title = "Group Name Exists" });
                 }
+                var permissions = await _db.tPermissions.Select(x => x.Id).ToListAsync();
                 var addUserGroup = new Groups()
                 {
                     GroupName = dto.GroupName,
@@ -534,7 +543,25 @@ namespace WebAPI.Controllers.UserProfile
                     CreatedBy = _Session.UserId,
                     CreatedDate = DateTime.UtcNow
                 };
-                await _db.AddAsync(addUserGroup);
+                await _db.tGroups.AddAsync(addUserGroup);
+                if (dto.PermissionIds.Length > 0)
+                {
+                    var checkIds = dto.PermissionIds!.Where(x => !permissions.Contains(x)).ToList();
+                    if (checkIds.Count > 0)
+                    {
+                        return new BadRequestObjectResult(new { Message = $"Some of the selected Permission IDs do not exist in the System!", Title = "Invalid Permission IDs" });
+                    }
+
+                    await _db.tGroupRoles.AddRangeAsync(dto.PermissionIds!.Select(permissionId =>
+                        new GroupRoles()
+                        {
+                            GroupId = addUserGroup.Id,
+                            PermissionId = permissionId,
+                            CreatedBy = _Session.UserId,
+                            CreatedDate = DateTime.UtcNow
+                        }
+                    ));
+                }
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
                 return Ok(
@@ -554,7 +581,7 @@ namespace WebAPI.Controllers.UserProfile
         }
         [HttpPost]
         [AllowAnonymous]
-        public async Task<IActionResult> EditUserGroup([FromBody] DBHelper.Models.Views.UserGroups dto)
+        public async Task<IActionResult> UpdateUserGroup([FromBody] AddUserGroupsDTO dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -563,6 +590,37 @@ namespace WebAPI.Controllers.UserProfile
                 if (checkSameName == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Group Name '{dto.GroupName}' does no exists!", Title = "Group not found" });
+                }
+                if (dto.PermissionIds.Length > 0)
+                {
+                    var permissions = await _db.tPermissions.Select(x => x.Id).ToListAsync();
+                    var checkIds = dto.PermissionIds!.Where(x => !permissions.Contains(x)).ToList();
+                    if (checkIds.Count > 0)
+                    {
+                        return new BadRequestObjectResult(new { Message = $"Some of the selected Permission IDs do not exist in the System!", Title = "Invalid Permission IDs" });
+                    }
+                    var existingRoles = await _db.tGroupRoles.Where(x => x.GroupId == checkSameName.Id).ToListAsync();
+                    if (existingRoles.Count > 0)
+                    {
+                        var toRemoveRoles = existingRoles.Where(x => !dto.PermissionIds!.Contains(x.PermissionId)).ToList();
+                        var toAddRoles = dto.PermissionIds.Where(selected => !existingRoles.Any(ug => ug.PermissionId == selected)).ToList();
+                        if (toRemoveRoles.Count > 0)
+                        {
+                            _db.tGroupRoles.RemoveRange(toRemoveRoles);
+                        }
+                        if (toAddRoles.Count > 0)
+                        {
+                            _db.tGroupRoles.AddRange(toAddRoles.Select(permissionId =>
+                                new GroupRoles()
+                                {
+                                    GroupId = checkSameName.Id,
+                                    PermissionId = permissionId,
+                                    CreatedBy = _Session.UserId,
+                                    CreatedDate = DateTime.UtcNow
+                                }
+                            ));
+                        }
+                    }
                 }
                 checkSameName.GroupName = dto.GroupName;
                 checkSameName.Description = dto.Description;

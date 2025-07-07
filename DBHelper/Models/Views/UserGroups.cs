@@ -14,5 +14,6 @@ namespace DBHelper.Models.Views
         public string? Description { get; set; }
         public string? CreatedBy { get; set; }
         public DateTime? CreatedDate { get; set; }
+        public string? PermissionIds { get; set; }
     }
 }

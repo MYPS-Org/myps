@@ -37,13 +37,7 @@ namespace WebAPI.Controllers
                     var user = _db.tUsers.FirstOrDefault(x => x.Id.ToString() == userId && x.IsActive == true);
                     if(user == null)
                     {
-                        var responseObj = new
-                        {
-                            message = "Unauthorized",
-                            data = new { Authenticated = false },
-                            user = new { }
-                        };
-                        context.Result = Unauthorized(responseObj);
+                        context.Result = UnauthorizedUser();
                         return;
                     }
                     _Session = user;

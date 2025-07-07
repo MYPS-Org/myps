@@ -27,7 +27,7 @@ namespace WebAPI.Controllers.Auth
                 {
                     return new BadRequestObjectResult(new { Message = "Expected Parametes missing.", Title = "Parameter Error" });
                 }
-                var verifyAccount = _db.tUsers.FirstAsync(x => x.UserId == dto.UserName && x.IsActive == true);
+                var verifyAccount = await _db.tUsers.FirstOrDefaultAsync(x => x.UserId == dto.UserName && x.IsActive == true);
 
                 if (verifyAccount == null) return UnauthorizedUser();
 
@@ -63,8 +63,9 @@ namespace WebAPI.Controllers.Auth
                     return UnauthorizedUser();
                 }
             }
-            catch (LdapException)
+            catch (LdapException error)
             {
+                Console.WriteLine($"LDAP Error: {error.Message}");
                 return UnauthorizedUser();
             }
             catch (Exception ex)
