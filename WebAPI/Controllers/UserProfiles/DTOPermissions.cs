@@ -20,8 +20,8 @@ namespace DBHelper.Models.Dtos
     }
     public class  AddPermissionsDTO
     {
-        public int? PermissionGroupId { get; set; }
-        public string? ModuleFunction { get; set; }
-        public string? Description { get; set; }
+        public int PermissionGroupId { get; set; }
+        public string ModuleFunction { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
     }
 }

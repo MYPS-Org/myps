@@ -11,9 +11,14 @@ namespace WebAPI.Controllers.UserProfile
     {
         public string? GroupName { get; set; }
     }
-    
     public class DeleteUserGroupDto
     {
         public int Id { get; set; }
+    }
+    public class AddUserGroupsDTO
+    {
+        public string? GroupName { get; set; }
+        public string? Description { get; set; }
+        public int[] PermissionIds { get; set; } = Array.Empty<int>();
     }
 }
