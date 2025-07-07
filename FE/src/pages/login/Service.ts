@@ -38,7 +38,7 @@ class AuthService {
     return response;
   }
 
-  async logout(): Promise<ApiResponse<null>> {
+  async logout(){
     console.log('👋 Processing logout');
     const response = await httpClient.post<null>(
       '/auth/logout',
