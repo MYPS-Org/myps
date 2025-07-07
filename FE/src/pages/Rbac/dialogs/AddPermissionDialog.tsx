@@ -14,7 +14,7 @@ interface AddPermissionDialogProps {
 const AddPermissionDialog: React.FC<AddPermissionDialogProps> = ({ isOpen, onClose, onSubmit }) => {
   const [formData, setFormData] = useState({
     Id: 0,
-    PermissionGroupId: 0,
+    PermissionGroupId: 1,
     ModuleFunction: '',
     Description: '',
     CreatedBy: '',
@@ -61,6 +61,7 @@ const AddPermissionDialog: React.FC<AddPermissionDialogProps> = ({ isOpen, onClo
       });
       onClose();
       resetFormData();
+      
     } catch (error) {
       console.error('Error submitting form:', error);
     }
@@ -80,6 +81,7 @@ const AddPermissionDialog: React.FC<AddPermissionDialogProps> = ({ isOpen, onClo
   const handleChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, 
       [field]: field === 'PermissionGroupId' ? parseInt(value) : value }));
+      console.log('Form Data Updated:', { ...formData, [field]: value });
   };
 
   return (

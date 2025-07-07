@@ -91,11 +91,15 @@ const AddGroupDialog: React.FC<AddGroupDialogProps> = ({ isOpen, onClose, onSubm
       };
       await addUserGroup(submissionData);
       
-      // Include additional data for the parent component
+      // Convert permission IDs to comma-separated strings for display
+      const permissionIdsString = formData.permissions.join(',');
+      const permissionNamesString = getSelectedPermissionNames().join(',');
+      
+      // Include data for the parent component to match API response format
       const responseData = {
         ...submissionData,
-        permissionIds: formData.permissions, // Include permission IDs
-        permissionNames: getSelectedPermissionNames() // Include permission names
+        permissionIds: permissionIdsString, // Comma-separated string of IDs
+        permissionNames: permissionNamesString // Comma-separated string of names
       };
       
       onSubmit(responseData);

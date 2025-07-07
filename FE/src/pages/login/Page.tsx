@@ -99,7 +99,7 @@ const LoginForm: React.FC = () => {
 				</form>
 				</div>
 				{/* Right: Illustration */}
-				<div className="bg-[#f0750f]/80 hidden md:flex w-1/2 items-center justify-center relative">
+				<div className="white hidden md:flex w-1/2 items-center justify-center relative">
 				<img src={Logo} className="w-4/5 h-auto text-white" />
 			</div>
 		</div>
