@@ -6,11 +6,6 @@ export interface LoginRequest {
   password: string;
 }
 
-export interface LoginResponse<T = any> {
-  user: T;
-  message?: string;
-}
-
 export interface AuthError {
   Message: string;
   Status: number;
@@ -27,9 +22,9 @@ export interface User {
 }
 
 class AuthService {
-  async login(credentials: LoginRequest): Promise<ApiResponse<LoginResponse>> {
+  async login(credentials: LoginRequest): Promise<ApiResponse> {
     console.log('🚀 Attempting login');
-    const response = await httpClient.post<LoginResponse>(
+    const response = await httpClient.post(
       '/auth/login', 
       credentials,
       { preloaderMessage: "Signing you in..." }
@@ -49,16 +44,16 @@ class AuthService {
     return response;
   }
 
-  async validateSession(): Promise<ApiResponse<{ Authenticated: boolean; user?: LoginResponse['user'] }>> {
+  async validateSession(): Promise<ApiResponse<{ Authenticated: boolean; User?: any }>> {
     console.log('🔍 Validating session via cookie');
     
     try {
-      const response = await httpClient.post<{ message: string; Authenticated: boolean; user?: LoginResponse['user'] }>(
+      const response = await httpClient.post<{ message: string; Authenticated: boolean; User?: any }>(
         '/auth/validate',
         null,
         { preloaderMessage: "Validating session..." }
       );
-      console.log('✅ Session validation completed:', response.data.Authenticated ? 'Valid' : 'Invalid');
+      console.log('✅ Session validation completed:', response.Data.Authenticated ? 'Valid' : 'Invalid');
       return response;
     } catch (error) {
       console.error('❌ Session validation failed:', error);

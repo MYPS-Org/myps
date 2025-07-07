@@ -34,9 +34,21 @@ FolderIcon,
 CalendarDateRangeIcon,
 LockClosedIcon,
 } from '@heroicons/react/20/solid'
+import { authService } from '../pages/login/Service' // Adjust the import path as necessary
+import Logo from '../assets/img/logo.png' // Adjust the import path as necessary
 
 // If using React Router, you can import useLocation
 // import { useLocation } from 'react-router-dom'
+
+const handleLogout = async () => {
+	try {
+		await authService.logout();
+		window.location.href = '/login';
+	} catch (error) {
+		console.error('Logout failed:', error);
+		alert('Logout failed. Please try again.');
+	}
+}
 
 export default function SideBar() {
 // If using React Router, uncomment this to get current path
@@ -51,7 +63,7 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 		<SidebarHeader>
 			<Dropdown>
 			<DropdownButton as={SidebarItem} className="mb-2.5">
-				<Avatar src="./logo.svg" />
+				<Avatar src={Logo} />
 				<SidebarLabel className="text-gray-500">MYPS</SidebarLabel>
 				<ChevronDownIcon />
 			</DropdownButton>
@@ -61,7 +73,7 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 					<Avatar slot="icon" src="/tailwind-logo.svg" />
 					<DropdownLabel>Profile</DropdownLabel>
 				</DropdownItem>
-				<DropdownItem href="/logout">
+				<DropdownItem onClick={handleLogout}>
 					<ArrowRightStartOnRectangleIcon />
 					<DropdownLabel>Log out</DropdownLabel>
 				</DropdownItem>
