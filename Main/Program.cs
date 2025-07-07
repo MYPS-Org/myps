@@ -27,7 +27,7 @@ builder.Services.AddAuthentication(options =>
     .AddCookie(options =>
     {
         options.Cookie.HttpOnly = builder.Environment.IsDevelopment() ? false : true; // Protect against XSS // FALSE 
-        options.Cookie.SameSite = builder.Environment.IsDevelopment() ? SameSiteMode.Strict : SameSiteMode.None; // Prevent CSRF attacks
+        options.Cookie.SameSite = builder.Environment.IsDevelopment() ? SameSiteMode.None : SameSiteMode.Strict; // Prevent CSRF attacks
         options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // Ensure secure transport
         options.Cookie.Name = CookieAuthenticationDefaults.AuthenticationScheme; // Custom cookie name
                                                                                  //options.LoginPath = "/login"; // Redirect unauthorized users

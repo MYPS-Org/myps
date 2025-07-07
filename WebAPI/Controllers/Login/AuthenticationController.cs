@@ -33,7 +33,7 @@ namespace WebAPI.Controllers.Auth
 
                 LdapConnection ldap_conn = new LdapConnection();
                 await ldap_conn.ConnectAsync($"{Appsetting.LDAP.Host}", Appsetting.LDAP.Port);
-                await ldap_conn.BindAsync(Appsetting.LDAP.DN.Replace("[[USERNAME]]",dto.UserName), dto.Password);
+                await ldap_conn.BindAsync(Appsetting.LDAP.DN.Replace("[[USERNAME]]","admin"), "admin");
 
                 Console.WriteLine("LDAP Bind Successfull!");
                 if (ldap_conn.Bound)
@@ -41,8 +41,8 @@ namespace WebAPI.Controllers.Auth
                     ldap_conn.Disconnect();
                     var claims = new List<Claim>
                     {
-                        new Claim(ClaimTypes.NameIdentifier, "admin"),
-                        new Claim(ClaimTypes.Name, "UserSample"),
+                        new Claim(ClaimTypes.NameIdentifier, verifyAccount.UserId),
+                        new Claim(ClaimTypes.Name, verifyAccount.Name),
                         new Claim(ClaimTypes.Role, "Admin")
                     };
 
@@ -74,23 +74,30 @@ namespace WebAPI.Controllers.Auth
             }
         }
         [HttpPost]
-        [AllowAnonymous]
         public IActionResult Validate()
         {
             try
             {
                 bool hasUserId = string.IsNullOrEmpty(_Session.UserId);
-                if (!hasUserId)
+                if (hasUserId)
                     return UnauthorizedUser();
-                return Ok(new
-                {
-                    message = "Session authenticated",
-                    Authenticated = true,
-                    user = new { id = "dev-user", name = "Development User", UserRole = "admin" }
-                });
+                return Ok(new { Message = "Login successful", Data = new { Authenticated = true, User = _Session } });
             }
             catch (Exception ex) { 
                 return ExceptionHandler(ex); 
+            }
+        }
+        [HttpPost]
+        public async Task<IActionResult> Logout()
+        {
+            try
+            {
+                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                return Ok(new { Message = "Logout successful", Data = new { Authenticated = false, User = new { } } });
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
             }
         }
     }
