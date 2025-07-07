@@ -124,7 +124,7 @@ namespace WebAPI.Controllers.UserProfile
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                var getUser = await _db.tUsers.FirstOrDefaultAsync(x => x.UserId == dto.UserId && x.Id == dto.Id);
+                var getUser = await _db.tUsers.FirstOrDefaultAsync(x => x.Id == dto.Id);
                 if (getUser == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"User '{dto.UserId}' does not exists in the System!", Title = "User not found" });
