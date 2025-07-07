@@ -36,6 +36,7 @@ import {
 	PaginationPrevious,
 	PaginationPage,
  } from '../../components/tailwindui/pagination';
+// import { all } from 'axios';
 // import type { ErrorResponse } from '../../services/httpClient';
 
 
@@ -129,12 +130,32 @@ const Rbac: React.FC = () => {
 	const [allPermissions, setAllPermissions] = useState<Permissions[]>([]);
 
 	// Function to get permission names by IDs
-	const getPermissionNamesByIds = (permissionIds: number[]): string[] => {
-		return permissionIds.map(id => {
-			const permission = allPermissions.find(p => p.Id === id);
-			return permission ? permission.ModuleFunction : `Permission ${id}`;
-		});
-	};
+	// const getPermissionNamesByIds = (permissionIds: number[]): string[] => {
+	// 	return permissionIds.map(id => {
+	// 		const permission = allPermissions.find(p => p.Id === id);
+	// 		return permission ? permission.ModuleFunction : `Permission ${id}`;
+			
+	// 	});
+	// };
+
+	// Function to get permission names by IDs - Updated to handle string format
+	// const getPermissionNamesByIds = (permissionIds: number[] | string): string[] => {
+	// 	// Handle string format (comma-separated permission names)
+	// 	if (typeof permissionIds === 'string') {
+	// 		return permissionIds.split(',').map(name => name.trim()).filter(name => name.length > 0);
+	// 	}
+		
+	// 	// Handle array format (numeric IDs) - fallback for backward compatibility
+	// 	if (Array.isArray(permissionIds)) {
+	// 		return permissionIds.map(id => {
+	// 			const permission = allPermissions.find(p => p.Id === id);
+	// 			return permission ? permission.ModuleFunction : `Permission ${id}`;
+	// 		});
+	// 	}
+		
+	// 	return [];
+	// };
+
 	useEffect(() => {
 		// Fetch initial data when component mounts
 		const fetchData = async () => {
@@ -872,26 +893,44 @@ const Rbac: React.FC = () => {
 												</span>
 											</div>
 										</TableCell>
-											<TableCell>
-												<div className="flex flex-wrap gap-1">
-													{(() => {
-													// Use PermissionIds to lookup permission names
-													if (group.PermissionIds && Array.isArray(group.PermissionIds) && group.PermissionIds.length > 0) {
-														// Get permission names by their IDs
-														const permissionNames = getPermissionNamesByIds(group.PermissionIds);
+										<TableCell>
+											<div className="flex flex-wrap gap-1">
+												{(() => {
+													// Use PermissionNames for display (more readable than IDs)
+													if (group.PermissionNames && group.PermissionNames.length > 0) {
+														const permissionNames = group.PermissionNames.split(',').map(name => name.trim()).filter(name => name.length > 0);
 														
 														return (
 															<>
-															{permissionNames.slice(0, 2).map((permissionName: string, index: number) => (
-																<Badge key={index} color="blue" className="text-xs">
-																{permissionName}
-																</Badge>
-															))}
-															{permissionNames.length > 2 && (
-																<Badge color="zinc" className="text-xs">
-																+{permissionNames.length - 2} more
-																</Badge>
-															)}
+																{permissionNames.slice(0, 2).map((permissionName: string, index: number) => (
+																	<Badge key={index} color="blue" className="text-xs">
+																		{permissionName}
+																	</Badge>
+																))}
+																{permissionNames.length > 2 && (
+																	<Badge color="green" className="text-xs">
+																		+{permissionNames.length - 2} more
+																	</Badge>
+																)}
+															</>
+														);
+													}
+													// Fallback: try PermissionIds if PermissionNames doesn't work
+													else if (group.PermissionIds && group.PermissionIds.length > 0) {
+														const permissionIds = group.PermissionIds.split(',').map(id => id.trim()).filter(id => id.length > 0);
+														
+														return (
+															<>
+																{permissionIds.slice(0, 2).map((permissionId: string, index: number) => (
+																	<Badge key={index} color="zinc" className="text-xs">
+																		ID: {permissionId}
+																	</Badge>
+																))}
+																{permissionIds.length > 2 && (
+																	<Badge color="green" className="text-xs">
+																		+{permissionIds.length - 2} more
+																	</Badge>
+																)}
 															</>
 														);
 													} else {
@@ -901,9 +940,9 @@ const Rbac: React.FC = () => {
 															</Badge>
 														);
 													}
-													})()}
-												</div>
-											</TableCell>
+												})()}
+											</div>
+										</TableCell>
 										<TableCell className="text-gray-500 max-w-xs truncate">
 											{group.Description}
 										</TableCell>
@@ -1057,7 +1096,8 @@ const Rbac: React.FC = () => {
 						Id: (UserGroupsData.lists?.length || 0) + 1, 
 						GroupName: newGroup.GroupName,
 						Description: newGroup.Description,
-						PermissionIds: newGroup.PermissionIds || [],
+						PermissionIds: newGroup.PermissionIds || '', // Comma-separated string of IDs
+						PermissionNames: newGroup.PermissionNames || '', // Comma-separated string of names
 						NumberOfUsers: 0, // New group starts with 0 users
 						CreatedDate: new Date().toISOString()
 					};
@@ -1205,20 +1245,37 @@ const Rbac: React.FC = () => {
 						setSelectedGroupId(null);
 					}}
 					group={UserGroupsData.lists.find(group => group.Id === selectedGroupId)!}
-					onSubmit={(updatedGroup: any) => {
-						const updatedGroupData: UserGroups = {
-							Id: updatedGroup.id,
-							GroupName: updatedGroup.groupName,
-							Description: updatedGroup.description,
-							PermissionIds: updatedGroup.permissionIds || [],
-							// Module: updatedGroup.module,
-							NumberOfUsers: updatedGroup.numberOfUsers,
-							CreatedDate: UserGroupsData.lists.find(g => g.Id === updatedGroup.id)?.CreatedDate || new Date().toISOString()
-						};
-						setUserGroups(prev => ({
-							...prev,
-							lists: prev.lists?.map(group => group.Id === updatedGroup.id ? updatedGroupData : group) || []
-						}));
+					onSubmit={async (updatedGroup: any) => {
+						// Refresh the user groups data from server after update
+						try {
+							setIsLoadingUserGroups(true);
+							console.log('Refreshing user groups after update');
+							const res = await fetchUserGroups(UserGroupFilter);
+							console.log('UserGroups response after update:', res);
+							if(res.Data.lists) {
+								console.log('Setting updated userGroups data:', res);
+								setUserGroups(res.Data);
+							}
+						} catch (error) {
+							console.error('Error refreshing user groups:', error);
+							// Fallback to local update if server refresh fails
+							const updatedGroupData: UserGroups = {
+								Id: updatedGroup.id,
+								GroupName: updatedGroup.groupName,
+								Description: updatedGroup.description,
+								PermissionIds: updatedGroup.permissionIds, // This is now a comma-separated string of IDs
+								PermissionNames: updatedGroup.permissionNames, // This is a comma-separated string of names
+								NumberOfUsers: UserGroupsData.lists.find(g => g.Id === updatedGroup.id)?.NumberOfUsers || 0,
+								CreatedBy: UserGroupsData.lists.find(g => g.Id === updatedGroup.id)?.CreatedBy,
+								CreatedDate: UserGroupsData.lists.find(g => g.Id === updatedGroup.id)?.CreatedDate || new Date().toISOString()
+							};
+							setUserGroups(prev => ({
+								...prev,
+								lists: prev.lists?.map(group => group.Id === updatedGroup.id ? updatedGroupData : group) || []
+							}));
+						} finally {
+							setIsLoadingUserGroups(false);
+						}
 					}}
 				/>
 			)}

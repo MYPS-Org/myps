@@ -25,7 +25,6 @@ const LoginForm: React.FC = () => {
 	try {
 	  await authService.login(credentials);
 	  await validateSession();
-	  Navigate('/rbac');
 	} catch (err: any) {
 	  setError(err.message || 'Login failed. Please try again.');
 	} finally {

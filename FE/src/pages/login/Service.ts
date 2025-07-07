@@ -49,16 +49,16 @@ class AuthService {
     return response;
   }
 
-  async validateSession(): Promise<ApiResponse<{ Authenticated: boolean; user?: LoginResponse['user'] }>> {
+  async validateSession(): Promise<ApiResponse<{ Authenticated: boolean; User?: any }>> {
     console.log('🔍 Validating session via cookie');
     
     try {
-      const response = await httpClient.post<{ message: string; Authenticated: boolean; user?: LoginResponse['user'] }>(
+      const response = await httpClient.post<{ message: string; Authenticated: boolean; User?: any }>(
         '/auth/validate',
         null,
         { preloaderMessage: "Validating session..." }
       );
-      console.log('✅ Session validation completed:', response.data.Authenticated ? 'Valid' : 'Invalid');
+      console.log('✅ Session validation completed:', response.Data.Authenticated ? 'Valid' : 'Invalid');
       return response;
     } catch (error) {
       console.error('❌ Session validation failed:', error);

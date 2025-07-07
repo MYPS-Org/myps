@@ -83,8 +83,16 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({ isOpen, onClose, 
   // Update form data when group prop changes and use PermissionIds directly
   useEffect(() => {
     if (group && availablePermissions.length > 0) {
-      // Use PermissionIds directly from the group data
-      const permissionIds = group.PermissionIds || [];
+      // Handle PermissionIds as comma-separated string of numeric IDs
+      let permissionIds: number[] = [];
+      
+      if (group.PermissionIds && typeof group.PermissionIds === 'string' && group.PermissionIds.trim().length > 0) {
+        // Convert comma-separated numeric IDs to array of numbers
+        permissionIds = group.PermissionIds
+          .split(',')
+          .map(id => parseInt(id.trim()))
+          .filter(id => !isNaN(id));
+      }
       
       setFormData({
         id: group.Id,
@@ -102,7 +110,7 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({ isOpen, onClose, 
     try {
       // Prepare API payload according to AddUserGroups interface
       const apiPayload: AddUserGroups = {
-        Id: formData.id, // Include ID for update
+        Id: formData.id, // Include the ID for update
         GroupName: formData.groupName,
         Description: formData.description,
         PermissionIds: formData.permissions
@@ -111,18 +119,21 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({ isOpen, onClose, 
       // Call the API to update the group
       await editUserGroup(apiPayload);
       
-      // Prepare data for parent component with additional info
+      // Convert permission IDs to comma-separated strings for display
+      const permissionIdsString = formData.permissions.join(',');
+      const permissionNames = formData.permissions.map(id => {
+        const permission = availablePermissions.find(p => p.Id === id);
+        return permission ? permission.ModuleFunction : '';
+      }).filter(name => name !== '').join(',');
+      
+      // Prepare data for parent component to match API response format
       const submissionData = {
         id: formData.id,
         groupName: formData.groupName,
         description: formData.description,
-        permissionIds: formData.permissions,
-        numberOfUsers: formData.numberOfUsers,
-        // Add permission names for display purposes if needed
-        permissionNames: formData.permissions.map(id => {
-          const permission = availablePermissions.find(p => p.Id === id);
-          return permission ? permission.ModuleFunction : '';
-        }).filter(name => name !== '')
+        permissionIds: permissionIdsString, // Return as comma-separated string of IDs
+        permissionNames: permissionNames, // Return as comma-separated string of names
+        numberOfUsers: formData.numberOfUsers
       };
       
       onSubmit(submissionData);

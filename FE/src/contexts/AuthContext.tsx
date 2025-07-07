@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { authService } from '../pages/login/Service';
+import { Navigate } from 'react-router-dom';
 
 interface AuthState<T = any> {
   isAuthenticated: boolean;
@@ -26,7 +27,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         isLoading: true,
         user: null
     });
-
 
     const validateSession = async () => {
         console.log('🔄 Validating session on app load');
@@ -64,13 +64,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
             try {
                 const response = await authService.validateSession();
-                
-                if (response.data.Authenticated && response.data.user) {
+                if (response.Data.Authenticated) {
                     setAuthState({
                         isAuthenticated: true,
                         isLoading: false,
-                        user: response.data.user
+                        user: response.Data.User
                     });
+                    const path = localStorage.getItem('currentPath') || window.location.pathname;
+	                window.location.href = path || import.meta.env.VITE_DEFAULT_ROUTE || '/dashboard';
+                    return;
                 } else {
                     console.log('❌ No valid session found', response);
                     setAuthState({
@@ -78,6 +80,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                         isLoading: false,
                         user: null
                     });
+                    localStorage.setItem('currentPath', window.location.pathname);
+                    if (window.location.pathname !== '/login') {
+                        // Redirect to login if not authenticated
+                        window.location.href = '/login';
+                    }
+	                // window.location.href = window.location.pathname || import.meta.env.VITE_DEFAULT_ROUTE || '/dashboard';
                 }
             } catch (error) {
                 console.error('❌ Session validation failed:', error);

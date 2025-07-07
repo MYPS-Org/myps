@@ -61,13 +61,14 @@ export interface UserFilter {
 
 //#region UserGroup Models
 export interface UserGroups {
-	Id: number;
-	GroupName?: string;
-	NumberOfUsers?: number;
-    PermissionIds: number[];
-	Description?: string;
-	CreatedBy?: string;
-	CreatedDate?: string;
+    Id: number;
+    GroupName: string;
+    NumberOfUsers: number;
+    Description?: string;
+    CreatedBy?: string;
+    CreatedDate: string;
+    PermissionIds: string; // API returns comma-separated string of numeric IDs
+    PermissionNames: string; // API returns comma-separated string of permission names
 }
 export interface UserGroupPagination extends PaginationParams {
     filters?: UserGroupFilter;
@@ -81,7 +82,7 @@ export interface UserGroupFilter {
 export interface AddUserGroups {
 	Id?: number; // Optional for create, required for update
 	GroupName?: string;
-    PermissionIds: number[];
+    PermissionIds: number[]; // Dialog works with array of IDs
 	Description?: string;
 }
 
