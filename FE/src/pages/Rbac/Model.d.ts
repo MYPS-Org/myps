@@ -64,7 +64,7 @@ export interface UserGroups {
 	Id: number;
 	GroupName?: string;
 	NumberOfUsers?: number;
-    PermissionsName?: string;
+    PermissionIds: number[];
 	Description?: string;
 	CreatedBy?: string;
 	CreatedDate?: string;
@@ -77,6 +77,14 @@ export interface UserGroupPagination extends PaginationParams {
 export interface UserGroupFilter {
     GroupName?: string;
 }
+
+export interface AddUserGroups {
+	Id?: number; // Optional for create, required for update
+	GroupName?: string;
+    PermissionIds: number[];
+	Description?: string;
+}
+
 //#endregion
 
 export interface Pis {

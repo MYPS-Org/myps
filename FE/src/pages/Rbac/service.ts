@@ -1,5 +1,5 @@
 // Service functions for RBAC operations
-import type { PermissionPagination, Permissions, AddPermission, PermissionGroup, Users, UserPagination, UserGroups, UserGroupPagination, Pis } from './Model.d';
+import type { PermissionPagination, Permissions, AddPermission, PermissionGroup, Users, UserPagination, UserGroups, AddUserGroups, UserGroupPagination, Pis } from './Model.d';
 import type { PaginationResponse } from '../../types/Pagination.d';
 import { httpClient, type ErrorResponse } from '../../services/httpClient';
 // import type { ErrorResponse } from '';
@@ -84,6 +84,15 @@ export const addPermission = async (data: AddPermission) => {
 	}
 }
 
+export const updatePermission = async (data: Permissions) => {
+	try {
+		const request = await httpClient.post<Permissions>('/UserProfile/UpdatePermission', data);
+		return request;
+	} catch (error) {
+		throw error;
+	}
+}
+
 export const fetchPermissionGroups = async () => {
     try {
         const request = await httpClient.post<PermissionGroup[]>('/UserProfile/ShowPermissionGroups');
@@ -91,6 +100,15 @@ export const fetchPermissionGroups = async () => {
     } catch (error) {
         throw error;
     }
+}
+
+export const deletePermission = async (data: Permissions) => {
+	try {
+		const request = await httpClient.post('/UserProfile/DeletePermission', data);
+		return request;
+	} catch (error) {
+		throw error;
+	}
 }
 //#endregion
 
@@ -102,6 +120,24 @@ export const fetchUserGroups = async (data: UserGroupPagination) => {
     } catch (error) {
         throw error;
     }
+}
+
+export const addUserGroup = async (data: AddUserGroups) => {
+	try {
+		const request = await httpClient.post('/UserProfile/AddUserGroup', data);
+		return request;
+	} catch (error) {
+		throw error;
+	}
+}
+
+export const editUserGroup = async (data: AddUserGroups) => {
+	try {
+		const request = await httpClient.post('/UserProfile/UpdateUserGroup', data);
+		return request;
+	} catch (error) {
+		throw error;
+	}
 }
 
 export const deleteUserGroup = async (groupId: number) => {

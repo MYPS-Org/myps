@@ -13,6 +13,8 @@ import Rbac from './pages/Rbac/Rbac';
 import Programs from './pages/Program/Views/Program';
 import ProgramDetail from './pages/Program/Views/ProgramDetail';
 import Settings from './pages/Settings/Settings';
+import Project from './pages/Project/Views/Project';
+import ProjectDetails from './pages/Project/Views/ProjectDetails';
 
 function App() {
 	return (
@@ -50,10 +52,26 @@ function App() {
 								} 
 							/>
 							<Route 
+								path="/projects" 
+								element={
+									<ProtectedRoute>
+										<Project />
+									</ProtectedRoute>
+								} 
+							/>
+							<Route 
 								path="/programs/:id" 
 								element={
 									<ProtectedRoute>
 										<ProgramDetail />
+									</ProtectedRoute>
+								} 
+							/>
+							<Route 
+								path="/projects/:id" 
+								element={
+									<ProtectedRoute>
+										<ProjectDetails />
 									</ProtectedRoute>
 								} 
 							/>

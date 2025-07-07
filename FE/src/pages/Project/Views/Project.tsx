@@ -1,0 +1,159 @@
+"use-client";
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+import type { ProjectData } from '../Model'; // Adjust the import path as necessary
+
+import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '../../../components/tailwindui/table'; // Adjust the import path as necessary
+
+import { Button } from '../../../components/tailwindui/button'; // Adjust the import path as necessary
+import { 
+    PlusIcon, 
+    MagnifyingGlassIcon
+} from '@heroicons/react/24/outline'; // Adjust the import path as necessary
+
+const Project: React.FC = () => {
+    const navigate = useNavigate();
+    const [projects, setProjects] = useState<ProjectData[]>([
+        {
+            Id: 'P00000001MN',
+            ProgramName: 'BP 2019 - 002',
+            Category: 'DA Farm to Market Roads',
+            TotalProjectCost: 0,
+            CreatedBy: 'John Doe - DPD',
+            CreatedDate: '17-Mar-2025'
+        },
+        {
+            Id: 'P00000002MN',
+            ProgramName: 'BP 2019 - 002',
+            Category: 'DA Farm to Market Roads',
+            TotalProjectCost: 10200431,
+            CreatedBy: 'John Doe - DPD',
+            CreatedDate: '17-Mar-2025'
+        },
+        {
+            Id: 'P00000003MN',
+            ProgramName: 'BP 2019 - 002',
+            Category: 'DA Farm to Market Roads',
+            TotalProjectCost: 500123,
+            CreatedBy: 'John Doe - DPD',
+            CreatedDate: '17-Mar-2025'
+        }
+    ]);
+
+    useEffect(() => {
+        fetchProjects();
+    }, []);
+
+    const fetchProjects = async () => {
+        try {
+            const response = await fetch('/api/projects');
+            if (!response.ok) {
+                throw new Error('Failed to fetch projects');
+            }
+            const data = await response.json();
+            setProjects(data);
+        } catch (error) {
+            console.error('Error fetching projects:', error);
+            // You might want to show a toast or alert here
+            alert('Failed to fetch projects: ' + (error instanceof Error ? error.message : 'Unknown error'));
+        }
+    };
+
+    // Helper function to format PHP currency
+    const formatCurrency = (amount: number) => {
+        return amount.toLocaleString('en-PH');
+    };
+
+    const handleViewDetails = (projectId: string) => {
+        navigate(`/projects/${projectId}`);
+    };
+
+    const handleAddProject = () => {
+        navigate('/projects/new');
+    };
+
+    return (
+        <div className="max-w-10xl mx-auto p-6 space-y-6">
+            {/* Breadcrumb */}
+            <nav className="text-sm text-left text-gray-500 mb-4">
+                <span>Project Management</span>
+                <span className="mx-2">&gt;</span>
+                <span>Projects</span>
+                <span className="mx-2">&gt;</span>
+            </nav>
+            
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+                <div className="overflow-hidden">
+                    <div className="px-6 py-4 border-b border-gray-200">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-lg font-medium text-gray-900">Projects</h3>
+                            <div className="flex items-center space-x-3">
+                                <div className="relative">
+                                    <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                                    <input
+                                        type="text"
+                                        placeholder="Search Projects..."
+                                        className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    />
+                                </div>
+                                <Button color="blue" onClick={handleAddProject}>
+                                    <PlusIcon className="w-4 h-4 mr-1" />
+                                    Add Project
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <Table className="px-5">
+                        <TableHead>
+                            <TableRow>
+                                <TableHeader>Project ID</TableHeader>
+                                <TableHeader>Program Name</TableHeader>
+                                <TableHeader>Category</TableHeader>
+                                <TableHeader>Total Project Cost (PHP)</TableHeader>
+                                <TableHeader>Created By</TableHeader>
+                                <TableHeader>Created Date</TableHeader>
+                                <TableHeader>Actions</TableHeader>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {projects.map(project => (
+                                <TableRow key={project.Id}>
+                                    <TableCell>
+                                        <button 
+                                            onClick={() => handleViewDetails(project.Id)}
+                                            className="text-blue-600 hover:text-blue-800 font-medium hover:underline"
+                                        >
+                                            {project.Id}
+                                        </button>
+                                    </TableCell>
+                                    <TableCell>{project.ProgramName}</TableCell>
+                                    <TableCell>{project.Category}</TableCell>
+                                    <TableCell className="text-right">
+                                        {formatCurrency(project.TotalProjectCost)}
+                                    </TableCell>
+                                    <TableCell>{project.CreatedBy}</TableCell>
+                                    <TableCell>{project.CreatedDate}</TableCell>
+                                    <TableCell>
+                                        <div className="flex items-center space-x-1">
+                                            <Button 
+                                                color="orange"
+                                                onClick={() => handleViewDetails(project.Id)}
+                                                className="text-xs px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded"
+                                            >
+                                                View Details
+                                            </Button>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default Project;

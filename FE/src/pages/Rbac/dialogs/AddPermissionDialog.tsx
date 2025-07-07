@@ -54,7 +54,6 @@ const AddPermissionDialog: React.FC<AddPermissionDialogProps> = ({ isOpen, onClo
       setFormData({
         Id: 0,
         PermissionGroupId: 0,
-  
         ModuleFunction: '',
         Description: '',
         CreatedBy: '',
@@ -79,7 +78,8 @@ const AddPermissionDialog: React.FC<AddPermissionDialogProps> = ({ isOpen, onClo
   };
 
   const handleChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => ({ ...prev, 
+      [field]: field === 'PermissionGroupId' ? parseInt(value) : value }));
   };
 
   return (

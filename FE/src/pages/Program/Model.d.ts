@@ -2,6 +2,12 @@ export interface Programs {
   Id: number;
   Name: string;
   Description: string;
+  Status: string;
+  ProgramStage: string;
+  ProgramType: string;
+  StartYear: number;
+  User: string;
+  DataSecurity: string;
 //   startDate: string;
 //   endDate: string;
 }
