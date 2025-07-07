@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { authService } from '../pages/login/Service';
-import { Navigate } from 'react-router-dom';
 
 interface AuthState<T = any> {
   isAuthenticated: boolean;
@@ -64,15 +63,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
             try {
                 const response = await authService.validateSession();
-                if (response.Data.Authenticated) {
+                console.log('rine => ', response);
+                if (response.Data.Data.Authenticated) {
                     setAuthState({
                         isAuthenticated: true,
                         isLoading: false,
-                        user: response.Data.User
+                        user: response.Data.Data.User
                     });
-                    const path = localStorage.getItem('currentPath') || window.location.pathname;
-	                window.location.href = path || import.meta.env.VITE_DEFAULT_ROUTE || '/dashboard';
-                    return;
+                    if(window.location.pathname === '/login') {
+                        const storedPath = localStorage.getItem('currentPath');
+                        // Avoid infinite loop by not redirecting back to login
+                        const path = (storedPath && storedPath !== '/login') 
+                            ? storedPath 
+                            : (import.meta.env.VITE_DEFAULT_ROUTE || '/dashboard');
+                        localStorage.removeItem('currentPath'); // Clean up after use
+                        window.location.href = path;
+                    }
                 } else {
                     console.log('❌ No valid session found', response);
                     setAuthState({
