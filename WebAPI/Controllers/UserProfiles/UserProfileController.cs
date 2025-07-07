@@ -124,7 +124,7 @@ namespace WebAPI.Controllers.UserProfile
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                var getUser = await _db.tUsers.FirstOrDefaultAsync(x => x.UserId == dto.UserId && x.Id == dto.Id);
+                var getUser = await _db.tUsers.FirstOrDefaultAsync(x => x.Id == dto.Id);
                 if (getUser == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"User '{dto.UserId}' does not exists in the System!", Title = "User not found" });
@@ -156,7 +156,7 @@ namespace WebAPI.Controllers.UserProfile
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                var getUser = await _db.tUsers.FirstOrDefaultAsync(x => x.UserId == dto.UserId && x.Id == dto.Id);
+                var getUser = await _db.tUsers.FirstOrDefaultAsync(x => x.Id == dto.Id);
                 if (getUser == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"User '{dto.UserId}' does not exists in the System!", Title = "User not found" });
@@ -170,11 +170,12 @@ namespace WebAPI.Controllers.UserProfile
                 if (!string.IsNullOrEmpty(dto.UserGroups) && dto.UserGroups.Contains(","))
                 {
                     string[] groups = dto.UserGroups.Split(',');
+                    string newUserId = dto.UserId;
                     var getUserGroups = await _db.tUserGroups.Where(x => x.UserId == getUser.UserId).ToListAsync();
+                    var getGroups = await _db.tGroups.Where(x => groups.Contains(x.GroupName)).Select(x => x.Id).ToListAsync();
+                    var toRemoveGroups = getUserGroups.Where(x => !getGroups.Contains(x.GroupId)).ToList();
                     if (getUserGroups.Count() > 0)
                     {
-                        var getGroups = await _db.tGroups.Where(x => groups.Contains(x.GroupName)).Select(x => x.Id).ToListAsync();
-                        var toRemoveGroups = getUserGroups.Where(x => !getGroups.Contains(x.GroupId)).ToList();
                         var toAddGroups = getGroups.Where(selected => !getUserGroups.Any(ug => ug.GroupId == selected)).ToList();
                         if(toRemoveGroups.Count > 0)
                         {
@@ -185,13 +186,25 @@ namespace WebAPI.Controllers.UserProfile
                             _db.tUserGroups.AddRange(toAddGroups.Select(x =>
                                 new DBHelper.Models.Table.UserGroups()
                                 {
-                                    UserId = getUser.UserId,
+                                    UserId = newUserId,
                                     GroupId = x,
                                     CreatedBy = _Session.UserId,
                                     CreatedDate = DateTime.UtcNow
                                 }
                             ));
                         }
+                    }
+                    else if(getUserGroups.Count() < 1 && getGroups.Count > 0)
+                    {
+                        _db.tUserGroups.AddRange(getGroups.Select(x =>
+                            new DBHelper.Models.Table.UserGroups()
+                            {
+                                UserId = newUserId,
+                                GroupId = x,
+                                CreatedBy = _Session.UserId,
+                                CreatedDate = DateTime.UtcNow
+                            }
+                        ));
                     }
                 }
 
@@ -370,11 +383,6 @@ namespace WebAPI.Controllers.UserProfile
                 {
                     return new BadRequestObjectResult(new { Message = "Module Description is required!", Title = "Parameter Error" });
                 }
-                var checkPermissionGroup = await _db.tPermissionGroups.FirstOrDefaultAsync(x => x.Id == dto.PermissionGroupId);
-                if(checkPermissionGroup == null)
-                {
-                    return new BadRequestObjectResult(new { Message = $"Selected Permission Group with ID '{dto.PermissionGroupId}' does not exist!", Title = "Permission Group not found" });
-                }
                 var getPermission = await _db.tPermissions.FirstOrDefaultAsync(x => x.ModuleFunction == dto.ModuleFunction);
                 if (getPermission != null)
                 {
@@ -529,39 +537,56 @@ namespace WebAPI.Controllers.UserProfile
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
-            {
-                var checkSameName = await _db.tGroups.FirstOrDefaultAsync(x => x.GroupName == dto.GroupName);
-                if (checkSameName != null)
+            {// Check if group name already exists
+                var existingGroup = await _db.tGroups.FirstOrDefaultAsync(x => x.GroupName == dto.GroupName);
+                if (existingGroup != null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Group Name '{dto.GroupName}' already exists!", Title = "Group Name Exists" });
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Group Name '{dto.GroupName}' already exists!",
+                        Title = "Group Name Exists"
+                    });
                 }
-                var permissions = await _db.tPermissions.Select(x => x.Id).ToListAsync();
-                var addUserGroup = new Groups()
+
+                // Get all valid permission IDs
+                var validPermissionIds = await _db.tPermissions.Select(x => x.Id).ToListAsync();
+
+                // Create and save the new group
+                var newGroup = new Groups
                 {
                     GroupName = dto.GroupName,
                     Description = dto.Description,
                     CreatedBy = _Session.UserId,
                     CreatedDate = DateTime.UtcNow
                 };
-                await _db.tGroups.AddAsync(addUserGroup);
-                if (dto.PermissionIds.Length > 0)
+
+                await _db.tGroups.AddAsync(newGroup);
+                await _db.SaveChangesAsync();
+
+                // If permissions are provided, validate and insert them
+                if (dto.PermissionIds?.Length > 0)
                 {
-                    var checkIds = dto.PermissionIds!.Where(x => !permissions.Contains(x)).ToList();
-                    if (checkIds.Count > 0)
+                    var invalidIds = dto.PermissionIds.Except(validPermissionIds).ToList();
+                    if (invalidIds.Any())
                     {
-                        return new BadRequestObjectResult(new { Message = $"Some of the selected Permission IDs do not exist in the System!", Title = "Invalid Permission IDs" });
+                        return new BadRequestObjectResult(new
+                        {
+                            Message = "Some of the selected Permission IDs do not exist in the system!",
+                            Title = "Invalid Permission IDs"
+                        });
                     }
 
-                    await _db.tGroupRoles.AddRangeAsync(dto.PermissionIds!.Select(permissionId =>
-                        new GroupRoles()
-                        {
-                            GroupId = addUserGroup.Id,
-                            PermissionId = permissionId,
-                            CreatedBy = _Session.UserId,
-                            CreatedDate = DateTime.UtcNow
-                        }
-                    ));
+                    var groupRoles = dto.PermissionIds.Select(permissionId => new GroupRoles
+                    {
+                        GroupId = newGroup.Id,
+                        PermissionId = permissionId,
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = DateTime.UtcNow
+                    });
+
+                    await _db.tGroupRoles.AddRangeAsync(groupRoles);
                 }
+
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
                 return Ok(

@@ -34,7 +34,7 @@ namespace WebAPI.Controllers
                 if (!hasAllowAnonymous && IsAuthenticated)
                 {
                     string userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-                    var user = _db.tUsers.FirstOrDefault(x => x.Id.ToString() == userId && x.IsActive == true);
+                    var user = _db.tUsers.FirstOrDefault(x => x.UserId == userId && x.IsActive == true);
                     if(user == null)
                     {
                         context.Result = UnauthorizedUser();
