@@ -127,7 +127,7 @@ const Rbac: React.FC = () => {
 	const [isLoadingUsers, setIsLoadingUsers] = useState(false);
 	
 	// Store all permissions for lookup
-	const [allPermissions, setAllPermissions] = useState<Permissions[]>([]);
+	// const [allPermissions, setAllPermissions] = useState<Permissions[]>([]);
 
 	// Function to get permission names by IDs
 	// const getPermissionNamesByIds = (permissionIds: number[]): string[] => {
@@ -178,11 +178,11 @@ const Rbac: React.FC = () => {
 					page: 1,
 					limit: 1000 // Get a large number to fetch all permissions
 				};
-				const permissionsRes = await fetchPermissions(allPermissionsFilter);
-				if(permissionsRes.Data.lists) {
-					console.log('Setting all permissions for lookup:', permissionsRes.Data.lists);
-					setAllPermissions(permissionsRes.Data.lists);
-				}
+				await fetchPermissions(allPermissionsFilter);
+				// if(permissionsRes.Data.lists) {
+				// 	console.log('Setting all permissions for lookup:', permissionsRes.Data.lists);
+				// 	setAllPermissions(permissionsRes.Data.lists);
+				// }
 				
 				console.log('Initial data fetched:', initialData);
 			} catch (error : any) {
@@ -274,7 +274,7 @@ const Rbac: React.FC = () => {
 					console.log('Setting permissions data:', res);
 					setPermissionsData(res.Data);
 					// Update the all permissions lookup for UserGroups display
-					setAllPermissions(res.Data.lists);
+					// setAllPermissions(res.Data.lists);
 				}
 			} catch (error) {
 				console.error('Error fetching permissions:', error);
@@ -311,7 +311,7 @@ const Rbac: React.FC = () => {
 					console.log('Setting permissions data:', res);
 					setPermissionsData(res.Data);
 					// Update the all permissions lookup for UserGroups display
-					setAllPermissions(res.Data.lists);
+					// setAllPermissions(res.Data.lists);
 				}
 			} catch (error) {
 				console.error('Error fetching permissions:', error);
@@ -388,7 +388,7 @@ const Rbac: React.FC = () => {
 					console.log('Setting permissions data:', res);
 					setPermissionsData(res.Data);
 					// Update the all permissions lookup for UserGroups display
-					setAllPermissions(res.Data.lists);
+					// setAllPermissions(res.Data.lists);
 				}
 			} catch (error) {
 				console.error('Error fetching permissions:', error);
@@ -1107,7 +1107,7 @@ const Rbac: React.FC = () => {
 						total: (prev.total || 0) + 1
 					}));
 					// Also update the all permissions lookup
-					setAllPermissions(prev => [...prev, newPermissionWithId]);
+					// setAllPermissions(prev => [...prev, newPermissionWithId]);
 				}}
 			/>
 
@@ -1442,7 +1442,7 @@ const Rbac: React.FC = () => {
 							console.log('Setting permissions data:', res);
 							setPermissionsData(res.Data);
 							// Update the all permissions lookup for UserGroups display
-							setAllPermissions(res.Data.lists);
+							// setAllPermissions(res.Data.lists);
 						}
 					} catch (error) {
 						console.error('Error fetching permissions:', error);
@@ -1477,7 +1477,7 @@ const Rbac: React.FC = () => {
 							console.log('Setting permissions data:', res);
 							setPermissionsData(res.Data);
 							// Update the all permissions lookup for UserGroups display
-							setAllPermissions(res.Data.lists);
+							// setAllPermissions(res.Data.lists);
 						}
 					} catch (error) {
 						console.error('Error fetching permissions:', error);

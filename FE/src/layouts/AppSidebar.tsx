@@ -22,17 +22,14 @@ SidebarDropdownItem,
 import {
 ArrowRightStartOnRectangleIcon,
 ChevronDownIcon,
-Cog8ToothIcon,
 } from '@heroicons/react/16/solid'
 import {
 Cog6ToothIcon,
 HomeIcon,
-InboxIcon,
 QuestionMarkCircleIcon,
 Square2StackIcon,
 FolderIcon,
 CalendarDateRangeIcon,
-LockClosedIcon,
 } from '@heroicons/react/20/solid'
 import { authService } from '../pages/login/Service' // Adjust the import path as necessary
 import Logo from '../assets/img/logo.png' // Adjust the import path as necessary
