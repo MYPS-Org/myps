@@ -72,6 +72,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
           name: userData.Data.Name || '',
           userId: userData.Data.UserId || '',
           email: userData.Data.Email || '',
+          regCode: userData.Data.RegCode || '',
           plantillaOffice: userData.Data.PlantillaOffice || ''
         }));
         setIsDataLoaded(true);

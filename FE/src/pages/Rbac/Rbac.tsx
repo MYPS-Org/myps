@@ -127,7 +127,7 @@ const Rbac: React.FC = () => {
 	const [isLoadingUsers, setIsLoadingUsers] = useState(false);
 	
 	// Store all permissions for lookup
-	const [allPermissions, setAllPermissions] = useState<Permissions[]>([]);
+	// const [allPermissions, setAllPermissions] = useState<Permissions[]>([]);
 
 	// Function to get permission names by IDs
 	// const getPermissionNamesByIds = (permissionIds: number[]): string[] => {
@@ -178,11 +178,11 @@ const Rbac: React.FC = () => {
 					page: 1,
 					limit: 1000 // Get a large number to fetch all permissions
 				};
-				const permissionsRes = await fetchPermissions(allPermissionsFilter);
-				if(permissionsRes.Data.lists) {
-					console.log('Setting all permissions for lookup:', permissionsRes.Data.lists);
-					setAllPermissions(permissionsRes.Data.lists);
-				}
+				await fetchPermissions(allPermissionsFilter);
+				// if(permissionsRes.Data.lists) {
+				// 	console.log('Setting all permissions for lookup:', permissionsRes.Data.lists);
+				// 	setAllPermissions(permissionsRes.Data.lists);
+				// }
 				
 				console.log('Initial data fetched:', initialData);
 			} catch (error : any) {
@@ -274,7 +274,7 @@ const Rbac: React.FC = () => {
 					console.log('Setting permissions data:', res);
 					setPermissionsData(res.Data);
 					// Update the all permissions lookup for UserGroups display
-					setAllPermissions(res.Data.lists);
+					// setAllPermissions(res.Data.lists);
 				}
 			} catch (error) {
 				console.error('Error fetching permissions:', error);
@@ -311,7 +311,7 @@ const Rbac: React.FC = () => {
 					console.log('Setting permissions data:', res);
 					setPermissionsData(res.Data);
 					// Update the all permissions lookup for UserGroups display
-					setAllPermissions(res.Data.lists);
+					// setAllPermissions(res.Data.lists);
 				}
 			} catch (error) {
 				console.error('Error fetching permissions:', error);
@@ -388,7 +388,7 @@ const Rbac: React.FC = () => {
 					console.log('Setting permissions data:', res);
 					setPermissionsData(res.Data);
 					// Update the all permissions lookup for UserGroups display
-					setAllPermissions(res.Data.lists);
+					// setAllPermissions(res.Data.lists);
 				}
 			} catch (error) {
 				console.error('Error fetching permissions:', error);
@@ -457,12 +457,12 @@ const Rbac: React.FC = () => {
 		label, 
 		value, 
 		icon: Icon, 
-		count 
+		// count 
 	}: { 
 		label: string; 
 		value: 'users' | 'permissions' | 'userGroups'; 
 		icon: React.ComponentType<{ className?: string }>; 
-		count: number;
+		// count: number;
 	}) => (
 		<button
 			onClick={() => { if(selectedTab != value) getTableData(value); }}
@@ -474,7 +474,7 @@ const Rbac: React.FC = () => {
 		>
 			<Icon className="w-5 h-5" />
 			<span>{label}</span>
-			<Badge color="zinc" className="ml-2">{count}</Badge>
+			{/* <Badge color="zinc" className="ml-2">{count}</Badge> */}
 		</button>
 	);
 
@@ -501,19 +501,19 @@ const Rbac: React.FC = () => {
 					label="Users" 
 					value="users" 
 					icon={UsersIcon} 
-					count={UsersData.lists.length} 
+					// count={UsersData.lists.length} 
 				/>
 				<TabButton 
 					label="Permissions" 
 					value="permissions" 
 					icon={KeyIcon} 
-					count={100} 
+					// count={100} 
 				/>
 				<TabButton 
 					label="User Groups" 
 					value="userGroups" 
 					icon={UserGroupIcon} 
-					count={UserGroupsData.lists.length} 
+					// count={UserGroupsData.lists.length} 
 				/>
 			</div>
 			{/* Content Area */}
@@ -574,11 +574,27 @@ const Rbac: React.FC = () => {
 											</div>
 										</TableCell>
 										<TableCell>
-											{user.UserGroups?.split(',').map((group, idx) => (
-												<Badge key={idx} color="blue" className="mr-1 mb-1">
-													{group.trim()}
-												</Badge>
-											))}
+											<div className='flex flex-row gap-1'>
+											{(() => {
+												const userGroups = user.UserGroups?.split(',').map(group => group.trim()) || [];
+												return (
+													<>
+														{userGroups.slice(0, 3).map((group: string, index: number) => (
+																<Badge key={index} color="blue" className="text-xs">
+																	{group.trim()}
+																</Badge>
+															))}
+															{userGroups.length > 4 && (
+																<Badge color="green" className="text-xs">
+																	+{userGroups.length - 2} more
+																</Badge>
+															)}
+														</>
+													)
+												}
+												)
+											()}
+											</div>
 										</TableCell>
 										<TableCell>
 											{
@@ -921,7 +937,7 @@ const Rbac: React.FC = () => {
 														
 														return (
 															<>
-																{permissionIds.slice(0, 2).map((permissionId: string, index: number) => (
+																{permissionIds.slice(0, 4).map((permissionId: string, index: number) => (
 																	<Badge key={index} color="zinc" className="text-xs">
 																		ID: {permissionId}
 																	</Badge>
@@ -1071,18 +1087,27 @@ const Rbac: React.FC = () => {
 				onClose={() => setIsAddPermissionDialogOpen(false)} 
 				onSubmit={async (newPermission: any) => {
 					// Add the new permission to the existing data
+					setIsLoadingPermissions(true);
+					console.log('Refreshing permissions after update');
+					const res = await fetchPermissions(PermissionFilter);
+					console.log('Permissions response after update:', res);
+					if(res.Data.lists) {
+						console.log('Setting updated permissions data:', res);
+						setPermissionsData(res.Data);
+					}
 					const newPermissionWithId = { 
 						...newPermission, 
 						Id: (PermissionsData.lists?.length || 0) + 1, 
 						CreatedDate: new Date().toLocaleDateString() 
 					};
+					
 					setPermissionsData(prev => ({
 						...prev,
 						lists: [...(prev.lists || []), newPermissionWithId],
 						total: (prev.total || 0) + 1
 					}));
 					// Also update the all permissions lookup
-					setAllPermissions(prev => [...prev, newPermissionWithId]);
+					// setAllPermissions(prev => [...prev, newPermissionWithId]);
 				}}
 			/>
 
@@ -1090,22 +1115,41 @@ const Rbac: React.FC = () => {
 			<AddGroupDialog 
 				isOpen={isAddGroupDialogOpen} 
 				onClose={() => setIsAddGroupDialogOpen(false)} 
-				onSubmit={(newGroup: any) => {
-					// Add the new group to the existing data
-					const newGroupWithId: UserGroups = { 
-						Id: (UserGroupsData.lists?.length || 0) + 1, 
-						GroupName: newGroup.GroupName,
-						Description: newGroup.Description,
-						PermissionIds: newGroup.PermissionIds || '', // Comma-separated string of IDs
-						PermissionNames: newGroup.PermissionNames || '', // Comma-separated string of names
-						NumberOfUsers: 0, // New group starts with 0 users
-						CreatedDate: new Date().toISOString()
-					};
-					setUserGroups(prev => ({
-						...prev,
-						lists: [...prev.lists, newGroupWithId],
-						total: prev.total + 1
-					}));
+				onSubmit={async (newGroup: any) => {
+					// Refresh the user groups data from server after adding
+					try {
+						setIsLoadingUserGroups(true);
+						console.log('Refreshing user groups after adding new group');
+						const res = await fetchUserGroups(UserGroupFilter);
+						console.log('UserGroups response after adding:', res);
+						if(res.Data.lists) {
+							console.log('Setting updated userGroups data:', res);
+							setUserGroups(res.Data);
+						}
+					} catch (error) {
+						console.error('Error refreshing user groups:', error);
+						// Fallback to local update if server refresh fails
+						const newGroupWithId: UserGroups = { 
+							Id: (UserGroupsData.lists?.length || 0) + 1, 
+							GroupName: newGroup.GroupName,
+							Description: newGroup.Description,
+							PermissionIds: Array.isArray(newGroup.permissionIds) 
+								? newGroup.permissionIds.join(',') 
+								: (newGroup.permissionIds || ''), // Convert array to comma-separated string of IDs
+							PermissionNames: Array.isArray(newGroup.permissionNames) 
+								? newGroup.permissionNames.join(',') 
+								: (newGroup.permissionNames || ''), // Convert array to comma-separated string of names
+							NumberOfUsers: 0, // New group starts with 0 users
+							CreatedDate: new Date().toISOString()
+						};
+						setUserGroups(prev => ({
+							...prev,
+							lists: [...prev.lists, newGroupWithId],
+							total: prev.total + 1
+						}));
+					} finally {
+						setIsLoadingUserGroups(false);
+					}
 				}}
 			/>
 			{/* View User Dialog */}
@@ -1398,7 +1442,7 @@ const Rbac: React.FC = () => {
 							console.log('Setting permissions data:', res);
 							setPermissionsData(res.Data);
 							// Update the all permissions lookup for UserGroups display
-							setAllPermissions(res.Data.lists);
+							// setAllPermissions(res.Data.lists);
 						}
 					} catch (error) {
 						console.error('Error fetching permissions:', error);
@@ -1433,7 +1477,7 @@ const Rbac: React.FC = () => {
 							console.log('Setting permissions data:', res);
 							setPermissionsData(res.Data);
 							// Update the all permissions lookup for UserGroups display
-							setAllPermissions(res.Data.lists);
+							// setAllPermissions(res.Data.lists);
 						}
 					} catch (error) {
 						console.error('Error fetching permissions:', error);

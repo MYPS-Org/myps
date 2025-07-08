@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
-import { Badge } from '../../../components/tailwindui/badge';
+// import { Badge } from '../../../components/tailwindui/badge';
 import type { Programs } from '../Model.d'; // Adjust the import path as necessary
-import Program from '../Views/Program';
+// import Program from '../Views/Program';
 
 interface DeleteProgramDialogProps {
   isOpen: boolean;
@@ -91,22 +91,22 @@ const DeleteProgramDialog: React.FC<DeleteProgramDialogProps> = ({ isOpen, onClo
               </div>
             </div>
 
-            {/* Member Impact Warning */}
-            {group.MemberCount > 0 && (
+            {/* Program Impact Warning - Uncomment when ProjectCount is available */}
+            {/* {program.ProjectCount && program.ProjectCount > 0 && (
               <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
                 <div className="flex">
                   <ExclamationTriangleIcon className="h-5 w-5 text-yellow-400 mt-0.5 mr-3" />
                   <div>
                     <h4 className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
-                      Impact on Members
+                      Impact on Projects
                     </h4>
                     <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
-                      This group has {group.MemberCount} member(s). Deleting this group may affect their access permissions.
+                      This program has {program.ProjectCount} project(s). Deleting this program may affect the associated projects.
                     </p>
                   </div>
                 </div>
               </div>
-            )}
+            )} */}
 
             {/* Confirmation Input */}
             <div>

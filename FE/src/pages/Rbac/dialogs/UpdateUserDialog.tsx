@@ -31,7 +31,7 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
   // Update form data when user prop changes
   useEffect(() => {
     setFormData({
-      id: user.Id || 0,
+      id: user.Id, 
       employeeId: user.EmployeeId || '',
       name: user.Name || '',
       userId: user.UserId || '',
@@ -178,6 +178,7 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
                   placeholder="Enter user ID"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                   required
+                  // disabled
                 />
               </div>
             </div>

@@ -108,7 +108,7 @@ const DeleteGroupDialog: React.FC<DeleteGroupDialogProps> = ({ isOpen, onClose, 
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Permissions:</span>
                   <Badge color="green">
-                    {group.PermissionsName ? group.PermissionsName.split(',').filter(p => p.trim()).length : 0} permissions
+                    {group.PermissionNames ? group.PermissionNames.split(',').filter((p: string) => p.trim()).length : 0} permissions
                   </Badge>
                 </div>
               </div>

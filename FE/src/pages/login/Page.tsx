@@ -4,7 +4,7 @@ import { authService, type LoginRequest } from './Service';
 import { Input } from '../../components/tailwindui/input';
 import { Text } from '../../components/tailwindui/text';
 import Logo from '../../assets/img/logo.png';
-import { useNavigate } from 'react-router-dom';
+// import { useNavigate } from 'react-router-dom';
 
 const LoginForm: React.FC = () => {
   const [credentials, setCredentials] = useState<LoginRequest>({
@@ -13,9 +13,9 @@ const LoginForm: React.FC = () => {
   });
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
+//   const [rememberMe, setRememberMe] = useState(false);
   const { validateSession } = useAuth();
-  const Navigate = useNavigate();
+//   const Navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
 	e.preventDefault();
@@ -99,7 +99,7 @@ const LoginForm: React.FC = () => {
 				</form>
 				</div>
 				{/* Right: Illustration */}
-				<div className="bg-[#f0750f]/80 hidden md:flex w-1/2 items-center justify-center relative">
+				<div className="white hidden md:flex w-1/2 items-center justify-center relative">
 				<img src={Logo} className="w-4/5 h-auto text-white" />
 			</div>
 		</div>

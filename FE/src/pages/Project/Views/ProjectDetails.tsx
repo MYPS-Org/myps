@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import type { 
   ProjectDetails as ProjectDetailsType, 
   ComponentCost, 
@@ -19,10 +19,9 @@ import {
 } from '@heroicons/react/24/outline';
 
 const ProjectDetails: React.FC = () => {
-  const { id } = useParams<{ id: string }>(); // eslint-disable-line @typescript-eslint/no-unused-vars
   const navigate = useNavigate();
   
-  const [projectDetails, setProjectDetails] = useState<ProjectDetailsType>({ // eslint-disable-line @typescript-eslint/no-unused-vars
+  const [projectDetails] = useState<ProjectDetailsType>({
     Id: 'P00001LZ',
     ProgramName: 'RBP FY 2025',
     ProgramType: 'Regional Budget Pro...',
@@ -52,7 +51,7 @@ const ProjectDetails: React.FC = () => {
     RowAvailable: true
   });
 
-  const [componentCosts, setComponentCosts] = useState<ComponentCost[]>([ // eslint-disable-line @typescript-eslint/no-unused-vars
+  const [componentCosts] = useState<ComponentCost[]>([
     {
       Id: 'CW1',
       Description: 'Component cost based on...',
@@ -73,7 +72,7 @@ const ProjectDetails: React.FC = () => {
     }
   ]);
 
-  const [majorItems, setMajorItems] = useState<MajorItemOfWork[]>([ // eslint-disable-line @typescript-eslint/no-unused-vars
+  const [majorItems] = useState<MajorItemOfWork[]>([
     {
       Id: 'MW1',
       ComponentId: 'CW1',
@@ -96,7 +95,7 @@ const ProjectDetails: React.FC = () => {
     }
   ]);
 
-  const [notes, setNotes] = useState<ProjectNote[]>([ // eslint-disable-line @typescript-eslint/no-unused-vars
+  const [notes] = useState<ProjectNote[]>([
     {
       Id: 'N1',
       Description: 'Requested by John Doe...',
@@ -109,7 +108,7 @@ const ProjectDetails: React.FC = () => {
     }
   ]);
 
-  const [fundingProfiles, setFundingProfiles] = useState<FundingProfile[]>([ // eslint-disable-line @typescript-eslint/no-unused-vars
+  const [fundingProfiles] = useState<FundingProfile[]>([
     {
       Id: 'FP1',
       Source: 'GOP',
@@ -124,7 +123,7 @@ const ProjectDetails: React.FC = () => {
     }
   ]);
 
-  const [activities, setActivities] = useState<Activity[]>([ // eslint-disable-line @typescript-eslint/no-unused-vars
+  const [activities] = useState<Activity[]>([
     {
       Id: 'A1',
       Description: 'Major Item of work CW1 Type of work change from "Sample" to "Additional Lane Width"',
