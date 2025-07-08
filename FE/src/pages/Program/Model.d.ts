@@ -8,6 +8,7 @@ export interface Programs {
   StartYear: number;
   User: string;
   DataSecurity: string;
+  dateCreated?: string; // Optional field for creation date
 //   startDate: string;
 //   endDate: string;
 }
