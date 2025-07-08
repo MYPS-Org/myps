@@ -92,6 +92,10 @@ const Rbac: React.FC = () => {
 	const [isPermissionFilterDialogOpen, setIsPermissionFilterDialogOpen] = useState(false);
 	const [isUserGroupFilterDialogOpen, setIsUserGroupFilterDialogOpen] = useState(false);
 
+	// Slice Badge
+	const [expandedUserGroups, setExpandedUserGroups] = useState<Set<number>>(new Set());
+
+
 	const [UserFilter, setUserFilter] = useState<UserPagination>({
 		filters: {
 			Name: '',
@@ -289,6 +293,61 @@ const Rbac: React.FC = () => {
 		return status === true
 			? <Badge color="green">Active</Badge>
 			: <Badge color="red">Inactive</Badge>;
+	};
+
+	// Function to handle expand/collapse of badges
+	const handleExpand = (e: React.MouseEvent, id: number) => {
+		e.preventDefault();
+		e.stopPropagation();
+		setExpandedUserGroups(prev => {
+			const newSet = new Set(prev);
+			if (newSet.has(id)) {
+				newSet.delete(id);
+			} else {
+				newSet.add(id);
+			}
+			return newSet;
+		});
+	};
+
+	// Function to handle auto-refresh after dialog submissions
+	const handleAutoRefresh = async (tabType: 'users' | 'permissions' | 'userGroups') => {
+		try {
+			if (tabType === 'users') {
+				setIsLoadingUsers(true);
+				console.log('Auto-refreshing users after dialog submission');
+				const res = await fetchUsers(UserFilter);
+				if (res.Data.lists) {
+					console.log('Setting updated users data:', res);
+					setUsersData(res.Data);
+				}
+			} else if (tabType === 'permissions') {
+				setIsLoadingPermissions(true);
+				console.log('Auto-refreshing permissions after dialog submission');
+				const res = await fetchPermissions(PermissionFilter);
+				if (res.Data.lists) {
+					console.log('Setting updated permissions data:', res);
+					setPermissionsData(res.Data);
+				}
+			} else if (tabType === 'userGroups') {
+				setIsLoadingUserGroups(true);
+				console.log('Auto-refreshing user groups after dialog submission');
+				const res = await fetchUserGroups(UserGroupFilter);
+				if (res.Data.lists) {
+					console.log('Setting updated userGroups data:', res);
+					setUserGroups(res.Data);
+				}
+			}
+		} catch (error) {
+			console.error(`Error auto-refreshing ${tabType}:`, error);
+			// Don't show alert here, let the calling code handle fallback
+			throw error;
+		} finally {
+			// Reset loading states
+			if (tabType === 'users') setIsLoadingUsers(false);
+			else if (tabType === 'permissions') setIsLoadingPermissions(false);
+			else if (tabType === 'userGroups') setIsLoadingUserGroups(false);
+		}
 	};
 
 	const getTableData = async (tabName: 'users' | 'permissions' | 'userGroups' | 'userRoles') => {
@@ -574,26 +633,31 @@ const Rbac: React.FC = () => {
 											</div>
 										</TableCell>
 										<TableCell>
-											<div className='flex flex-row gap-1'>
-											{(() => {
-												const userGroups = user.UserGroups?.split(',').map(group => group.trim()) || [];
-												return (
-													<>
-														{userGroups.slice(0, 3).map((group: string, index: number) => (
+											<div className='flex flex-wrap gap-1'>
+												{(() => {
+													const userGroups = user.UserGroups?.split(',').map(group => group.trim()) || [];
+													const isExpanded = expandedUserGroups.has(user.Id);
+													const visibleGroups = isExpanded ? userGroups : userGroups.slice(0, 3);
+													
+													return (
+														<>
+															{visibleGroups.map((group: string, index: number) => (
 																<Badge key={index} color="blue" className="text-xs">
 																	{group.trim()}
 																</Badge>
 															))}
-															{userGroups.length > 4 && (
-																<Badge color="green" className="text-xs">
-																	+{userGroups.length - 2} more
+															{userGroups.length > 3 && (
+																<Badge 
+																	color={isExpanded ? "red" : "green"} 
+																	className="text-xs cursor-pointer hover:opacity-75 transition-opacity"
+																	onClick={(e) => handleExpand(e, user.Id)}
+																>
+																	{isExpanded ? 'Show less' : `+${userGroups.length - 3} more`}
 																</Badge>
 															)}
 														</>
-													)
-												}
-												)
-											()}
+													);
+												})()}
 											</div>
 										</TableCell>
 										<TableCell>
@@ -912,20 +976,26 @@ const Rbac: React.FC = () => {
 										<TableCell>
 											<div className="flex flex-wrap gap-1">
 												{(() => {
+													const isExpanded = expandedUserGroups.has(group.Id);
 													// Use PermissionNames for display (more readable than IDs)
 													if (group.PermissionNames && group.PermissionNames.length > 0) {
 														const permissionNames = group.PermissionNames.split(',').map(name => name.trim()).filter(name => name.length > 0);
+														const visiblePermissions = isExpanded ? permissionNames : permissionNames.slice(0, 2);
 														
 														return (
 															<>
-																{permissionNames.slice(0, 2).map((permissionName: string, index: number) => (
+																{visiblePermissions.map((permissionName: string, index: number) => (
 																	<Badge key={index} color="blue" className="text-xs">
 																		{permissionName}
 																	</Badge>
 																))}
 																{permissionNames.length > 2 && (
-																	<Badge color="green" className="text-xs">
-																		+{permissionNames.length - 2} more
+																	<Badge 
+																		color={isExpanded ? "red" : "green"} 
+																		className="text-xs cursor-pointer hover:opacity-75 transition-opacity"
+																		onClick={(e) => handleExpand(e, group.Id)}
+																	>
+																		{isExpanded ? 'Show less' : `+${permissionNames.length - 2} more`}
 																	</Badge>
 																)}
 															</>
@@ -934,17 +1004,22 @@ const Rbac: React.FC = () => {
 													// Fallback: try PermissionIds if PermissionNames doesn't work
 													else if (group.PermissionIds && group.PermissionIds.length > 0) {
 														const permissionIds = group.PermissionIds.split(',').map(id => id.trim()).filter(id => id.length > 0);
+														const visiblePermissions = isExpanded ? permissionIds : permissionIds.slice(0, 2);
 														
 														return (
 															<>
-																{permissionIds.slice(0, 4).map((permissionId: string, index: number) => (
+																{visiblePermissions.map((permissionId: string, index: number) => (
 																	<Badge key={index} color="zinc" className="text-xs">
 																		ID: {permissionId}
 																	</Badge>
 																))}
 																{permissionIds.length > 2 && (
-																	<Badge color="green" className="text-xs">
-																		+{permissionIds.length - 2} more
+																	<Badge 
+																		color={isExpanded ? "red" : "green"} 
+																		className="text-xs cursor-pointer hover:opacity-75 transition-opacity"
+																		onClick={(e) => handleExpand(e, group.Id)}
+																	>
+																		{isExpanded ? 'Show less' : `+${permissionIds.length - 2} more`}
 																	</Badge>
 																)}
 															</>
@@ -1086,28 +1161,23 @@ const Rbac: React.FC = () => {
 				isOpen={isAddPermissionDialogOpen} 
 				onClose={() => setIsAddPermissionDialogOpen(false)} 
 				onSubmit={async (newPermission: any) => {
-					// Add the new permission to the existing data
-					setIsLoadingPermissions(true);
-					console.log('Refreshing permissions after update');
-					const res = await fetchPermissions(PermissionFilter);
-					console.log('Permissions response after update:', res);
-					if(res.Data.lists) {
-						console.log('Setting updated permissions data:', res);
-						setPermissionsData(res.Data);
+					try {
+						await handleAutoRefresh('permissions');
+					} catch (error) {
+						console.error('Error refreshing permissions:', error);
+						// Fallback to local update if server refresh fails
+						const newPermissionWithId = { 
+							...newPermission, 
+							Id: (PermissionsData.lists?.length || 0) + 1, 
+							CreatedDate: new Date().toLocaleDateString() 
+						};
+						
+						setPermissionsData(prev => ({
+							...prev,
+							lists: [...(prev.lists || []), newPermissionWithId],
+							total: (prev.total || 0) + 1
+						}));
 					}
-					const newPermissionWithId = { 
-						...newPermission, 
-						Id: (PermissionsData.lists?.length || 0) + 1, 
-						CreatedDate: new Date().toLocaleDateString() 
-					};
-					
-					setPermissionsData(prev => ({
-						...prev,
-						lists: [...(prev.lists || []), newPermissionWithId],
-						total: (prev.total || 0) + 1
-					}));
-					// Also update the all permissions lookup
-					// setAllPermissions(prev => [...prev, newPermissionWithId]);
 				}}
 			/>
 
@@ -1116,16 +1186,8 @@ const Rbac: React.FC = () => {
 				isOpen={isAddGroupDialogOpen} 
 				onClose={() => setIsAddGroupDialogOpen(false)} 
 				onSubmit={async (newGroup: any) => {
-					// Refresh the user groups data from server after adding
 					try {
-						setIsLoadingUserGroups(true);
-						console.log('Refreshing user groups after adding new group');
-						const res = await fetchUserGroups(UserGroupFilter);
-						console.log('UserGroups response after adding:', res);
-						if(res.Data.lists) {
-							console.log('Setting updated userGroups data:', res);
-							setUserGroups(res.Data);
-						}
+						await handleAutoRefresh('userGroups');
 					} catch (error) {
 						console.error('Error refreshing user groups:', error);
 						// Fallback to local update if server refresh fails
@@ -1147,8 +1209,6 @@ const Rbac: React.FC = () => {
 							lists: [...prev.lists, newGroupWithId],
 							total: prev.total + 1
 						}));
-					} finally {
-						setIsLoadingUserGroups(false);
 					}
 				}}
 			/>
@@ -1225,16 +1285,8 @@ const Rbac: React.FC = () => {
 					}}
 					permission={PermissionsData.lists?.find((permission: any) => permission.Id === selectedPermissionId)!}
 					onSubmit={async (updatedPermission: any) => {
-						// Refresh permissions data from server after update
 						try {
-							setIsLoadingPermissions(true);
-							console.log('Refreshing permissions after update');
-							const res = await fetchPermissions(PermissionFilter);
-							console.log('Permissions response after update:', res);
-							if(res.Data.lists) {
-								console.log('Setting updated permissions data:', res);
-								setPermissionsData(res.Data);
-							}
+							await handleAutoRefresh('permissions');
 						} catch (error) {
 							console.error('Error refreshing permissions:', error);
 							// Fallback to local update if server refresh fails
@@ -1242,8 +1294,6 @@ const Rbac: React.FC = () => {
 								...prev,
 								lists: prev.lists?.map((permission: any) => permission.Id === updatedPermission.Id ? updatedPermission : permission) || []
 							}));
-						} finally {
-							setIsLoadingPermissions(false);
 						}
 					}}
 				/>
@@ -1290,16 +1340,8 @@ const Rbac: React.FC = () => {
 					}}
 					group={UserGroupsData.lists.find(group => group.Id === selectedGroupId)!}
 					onSubmit={async (updatedGroup: any) => {
-						// Refresh the user groups data from server after update
 						try {
-							setIsLoadingUserGroups(true);
-							console.log('Refreshing user groups after update');
-							const res = await fetchUserGroups(UserGroupFilter);
-							console.log('UserGroups response after update:', res);
-							if(res.Data.lists) {
-								console.log('Setting updated userGroups data:', res);
-								setUserGroups(res.Data);
-							}
+							await handleAutoRefresh('userGroups');
 						} catch (error) {
 							console.error('Error refreshing user groups:', error);
 							// Fallback to local update if server refresh fails
@@ -1317,8 +1359,6 @@ const Rbac: React.FC = () => {
 								...prev,
 								lists: prev.lists?.map(group => group.Id === updatedGroup.id ? updatedGroupData : group) || []
 							}));
-						} finally {
-							setIsLoadingUserGroups(false);
 						}
 					}}
 				/>
@@ -1361,21 +1401,12 @@ const Rbac: React.FC = () => {
 					// Update state
 					setUserFilter(newFilter);
 					
-					// Fetch data with new filter immediately
+					// Use auto-refresh function
 					try {
-						setIsLoadingUsers(true);
-						console.log('Fetching users with new filter:', newFilter);
-						const res = await fetchUsers(newFilter);
-						console.log('Users response:', res);
-						if(res.Data.lists) {
-							console.log('Setting users data:', res);
-							setUsersData(res.Data);
-						}
+						await handleAutoRefresh('users');
 					} catch (error) {
 						console.error('Error fetching users:', error);
 						alert('Failed to fetch users: ' + (error instanceof Error ? error.message : 'Unknown error'));
-					} finally {
-						setIsLoadingUsers(false);
 					}
 				}}
 				onClear={async () => {
@@ -1393,21 +1424,12 @@ const Rbac: React.FC = () => {
 					// Update state
 					setUserFilter(newFilter);
 					
-					// Fetch data without filters immediately
+					// Use auto-refresh function
 					try {
-						setIsLoadingUsers(true);
-						console.log('Fetching users without filters:', newFilter);
-						const res = await fetchUsers(newFilter);
-						console.log('Users response:', res);
-						if(res.Data.lists) {
-							console.log('Setting users data:', res);
-							setUsersData(res.Data);
-						}
+						await handleAutoRefresh('users');
 					} catch (error) {
 						console.error('Error fetching users:', error);
 						alert('Failed to fetch users: ' + (error instanceof Error ? error.message : 'Unknown error'));
-					} finally {
-						setIsLoadingUsers(false);
 					}
 				}}
 				initialData={UserFilter.filters}
@@ -1432,23 +1454,12 @@ const Rbac: React.FC = () => {
 					// Update state
 					setPermissionFilter(newFilter);
 					
-					// Fetch data with new filter immediately
+					// Use auto-refresh function
 					try {
-						setIsLoadingPermissions(true);
-						console.log('Fetching permissions with new filter:', newFilter);
-						const res = await fetchPermissions(newFilter);
-						console.log('Permissions response:', res);
-						if(res.Data.lists) {
-							console.log('Setting permissions data:', res);
-							setPermissionsData(res.Data);
-							// Update the all permissions lookup for UserGroups display
-							// setAllPermissions(res.Data.lists);
-						}
+						await handleAutoRefresh('permissions');
 					} catch (error) {
 						console.error('Error fetching permissions:', error);
 						alert('Failed to fetch permissions: ' + (error instanceof Error ? error.message : 'Unknown error'));
-					} finally {
-						setIsLoadingPermissions(false);
 					}
 				}}
 				onClear={async () => {
@@ -1467,23 +1478,12 @@ const Rbac: React.FC = () => {
 					// Update state
 					setPermissionFilter(newFilter);
 					
-					// Fetch data without filters immediately
+					// Use auto-refresh function
 					try {
-						setIsLoadingPermissions(true);
-						console.log('Fetching permissions without filters:', newFilter);
-						const res = await fetchPermissions(newFilter);
-						console.log('Permissions response:', res);
-						if(res.Data.lists) {
-							console.log('Setting permissions data:', res);
-							setPermissionsData(res.Data);
-							// Update the all permissions lookup for UserGroups display
-							// setAllPermissions(res.Data.lists);
-						}
+						await handleAutoRefresh('permissions');
 					} catch (error) {
 						console.error('Error fetching permissions:', error);
 						alert('Failed to fetch permissions: ' + (error instanceof Error ? error.message : 'Unknown error'));
-					} finally {
-						setIsLoadingPermissions(false);
 					}
 				}}
 				initialData={PermissionFilter.Filters}
