@@ -31,14 +31,14 @@ namespace WebAPI.Controllers.Auth
 
                 if (verifyAccount == null) return UnauthorizedUser();
 
-                LdapConnection ldap_conn = new LdapConnection();
-                await ldap_conn.ConnectAsync($"{Appsetting.LDAP.Host}", Appsetting.LDAP.Port);
-                await ldap_conn.BindAsync(Appsetting.LDAP.DN.Replace("[[USERNAME]]","admin"), "admin");
+                //LdapConnection ldap_conn = new LdapConnection();
+                //await ldap_conn.ConnectAsync($"{Appsetting.LDAP.Host}", Appsetting.LDAP.Port);
+                //await ldap_conn.BindAsync(Appsetting.LDAP.DN.Replace("[[USERNAME]]","admin"), "admin");
 
-                Console.WriteLine("LDAP Bind Successfull!");
-                if (ldap_conn.Bound)
-                {
-                    ldap_conn.Disconnect();
+                //Console.WriteLine("LDAP Bind Successfull!");
+                //if (ldap_conn.Bound)
+                //{
+                //    ldap_conn.Disconnect();
                     var claims = new List<Claim>
                     {
                         new Claim(ClaimTypes.NameIdentifier, verifyAccount.UserId),
@@ -57,11 +57,11 @@ namespace WebAPI.Controllers.Auth
                     await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
                         new ClaimsPrincipal(claimsIdentity), authProperties);
                     return Ok(new { Message = "Login successful", Data = new { Authenticated = true, User = verifyAccount } });
-                }
-                else
-                {
-                    return UnauthorizedUser();
-                }
+                //}
+                //else
+                //{
+                //    return UnauthorizedUser();
+                //}
             }
             catch (LdapException error)
             {

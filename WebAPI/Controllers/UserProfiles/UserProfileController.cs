@@ -26,10 +26,18 @@ namespace WebAPI.Controllers.UserProfile
             {
                 var CountUsers = await _db.vUsers.CountAsync();
                 var CountPermissions = await _db.tPermissions.CountAsync();
+                var CountGroups = await _db.tGroups.CountAsync();
+                List<DBHelper.Models.Views.Users> UserLists = await _db.vUsers
+                .AsNoTracking()
+                .OrderByDescending(x => x.Id)
+                .Take(10)
+                .ToListAsync();
                 var response = new
                 {
                     NumberOfUsers = CountUsers,
-                    NumberOfPermissions = CountPermissions
+                    NumberOfPermissions = CountPermissions,
+                    NumberOfGroups = CountPermissions,
+                    Users = UserLists,
                 };
 
                 return Ok(response); // Remove the extra wrapper
@@ -89,9 +97,9 @@ namespace WebAPI.Controllers.UserProfile
 
                 // Apply sorting and pagination
                 dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "Id";
-                var sortedQuery = (dto.sortDirection == sortDirectionList.DESC
-                        ? baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField))
-                        : baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField)));
+                var sortedQuery = (dto.sortDirection == sortDirectionList.ASC
+                        ? baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField))
+                        : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField)));
 
                 // Apply pagination and execute query
                 List<DBHelper.Models.Views.Users> permissionLists = await sortedQuery
@@ -235,15 +243,17 @@ namespace WebAPI.Controllers.UserProfile
                 {
                     return new BadRequestObjectResult(new { Message = $"User '{dto.UserId}' already exists in the System!", Title = "User Already Exists" });
                 }
+                var getPlantillaOffice = await _db.tImplementingOffice.FirstOrDefaultAsync(x => x.OrgName == dto.PlantillaOffice);
+                var getRegCode = await _db.tImplementingOffice.FirstOrDefaultAsync(x => x.OrgName == dto.RegCode);
                 DBHelper.Models.Table.Users addUser = new DBHelper.Models.Table.Users()
                 {
                     UserId = dto.UserId,
                     Name = dto.Name,
                     Email = dto.Email,
                     IsActive = dto.IsActive,
-                    PlantillaOffice = dto.PlantillaOffice,
+                    PlantillaOffice = (getPlantillaOffice != null) ? getPlantillaOffice.OrgName : dto.PlantillaOffice,
                     EmployeeId = dto.EmployeeId,
-                    RegCode = dto.RegCode!,
+                    RegCode = (getRegCode != null) ? getRegCode.OrgName! : dto.RegCode,
                 };
                 if (!string.IsNullOrEmpty(dto.UserGroups) && dto.UserGroups.Contains(","))
                 {
@@ -324,9 +334,9 @@ namespace WebAPI.Controllers.UserProfile
                 dto.sortDirection = string.IsNullOrEmpty(dto.SortField) ? sortDirectionList.DESC : dto.sortDirection;
                 dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "Id";
                 // Apply sorting and pagination
-                var sortedQuery = (dto.sortDirection == sortDirectionList.DESC
-                        ? baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField))
-                        : baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField)));
+                var sortedQuery = (dto.sortDirection == sortDirectionList.ASC
+                        ? baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField))
+                        : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField)));
 
                 // Apply pagination and execute query
                 var permissionLists = await sortedQuery
@@ -503,9 +513,9 @@ namespace WebAPI.Controllers.UserProfile
                 dto.sortDirection = string.IsNullOrEmpty(dto.SortField) ? sortDirectionList.DESC : dto.sortDirection;
                 dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "Id";
                 // Apply sorting and pagination
-                var sortedQuery = (dto.sortDirection == sortDirectionList.DESC
-                        ? baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField))
-                        : baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField)));
+                var sortedQuery = (dto.sortDirection == sortDirectionList.ASC
+                        ? baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField))
+                        : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField)));
 
                 // Apply pagination and execute query
                 var permissionLists = await sortedQuery
