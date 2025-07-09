@@ -24,18 +24,18 @@ interface ThemeProviderProps {
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   // Get initial theme from localStorage or default to 'light'
-  const getInitialTheme = (): Theme => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('theme') as Theme;
-      if (stored && (stored === 'light' || stored === 'dark')) {
-        return stored;
-      }
-    }
-    // Always default to light theme instead of system preference
-    return 'light';
-  };
+  // const getInitialTheme = (): Theme => {
+  //   if (typeof window !== 'undefined') {
+  //     const stored = localStorage.getItem('theme') as Theme;
+  //     if (stored && (stored === 'light' || stored === 'dark')) {
+  //       return stored;
+  //     }
+  //   }
+  //   // Always default to light theme instead of system preference
+  //   return 'light';
+  // };
 
-  const [theme, setThemeState] = useState<Theme>(getInitialTheme);
+  const [theme, setThemeState] = useState<Theme>('light');
 
   // Apply theme to document
   useEffect(() => {

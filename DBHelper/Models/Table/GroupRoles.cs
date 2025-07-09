@@ -5,18 +5,17 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DBHelper.Models
+namespace DBHelper.Models.Table
 {
-    public class UserRoles
+    public class GroupRoles
     {
         [Key]
         public int Id { get; set; }
+        public int? GroupId { get; set; }
         [MaxLength(100)]
-        public string UserId { get; set; } = string.Empty;
+        public int PermissionId { get; set; }
         [MaxLength(100)]
-        public string PermissionId { get; set; } = string.Empty;
-        [MaxLength(100)]
-        public string CreatedBy { get; set; } = string.Empty;
+        public string? CreatedBy { get; set; }
         public DateTime? CreatedDate { get; set; }
     }
 }

@@ -26,33 +26,3 @@ export interface LocationList {
     lngMinutes: number;
     lngSeconds: number;
 }
-/*
-	"data": [
-            {
-                "id": 1,
-                "name": "Marikina",
-                "eventDate": "2025-06-11T00:36:42.0118748",
-                "status": 0,
-                "locationName": "1st Location",
-                "stickerAvailable": 0,
-                "stickerUsed": 0,
-                "currentLapName": "Lap1",
-                "currentLapId": 1
-            },
-            {
-                "id": 2,
-                "name": "Antipolo",
-                "eventDate": "2025-06-11T00:36:42.2227482",
-                "status": 0,
-                "locationName": "1st Location",
-                "stickerAvailable": 0,
-                "stickerUsed": 0,
-                "currentLapName": null,
-                "currentLapId": null
-            }
-        ],
-        "page": 1,
-        "limit": 2,
-        "total": 7,
-        "totalPages": 4
-	*/

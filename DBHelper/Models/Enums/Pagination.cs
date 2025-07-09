@@ -2,9 +2,9 @@
 {
     public class EnumPagination
     {
-        public int limit { get; set; } = 2;
+        public int limit { get; set; } = 10;
         public int page { get; set; } = 1;
-        public sortDirectionList sortDirection { get; set; } = sortDirectionList.DESC; //ASC//DESC
+        public sortDirectionList? sortDirection { get; set; } = sortDirectionList.DESC; //ASC//DESC
     }
     public enum sortDirectionList
     {

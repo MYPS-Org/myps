@@ -3,30 +3,30 @@ import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { Badge } from '../../../components/tailwindui/badge';
-import type { ConsolidatedUserGroup } from '../Model.d';
+import type { UserGroups } from '../Model.d';
 
 interface ViewGroupDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  group: ConsolidatedUserGroup;
+  group: UserGroups;
 }
 
 const ViewGroupDialog: React.FC<ViewGroupDialogProps> = ({ isOpen, onClose, group }) => {
   return (
     <Dialog open={isOpen} onClose={onClose} className="relative z-50">
       {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/30 dark:bg-black/50" aria-hidden="true" />
+      <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
       
       {/* Full-screen container */}
       <div className="fixed inset-0 flex items-center justify-center p-4">
-        <DialogPanel className="w-full max-w-2xl bg-white dark:bg-gray-800 rounded-lg shadow-xl">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <DialogTitle className="text-lg font-semibold text-gray-900 dark:text-white">
+        <DialogPanel className="w-full max-w-2xl bg-white rounded-lg shadow-xl">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+            <DialogTitle className="text-lg font-semibold text-gray-900">
               View Group Details
             </DialogTitle>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              className="text-gray-400 hover:text-gray-600"
             >
               <XMarkIcon className="h-6 w-6" />
             </button>
@@ -36,59 +36,59 @@ const ViewGroupDialog: React.FC<ViewGroupDialogProps> = ({ isOpen, onClose, grou
             {/* Group Basic Info */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Group ID
                 </label>
-                <div className="px-3 py-2 bg-gray-50 dark:bg-gray-700 rounded-md text-gray-900 dark:text-white">
+                <div className="px-3 py-2 bg-gray-50 rounded-md text-gray-900">
                   {group.Id}
                 </div>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Group Name
                 </label>
-                <div className="px-3 py-2 bg-gray-50 dark:bg-gray-700 rounded-md text-gray-900 dark:text-white font-semibold">
+                <div className="px-3 py-2 bg-gray-50 rounded-md text-gray-900 font-semibold">
                   {group.GroupName}
                 </div>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Description
               </label>
-              <div className="px-3 py-2 bg-gray-50 dark:bg-gray-700 rounded-md text-gray-900 dark:text-white">
+              <div className="px-3 py-2 bg-gray-50 rounded-md text-gray-900">
                 {group.Description}
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Member Count
                 </label>
-                <div className="px-3 py-2 bg-gray-50 dark:bg-gray-700 rounded-md text-gray-900 dark:text-white">
-                  <Badge color="blue">{group.MemberCount} members</Badge>
+                <div className="px-3 py-2 bg-gray-50 rounded-md text-gray-900">
+                  <Badge color="blue">{group.NumberOfUsers} members</Badge>
                 </div>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Created Date
                 </label>
-                <div className="px-3 py-2 bg-gray-50 dark:bg-gray-700 rounded-md text-gray-900 dark:text-white">
-                  {new Date(group.CreatedDate).toLocaleDateString()}
+                <div className="px-3 py-2 bg-gray-50 rounded-md text-gray-900">
+                  {/* {new Date(group.CreatedDate).toLocaleDateString()} */}
                 </div>
               </div>
             </div>
 
             {/* Permissions Section */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                Permissions ({group.PermissionName.length})
+            {/* <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Permissions ({group.PermissionsName.length})
               </label>
-              <div className="bg-gray-50 dark:bg-gray-700 rounded-md p-4">
+              <div className="bg-gray-50 rounded-md p-4">
                 {group.PermissionName.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
                     {group.PermissionName.map((permission, index) => (
@@ -98,24 +98,24 @@ const ViewGroupDialog: React.FC<ViewGroupDialogProps> = ({ isOpen, onClose, grou
                     ))}
                   </div>
                 ) : (
-                  <p className="text-gray-500 dark:text-gray-400 text-sm">No permissions assigned</p>
+                  <p className="text-gray-500 text-sm">No permissions assigned</p>
                 )}
               </div>
-            </div>
+            </div> */}
 
-            {group.Module && (
+            {/* {group.Module && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Module
                 </label>
-                <div className="px-3 py-2 bg-gray-50 dark:bg-gray-700 rounded-md text-gray-900 dark:text-white">
+                <div className="px-3 py-2 bg-gray-50 rounded-md text-gray-900">
                   {group.Module}
                 </div>
               </div>
-            )}
+            )} */}
           </div>
 
-          <div className="flex justify-end space-x-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex justify-end space-x-3 px-6 py-4 border-t border-gray-200">
             <Button color="zinc" onClick={onClose}>
               Close
             </Button>

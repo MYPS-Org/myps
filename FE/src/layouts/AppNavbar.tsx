@@ -1,24 +1,8 @@
-import { Avatar } from '../components/tailwindui/avatar'
-import {
-  Dropdown,
-  DropdownButton,
-  DropdownDivider,
-  DropdownItem,
-  DropdownLabel,
-  DropdownMenu,
-} from '../components/tailwindui/dropdown'
-import { Navbar, NavbarDivider, NavbarItem, NavbarLabel, NavbarSection, NavbarSpacer } from '../components/tailwindui/navbar'
-import {
-  ArrowRightStartOnRectangleIcon,
-  ChevronDownIcon,
-  Cog8ToothIcon,
-  LightBulbIcon,
-  PlusIcon,
-  ShieldCheckIcon,
-  UserIcon,
-} from '@heroicons/react/16/solid'
+"use client"
+import { Navbar, NavbarItem, NavbarSection, NavbarSpacer } from '../components/tailwindui/navbar'
+
 import { InboxIcon, MagnifyingGlassIcon } from '@heroicons/react/20/solid'
-import ThemeToggle from '../components/ThemeToggle'
+// import ThemeToggle from '../components/ThemeToggle'
 
 export default function NavBar() {
   return (
@@ -28,9 +12,9 @@ export default function NavBar() {
       </Link> */}
       <NavbarSpacer />
       <NavbarSection>
-        <NavbarItem>
+        {/* <NavbarItem>
           <ThemeToggle />
-        </NavbarItem>
+        </NavbarItem> */}
         <NavbarItem href="/search" aria-label="Search">
           <MagnifyingGlassIcon />
         </NavbarItem>

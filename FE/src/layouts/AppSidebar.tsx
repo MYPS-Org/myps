@@ -1,120 +1,137 @@
 	import { Avatar } from '../components/tailwindui/avatar'
-	import {
-	Dropdown,
-	DropdownButton,
-	DropdownDivider,
-	DropdownItem,
-	DropdownLabel,
-	DropdownMenu,
-	} from '../components/tailwindui/dropdown'
-	import {
-	Sidebar,
-	SidebarBody,
-	SidebarFooter,
-	SidebarHeader,
-	SidebarItem,
-	SidebarLabel,
-	SidebarSection,
-	SidebarSpacer,
-	} from '../components/tailwindui/sidebar'
-	import {
-	ArrowRightStartOnRectangleIcon,
-	ChevronDownIcon,
-	ChevronUpIcon,
-	Cog8ToothIcon,
-	LightBulbIcon,
-	PlusIcon,
-	ShieldCheckIcon,
-	UserIcon,
-	} from '@heroicons/react/16/solid'
-	import {
-	Cog6ToothIcon,
-	HomeIcon,
-	InboxIcon,
-	MagnifyingGlassIcon,
-	MegaphoneIcon,
-	QuestionMarkCircleIcon,
-	SparklesIcon,
-	Square2StackIcon,
-	TicketIcon,
-	} from '@heroicons/react/20/solid'
+import {
+Dropdown,
+DropdownButton,
+DropdownDivider,
+DropdownItem,
+DropdownLabel,
+DropdownMenu,
+} from '../components/tailwindui/dropdown'
+import {
+Sidebar,
+SidebarBody,
+SidebarFooter,
+SidebarHeader,
+SidebarItem,
+SidebarLabel,
+SidebarSection,
+SidebarSpacer,
+SidebarDropdown,
+SidebarDropdownItem,
+} from '../components/tailwindui/sidebar'
+import {
+ArrowRightStartOnRectangleIcon,
+ChevronDownIcon,
+} from '@heroicons/react/16/solid'
+import {
+Cog6ToothIcon,
+HomeIcon,
+QuestionMarkCircleIcon,
+Square2StackIcon,
+FolderIcon,
+CalendarDateRangeIcon,
+} from '@heroicons/react/20/solid'
+import { authService } from '../pages/login/Service' // Adjust the import path as necessary
+import Logo from '../assets/img/logo.png' // Adjust the import path as necessary
 
-	export default function SideBar() {
+// If using React Router, you can import useLocation
+// import { useLocation } from 'react-router-dom'
+
+const handleLogout = async () => {
+	try {
+		await authService.logout();
+		window.location.href = '/login';
+	} catch (error) {
+		console.error('Logout failed:', error);
+		alert('Logout failed. Please try again.');
+	}
+}
+
+export default function SideBar() {
+// If using React Router, uncomment this to get current path
+// const location = useLocation()
+// const currentPath = location.pathname
+
+// For now, you can manually set which item should be current
+// Change this to your actual routing logic or pass it as a prop
+const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/dashboard'
 	return (
 		<Sidebar>
 		<SidebarHeader>
 			<Dropdown>
 			<DropdownButton as={SidebarItem} className="mb-2.5">
-				<Avatar src="/tailwind-logo.svg" />
-				<SidebarLabel>Tailwind Labs</SidebarLabel>
+				<Avatar src={Logo} />
+				<SidebarLabel className="text-gray-500">MYPS</SidebarLabel>
 				<ChevronDownIcon />
 			</DropdownButton>
 			<DropdownMenu className="min-w-64" anchor="bottom start">
-				<DropdownItem href="/teams/1/settings">
-					<Cog8ToothIcon />
-					<DropdownLabel>Settings</DropdownLabel>
-				</DropdownItem>
 				<DropdownDivider />
-				<DropdownItem href="/teams/1">
+				<DropdownItem href="/profile">
 					<Avatar slot="icon" src="/tailwind-logo.svg" />
-					<DropdownLabel>Tailwind Labs</DropdownLabel>
+					<DropdownLabel>Profile</DropdownLabel>
 				</DropdownItem>
-				<DropdownItem href="/teams/2">
-					<Avatar slot="icon" initials="WC" className="bg-purple-500 text-white" />
-					<DropdownLabel>Workcation</DropdownLabel>
+				<DropdownItem onClick={handleLogout}>
+					<ArrowRightStartOnRectangleIcon />
+					<DropdownLabel>Log out</DropdownLabel>
 				</DropdownItem>
-				<DropdownDivider />
+				{/* <DropdownDivider />
 				<DropdownItem href="/teams/create">
 					<PlusIcon />
 					<DropdownLabel>New team&hellip;</DropdownLabel>
-				</DropdownItem>
+				</DropdownItem> */}
 			</DropdownMenu>
 			</Dropdown>
-			<SidebarSection>
-			<SidebarItem href="/inbox">
-				<InboxIcon />
-				<SidebarLabel>Inbox</SidebarLabel>
-			</SidebarItem>
-			</SidebarSection>
 		</SidebarHeader>
 		<SidebarBody>
 			<SidebarSection>
-			<SidebarItem href="/dashboard">
+			<SidebarItem href="/dashboard" current={currentPath === '/dashboard'}>
 				<HomeIcon />
-				<SidebarLabel>Dashboard</SidebarLabel>
+				<SidebarLabel className="text-gray-500">Dashboard</SidebarLabel>
 			</SidebarItem>
-			<SidebarItem href="/events">
+			<SidebarItem href="/programs" current={currentPath === '/programs'}>
+				<FolderIcon />
+				<SidebarLabel className="text-gray-500">Programs</SidebarLabel>
+			</SidebarItem>
+			<SidebarItem href="/projects" current={currentPath === '/projects'}>
 				<Square2StackIcon />
-				<SidebarLabel>Events</SidebarLabel>
+				<SidebarLabel className="text-gray-500">Projects</SidebarLabel>
 			</SidebarItem>
-			<SidebarItem href="/orders">
-				<TicketIcon />
-				<SidebarLabel>Orders</SidebarLabel>
+			<SidebarItem href="/mult-year" current={currentPath === '/mult-year'}>
+				<CalendarDateRangeIcon />
+				<SidebarLabel className="text-gray-500">Mult-Year</SidebarLabel>
 			</SidebarItem>
-			<SidebarItem href="/broadcasts">
-				<MegaphoneIcon />
-				<SidebarLabel>Broadcasts</SidebarLabel>
-			</SidebarItem>
-			<SidebarItem href="/rbac">
+			<SidebarDropdown
+				label="Settings"
+				defaultOpen={false}
+				className="text-gray-500"
+				>
 				<Cog6ToothIcon />
-				<SidebarLabel>RBAC</SidebarLabel>
-			</SidebarItem>
+				<SidebarDropdownItem href="/settings/general" current={currentPath === '/settings/general'}>
+					<SidebarLabel>General</SidebarLabel>
+				</SidebarDropdownItem>
+				<SidebarDropdownItem href="/settings/security" current={currentPath === '/settings/security'}>
+					<SidebarLabel>Security</SidebarLabel>
+				</SidebarDropdownItem>
+				<SidebarDropdownItem href="/rbac" current={currentPath === '/rbac'}>
+					<SidebarLabel>User Management</SidebarLabel>
+				</SidebarDropdownItem>
+			</SidebarDropdown>
 			</SidebarSection>
 			<SidebarSpacer />
 			<SidebarSection>
-			<SidebarItem href="/support">
+			<SidebarItem href="/support" current={currentPath === '/support'}>
 				<QuestionMarkCircleIcon />
 				<SidebarLabel>Support</SidebarLabel>
 			</SidebarItem>
-			<SidebarItem href="/changelog">
+			{/* <SidebarItem href="/changelog">
 				<SparklesIcon />
 				<SidebarLabel>Changelog</SidebarLabel>
-			</SidebarItem>
+			</SidebarItem> */}
 			</SidebarSection>
 		</SidebarBody>
 		<SidebarFooter>
 			<Dropdown>
-			<DropdownButton as={SidebarItem}>
+			{/* <DropdownButton as={SidebarItem}>
 				<span className="flex min-w-0 items-center gap-3">
 				<Avatar src="/profile-photo.jpg" className="size-10" square alt="" />
 				<span className="min-w-0">
@@ -125,8 +142,8 @@
 				</span>
 				</span>
 				<ChevronUpIcon />
-			</DropdownButton>
-			<DropdownMenu className="min-w-64" anchor="top start">
+			</DropdownButton> */}
+			{/* <DropdownMenu className="min-w-64" anchor="top start">
 				<DropdownItem href="/my-profile">
 				<UserIcon />
 				<DropdownLabel>My profile</DropdownLabel>
@@ -149,7 +166,7 @@
 				<ArrowRightStartOnRectangleIcon />
 				<DropdownLabel>Sign out</DropdownLabel>
 				</DropdownItem>
-			</DropdownMenu>
+			</DropdownMenu> */}
 			</Dropdown>
 		</SidebarFooter>
 		</Sidebar>

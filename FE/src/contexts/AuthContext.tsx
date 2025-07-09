@@ -27,7 +27,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         user: null
     });
 
-
     const validateSession = async () => {
         console.log('🔄 Validating session on app load');
 
@@ -64,13 +63,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
             try {
                 const response = await authService.validateSession();
-                
-                if (response.data.Authenticated && response.data.user) {
+                console.log('rine => ', response);
+                if (response.Data.Data.Authenticated) {
                     setAuthState({
                         isAuthenticated: true,
                         isLoading: false,
-                        user: response.data.user
+                        user: response.Data.Data.User
                     });
+                    if(window.location.pathname === '/login') {
+                        const storedPath = localStorage.getItem('currentPath');
+                        // Avoid infinite loop by not redirecting back to login
+                        const path = (storedPath && storedPath !== '/login') 
+                            ? storedPath 
+                            : (import.meta.env.VITE_DEFAULT_ROUTE || '/dashboard');
+                        localStorage.removeItem('currentPath'); // Clean up after use
+                        window.location.href = path;
+                    }
                 } else {
                     console.log('❌ No valid session found', response);
                     setAuthState({
@@ -78,6 +86,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                         isLoading: false,
                         user: null
                     });
+                    localStorage.setItem('currentPath', window.location.pathname);
+                    if (window.location.pathname !== '/login') {
+                        // Redirect to login if not authenticated
+                        window.location.href = '/login';
+                    }
+	                // window.location.href = window.location.pathname || import.meta.env.VITE_DEFAULT_ROUTE || '/dashboard';
                 }
             } catch (error) {
                 console.error('❌ Session validation failed:', error);

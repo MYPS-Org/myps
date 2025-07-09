@@ -1,42 +1,8 @@
 // Service functions for RBAC operations
-import type { RawUserGroupData, ConsolidatedUserGroup, PermissionPagination } from './Model.d';
-import { httpClient } from '../../services/httpClient';
-
-export const consolidateUserGroups = (rawData: RawUserGroupData[]): ConsolidatedUserGroup[] => {
-	const groupMap = new Map<string, ConsolidatedUserGroup>();
-
-	rawData.forEach(item => {
-		const groupName = item.GroupName;
-		
-		if (groupMap.has(groupName)) {
-			// Group already exists, add permission to existing group
-			const existingGroup = groupMap.get(groupName)!;
-			
-			// Add permission if it doesn't already exist
-			if (!existingGroup.PermissionName.includes(item.PermissionName)) {
-				existingGroup.PermissionName.push(item.PermissionName);
-			}
-			
-			// Update member count if provided
-			if (item.MemberCount && item.MemberCount > existingGroup.MemberCount) {
-				existingGroup.MemberCount = item.MemberCount;
-			}
-		} else {
-			// Create new group entry
-			groupMap.set(groupName, {
-				Id: item.Id,
-				GroupName: item.GroupName,
-				Description: item.Description,
-				PermissionName: [item.PermissionName], // Start with array containing first permission
-				Module: item.Module || '',
-				MemberCount: item.MemberCount || 0,
-				CreatedDate: item.CreatedDate || new Date().toISOString()
-			});
-		}
-	});
-
-	return Array.from(groupMap.values());
-};
+import type { PermissionPagination, Permissions, AddPermission, PermissionGroup, Users, UserPagination, UserGroups, AddUserGroups, UserGroupPagination, Pis } from './Model.d';
+import type { PaginationResponse } from '../../types/Pagination.d';
+import { httpClient, type ErrorResponse } from '../../services/httpClient';
+// import type { ErrorResponse } from '';
 
 // Helper function to format permissions as CSV string
 export const formatPermissionsAsCSV = (permissions: string[]): string => {
@@ -48,28 +14,154 @@ export const getPermissionCount = (permissions: string[]): number => {
 	return permissions.length;
 };
 
-// Helper function to validate user group data
-export const validateUserGroupData = (groupData: Partial<ConsolidatedUserGroup>): boolean => {
-	return !!(groupData.GroupName && groupData.Description);
-};
+//#region  Initial API Request
+export const fetchInitialData = async () => {
+	try {
+		const request = await httpClient.post<PaginationResponse<Permissions>>('/UserProfile/InitUserManagement', null,{preloaderMessage: 'Loading initial data...'});
+		return request;
+	} catch (error) {
+		console.error('Service: Error in fetchInitialData:', error);
+		throw error;
+	}
+}
+//#endregion
 
-// Helper function to generate unique group ID
-export const generateGroupId = (existingGroups: ConsolidatedUserGroup[]): number => {
-	const maxId = existingGroups.reduce((max, group) => Math.max(max, group.Id), 0);
-	return maxId + 1;
-};
+//#region  Users API functions
+export const fetchUsers = async (data: UserPagination) => {
+	try {
+		const request = await httpClient.post<PaginationResponse<Users>>('/UserProfile/ShowUsers', data);
+		return request;
+	} catch (error) {
+		throw error;
+	}
+}
+
+export const addUser = async (data: Users) => {
+	try {
+		const request = await httpClient.post<Users>('/UserProfile/AddUser', data);
+		return request;
+	} catch (error) {
+		throw error;
+	}
+}
+
+export const editUser = async (data: Users) => {
+	try {
+		const request = await httpClient.post<Users>(`/UserProfile/UpdateUser`, data);
+		return request;
+	} catch (error) {
+		throw error;
+	}
+}
+
+export const deleteUser = async (data: Users) => {
+	try {
+		const request = await httpClient.post('/UserProfile/DeleteUser', data );
+		return request;
+		
+	} catch (error) {
+		throw error;
+	}
+}
+//#endregion
 
 //#region  Permission API functions
 export const fetchPermissions = async (data: PermissionPagination) => {
+    try {
+        const request = await httpClient.post<PaginationResponse<Permissions>>('/UserProfile/ShowPermissions', data);
+        return request;
+    } catch (error) {
+        throw error;
+    }
+}
+
+export const addPermission = async (data: AddPermission) => {
 	try {
-		console.log('Service: Making API call to /UserProfile/ShowPermissions with data:', data);
-		const request = await httpClient.post<{PermissionLists: any}>("/UserProfile/ShowPermissions", data);
-		console.log('Service: API response received:', request);
+		const request = await httpClient.post<AddPermission>('/UserProfile/AddPermission', data);
 		return request;
 	} catch (error) {
-		console.error('Service: Error in fetchPermissions:', error);
-		// Re-throw the error so the calling component can handle it
 		throw error;
+	}
+}
+
+export const updatePermission = async (data: Permissions) => {
+	try {
+		const request = await httpClient.post<Permissions>('/UserProfile/UpdatePermission', data);
+		return request;
+	} catch (error) {
+		throw error;
+	}
+}
+
+export const fetchPermissionGroups = async () => {
+    try {
+        const request = await httpClient.post<PermissionGroup[]>('/UserProfile/ShowPermissionGroups');
+        return request;
+    } catch (error) {
+        throw error;
+    }
+}
+
+export const deletePermission = async (data: Permissions) => {
+	try {
+		const request = await httpClient.post('/UserProfile/DeletePermission', data);
+		return request;
+	} catch (error) {
+		throw error;
+	}
+}
+//#endregion
+
+//#region  User Groups API functions
+export const fetchUserGroups = async (data: UserGroupPagination) => {
+    try {
+        const request = await httpClient.post<PaginationResponse<UserGroups>>('/UserProfile/ShowUserGroups', data);
+        return request;
+    } catch (error) {
+        throw error;
+    }
+}
+
+export const addUserGroup = async (data: AddUserGroups) => {
+	try {
+		const request = await httpClient.post('/UserProfile/AddUserGroup', data);
+		return request;
+	} catch (error) {
+		throw error;
+	}
+}
+
+export const editUserGroup = async (data: AddUserGroups) => {
+	try {
+		const request = await httpClient.post('/UserProfile/UpdateUserGroup', data);
+		return request;
+	} catch (error) {
+		throw error;
+	}
+}
+
+export const deleteUserGroup = async (groupId: number) => {
+    try {
+        const request = await httpClient.post('/UserProfile/DeleteUserGroup', { Id: groupId });
+        return request;
+    } catch (error) {
+        throw error;
+    }
+}
+//#endregion
+
+//#region  PIS API functions
+export const fetchUserData = async (data: Pis) => {
+    try {
+        const request = await httpClient.post<Users>('/PIS/SearchUser', data);
+        return request;
+	} catch (error : any) {
+		const errorResponse: ErrorResponse = {
+			Message: error.response.Message,
+			Status: error.response.Status,
+			Title: error.response.Title,
+		};
+		throw errorResponse;
 	}
 }
 //#endregion

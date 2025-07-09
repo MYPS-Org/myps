@@ -14,7 +14,7 @@ builder.Configuration.AddJsonFile(file, optional: true, reloadOnChange: true);
 Appsetting.PrepareAppsettings(builder.Configuration);
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(Appsetting.ConnectionString));
 
-builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
+builder.Services.AddScoped<IPasswordHasher<Users>, PasswordHasher<Users>>();
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddDistributedMemoryCache();
@@ -27,7 +27,7 @@ builder.Services.AddAuthentication(options =>
     .AddCookie(options =>
     {
         options.Cookie.HttpOnly = builder.Environment.IsDevelopment() ? false : true; // Protect against XSS // FALSE 
-        options.Cookie.SameSite = builder.Environment.IsDevelopment() ? SameSiteMode.Strict : SameSiteMode.None; // Prevent CSRF attacks
+        options.Cookie.SameSite = builder.Environment.IsDevelopment() ? SameSiteMode.None : SameSiteMode.Strict; // Prevent CSRF attacks
         options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // Ensure secure transport
         options.Cookie.Name = CookieAuthenticationDefaults.AuthenticationScheme; // Custom cookie name
                                                                                  //options.LoginPath = "/login"; // Redirect unauthorized users
@@ -51,7 +51,7 @@ builder.Services.AddAuthentication(options =>
     });
 builder.Services.AddAuthorization(Options =>
 {
-    Options.AddPolicy("Admin", policy => policy.RequireRole("Admin"));
+    Options.AddPolicy("User Management", policy => policy.RequireRole("Admin"));
     Options.AddPolicy("Club", policy => policy.RequireRole("Club"));
     Options.AddPolicy("User", policy => policy.RequireRole("User"));
 });
@@ -68,7 +68,7 @@ if (builder.Environment.IsDevelopment())
     {
         options.AddPolicy("AllowReactApp", builder =>
         {
-            builder.WithOrigins("http://localhost:8080")
+            builder.WithOrigins("http://localhost:8080","http://myps.eptisa-dev.com")
                    .AllowCredentials()
                    .AllowAnyMethod()
                    .AllowAnyHeader();
