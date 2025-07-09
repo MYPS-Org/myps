@@ -15,6 +15,7 @@ import {
     ChevronRightIcon,
     ChevronDownIcon
 } from '@heroicons/react/24/outline'; // Adjust the import path as necessary
+import { getPrograms } from '../Service';
 
 const Program: React.FC = () => {
 const navigate = useNavigate();
@@ -102,12 +103,11 @@ useEffect(() => {
 
 const fetchPrograms = async () => {
     try {
-    const response = await fetch('/api/programs');
-    if (!response.ok) {
+    const response = await getPrograms();
+    if (!response.Data) {
         throw new Error('Failed to fetch programs');
     }
-    const data = await response.json();
-    setPrograms(data);
+    setPrograms(response.Data.lists);
     } catch (error) {
     console.error('Error fetching programs:', error);
     // You might want to show a toast or alert here
