@@ -1,5 +1,13 @@
 import type { PaginationParams } from '../../types/Pagination';
 
+// #region Pagination Response
+export interface InitialDataResponse {
+    NumberOfUsers: number;
+    NumberOfPermissions: number;
+    NumberOfUserGroups: number;
+    Users: Users[];
+}
+
 //#region Permissions Models
 export interface AddPermission {
     PermissionGroupId: number;
