@@ -21,6 +21,8 @@ const FilterUserDialog: React.FC<FilterUserDialogProps> = ({
 }) => {
   const [formData, setFormData] = useState({
     Name: initialData?.Name || '',
+    UserGroup: initialData?.UserGroup || '',
+    IsActive: undefined as boolean | undefined
   });
 
   // Reset form data when dialog opens or initialData changes
@@ -28,28 +30,23 @@ const FilterUserDialog: React.FC<FilterUserDialogProps> = ({
     if (isOpen) {
       setFormData({
         Name: initialData?.Name || '',
+        UserGroup: initialData?.UserGroup || '',
+        IsActive: initialData?.IsActive !== undefined ? initialData.IsActive : undefined
       });
     }
   }, [isOpen, initialData]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Only submit if at least one field has a value
-    const hasValues = formData.Name?.trim();
-    if (hasValues) {
-      onSubmit(formData);
-    } else {
-      // If no values, treat as clear filter
-      onSubmit({
-        Name: ''
-      });
-    }
+    onSubmit(formData);
     onClose();
   };
 
   const handleClear = () => {
     setFormData({
-      Name: ''
+      Name: '',
+      UserGroup: '',
+      IsActive: undefined
     });
     if (onClear) {
       onClear();
@@ -57,7 +54,19 @@ const FilterUserDialog: React.FC<FilterUserDialogProps> = ({
   };
 
   const handleChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    if (field === 'IsActive') {
+      let boolValue: boolean | undefined;
+      if (value === 'active') {
+        boolValue = true;
+      } else if (value === 'inactive') {
+        boolValue = false;
+      } else {
+        boolValue = undefined;
+      }
+      setFormData(prev => ({ ...prev, [field]: boolValue }));
+    } else {
+      setFormData(prev => ({ ...prev, [field]: value }));
+    }
   };
 
   return (
@@ -98,10 +107,43 @@ const FilterUserDialog: React.FC<FilterUserDialogProps> = ({
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  User Group
+                </label>
+                <input
+                  type="text"
+                  value={formData.UserGroup || ''}
+                  onChange={(e) => handleChange('UserGroup', e.target.value)}
+                  placeholder="Search by user group..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Status
+                </label>
+                <select 
+                  name="Status" 
+                  id="Status" 
+                  value={
+                    formData.IsActive === true ? 'active' : 
+                    formData.IsActive === false ? 'inactive' : 
+                    ''
+                  } 
+                  onChange={(e) => handleChange('IsActive', e.target.value)} 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
+                >
+                  <option value="">All</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
             </div>
 
             <div className="flex justify-between pt-4 border-t border-gray-200">
-              <Button type="button" onClick={handleClear} color="zinc">
+              <Button type="button" onClick={handleClear} color="zinc" disabled={
+                !formData.Name && !formData.UserGroup && formData.IsActive === undefined}>
                 Clear Filter
               </Button>
               <div className="flex space-x-3">
