@@ -129,7 +129,11 @@ const Rbac: React.FC = () => {
 	const [isLoadingPermissions, setIsLoadingPermissions] = useState(false);
 	const [isLoadingUserGroups, setIsLoadingUserGroups] = useState(false);
 	const [isLoadingUsers, setIsLoadingUsers] = useState(false);
-	
+	const [tabNumbers, setTabNumbers] = useState({
+		users: 0,
+		permissions: 0,
+		userGroups: 0
+	});
 	// Store all permissions for lookup
 	// const [allPermissions, setAllPermissions] = useState<Permissions[]>([]);
 
@@ -165,28 +169,23 @@ const Rbac: React.FC = () => {
 		const fetchData = async () => {
 			try {
 				const initialData = await fetchInitialData();
-				const res = await fetchUsers(UserFilter);
-				if(res.Data.lists) {
-					console.log('Setting users data:', res);
-					setUsersData(res.Data);
+				setTabNumbers({
+					users: initialData.Data.NumberOfUsers || 0,
+					permissions: initialData.Data.NumberOfPermissions || 0,
+					userGroups: initialData.Data.NumberOfUserGroups || 0
+				});
+
+				if (initialData.Data.Users) {
+					setUsersData(
+						{
+							lists: initialData.Data.Users || [],
+							page: 1,
+							limit: 10,
+							total: initialData.Data.NumberOfUsers,
+							totalPages: Math.ceil(initialData.Data.NumberOfUsers / 10) // Assuming 10 items per page
+						}
+					);
 				}
-				
-				// Fetch all permissions for lookup
-				const allPermissionsFilter: PermissionPagination = {
-					Filters: {
-						ModuleFunction: '',
-						Description: '',
-					},
-					sortField: '',
-					sortDirection: 0,
-					page: 1,
-					limit: 1000 // Get a large number to fetch all permissions
-				};
-				await fetchPermissions(allPermissionsFilter);
-				// if(permissionsRes.Data.lists) {
-				// 	console.log('Setting all permissions for lookup:', permissionsRes.Data.lists);
-				// 	setAllPermissions(permissionsRes.Data.lists);
-				// }
 				
 				console.log('Initial data fetched:', initialData);
 			} catch (error : any) {
@@ -196,9 +195,11 @@ const Rbac: React.FC = () => {
 		};
 		fetchData();
 	},[])
+
 	// Sorting state
 	const [sortDirection, setSortDirection] = useState<0 | 1 | null>(null);
 
+	// #region Handlesort
 	const handleSort = async (field: number, direction: 0 | 1 | null) => {
 		setSortDirection(direction);
 		
@@ -288,14 +289,17 @@ const Rbac: React.FC = () => {
 			}
 		}
 	};
+	//  #endregion
 
+	// #region Render Table Headers
 	const getStatusBadge = (status: true | false) => {
 		return status === true
 			? <Badge color="green">Active</Badge>
 			: <Badge color="red">Inactive</Badge>;
 	};
+	// #endregion
 
-	// Function to handle expand/collapse of badges
+	// #region Function to handle expand/collapse of badges
 	const handleExpand = (e: React.MouseEvent, id: number) => {
 		e.preventDefault();
 		e.stopPropagation();
@@ -309,8 +313,9 @@ const Rbac: React.FC = () => {
 			return newSet;
 		});
 	};
+	// #endregion
 
-	// Function to handle auto-refresh after dialog submissions
+	// #region Function to handle auto-refresh after dialog submissions
 	const handleAutoRefresh = async (tabType: 'users' | 'permissions' | 'userGroups') => {
 		try {
 			if (tabType === 'users') {
@@ -349,7 +354,9 @@ const Rbac: React.FC = () => {
 			else if (tabType === 'userGroups') setIsLoadingUserGroups(false);
 		}
 	};
+	// #endregion
 
+	// #region Function to handle dialog open/close
 	const getTableData = async (tabName: 'users' | 'permissions' | 'userGroups' | 'userRoles') => {
 		console.log('Switching to tab:', tabName);
 		setSelectedTab(tabName);
@@ -426,6 +433,9 @@ const Rbac: React.FC = () => {
 			}
 		}
 	}
+	// #endregion
+
+	// #region Function to handle pagination
 	const Paginate = async (page: number) => {
 		if(selectedTab == 'permissions'){
 			// Create new filter with updated page
@@ -511,17 +521,19 @@ const Rbac: React.FC = () => {
 			}
 		}
 	}
+	// #endregion
 	
+	// #region Render Tab Button
 	const TabButton = ({ 
 		label, 
 		value, 
 		icon: Icon, 
-		// count 
+		count,
 	}: { 
 		label: string; 
 		value: 'users' | 'permissions' | 'userGroups'; 
 		icon: React.ComponentType<{ className?: string }>; 
-		// count: number;
+		count: number;
 	}) => (
 		<button
 			onClick={() => { if(selectedTab != value) getTableData(value); }}
@@ -533,10 +545,12 @@ const Rbac: React.FC = () => {
 		>
 			<Icon className="w-5 h-5" />
 			<span>{label}</span>
-			{/* <Badge color="zinc" className="ml-2">{count}</Badge> */}
+			<Badge color="zinc" className="ml-2">{count}</Badge>
 		</button>
 	);
+	// #endregion
 
+	// #region Render the main component
 	return (
 		<div className="max-w-10xl mx-auto p-6 space-y-6">
 			<div className="flex items-center justify-center">
@@ -560,19 +574,19 @@ const Rbac: React.FC = () => {
 					label="Users" 
 					value="users" 
 					icon={UsersIcon} 
-					// count={UsersData.lists.length} 
+					count={tabNumbers.users} 
 				/>
 				<TabButton 
 					label="Permissions" 
 					value="permissions" 
 					icon={KeyIcon} 
-					// count={100} 
+					count={tabNumbers.permissions} 
 				/>
 				<TabButton 
 					label="User Groups" 
 					value="userGroups" 
 					icon={UserGroupIcon} 
-					// count={UserGroupsData.lists.length} 
+					count={tabNumbers.userGroups} 
 				/>
 			</div>
 			{/* Content Area */}
@@ -1072,6 +1086,7 @@ const Rbac: React.FC = () => {
 								))}
 							</TableBody>
 						</Table>
+						{/* #region for pagination */}
 						<Pagination className="my-6">
 							{
 								UserGroupsData.totalPages > 1 && (
@@ -1137,9 +1152,12 @@ const Rbac: React.FC = () => {
 								)
 							}
 						</div>
+						{/* #endregion */}
 					</div>
 				)}
 			</div>
+
+			{/* #region for dialogs */}
 
 			{/* Add User Dialog */}
 			<AddUserDialog 
@@ -1266,8 +1284,6 @@ const Rbac: React.FC = () => {
 				/>
 			)}
 			
-			{/* Permission CRUD Dialogs */}
-			{/* Add Permission Dialog */}
 			{/* View Permission Dialog */}
 			{isViewPermissionDialogOpen && selectedPermissionId && (
 				<ViewPermissionDialog
@@ -1279,6 +1295,7 @@ const Rbac: React.FC = () => {
 					permission={PermissionsData.lists?.find((permission: any) => permission.Id === selectedPermissionId)!}
 				/>
 			)}
+
 			{/* Update Permission Dialog */}
 			{isUpdatePermissionDialogOpen && selectedPermissionId && (
 				<UpdatePermissionDialog
@@ -1302,6 +1319,7 @@ const Rbac: React.FC = () => {
 					}}
 				/>
 			)}
+
 			{/* Delete Permission Dialog */}
 			{isDeletePermissionDialogOpen && selectedPermissionId && (
 				<DeletePermissionDialog
@@ -1321,7 +1339,6 @@ const Rbac: React.FC = () => {
 				/>
 			)}
 			
-			{/* Group CRUD Dialogs */}
 			{/* View Group Dialog */}
 			{isViewGroupDialogOpen && selectedGroupId && (
 				<ViewGroupDialog
@@ -1524,8 +1541,11 @@ const Rbac: React.FC = () => {
 				initialData={PermissionFilter.Filters}
 				/>
 			)}
+
+			{/* #endregion */}
 		</div>
 	);
+	// #endregion
 };
 
 export default Rbac;
