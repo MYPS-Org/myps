@@ -55,7 +55,7 @@ const AddGroupDialog: React.FC<AddGroupDialogProps> = ({ isOpen, onClose, onSubm
       const response = await fetchPermissions({
         page: 1,
         limit: 1000, // Get all permissions
-        Filters: {}
+        filters: {}
       });
       console.log('Available Permissions:', response);
       if (response.Data && response.Data.lists) {

@@ -122,7 +122,9 @@ const FilterPermissionDialog: React.FC<FilterPermissionDialogProps> = ({
             </div>
 
             <div className="flex justify-between pt-4 border-t border-gray-200">
-              <Button type="button" onClick={handleClear} color="zinc">
+              <Button type="button" onClick={handleClear} color="zinc" disabled={
+                !formData.PermissionGroupName && !formData.ModuleFunction && !formData.Description
+              }>
                 Clear Filter
               </Button>
               <div className="flex space-x-3">
