@@ -242,7 +242,7 @@ const groupedPrograms = groupProgramsByYear(programs);
                         </div>
                     </div>
                 </div>
-            <Table className="px-5">
+            <Table className="px-5" dense>
                 <TableHead>
                 <TableRow>
                     <TableHeader>Name</TableHeader>
@@ -305,7 +305,7 @@ const groupedPrograms = groupProgramsByYear(programs);
                                         <Button 
                                             color="orange"
                                             onClick={() => handleViewDetails(program.Id)}
-                                            className="text-xs px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded"
+                                            className="!text-[10px] px-3 !py-0.5 bg-orange-500 hover:bg-orange-600 text-white rounded"
                                         >
                                             Validate
                                         </Button>
