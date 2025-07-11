@@ -36,7 +36,7 @@ namespace WebAPI.Controllers.UserProfile
                 {
                     NumberOfUsers = CountUsers,
                     NumberOfPermissions = CountPermissions,
-                    NumberOfGroups = CountPermissions,
+                    NumberOfGroups = CountGroups,
                     Users = UserLists,
                 };
 
@@ -86,8 +86,8 @@ namespace WebAPI.Controllers.UserProfile
                 if (!string.IsNullOrEmpty(dto.Filters?.Name))
                     baseQuery = baseQuery.Where(e => e.Name!.Contains(dto.Filters.Name));
 
-                //if (!string.IsNullOrEmpty(dto.Filters?.UserGroup))
-                //    baseQuery = baseQuery.Where(e => e.UserGroup!.Contains(dto.Filters.UserGroup));
+                if (!string.IsNullOrEmpty(dto.Filters?.UserGroup))
+                    baseQuery = baseQuery.Where(e => e.UserGroups!.Contains(dto.Filters.UserGroup));
 
                 if (dto.Filters?.IsActive != null)
                     baseQuery = baseQuery.Where(e => e.IsActive == dto.Filters.IsActive);
@@ -329,6 +329,9 @@ namespace WebAPI.Controllers.UserProfile
                 if (!string.IsNullOrEmpty(dto.Filters?.Description))
                     baseQuery = baseQuery.Where(e => e.Description!.Contains(dto.Filters.Description));
 
+                if (!string.IsNullOrEmpty(dto.Filters?.PermissionGroupName))
+                    baseQuery = baseQuery.Where(e => e.PermissionGroupName!.Contains(dto.Filters.PermissionGroupName));
+
                 // Get total count of filtered results (before pagination)
                 var totalRecords = await baseQuery.CountAsync();
                 dto.sortDirection = string.IsNullOrEmpty(dto.SortField) ? sortDirectionList.DESC : dto.sortDirection;
@@ -507,6 +510,9 @@ namespace WebAPI.Controllers.UserProfile
                 // Apply filters to base query
                 if (!string.IsNullOrEmpty(dto.Filters?.GroupName))
                     baseQuery = _db.vUserGroups.AsNoTracking().Where(e => e.GroupName!.Contains(dto.Filters.GroupName));
+
+                if (!string.IsNullOrEmpty(dto.Filters?.PermissionNames))
+                    baseQuery = _db.vUserGroups.AsNoTracking().Where(e => e.PermissionNames!.Contains(dto.Filters.PermissionNames));
 
                 // Get total count of filtered results (before pagination)
                 var totalRecords = await baseQuery.CountAsync();

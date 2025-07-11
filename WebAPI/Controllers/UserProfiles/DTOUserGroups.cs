@@ -10,6 +10,7 @@ namespace WebAPI.Controllers.UserProfile
     public class UserGroupFilterDTO
     {
         public string? GroupName { get; set; }
+        public string? PermissionNames { get; set; }
     }
     public class DeleteUserGroupDto
     {
