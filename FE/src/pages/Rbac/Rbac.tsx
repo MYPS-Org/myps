@@ -46,7 +46,7 @@ const Rbac: React.FC = () => {
 	const [UsersData, setUsersData] = useState<PaginationResponse<Users>>({
 		lists: [],
 		page: 1,
-		limit: 10,
+		limit: 20,
 		total: 0,
 		totalPages: 0
 	})
@@ -54,7 +54,7 @@ const Rbac: React.FC = () => {
 	const [PermissionsData, setPermissionsData] = useState<PaginationResponse<Permissions>>({
 		lists: [],
 		page: 1,
-		limit: 10,
+		limit: 20,
 		total: 0,
 		totalPages: 0
 	});
@@ -62,7 +62,7 @@ const Rbac: React.FC = () => {
 	const [UserGroupsData, setUserGroups] = useState<PaginationResponse<UserGroups>>({
 		lists: [],
 		page: 1,
-		limit: 10,
+		limit: 20,
 		total: 0,
 		totalPages: 0
 	});
@@ -99,37 +99,102 @@ const Rbac: React.FC = () => {
 	const [UserFilter, setUserFilter] = useState<UserPagination>({
 		filters: {
 			Name: '',
+			UserGroup: '',
+			IsActive: undefined,
 		},
 		sortField: '',
-		sortDirection: 0,
+		sortDirection: 1,
 		page: 1,
-		limit: 10
+		limit: 20
 	});
 	//UserGroup Filter
 	const [UserGroupFilter, setUserGroupFilter] = useState<UserGroupPagination>({
 		filters: {
 			GroupName: '',
+			PermissionNames: '',
 		},
 		sortField: '',
-		sortDirection: 0,
+		sortDirection: 1,
 		page: 1,
-		limit: 10
+		limit: 20
 	});
 	//Permission Filter
 	const [PermissionFilter, setPermissionFilter] = useState<PermissionPagination>({
-		Filters: {
+		filters: {
+			PermissionGroupName: '',
 			ModuleFunction: '',
 			Description: '',
 		},
 		sortField: '',
-		sortDirection: 0,
+		sortDirection: 1,
 		page: 1,
-		limit: 10
+		limit: 20
 	});
 	const [isLoadingPermissions, setIsLoadingPermissions] = useState(false);
 	const [isLoadingUserGroups, setIsLoadingUserGroups] = useState(false);
 	const [isLoadingUsers, setIsLoadingUsers] = useState(false);
-	
+	const [tabNumbers, setTabNumbers] = useState({
+		users: 0,
+		permissions: 0,
+		userGroups: 0
+	});
+
+	const handleClear = () => {
+		if (selectedTab === 'users') {
+			const newFilter: UserPagination = {
+				...UserFilter,
+				filters: {
+					...UserFilter.filters,
+					Name: '',
+					UserGroup: '',
+					IsActive: undefined // Reset IsActive filter
+				}
+			};
+			setUserFilter(newFilter);
+			try {
+				handleAutoRefresh(newFilter);
+			} catch (error) {
+				console.error("Error fetching user groups:", error);
+			}
+		}
+		if (selectedTab === 'permissions') {
+			const newFilter: PermissionPagination = {
+				...PermissionFilter,
+				filters: {
+					...PermissionFilter.filters,
+					ModuleFunction: '',
+					Description: '',
+					PermissionGroupName: ''
+				}
+			};
+			setPermissionFilter(newFilter);
+			try {
+				handleAutoRefresh(newFilter);
+			} catch (error) {
+				console.error("Error fetching user groups:", error);
+			}
+		}
+
+		// Clear filters based on the current tab
+		if (selectedTab === 'userGroups') {
+			const newFilter: UserGroupPagination = {
+				...UserGroupFilter,
+				filters: {
+					...UserGroupFilter.filters,
+					GroupName: '',
+					PermissionNames: ''
+				}
+			};
+			setUserGroupFilter(newFilter);
+			try {
+				handleAutoRefresh(newFilter);
+			} catch (error) {
+				console.error("Error fetching user groups:", error);
+			}
+		}
+	}
+
+
 	// Store all permissions for lookup
 	// const [allPermissions, setAllPermissions] = useState<Permissions[]>([]);
 
@@ -165,28 +230,23 @@ const Rbac: React.FC = () => {
 		const fetchData = async () => {
 			try {
 				const initialData = await fetchInitialData();
-				const res = await fetchUsers(UserFilter);
-				if(res.Data.lists) {
-					console.log('Setting users data:', res);
-					setUsersData(res.Data);
+				setTabNumbers({
+					users: initialData.Data.NumberOfUsers || 0,
+					permissions: initialData.Data.NumberOfPermissions || 0,
+					userGroups: initialData.Data.NumberOfGroups || 0
+				});
+
+				if (initialData.Data.Users) {
+					setUsersData(
+						{
+							lists: initialData.Data.Users || [],
+							page: 1,
+							limit: 20,
+							total: initialData.Data.NumberOfUsers,
+							totalPages: Math.ceil(initialData.Data.NumberOfUsers / 10) // Assuming 10 items per page
+						}
+					);
 				}
-				
-				// Fetch all permissions for lookup
-				const allPermissionsFilter: PermissionPagination = {
-					Filters: {
-						ModuleFunction: '',
-						Description: '',
-					},
-					sortField: '',
-					sortDirection: 0,
-					page: 1,
-					limit: 1000 // Get a large number to fetch all permissions
-				};
-				await fetchPermissions(allPermissionsFilter);
-				// if(permissionsRes.Data.lists) {
-				// 	console.log('Setting all permissions for lookup:', permissionsRes.Data.lists);
-				// 	setAllPermissions(permissionsRes.Data.lists);
-				// }
 				
 				console.log('Initial data fetched:', initialData);
 			} catch (error : any) {
@@ -196,9 +256,11 @@ const Rbac: React.FC = () => {
 		};
 		fetchData();
 	},[])
+
 	// Sorting state
 	const [sortDirection, setSortDirection] = useState<0 | 1 | null>(null);
 
+	// #region Handlesort
 	const handleSort = async (field: number, direction: 0 | 1 | null) => {
 		setSortDirection(direction);
 		
@@ -288,14 +350,17 @@ const Rbac: React.FC = () => {
 			}
 		}
 	};
+	//  #endregion
 
+	// #region Render Table Headers
 	const getStatusBadge = (status: true | false) => {
 		return status === true
 			? <Badge color="green">Active</Badge>
 			: <Badge color="red">Inactive</Badge>;
 	};
+	// #endregion
 
-	// Function to handle expand/collapse of badges
+	// #region Function to handle expand/collapse of badges
 	const handleExpand = (e: React.MouseEvent, id: number) => {
 		e.preventDefault();
 		e.stopPropagation();
@@ -309,47 +374,50 @@ const Rbac: React.FC = () => {
 			return newSet;
 		});
 	};
+	// #endregion
 
-	// Function to handle auto-refresh after dialog submissions
-	const handleAutoRefresh = async (tabType: 'users' | 'permissions' | 'userGroups') => {
+	// #region Function to handle auto-refresh after dialog submissions
+	const handleAutoRefresh = async (filterData: UserPagination | PermissionPagination | UserGroupPagination) => {
 		try {
-			if (tabType === 'users') {
+			if (selectedTab === 'users') {
 				setIsLoadingUsers(true);
 				console.log('Auto-refreshing users after dialog submission');
-				const res = await fetchUsers(UserFilter);
+				const res = await fetchUsers(filterData as UserPagination);
 				if (res.Data.lists) {
 					console.log('Setting updated users data:', res);
 					setUsersData(res.Data);
 				}
-			} else if (tabType === 'permissions') {
+			} else if (selectedTab === 'permissions') {
 				setIsLoadingPermissions(true);
 				console.log('Auto-refreshing permissions after dialog submission');
-				const res = await fetchPermissions(PermissionFilter);
+				const res = await fetchPermissions(filterData as PermissionPagination);
 				if (res.Data.lists) {
 					console.log('Setting updated permissions data:', res);
 					setPermissionsData(res.Data);
 				}
-			} else if (tabType === 'userGroups') {
+			} else if (selectedTab === 'userGroups') {
 				setIsLoadingUserGroups(true);
 				console.log('Auto-refreshing user groups after dialog submission');
-				const res = await fetchUserGroups(UserGroupFilter);
+				const res = await fetchUserGroups(filterData as UserGroupPagination);
 				if (res.Data.lists) {
 					console.log('Setting updated userGroups data:', res);
 					setUserGroups(res.Data);
 				}
 			}
 		} catch (error) {
-			console.error(`Error auto-refreshing ${tabType}:`, error);
+			console.error(`Error auto-refreshing ${selectedTab}:`, error);
 			// Don't show alert here, let the calling code handle fallback
 			throw error;
 		} finally {
 			// Reset loading states
-			if (tabType === 'users') setIsLoadingUsers(false);
-			else if (tabType === 'permissions') setIsLoadingPermissions(false);
-			else if (tabType === 'userGroups') setIsLoadingUserGroups(false);
+			if (selectedTab === 'users') setIsLoadingUsers(false);
+			else if (selectedTab === 'permissions') setIsLoadingPermissions(false);
+			else if (selectedTab === 'userGroups') setIsLoadingUserGroups(false);
 		}
 	};
+	// #endregion
 
+	// #region Function to handle dialog open/close
 	const getTableData = async (tabName: 'users' | 'permissions' | 'userGroups' | 'userRoles') => {
 		console.log('Switching to tab:', tabName);
 		setSelectedTab(tabName);
@@ -426,6 +494,9 @@ const Rbac: React.FC = () => {
 			}
 		}
 	}
+	// #endregion
+
+	// #region Function to handle pagination
 	const Paginate = async (page: number) => {
 		if(selectedTab == 'permissions'){
 			// Create new filter with updated page
@@ -511,17 +582,19 @@ const Rbac: React.FC = () => {
 			}
 		}
 	}
+	// #endregion
 	
+	// #region Render Tab Button
 	const TabButton = ({ 
 		label, 
 		value, 
 		icon: Icon, 
-		// count 
+		count,
 	}: { 
 		label: string; 
 		value: 'users' | 'permissions' | 'userGroups'; 
 		icon: React.ComponentType<{ className?: string }>; 
-		// count: number;
+		count: number;
 	}) => (
 		<button
 			onClick={() => { if(selectedTab != value) getTableData(value); }}
@@ -533,10 +606,12 @@ const Rbac: React.FC = () => {
 		>
 			<Icon className="w-5 h-5" />
 			<span>{label}</span>
-			{/* <Badge color="zinc" className="ml-2">{count}</Badge> */}
+			<Badge color="zinc" className="ml-2">{count}</Badge>
 		</button>
 	);
+	// #endregion
 
+	// #region Render the main component
 	return (
 		<div className="max-w-10xl mx-auto p-6 space-y-6">
 			<div className="flex items-center justify-center">
@@ -560,19 +635,19 @@ const Rbac: React.FC = () => {
 					label="Users" 
 					value="users" 
 					icon={UsersIcon} 
-					// count={UsersData.lists.length} 
+					count={tabNumbers.users} 
 				/>
 				<TabButton 
 					label="Permissions" 
 					value="permissions" 
 					icon={KeyIcon} 
-					// count={100} 
+					count={tabNumbers.permissions} 
 				/>
 				<TabButton 
 					label="User Groups" 
 					value="userGroups" 
 					icon={UserGroupIcon} 
-					// count={UserGroupsData.lists.length} 
+					count={tabNumbers.userGroups} 
 				/>
 			</div>
 			{/* Content Area */}
@@ -584,18 +659,35 @@ const Rbac: React.FC = () => {
 							<div className="flex items-center justify-between">
 								<h3 className="text-lg font-medium text-gray-900">Users</h3>
 								<div className="flex items-center space-x-3">
+									{(UserFilter.filters?.Name || UserFilter.filters?.UserGroup || UserFilter.filters?.IsActive !== undefined) && (
+										<Button 
+											color="red" 
+											className="shadow-md" 
+											onClick={handleClear}
+										>
+											Clear Filters
+										</Button>
+									)}
 									<Button 
 										color="white" 
-										className={`shadow-md ${UserFilter.filters?.Name ? 'ring-2 ring-orange-500 bg-orange-50' : ''}`}
+										className={`shadow-md ${(UserFilter.filters?.Name || UserFilter.filters?.UserGroup || UserFilter.filters?.IsActive !== undefined) ? 'ring-2 ring-orange-500 bg-orange-50' : ''}`}
 										onClick={() => setIsFilterUserDialogOpen(true)}
 									>
 										<AdjustmentsVerticalIcon className="w-4 h-4 mr-1" />
 										Filter
-										{UserFilter.filters?.Name && (
-											<span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
-												1
-											</span>
-										)}
+										{(() => {
+											const activeFilters = [
+												UserFilter.filters?.Name,
+												UserFilter.filters?.UserGroup,
+												UserFilter.filters?.IsActive !== undefined ? 'isActive' : null
+											].filter(Boolean).length;
+											
+											return activeFilters > 0 && (
+												<span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
+													{activeFilters}
+												</span>
+											);
+										})()}
 									</Button>
 									<Button color="blue" onClick={() => setIsAddUserDialogOpen(true)}>
 										<PlusIcon className="w-4 h-4 mr-1" />
@@ -765,18 +857,31 @@ const Rbac: React.FC = () => {
 							<div className="flex items-center justify-between">
 								<h3 className="text-lg font-medium text-gray-900">Permissions</h3>
 								<div className="flex items-center space-x-3">
+									{(PermissionFilter.filters?.ModuleFunction || PermissionFilter.filters?.Description || PermissionFilter.filters?.PermissionGroupName) && (
+										<Button color="red" onClick={handleClear}>
+											Clear Filter
+										</Button>
+									)}
 									<Button 
 										color="white" 
-										className={`shadow-md ${(PermissionFilter.Filters?.ModuleFunction || PermissionFilter.Filters?.Description) ? 'ring-2 ring-orange-500 bg-orange-50' : ''}`}
+										className={`shadow-md ${(PermissionFilter.filters?.ModuleFunction || PermissionFilter.filters?.Description || PermissionFilter.filters?.PermissionGroupName) ? 'ring-2 ring-orange-500 bg-orange-50' : ''}`}
 										onClick={() => setIsPermissionFilterDialogOpen(true)}
 									>
 										<AdjustmentsHorizontalIcon className="w-4 h-4 mr-1" />
 										Filter
-										{(PermissionFilter.Filters?.ModuleFunction || PermissionFilter.Filters?.Description) && (
-											<span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
-												{[PermissionFilter.Filters?.ModuleFunction, PermissionFilter.Filters?.Description].filter(Boolean).length}
-											</span>
-										)}
+										{(() => {
+											const activeFilters = [
+												PermissionFilter.filters?.ModuleFunction,
+												PermissionFilter.filters?.Description,
+												PermissionFilter.filters?.PermissionGroupName
+											].filter(Boolean).length;
+											
+											return activeFilters > 0 && (
+												<span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
+													{activeFilters}
+												</span>
+											);
+										})()}
 									</Button>
 									<Button color="blue" onClick={() => setIsAddPermissionDialogOpen(true)}>
 										<PlusIcon className="w-4 h-4 mr-1" />
@@ -925,9 +1030,30 @@ const Rbac: React.FC = () => {
 							<div className="flex items-center justify-between">
 								<h3 className="text-lg font-medium text-gray-900">User Groups</h3>
 								<div className="flex items-center space-x-3">
-									<Button color="white" className='shadow-md' onClick={() => { setIsUserGroupFilterDialogOpen(true) }}>
+									{(UserGroupFilter.filters?.GroupName || UserGroupFilter.filters?.PermissionNames) && (
+										<Button color="red" onClick={handleClear}>
+											Clear Filter
+										</Button>
+									)}
+									<Button 
+										color="white" 
+										className={`shadow-md ${(UserGroupFilter.filters?.GroupName || UserGroupFilter.filters?.PermissionNames) ? 'ring-2 ring-orange-500 bg-orange-50' : ''}`}
+										onClick={() => { setIsUserGroupFilterDialogOpen(true) }}
+									>
 										<AdjustmentsVerticalIcon className="w-4 h-4 mr-1" />
 										Filter Group
+										{(() => {
+											const activeFilters = [
+												UserGroupFilter.filters?.GroupName,
+												UserGroupFilter.filters?.PermissionNames
+											].filter(Boolean).length;
+											
+											return activeFilters > 0 && (
+												<span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
+													{activeFilters}
+												</span>
+											);
+										})()}
 									</Button>
 									<Button color="blue" onClick={() => { setIsAddGroupDialogOpen(true) }}>
 										<PlusIcon className="w-4 h-4 mr-1" />
@@ -1038,8 +1164,12 @@ const Rbac: React.FC = () => {
 											{group.Description}
 										</TableCell>
 										<TableCell className="text-gray-500">
-											{group.CreatedDate}
-										</TableCell>
+											{new Date(group.CreatedDate).toLocaleDateString('en-US', {
+												year: 'numeric',
+												month: 'numeric',
+												day: 'numeric'
+											})}
+										</TableCell> 	
 										<TableCell>
 											<div className="flex justify-center space-x-2">
 												<Button 
@@ -1068,6 +1198,7 @@ const Rbac: React.FC = () => {
 								))}
 							</TableBody>
 						</Table>
+						{/* #region for pagination */}
 						<Pagination className="my-6">
 							{
 								UserGroupsData.totalPages > 1 && (
@@ -1133,9 +1264,12 @@ const Rbac: React.FC = () => {
 								)
 							}
 						</div>
+						{/* #endregion */}
 					</div>
 				)}
 			</div>
+
+			{/* #region for dialogs */}
 
 			{/* Add User Dialog */}
 			<AddUserDialog 
@@ -1150,7 +1284,7 @@ const Rbac: React.FC = () => {
 					};
 					setUsersData(prev => ({
 						...prev,
-						lists: [...(prev.lists || []), newUserWithId],
+						lists: [newUserWithId, ...(prev.lists || [])],
 						total: (prev.total || 0) + 1
 					}));
 				}}
@@ -1162,7 +1296,7 @@ const Rbac: React.FC = () => {
 				onClose={() => setIsAddPermissionDialogOpen(false)} 
 				onSubmit={async (newPermission: any) => {
 					try {
-						await handleAutoRefresh('permissions');
+						await handleAutoRefresh(PermissionFilter);
 					} catch (error) {
 						console.error('Error refreshing permissions:', error);
 						// Fallback to local update if server refresh fails
@@ -1187,7 +1321,7 @@ const Rbac: React.FC = () => {
 				onClose={() => setIsAddGroupDialogOpen(false)} 
 				onSubmit={async (newGroup: any) => {
 					try {
-						await handleAutoRefresh('userGroups');
+						await handleAutoRefresh(UserGroupFilter);
 					} catch (error) {
 						console.error('Error refreshing user groups:', error);
 						// Fallback to local update if server refresh fails
@@ -1262,8 +1396,6 @@ const Rbac: React.FC = () => {
 				/>
 			)}
 			
-			{/* Permission CRUD Dialogs */}
-			{/* Add Permission Dialog */}
 			{/* View Permission Dialog */}
 			{isViewPermissionDialogOpen && selectedPermissionId && (
 				<ViewPermissionDialog
@@ -1275,6 +1407,7 @@ const Rbac: React.FC = () => {
 					permission={PermissionsData.lists?.find((permission: any) => permission.Id === selectedPermissionId)!}
 				/>
 			)}
+
 			{/* Update Permission Dialog */}
 			{isUpdatePermissionDialogOpen && selectedPermissionId && (
 				<UpdatePermissionDialog
@@ -1286,7 +1419,7 @@ const Rbac: React.FC = () => {
 					permission={PermissionsData.lists?.find((permission: any) => permission.Id === selectedPermissionId)!}
 					onSubmit={async (updatedPermission: any) => {
 						try {
-							await handleAutoRefresh('permissions');
+							await handleAutoRefresh(PermissionFilter);
 						} catch (error) {
 							console.error('Error refreshing permissions:', error);
 							// Fallback to local update if server refresh fails
@@ -1298,6 +1431,7 @@ const Rbac: React.FC = () => {
 					}}
 				/>
 			)}
+
 			{/* Delete Permission Dialog */}
 			{isDeletePermissionDialogOpen && selectedPermissionId && (
 				<DeletePermissionDialog
@@ -1317,7 +1451,6 @@ const Rbac: React.FC = () => {
 				/>
 			)}
 			
-			{/* Group CRUD Dialogs */}
 			{/* View Group Dialog */}
 			{isViewGroupDialogOpen && selectedGroupId && (
 				<ViewGroupDialog
@@ -1341,7 +1474,7 @@ const Rbac: React.FC = () => {
 					group={UserGroupsData.lists.find(group => group.Id === selectedGroupId)!}
 					onSubmit={async (updatedGroup: any) => {
 						try {
-							await handleAutoRefresh('userGroups');
+							await handleAutoRefresh(UserGroupFilter);
 						} catch (error) {
 							console.error('Error refreshing user groups:', error);
 							// Fallback to local update if server refresh fails
@@ -1403,7 +1536,7 @@ const Rbac: React.FC = () => {
 					
 					// Use auto-refresh function
 					try {
-						await handleAutoRefresh('users');
+						await handleAutoRefresh(newFilter);
 					} catch (error) {
 						console.error('Error fetching users:', error);
 						alert('Failed to fetch users: ' + (error instanceof Error ? error.message : 'Unknown error'));
@@ -1416,7 +1549,9 @@ const Rbac: React.FC = () => {
 					const newFilter: UserPagination = {
 						...UserFilter,
 						filters: {
-							Name: ''
+							Name: '',
+							UserGroup: '',
+							IsActive: undefined
 						},
 						page: 1
 					};
@@ -1426,7 +1561,7 @@ const Rbac: React.FC = () => {
 					
 					// Use auto-refresh function
 					try {
-						await handleAutoRefresh('users');
+						await handleAutoRefresh(newFilter);
 					} catch (error) {
 						console.error('Error fetching users:', error);
 						alert('Failed to fetch users: ' + (error instanceof Error ? error.message : 'Unknown error'));
@@ -1447,7 +1582,7 @@ const Rbac: React.FC = () => {
 					// Create new filter object
 					const newFilter: PermissionPagination = {
 						...PermissionFilter,
-						Filters: filterData,
+						filters: filterData,
 						page: 1 // Reset to first page when applying filter
 					};
 					
@@ -1456,7 +1591,7 @@ const Rbac: React.FC = () => {
 					
 					// Use auto-refresh function
 					try {
-						await handleAutoRefresh('permissions');
+						await handleAutoRefresh(newFilter);
 					} catch (error) {
 						console.error('Error fetching permissions:', error);
 						alert('Failed to fetch permissions: ' + (error instanceof Error ? error.message : 'Unknown error'));
@@ -1468,9 +1603,10 @@ const Rbac: React.FC = () => {
 					// Create new filter object with cleared filters
 					const newFilter: PermissionPagination = {
 						...PermissionFilter,
-						Filters: {
+						filters: {
 							ModuleFunction: '',
-							Description: ''
+							Description: '',
+							PermissionGroupName: ''
 						},
 						page: 1
 					};
@@ -1480,13 +1616,13 @@ const Rbac: React.FC = () => {
 					
 					// Use auto-refresh function
 					try {
-						await handleAutoRefresh('permissions');
+						await handleAutoRefresh(newFilter);
 					} catch (error) {
 						console.error('Error fetching permissions:', error);
 						alert('Failed to fetch permissions: ' + (error instanceof Error ? error.message : 'Unknown error'));
 					}
 				}}
-				initialData={PermissionFilter.Filters}
+				initialData={PermissionFilter.filters}
 				/>
 			)}
 			{/* Filter UserGroup Dialog */}
@@ -1494,34 +1630,50 @@ const Rbac: React.FC = () => {
 				<FilterUserGroupDialog 
 				isOpen={isUserGroupFilterDialogOpen}
 				onClose={() => setIsUserGroupFilterDialogOpen(false)}
-				onSubmit={(filterData) => {
+				onSubmit={async (filterData) => {
 					console.log('Filter data received:', filterData);
-					setPermissionFilter(prev => ({
-						...prev,
-						Filters: filterData,
+					
+					const newFilter: UserGroupPagination = {
+						...UserGroupFilter,
+						filters: filterData,
 						page: 1 // Reset to first page when applying filter
-					}));
-					// Refresh the data with new filter
-					getTableData('permissions');
+					};
+					//update state
+					setUserGroupFilter(newFilter);
+
+					try {
+						await handleAutoRefresh(newFilter);
+					} catch (error) {
+						console.error('Error fetching user groups:', error);
+						alert('Failed to fetch user groups: ' + (error instanceof Error ? error.message : 'Unknown error'));
+					}
 				}}
-				onClear={() => {
-					console.log('Clearing permission filters');
-					setPermissionFilter(prev => ({
-						...prev,
-						Filters: {
-							ModuleFunction: '',
-							Description: ''
+				onClear={async () => {
+					console.log('Clearing user group filters');
+					
+					const newFilter: UserGroupPagination = {
+						...UserGroupFilter,
+						filters: {
+							GroupName: '',
+							PermissionNames: ''
 						},
 						page: 1
-					}));
-					// Refresh the data without filters
-					getTableData('permissions');
+					};
+					try {
+						await handleAutoRefresh(newFilter);
+					} catch (error) {
+						console.error('Error fetching user groups:', error);
+						alert('Failed to fetch user groups: ' + (error instanceof Error ? error.message : 'Unknown error'));
+					}
 				}}
-				initialData={PermissionFilter.Filters}
+				initialData={UserGroupFilter.filters}
 				/>
 			)}
+
+			{/* #endregion */}
 		</div>
 	);
+	// #endregion
 };
 
 export default Rbac;

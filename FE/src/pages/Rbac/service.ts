@@ -1,5 +1,5 @@
 // Service functions for RBAC operations
-import type { PermissionPagination, Permissions, AddPermission, PermissionGroup, Users, UserPagination, UserGroups, AddUserGroups, UserGroupPagination, Pis } from './Model.d';
+import type { PermissionPagination, Permissions, AddPermission, PermissionGroup, Users, UserPagination, UserGroups, AddUserGroups, UserGroupPagination, Pis, InitialDataResponse } from './Model.d';
 import type { PaginationResponse } from '../../types/Pagination.d';
 import { httpClient, type ErrorResponse } from '../../services/httpClient';
 // import type { ErrorResponse } from '';
@@ -17,7 +17,7 @@ export const getPermissionCount = (permissions: string[]): number => {
 //#region  Initial API Request
 export const fetchInitialData = async () => {
 	try {
-		const request = await httpClient.post<PaginationResponse<Permissions>>('/UserProfile/InitUserManagement', null,{preloaderMessage: 'Loading initial data...'});
+		const request = await httpClient.post<InitialDataResponse>('/UserProfile/InitUserManagement', null,{preloaderMessage: 'Loading initial data...'});
 		return request;
 	} catch (error) {
 		console.error('Service: Error in fetchInitialData:', error);

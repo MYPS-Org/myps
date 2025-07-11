@@ -1,5 +1,13 @@
 import type { PaginationParams } from '../../types/Pagination';
 
+// #region Pagination Response
+export interface InitialDataResponse {
+    NumberOfUsers: number;
+    NumberOfPermissions: number;
+    NumberOfGroups: number;
+    Users: Users[];
+}
+
 //#region Permissions Models
 export interface AddPermission {
     PermissionGroupId: number;
@@ -26,7 +34,7 @@ export interface Permissions {
 	CreatedDate: string;
 }
 export interface PermissionPagination extends PaginationParams {
-    Filters?: PermissionFilter;
+    filters?: PermissionFilter;
     sortField?: string; // Remove the = 'Id' default value - this is invalid in TypeScript interfaces
     sortDirection?: 0 | 1;
 }
@@ -56,6 +64,8 @@ export interface UserPagination extends PaginationParams {
 }
 export interface UserFilter {
     Name?: string;
+    UserGroup?: string;
+    IsActive?: boolean; // Use boolean for IsActive filter
 }
 //#endregion
 
@@ -77,6 +87,7 @@ export interface UserGroupPagination extends PaginationParams {
 }
 export interface UserGroupFilter {
     GroupName?: string;
+    PermissionNames?: string; // Use string for searching permission names
 }
 
 export interface AddUserGroups {
