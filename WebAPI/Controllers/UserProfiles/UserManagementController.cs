@@ -14,12 +14,12 @@ namespace WebAPI.Controllers.UserProfile
 {
     [ApiController]
     [Route("api/[controller]/[action]")]
-    public class UserProfileController : CoreController
+    [Authorize(Roles = "Admin")]
+    public class UserManagementController : CoreController
     {
-        public UserProfileController(AppDbContext db) : base(db) { }
+        public UserManagementController(AppDbContext db) : base(db) { }
 
         [HttpPost]
-        [AllowAnonymous]
         public async Task<IActionResult> InitUserManagement()
         {
             try
@@ -49,8 +49,6 @@ namespace WebAPI.Controllers.UserProfile
         }
         #region USERS TAB
         [HttpPost]
-        //[Authorize(Policy = "User Management")]
-        [AllowAnonymous]
         public async Task<IActionResult> ShowUsers([FromBody] UsersPaginationDto dto)
         {
             try
@@ -126,7 +124,6 @@ namespace WebAPI.Controllers.UserProfile
             }
         }
         [HttpPost]
-        [AllowAnonymous]
         public async Task<IActionResult> DeleteUser([FromBody] DBHelper.Models.Views.Users dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -158,7 +155,6 @@ namespace WebAPI.Controllers.UserProfile
             }
         }
         [HttpPost]
-        [AllowAnonymous]
         public async Task<IActionResult> UpdateUser([FromBody] DBHelper.Models.Views.Users dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -232,7 +228,6 @@ namespace WebAPI.Controllers.UserProfile
             }
         }
         [HttpPost]
-        [AllowAnonymous]
         public async Task<IActionResult> AddUser([FromBody] DBHelper.Models.Views.Users dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -290,8 +285,6 @@ namespace WebAPI.Controllers.UserProfile
         #endregion
         #region PERMISSIONS TAB
         [HttpPost]
-        //[Authorize(Policy = "View UserProfiles")]
-        [AllowAnonymous]
         public async Task<IActionResult> ShowPermissions([FromBody] ShowPermissionsDTO dto)
         {
             try
@@ -366,7 +359,6 @@ namespace WebAPI.Controllers.UserProfile
             }
         }
         [HttpPost]
-        [AllowAnonymous]
         public async Task<IActionResult> ShowPermissionGroups()
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -382,7 +374,6 @@ namespace WebAPI.Controllers.UserProfile
             }
         }
         [HttpPost]
-        [AllowAnonymous]
         public async Task<IActionResult> AddPermission([FromBody] AddPermissionsDTO dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -421,7 +412,6 @@ namespace WebAPI.Controllers.UserProfile
             }
         }
         [HttpPost]
-        [AllowAnonymous]
         public async Task<IActionResult> UpdatePermission([FromBody] DBHelper.Models.Views.Permissions dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -445,7 +435,6 @@ namespace WebAPI.Controllers.UserProfile
             }
         }
         [HttpPost]
-        [AllowAnonymous]
         public async Task<IActionResult> DeletePermission([FromBody] DBHelper.Models.Views.Permissions dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -475,7 +464,6 @@ namespace WebAPI.Controllers.UserProfile
         #endregion
         #region USER GROUP TAB
         [HttpPost]
-        [AllowAnonymous]
         public async Task<IActionResult> ShowUserGroups([FromBody] UserGroupsPaginationDto dto)
         {
             try
@@ -548,7 +536,6 @@ namespace WebAPI.Controllers.UserProfile
             }
         }
         [HttpPost]
-        [AllowAnonymous]
         public async Task<IActionResult> AddUserGroup([FromBody] AddUserGroupsDTO dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -621,7 +608,6 @@ namespace WebAPI.Controllers.UserProfile
 
         }
         [HttpPost]
-        [AllowAnonymous]
         public async Task<IActionResult> UpdateUserGroup([FromBody] AddUserGroupsDTO dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -684,7 +670,6 @@ namespace WebAPI.Controllers.UserProfile
 
         }
         [HttpPost]
-        [AllowAnonymous]
         public async Task<IActionResult> DeleteUserGroup([FromBody] DBHelper.Models.Views.UserGroups dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
