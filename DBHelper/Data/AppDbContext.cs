@@ -19,6 +19,7 @@ namespace DBHelper.Data
         public DbSet<Models.Table.UserGroups> tUserGroups { get; set; }
         public DbSet<Models.Table.Groups> tGroups { get; set; }
         public DbSet<Models.Table.ImplementingOffice> tImplementingOffice { get; set; }
+        public DbSet<Models.Table.Programs> tPrograms { get; set; }
         #endregion
         #region Views
         public DbSet<Models.Views.Users> vUsers { get; set; }

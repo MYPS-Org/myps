@@ -1164,8 +1164,12 @@ const Rbac: React.FC = () => {
 											{group.Description}
 										</TableCell>
 										<TableCell className="text-gray-500">
-											{group.CreatedDate}
-										</TableCell>
+											{new Date(group.CreatedDate).toLocaleDateString('en-US', {
+												year: 'numeric',
+												month: 'numeric',
+												day: 'numeric'
+											})}
+										</TableCell> 	
 										<TableCell>
 											<div className="flex justify-center space-x-2">
 												<Button 

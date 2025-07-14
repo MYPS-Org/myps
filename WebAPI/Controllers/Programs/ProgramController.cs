@@ -9,18 +9,19 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using Newtonsoft.Json;
 using System.Reflection;
+using WebAPI.Controllers.Programs;
 
 namespace WebAPI.Controllers.UserProfile
 {
     [ApiController]
     [Route("api/[controller]/[action]")]
-    public class UserProfileController : CoreController
+    [Authorize(Roles = "Admin")]
+    public class ProgramController : CoreController
     {
-        public UserProfileController(AppDbContext db) : base(db) { }
+        public ProgramController(AppDbContext db) : base(db) { }
 
         [HttpPost]
-        [AllowAnonymous]
-        public async Task<IActionResult> InitUserManagement()
+        public async Task<IActionResult> AddProgram([FromBody] AddProgramDTO dto)
         {
             try
             {
@@ -36,7 +37,7 @@ namespace WebAPI.Controllers.UserProfile
                 {
                     NumberOfUsers = CountUsers,
                     NumberOfPermissions = CountPermissions,
-                    NumberOfGroups = CountPermissions,
+                    NumberOfGroups = CountGroups,
                     Users = UserLists,
                 };
 
@@ -49,8 +50,6 @@ namespace WebAPI.Controllers.UserProfile
         }
         #region USERS TAB
         [HttpPost]
-        //[Authorize(Policy = "User Management")]
-        [AllowAnonymous]
         public async Task<IActionResult> ShowUsers([FromBody] UsersPaginationDto dto)
         {
             try
@@ -86,8 +85,8 @@ namespace WebAPI.Controllers.UserProfile
                 if (!string.IsNullOrEmpty(dto.Filters?.Name))
                     baseQuery = baseQuery.Where(e => e.Name!.Contains(dto.Filters.Name));
 
-                //if (!string.IsNullOrEmpty(dto.Filters?.UserGroup))
-                //    baseQuery = baseQuery.Where(e => e.UserGroup!.Contains(dto.Filters.UserGroup));
+                if (!string.IsNullOrEmpty(dto.Filters?.UserGroup))
+                    baseQuery = baseQuery.Where(e => e.UserGroups!.Contains(dto.Filters.UserGroup));
 
                 if (dto.Filters?.IsActive != null)
                     baseQuery = baseQuery.Where(e => e.IsActive == dto.Filters.IsActive);
@@ -126,7 +125,6 @@ namespace WebAPI.Controllers.UserProfile
             }
         }
         [HttpPost]
-        [AllowAnonymous]
         public async Task<IActionResult> DeleteUser([FromBody] DBHelper.Models.Views.Users dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -158,7 +156,6 @@ namespace WebAPI.Controllers.UserProfile
             }
         }
         [HttpPost]
-        [AllowAnonymous]
         public async Task<IActionResult> UpdateUser([FromBody] DBHelper.Models.Views.Users dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -232,7 +229,6 @@ namespace WebAPI.Controllers.UserProfile
             }
         }
         [HttpPost]
-        [AllowAnonymous]
         public async Task<IActionResult> AddUser([FromBody] DBHelper.Models.Views.Users dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -290,8 +286,6 @@ namespace WebAPI.Controllers.UserProfile
         #endregion
         #region PERMISSIONS TAB
         [HttpPost]
-        //[Authorize(Policy = "View UserProfiles")]
-        [AllowAnonymous]
         public async Task<IActionResult> ShowPermissions([FromBody] ShowPermissionsDTO dto)
         {
             try
@@ -329,6 +323,9 @@ namespace WebAPI.Controllers.UserProfile
                 if (!string.IsNullOrEmpty(dto.Filters?.Description))
                     baseQuery = baseQuery.Where(e => e.Description!.Contains(dto.Filters.Description));
 
+                if (!string.IsNullOrEmpty(dto.Filters?.PermissionGroupName))
+                    baseQuery = baseQuery.Where(e => e.PermissionGroupName!.Contains(dto.Filters.PermissionGroupName));
+
                 // Get total count of filtered results (before pagination)
                 var totalRecords = await baseQuery.CountAsync();
                 dto.sortDirection = string.IsNullOrEmpty(dto.SortField) ? sortDirectionList.DESC : dto.sortDirection;
@@ -363,7 +360,6 @@ namespace WebAPI.Controllers.UserProfile
             }
         }
         [HttpPost]
-        [AllowAnonymous]
         public async Task<IActionResult> ShowPermissionGroups()
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -379,7 +375,6 @@ namespace WebAPI.Controllers.UserProfile
             }
         }
         [HttpPost]
-        [AllowAnonymous]
         public async Task<IActionResult> AddPermission([FromBody] AddPermissionsDTO dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -418,7 +413,6 @@ namespace WebAPI.Controllers.UserProfile
             }
         }
         [HttpPost]
-        [AllowAnonymous]
         public async Task<IActionResult> UpdatePermission([FromBody] DBHelper.Models.Views.Permissions dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -442,7 +436,6 @@ namespace WebAPI.Controllers.UserProfile
             }
         }
         [HttpPost]
-        [AllowAnonymous]
         public async Task<IActionResult> DeletePermission([FromBody] DBHelper.Models.Views.Permissions dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -472,7 +465,6 @@ namespace WebAPI.Controllers.UserProfile
         #endregion
         #region USER GROUP TAB
         [HttpPost]
-        [AllowAnonymous]
         public async Task<IActionResult> ShowUserGroups([FromBody] UserGroupsPaginationDto dto)
         {
             try
@@ -508,6 +500,9 @@ namespace WebAPI.Controllers.UserProfile
                 if (!string.IsNullOrEmpty(dto.Filters?.GroupName))
                     baseQuery = _db.vUserGroups.AsNoTracking().Where(e => e.GroupName!.Contains(dto.Filters.GroupName));
 
+                if (!string.IsNullOrEmpty(dto.Filters?.PermissionNames))
+                    baseQuery = _db.vUserGroups.AsNoTracking().Where(e => e.PermissionNames!.Contains(dto.Filters.PermissionNames));
+
                 // Get total count of filtered results (before pagination)
                 var totalRecords = await baseQuery.CountAsync();
                 dto.sortDirection = string.IsNullOrEmpty(dto.SortField) ? sortDirectionList.DESC : dto.sortDirection;
@@ -542,7 +537,6 @@ namespace WebAPI.Controllers.UserProfile
             }
         }
         [HttpPost]
-        [AllowAnonymous]
         public async Task<IActionResult> AddUserGroup([FromBody] AddUserGroupsDTO dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -615,7 +609,6 @@ namespace WebAPI.Controllers.UserProfile
 
         }
         [HttpPost]
-        [AllowAnonymous]
         public async Task<IActionResult> UpdateUserGroup([FromBody] AddUserGroupsDTO dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -678,7 +671,6 @@ namespace WebAPI.Controllers.UserProfile
 
         }
         [HttpPost]
-        [AllowAnonymous]
         public async Task<IActionResult> DeleteUserGroup([FromBody] DBHelper.Models.Views.UserGroups dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
