@@ -9,18 +9,19 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using Newtonsoft.Json;
 using System.Reflection;
+using WebAPI.Controllers.Programs;
 
 namespace WebAPI.Controllers.UserProfile
 {
     [ApiController]
     [Route("api/[controller]/[action]")]
     [Authorize(Roles = "Admin")]
-    public class UserManagementController : CoreController
+    public class ProgramController : CoreController
     {
-        public UserManagementController(AppDbContext db) : base(db) { }
+        public ProgramController(AppDbContext db) : base(db) { }
 
         [HttpPost]
-        public async Task<IActionResult> InitUserManagement()
+        public async Task<IActionResult> AddProgram([FromBody] AddProgramDTO dto)
         {
             try
             {

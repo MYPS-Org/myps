@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using DBHelper.Models.Enums;
 
-namespace DBHelper.Models.Dtos
+namespace WebAPI.Controllers.Settings.UserManagement
 {
     public class ShowPermissionsDTO : EnumPagination
     {

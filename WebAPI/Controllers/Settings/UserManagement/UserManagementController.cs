@@ -1,0 +1,707 @@
+﻿using DBHelper.Data;
+using DBHelper.Models.Enums;
+using DBHelper.Models.Table;
+using DBHelper.Models.Views;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Migrations.Operations;
+using Newtonsoft.Json;
+using System.Reflection;
+
+namespace WebAPI.Controllers.Settings.UserManagement
+{
+    [ApiController]
+    [Route("api/[controller]/[action]")]
+    [Authorize(Roles = "Admin")]
+    public class UserManagementController : CoreController
+    {
+        public UserManagementController(AppDbContext db) : base(db) { }
+
+        [HttpPost]
+        public async Task<IActionResult> InitUserManagement()
+        {
+            try
+            {
+                var CountUsers = await _db.vUsers.CountAsync();
+                var CountPermissions = await _db.tPermissions.CountAsync();
+                var CountGroups = await _db.tGroups.CountAsync();
+                List<DBHelper.Models.Views.Users> UserLists = await _db.vUsers
+                .AsNoTracking()
+                .OrderByDescending(x => x.Id)
+                .Take(10)
+                .ToListAsync();
+                var response = new
+                {
+                    NumberOfUsers = CountUsers,
+                    NumberOfPermissions = CountPermissions,
+                    NumberOfGroups = CountGroups,
+                    Users = UserLists,
+                };
+
+                return Ok(response); // Remove the extra wrapper
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
+        #region USERS TAB
+        [HttpPost]
+        public async Task<IActionResult> ShowUsers([FromBody] UsersPaginationDto dto)
+        {
+            try
+            {
+                if (dto.Filters == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Expected Parametes missing!", Title = "Parameter Error" });
+                }
+                if (!string.IsNullOrEmpty(dto.SortField))
+                {
+                    bool isValid = typeof(DBHelper.Models.Views.Users)
+                        .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                        .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
+                    if (!isValid)
+                    {
+                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort!", Title = "Parameter Error" });
+                    }
+                }
+                dto.sortDirection = string.IsNullOrEmpty(dto.sortDirection.ToString()) ? sortDirectionList.DESC : dto.sortDirection;
+
+                bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!);
+                if (!isValidDirection)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed!", Title = "Invalid sort option" });
+                }
+                // Validate pagination parameters
+                if (dto.page < 1) dto.page = 1;
+                if (dto.limit < 1) dto.limit = 10;
+
+                var baseQuery = _db.vUsers.AsNoTracking();
+
+                // Apply filters to base query
+                if (!string.IsNullOrEmpty(dto.Filters?.Name))
+                    baseQuery = baseQuery.Where(e => e.Name!.Contains(dto.Filters.Name));
+
+                if (!string.IsNullOrEmpty(dto.Filters?.UserGroup))
+                    baseQuery = baseQuery.Where(e => e.UserGroups!.Contains(dto.Filters.UserGroup));
+
+                if (dto.Filters?.IsActive != null)
+                    baseQuery = baseQuery.Where(e => e.IsActive == dto.Filters.IsActive);
+
+                // Get total count of filtered results (before pagination)
+                var totalRecords = await baseQuery.CountAsync();
+
+                // Apply sorting and pagination
+                dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "Id";
+                var sortedQuery = dto.sortDirection == sortDirectionList.ASC
+                        ? baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField))
+                        : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField));
+
+                // Apply pagination and execute query
+                List<DBHelper.Models.Views.Users> permissionLists = await sortedQuery
+                    .Skip((dto.page - 1) * dto.limit)
+                    .Take(dto.limit)
+                    .ToListAsync();
+
+                var totalPages = (int)Math.Ceiling((double)totalRecords / dto.limit);
+
+                var response = new
+                {
+                    lists = permissionLists,
+                    dto.page,
+                    dto.limit,
+                    total = totalRecords,
+                    totalPages
+                };
+
+                return Ok(response); // Remove the extra wrapper
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
+        [HttpPost]
+        public async Task<IActionResult> DeleteUser([FromBody] DBHelper.Models.Views.Users dto)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var getUser = await _db.tUsers.FirstOrDefaultAsync(x => x.Id == dto.Id);
+                if (getUser == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"User '{dto.UserId}' does not exists in the System!", Title = "User not found" });
+                }
+                var getUserGroups = await _db.tUserGroups.Where(x => x.UserId == getUser.UserId).ToListAsync();
+                if(getUserGroups.Count > 0)
+                {
+                    _db.tUserGroups.RemoveRange(getUserGroups);
+                }
+                _db.tUsers.Remove(getUser);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return Ok(new
+                {
+                    Message = "User deleted updated successfully",
+                    Title = "Delete Complete"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
+        [HttpPost]
+        public async Task<IActionResult> UpdateUser([FromBody] DBHelper.Models.Views.Users dto)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var getUser = await _db.tUsers.FirstOrDefaultAsync(x => x.Id == dto.Id);
+                if (getUser == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"User '{dto.UserId}' does not exists in the System!", Title = "User not found" });
+                }
+                getUser.Name = dto.Name;
+                getUser.Email = dto.Email;
+                getUser.IsActive = dto.IsActive;
+                getUser.PlantillaOffice = dto.PlantillaOffice;
+                getUser.EmployeeId = dto.EmployeeId;
+                getUser.RegCode = dto.RegCode;
+                if (!string.IsNullOrEmpty(dto.UserGroups) && dto.UserGroups.Contains(","))
+                {
+                    string[] groups = dto.UserGroups.Split(',');
+                    string newUserId = dto.UserId;
+                    var getUserGroups = await _db.tUserGroups.Where(x => x.UserId == getUser.UserId).ToListAsync();
+                    var getGroups = await _db.tGroups.Where(x => groups.Contains(x.GroupName)).Select(x => x.Id).ToListAsync();
+                    var toRemoveGroups = getUserGroups.Where(x => !getGroups.Contains(x.GroupId)).ToList();
+                    if (getUserGroups.Count() > 0)
+                    {
+                        var toAddGroups = getGroups.Where(selected => !getUserGroups.Any(ug => ug.GroupId == selected)).ToList();
+                        if(toRemoveGroups.Count > 0)
+                        {
+                            _db.tUserGroups.RemoveRange(toRemoveGroups);
+                        }
+                        if (toAddGroups.Count > 0)
+                        {
+                            _db.tUserGroups.AddRange(toAddGroups.Select(x =>
+                                new DBHelper.Models.Table.UserGroups()
+                                {
+                                    UserId = newUserId,
+                                    GroupId = x,
+                                    CreatedBy = _Session.UserId,
+                                    CreatedDate = DateTime.UtcNow
+                                }
+                            ));
+                        }
+                    }
+                    else if(getUserGroups.Count() < 1 && getGroups.Count > 0)
+                    {
+                        _db.tUserGroups.AddRange(getGroups.Select(x =>
+                            new DBHelper.Models.Table.UserGroups()
+                            {
+                                UserId = newUserId,
+                                GroupId = x,
+                                CreatedBy = _Session.UserId,
+                                CreatedDate = DateTime.UtcNow
+                            }
+                        ));
+                    }
+                }
+
+                _db.tUsers.Update(getUser);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return Ok(new
+                {
+                    Message = "User Info updated successfully",
+                    Title = "Under Maintenance"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
+        [HttpPost]
+        public async Task<IActionResult> AddUser([FromBody] DBHelper.Models.Views.Users dto)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var getUser = await _db.tUsers.FirstOrDefaultAsync(x => x.UserId == dto.UserId && x.Id == dto.Id);
+                if (getUser != null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"User '{dto.UserId}' already exists in the System!", Title = "User Already Exists" });
+                }
+                var getPlantillaOffice = await _db.tImplementingOffice.FirstOrDefaultAsync(x => x.OrgName == dto.PlantillaOffice);
+                var getRegCode = await _db.tImplementingOffice.FirstOrDefaultAsync(x => x.OrgName == dto.RegCode);
+                DBHelper.Models.Table.Users addUser = new DBHelper.Models.Table.Users()
+                {
+                    UserId = dto.UserId,
+                    Name = dto.Name,
+                    Email = dto.Email,
+                    IsActive = dto.IsActive,
+                    PlantillaOffice = getPlantillaOffice != null ? getPlantillaOffice.OrgName : dto.PlantillaOffice,
+                    EmployeeId = dto.EmployeeId,
+                    RegCode = getRegCode != null ? getRegCode.OrgName! : dto.RegCode,
+                };
+                if (!string.IsNullOrEmpty(dto.UserGroups) && dto.UserGroups.Contains(","))
+                {
+                    string[] groups = dto.UserGroups.Split(',');
+                    var getGroups = await _db.tGroups.Where(x => groups.Contains(x.GroupName)).Select(x => x.Id).ToListAsync();
+                    if (getGroups.Count > 0)
+                    {
+                        _db.tUserGroups.AddRange(getGroups.Select(GrouId =>
+                            new DBHelper.Models.Table.UserGroups()
+                            {
+                                UserId = dto.UserId,
+                                GroupId = GrouId,
+                                CreatedBy = _Session.UserId,
+                                CreatedDate = DateTime.UtcNow
+                            }
+                        ));
+                    }
+                }
+                _db.tUsers.Add(addUser);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return Ok(new
+                {
+                    Message = "User added successfully",
+                    Title = "Add Complete"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
+        #endregion
+        #region PERMISSIONS TAB
+        [HttpPost]
+        public async Task<IActionResult> ShowPermissions([FromBody] ShowPermissionsDTO dto)
+        {
+            try
+            {
+                if (dto.Filters == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Expected Parametes missing!", Title = "Parameter Error" });
+                }
+                if (!string.IsNullOrEmpty(dto.SortField))
+                {
+                    bool isValid = typeof(DBHelper.Models.Views.Permissions)
+                        .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                        .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
+                    if (!isValid)
+                    {
+                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort!", Title = "Parameter Error" });
+                    }
+                }
+                dto.sortDirection = string.IsNullOrEmpty(dto.sortDirection.ToString()) ? sortDirectionList.DESC : dto.sortDirection;
+
+                bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!);
+                if (!isValidDirection)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed!", Title = "Invalid sort option" });
+                }
+                // Validate pagination parameters
+                if (dto.page < 1) dto.page = 1;
+                if (dto.limit < 1) dto.limit = 10;
+
+                var baseQuery = _db.vPermissions.AsNoTracking();
+
+                if (!string.IsNullOrEmpty(dto.Filters?.ModuleFunction))
+                    baseQuery = baseQuery.Where(e => e.ModuleFunction!.Contains(dto.Filters.ModuleFunction));
+
+                if (!string.IsNullOrEmpty(dto.Filters?.Description))
+                    baseQuery = baseQuery.Where(e => e.Description!.Contains(dto.Filters.Description));
+
+                if (!string.IsNullOrEmpty(dto.Filters?.PermissionGroupName))
+                    baseQuery = baseQuery.Where(e => e.PermissionGroupName!.Contains(dto.Filters.PermissionGroupName));
+
+                // Get total count of filtered results (before pagination)
+                var totalRecords = await baseQuery.CountAsync();
+                dto.sortDirection = string.IsNullOrEmpty(dto.SortField) ? sortDirectionList.DESC : dto.sortDirection;
+                dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "Id";
+                // Apply sorting and pagination
+                var sortedQuery = dto.sortDirection == sortDirectionList.ASC
+                        ? baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField))
+                        : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField));
+
+                // Apply pagination and execute query
+                var permissionLists = await sortedQuery
+                    .Skip((dto.page - 1) * dto.limit)
+                    .Take(dto.limit)
+                    .ToListAsync();
+
+                var totalPages = (int)Math.Ceiling((double)totalRecords / dto.limit);
+
+                var response = new
+                {
+                    lists = permissionLists, // Match your frontend expectation
+                    dto.page,
+                    dto.limit,
+                    total = totalRecords,
+                    totalPages
+                };
+
+                return Ok(response); // Remove the extra wrapper
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
+        [HttpPost]
+        public async Task<IActionResult> ShowPermissionGroups()
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                List<PermissionGroups> Groups = await _db.tPermissionGroups.ToListAsync();
+                return Ok(Groups);
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
+        [HttpPost]
+        public async Task<IActionResult> AddPermission([FromBody] AddPermissionsDTO dto)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                if (string.IsNullOrEmpty(dto.ModuleFunction))
+                {
+                    return new BadRequestObjectResult(new { Message = "Module Function is required!", Title = "Parameter Error" });
+                }
+                if (string.IsNullOrEmpty(dto.Description))
+                {
+                    return new BadRequestObjectResult(new { Message = "Module Description is required!", Title = "Parameter Error" });
+                }
+                var getPermission = await _db.tPermissions.FirstOrDefaultAsync(x => x.ModuleFunction == dto.ModuleFunction);
+                if (getPermission != null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Permission '{dto.ModuleFunction}' already exists!", Title = "Permission Exists" });
+                }
+                DBHelper.Models.Table.Permissions Add = new DBHelper.Models.Table.Permissions()
+                {
+                    ModuleFunction = dto.ModuleFunction,
+                    PermissionGroupId = dto.PermissionGroupId,
+                    Description = dto.Description,
+                    CreatedBy = _Session.UserId,
+                    CreatedDate = DateTime.UtcNow
+                };
+                _db.tPermissions.Add(Add);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return Ok(new { Message = $"{dto.ModuleFunction} added successfully!", Title = "Add Complete" });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
+        [HttpPost]
+        public async Task<IActionResult> UpdatePermission([FromBody] DBHelper.Models.Views.Permissions dto)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var getPermission = await _db.tPermissions.FirstOrDefaultAsync(x => x.Id == dto.Id);
+                if (getPermission == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Permission '{dto.PermissionGroupName}' does not exists in the System!", Title = "Permission not found" });
+                }
+                getPermission.Description = dto.Description;
+                getPermission.PermissionGroupId = dto.PermissionGroupId;
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return Ok(new { Message = $"{dto.PermissionGroupName} updated successfully!", Title = "Update Complete" });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
+        [HttpPost]
+        public async Task<IActionResult> DeletePermission([FromBody] DBHelper.Models.Views.Permissions dto)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var getPermission = await _db.tPermissions.FirstOrDefaultAsync(x => x.Id == dto.Id);
+                if (getPermission == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Permission '{dto.PermissionGroupName}' does not exists in the System!", Title = "Permission not found" });
+                }
+                var usersInGroup = await _db.tUserGroups.Where(x => x.GroupId == dto.Id).CountAsync();
+                if (usersInGroup > 0)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Cannot delete permission '{dto.PermissionGroupName}' because it has {usersInGroup} user(s) assigned to it. Please remove all users from this group first.", Title = "Group has members" });
+                }
+                _db.tPermissions.Remove(getPermission);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return Ok(new { Message = $"{dto.PermissionGroupName} updated successfully!", Title = "Update Complete" });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
+        #endregion
+        #region USER GROUP TAB
+        [HttpPost]
+        public async Task<IActionResult> ShowUserGroups([FromBody] UserGroupsPaginationDto dto)
+        {
+            try
+            {
+                if (dto.Filters == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Expected Parametes missing!", Title = "Parameter Error" });
+                }
+                if (!string.IsNullOrEmpty(dto.SortField))
+                {
+                    bool isValid = typeof(DBHelper.Models.Views.UserGroups)
+                        .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                        .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
+                    if (!isValid)
+                    {
+                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort!", Title = "Parameter Error" });
+                    }
+                }
+                dto.sortDirection = string.IsNullOrEmpty(dto.sortDirection.ToString()) ? sortDirectionList.DESC : dto.sortDirection;
+
+                bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!);
+                if (!isValidDirection)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed!", Title = "Invalid sort option" });
+                }
+                // Validate pagination parameters
+                if (dto.page < 1) dto.page = 1;
+                if (dto.limit < 1) dto.limit = 10;
+
+                var baseQuery = _db.vUserGroups.AsNoTracking();
+
+                // Apply filters to base query
+                if (!string.IsNullOrEmpty(dto.Filters?.GroupName))
+                    baseQuery = _db.vUserGroups.AsNoTracking().Where(e => e.GroupName!.Contains(dto.Filters.GroupName));
+
+                if (!string.IsNullOrEmpty(dto.Filters?.PermissionNames))
+                    baseQuery = _db.vUserGroups.AsNoTracking().Where(e => e.PermissionNames!.Contains(dto.Filters.PermissionNames));
+
+                // Get total count of filtered results (before pagination)
+                var totalRecords = await baseQuery.CountAsync();
+                dto.sortDirection = string.IsNullOrEmpty(dto.SortField) ? sortDirectionList.DESC : dto.sortDirection;
+                dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "Id";
+                // Apply sorting and pagination
+                var sortedQuery = dto.sortDirection == sortDirectionList.ASC
+                        ? baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField))
+                        : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField));
+
+                // Apply pagination and execute query
+                var permissionLists = await sortedQuery
+                    .Skip((dto.page - 1) * dto.limit)
+                    .Take(dto.limit)
+                    .ToListAsync();
+
+                var totalPages = (int)Math.Ceiling((double)totalRecords / dto.limit);
+
+                var response = new
+                {
+                    lists = permissionLists, // Match your frontend expectation
+                    dto.page,
+                    dto.limit,
+                    total = totalRecords,
+                    totalPages
+                };
+
+                return Ok(response); // Remove the extra wrapper
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
+        [HttpPost]
+        public async Task<IActionResult> AddUserGroup([FromBody] AddUserGroupsDTO dto)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {// Check if group name already exists
+                var existingGroup = await _db.tGroups.FirstOrDefaultAsync(x => x.GroupName == dto.GroupName);
+                if (existingGroup != null)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Group Name '{dto.GroupName}' already exists!",
+                        Title = "Group Name Exists"
+                    });
+                }
+
+                // Get all valid permission IDs
+                var validPermissionIds = await _db.tPermissions.Select(x => x.Id).ToListAsync();
+
+                // Create and save the new group
+                var newGroup = new Groups
+                {
+                    GroupName = dto.GroupName,
+                    Description = dto.Description,
+                    CreatedBy = _Session.UserId,
+                    CreatedDate = DateTime.UtcNow
+                };
+
+                await _db.tGroups.AddAsync(newGroup);
+                await _db.SaveChangesAsync();
+
+                // If permissions are provided, validate and insert them
+                if (dto.PermissionIds?.Length > 0)
+                {
+                    var invalidIds = dto.PermissionIds.Except(validPermissionIds).ToList();
+                    if (invalidIds.Any())
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            Message = "Some of the selected Permission IDs do not exist in the system!",
+                            Title = "Invalid Permission IDs"
+                        });
+                    }
+
+                    var groupRoles = dto.PermissionIds.Select(permissionId => new GroupRoles
+                    {
+                        GroupId = newGroup.Id,
+                        PermissionId = permissionId,
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = DateTime.UtcNow
+                    });
+
+                    await _db.tGroupRoles.AddRangeAsync(groupRoles);
+                }
+
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return Ok(
+                    new
+                    {
+                        Message = "New Group added successfully!",
+                        Title = "Add Complete"
+                    }
+                );
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+
+        }
+        [HttpPost]
+        public async Task<IActionResult> UpdateUserGroup([FromBody] AddUserGroupsDTO dto)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var checkSameName = await _db.tGroups.FirstOrDefaultAsync(x => x.GroupName == dto.GroupName);
+                if (checkSameName == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Group Name '{dto.GroupName}' does no exists!", Title = "Group not found" });
+                }
+                if (dto.PermissionIds.Length > 0)
+                {
+                    var permissions = await _db.tPermissions.Select(x => x.Id).ToListAsync();
+                    var checkIds = dto.PermissionIds!.Where(x => !permissions.Contains(x)).ToList();
+                    if (checkIds.Count > 0)
+                    {
+                        return new BadRequestObjectResult(new { Message = $"Some of the selected Permission IDs do not exist in the System!", Title = "Invalid Permission IDs" });
+                    }
+                    var existingRoles = await _db.tGroupRoles.Where(x => x.GroupId == checkSameName.Id).ToListAsync();
+                    if (existingRoles.Count > 0)
+                    {
+                        var toRemoveRoles = existingRoles.Where(x => !dto.PermissionIds!.Contains(x.PermissionId)).ToList();
+                        var toAddRoles = dto.PermissionIds.Where(selected => !existingRoles.Any(ug => ug.PermissionId == selected)).ToList();
+                        if (toRemoveRoles.Count > 0)
+                        {
+                            _db.tGroupRoles.RemoveRange(toRemoveRoles);
+                        }
+                        if (toAddRoles.Count > 0)
+                        {
+                            _db.tGroupRoles.AddRange(toAddRoles.Select(permissionId =>
+                                new GroupRoles()
+                                {
+                                    GroupId = checkSameName.Id,
+                                    PermissionId = permissionId,
+                                    CreatedBy = _Session.UserId,
+                                    CreatedDate = DateTime.UtcNow
+                                }
+                            ));
+                        }
+                    }
+                }
+                checkSameName.GroupName = dto.GroupName;
+                checkSameName.Description = dto.Description;
+                _db.tGroups.Update(checkSameName);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return Ok(
+                    new
+                    {
+                        Message = $"Group {dto.GroupName} updated successfully!",
+                        Title = "Update Complete"
+                    }
+                );
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+
+        }
+        [HttpPost]
+        public async Task<IActionResult> DeleteUserGroup([FromBody] DBHelper.Models.Views.UserGroups dto)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var getGroup = await _db.tGroups.FirstOrDefaultAsync(x => x.Id == dto.Id);
+                if (getGroup == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Group with ID '{dto.Id}' does not exist in the System!", Title = "Group not found" });
+                }
+
+                var usersInGroup = await _db.tUserGroups.Where(x => x.GroupId == dto.Id).CountAsync();
+                if (usersInGroup > 0)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Cannot delete group '{getGroup.GroupName}' because it has {usersInGroup} user(s) assigned to it. Please remove all users from this group first.", Title = "Group has members" });
+                }
+
+                _db.tGroups.Remove(getGroup);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+                
+                return Ok(new
+                {
+                    Message = $"Group '{getGroup.GroupName}' deleted successfully!",
+                    Title = "Delete Complete"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
+        #endregion
+    }
+}
