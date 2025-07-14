@@ -9,27 +9,36 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using Newtonsoft.Json;
 using System.Reflection;
+using WebAPI.Controllers.Programs;
 
 namespace WebAPI.Controllers.UserProfile
 {
     [ApiController]
     [Route("api/[controller]/[action]")]
-    public class UserProfileController : CoreController
+    [Authorize(Roles = "Admin")]
+    public class ProgramController : CoreController
     {
-        public UserProfileController(AppDbContext db) : base(db) { }
+        public ProgramController(AppDbContext db) : base(db) { }
 
         [HttpPost]
-        [AllowAnonymous]
-        public async Task<IActionResult> InitUserManagement()
+        public async Task<IActionResult> AddProgram([FromBody] AddProgramDTO dto)
         {
             try
             {
                 var CountUsers = await _db.vUsers.CountAsync();
                 var CountPermissions = await _db.tPermissions.CountAsync();
+                var CountGroups = await _db.tGroups.CountAsync();
+                List<DBHelper.Models.Views.Users> UserLists = await _db.vUsers
+                .AsNoTracking()
+                .OrderByDescending(x => x.Id)
+                .Take(10)
+                .ToListAsync();
                 var response = new
                 {
                     NumberOfUsers = CountUsers,
-                    NumberOfPermissions = CountPermissions
+                    NumberOfPermissions = CountPermissions,
+                    NumberOfGroups = CountGroups,
+                    Users = UserLists,
                 };
 
                 return Ok(response); // Remove the extra wrapper
@@ -41,8 +50,6 @@ namespace WebAPI.Controllers.UserProfile
         }
         #region USERS TAB
         [HttpPost]
-        //[Authorize(Policy = "User Management")]
-        [AllowAnonymous]
         public async Task<IActionResult> ShowUsers([FromBody] UsersPaginationDto dto)
         {
             try
@@ -78,8 +85,8 @@ namespace WebAPI.Controllers.UserProfile
                 if (!string.IsNullOrEmpty(dto.Filters?.Name))
                     baseQuery = baseQuery.Where(e => e.Name!.Contains(dto.Filters.Name));
 
-                //if (!string.IsNullOrEmpty(dto.Filters?.UserGroup))
-                //    baseQuery = baseQuery.Where(e => e.UserGroup!.Contains(dto.Filters.UserGroup));
+                if (!string.IsNullOrEmpty(dto.Filters?.UserGroup))
+                    baseQuery = baseQuery.Where(e => e.UserGroups!.Contains(dto.Filters.UserGroup));
 
                 if (dto.Filters?.IsActive != null)
                     baseQuery = baseQuery.Where(e => e.IsActive == dto.Filters.IsActive);
@@ -89,9 +96,9 @@ namespace WebAPI.Controllers.UserProfile
 
                 // Apply sorting and pagination
                 dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "Id";
-                var sortedQuery = (dto.sortDirection == sortDirectionList.DESC
-                        ? baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField))
-                        : baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField)));
+                var sortedQuery = (dto.sortDirection == sortDirectionList.ASC
+                        ? baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField))
+                        : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField)));
 
                 // Apply pagination and execute query
                 List<DBHelper.Models.Views.Users> permissionLists = await sortedQuery
@@ -118,7 +125,6 @@ namespace WebAPI.Controllers.UserProfile
             }
         }
         [HttpPost]
-        [AllowAnonymous]
         public async Task<IActionResult> DeleteUser([FromBody] DBHelper.Models.Views.Users dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -150,7 +156,6 @@ namespace WebAPI.Controllers.UserProfile
             }
         }
         [HttpPost]
-        [AllowAnonymous]
         public async Task<IActionResult> UpdateUser([FromBody] DBHelper.Models.Views.Users dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -224,7 +229,6 @@ namespace WebAPI.Controllers.UserProfile
             }
         }
         [HttpPost]
-        [AllowAnonymous]
         public async Task<IActionResult> AddUser([FromBody] DBHelper.Models.Views.Users dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -235,15 +239,17 @@ namespace WebAPI.Controllers.UserProfile
                 {
                     return new BadRequestObjectResult(new { Message = $"User '{dto.UserId}' already exists in the System!", Title = "User Already Exists" });
                 }
+                var getPlantillaOffice = await _db.tImplementingOffice.FirstOrDefaultAsync(x => x.OrgName == dto.PlantillaOffice);
+                var getRegCode = await _db.tImplementingOffice.FirstOrDefaultAsync(x => x.OrgName == dto.RegCode);
                 DBHelper.Models.Table.Users addUser = new DBHelper.Models.Table.Users()
                 {
                     UserId = dto.UserId,
                     Name = dto.Name,
                     Email = dto.Email,
                     IsActive = dto.IsActive,
-                    PlantillaOffice = dto.PlantillaOffice,
+                    PlantillaOffice = (getPlantillaOffice != null) ? getPlantillaOffice.OrgName : dto.PlantillaOffice,
                     EmployeeId = dto.EmployeeId,
-                    RegCode = dto.RegCode!,
+                    RegCode = (getRegCode != null) ? getRegCode.OrgName! : dto.RegCode,
                 };
                 if (!string.IsNullOrEmpty(dto.UserGroups) && dto.UserGroups.Contains(","))
                 {
@@ -280,8 +286,6 @@ namespace WebAPI.Controllers.UserProfile
         #endregion
         #region PERMISSIONS TAB
         [HttpPost]
-        //[Authorize(Policy = "View UserProfiles")]
-        [AllowAnonymous]
         public async Task<IActionResult> ShowPermissions([FromBody] ShowPermissionsDTO dto)
         {
             try
@@ -319,14 +323,17 @@ namespace WebAPI.Controllers.UserProfile
                 if (!string.IsNullOrEmpty(dto.Filters?.Description))
                     baseQuery = baseQuery.Where(e => e.Description!.Contains(dto.Filters.Description));
 
+                if (!string.IsNullOrEmpty(dto.Filters?.PermissionGroupName))
+                    baseQuery = baseQuery.Where(e => e.PermissionGroupName!.Contains(dto.Filters.PermissionGroupName));
+
                 // Get total count of filtered results (before pagination)
                 var totalRecords = await baseQuery.CountAsync();
                 dto.sortDirection = string.IsNullOrEmpty(dto.SortField) ? sortDirectionList.DESC : dto.sortDirection;
                 dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "Id";
                 // Apply sorting and pagination
-                var sortedQuery = (dto.sortDirection == sortDirectionList.DESC
-                        ? baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField))
-                        : baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField)));
+                var sortedQuery = (dto.sortDirection == sortDirectionList.ASC
+                        ? baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField))
+                        : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField)));
 
                 // Apply pagination and execute query
                 var permissionLists = await sortedQuery
@@ -353,7 +360,6 @@ namespace WebAPI.Controllers.UserProfile
             }
         }
         [HttpPost]
-        [AllowAnonymous]
         public async Task<IActionResult> ShowPermissionGroups()
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -369,7 +375,6 @@ namespace WebAPI.Controllers.UserProfile
             }
         }
         [HttpPost]
-        [AllowAnonymous]
         public async Task<IActionResult> AddPermission([FromBody] AddPermissionsDTO dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -408,7 +413,6 @@ namespace WebAPI.Controllers.UserProfile
             }
         }
         [HttpPost]
-        [AllowAnonymous]
         public async Task<IActionResult> UpdatePermission([FromBody] DBHelper.Models.Views.Permissions dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -432,7 +436,6 @@ namespace WebAPI.Controllers.UserProfile
             }
         }
         [HttpPost]
-        [AllowAnonymous]
         public async Task<IActionResult> DeletePermission([FromBody] DBHelper.Models.Views.Permissions dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -462,7 +465,6 @@ namespace WebAPI.Controllers.UserProfile
         #endregion
         #region USER GROUP TAB
         [HttpPost]
-        [AllowAnonymous]
         public async Task<IActionResult> ShowUserGroups([FromBody] UserGroupsPaginationDto dto)
         {
             try
@@ -498,14 +500,17 @@ namespace WebAPI.Controllers.UserProfile
                 if (!string.IsNullOrEmpty(dto.Filters?.GroupName))
                     baseQuery = _db.vUserGroups.AsNoTracking().Where(e => e.GroupName!.Contains(dto.Filters.GroupName));
 
+                if (!string.IsNullOrEmpty(dto.Filters?.PermissionNames))
+                    baseQuery = _db.vUserGroups.AsNoTracking().Where(e => e.PermissionNames!.Contains(dto.Filters.PermissionNames));
+
                 // Get total count of filtered results (before pagination)
                 var totalRecords = await baseQuery.CountAsync();
                 dto.sortDirection = string.IsNullOrEmpty(dto.SortField) ? sortDirectionList.DESC : dto.sortDirection;
                 dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "Id";
                 // Apply sorting and pagination
-                var sortedQuery = (dto.sortDirection == sortDirectionList.DESC
-                        ? baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField))
-                        : baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField)));
+                var sortedQuery = (dto.sortDirection == sortDirectionList.ASC
+                        ? baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField))
+                        : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField)));
 
                 // Apply pagination and execute query
                 var permissionLists = await sortedQuery
@@ -532,7 +537,6 @@ namespace WebAPI.Controllers.UserProfile
             }
         }
         [HttpPost]
-        [AllowAnonymous]
         public async Task<IActionResult> AddUserGroup([FromBody] AddUserGroupsDTO dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -605,7 +609,6 @@ namespace WebAPI.Controllers.UserProfile
 
         }
         [HttpPost]
-        [AllowAnonymous]
         public async Task<IActionResult> UpdateUserGroup([FromBody] AddUserGroupsDTO dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -668,7 +671,6 @@ namespace WebAPI.Controllers.UserProfile
 
         }
         [HttpPost]
-        [AllowAnonymous]
         public async Task<IActionResult> DeleteUserGroup([FromBody] DBHelper.Models.Views.UserGroups dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();

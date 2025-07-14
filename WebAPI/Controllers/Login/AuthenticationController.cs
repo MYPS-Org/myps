@@ -33,7 +33,7 @@ namespace WebAPI.Controllers.Auth
 
                 LdapConnection ldap_conn = new LdapConnection();
                 await ldap_conn.ConnectAsync($"{Appsetting.LDAP.Host}", Appsetting.LDAP.Port);
-                await ldap_conn.BindAsync(Appsetting.LDAP.DN.Replace("[[USERNAME]]","admin"), "admin");
+                await ldap_conn.BindAsync(Appsetting.LDAP.DN.Replace("[[USERNAME]]", dto.UserName), dto.Password);
 
                 Console.WriteLine("LDAP Bind Successfull!");
                 if (ldap_conn.Bound)

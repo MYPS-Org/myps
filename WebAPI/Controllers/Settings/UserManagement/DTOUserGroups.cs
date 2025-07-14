@@ -1,6 +1,6 @@
 ﻿using DBHelper.Models.Table;
 using DBHelper.Models.Enums;
-namespace WebAPI.Controllers.UserProfile
+namespace WebAPI.Controllers.Settings.UserManagement
 {
     public class UserGroupsPaginationDto : EnumPagination
     {
@@ -10,6 +10,7 @@ namespace WebAPI.Controllers.UserProfile
     public class UserGroupFilterDTO
     {
         public string? GroupName { get; set; }
+        public string? PermissionNames { get; set; }
     }
     public class DeleteUserGroupDto
     {

@@ -9,13 +9,8 @@ import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '.
 import { Button } from '../../../components/tailwindui/button'; // Adjust the import path as necessary
 import { 
     PlusIcon, 
-    MagnifyingGlassIcon,
-    FolderIcon,
-    FolderOpenIcon,
-    ChevronRightIcon,
-    ChevronDownIcon
+    MagnifyingGlassIcon
 } from '@heroicons/react/24/outline'; // Adjust the import path as necessary
-import { getPrograms } from '../Service';
 
 const Program: React.FC = () => {
 const navigate = useNavigate();
@@ -29,8 +24,7 @@ const [programs, setPrograms] = useState<Programs[]>([
         ProgramType: 'Regular Infrastructure',
         StartYear: 2026,
         User: 'John Doe - RPC',
-        DataSecurity: 'Region I',
-        dateCreated: '2026-01-15'
+        DataSecurity: 'Region I'
     },
     {
         Id: 2,
@@ -41,8 +35,7 @@ const [programs, setPrograms] = useState<Programs[]>([
         ProgramType: 'Regular Infrastructure',
         StartYear: 2029,
         User: 'John Doe - RPC',
-        DataSecurity: 'Region I',
-        dateCreated: '2029-02-20'
+        DataSecurity: 'Region I'
     },
     {
         Id: 3,
@@ -53,48 +46,9 @@ const [programs, setPrograms] = useState<Programs[]>([
         ProgramType: 'Regular Infrastructure',
         StartYear: 2026,
         User: 'John Doe - RPC',
-        DataSecurity: 'Region I',
-        dateCreated: '2026-03-10'
-    },
-    {
-        Id: 4,
-        Name: 'Infrastructure Program 2025',
-        Description: 'Infrastructure Development',
-        Status: 'Working',
-        ProgramStage: 'Planning',
-        ProgramType: 'Infrastructure',
-        StartYear: 2025,
-        User: 'Jane Smith - RPC',
-        DataSecurity: 'Region II',
-        dateCreated: '2025-04-05'
-    },
-    {
-        Id: 5,
-        Name: 'Education Program 2025',
-        Description: 'Education Enhancement',
-        Status: 'Approved',
-        ProgramStage: 'Implementation',
-        ProgramType: 'Education',
-        StartYear: 2025,
-        User: 'Bob Johnson - RPC',
-        DataSecurity: 'Region III',
-        dateCreated: '2025-05-12'
-    },
-    {
-        Id: 6,
-        Name: 'Healthcare Initiative 2024',
-        Description: 'Healthcare Improvement',
-        Status: 'Pending',
-        ProgramStage: 'Review',
-        ProgramType: 'Healthcare',
-        StartYear: 2024,
-        User: 'Alice Brown - RPC',
-        DataSecurity: 'Region IV',
-        dateCreated: '2024-06-18'
+        DataSecurity: 'Region I'
     }
 ]);
-const [expandedYears, setExpandedYears] = useState<Set<number>>(new Set());
-const [groupByCreatedDate, setGroupByCreatedDate] = useState<boolean>(false);
 // const [isLoading, setIsLoading] = useState(false);
 
 useEffect(() => {
@@ -103,11 +57,12 @@ useEffect(() => {
 
 const fetchPrograms = async () => {
     try {
-    const response = await getPrograms();
-    if (!response.Data) {
+    const response = await fetch('/api/programs');
+    if (!response.ok) {
         throw new Error('Failed to fetch programs');
     }
-    setPrograms(response.Data.lists);
+    const data = await response.json();
+    setPrograms(data);
     } catch (error) {
     console.error('Error fetching programs:', error);
     // You might want to show a toast or alert here
@@ -136,57 +91,6 @@ const getStatusBadge = (status: string) => {
 const handleViewDetails = (programId: number) => {
     navigate(`/programs/${programId}`);
 };
-
-// Group programs by year
-const groupProgramsByYear = (programs: Programs[]) => {
-    const grouped = programs.reduce((acc, program) => {
-        let year: number;
-        if (groupByCreatedDate && program.dateCreated) {
-            year = new Date(program.dateCreated).getFullYear();
-        } else {
-            year = program.StartYear;
-        }
-        
-        if (!acc[year]) {
-            acc[year] = [];
-        }
-        acc[year].push(program);
-        return acc;
-    }, {} as Record<number, Programs[]>);
-
-    // Sort years in descending order (newest first)
-    const sortedYears = Object.keys(grouped)
-        .map(year => parseInt(year))
-        .sort((a, b) => b - a);
-
-    return sortedYears.map(year => ({
-        year,
-        programs: grouped[year]
-    }));
-};
-
-const toggleYearExpansion = (year: number) => {
-    setExpandedYears(prev => {
-        const newSet = new Set(prev);
-        if (newSet.has(year)) {
-            newSet.delete(year);
-        } else {
-            newSet.add(year);
-        }
-        return newSet;
-    });
-};
-
-const expandAllYears = () => {
-    const allYears = new Set(groupedPrograms.map(group => group.year));
-    setExpandedYears(allYears);
-};
-
-const collapseAllYears = () => {
-    setExpandedYears(new Set());
-};
-
-const groupedPrograms = groupProgramsByYear(programs);
 
   return (
     
@@ -242,7 +146,7 @@ const groupedPrograms = groupProgramsByYear(programs);
                         </div>
                     </div>
                 </div>
-            <Table className="px-5" dense>
+            <Table className="px-5">
                 <TableHead>
                 <TableRow>
                     <TableHeader>Name</TableHeader>

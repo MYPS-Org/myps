@@ -1,6 +1,6 @@
 ﻿using DBHelper.Models.Table;
 using DBHelper.Models.Enums;
-namespace WebAPI.Controllers.UserProfile
+namespace WebAPI.Controllers.Settings.UserManagement
 {
     public class UsersPaginationDto : EnumPagination
     {
