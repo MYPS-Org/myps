@@ -205,7 +205,7 @@ const groupedPrograms = groupProgramsByYear(programs);
                         <h3 className="text-lg font-medium text-gray-900">Programs</h3>
                         <div className="flex items-center space-x-3">
                             <div className="flex items-center space-x-2">
-                                <Button 
+                                {/* <Button 
                                     color={groupByCreatedDate ? "blue" : "zinc"}
                                     onClick={() => setGroupByCreatedDate(!groupByCreatedDate)}
                                     className="text-xs px-3 py-1.5"
@@ -225,7 +225,7 @@ const groupedPrograms = groupProgramsByYear(programs);
                                     className="text-xs px-3 py-1.5"
                                 >
                                     Collapse All
-                                </Button>
+                                </Button> */}
                             </div>
                             <div className="relative">
                                 <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -256,64 +256,34 @@ const groupedPrograms = groupProgramsByYear(programs);
                 </TableRow>
                 </TableHead>
                 <TableBody>
-                {groupedPrograms.map(({ year, programs: yearPrograms }) => (
-                    <React.Fragment key={year}>
-                        {/* Year Folder Row */}
-                        <TableRow className="bg-gradient-to-r from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 cursor-pointer border-b-2 border-gray-300">
-                            <TableCell colSpan={8}>
-                                <div 
-                                    className="flex items-center space-x-2 font-semibold text-gray-800 py-2"
-                                    onClick={() => toggleYearExpansion(year)}
-                                >
-                                    {expandedYears.has(year) ? (
-                                        <ChevronDownIcon className="w-5 h-5 text-blue-600" />
-                                    ) : (
-                                        <ChevronRightIcon className="w-5 h-5 text-blue-600" />
-                                    )}
-                                    {expandedYears.has(year) ? (
-                                        <FolderOpenIcon className="w-6 h-6 text-blue-600" />
-                                    ) : (
-                                        <FolderIcon className="w-6 h-6 text-blue-600" />
-                                    )}
-                                    <span>{year} ({yearPrograms.length} programs) {groupByCreatedDate ? '- Created' : '- Start Year'}</span>
-                                </div>
-                            </TableCell>
-                        </TableRow>
-                        
-                        {/* Programs in this year - only show if expanded */}
-                        {expandedYears.has(year) && yearPrograms.map(program => (
-                            <TableRow key={program.Id} className="border-l-4 border-l-blue-300 bg-blue-50/30 hover:bg-blue-50/50">
-                                <TableCell className="pl-12">
-                                    <div className="flex items-center space-x-2">
-                                        <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                                        <button 
-                                            onClick={() => handleViewDetails(program.Id)}
-                                            className="text-blue-600 hover:text-blue-800 font-medium hover:underline"
-                                        >
-                                            {program.Name}
-                                        </button>
-                                    </div>
-                                </TableCell>
-                                <TableCell>{getStatusBadge(program.Status)}</TableCell>
-                                <TableCell>{program.ProgramStage}</TableCell>
-                                <TableCell>{program.ProgramType}</TableCell>
-                                <TableCell>{program.StartYear}</TableCell>
-                                <TableCell>{program.User}</TableCell>
-                                <TableCell>{program.DataSecurity}</TableCell>
-                                <TableCell>
-                                    <div className="flex items-center space-x-1">
-                                        <Button 
-                                            color="orange"
-                                            onClick={() => handleViewDetails(program.Id)}
-                                            className="!text-[10px] px-3 !py-0.5 bg-orange-500 hover:bg-orange-600 text-white rounded"
-                                        >
-                                            Validate
-                                        </Button>
-                                    </div>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </React.Fragment>
+                {programs.map(program => (
+                    <TableRow key={program.Id}>
+                    <TableCell>
+                        <button 
+                            onClick={() => handleViewDetails(program.Id)}
+                            className="text-blue-600 hover:text-blue-800 font-medium hover:underline"
+                        >
+                            {program.Name}
+                        </button>
+                    </TableCell>
+                    <TableCell>{getStatusBadge(program.Status)}</TableCell>
+                    <TableCell>{program.ProgramStage}</TableCell>
+                    <TableCell>{program.ProgramType}</TableCell>
+                    <TableCell>{program.StartYear}</TableCell>
+                    <TableCell>{program.User}</TableCell>
+                    <TableCell>{program.DataSecurity}</TableCell>
+                    <TableCell>
+                        <div className="flex items-center space-x-1">
+                            <Button 
+                                color="orange"
+                                onClick={() => handleViewDetails(program.Id)}
+                                className="text-xs px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded"
+                            >
+                                Validate
+                            </Button>
+                        </div>
+                    </TableCell>
+                    </TableRow>
                 ))}
                 </TableBody>
             </Table>
