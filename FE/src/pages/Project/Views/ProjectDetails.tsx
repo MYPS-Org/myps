@@ -257,15 +257,52 @@ const ProjectDetails: React.FC = () => {
                   <option>{projectDetails.CityMunicipality}</option>
                 </select>
               </div>
+              <div className='w-full flex flex-row text-left gap-5 items-center'>
+                <label className="flex-1/3 text-gray-600">Reporting Program:</label>
+                <select className="flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md">
+                  <option>sample</option>
+                </select>
+              </div>
             </div>
             
-            <div>
-              <label className="text-gray-600">Description:</label>
-              <input 
-                type="text" 
-                value={projectDetails.Description}
-                className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md"
-              />
+            <div className="grid grid-cols-3 gap-5">
+              <div className='w-full flex flex-row text-left gap-5'>
+                <label className="flex-1/3 text-gray-600 mt-3">Description:</label>
+                <textarea 
+                  rows={4} 
+                  value={projectDetails.Description}
+                  className="flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md"
+                />
+              </div>
+              <div>
+                <div className='w-full flex flex-row text-left gap-5 mb-5 items-center'>
+                  <label className="flex-1/3 text-gray-600">Legislative:</label>
+                  <select className="flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md">
+                    <option>sample</option>
+                  </select>
+                </div>
+                <div className='w-full flex flex-row text-left gap-5 items-center'>
+                  <label className="flex-1/3 text-gray-600">Operating Unit:</label>
+                  <select className="flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md">
+                    <option>{projectDetails.OperatingUnit}</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <div className='w-full flex flex-row text-left gap-5 items-center mb-5'>
+                  <label className="flex-1/3 text-gray-600">Origination Region:</label>
+                  <select className="flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md">
+                    <option>sample</option>
+                  </select>
+                </div>
+                <div className='w-full flex flex-row text-left gap-5 items-center'>
+                  <label className="flex-1/3 text-gray-600">Origination Region:</label>
+                  <select className="flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md">
+                    <option>sample</option>
+                  </select>
+                </div>
+              </div>
+              
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -294,45 +331,47 @@ const ProjectDetails: React.FC = () => {
               </div>
             </div>
 
-            <div>
-              <label className="text-gray-600">Feasibility Study:</label>
-              <div className="flex space-x-4 mt-2">
-                <label className="flex items-center">
-                  <input type="radio" name="feasibility" checked={projectDetails.FeasibilityStudy} className="mr-2" />
-                  Yes
-                </label>
-                <label className="flex items-center">
-                  <input type="radio" name="feasibility" checked={!projectDetails.FeasibilityStudy} className="mr-2" />
-                  No
-                </label>
+            <div className='flex flex-row justify-evenly text-left gap-5 items-center'>
+              <div>
+                <label className="text-gray-600">Feasibility Study:</label>
+                <div className="flex space-x-4 mt-2">
+                  <label className="flex items-center">
+                    <input type="radio" name="feasibility" checked={projectDetails.FeasibilityStudy} className="mr-2" />
+                    Yes
+                  </label>
+                  <label className="flex items-center">
+                    <input type="radio" name="feasibility" checked={!projectDetails.FeasibilityStudy} className="mr-2" />
+                    No
+                  </label>
+                </div>
               </div>
-            </div>
 
-            <div>
-              <label className="text-gray-600">Detailed Design:</label>
-              <div className="flex space-x-4 mt-2">
-                <label className="flex items-center">
-                  <input type="radio" name="design" checked={projectDetails.DetailedDesign} className="mr-2" />
-                  Yes
-                </label>
-                <label className="flex items-center">
-                  <input type="radio" name="design" checked={!projectDetails.DetailedDesign} className="mr-2" />
-                  No
-                </label>
+              <div>
+                <label className="text-gray-600">Detailed Design:</label>
+                <div className="flex space-x-4 mt-2">
+                  <label className="flex items-center">
+                    <input type="radio" name="design" checked={projectDetails.DetailedDesign} className="mr-2" />
+                    Yes
+                  </label>
+                  <label className="flex items-center">
+                    <input type="radio" name="design" checked={!projectDetails.DetailedDesign} className="mr-2" />
+                    No
+                  </label>
+                </div>
               </div>
-            </div>
 
-            <div>
-              <label className="text-gray-600">Row Available:</label>
-              <div className="flex space-x-4 mt-2">
-                <label className="flex items-center">
-                  <input type="radio" name="row" checked={projectDetails.RowAvailable} className="mr-2" />
-                  Yes
-                </label>
-                <label className="flex items-center">
-                  <input type="radio" name="row" checked={!projectDetails.RowAvailable} className="mr-2" />
-                  No
-                </label>
+              <div>
+                <label className="text-gray-600">Row Available:</label>
+                <div className="flex space-x-4 mt-2">
+                  <label className="flex items-center">
+                    <input type="radio" name="row" checked={projectDetails.RowAvailable} className="mr-2" />
+                    Yes
+                  </label>
+                  <label className="flex items-center">
+                    <input type="radio" name="row" checked={!projectDetails.RowAvailable} className="mr-2" />
+                    No
+                  </label>
+                </div>
               </div>
             </div>
           </div>
