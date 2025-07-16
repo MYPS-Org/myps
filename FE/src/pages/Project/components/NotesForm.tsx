@@ -1,71 +1,68 @@
-import { useState } from "react";
+import React from "react";
 import type { ProjectNote } from "../Model";
 import { Button } from "../../../components/tailwindui/button";
-import { PlusIcon, PencilIcon, TrashIcon } from "@heroicons/react/24/outline";
+import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from "../../../components/tailwindui/table";
 
 interface NotesFormProps {
-  initialNotes?: ProjectNote[];
-  onSubmit: (notes: ProjectNote[]) => void;
+  notes: ProjectNote[];
+  onAdd: () => void;
+  onEdit: (index: number, updatedNote: ProjectNote) => void;
+  onDelete: (index: number) => void;
 }
 
-const NotesForm: React.FC<NotesFormProps> = ({ initialNotes = [], onSubmit }) => {
-  const [notes, setNotes] = useState<ProjectNote[]>(initialNotes);
-
-  const handleAddNote = () => {
-    setNotes([...notes, { id: Date.now(), content: "", createdAt: new Date() }]);
-  };
-
-  const handleChange = (index: number, value: string) => {
-    const updatedNotes = [...notes];
-    updatedNotes[index].content = value;
-    setNotes(updatedNotes);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit(notes);
-  };
-
+const NotesForm: React.FC<NotesFormProps> = ({ notes, onAdd, onEdit, onDelete }) => {
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Notes</h2>
-            <Button color="blue">
+            <h2 className="text-lg font-semibold text-gray-900">Project Notes</h2>
+            <Button color="blue" onClick={onAdd}>
               <PlusIcon className="w-4 h-4 mr-1" />
-              Add Notes
+              Add Note
             </Button>
           </div>
 
           <Table>
             <TableHead>
               <TableRow>
-                <TableHeader>Actions</TableHeader>
                 <TableHeader>Description</TableHeader>
-                <TableHeader>Created Date</TableHeader>
+                <TableHeader>Date</TableHeader>
+                <TableHeader>Actions</TableHeader>
               </TableRow>
             </TableHead>
             <TableBody>
-              {notes.map(note => (
+              {notes.map((note, index) => (
                 <TableRow key={note.Id}>
                   <TableCell>
-                    <div className="flex space-x-1">
-                      <button className="text-blue-600 hover:text-blue-800">
-                        <PencilIcon className="w-4 h-4" />
-                      </button>
-                      <button className="text-red-600 hover:text-red-800">
-                        <TrashIcon className="w-4 h-4" />
-                      </button>
-                    </div>
+                    <textarea
+                      value={note.Description}
+                      onChange={(e) => onEdit(index, { ...note, Description: e.target.value })}
+                      className="w-full px-2 py-1 border border-gray-300 rounded"
+                      placeholder="Enter note description"
+                      rows={2}
+                    />
                   </TableCell>
-                  <TableCell>{note.Description}</TableCell>
-                  <TableCell>{note.CreatedDate}</TableCell>
+                  <TableCell>
+                    <input
+                      type="date"
+                      value={note.CreatedDate}
+                      onChange={(e) => onEdit(index, { ...note, CreatedDate: e.target.value })}
+                      className="w-full px-2 py-1 border border-gray-300 rounded"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <button
+                      onClick={() => onDelete(index)}
+                      className="text-red-600 hover:text-red-800"
+                    >
+                      <TrashIcon className="w-4 h-4" />
+                    </button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
-
   );
 };
 

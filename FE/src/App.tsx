@@ -16,6 +16,7 @@ import Settings from './pages/Settings/Settings';
 import Project from './pages/Project/Views/Project';
 import ProjectDetails from './pages/Project/Views/ProjectDetails';
 import AddProject from './pages/Project/Views/AddProject';
+import EditProject from './pages/Project/Views/EditProject';
 // import AddProgram from './pages/Program/Views/AddProgram';
 
 function App() {
@@ -78,6 +79,14 @@ function App() {
 								} 
 							/>
 							<Route 
+								path="/projects/add" 
+								element={
+									<ProtectedRoute>
+										<AddProject />
+									</ProtectedRoute>
+								} 
+							/>
+							<Route 
 								path="/projects/addproject" 
 								element={
 									<ProtectedRoute>
@@ -89,7 +98,7 @@ function App() {
 								path="/projects/Edit/:id" 
 								element={
 									<ProtectedRoute>
-										<ProjectDetails />
+										<EditProject />
 									</ProtectedRoute>
 								} 
 							/>

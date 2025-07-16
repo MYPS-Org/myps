@@ -1,32 +1,29 @@
-import { useState } from "react";
-import type { MajorItemOfWork } from '../Model.d';
+import React from "react";
+import type { MajorItemOfWork, ComponentCost } from '../Model.d';
 import { Button } from '../../../components/tailwindui/button';
-import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '../../../components/tailwindui/table';
 
 interface MajorItemOfWorksFormProps {
-  initialData?: MajorItemOfWork;
-  onSubmit: (data: MajorItemOfWork) => void;
+  majorItems: MajorItemOfWork[];
+  componentCosts: ComponentCost[];
+  onAdd: () => void;
+  onEdit: (index: number, updatedItem: MajorItemOfWork) => void;
+  onDelete: (index: number) => void;
 }
 
-const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({ initialData, onSubmit }) => {
-  const [formData, setFormData] = useState<MajorItemOfWork>(initialData || {});
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit(formData);
-  };
-
+const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({ 
+  majorItems, 
+  componentCosts, 
+  onAdd, 
+  onEdit, 
+  onDelete 
+}) => {
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-semibold text-gray-900">Major Item of Work</h2>
-          <Button color="blue">
+          <Button color="blue" onClick={onAdd}>
             <PlusIcon className="w-4 h-4 mr-1" />
             Add Item
           </Button>
@@ -35,36 +32,92 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({ initialData
         <Table>
           <TableHead>
             <TableRow>
-              <TableHeader>Actions</TableHeader>
               <TableHeader>Component ID</TableHeader>
               <TableHeader>Year of Work</TableHeader>
               <TableHeader>Type of Work</TableHeader>
               <TableHeader>Target Unit</TableHeader>
               <TableHeader>Physical Target</TableHeader>
-              <TableHeader>Detailed Scope of Work</TableHeader>
+              <TableHeader>Detailed Scope</TableHeader>
               <TableHeader>Infra ID</TableHeader>
+              <TableHeader>Actions</TableHeader>
             </TableRow>
           </TableHead>
           <TableBody>
-            {majorItems.map(item => (
+            {majorItems.map((item, index) => (
               <TableRow key={item.Id}>
                 <TableCell>
-                  <div className="flex space-x-1">
-                    <button className="text-blue-600 hover:text-blue-800">
-                      <PencilIcon className="w-4 h-4" />
-                    </button>
-                    <button className="text-red-600 hover:text-red-800">
-                      <TrashIcon className="w-4 h-4" />
-                    </button>
-                  </div>
+                  <select
+                    value={item.ComponentId}
+                    onChange={(e) => onEdit(index, { ...item, ComponentId: e.target.value })}
+                    className="w-full px-2 py-1 border border-gray-300 rounded"
+                  >
+                    <option value="">Select Component</option>
+                    {componentCosts.map(cost => (
+                      <option key={cost.Id} value={cost.Id}>{cost.Id}</option>
+                    ))}
+                  </select>
                 </TableCell>
-                <TableCell>{item.ComponentId}</TableCell>
-                <TableCell>{item.YearOfWork}</TableCell>
-                <TableCell>{item.TypeOfWork}</TableCell>
-                <TableCell>{item.TargetUnit}</TableCell>
-                <TableCell>{item.PhysicalTarget}</TableCell>
-                <TableCell>{item.DetailedScopeOfWork}</TableCell>
-                <TableCell>{item.InfraId}</TableCell>
+                <TableCell>
+                  <input
+                    type="number"
+                    value={item.YearOfWork}
+                    onChange={(e) => onEdit(index, { ...item, YearOfWork: Number(e.target.value) })}
+                    className="w-full px-2 py-1 border border-gray-300 rounded"
+                  />
+                </TableCell>
+                <TableCell>
+                  <input
+                    type="text"
+                    value={item.TypeOfWork}
+                    onChange={(e) => onEdit(index, { ...item, TypeOfWork: e.target.value })}
+                    className="w-full px-2 py-1 border border-gray-300 rounded"
+                    placeholder="Enter type of work"
+                  />
+                </TableCell>
+                <TableCell>
+                  <input
+                    type="text"
+                    value={item.TargetUnit}
+                    onChange={(e) => onEdit(index, { ...item, TargetUnit: e.target.value })}
+                    className="w-full px-2 py-1 border border-gray-300 rounded"
+                    placeholder="Enter target unit"
+                  />
+                </TableCell>
+                <TableCell>
+                  <input
+                    type="text"
+                    value={item.PhysicalTarget}
+                    onChange={(e) => onEdit(index, { ...item, PhysicalTarget: e.target.value })}
+                    className="w-full px-2 py-1 border border-gray-300 rounded"
+                    placeholder="Enter physical target"
+                  />
+                </TableCell>
+                <TableCell>
+                  <input
+                    type="text"
+                    value={item.DetailedScopeOfWork}
+                    onChange={(e) => onEdit(index, { ...item, DetailedScopeOfWork: e.target.value })}
+                    className="w-full px-2 py-1 border border-gray-300 rounded"
+                    placeholder="Enter detailed scope"
+                  />
+                </TableCell>
+                <TableCell>
+                  <input
+                    type="text"
+                    value={item.InfraId}
+                    onChange={(e) => onEdit(index, { ...item, InfraId: e.target.value })}
+                    className="w-full px-2 py-1 border border-gray-300 rounded"
+                    placeholder="Enter infra ID"
+                  />
+                </TableCell>
+                <TableCell>
+                  <button
+                    onClick={() => onDelete(index)}
+                    className="text-red-600 hover:text-red-800"
+                  >
+                    <TrashIcon className="w-4 h-4" />
+                  </button>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
