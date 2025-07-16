@@ -2,8 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
-import type { Programs } from '../Model'; // Adjust the import path as necessary
+import type { ProgramModel } from '../Model'; // Adjust the import path as necessary
 import { Button } from '../../../components/tailwindui/button';
+import { fetchProgramById } from '../Service';
 // import { Badge } from '../../../components/tailwindui/badge';
 
 // Mock projects data for the table
@@ -37,43 +38,35 @@ const mockProjects = [
 const ProgramDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [program, setProgram] = useState<Programs | null>(null);
+  const [program, setProgram] = useState<ProgramModel | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (id) {
-      fetchProgramDetail(parseInt(id));
-    }
+    const loadProgramDetail = async () => {
+      try {
+        if (id) {
+          await fetchProgramDetail(parseInt(id));
+        }
+      } catch (error) {
+        console.error('Error fetching program details:', error);
+        setError('Failed to load program details. Please try again later.');
+      }
+    };
+
+    loadProgramDetail();
   }, [id]);
 
   const fetchProgramDetail = async (programId: number) => {
     setIsLoading(true);
     setError(null);
     try {
-      // Replace with your actual API endpoint
-      const response = await fetch(`/api/programs/${programId}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch program details');
-      }
-      const data = await response.json();
-      setProgram(data);
+      const response = await fetchProgramById(programId);
+      setProgram(response.Data);
     } catch (error) {
       console.error('Error fetching program details:', error);
-      setError(error instanceof Error ? error.message : 'Unknown error occurred');
-      
-      // For demo purposes, let's set some mock data if API fails
-      setProgram({
-        Id: programId,
-        Name: `RBF FY 2026 Region IV-A`,
-        Description: `This is a detailed description for Program ${programId}. This would typically come from your API.`,
-        Status: 'Working',
-        ProgramStage: 'General Appropriation',
-        ProgramType: 'Regular Infrastructure',
-        StartYear: 2026,
-        User: 'John Doe - DPD Admin',
-        DataSecurity: 'Region IV'
-      });
+      setError('Failed to load program details. Please try again later.');
+      setProgram(null);
     } finally {
       setIsLoading(false);
     }
@@ -85,7 +78,7 @@ const ProgramDetail: React.FC = () => {
 
   const handleUpdate = () => {
     // Handle update logic here
-    console.log('Update program:', program?.Id);
+    console.log('Update program:', program?.Name);
     alert('Update functionality would be implemented here');
   };
 
@@ -159,7 +152,7 @@ const ProgramDetail: React.FC = () => {
                 <label className="block text-left text-sm font-medium text-gray-700 mb-1">Start Year</label>
                 <input
                   type="text"
-                  value={program.StartYear}
+                  value={program.YearStart}
                   readOnly
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
                 />
@@ -195,31 +188,11 @@ const ProgramDetail: React.FC = () => {
                 <label className="block text-left text-sm font-medium text-gray-700 mb-1">Program Stage</label>
                 <input
                   type="text"
-                  value={program.ProgramStage}
+                  value={program.Stage}
                   readOnly
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
                 />
               </div>
-              <div>
-                <label className="block text-left text-sm font-medium text-gray-700 mb-1">Program Type</label>
-                <input
-                  type="text"
-                  value={program.ProgramType}
-                  readOnly
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-left text-sm font-medium text-gray-700 mb-1">User</label>
-              <select
-                value={program.User}
-                disabled
-                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
-              >
-                <option>{program.User}</option>
-              </select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -231,16 +204,6 @@ const ProgramDetail: React.FC = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
                 >
                   <option>DPD Admin</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-left text-sm font-medium text-gray-700 mb-1">Data Security</label>
-                <select
-                  value={program.DataSecurity}
-                  disabled
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
-                >
-                  <option>{program.DataSecurity}</option>
                 </select>
               </div>
             </div>

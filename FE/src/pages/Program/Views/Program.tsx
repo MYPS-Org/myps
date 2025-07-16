@@ -1,72 +1,46 @@
 "use-client";
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-import type { Programs } from '../Model'; // Adjust the import path as necessary
+import { fetchProgramEnums } from '../Service'; // Adjust the import path as necessary
+import type { ProgramEnums } from '../Model'; // Adjust the import path as necessary
 
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '../../../components/tailwindui/table'; // Adjust the import path as necessary
+
+// #region Import Dialogs
+import { AddProgramDialog, DeleteProgramDialog } from '../dialogs';
+// #endregion
 
 import { Button } from '../../../components/tailwindui/button'; // Adjust the import path as necessary
 import { 
     PlusIcon, 
-    MagnifyingGlassIcon
+    MagnifyingGlassIcon,
+    TrashIcon
 } from '@heroicons/react/24/outline'; // Adjust the import path as necessary
 
 const Program: React.FC = () => {
 const navigate = useNavigate();
-const [programs, setPrograms] = useState<Programs[]>([
-    {
-        Id: 1,
-        Name: 'RBP FY 2026 Region IV-A',
-        Description: 'Regional Budget Proposal',
-        Status: 'Working',
-        ProgramStage: 'Regional Budget Proposal',
-        ProgramType: 'Regular Infrastructure',
-        StartYear: 2026,
-        User: 'John Doe - RPC',
-        DataSecurity: 'Region I'
-    },
-    {
-        Id: 2,
-        Name: 'RBP FY 2029 Region VI',
-        Description: 'Regional Budget Proposal',
-        Status: 'Working',
-        ProgramStage: 'Regional Budget Proposal',
-        ProgramType: 'Regular Infrastructure',
-        StartYear: 2029,
-        User: 'John Doe - RPC',
-        DataSecurity: 'Region I'
-    },
-    {
-        Id: 3,
-        Name: 'RBP FY 2026 Region V',
-        Description: 'Regional Budget Proposal',
-        Status: 'Approved',
-        ProgramStage: 'Regional Budget Proposal',
-        ProgramType: 'Regular Infrastructure',
-        StartYear: 2026,
-        User: 'John Doe - RPC',
-        DataSecurity: 'Region I'
-    }
-]);
-// const [isLoading, setIsLoading] = useState(false);
+const [isLoading, setIsLoading] = useState(false);
+const [programEnums, setProgramEnums] = useState<{
+    Statuses: ProgramEnums[];
+    Stages: ProgramEnums[];
+    Types: ProgramEnums[];
+    Groups: ProgramEnums[];
+} | null>(null);
 
-useEffect(() => {
-    fetchPrograms();
-}, []);
+const [programs, setPrograms] = useState<any[]>([]); // Add this to fix the missing programs variable
+const [isAddProgramOpen, setIsAddProgramOpen] = useState(false);
+const [isDeleteProgramOpen, setIsDeleteProgramOpen] = useState(false);
 
-const fetchPrograms = async () => {
+const handleOpenDialog = async () => {
     try {
-    const response = await fetch('/api/programs');
-    if (!response.ok) {
-        throw new Error('Failed to fetch programs');
-    }
-    const data = await response.json();
-    setPrograms(data);
+        setIsLoading(true);
+        const response = await fetchProgramEnums();
+        setProgramEnums(response.Data); // this will be passed as prop
+        setIsAddProgramOpen(true); // this shows the dialog
+        setIsLoading(false);
     } catch (error) {
-    console.error('Error fetching programs:', error);
-    // You might want to show a toast or alert here
-    alert('Failed to fetch programs: ' + (error instanceof Error ? error.message : 'Unknown error'));
+        console.error('Error fetching programs:', error);
+        setIsLoading(false);
     }
 };
 
@@ -139,9 +113,9 @@ const handleViewDetails = (programId: number) => {
                                     className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 />
                             </div>
-                            <Button color="blue">
+                            <Button color="blue" onClick={handleOpenDialog} disabled={isLoading} className="text-xs px-3 py-1.5">
                                 <PlusIcon className="w-4 h-4 mr-1" />
-                                Add Program
+                                {isLoading ? 'Loading...' : 'Add Program'}
                             </Button>
                         </div>
                     </div>
@@ -170,12 +144,12 @@ const handleViewDetails = (programId: number) => {
                             {program.Name}
                         </button>
                     </TableCell>
-                    <TableCell>{getStatusBadge(program.Status)}</TableCell>
-                    <TableCell>{program.ProgramStage}</TableCell>
-                    <TableCell>{program.ProgramType}</TableCell>
-                    <TableCell>{program.StartYear}</TableCell>
-                    <TableCell>{program.User}</TableCell>
-                    <TableCell>{program.DataSecurity}</TableCell>
+                    <TableCell>
+                        {program.Enum}
+                    </TableCell>
+                    <TableCell>
+                        {getStatusBadge(program.Description)}
+                    </TableCell>
                     <TableCell>
                         <div className="flex items-center space-x-1">
                             <Button 
@@ -185,6 +159,9 @@ const handleViewDetails = (programId: number) => {
                             >
                                 Validate
                             </Button>
+                            <Button color="red" onClick={() => setIsDeleteProgramOpen(true)} className="text-xs px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded">
+                                <TrashIcon className="h-5 w-5 text-gray-400" />
+                            </Button>
                         </div>
                     </TableCell>
                     </TableRow>
@@ -193,6 +170,35 @@ const handleViewDetails = (programId: number) => {
             </Table>
             </div>
         </div>
+
+        {/* Add Program Dialog */}
+        <AddProgramDialog
+            isOpen={isAddProgramOpen}
+            onClose={() => setIsAddProgramOpen(false)}
+            programEnums={programEnums || undefined}
+            onSubmit={(newProgram: any) => {
+                // Handle form submission logic here
+                console.log('Form Data Submitted:', newProgram);
+                setPrograms(prev => [...prev, newProgram]); // Add the new program to the list
+            }}
+        />
+        {/* Delete Program Dialog */}
+        <DeleteProgramDialog
+            isOpen={isDeleteProgramOpen}
+            onClose={() => setIsDeleteProgramOpen(false)}
+            onSubmit={(programId: number) => {
+                // Handle delete logic here
+                console.log('Program to delete:', programId);
+                setPrograms(prev => ({
+                    ...prev,
+                    // Assuming you want to remove the program from the list
+                    // You can filter out the program based on its Id or any other unique identifier
+                    Id: prev.filter(p => p.Id !== programId)
+                })
+                );
+            }}
+            program={programs?.find((programs: any)=> programs.Id === 1) || { Id: 1, Name: 'Sample Program' }} // Replace with actual program data
+        />
     </div>
   );
 }

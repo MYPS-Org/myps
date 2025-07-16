@@ -15,6 +15,8 @@ import ProgramDetail from './pages/Program/Views/ProgramDetail';
 import Settings from './pages/Settings/Settings';
 import Project from './pages/Project/Views/Project';
 import ProjectDetails from './pages/Project/Views/ProjectDetails';
+import AddProject from './pages/Project/Views/AddProject';
+// import AddProgram from './pages/Program/Views/AddProgram';
 
 function App() {
 	return (
@@ -52,14 +54,6 @@ function App() {
 								} 
 							/>
 							<Route 
-								path="/projects" 
-								element={
-									<ProtectedRoute>
-										<Project />
-									</ProtectedRoute>
-								} 
-							/>
-							<Route 
 								path="/programs/:id" 
 								element={
 									<ProtectedRoute>
@@ -68,7 +62,31 @@ function App() {
 								} 
 							/>
 							<Route 
+								path="/projects" 
+								element={
+									<ProtectedRoute>
+										<Project />
+									</ProtectedRoute>
+								} 
+							/>
+							<Route 
 								path="/projects/:id" 
+								element={
+									<ProtectedRoute>
+										<ProjectDetails />
+									</ProtectedRoute>
+								} 
+							/>
+							<Route 
+								path="/projects/addproject" 
+								element={
+									<ProtectedRoute>
+										<AddProject />
+									</ProtectedRoute>
+								} 
+							/>
+							<Route 
+								path="/projects/Edit/:id" 
 								element={
 									<ProtectedRoute>
 										<ProjectDetails />
