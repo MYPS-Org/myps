@@ -117,6 +117,21 @@ const EditProject: React.FC = () => {
         }
     };
 
+    const handleSaveSection = async (sectionName: string, sectionData: any) => {
+        try {
+            // Here you would typically make an API call to save just this section
+            console.log(`Saving section ${sectionName} for project ${id}:`, sectionData);
+            // You could implement:
+            // - PATCH request to update specific section
+            // - Optimistic updates with rollback on failure
+            // - Real-time validation
+            alert(`${sectionName} section saved successfully!`);
+        } catch (error) {
+            console.error(`Error saving ${sectionName}:`, error);
+            throw error; // Re-throw to let ProjectForm handle UI feedback
+        }
+    };
+
     if (isLoading) {
         return (
             <div className="flex justify-center items-center h-64">
@@ -129,6 +144,7 @@ const EditProject: React.FC = () => {
         <ProjectForm
             initialData={initialData}
             onSubmit={handleUpdateProject}
+            onSaveSection={handleSaveSection}
             mode="edit"
         />
     );

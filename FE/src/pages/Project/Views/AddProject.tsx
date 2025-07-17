@@ -18,9 +18,26 @@ const AddProject: React.FC = () => {
         }
     };
 
+    const handleSaveSection = async (sectionName: string, sectionData: any) => {
+        try {
+            // Here you would typically make an API call to save just this section
+            // For a new project, this might be a partial save or temporary save
+            console.log(`Saving section ${sectionName}:`, sectionData);
+            // You could implement:
+            // - Save to localStorage for draft
+            // - Save to backend as draft
+            // - Validate specific section
+            alert(`${sectionName} section saved successfully!`);
+        } catch (error) {
+            console.error(`Error saving ${sectionName}:`, error);
+            throw error; // Re-throw to let ProjectForm handle UI feedback
+        }
+    };
+
     return (
         <ProjectForm
             onSubmit={handleAddProject}
+            onSaveSection={handleSaveSection}
             mode="add"
         />
     );

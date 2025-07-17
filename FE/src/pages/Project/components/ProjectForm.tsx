@@ -25,14 +25,16 @@ import ActivitySection from './ActivitySection';
 interface ProjectFormProps {
   initialData?: ProjectFormPayload;
   onSubmit: (payLoad: ProjectFormPayload) => void;
+  onSaveSection?: (sectionName: string, data: any) => Promise<void>;
   mode?: 'add' | 'edit';
 }
 
-const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSubmit, mode = 'add' }) => {
+const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSubmit, onSaveSection, mode = 'add' }) => {
 
   const navigate = useNavigate();
 
   const [isLoading, setIsLoading] = useState(false);
+  const [savingSection, setSavingSection] = useState<string | null>(null);
   
   // Initialize state with empty data or provided initial data
   const [programDetails, setProgramDetails] = useState<ProgramDetails>(
@@ -128,16 +130,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSubmit, mode =
     setProjectDetails(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleAddComponentCost = () => {
-    const newCost: ComponentCost = {
-      Id: `CC${componentCosts.length + 1}`,
-      Description: '',
-      Cost2025: 0,
-      Cost2026: 0,
-      MYCAApproval: '',
-      UACsPAPCode: '',
-      PlannedStartDate: ''
-    };
+  const handleAddComponentCost = (newCost: ComponentCost) => {
     setComponentCosts(prev => [...prev, newCost]);
   };
 
@@ -206,6 +199,45 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSubmit, mode =
     setFundingProfiles(prev => prev.filter((_, i) => i !== index));
   };
 
+  // Individual section save handlers
+  const handleSaveSection = async (sectionName: string, data: any) => {
+    if (!onSaveSection) return;
+    
+    setSavingSection(sectionName);
+    try {
+      await onSaveSection(sectionName, data);
+      console.log(`${sectionName} saved successfully`);
+    } catch (error) {
+      console.error(`Error saving ${sectionName}:`, error);
+    } finally {
+      setSavingSection(null);
+    }
+  };
+
+  const handleSaveProgramDetails = async () => {
+    await handleSaveSection('programDetails', programDetails);
+  };
+
+  const handleSaveProjectDetails = async () => {
+    await handleSaveSection('projectDetails', projectDetails);
+  };
+
+  const handleSaveComponentCosts = async () => {
+    await handleSaveSection('componentCosts', componentCosts);
+  };
+
+  const handleSaveMajorItems = async () => {
+    await handleSaveSection('majorItemsOfWork', majorItems);
+  };
+
+  const handleSaveNotes = async () => {
+    await handleSaveSection('projectNotes', notes);
+  };
+
+  const handleSaveFundingProfiles = async () => {
+    await handleSaveSection('fundingProfiles', fundingProfiles);
+  };
+
   return (
     <div className="max-w-10xl mx-auto p-6 space-y-6">
         <div className='flex items-center justify-between mb-6'>
@@ -244,54 +276,147 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSubmit, mode =
 
       <div className="grid grid-cols-1 gap-6">
         {/* Program Details */}
-        <ProgramDetailsForm 
-          programDetails={programDetails}
-          setProgramDetails={setProgramDetails}
-          onChange={setProgramDetails}
-          mode={mode}
-        />
+        <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
+          <div className="px-4 py-6 sm:p-8">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-semibold leading-7 text-gray-900">Program Details</h3>
+              <Button
+                outline
+                onClick={handleSaveProgramDetails}
+                disabled={savingSection === 'programDetails'}
+                className="text-sm"
+              >
+                {savingSection === 'programDetails' ? 'Saving...' : 'Save Section'}
+              </Button>
+            </div>
+            <ProgramDetailsForm 
+              programDetails={programDetails}
+              setProgramDetails={setProgramDetails}
+              onChange={setProgramDetails}
+              mode={mode}
+            />
+          </div>
+        </div>
 
         {/* Project Details */}
-        <ProjectDetailsForm
-          projectDetails={projectDetails}
-          onChange={handleProjectDetailsChange}
-          mode={mode}
-        />
+        <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
+          <div className="px-4 py-6 sm:p-8">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-semibold leading-7 text-gray-900">Project Details</h3>
+              <Button
+                outline
+                onClick={handleSaveProjectDetails}
+                disabled={savingSection === 'projectDetails'}
+                className="text-sm"
+              >
+                {savingSection === 'projectDetails' ? 'Saving...' : 'Save Section'}
+              </Button>
+            </div>
+            <ProjectDetailsForm
+              projectDetails={projectDetails}
+              onChange={handleProjectDetailsChange}
+              mode={mode}
+            />
+          </div>
+        </div>
       </div>
 
-      {/* Component Cost Section */}
-      <ComponentCostForm
-        componentCosts={componentCosts}
-        onAdd={handleAddComponentCost}
-        onEdit={handleEditComponentCost}
-        onDelete={handleDeleteComponentCost}
-      />
+      {/* Component Cost Section - Fill this first to populate Major Items */}
+      <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
+        <div className="px-4 py-6 sm:p-8">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h3 className="text-lg font-semibold leading-7 text-gray-900">Component Costs</h3>
+              <p className="text-sm text-blue-600 font-medium">⚠️ Add component costs first - they are required for Major Items of Work</p>
+            </div>
+            <Button
+              outline
+              onClick={handleSaveComponentCosts}
+              disabled={savingSection === 'componentCosts'}
+              className="text-sm"
+            >
+              {savingSection === 'componentCosts' ? 'Saving...' : 'Save Section'}
+            </Button>
+          </div>
+          <ComponentCostForm
+            componentCosts={componentCosts}
+            onAdd={handleAddComponentCost}
+            onEdit={handleEditComponentCost}
+            onDelete={handleDeleteComponentCost}
+          />
+        </div>
+      </div>
 
       {/* Major Item of Work Section */}
-      <MajorItemOfWorksForm
-        majorItems={majorItems}
-        componentCosts={componentCosts}
-        onAdd={handleAddMajorItem}
-        onEdit={handleEditMajorItem}
-        onDelete={handleDeleteMajorItem}
-      />
+      <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
+        <div className="px-4 py-6 sm:p-8">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-lg font-semibold leading-7 text-gray-900">Major Items of Work</h3>
+            <Button
+              outline
+              onClick={handleSaveMajorItems}
+              disabled={savingSection === 'majorItemsOfWork'}
+              className="text-sm"
+            >
+              {savingSection === 'majorItemsOfWork' ? 'Saving...' : 'Save Section'}
+            </Button>
+          </div>
+          <MajorItemOfWorksForm
+            majorItems={majorItems}
+            componentCosts={componentCosts}
+            onAdd={handleAddMajorItem}
+            onEdit={handleEditMajorItem}
+            onDelete={handleDeleteMajorItem}
+          />
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Notes Section */}
-        <NotesForm
-          notes={notes}
-          onAdd={handleAddNote}
-          onEdit={handleEditNote}
-          onDelete={handleDeleteNote}
-        />
+        <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
+          <div className="px-4 py-6 sm:p-8">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-semibold leading-7 text-gray-900">Project Notes</h3>
+              <Button
+                outline
+                onClick={handleSaveNotes}
+                disabled={savingSection === 'projectNotes'}
+                className="text-sm"
+              >
+                {savingSection === 'projectNotes' ? 'Saving...' : 'Save Section'}
+              </Button>
+            </div>
+            <NotesForm
+              notes={notes}
+              onAdd={handleAddNote}
+              onEdit={handleEditNote}
+              onDelete={handleDeleteNote}
+            />
+          </div>
+        </div>
 
         {/* Funding Profile Section */}
-        <FundingProfileForm
-          fundingProfiles={fundingProfiles}
-          onAdd={handleAddFundingProfile}
-          onEdit={handleEditFundingProfile}
-          onDelete={handleDeleteFundingProfile}
-        />
+        <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
+          <div className="px-4 py-6 sm:p-8">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-semibold leading-7 text-gray-900">Funding Profiles</h3>
+              <Button
+                outline
+                onClick={handleSaveFundingProfiles}
+                disabled={savingSection === 'fundingProfiles'}
+                className="text-sm"
+              >
+                {savingSection === 'fundingProfiles' ? 'Saving...' : 'Save Section'}
+              </Button>
+            </div>
+            <FundingProfileForm
+              fundingProfiles={fundingProfiles}
+              onAdd={handleAddFundingProfile}
+              onEdit={handleEditFundingProfile}
+              onDelete={handleDeleteFundingProfile}
+            />
+          </div>
+        </div>
       </div>
 
       {/* Activities Section */}
