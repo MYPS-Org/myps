@@ -1,6 +1,5 @@
 // Service functions for RBAC operations
 import type { PermissionPagination, Permissions, AddPermission, PermissionGroup, Users, UserPagination, UserGroups, AddUserGroups, UserGroupPagination, Pis, InitialDataResponse } from './Model.d';
-import type { PaginationResponse } from '../../types/Pagination.d';
 import { httpClient, type ErrorResponse } from '../../services/httpClient';
 // import type { ErrorResponse } from '';
 
@@ -17,7 +16,7 @@ export const getPermissionCount = (permissions: string[]): number => {
 //#region  Initial API Request
 export const fetchInitialData = async () => {
 	try {
-		const request = await httpClient.post<InitialDataResponse>('/UserProfile/InitUserManagement', null,{preloaderMessage: 'Loading initial data...'});
+		const request = await httpClient.post<InitialDataResponse>('/UserManagement/InitUserManagement', null,{preloaderMessage: 'Loading initial data...'});
 		return request;
 	} catch (error) {
 		console.error('Service: Error in fetchInitialData:', error);
@@ -29,7 +28,7 @@ export const fetchInitialData = async () => {
 //#region  Users API functions
 export const fetchUsers = async (data: UserPagination) => {
 	try {
-		const request = await httpClient.post<PaginationResponse<Users>>('/UserProfile/ShowUsers', data);
+		const request = await httpClient.post<PaginationResponse<Users>>('/UserManagement/ShowUsers', data);
 		return request;
 	} catch (error) {
 		throw error;
@@ -38,7 +37,7 @@ export const fetchUsers = async (data: UserPagination) => {
 
 export const addUser = async (data: Users) => {
 	try {
-		const request = await httpClient.post<Users>('/UserProfile/AddUser', data);
+		const request = await httpClient.post<Users>('/UserManagement/AddUser', data);
 		return request;
 	} catch (error) {
 		throw error;
@@ -47,7 +46,7 @@ export const addUser = async (data: Users) => {
 
 export const editUser = async (data: Users) => {
 	try {
-		const request = await httpClient.post<Users>(`/UserProfile/UpdateUser`, data);
+		const request = await httpClient.post<Users>(`/UserManagement/UpdateUser`, data);
 		return request;
 	} catch (error) {
 		throw error;
@@ -56,7 +55,7 @@ export const editUser = async (data: Users) => {
 
 export const deleteUser = async (data: Users) => {
 	try {
-		const request = await httpClient.post('/UserProfile/DeleteUser', data );
+		const request = await httpClient.post('/UserManagement/DeleteUser', data );
 		return request;
 		
 	} catch (error) {
@@ -68,7 +67,7 @@ export const deleteUser = async (data: Users) => {
 //#region  Permission API functions
 export const fetchPermissions = async (data: PermissionPagination) => {
     try {
-        const request = await httpClient.post<PaginationResponse<Permissions>>('/UserProfile/ShowPermissions', data);
+        const request = await httpClient.post<PaginationResponse<Permissions>>('/UserManagement/ShowPermissions', data);
         return request;
     } catch (error) {
         throw error;
@@ -77,7 +76,7 @@ export const fetchPermissions = async (data: PermissionPagination) => {
 
 export const addPermission = async (data: AddPermission) => {
 	try {
-		const request = await httpClient.post<AddPermission>('/UserProfile/AddPermission', data);
+		const request = await httpClient.post<AddPermission>('/UserManagement/AddPermission', data);
 		return request;
 	} catch (error) {
 		throw error;
@@ -86,7 +85,7 @@ export const addPermission = async (data: AddPermission) => {
 
 export const updatePermission = async (data: Permissions) => {
 	try {
-		const request = await httpClient.post<Permissions>('/UserProfile/UpdatePermission', data);
+		const request = await httpClient.post<Permissions>('/UserManagement/UpdatePermission', data);
 		return request;
 	} catch (error) {
 		throw error;
@@ -95,7 +94,7 @@ export const updatePermission = async (data: Permissions) => {
 
 export const fetchPermissionGroups = async () => {
     try {
-        const request = await httpClient.post<PermissionGroup[]>('/UserProfile/ShowPermissionGroups');
+        const request = await httpClient.post<PermissionGroup[]>('/UserManagement/ShowPermissionGroups');
         return request;
     } catch (error) {
         throw error;
@@ -104,7 +103,7 @@ export const fetchPermissionGroups = async () => {
 
 export const deletePermission = async (data: Permissions) => {
 	try {
-		const request = await httpClient.post('/UserProfile/DeletePermission', data);
+		const request = await httpClient.post('/UserManagement/DeletePermission', data);
 		return request;
 	} catch (error) {
 		throw error;
@@ -115,7 +114,7 @@ export const deletePermission = async (data: Permissions) => {
 //#region  User Groups API functions
 export const fetchUserGroups = async (data: UserGroupPagination) => {
     try {
-        const request = await httpClient.post<PaginationResponse<UserGroups>>('/UserProfile/ShowUserGroups', data);
+        const request = await httpClient.post<PaginationResponse<UserGroups>>('/UserManagement/ShowUserGroups', data);
         return request;
     } catch (error) {
         throw error;
@@ -124,7 +123,7 @@ export const fetchUserGroups = async (data: UserGroupPagination) => {
 
 export const addUserGroup = async (data: AddUserGroups) => {
 	try {
-		const request = await httpClient.post('/UserProfile/AddUserGroup', data);
+		const request = await httpClient.post('/UserManagement/AddUserGroup', data);
 		return request;
 	} catch (error) {
 		throw error;
@@ -133,7 +132,7 @@ export const addUserGroup = async (data: AddUserGroups) => {
 
 export const editUserGroup = async (data: AddUserGroups) => {
 	try {
-		const request = await httpClient.post('/UserProfile/UpdateUserGroup', data);
+		const request = await httpClient.post('/UserManagement/UpdateUserGroup', data);
 		return request;
 	} catch (error) {
 		throw error;
@@ -142,7 +141,7 @@ export const editUserGroup = async (data: AddUserGroups) => {
 
 export const deleteUserGroup = async (groupId: number) => {
     try {
-        const request = await httpClient.post('/UserProfile/DeleteUserGroup', { Id: groupId });
+        const request = await httpClient.post('/UserManagement/DeleteUserGroup', { Id: groupId });
         return request;
     } catch (error) {
         throw error;

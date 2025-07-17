@@ -1,4 +1,3 @@
-import { PaginationParams } from '../../../types/PaginationParams';
 
 export interface ProgramModel {
   Id: number,
@@ -18,16 +17,32 @@ export interface ProgramEnums {
 	Description: string;
 }
 
-export interface ProgramList {
-  Stage: number;
-  Status: number;
-  Type: number;
-  Name: string;
-  Cost?: number;
-  YearStart: number;
-  YearEnd: number;
-  UserGroup: number;
-  RegionCode: string;
+export interface ProgramDetails {
+	Id: number;
+	ReferenceId: string;
+	RevisionNumber: number;
+	Name: string;
+	UserGroup: number;
+	RegionCode: string;
+	Status: number;
+	Type: number;
+	Cost?: number;
+	YearStart: number;
+	YearEnd: number;
+	CreatedBy: string;
+	CreatedDate: string;
+	UpdatedBy?: string;
+	UpdatedDate?: string;
+}
+
+export interface ProgramDetailsEnums{
+  Details: ProgramDetails;
+  Dropdowns: {
+    Stages: ProgramEnums[];
+    Statuses: ProgramEnums[];
+    Types: ProgramEnums[];
+    Groups: ProgramEnums[];
+  };
 }
 
 export interface ProgramPagination extends PaginationParams {
@@ -36,8 +51,28 @@ export interface ProgramPagination extends PaginationParams {
   sortDirection?: 0 | 1;
 }
 export interface ProgramFilter {
-  name?: string;
-  yearStart?: string;
-  stage?: number;
-  userGroup?: string;
+  Name?: string;
+  YearStart?: string;
+  YearEnd?: string;
+  StageName?: string;
+  GroupName?: string;
+  Status?: string;
+  Type?: string;
+}
+
+export interface ProgramList {
+	Id: number;
+	RevisionId: number;
+	ProgramId?: string;
+	StageName: string;
+	Name?: string;
+	GroupName?: string;
+	Status?: string;
+	Type?: string;
+	Cost?: number;
+	YearStart?: number;
+	YearEnd?: number;
+	CreatedBy: string;
+	CreatedDate: string;
+	IsPublished: boolean;
 }

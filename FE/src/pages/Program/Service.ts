@@ -1,8 +1,8 @@
 // import type { PaginationParams, PaginationResponse } from '../../model/Pagination';
-import { httpClient, type ErrorResponse } from '../../services/httpClient';
+import { httpClient } from '../../services/httpClient';
 
 
-import type { ProgramModel, ProgramEnums, ProgramPagination, ProgramFilter } from './Model';
+import type { ProgramModel, ProgramEnums, ProgramPagination, ProgramList, ProgramDetailsEnums } from './Model';
 
 export const fetchProgramEnums = async () => {
     try {
@@ -20,27 +20,27 @@ export const fetchProgramEnums = async () => {
     }
 };
 
-export const fetchProgram = async () => {
+export const fetchProgram = async (data: ProgramPagination) => {
     try {
-        const response = await httpClient.post<ProgramModel[]>('/Program', null, {
+        const response = await httpClient.post<PaginationResponse<ProgramList>>('/program/showprogram', data, {
             preloaderMessage: 'Loading program...'
         });
         return response;
-    } catch (ErrorResponse) {
-        console.error('Error fetching program:', ErrorResponse);
-        throw ErrorResponse;
+    } catch (error) {
+        console.error('Error fetching program:', error);
+        throw error;
     }
 };
 
-export const fetchProgramById = async (programId: number) => {
+export const fetchProgramById = async (programId: string) => {
     try {
-        const request = await httpClient.post<ProgramModel>(`/Program/${programId}`, null, {
+        const request = await httpClient.post< ProgramDetailsEnums >(`/Program/ProgramDetails`, { ProgramId: programId }, {
             preloaderMessage: 'Loading program details...'
         });
         return request;
-    } catch (ErrorResponse) {
-        console.error('Error fetching program details:', ErrorResponse);
-        throw ErrorResponse;
+    } catch (error) {
+        console.error('Error fetching program details:', error)
+        throw error;
     }
 };
 

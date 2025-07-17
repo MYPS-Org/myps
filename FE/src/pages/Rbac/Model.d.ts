@@ -1,4 +1,4 @@
-import type { PaginationParams } from '../../types/Pagination';
+
 
 // #region Pagination Response
 export interface InitialDataResponse {
