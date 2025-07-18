@@ -43,8 +43,7 @@ const EditProject: React.FC = () => {
                         {
                             Id: 'CW1',
                             Description: 'Component cost based on engineering standards',
-                            Cost2025: 100000000,
-                            Cost2026: 100500000,
+                            Cost: 100000000,
                             MYCAApproval: '2025-03-14',
                             UACsPAPCode: 'ABCD',
                             PlannedStartDate: '2025-03-14'
@@ -52,8 +51,7 @@ const EditProject: React.FC = () => {
                         {
                             Id: 'CW2',
                             Description: 'Additional component for project enhancement',
-                            Cost2025: 150000000,
-                            Cost2026: 0,
+                            Cost: 150000000,
                             MYCAApproval: '2025-03-14',
                             UACsPAPCode: 'EFGH',
                             PlannedStartDate: '2025-03-14'

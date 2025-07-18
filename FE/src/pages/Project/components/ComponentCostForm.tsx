@@ -52,14 +52,10 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
   };
 
   const calculateTotalCosts = () => {
-    const totalCost2025 = componentCosts.reduce((sum, cost) => sum + (cost.Cost2025 || 0), 0);
-    const totalCost2026 = componentCosts.reduce((sum, cost) => sum + (cost.Cost2026 || 0), 0);
-    const totalCost = totalCost2025 + totalCost2026;
-    
+    const totalCost = componentCosts.reduce((sum, cost) => sum + (cost.Cost || 0), 0);
+
     return {
       totalCost,
-      totalCost2025,
-      totalCost2026
     };
   };
 
@@ -76,18 +72,14 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
         </div>
 
         {/* Cost Summary Cards */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-2 gap-4 mb-6">
             <div className="bg-blue-50 p-4 rounded-lg text-center">
                 <div className="text-sm text-gray-600">Total Cost</div>
                 <div className="text-lg font-semibold text-blue-600">₱{formatCurrency(totalCosts.totalCost)}</div>
             </div>
             <div className="bg-blue-50 p-4 rounded-lg text-center">
                 <div className="text-sm text-gray-600">Total Cost (2025)</div>
-                <div className="text-lg font-semibold text-blue-600">₱{formatCurrency(totalCosts.totalCost2025)}</div>
-            </div>
-            <div className="bg-blue-50 p-4 rounded-lg text-center">
-                <div className="text-sm text-gray-600">Total Cost (2026)</div>
-                <div className="text-lg font-semibold text-blue-600">₱{formatCurrency(totalCosts.totalCost2026)}</div>
+                <div className="text-lg font-semibold text-blue-600">₱{formatCurrency(totalCosts.totalCost)}</div>
             </div>
         </div>
 
@@ -121,8 +113,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
                       {cost.Description}
                     </div>
                   </TableCell>
-                  <TableCell>₱{formatCurrency(cost.Cost2025 || 0)}</TableCell>
-                  <TableCell>₱{formatCurrency(cost.Cost2026 || 0)}</TableCell>
+                  <TableCell>₱{formatCurrency(cost.Cost || 0)}</TableCell>
                   <TableCell>{cost.MYCAApproval || '-'}</TableCell>
                   <TableCell>{cost.UACsPAPCode || '-'}</TableCell>
                   <TableCell>{cost.PlannedStartDate || '-'}</TableCell>

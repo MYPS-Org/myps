@@ -69,11 +69,11 @@ export interface ProjectDetails {
 export interface ComponentCost {
   Id: string;
   Description: string;
-  Cost2025: number;
-  Cost2026: number;
+  Cost: number;
   MYCAApproval: string;
   UACsPAPCode: string;
   PlannedStartDate: string;
+  PlannedEndDate?: string;
 }
 
 export interface MajorItemOfWork {
