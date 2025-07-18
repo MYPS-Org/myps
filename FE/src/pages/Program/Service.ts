@@ -2,7 +2,7 @@
 import { httpClient } from '../../services/httpClient';
 
 
-import type { ProgramModel, ProgramEnums, ProgramPagination, ProgramList, ProgramDetailsEnums } from './Model';
+import type { ProgramModel, ProgramEnums, ProgramPagination, ProgramList, ProgramDetailsEnums, ProgramDetails } from './Model';
 
 export const fetchProgramEnums = async () => {
     try {
@@ -56,9 +56,9 @@ export const addProgram = async (program: ProgramModel) => {
     }
 };
 
-export const editProgram = async (program: ProgramModel) => {
+export const editProgram = async (program: ProgramDetails) => {
     try {
-        const request = await httpClient.post<ProgramModel>('/Program/EditProgram', program, {
+        const request = await httpClient.post<ProgramDetails>('/Program/UpdateProgramDetails', program, {
             preloaderMessage: 'Editing program...'
         });
         return request;
@@ -68,7 +68,7 @@ export const editProgram = async (program: ProgramModel) => {
     }
 };
 
-export const deleteProgram = async (program: ProgramModel) => {
+export const deleteProgram = async (program: ProgramList) => {
     try {
         const request = await httpClient.post(`/Program/DeleteProgram/`, program, {
             preloaderMessage: 'Deleting program...'

@@ -178,7 +178,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                        1st year Cost (2025)
+                        1st year Cost {new Date().getFullYear()}
                     </label>
                     <input
                         type="number"
@@ -191,7 +191,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                     </div>
                     <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                        2nd year Cost (2026)
+                        2nd year Cost
                     </label>
                     <input
                         type="number"

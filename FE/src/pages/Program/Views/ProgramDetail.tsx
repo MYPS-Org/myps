@@ -2,9 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
-import type { ProgramDetailsEnums } from '../Model.d'; // Adjust the import path as necessary
+import type { ProgramDetails, ProgramDetailsEnums } from '../Model.d'; // Adjust the import path as necessary
 import { Button } from '../../../components/tailwindui/button';
-import { fetchProgramById } from '../Service';
+import { editProgram, fetchProgramById } from '../Service';
 // import { Badge } from '../../../components/tailwindui/badge';
 
 // Mock projects data for the table
@@ -39,8 +39,60 @@ const mockProjects = [
 const ProgramDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [programEnums, setProgramEnums] = useState<ProgramDetailsEnums | null>(null);
-
+  const [programEnums, setProgramEnums] = useState<ProgramDetailsEnums>({
+    Details: {
+      	Id: 0,
+        ReferenceId: '',
+        RevisionNumber: 0,
+        Name: '',
+        StageId: 0,
+        StageName: '',
+        UserGroup: 0,
+        RegionCode: '',
+        Status: 0,
+        Type: 0,
+        Cost: 0,
+        YearStart: 0,
+        YearEnd: 0,
+        CreatedBy: '',
+        CreatedDate: '',
+        UpdatedBy: '',
+        UpdatedDate: '',
+    },
+    Dropdowns: {
+      Statuses: [],
+      Stages: [],
+      Types: [],
+      Groups: []
+    }
+  });
+  const [defaultProgramEnums, setDefaultProgramEnums] = useState<ProgramDetailsEnums>({
+    Details: {
+      	Id: 0,
+        ReferenceId: '',
+        RevisionNumber: 0,
+        Name: '',
+        StageId: 0,
+        StageName: '',
+        UserGroup: 0,
+        RegionCode: '',
+        Status: 0,
+        Type: 0,
+        Cost: 0,
+        YearStart: 0,
+        YearEnd: 0,
+        CreatedBy: '',
+        CreatedDate: '',
+        UpdatedBy: '',
+        UpdatedDate: '',
+    },
+    Dropdowns: {
+      Statuses: [],
+      Stages: [],
+      Types: [],
+      Groups: []
+    }
+  });
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -64,7 +116,7 @@ const ProgramDetail: React.FC = () => {
       setProgramEnums(response.Data);
     } catch (error) {
       console.error('Error fetching program details:', error);
-      setProgramEnums(null);
+      setProgramEnums(defaultProgramEnums);
     } finally {
       setIsLoading(false);
     }
@@ -74,10 +126,27 @@ const ProgramDetail: React.FC = () => {
     navigate('/programs');
   };
 
-  const handleUpdate = () => {
-    // Handle update logic here
-    // console.log('Update program:', programEnums?.Details.);
-    alert('Update functionality would be implemented here');
+  const handleChange = (field: string, value: any) => {
+    setProgramEnums(prev => ({
+      ...prev,
+      Details: {
+        ...prev.Details,
+        [field]: value
+      }
+    }));
+  };
+
+  const handleUpdate = async () => {
+    setIsLoading(true);
+    try {
+      await editProgram(programEnums?.Details);
+      console.log('Update program details');
+      await fetchProgramDetail(programEnums?.Details.ReferenceId);
+    } catch (error) {
+      console.error('Error updating program details:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (isLoading) {
@@ -114,8 +183,8 @@ const ProgramDetail: React.FC = () => {
                 <label className="block text-left text-sm font-medium text-gray-700 mb-1">Name</label>
                 <input
                   type="text"
+                  onChange={(e) => handleChange('Name', e.target.value)}
                   value={programEnums?.Details.Name}
-                  readOnly
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
                 />
               </div>
@@ -143,7 +212,11 @@ const ProgramDetail: React.FC = () => {
               <div>
                 <label className="block text-left text-sm font-medium text-gray-700 mb-1">Status</label>
                 <div className="flex items-center">
-                  <select name="programStatus" id="programStatus" className='w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900'>
+                  <select 
+                    value={programEnums?.Details.Status}
+                    onChange={(e) => handleChange('Status', Number(e.target.value))}
+                    className='w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900'
+                  >
                     {programEnums?.Dropdowns.Statuses.map((status) => (
                       <option key={status.Id} value={status.Id}>
                         {status.Name}
@@ -157,18 +230,24 @@ const ProgramDetail: React.FC = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-left text-sm font-medium text-gray-700 mb-1">Program Stage</label>
-                <select name="programStage" id="programStage" className='w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900'>
+                <input type="text" 
+                  value={programEnums?.Details.StageName}
+                  disabled
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
+                />
+                {/* <select name="programStage" id="programStage" className='w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900'>
                   {programEnums?.Dropdowns.Stages.map((stage) => (
                     <option key={stage.Id} value={stage.Id}>
                       {stage.Name}
                     </option>
                   ))}
-                </select>
+                </select> */}
               </div>
               <div>
                 <label className="block text-left text-sm font-medium text-gray-700 mb-1">Program Type</label>
                 <select 
                   value={programEnums?.Details.Type}
+                  onChange={(e) => handleChange('Type', Number(e.target.value))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
                 >
                   {programEnums?.Dropdowns.Types.map((type) => (
@@ -183,7 +262,10 @@ const ProgramDetail: React.FC = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-left text-sm font-medium text-gray-700 mb-1">User Group</label>
-                <select name="userGroup" id="userGroup" className='w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900'>
+                <select 
+                  value={programEnums?.Details.UserGroup}
+                  onChange={(e) => handleChange('UserGroup', Number(e.target.value))}
+                  className='w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900'>
                   {programEnums?.Dropdowns.Groups.map((group) => (
                     <option key={group.Id} value={group.Id}>
                       {group.GroupName}

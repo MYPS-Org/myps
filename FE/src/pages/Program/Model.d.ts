@@ -22,6 +22,8 @@ export interface ProgramDetails {
 	ReferenceId: string;
 	RevisionNumber: number;
 	Name: string;
+	StageId: number;
+	StageName: string;
 	UserGroup: number;
 	RegionCode: string;
 	Status: number;
@@ -76,3 +78,4 @@ export interface ProgramList {
 	CreatedDate: string;
 	IsPublished: boolean;
 }
+

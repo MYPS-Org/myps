@@ -2,14 +2,14 @@ import React, { useState } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
-import type { ProgramModel } from '../Model';
+import type { ProgramList } from '../Model';
 import { deleteProgram } from '../Service';
 
 interface DeleteProgramDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (programId: number) => void;
-  program: ProgramModel;
+  onSubmit: (programId: any) => void;
+  program: ProgramList;
 }
 
 const DeleteProgramDialog: React.FC<DeleteProgramDialogProps> = ({ isOpen, onClose, onSubmit, program }) => {
@@ -23,10 +23,15 @@ const DeleteProgramDialog: React.FC<DeleteProgramDialogProps> = ({ isOpen, onClo
       return;
     }
 
+    if (!program.ProgramId) {
+      console.error('Program ID is undefined');
+      return;
+    }
+
     setIsDeleting(true);
     try {
       await deleteProgram(program);
-      onSubmit(program.Id); // Call the onSubmit prop with the program ID
+      onSubmit(program.ProgramId); // Call the onSubmit prop with the program ID
       handleClose();
     } catch (error) {
       console.error('Error deleting program:', error);

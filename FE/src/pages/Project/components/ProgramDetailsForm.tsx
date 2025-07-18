@@ -42,26 +42,26 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
         <div className="grid grid-cols-3 gap-4 text-sm">
 
             {mode === 'add' ? (
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+            <div className="w-full flex flex-row text-left gap-5 items-center">
+                <label className="flex-1/3 block text-sm font-medium text-gray-700 mb-1">
                 Program Name
                 </label>
-                <div className='flex items-center overflow-hidden border border-gray-300 rounded-md shadow-sm'>
-                <input
-                    type="text"
-                    value={searchFormData.programName}
-                    onChange={(e) => handleInputChange('programName', e.target.value)}
-                    className="w-full px-3 py-2"
-                    placeholder='Enter program name'
-                    required
-                />
-                <button
-                    type="button"
-                    onClick={() => handleSearch(searchFormData.programName)}
-                    className="px-3 py-2.5 bg-gray-500 text-white hover:bg-gray-600"
-                >
-                    <MagnifyingGlassIcon className="w-5 h-5" />
-                </button>
+                <div className='flex-2/3 flex items-center overflow-hidden border border-gray-300 rounded-md shadow-sm'>
+                    <input
+                        type="text"
+                        value={searchFormData.programName}
+                        onChange={(e) => handleInputChange('programName', e.target.value)}
+                        className="w-full px-3 py-2"
+                        placeholder='Enter program name'
+                        required
+                    />
+                    <button
+                        type="button"
+                        onClick={() => handleSearch(searchFormData.programName)}
+                        className="px-3 py-2.5 bg-gray-500 text-white hover:bg-gray-600"
+                    >
+                        <MagnifyingGlassIcon className="w-5 h-5" />
+                    </button>
                 </div>
                 {isLoading && <p className="text-sm text-blue-600 mt-1">Loading program details...</p>}
             </div>

@@ -28,9 +28,9 @@ const Program: React.FC = () => {
         Groups: ProgramEnums[];
     } | null>(null);
 
-    const [programs, setPrograms] = useState<any[]>([]); // Add this to fix the missing programs variable
     const [isAddProgramOpen, setIsAddProgramOpen] = useState(false);
     const [isDeleteProgramOpen, setIsDeleteProgramOpen] = useState(false);
+    const [selectedProgram, setSelectedProgram] = useState<string | null>(); // Initialize with an empty string or a default value
 
     useEffect(() => {
         const getPrograms = async () => {
@@ -231,7 +231,7 @@ const Program: React.FC = () => {
                                 >
                                     Validate
                                 </Button>
-                                <Button color="red" onClick={() => setIsDeleteProgramOpen(true)} className="text-xs px-3 py-1.5 bg-red-500 hover:bg-red-600 rounded">
+                                <Button color="red" onClick={() => {setIsDeleteProgramOpen(true); setSelectedProgram(program.ProgramId);}} className="text-xs px-3 py-1.5 bg-red-500 hover:bg-red-600 rounded">
                                     <TrashIcon stroke='white' className="h-5 w-5 text-gray-900" />
                                 </Button>
                             </div>
@@ -314,28 +314,29 @@ const Program: React.FC = () => {
                 onClose={() => setIsAddProgramOpen(false)}
                 programEnums={programEnums || undefined}
                 onSubmit={(newProgram: any) => {
-                    // Handle form submission logic here
-                    console.log('Form Data Submitted:', newProgram);
-                    setPrograms(prev => [...prev, newProgram]); // Add the new program to the list
+                    // Handle the new program submission
+                    setProgramData(prev => ({
+                        ...prev,
+                        lists: [...prev.lists, newProgram],
+                        total: prev.total + 1
+                    }));
                 }}
             />
             {/* Delete Program Dialog */}
-            <DeleteProgramDialog
-                isOpen={isDeleteProgramOpen}
-                onClose={() => setIsDeleteProgramOpen(false)}
-                onSubmit={(programId: number) => {
-                    // Handle delete logic here
-                    console.log('Program to delete:', programId);
-                    setPrograms(prev => ({
-                        ...prev,
-                        // Assuming you want to remove the program from the list
-                        // You can filter out the program based on its Id or any other unique identifier
-                        Id: prev.filter(p => p.Id !== programId)
-                    })
-                    );
-                }}
-                program={programs?.find((programs: any)=> programs.Id === 1) || { Id: 1, Name: 'Sample Program' }} // Replace with actual program data
+            {selectedProgram && (
+                <DeleteProgramDialog
+                    isOpen={isDeleteProgramOpen}
+                    onClose={() => setIsDeleteProgramOpen(false)}
+                    program={ProgramData.lists?.find((program: any) => program.ProgramId === selectedProgram)!} // Pass the selected program or an empty object
+                    onSubmit={(programId: any) => {
+                        setProgramData(prev => ({
+                            ...prev,
+                            lists: prev.lists.filter(program => program.ProgramId !== programId),
+                            total: prev.total - 1
+                        }));
+                    }}
             />
+            )}
         </div>
     );
 }
