@@ -9,7 +9,7 @@ import type {
   Activity, 
   ProgramDetails,
   ProjectFormPayload
-} from '../Model';
+} from '../Model.d';
 
 import { Button } from '../../../components/tailwindui/button';
 
@@ -21,6 +21,7 @@ import MajorItemOfWorksForm from './MajorItemOfWorksForm';
 import NotesForm from './NotesForm';
 import FundingProfileForm from './FundingProfileForm';
 import ActivitySection from './ActivitySection';
+import { addProjectDetails } from '../Service';
 
 interface ProjectFormProps {
   initialData?: ProjectFormPayload;
@@ -35,6 +36,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSubmit, onSave
 
   const [isLoading, setIsLoading] = useState(false);
   const [savingSection, setSavingSection] = useState<string | null>(null);
+  const [isProjectDetailsSaved, setIsProjectDetailsSaved] = useState(false);
+  const [isComponentCostsSaved, setIsComponentCostsSaved] = useState(false);
+  const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
   
   // Initialize state with empty data or provided initial data
   const [programDetails, setProgramDetails] = useState<ProgramDetails>(
@@ -219,23 +223,71 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSubmit, onSave
   };
 
   const handleSaveProjectDetails = async () => {
-    await handleSaveSection('projectDetails', projectDetails);
+    setSavingSection('projectDetails');
+    try {
+      // Call your addProjectDetails service and get the new projectId
+      const response = await addProjectDetails(projectDetails); // import this from Service.ts
+      setCreatedProjectId(response.Data.Id); // Adjust based on your API response
+      setIsProjectDetailsSaved(true);
+      // Optionally update projectDetails state with the returned data
+      setProjectDetails(response.Data);
+    } catch (error) {
+      console.error('Error saving project details:', error);
+    } finally {
+      setSavingSection(null);
+    }
   };
 
   const handleSaveComponentCosts = async () => {
-    await handleSaveSection('componentCosts', componentCosts);
+    setSavingSection('componentCosts');
+    try {
+      const response = await handleSaveSection('componentCosts', componentCosts);
+      
+      setIsComponentCostsSaved(true);
+    } catch (error) {
+      console.error('Error saving component costs:', error);
+    } finally {
+      setSavingSection(null);
+    }
   };
 
   const handleSaveMajorItems = async () => {
-    await handleSaveSection('majorItemsOfWork', majorItems);
+    setSavingSection('majorItemsOfWork');
+    try {
+      // Call your save service for major items if needed
+      await handleSaveSection('majorItemsOfWork', majorItems);
+      // setMajorItems(response.Data[]);
+    } catch (error) {
+      console.error('Error saving major items of work:', error);
+    } finally {
+      setSavingSection(null);
+    }
   };
 
   const handleSaveNotes = async () => {
-    await handleSaveSection('projectNotes', notes);
+    setSavingSection('projectNotes');
+    try {
+      // Call your save service for notes if needed
+      await handleSaveSection('projectNotes', notes);
+      // Optionally set a state like setIsNotesSaved(true);
+    } catch (error) {
+      console.error('Error saving project notes:', error);
+    } finally {
+      setSavingSection(null);
+    }
   };
 
   const handleSaveFundingProfiles = async () => {
-    await handleSaveSection('fundingProfiles', fundingProfiles);
+    setSavingSection('fundingProfiles');
+    try {
+      // Call your save service for funding profiles if needed
+      await handleSaveSection('fundingProfiles', fundingProfiles);
+      // Optionally set a state like setIsFundingProfilesSaved(true);
+    } catch (error) {
+      console.error('Error saving funding profiles:', error);
+    } finally {
+      setSavingSection(null);
+    }
   };
 
   return (
