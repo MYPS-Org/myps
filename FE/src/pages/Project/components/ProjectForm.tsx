@@ -61,27 +61,31 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSubmit, onSave
 
   const [projectDetails, setProjectDetails] = useState<ProjectDetails>(
     initialData?.projectDetails || {
-      Id: '',
-      ProjectName: '',
-      CityMunicipality: '',
-      ReportingRegion: '',
+      Id: 0,
+      ReferenceId: '',
+      RevisionNumber: 0,
+      Name: '',
       Description: '',
-      LegislativeDistrict: '',
-      OriginatingRegion: '',
+      Category: 0,
+      Thrust: 0,
+      Origin: 0,
+      City: 0,
+      LegislativeDistrict: 0,
       OperatingUnit: '',
-      AlternativeProjCode: '',
-      Category: '',
       ImplementingOffice: '',
-      ImplementationCode: '',
-      Thrust: '',
-      DistrictEngOffice: '',
-      EmergencyCode: '',
-      Origin: '',
-      CreatedBy: '',
-      CreatedDate: new Date().toISOString().split('T')[0],
-      FeasibilityStudy: false,
+      DEO: '',
+      Region: '',
+      Agency: 0,
+      ProjectCode: '',
+      ImplementationMode: 0,
+      EmergencyMode: 0,
+      Feasibility: 0,
       DetailedDesign: false,
-      RowAvailable: false
+      RowAvailable: false,
+      CreatedBy: '',
+      CreatedDate: '',
+      UpdatedBy: '',
+      UpdatedDate: '',
     }
   );
 
@@ -134,6 +138,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSubmit, onSave
     setProjectDetails(prev => ({ ...prev, [field]: value }));
   };
 
+  // #region Component Costs
   const handleAddComponentCost = (newCost: ComponentCost) => {
     setComponentCosts(prev => [...prev, newCost]);
   };
@@ -145,7 +150,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSubmit, onSave
   const handleDeleteComponentCost = (index: number) => {
     setComponentCosts(prev => prev.filter((_, i) => i !== index));
   };
+  // #endregion
 
+  // #region Major Items of Work
   const handleAddMajorItem = () => {
     const newItem: MajorItemOfWork = {
       Id: `MW${majorItems.length + 1}`,
@@ -167,7 +174,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSubmit, onSave
   const handleDeleteMajorItem = (index: number) => {
     setMajorItems(prev => prev.filter((_, i) => i !== index));
   };
+// #endregion
 
+// #region Notes
   const handleAddNote = () => {
     const newNote: ProjectNote = {
       Id: `N${notes.length + 1}`,
@@ -184,7 +193,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSubmit, onSave
   const handleDeleteNote = (index: number) => {
     setNotes(prev => prev.filter((_, i) => i !== index));
   };
+// #endregion
 
+// #region Funding Profiles
   const handleAddFundingProfile = () => {
     const newProfile: FundingProfile = {
       Id: `FP${fundingProfiles.length + 1}`,
@@ -202,6 +213,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSubmit, onSave
   const handleDeleteFundingProfile = (index: number) => {
     setFundingProfiles(prev => prev.filter((_, i) => i !== index));
   };
+// #endregion
 
   // Individual section save handlers
   const handleSaveSection = async (sectionName: string, data: any) => {
@@ -227,7 +239,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSubmit, onSave
     try {
       // Call your addProjectDetails service and get the new projectId
       const response = await addProjectDetails(projectDetails); // import this from Service.ts
-      setCreatedProjectId(response.Data.Id); // Adjust based on your API response
+      setCreatedProjectId(response.Data.ReferenceId); // Adjust based on your API response
       setIsProjectDetailsSaved(true);
       // Optionally update projectDetails state with the returned data
       setProjectDetails(response.Data);
@@ -322,7 +334,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSubmit, onSave
       {/* Map Section */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
         <div className="h-64 bg-blue-100 rounded-lg flex items-center justify-center">
-          <div className="text-gray-500 text-lg">Map View - {projectDetails.ProjectName || 'New Project'}</div>
+          <div className="text-gray-500 text-lg">Map View - {projectDetails.Name || 'New Project'}</div>
         </div>
       </div>
 
@@ -355,20 +367,22 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSubmit, onSave
           <div className="px-4 py-6 sm:p-8">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-lg font-semibold leading-7 text-gray-900">Project Details</h3>
-              <Button
-                outline
-                onClick={handleSaveProjectDetails}
-                disabled={savingSection === 'projectDetails'}
-                className="text-sm"
-              >
-                {savingSection === 'projectDetails' ? 'Saving...' : 'Save Section'}
-              </Button>
             </div>
             <ProjectDetailsForm
               projectDetails={projectDetails}
               onChange={handleProjectDetailsChange}
               mode={mode}
             />
+          </div>
+          <div className="flex justify-end px-4 py-6 sm:p-8">
+            <Button
+              color='orange'
+              onClick={handleSaveProjectDetails}
+              disabled={savingSection === 'projectDetails'}
+              className="text-sm"
+            >
+              {savingSection === 'projectDetails' ? 'Saving...' : 'Save Section'}
+            </Button>
           </div>
         </div>
       </div>

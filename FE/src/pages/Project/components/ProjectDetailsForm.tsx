@@ -1,5 +1,5 @@
 import React from 'react';
-import type { ProjectDetails } from "../Model";
+import type { ProjectDetails } from "../Model.d";
 
 interface ProjectDetailsFormProps {
     projectDetails: ProjectDetails;
@@ -25,8 +25,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                         <label className="flex-1/3 text-gray-600">Project Name:</label>
                         <input
                             type="text"
-                            value={projectDetails.ProjectName}
-                            onChange={(e) => handleInputChange('ProjectName', e.target.value)}
+                            value={projectDetails.Name}
+                            onChange={(e) => handleInputChange('Name', e.target.value)}
                             className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
                             placeholder="Enter project name"
                         />
@@ -35,8 +35,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     <div className='w-full flex flex-row text-left gap-5 items-center'>
                         <label className="flex-1/3 text-gray-600">City/Municipality:</label>
                         <select
-                            value={projectDetails.CityMunicipality}
-                            onChange={(e) => handleInputChange('CityMunicipality', e.target.value)}
+                            value={projectDetails.City}
+                            onChange={(e) => handleInputChange('City', e.target.value)}
                             className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
                         >
                             <option value="City">City</option>
@@ -47,8 +47,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     <div className='w-full flex flex-row text-left gap-5 items-center'>
                         <label className="flex-1/3 text-gray-600">Reporting Region:</label>
                         <select
-                            value={projectDetails.ReportingRegion}
-                            onChange={(e) => handleInputChange('ReportingRegion', e.target.value)}
+                            value={projectDetails.Region}
+                            onChange={(e) => handleInputChange('Region', e.target.value)}
                             className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
                         >
                             <option value="">Select Reporting Region</option>
@@ -87,16 +87,16 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                         </div>
                         
                         <div className='w-full flex flex-row text-left gap-5 items-center '>
-                            <label className="flex-1/3 text-gray-600">Originating Region:</label>
+                            <label className="flex-1/3 text-gray-600">Originating Agency:</label>
                             <select
-                                value={projectDetails.OriginatingRegion}
-                                onChange={(e) => handleInputChange('OriginatingRegion', e.target.value)}
+                                value={projectDetails.Agency}
+                                onChange={(e) => handleInputChange('Agency', e.target.value)}
                                 className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
                             >
-                                <option value="">Select Originating Region</option>
-                                <option value="Region 1">Region 1</option>
-                                <option value="Region 2">Region 2</option>
-                                <option value="Region 3">Region 3</option>
+                                <option value="">Select Originating Agency</option>
+                                <option value="Agency 1">Agency 1</option>
+                                <option value="Agency 2">Agency 2</option>
+                                <option value="Agency 3">Agency 3</option>
                             </select>
                         </div>
                     </div>
@@ -118,14 +118,14 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                         <div className='w-full flex flex-row text-left gap-5 items-center'>
                             <label className="flex-1/3 text-gray-600">Alternative Project Code:</label>
                             <select
-                                value={projectDetails.AlternativeProjCode}
-                                onChange={(e) => handleInputChange('AlternativeProjCode', e.target.value)}
+                                value={projectDetails.ProjectCode}
+                                onChange={(e) => handleInputChange('ProjectCode', e.target.value)}
                                 className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
                             >
-                                <option value="">Select Alternative Project Code</option>
-                                <option value="AltCode1">AltCode1</option>
-                                <option value="AltCode2">AltCode2</option>
-                                <option value="AltCode3">AltCode3</option>
+                                <option value="">Select Project Code</option>
+                                <option value="ProjCode1">ProjCode1</option>
+                                <option value="ProjCode2">ProjCode2</option>
+                                <option value="ProjCode3">ProjCode3</option>
                             </select>
                         </div>
                     </div>
@@ -161,8 +161,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     <div className='w-full flex flex-row text-left gap-5 items-center'>
                         <label className="flex-1/3 text-gray-600">Implementation Code:</label>
                         <select
-                            value={projectDetails.ImplementationCode}
-                            onChange={(e) => handleInputChange('ImplementationCode', e.target.value)}
+                            value={projectDetails.ImplementationMode}
+                            onChange={(e) => handleInputChange('ImplementationMode', e.target.value)}
                             className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
                         >
                             <option value="">Select Implementation Code</option>
@@ -187,7 +187,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     <div className='w-full flex flex-row text-left gap-5 items-center'>
                         <label className="flex-1/3 text-gray-600">District Engineering Office:</label>
                         <select name="DistrictEngOffice" id="DistrictEngOffice" 
-                        value={projectDetails.DistrictEngOffice} onChange={(e) => handleInputChange('DistrictEngOffice', e.target.value)} 
+                        value={projectDetails.DEO} onChange={(e) => handleInputChange('DEO', e.target.value)} 
                         className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'>
                             <option value="">Select District Engineering Office</option>
                             <option value="District1">District1</option>
@@ -198,7 +198,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     <div className='w-full flex flex-row text-left gap-5 items-center'>
                         <label className="flex-1/3 text-gray-600">Emergency Code:</label>
                         <select name="EmergencyCode" id="EmergencyCode" 
-                        value={projectDetails.EmergencyCode} onChange={(e) => handleInputChange('EmergencyCode', e.target.value)} 
+                        value={projectDetails.EmergencyMode} onChange={(e) => handleInputChange('EmergencyMode', e.target.value)} 
                         className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'>
                             <option value="">Select Emergency Code</option>
                             <option value="Emergency1">Emergency1</option>
@@ -240,7 +240,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     <div className="w-full flex flex-row text-left gap-5 items-center">
                         <label className="flex-1/3 text-gray-600">Feasibility Study:</label>
                         <select className="flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md" id="">
-                            <option value="yes">{projectDetails.FeasibilityStudy ? 'Yes' : 'No'}</option>
+                            <option value="yes">{projectDetails.Feasibility ? 'Yes' : 'No'}</option>
                         </select>
                     </div>
 

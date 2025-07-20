@@ -43,27 +43,31 @@ export interface ProgramDetails {
 }
 
 export interface ProjectDetails {
-  Id: string;
-  ProjectName: string;
-  CityMunicipality: string;
-  ReportingRegion: string;
-  Description: string;
-  LegislativeDistrict: string;
-  OriginatingRegion: string;
-  OperatingUnit: string;
-  AlternativeProjCode: string;
-  Category: string;
-  ImplementingOffice: string;
-  ImplementationCode: string;
-  Thrust: string;
-  DistrictEngOffice: string;
-  EmergencyCode: string;
-  Origin: string;
-  CreatedBy: string;
-  CreatedDate: string;
-  FeasibilityStudy: boolean;
-  DetailedDesign: boolean;
-  RowAvailable: boolean;
+  Id: number;
+	ReferenceId: string;
+	RevisionNumber: number;
+	Name: string;
+	Description: string;
+	Category: number;
+	Thrust: number;
+	Origin: number;
+	City: number;
+	LegislativeDistrict: number;
+	OperatingUnit: string;
+	ImplementingOffice: string;
+	DEO: string;
+	Region: string;
+	Agency: number;
+	ProjectCode?: string;
+	ImplementationMode: number;
+	EmergencyMode: number;
+  Feasibility?: number;
+	DetailedDesign?: boolean;
+	RowAvailable?: boolean;
+	CreatedBy: string;
+	CreatedDate: string;
+	UpdatedBy?: string;
+	UpdatedDate?: string;
 }
 
 export interface ComponentCost {
@@ -105,3 +109,96 @@ export interface Activity {
   Description: string;
   Date: string;
 }
+
+// #region Enums
+export interface ProjectEnums {
+  Category: ProjectCategoryEnum[];
+  Thurst: ProjectThurstEnum[];
+  Origin: ProjectOriginEnum[];
+  City: ProjectCityEnum[];
+  LD: ProjectLegislativeDistrictEnum[];
+  OperatingUnit: ProjectOperatingUnitEnum[];
+  IO: ProjectImplementingOfficeEnum[];
+  DEO: ProjectDEOEnum[];
+  Region: ProjectRegionEnum[];
+  Agencies: ProjectAgencyLists[];
+  ImplementationModes: ProjectImplementModeEnum[];
+  EmergencyModes: ProjectEmergencyModeEnum[];
+  Feasibility: ProjectLongFeasibilityEnum[];
+}
+
+export interface ProjectOriginEnum {
+	Id: number;
+	Enum: number;
+	Name: string;
+	Description: string;
+}
+
+export interface ProjectCityEnum {
+	Id: number;
+	Enum: number;
+	Name: string;
+	Description: string;
+}
+
+export interface ProjectLegislativeDistrictEnum {
+	Id: number;
+	Enum: number;
+	Name: string;
+}
+
+export interface ProjectOperatingUnitEnum {
+	Id: number;
+	ParticipantId: string;
+	OrgName: string;
+	OrgType: string;
+}
+
+export interface ProjectImplementingOfficeEnum {
+	Id: number;
+	ParticipantId: string;
+	OrgName: string;
+	OrgType: string;
+}
+
+export interface ProjectDEOEnum {
+	Id: number;
+	ParticipantId: string;
+	OrgName: string;
+}
+
+export interface ProjectRegionEnum {
+	Id: number;
+	DeoCode: string;
+	DeoName: string;
+	ROCode: string;
+	ROName: string;
+}
+
+export interface ProjectAgencyLists {
+	Id: number;
+	Code: string;
+	AgencyName: string;
+}
+
+export interface ProjectImplementModeEnum {
+	Id: number;
+	Enum: number;
+	Name: string;
+	Description: string;
+}
+
+export interface ProjectEmergencyModeEnum {
+	Id: number;
+	Enum: boolean;
+	Name: string;
+	Description: string;
+}
+
+export interface ProjectLongFeasibilityEnum {
+	Id: number;
+	Enum: number;
+	Name: string;
+	Description: string;
+}
+// #endregion Enums
