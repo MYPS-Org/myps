@@ -112,19 +112,39 @@ export interface Activity {
 
 // #region Enums
 export interface ProjectEnums {
-  Category: ProjectCategoryEnum[];
-  Thurst: ProjectThurstEnum[];
-  Origin: ProjectOriginEnum[];
-  City: ProjectCityEnum[];
-  LD: ProjectLegislativeDistrictEnum[];
-  OperatingUnit: ProjectOperatingUnitEnum[];
-  IO: ProjectImplementingOfficeEnum[];
-  DEO: ProjectDEOEnum[];
-  Region: ProjectRegionEnum[];
+  Categories: ProjectCategoryEnum[];
+  Thursts: ProjectThurstEnum[];
+  Origins: ProjectOriginEnum[];
+  Cities: ProjectCityEnum[];
+  LDs: ProjectLegislativeDistrictEnum[];
+  OperatingUnits: ProjectOperatingUnitEnum[];
+  IOs: ProjectImplementingOfficeEnum[];
+  DEOs: ProjectDEOEnum[];
+  Regions: ProjectRegionEnum[];
   Agencies: ProjectAgencyLists[];
   ImplementationModes: ProjectImplementModeEnum[];
   EmergencyModes: ProjectEmergencyModeEnum[];
   Feasibility: ProjectLongFeasibilityEnum[];
+}
+
+export interface ProjectCategoryEnum {
+	Id: number;
+	Enum: number;
+	Name: string;
+	Description: string;
+}
+
+export interface ProjectThurstEnum {
+	Id: number;
+	PAPKey: number;
+	ProgramName: string;
+	SubProgramName: string;
+	ActivityName: string;
+	SequenceNumber: number;
+	ValidFromDate: number;
+	ValidToDate: number;
+	InfrastructureType?: string;
+	ThrustDescription: string;
 }
 
 export interface ProjectOriginEnum {
