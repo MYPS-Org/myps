@@ -13,11 +13,13 @@ namespace WebAPI.Controllers.Settings.UserManagement
 {
     [ApiController]
     [Route("api/[controller]/[action]")]
-    [Authorize(Roles = "Admin")]
+    //[Authorize(Roles = "Admin")]
+    [AllowAnonymous]
     public class UserManagementController : CoreController
     {
         public UserManagementController(AppDbContext db) : base(db) { }
 
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> InitUserManagement()
         {

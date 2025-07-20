@@ -26,12 +26,18 @@ namespace DBHelper.Data
         public DbSet<Models.Table.ProgramStageEnum> tProgramStageEnum { get; set; }
         public DbSet<Models.Table.ProgramTypeEnum> tProgramTypeEnum { get; set; }
         public DbSet<Models.Table.ProgramStatusEnum> tProgramStatusEnum { get; set; }
+        public DbSet<Models.Table.TransactionLog> tTransactionLog { get; set; }
         #endregion
         #region Views
         public DbSet<Models.Views.Users> vUsers { get; set; }
         public DbSet<Models.Views.UserGroups> vUserGroups { get; set; }
         public DbSet<Models.Views.Permissions> vPermissions { get; set; }
         public DbSet<Models.Views.Programs> vPrograms { get; set; }
+        public DbSet<Models.Views.ProgramDetails> vProgramDetails { get; set; }
         #endregion
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+        }
     }
 }

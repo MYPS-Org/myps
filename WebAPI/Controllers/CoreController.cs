@@ -88,8 +88,8 @@ namespace WebAPI.Controllers
         {
             var responseObj = new
             {
-                message = "Unauthorized",
-                data = new { Authenticated = false, user = new { } },
+                Message = "Unauthorized",
+                Data = new { Authenticated = false, User = new { } },
 
             };
             return Unauthorized(responseObj);
