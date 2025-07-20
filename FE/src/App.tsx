@@ -15,6 +15,9 @@ import ProgramDetail from './pages/Program/Views/ProgramDetail';
 import Settings from './pages/Settings/Settings';
 import Project from './pages/Project/Views/Project';
 import ProjectDetails from './pages/Project/Views/ProjectDetails';
+import AddProject from './pages/Project/Views/AddProject';
+import EditProject from './pages/Project/Views/EditProject';
+// import AddProgram from './pages/Program/Views/AddProgram';
 
 function App() {
 	return (
@@ -52,6 +55,14 @@ function App() {
 								} 
 							/>
 							<Route 
+								path="/programs/programdetails/:id" 
+								element={
+									<ProtectedRoute>
+										<ProgramDetail />
+									</ProtectedRoute>
+								} 
+							/>
+							<Route 
 								path="/projects" 
 								element={
 									<ProtectedRoute>
@@ -60,18 +71,34 @@ function App() {
 								} 
 							/>
 							<Route 
-								path="/programs/:id" 
-								element={
-									<ProtectedRoute>
-										<ProgramDetail />
-									</ProtectedRoute>
-								} 
-							/>
-							<Route 
 								path="/projects/:id" 
 								element={
 									<ProtectedRoute>
 										<ProjectDetails />
+									</ProtectedRoute>
+								} 
+							/>
+							<Route 
+								path="/projects/add" 
+								element={
+									<ProtectedRoute>
+										<AddProject />
+									</ProtectedRoute>
+								} 
+							/>
+							<Route 
+								path="/projects/addproject" 
+								element={
+									<ProtectedRoute>
+										<AddProject />
+									</ProtectedRoute>
+								} 
+							/>
+							<Route 
+								path="/projects/Edit/:id" 
+								element={
+									<ProtectedRoute>
+										<EditProject />
 									</ProtectedRoute>
 								} 
 							/>

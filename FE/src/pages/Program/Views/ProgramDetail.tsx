@@ -2,8 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
-import type { Programs } from '../Model'; // Adjust the import path as necessary
+import type { ProgramDetails, ProgramDetailsEnums } from '../Model.d'; // Adjust the import path as necessary
 import { Button } from '../../../components/tailwindui/button';
+import { editProgram, fetchProgramById } from '../Service';
 // import { Badge } from '../../../components/tailwindui/badge';
 
 // Mock projects data for the table
@@ -34,46 +35,88 @@ const mockProjects = [
   }
 ];
 
+
 const ProgramDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [program, setProgram] = useState<Programs | null>(null);
+  const [programEnums, setProgramEnums] = useState<ProgramDetailsEnums>({
+    Details: {
+      	Id: 0,
+        ReferenceId: '',
+        RevisionNumber: 0,
+        Name: '',
+        StageId: 0,
+        StageName: '',
+        UserGroup: 0,
+        RegionCode: '',
+        Status: 0,
+        Type: 0,
+        Cost: 0,
+        YearStart: 0,
+        YearEnd: 0,
+        CreatedBy: '',
+        CreatedDate: '',
+        UpdatedBy: '',
+        UpdatedDate: '',
+    },
+    Dropdowns: {
+      Statuses: [],
+      Stages: [],
+      Types: [],
+      Groups: []
+    }
+  });
+  const [defaultProgramEnums, setDefaultProgramEnums] = useState<ProgramDetailsEnums>({
+    Details: {
+      	Id: 0,
+        ReferenceId: '',
+        RevisionNumber: 0,
+        Name: '',
+        StageId: 0,
+        StageName: '',
+        UserGroup: 0,
+        RegionCode: '',
+        Status: 0,
+        Type: 0,
+        Cost: 0,
+        YearStart: 0,
+        YearEnd: 0,
+        CreatedBy: '',
+        CreatedDate: '',
+        UpdatedBy: '',
+        UpdatedDate: '',
+    },
+    Dropdowns: {
+      Statuses: [],
+      Stages: [],
+      Types: [],
+      Groups: []
+    }
+  });
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (id) {
-      fetchProgramDetail(parseInt(id));
-    }
+    const loadProgramDetail = async () => {
+      try {
+        if (id) {
+          await fetchProgramDetail(id);
+        }
+      } catch (error) {
+        console.error('Error fetching program details:', error);
+      }
+    };
+
+    loadProgramDetail();
   }, [id]);
 
-  const fetchProgramDetail = async (programId: number) => {
+  const fetchProgramDetail = async (programId: string) => {
     setIsLoading(true);
-    setError(null);
     try {
-      // Replace with your actual API endpoint
-      const response = await fetch(`/api/programs/${programId}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch program details');
-      }
-      const data = await response.json();
-      setProgram(data);
+      const response = await fetchProgramById(programId);
+      setProgramEnums(response.Data);
     } catch (error) {
       console.error('Error fetching program details:', error);
-      setError(error instanceof Error ? error.message : 'Unknown error occurred');
-      
-      // For demo purposes, let's set some mock data if API fails
-      setProgram({
-        Id: programId,
-        Name: `RBF FY 2026 Region IV-A`,
-        Description: `This is a detailed description for Program ${programId}. This would typically come from your API.`,
-        Status: 'Working',
-        ProgramStage: 'General Appropriation',
-        ProgramType: 'Regular Infrastructure',
-        StartYear: 2026,
-        User: 'John Doe - DPD Admin',
-        DataSecurity: 'Region IV'
-      });
+      setProgramEnums(defaultProgramEnums);
     } finally {
       setIsLoading(false);
     }
@@ -83,10 +126,27 @@ const ProgramDetail: React.FC = () => {
     navigate('/programs');
   };
 
-  const handleUpdate = () => {
-    // Handle update logic here
-    console.log('Update program:', program?.Id);
-    alert('Update functionality would be implemented here');
+  const handleChange = (field: string, value: any) => {
+    setProgramEnums(prev => ({
+      ...prev,
+      Details: {
+        ...prev.Details,
+        [field]: value
+      }
+    }));
+  };
+
+  const handleUpdate = async () => {
+    setIsLoading(true);
+    try {
+      await editProgram(programEnums?.Details);
+      console.log('Update program details');
+      await fetchProgramDetail(programEnums?.Details.ReferenceId);
+    } catch (error) {
+      console.error('Error updating program details:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (isLoading) {
@@ -96,34 +156,6 @@ const ProgramDetail: React.FC = () => {
           <div className="h-8 bg-gray-300 rounded w-1/3 mb-4"></div>
           <div className="h-4 bg-gray-300 rounded w-full mb-2"></div>
           <div className="h-4 bg-gray-300 rounded w-2/3"></div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error && !program) {
-    return (
-      <div className="w-full mx-auto p-6">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <h2 className="text-lg font-semibold text-red-800 mb-2">Error Loading Program</h2>
-          <p className="text-red-600">{error}</p>
-          <Button onClick={handleBack} color="red" className="mt-4">
-            Back to Programs
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!program) {
-    return (
-      <div className="w-full mx-auto p-6">
-        <div className="text-center">
-          <h2 className="text-lg font-semibold text-gray-800 mb-2">Program Not Found</h2>
-          <p className="text-gray-600 mb-4">The program you're looking for doesn't exist.</p>
-          <Button onClick={handleBack} color="blue">
-            Back to Programs
-          </Button>
         </div>
       </div>
     );
@@ -144,14 +176,15 @@ const ProgramDetail: React.FC = () => {
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-6">
           {/* Left Column - Form Fields */}
+          
           <div className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-left text-sm font-medium text-gray-700 mb-1">Name</label>
                 <input
                   type="text"
-                  value={program.Name}
-                  readOnly
+                  onChange={(e) => handleChange('Name', e.target.value)}
+                  value={programEnums?.Details.Name}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
                 />
               </div>
@@ -159,7 +192,7 @@ const ProgramDetail: React.FC = () => {
                 <label className="block text-left text-sm font-medium text-gray-700 mb-1">Start Year</label>
                 <input
                   type="text"
-                  value={program.StartYear}
+                  value={programEnums?.Details.YearStart}
                   readOnly
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
                 />
@@ -170,8 +203,8 @@ const ProgramDetail: React.FC = () => {
               <div>
                 <label className="block text-left text-sm font-medium text-gray-700 mb-1">Cost</label>
                 <input
-                  type="text"
-                  value="12,004,234"
+                  type="number"
+                  value={programEnums?.Details.Cost}
                   readOnly
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
                 />
@@ -179,12 +212,16 @@ const ProgramDetail: React.FC = () => {
               <div>
                 <label className="block text-left text-sm font-medium text-gray-700 mb-1">Status</label>
                 <div className="flex items-center">
-                  <select
-                    value={program.Status}
-                    disabled
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
+                  <select 
+                    value={programEnums?.Details.Status}
+                    onChange={(e) => handleChange('Status', Number(e.target.value))}
+                    className='w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900'
                   >
-                    <option>{program.Status}</option>
+                    {programEnums?.Dropdowns.Statuses.map((status) => (
+                      <option key={status.Id} value={status.Id}>
+                        {status.Name}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -193,55 +230,57 @@ const ProgramDetail: React.FC = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-left text-sm font-medium text-gray-700 mb-1">Program Stage</label>
-                <input
-                  type="text"
-                  value={program.ProgramStage}
-                  readOnly
+                <input type="text" 
+                  value={programEnums?.Details.StageName}
+                  disabled
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
                 />
+                {/* <select name="programStage" id="programStage" className='w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900'>
+                  {programEnums?.Dropdowns.Stages.map((stage) => (
+                    <option key={stage.Id} value={stage.Id}>
+                      {stage.Name}
+                    </option>
+                  ))}
+                </select> */}
               </div>
               <div>
                 <label className="block text-left text-sm font-medium text-gray-700 mb-1">Program Type</label>
-                <input
-                  type="text"
-                  value={program.ProgramType}
-                  readOnly
+                <select 
+                  value={programEnums?.Details.Type}
+                  onChange={(e) => handleChange('Type', Number(e.target.value))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
-                />
+                >
+                  {programEnums?.Dropdowns.Types.map((type) => (
+                    <option key={type.Id} value={type.Id}>
+                      {type.Name}
+                    </option>
+                  ))}
+                </select>
               </div>
-            </div>
-
-            <div>
-              <label className="block text-left text-sm font-medium text-gray-700 mb-1">User</label>
-              <select
-                value={program.User}
-                disabled
-                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
-              >
-                <option>{program.User}</option>
-              </select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-left text-sm font-medium text-gray-700 mb-1">User Group</label>
-                <select
-                  value="DPD Admin"
-                  disabled
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
-                >
-                  <option>DPD Admin</option>
+                <select 
+                  value={programEnums?.Details.UserGroup}
+                  onChange={(e) => handleChange('UserGroup', Number(e.target.value))}
+                  className='w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900'>
+                  {programEnums?.Dropdowns.Groups.map((group) => (
+                    <option key={group.Id} value={group.Id}>
+                      {group.GroupName}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
-                <label className="block text-left text-sm font-medium text-gray-700 mb-1">Data Security</label>
-                <select
-                  value={program.DataSecurity}
-                  disabled
+                <label className="block text-left text-sm font-medium text-gray-700 mb-1">Created By:</label>
+                <input
+                  // value={programEnums?.Details.User}
+                  value="Alvin"
+                  readOnly
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
-                >
-                  <option>{program.DataSecurity}</option>
-                </select>
+                />
               </div>
             </div>
 

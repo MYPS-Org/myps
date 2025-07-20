@@ -7,7 +7,8 @@ import type {
   MajorItemOfWork, 
   ProjectNote, 
   FundingProfile, 
-  Activity 
+  Activity,
+  ProgramDetails
 } from '../Model';
 
 import { Button } from '../../../components/tailwindui/button';
@@ -23,12 +24,6 @@ const ProjectDetails: React.FC = () => {
   
   const [projectDetails] = useState<ProjectDetailsType>({
     Id: 'P00001LZ',
-    ProgramName: 'RBP FY 2025',
-    ProgramType: 'Regional Budget Pro...',
-    UserGroup: 'DPD Admin',
-    StartYear: 2025,
-    ProgramStage: 'Regular Infrastructure',
-    DataSecurity: 'Region IV',
     ProjectName: 'P00001LZ',
     CityMunicipality: 'sample',
     ReportingRegion: 'sample',
@@ -49,6 +44,15 @@ const ProjectDetails: React.FC = () => {
     FeasibilityStudy: true,
     DetailedDesign: true,
     RowAvailable: true
+  });
+
+  const [programDetails] = useState<ProgramDetails>({
+    ProgramName: 'Sample Program',
+    ProgramType: 'Infrastructure',
+    ProgramStage: 'Planning',
+    UserGroup: 'DPWH',
+    StartYear: 2025,
+    DataSecurity: 1
   });
 
   const [componentCosts] = useState<ComponentCost[]>([
@@ -191,7 +195,7 @@ const ProjectDetails: React.FC = () => {
               <label className="flex-1/3 text-gray-600">Program Name:</label>
               <input
                type="text"
-               value={projectDetails.ProgramName} 
+               value={programDetails.ProgramName}
                className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
                />
             </div>
@@ -199,7 +203,7 @@ const ProjectDetails: React.FC = () => {
               <label className="flex-1/3 text-gray-600">Program Type:</label>
               <input
                type="text"
-               value={projectDetails.ProgramType}
+               value={programDetails.ProgramType}
                className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
                />
             </div>
@@ -207,7 +211,7 @@ const ProjectDetails: React.FC = () => {
               <label className="flex-1/3 text-gray-600">Start Year:</label>
               <input
                type="text"
-               value={projectDetails.StartYear}
+               value={programDetails.StartYear}
                className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
                />
             </div>
@@ -215,7 +219,7 @@ const ProjectDetails: React.FC = () => {
               <label className="flex-1/3 text-gray-600">Program Stage:</label>
               <input
                type="text"
-               value={projectDetails.ProgramStage}
+               value={programDetails.ProgramStage}
                className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
                />
             </div>
@@ -223,7 +227,7 @@ const ProjectDetails: React.FC = () => {
               <label className="flex-1/3 text-gray-600">User Group:</label>
               <input
                type="text"
-               value={projectDetails.UserGroup}
+               value={programDetails.UserGroup}
                className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
                />
             </div>
@@ -231,7 +235,7 @@ const ProjectDetails: React.FC = () => {
               <label className="flex-1/3 text-gray-600">Data Security:</label>
               <input
                type="text"
-               value={projectDetails.DataSecurity}
+               value={programDetails.DataSecurity}
                className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
                />
             </div>
@@ -302,32 +306,50 @@ const ProjectDetails: React.FC = () => {
                   </select>
                 </div>
               </div>
-              
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-gray-600">Legislative District:</label>
-                <select className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md">
-                  <option>{projectDetails.LegislativeDistrict}</option>
+            <div className="grid grid-cols-3 gap-5">
+              <div className='w-full flex flex-row text-left gap-5 items-center'>
+                <label className="flex-1/3 text-gray-600">Thrust:</label>
+                <select className="flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md" >
+                  <option>{projectDetails.Thrust}</option>
                 </select>
               </div>
-              <div>
-                <label className="text-gray-600">Originating Region:</label>
-                <select className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md">
-                  <option>{projectDetails.OriginatingRegion}</option>
+              <div className='w-full flex flex-row text-left gap-5 items-center'>
+                <label className="flex-1/3 text-gray-600">District Eng. Office:</label>
+                <select className="flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md" >
+                  <option>{projectDetails.DistrictEngOffice}</option>
+                </select>
+              </div>
+              <div className='w-full flex flex-row text-left gap-5 items-center'>
+                <label className="flex-1/3 text-gray-600">Emergency Code:</label>
+                <select className="flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md" >
+                  <option>{projectDetails.EmergencyCode}</option>
                 </select>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-gray-600">Created by:</label>
-                <p className="font-medium">{projectDetails.CreatedBy}</p>
+            <div className="grid grid-cols-3 gap-5">
+              <div className='w-full flex flex-row text-left gap-5 items-center'>
+                <label className="flex-1/3 text-gray-600">Origin:</label>
+                <select className="flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md" >
+                  <option>{projectDetails.Origin}</option>
+                </select>
               </div>
-              <div>
-                <label className="text-gray-600">Created Date:</label>
-                <p className="font-medium">{projectDetails.CreatedDate}</p>
+              <div className='w-full flex flex-row text-left gap-5 items-center'>
+                <label className="flex-1/3 text-gray-600">Created by:</label>
+                <input 
+                  type="text" 
+                  value={projectDetails.CreatedBy}
+                  className="flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md"
+                />
+              </div>
+              <div className='w-full flex flex-row text-left gap-5 items-center'>
+                <label className="flex-1/3 text-gray-600">Created Date:</label>
+                <input type="date"
+                  value={projectDetails.CreatedDate}
+                  className="flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md"
+                />
               </div>
             </div>
 
@@ -342,6 +364,14 @@ const ProjectDetails: React.FC = () => {
                   <label className="flex items-center">
                     <input type="radio" name="feasibility" checked={!projectDetails.FeasibilityStudy} className="mr-2" />
                     No
+                  </label>
+                  <label className="flex items-center">
+                    <input type="radio" name="feasibility" checked={!projectDetails.FeasibilityStudy} className="mr-2" />
+                    Not Applicable
+                  </label>
+                  <label className="flex items-center">
+                    <input type="radio" name="feasibility" checked={!projectDetails.FeasibilityStudy} className="mr-2" />
+                    To Be Determined
                   </label>
                 </div>
               </div>

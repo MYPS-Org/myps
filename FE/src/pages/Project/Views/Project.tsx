@@ -70,7 +70,7 @@ const Project: React.FC = () => {
     };
 
     const handleAddProject = () => {
-        navigate('/projects/new');
+        navigate('/projects/addproject');
     };
 
     return (

@@ -7,12 +7,13 @@ export interface ProjectData {
   CreatedDate: string;
 }
 
-export interface ProjectPagination {
-  page?: number;
-  limit?: number;
-  filters?: ProjectFilter;
-  sortField?: string;
-  sortDirection?: 0 | 1;
+export interface ProjectFormPayload {
+  projectDetails: ProjectDetails;
+  componentCosts: ComponentCost[];
+  majorItemsOfWork: MajorItemOfWork[];
+  projectNotes: ProjectNote[];
+  fundingProfiles: FundingProfile[];
+  activities: Activity[];
 }
 
 export interface ProjectFilter {
@@ -21,14 +22,28 @@ export interface ProjectFilter {
   createdBy?: string;
 }
 
-export interface ProjectDetails {
-  Id: string;
+export interface AddProject {
+  ProjectName: string;
+  ProgramName: string;
+  Category: string;
+  TotalProjectCost: number;
+  DataSecurity: string;
+
+  CreatedBy: string;
+  CreatedDate: string;
+}
+
+export interface ProgramDetails {
   ProgramName: string;
   ProgramType: string;
+  ProgramStage: string;
   UserGroup: string;
   StartYear: number;
-  ProgramStage: string;
-  DataSecurity: string;
+  DataSecurity: number;
+}
+
+export interface ProjectDetails {
+  Id: string;
   ProjectName: string;
   CityMunicipality: string;
   ReportingRegion: string;
@@ -54,11 +69,11 @@ export interface ProjectDetails {
 export interface ComponentCost {
   Id: string;
   Description: string;
-  Cost2025: number;
-  Cost2026: number;
+  Cost: number;
   MYCAApproval: string;
   UACsPAPCode: string;
   PlannedStartDate: string;
+  PlannedEndDate?: string;
 }
 
 export interface MajorItemOfWork {
