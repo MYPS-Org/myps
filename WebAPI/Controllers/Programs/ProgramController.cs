@@ -135,12 +135,15 @@ namespace WebAPI.Controllers.Programs
                 var Type = await _db.tProgramTypeEnum.ToListAsync();
                 var Status = await _db.tProgramStatusEnum.ToListAsync();
                 var Group = await _db.tGroups.ToListAsync();
+                string[] includes = { "C", "R", "PMO", "PMOC", "B" };
+                var Security = await _db.tProjectImplementingOfficeEnum.Where(x => includes.Contains(x.OrgType)).ToListAsync();
                 return Ok(new
                 {
                     Stages = Stage,
                     Types = Type,
                     Statuses = Status,
-                    Groups = Group
+                    Groups = Group,
+                    DataSecurity = Security
                 });
             }
             catch (Exception ex)
@@ -255,6 +258,8 @@ namespace WebAPI.Controllers.Programs
                 var AvailableTypes = await _db.tProgramTypeEnum.ToListAsync();
                 var AvailableStatuses = await _db.tProgramStatusEnum.ToListAsync();
                 var AvailableGroups = await _db.tGroups.ToListAsync();
+                string[] includes = { "C", "R", "PMO", "PMOC", "B" };
+                var Security = await _db.tProjectImplementingOfficeEnum.Where(x => includes.Contains(x.OrgType)).ToListAsync();
                 var response = new
                 {
                     Details = program,
@@ -263,7 +268,8 @@ namespace WebAPI.Controllers.Programs
                         Stages = AvailableStages,
                         Types = AvailableTypes,
                         Statuses = AvailableStatuses,
-                        Groups = AvailableGroups
+                        Groups = AvailableGroups,
+                        DataSecurity = Security
                     }
                 };
                 return Ok(response);

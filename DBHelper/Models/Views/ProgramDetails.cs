@@ -17,6 +17,7 @@ namespace DBHelper.Models.Views
         public Double? Cost { get; set; }
         public int YearStart { get; set; }
         public int YearEnd { get; set; }
+        public bool IsPublished { get; set; }
         public string CreatedBy { get; set; } = string.Empty;
         public DateTime CreatedDate { get; set; }
         public string? UpdatedBy { get; set; }

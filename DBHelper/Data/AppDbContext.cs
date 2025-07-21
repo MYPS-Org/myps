@@ -26,7 +26,32 @@ namespace DBHelper.Data
         public DbSet<Models.Table.ProgramStageEnum> tProgramStageEnum { get; set; }
         public DbSet<Models.Table.ProgramTypeEnum> tProgramTypeEnum { get; set; }
         public DbSet<Models.Table.ProgramStatusEnum> tProgramStatusEnum { get; set; }
+        public DbSet<Models.Table.Projects> tProjects { get; set; }
+        public DbSet<Models.Table.ProjectRevisions> tProjectRevisions { get; set; }
+        public DbSet<Models.Table.ProjectStages> tProjectStages { get; set; }
+        public DbSet<Models.Table.ProjectCategoryEnum> tProjectCategoryEnum { get; set; }
+        public DbSet<Models.Table.ProjectThrustLists> tProjectThrustLists { get; set; }
+        public DbSet<Models.Table.ProjectOriginEnum> tProjectOriginEnum { get; set; }
+        public DbSet<Models.Table.ProjectCityEnum> tProjectCityEnum { get; set; }
+        public DbSet<Models.Table.ProjectLegislativeDistrictEnum> tProjectLegislativeDistrictEnum { get; set; }
+        public DbSet<Models.Table.ProjectOperatingUnitEnum> tProjectOperatingUnitEnum { get; set; }
+        public DbSet<Models.Table.ProjectImplementingOfficeEnum> tProjectImplementingOfficeEnum { get; set; }
+        public DbSet<Models.Table.ProjectDEOEnum> tProjectDEOEnum { get; set; }
+        public DbSet<Models.Table.ProjectRODEOEnum> tProjectRODEOEnum { get; set; }
+        public DbSet<Models.Table.ProjectAgencyLists> tProjectAgencyLists { get; set; }
+        public DbSet<Models.Table.ProjectImplementModeEnum> tProjectImplementModeEnum { get; set; }
+        public DbSet<Models.Table.ProjectEmergencyModeEnum> tProjectEmergencyModeEnum { get; set; }
+        public DbSet<Models.Table.ProjectLongFeasibilityEnum> tProjectLongFeasibilityEnum { get; set; }
+        public DbSet<Models.Table.ProjectComponentEnum> tProjectComponentEnum { get; set; }
+        public DbSet<Models.Table.ProjectComponentCost> tProjectComponentCost { get; set; }
+        public DbSet<Models.Table.ProjectComponentCostYear> tProjectComponentCostYear { get; set; }
         public DbSet<Models.Table.TransactionLog> tTransactionLog { get; set; }
+        public DbSet<Models.Table.ProjectScopeOfWorkEnum> tProjectScopeOfWorkEnum { get; set; }
+        public DbSet<Models.Table.ProjectMajorItemOfWorks> tProjectMajorItemOfWorks { get; set; }
+        public DbSet<Models.Table.ProjectNotes> tProjectNotes { get; set; }
+        public DbSet<Models.Table.ProjectFundingProfile> tProjectFundingProfile { get; set; }
+        public DbSet<Models.Table.ProjectFundingAgreementLists> tProjectFundingAgreementLists { get; set; }
+        public DbSet<Models.Table.ProjectFundingSource> tProjectFundingSource { get; set; }
         #endregion
         #region Views
         public DbSet<Models.Views.Users> vUsers { get; set; }
@@ -34,6 +59,7 @@ namespace DBHelper.Data
         public DbSet<Models.Views.Permissions> vPermissions { get; set; }
         public DbSet<Models.Views.Programs> vPrograms { get; set; }
         public DbSet<Models.Views.ProgramDetails> vProgramDetails { get; set; }
+        public DbSet<Models.Views.ProjectDetails> vProjectDetails { get; set; }
         #endregion
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

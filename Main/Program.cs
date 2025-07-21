@@ -4,13 +4,17 @@ using Helpers;
 using Main;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
 Appsetting.Environment = builder.Environment.EnvironmentName;
 string file = $"appsettings{(Appsetting.Environment == "Production" ? "." : $".{Appsetting.Environment}.")}json";
 builder.Configuration.AddJsonFile(file, optional: true, reloadOnChange: true);
+Appsetting.WebRootPath = builder.Environment.WebRootPath;
+Appsetting.RootPath = builder.Environment.ContentRootPath;
 
 Appsetting.PrepareAppsettings(builder.Configuration);
 //Custom function in Services
@@ -56,7 +60,12 @@ if (app.Environment.IsDevelopment())
 }
 else { app.MapFallbackToFile("index.html"); }
 
-app.UseStaticFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(Path.Combine(Appsetting.RootPath, "Resources")),
+    RequestPath = new PathString("/Resources"),
+    ContentTypeProvider = new FileExtensionContentTypeProvider()
+});
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
