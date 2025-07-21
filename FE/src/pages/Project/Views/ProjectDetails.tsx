@@ -182,7 +182,7 @@ const ProjectDetails: React.FC = () => {
       {/* Map Section */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
         <div className="h-64 bg-blue-100 rounded-lg flex items-center justify-center">
-          <div className="text-gray-500 text-lg">Map View - {projectDetails.ProjectName}</div>
+          <div className="text-gray-500 text-lg">Map View - {projectDetails.ReferenceId}</div>
         </div>
       </div>
 

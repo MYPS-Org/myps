@@ -38,30 +38,32 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
   const [projectEnums, setProjectEnums] = useState<ProjectEnums | null>(null);
   
   // Initialize state with empty data or provided initial data
-  const [programDetails, setProgramDetails] = useState<ProgramDetails>(
-    initialData?.projectDetails ? {
-      ProgramName: '',  // This will be populated by ProgramDetailsForm
-      ProgramType: '',
-      StartYear: new Date().getFullYear(),
-      ProgramStage: '',
-      UserGroup: '',
-      DataSecurity: 0,
-    } : {
-      ProgramName: '',
-      ProgramType: '',
-      StartYear: new Date().getFullYear(),
-      ProgramStage: '',
-      UserGroup: '',
-      DataSecurity: 0,
-    }
-  );
+  const [programDetails, setProgramDetails] = useState<ProgramDetails>({
+    Id: 0,
+    ProgramId: '',
+    RevisionNumber: 0,
+    Name: '',
+    StageId: 0,
+    StageName: '',
+    UserGroup: 0,
+    RegionCode: '',
+    Status: 0,
+    Type: 0,
+    Cost: 0,
+    YearStart: 0,
+    YearEnd: 0,
+    CreatedBy: '',
+    CreatedDate: '',
+    UpdatedBy: '',
+    UpdatedDate: '',
+  });
 
   const [projectDetails, setProjectDetails] = useState<ProjectDetails>(
-    initialData?.projectDetails || {
+    initialData?.ProjectDetails || {
       Id: 0,
+      ProgramId: '',
       ReferenceId: '',
       RevisionNumber: 0,
-      Name: '',
       Description: '',
       Category: 0,
       Thrust: 0,
@@ -75,35 +77,31 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
       Agency: 0,
       ProjectCode: '',
       ImplementationMode: 0,
-      EmergencyMode: 0,
+      EmergencyMode: false,
       Feasibility: 0,
       DetailedDesign: false,
       RowAvailable: false,
-      CreatedBy: '',
-      CreatedDate: '',
-      UpdatedBy: '',
-      UpdatedDate: '',
     }
   );
 
   const [componentCosts, setComponentCosts] = useState<ComponentCost[]>(
-    initialData?.componentCosts || []
+    initialData?.ComponentCosts || []
   );
 
   const [majorItems, setMajorItems] = useState<MajorItemOfWork[]>(
-    initialData?.majorItemsOfWork || []
+    initialData?.MajorItemOfWorks || []
   );
 
   const [notes, setNotes] = useState<ProjectNote[]>(
-    initialData?.projectNotes || []
+    initialData?.ProjectNotes || []
   );
 
   const [fundingProfiles, setFundingProfiles] = useState<FundingProfile[]>(
-    initialData?.fundingProfiles || []
+    initialData?.FundingProfile || []
   );
 
   const [activities] = useState<Activity[]>(
-    initialData?.activities || []
+    initialData?.Activities || []
   );
 
   // Load project enums on component mount
@@ -111,6 +109,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
     const loadProjectEnums = async () => {
       try {
         const response = await getProjectEnums();
+        console.log('Project Enums:', response.Data);
         setProjectEnums(response.Data);
       } catch (error) {
         console.error('Error loading project enums:', error);
@@ -126,6 +125,19 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
 
   const handleProjectDetailsChange = (field: keyof ProjectDetails, value: any) => {
     setProjectDetails(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleProgramDetailsChange = (updatedProgramDetails: ProgramDetails) => {
+    console.log('Program details changed in ProjectForm:', updatedProgramDetails);
+    setProgramDetails(updatedProgramDetails);
+    
+    // Update project details with program information
+    setProjectDetails(prev => ({
+      ...prev,
+      ProgramId: updatedProgramDetails.ProgramId,
+      // You can add other program-related fields here if needed
+    }));
+    console.log('Project details updated with ProgramId:', updatedProgramDetails.ProgramId);
   };
 
   // #region Component Costs
@@ -226,20 +238,22 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
 
   const handleSaveProjectDetails = async () => {
     setSavingSection('projectDetails');
+    projectDetails.EmergencyMode = projectDetails.EmergencyMode ? true : false;
     try {
       console.log('Saving project details:', projectDetails);
       // Call your addProjectDetails service
-      // const response = await addProjectDetails(projectDetails);
+      const response = await addProjectDetails(projectDetails);
       // Update projectDetails state with the returned data
-      // if (response.Data) {
-      //   setProjectDetails(response.Data);
-      // }
+      if (response.Data.ProjectId) {
+        navigate(`/projects/Edit/${response.Data.ProjectId}`);
+      }
     } catch (error) {
       console.error('Error saving project details:', error);
     } finally {
       setSavingSection(null);
     }
   };
+  
 
   const handleSaveComponentCosts = async () => {
     setSavingSection('componentCosts');
@@ -316,7 +330,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
       {/* Map Section */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
         <div className="h-64 bg-blue-100 rounded-lg flex items-center justify-center">
-          <div className="text-gray-500 text-lg">Map View - {projectDetails.Name || 'New Project'}</div>
+          <div className="text-gray-500 text-lg">Map View - {projectDetails.ReferenceId || 'New Project'}</div>
         </div>
       </div>
 
@@ -338,8 +352,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
             <ProgramDetailsForm 
               programDetails={programDetails}
               setProgramDetails={setProgramDetails}
-              onChange={setProgramDetails}
+              onChange={handleProgramDetailsChange}
               mode={mode}
+              projectEnums={projectEnums || undefined}
             />
           </div>
         </div>
@@ -354,7 +369,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
               projectDetails={projectDetails}
               onChange={handleProjectDetailsChange}
               mode={mode}
-              projectEnums={projectEnums}
+              projectEnums={projectEnums || undefined} // Ensure projectEnums is not undefined
             />
           </div>
           <div className="flex justify-end px-4 py-6 sm:p-8">

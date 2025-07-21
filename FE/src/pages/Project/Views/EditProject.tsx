@@ -3,102 +3,86 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import ProjectForm from '../components/ProjectForm';
-import type { ProjectFormPayload } from '../Model.d';
+import type { ProjectDetails, ProjectFormPayload } from '../Model.d';
+import { getProjectDetails } from '../Service';
 
 const EditProject: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const [initialData, setInitialData] = useState<ProjectFormPayload | undefined>(undefined);
+    const [projectDetails, setProjectDetails] = useState<ProjectFormPayload>({
+        ProgramDetails: {
+            Id: 0,
+            ProgramId: '',
+            RevisionNumber: 0,
+            Name: '',
+            StageId: 0,
+            StageName: '',
+            UserGroup: 0,
+            RegionCode: '',
+            Status: 0,
+            Type: 0,
+            Cost: 0,
+            YearStart: 0,
+            YearEnd: 0,
+            CreatedBy: '',
+            CreatedDate: '',
+            UpdatedBy: '',
+            UpdatedDate: ''
+        },
+        ProjectDetails: {
+            Id: 0,
+            ProgramId: '',
+            ReferenceId: '',
+            RevisionNumber: 0,
+            Description: '',
+            Category: 0,
+            Thrust: 0,
+            Origin: 0,
+            City: 0,
+            LegislativeDistrict: 0,
+            OperatingUnit: '',
+            ImplementingOffice: '',
+            DEO: '',
+            Region: '',
+            Agency: 0,
+            ProjectCode: '',
+            ImplementationMode: 0,
+            EmergencyMode: false,
+            Feasibility: 0,
+            DetailedDesign: false,
+            RowAvailable: false,
+            CreatedBy: '',
+            CreatedDate: '',
+            UpdatedBy: '',
+            UpdatedDate: '',
+        },
+        ComponentCosts: [],
+        ComponentCostPerYear: [],
+        MajorItemOfWorks: [],
+        ProjectNotes: [],
+        FundingProfile: [],
+        Dropdowns: {
+            ComponentTypes: []
+        },
+        Activities: []
+    });
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         // Load project data based on ID
         const loadProjectData = async () => {
-            try {
-                // This is sample data - replace with actual API call
-                const mockData: ProjectFormPayload = {
-                    projectDetails: {
-                        Id: id || 'P00001LZ',
-                        ProjectName: 'Sample Project',
-                        CityMunicipality: 'Sample City',
-                        ReportingRegion: 'Region I',
-                        Description: 'Sample project description',
-                        LegislativeDistrict: 'District 1',
-                        OriginatingRegion: 'Region I',
-                        OperatingUnit: 'Sample Unit',
-                        AlternativeProjCode: 'ALT001',
-                        Category: 'Infrastructure',
-                        ImplementingOffice: 'DPWH',
-                        ImplementationCode: 'IMP001',
-                        Thrust: 'Development',
-                        DistrictEngOffice: 'District Engineering Office',
-                        EmergencyCode: 'EMR001',
-                        Origin: 'Government',
-                        CreatedBy: 'John Doe',
-                        CreatedDate: '2025-03-15',
-                        FeasibilityStudy: true,
-                        DetailedDesign: true,
-                        RowAvailable: true
-                    },
-                    componentCosts: [
-                        {
-                            Id: 'CW1',
-                            Description: 'Component cost based on engineering standards',
-                            Cost: 100000000,
-                            MYCAApproval: '2025-03-14',
-                            UACsPAPCode: 'ABCD',
-                            PlannedStartDate: '2025-03-14'
-                        },
-                        {
-                            Id: 'CW2',
-                            Description: 'Additional component for project enhancement',
-                            Cost: 150000000,
-                            MYCAApproval: '2025-03-14',
-                            UACsPAPCode: 'EFGH',
-                            PlannedStartDate: '2025-03-14'
-                        }
-                    ],
-                    majorItemsOfWork: [
-                        {
-                            Id: 'MW1',
-                            ComponentId: 'CW1',
-                            YearOfWork: 2025,
-                            TypeOfWork: 'Additional Lane Width',
-                            TargetUnit: 'Lane KM',
-                            PhysicalTarget: '10 KM',
-                            DetailedScopeOfWork: 'Widening of existing road to accommodate additional lane',
-                            InfraId: 'P50000LCR'
-                        }
-                    ],
-                    projectNotes: [
-                        {
-                            Id: 'N1',
-                            Description: 'Project approved with conditions for environmental compliance',
-                            CreatedDate: '2025-03-14'
-                        }
-                    ],
-                    fundingProfiles: [
-                        {
-                            Id: 'FP1',
-                            Source: 'GOP',
-                            Agreement: 'DPWH-GAA-2025',
-                            Percentage: 100
-                        }
-                    ],
-                    activities: [
-                        {
-                            Id: 'A1',
-                            Description: 'Project details updated by administrator',
-                            Date: '2025-03-14'
-                        }
-                    ]
-                };
-
-                setInitialData(mockData);
-            } catch (error) {
-                console.error('Error loading project data:', error);
-            } finally {
-                setIsLoading(false);
-            }
+            await getProjectDetails({ ProjectId: id || '' })
+                .then(response => {
+                    console.log('Project details loaded:', response);
+                    setInitialData(response.Data);
+                })
+                .catch(error => {
+                    console.error('Error loading project details:', error);
+                    // Handle error appropriately, e.g., show a toast or alert
+                })
+                .finally(() => {
+                    setIsLoading(false);
+                });
         };
 
         loadProjectData();

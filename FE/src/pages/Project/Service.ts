@@ -1,5 +1,18 @@
 import { httpClient } from "../../services/httpClient";
-import type { ProgramDetails, ComponentCost, ProjectDetails, MajorItemOfWork, FundingProfile, ProjectNote, ProjectEnums } from "./Model.d";
+import type { ProgramDetails, ComponentCost, ProjectDetails, MajorItemOfWork, FundingProfile, ProjectNote, ProjectEnums, ProjectFormPayload, ProjectPagination } from "./Model.d";
+
+// #region INITIALIZE Project Lists
+export const fetchProject = async (data: ProjectPagination) => {
+    try {
+        const response = await httpClient.post<PaginationResponse<ProjectDetails>>(`/Project/showprojects`, data, {
+            preloaderMessage: 'Loading project details...'
+        });
+        return response;
+    } catch (ErrorResponse) {
+        console.error('Error fetching project details:', ErrorResponse);
+        throw ErrorResponse;
+    }
+};
 
 // #region INITIALIZE Project details and Enums
 export const initProgramDetails = async (programId: number) => {
@@ -42,12 +55,23 @@ export const getProjectEnums = async () => {
 // #region Project Details
 export const addProjectDetails = async (projectDetails: ProjectDetails) => {
     try {
-        const response = await httpClient.post<ProjectDetails>(`/Program/AddDetails/`, projectDetails, {
+        const response = await httpClient.post<{ProjectId: string, Title: string, Message: string}>(`/Project/addproject/`, projectDetails, {
             preloaderMessage: 'Adding project details...'
         });
         return response;
     } catch (ErrorResponse) {
         console.error('Error adding project details:', ErrorResponse);
+        throw ErrorResponse;
+    }
+};
+export const getProjectDetails = async ({ProjectId}: {ProjectId: string}) => {
+    try {
+        const response = await httpClient.post<ProjectFormPayload>(`/Project/ProjectDetails/`, {ProjectId}, {
+            preloaderMessage: 'Loading project details...'
+        });
+        return response;
+    } catch (ErrorResponse) {
+        console.error('Error loading project details:', ErrorResponse);
         throw ErrorResponse;
     }
 };
