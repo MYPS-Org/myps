@@ -1,9 +1,10 @@
 import { httpClient } from "../../services/httpClient";
-import type { ProgramDetails, ComponentCost, ProjectDetails, MajorItemOfWork, FundingProfile, ProjectNote } from "./Model.d";
+import type { ProgramDetails, ComponentCost, ProjectDetails, MajorItemOfWork, FundingProfile, ProjectNote, ProjectEnums } from "./Model.d";
 
+// #region INITIALIZE Project details and Enums
 export const initProgramDetails = async (programId: number) => {
     try {
-        const response = await httpClient.post<ProgramDetails>(`/Program/Details/${programId}`, null, {
+        const response = await httpClient.post<ProgramDetails>(`/Project/Details/${programId}`, null, {
             preloaderMessage: 'Loading program details...'
         });
         return response;
@@ -15,7 +16,7 @@ export const initProgramDetails = async (programId: number) => {
 
 export const searchProgram = async (programName: string) => {
     try {
-        const response = await httpClient.post<ProgramDetails>(`/Program/Search/${programName}`, null, {
+        const response = await httpClient.post<ProgramDetails>(`/Project/Search/${programName}`, null, {
             preloaderMessage: 'Searching program...'
         });
         return response;
@@ -24,6 +25,19 @@ export const searchProgram = async (programName: string) => {
         throw ErrorResponse;
     }
 };
+
+export const getProjectEnums = async () => {
+    try {
+        const response = await httpClient.post<ProjectEnums>(`/Project/InitAddProject`, null, {
+            preloaderMessage: 'Loading project enums...'
+        });
+        return response;
+    } catch (ErrorResponse) {
+        console.error('Error fetching project enums:', ErrorResponse);
+        throw ErrorResponse;
+    }
+};
+// #endregion
 
 // #region Project Details
 export const addProjectDetails = async (projectDetails: ProjectDetails) => {

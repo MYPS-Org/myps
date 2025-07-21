@@ -36,7 +36,7 @@ const AddProject: React.FC = () => {
 
     return (
         <ProjectForm
-            onSubmit={handleAddProject}
+            // onSubmit={handleAddProject}
             onSaveSection={handleSaveSection}
             mode="add"
         />

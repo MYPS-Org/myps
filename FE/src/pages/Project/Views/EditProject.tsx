@@ -141,7 +141,7 @@ const EditProject: React.FC = () => {
     return (
         <ProjectForm
             initialData={initialData}
-            onSubmit={handleUpdateProject}
+            // onSubmit={handleUpdateProject}
             onSaveSection={handleSaveSection}
             mode="edit"
         />
