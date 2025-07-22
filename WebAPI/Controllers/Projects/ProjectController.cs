@@ -18,32 +18,7 @@ namespace WebAPI.Controllers.Programs
     public class ProjectController : CoreController
     {
         public ProjectController(AppDbContext db) : base(db) { }
-        #region Program Lists
-        [AllowAnonymous]
-        [HttpPost]
-        public async Task<IActionResult> InitFilterProgram()
-        {
-            try
-            {
-                var AvailableStages = await _db.tProgramStageEnum.ToListAsync();
-                var AvailableTypes = await _db.tProgramTypeEnum.ToListAsync();
-                var AvailableStatuses = await _db.tProgramStatusEnum.ToListAsync();
-                var AvailableGroups = await _db.tGroups.ToListAsync();
-                var response = new
-                {
-                    Stages = AvailableStages,
-                    Types = AvailableTypes,
-                    Statuses = AvailableStatuses,
-                    Groups = AvailableGroups
-                };
-
-                return Ok(response); // Remove the extra wrapper
-            }
-            catch (Exception ex)
-            {
-                return ExceptionHandler(ex);
-            }
-        }
+        #region Project Lists
         [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ShowProjects([FromBody] ShowProjectDTO dto)
@@ -158,6 +133,7 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
+        #endregion
         [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> AddProject([FromBody] AddProjectDTO dto)
@@ -305,6 +281,7 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
+        #region Project Details
         [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ProjectDetails([FromBody] ProjectDetailsDTO dto)
@@ -416,35 +393,35 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = "No file uploaded!", Title = "File Upload Error" });
                 }
-                if(dto.File.IsFileCorreupted())
-                {
-                    return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted!", Title = "File Corrupted" });
-                }
-                string FileName = dto.File.FileName;
-                string Extension = Path.GetExtension(FileName);
-                string PathDir = $"{Appsetting.RootPath}/Resources/Projects/Notes/{Project.ReferenceId}";
-                if (!Directory.Exists(PathDir))
-                {
-                    Directory.CreateDirectory(PathDir);
-                }
-                string FilePath = $"{PathDir}/{FileName}"; 
-                using (var stream = new FileStream(FilePath, FileMode.Create))
-                {
-                    await dto.File.CopyToAsync(stream);
-                }
-                var AddNotes = new ProjectNotes()
-                {
-                    ProjectId = dto.ProjectId,
-                    FileName = FileName,
-                    FileExtension = Extension,
-                    FilePath = "",//File.SaveFileToProjectNotes(Project.ReferenceId),
-                    Description = dto.Description,
-                    CreatedBy = _Session.UserId ?? "TESTING",
-                    CreatedDate = DateTime.UtcNow
-                };
-                await _db.tProjectNotes.AddAsync(AddNotes);
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
+                //if(dto.File.IsFileCorreupted())
+                //{
+                //    return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted!", Title = "File Corrupted" });
+                //}
+                //string FileName = dto.File.FileName;
+                //string Extension = Path.GetExtension(FileName);
+                //string PathDir = $"{Appsetting.Resources.ProjectNotes}{Project.ReferenceId}";
+                //if (!Directory.Exists(PathDir))
+                //{
+                //    Directory.CreateDirectory(PathDir);
+                //}
+                //string FilePath = $"{PathDir}/{FileName}"; 
+                //using (var stream = new FileStream(FilePath, FileMode.Create))
+                //{
+                //    await dto.File.CopyToAsync(stream);
+                //}
+                //var AddNotes = new ProjectNotes()
+                //{
+                //    ProjectId = dto.ProjectId,
+                //    FileName = FileName,
+                //    FileExtension = Extension,
+                //    FilePath = FilePath,
+                //    Description = dto.Description,
+                //    CreatedBy = _Session.UserId ?? "TESTING",
+                //    CreatedDate = DateTime.UtcNow
+                //};
+                //await _db.tProjectNotes.AddAsync(AddNotes);
+                //await _db.SaveChangesAsync();
+                //await transaction.CommitAsync();
                 return Ok(new
                 {
                 });

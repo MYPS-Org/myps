@@ -1,4 +1,5 @@
-﻿using System.Security.Cryptography;
+﻿using System.Resources;
+using System.Security.Cryptography;
 using Microsoft.Extensions.Configuration;
 
 namespace Helpers
@@ -15,11 +16,11 @@ namespace Helpers
         public string userName { get; set; } = string.Empty;
         public string password { get; set; } = string.Empty;
     }
-    public class Resources
+    public class ResourcesFolder
     {
-        public string Host { get; set; } = string.Empty;
-        public string userName { get; set; } = string.Empty;
-        public string password { get; set; } = string.Empty;
+        public string Main { get; set; } = string.Empty;
+        public string Project { get; set; } = string.Empty;
+        public string ProjectNotes { get; set; } = string.Empty;
     }
     public static class Appsetting
     {
@@ -31,12 +32,16 @@ namespace Helpers
         public static PISConfig PIS { get; set; } = new PISConfig();
         public static string WebRootPath { get; set; } = string.Empty;
         public static string RootPath { get; set; } = string.Empty;
+        public static ResourcesFolder Resources { get; set; } = new ResourcesFolder();
         public static void PrepareAppsettings(IConfiguration config)
         {
             /* PREPARE DATABASE CONNECTIONS */
             ConnectionString = config.GetConnectionString("DbConnection")!;
             LDAP = config.GetSection("LDAP").Get<LDAPConfig>()!;
             PIS = config.GetSection("PIS").Get<PISConfig>()!;
+            Resources = config.GetSection("Resources").Get<ResourcesFolder>()!;
+            Resources.Project = Path.Combine(RootPath, Resources.Main, Resources.Project);
+            Resources.ProjectNotes = Path.Combine(Resources.Project, Resources.ProjectNotes);
         }
     }
 }
