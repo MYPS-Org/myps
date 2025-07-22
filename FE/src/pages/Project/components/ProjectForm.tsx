@@ -331,6 +331,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
   const handleSaveNotes = async () => {
     setSavingSection('projectNotes');
     try {
+      console.log('Saving project notes:', notes);
       // Call your save service for notes if needed
       await handleSaveSection('projectNotes', notes);
       // Optionally set a state like setIsNotesSaved(true);

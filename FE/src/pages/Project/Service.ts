@@ -1,5 +1,5 @@
 import { httpClient } from "../../services/httpClient";
-import type { ProgramDetails, ComponentCost, ProjectDetails, MajorItemOfWork, FundingProfile, ProjectNote, ProjectEnums, ProjectFormPayload, ProjectPagination } from "./Model.d";
+import type { ProgramDetails, ComponentCost, ProjectDetails, MajorItemOfWork, FundingProfile, ProjectNote, ProjectEnums, ProjectFormPayload, ProjectPagination, AddNotes } from "./Model.d";
 
 // #region INITIALIZE Project Lists
 export const fetchProject = async (data: ProjectPagination) => {
@@ -206,9 +206,9 @@ export const deleteFundingProfile = async (fundingProfiles: FundingProfile[]) =>
 // #endregion
 
 // #region Notes
-export const addNote = async (notes: ProjectNote[]) => {
+export const addNote = async (notes: AddNotes) => {
     try {
-        const response = await httpClient.post<ProjectNote[]>(`/Program/AddNote/`, notes, {
+        const response = await httpClient.post<AddNotes>(`/Program/UploadNotes/`, notes, {
             preloaderMessage: 'Adding note...'
         });
         return response;

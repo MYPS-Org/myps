@@ -1,7 +1,5 @@
 import { useState, useEffect } from "react";
 import type { ProgramDetails, ProjectEnums, ProjectFormPayload } from "../Model";
-import { searchProgram } from "../Service";
-import { MagnifyingGlassIcon } from "@heroicons/react/16/solid";
 
 interface ProgramDetailsFormProps {
   initialData?: any;
