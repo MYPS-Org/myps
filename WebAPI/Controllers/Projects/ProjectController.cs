@@ -274,9 +274,15 @@ namespace WebAPI.Controllers.Programs
                     CreatedDate = CurrentDate
                 };
                 await _db.tProjectRevisions.AddAsync(ProjectRevision);
+                await _db.SaveChangesAsync();
+                var GetProjectRevision = await _db.tProjectRevisions.Where(x => x.ReferenceId == ReferenceId).FirstOrDefaultAsync();
+                if(GetProjectRevision == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Failed to create project revision!", Title = "Project Revision Error" });
+                }
                 var ProjectStage = new ProjectStages()
                 {
-                    RevisionId = 1,
+                    RevisionId = GetProjectRevision.Id,
                     StageId = ProgramDetails.StageId,
                     StageName = ProgramDetails.StageName,
                     CreatedBy = _Session.UserId ?? "TESTING",
@@ -284,7 +290,7 @@ namespace WebAPI.Controllers.Programs
                     IsPublished = false
                 };
                 await _db.tProjectStages.AddAsync(ProjectStage);
-                await _db.SaveChangesAsync();
+
                 await transaction.CommitAsync();
                 return Ok(new
                 {
@@ -379,8 +385,26 @@ namespace WebAPI.Controllers.Programs
         }
         [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> UploadNotes([FromBody] ProjectDetailsDTO dto)
+        public async Task<IActionResult> UpdateProjectDetails([FromBody] ProjectDetailsDTO dto)
         {
+            try
+            {
+                return Ok(new
+                {
+                    Message = "Project Update wala pa lods",
+                    Title = "Under Maintenance"
+                });
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> UploadNotes([FromBody] AddNotesDTO dto)
+        {
+            var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
                 var Project = await _db.vProjectDetails.FirstOrDefaultAsync(x => x.ReferenceId == dto.ProjectId);
@@ -388,34 +412,46 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
                 }
-                var Program = await _db.vProgramDetails.FirstOrDefaultAsync(x => x.ReferenceId == Project.ProgramId);
-                if (Program == null)
+                if (dto.File == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Program not found for this project!", Title = "Program Not Found" });
+                    return new BadRequestObjectResult(new { Message = "No file uploaded!", Title = "File Upload Error" });
                 }
-                var ComponentType = await _db.tProjectComponentEnum.ToListAsync();
-                var ComponentCost = await _db.tProjectComponentCost.Where(x => x.ProjectId == Project.ReferenceId).ToListAsync();
-                var ComponentCostYear = await _db.tProjectComponentCostYear.Where(x => ComponentCost.Select(a => a.Id).Contains(x.ParentId)).ToListAsync();
-                var MajorItemOfWork = await _db.tProjectMajorItemOfWorks.Where(x => x.ProjectId == Project.ReferenceId).ToListAsync();
-                var Notes = await _db.tProjectNotes.Where(x => x.ProjectId == Project.ReferenceId).ToListAsync();
-                var Funding = await _db.tProjectFundingProfile.Where(x => x.ProjectId == Project.ReferenceId).ToListAsync();
+                if(dto.File.IsFileCorreupted())
+                {
+                    return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted!", Title = "File Corrupted" });
+                }
+                string FileName = dto.File.FileName;
+                string Extension = Path.GetExtension(FileName);
+                string PathDir = $"{Appsetting.RootPath}/Resources/Projects/Notes/{Project.ReferenceId}";
+                if (!Directory.Exists(PathDir))
+                {
+                    Directory.CreateDirectory(PathDir);
+                }
+                string FilePath = $"{PathDir}/{FileName}"; 
+                using (var stream = new FileStream(FilePath, FileMode.Create))
+                {
+                    await dto.File.CopyToAsync(stream);
+                }
+                var AddNotes = new ProjectNotes()
+                {
+                    ProjectId = dto.ProjectId,
+                    FileName = FileName,
+                    FileExtension = Extension,
+                    FilePath = "",//File.SaveFileToProjectNotes(Project.ReferenceId),
+                    Description = dto.Description,
+                    CreatedBy = _Session.UserId ?? "TESTING",
+                    CreatedDate = DateTime.UtcNow
+                };
+                await _db.tProjectNotes.AddAsync(AddNotes);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
                 return Ok(new
                 {
-                    ProgramDetails = Program,
-                    ProjectDetails = Project,
-                    ComponentCosts = ComponentCost,
-                    ComponentCostPerYear = ComponentCostYear,
-                    MajorItemOfWorks = MajorItemOfWork,
-                    ProjectNotes = Notes,
-                    FundingProfile = Funding,
-                    Dropdowns = new
-                    {
-                        ComponentTypes = ComponentType,
-                    }
                 });
             }
             catch (Exception ex)
             {
+                await transaction.RollbackAsync();
                 return ExceptionHandler(ex);
             }
         }

@@ -15,6 +15,12 @@ namespace Helpers
         public string userName { get; set; } = string.Empty;
         public string password { get; set; } = string.Empty;
     }
+    public class Resources
+    {
+        public string Host { get; set; } = string.Empty;
+        public string userName { get; set; } = string.Empty;
+        public string password { get; set; } = string.Empty;
+    }
     public static class Appsetting
     {
         public static string ConnectionString { get; set; } = string.Empty;
