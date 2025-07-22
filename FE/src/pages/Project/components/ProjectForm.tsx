@@ -217,25 +217,14 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
 // #endregion
 
 // #region Notes
-  const handleAddNote = async () => {
-    const newNote: ProjectNote = {
-      Id: 0,
-      ProjectId: projectDetails.ReferenceId || '',
-      FileName: '',
-      FileExtension: '',
-      FilePath: '',
-      Description: '',
-      CreatedBy: '',
-      CreatedDate: new Date().toISOString().split('T')[0]
-    };
-    setNotes(prev => [...prev, newNote]);
-
-    // Prepare AddNotes payload (only ProjectId, Description, File)
-    const addNotesPayload = {
-      ProjectId: newNote.ProjectId,
-      Description: newNote.Description,
-      File: newNote.FilePath // You may need to handle actual file upload separately
-    };
+  const handleAddNote = (newNote: ProjectNote) => {
+    console.log('ProjectForm: Adding note:', newNote);
+    console.log('ProjectForm: Current notes before:', notes);
+    setNotes(prev => {
+      const newNotes = [...prev, newNote];
+      console.log('ProjectForm: New notes after adding:', newNotes);
+      return newNotes;
+    });
   };
 
   const handleEditNote = (index: number, updatedNote: ProjectNote) => {
@@ -489,6 +478,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
             onAdd={handleAddComponentCost}
             onEdit={handleEditComponentCost}
             onDelete={handleDeleteComponentCost}
+            initialData={initialData}
           />
         </div>
       </div>
@@ -523,14 +513,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
           <div className="px-4 py-6 sm:p-8">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-lg font-semibold leading-7 text-gray-900">Project Notes</h3>
-              <Button
-                outline
-                onClick={handleSaveNotes}
-                disabled={savingSection === 'projectNotes'}
-                className="text-sm"
-              >
-                {savingSection === 'projectNotes' ? 'Saving...' : 'Save Section'}
-              </Button>
             </div>
             <NotesForm
               notes={notes}

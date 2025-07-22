@@ -102,6 +102,13 @@ export interface AddNotes {
 	Description: string,
 	File: FileEntity
 }
+export interface FileEntity {
+	Name: string,
+	Extension: string,
+	ContentType: string,
+	DataUrl: string
+}
+
 
 // #region fetch data interfaces
 export interface ComponentCost {

@@ -24,7 +24,23 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({ isOpen, onClose, projectI
   } // Ensures File is nullable
   });
 
-  const [submitting, setSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Reset form when modal opens/closes
+  useEffect(() => {
+    if (isOpen) {
+      setFormData({
+        ProjectId: projectId,
+        Description: '',
+        File: {
+          Name: '',
+          Extension: '',
+          ContentType: '',
+          DataUrl: ''
+        }
+      });
+    }
+  }, [isOpen, projectId]);
 
 
   const handleChange = (field: keyof AddNotes, value: any) => {
@@ -54,44 +70,52 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({ isOpen, onClose, projectI
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitting(true);
+    setIsLoading(true);
 
     try {
-        console.log('Note added:', formData);
-        await addNote(formData)
-        .then((response) => {
-          if(response.Data.Message === 'Note added successfully') {
+        console.log('Submitting note with data:', formData);
+        const response = await addNote(formData);
+        console.log('Add note response:', response);
+        
+        if (response.Data.Message === 'Notes added successfully!') {
+            const newNote: ProjectNote = {
+            Id: 0, // Will be set by server
+            ProjectId: projectId,
+            Description: formData.Description,
+            FileName: formData.File?.Name || '',
+            FileExtension: formData.File?.Extension || '',
+            FilePath: formData.File?.DataUrl || '',
+            CreatedBy: '', // Adjust if needed
+            CreatedDate: new Date().toISOString().split('T')[0], // Format as YYYY-MM-DD
+            };
+
+            console.log('Creating new note object:', newNote);
+
+            // Reset form data
             setFormData({
-                ProjectId: projectId,
-                Description: '',
-                File: {
-                  Name: '',
-                  Extension: '',
-                  ContentType: '',
-                  DataUrl: ''
-                },
+              ProjectId: projectId,
+              Description: '',
+              File: {
+                Name: '',
+                Extension: '',
+                ContentType: '',
+                DataUrl: '',
+              },
             });
+            
+            // Call parent handlers
+            console.log('Calling onAddNote with:', newNote);
+            onAddNote(newNote);
+            console.log('Calling onClose');
             onClose();
-          }
-        }).catch((error) => {});
-        // if (response?.Data) {
-        //     const newNote: ProjectNote = {
-        //     Id: 0,
-        //     ProjectId: projectId,
-        //     Description: response.Data.Description,
-        //     FileName: '',
-        //     FileExtension: '',
-        //     FilePath: '',
-        //     CreatedBy: '',
-        //     CreatedDate: new Date().toISOString(),
-        //     };
-        //     onAddNote(newNote);
-        // }
-        } catch (error) {
-        console.error('Error adding note:', error);
-        } finally {
-        setSubmitting(false);
+        } else {
+            console.log('Unexpected response:', response);
         }
+    } catch (error) {
+        console.error('Error adding note:', error);
+    } finally {
+        setIsLoading(false);
+    }
   };
 
   return (
@@ -127,7 +151,7 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({ isOpen, onClose, projectI
               <Button type="button" onClick={onClose} color="zinc">
                 Cancel
               </Button>
-              <Button type="submit" color="blue" disabled={submitting}>
+              <Button type="submit" color="blue" disabled={isLoading}>
                 Submit
               </Button>
             </div>

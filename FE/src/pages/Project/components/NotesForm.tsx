@@ -7,7 +7,7 @@ import AddNoteDialog from "../dialogs/AddNoteDialog";
 
 interface NotesFormProps {
   notes: ProjectNote[];
-  onAdd: () => void;
+  onAdd: (newNote: ProjectNote) => void;
   onEdit: (index: number, updatedNote: ProjectNote) => void;
   onDelete: (index: number) => void;
   onFileChange?: (index: number, file: File) => void; // Optional if upload handled externally
@@ -23,16 +23,6 @@ const NotesForm: React.FC<NotesFormProps> = ({
   initialData
 }) => {
   const [isAddNoteModalOpen, setIsAddNoteModalOpen] = useState(false);
-  const [localNotes, setLocalNotes] = useState(notes);
-
-  const handleAddNote = (note: ProjectNote) => {
-    setLocalNotes(prev => [...prev, note]);
-    if (onAdd) onAdd(); // Optionally notify parent
-  };
-
-  const handleLog = () => {
-    console.log('Notes:', initialData.ProjectDetails?.ReferenceId);
-  };
 
   const handleFileChange = (index: number, file: File) => {
     const fileName = file.name;
@@ -47,6 +37,14 @@ const NotesForm: React.FC<NotesFormProps> = ({
 
     onEdit(index, updatedNote);
     if (onFileChange) onFileChange(index, file); // optional actual upload
+  };
+
+  // Add this function to handle adding a new note
+  const handleAddNote = (newNote: ProjectNote) => {
+    console.log('Adding new note to table:', newNote);
+    console.log('Current notes before adding:', notes);
+    onAdd(newNote);
+    setIsAddNoteModalOpen(false);
   };
 
   return (
@@ -70,7 +68,7 @@ const NotesForm: React.FC<NotesFormProps> = ({
         </TableHead>
         <TableBody>
           {notes.map((note, index) => (
-            <TableRow key={note.Id || index}>
+            <TableRow key={`${note.Id}-${index}-${note.CreatedDate}`}>
               <TableCell>
                 <textarea
                   value={note.Description}
@@ -85,7 +83,7 @@ const NotesForm: React.FC<NotesFormProps> = ({
               <TableCell>
                 <input
                   type="date"
-                  value={note.CreatedDate}
+                  value={note.CreatedDate?.split('T')[0] || note.CreatedDate || ''}
                   onChange={(e) =>
                     onEdit(index, { ...note, CreatedDate: e.target.value })
                   }
@@ -127,7 +125,7 @@ const NotesForm: React.FC<NotesFormProps> = ({
       <AddNoteDialog
         isOpen={isAddNoteModalOpen}
         onClose={() => setIsAddNoteModalOpen(false)}
-        projectId={initialData?.ProjectDetails?.ReferenceId || 0}
+        projectId={initialData?.ProjectDetails?.ReferenceId || ''}
         onAddNote={handleAddNote}
       />
       

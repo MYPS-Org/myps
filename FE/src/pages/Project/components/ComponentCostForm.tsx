@@ -10,13 +10,15 @@ interface ComponentCostFormProps {
   onAdd: (cost: ComponentCost) => void;
   onEdit: (index: number, updatedCost: ComponentCost) => void;
   onDelete: (index: number) => void;
+  initialData?: any; // Optional initial data for dropdowns or other purposes
 }
 
 const ComponentCostForm: React.FC<ComponentCostFormProps> = ({ 
   componentCosts, 
   onAdd, 
   onEdit, 
-  onDelete 
+  onDelete,
+  initialData
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
