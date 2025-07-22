@@ -30,7 +30,21 @@ namespace WebAPI.Controllers.Programs
         [Required]
         public string ProjectId { get; set; } = string.Empty;
     }
-    public class AddNotesDTO : ProjectDetailsDTO
+    public class UpdateProjectDetailsDTO
+    {
+        public ProgramDetails ProgramDetails { get; set; } = new ProgramDetails();
+    /*
+     
+                    ProgramDetails = Program,
+                    ProjectDetails = Project,
+                    ComponentCosts = ComponentCost,
+                    ComponentCostPerYear = ComponentCostYear,
+                    MajorItemOfWorks = MajorItemOfWork,
+                    ProjectNotes = Notes,
+                    FundingProfile = Funding,
+     */
+}
+public class AddNotesDTO : ProjectDetailsDTO
     {
         [Required]
         [MaxLength(200)]

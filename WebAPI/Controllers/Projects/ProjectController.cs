@@ -393,38 +393,42 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = "No file uploaded!", Title = "File Upload Error" });
                 }
-                //if(dto.File.IsFileCorreupted())
-                //{
-                //    return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted!", Title = "File Corrupted" });
-                //}
-                //string FileName = dto.File.FileName;
-                //string Extension = Path.GetExtension(FileName);
-                //string PathDir = $"{Appsetting.Resources.ProjectNotes}{Project.ReferenceId}";
-                //if (!Directory.Exists(PathDir))
-                //{
-                //    Directory.CreateDirectory(PathDir);
-                //}
-                //string FilePath = $"{PathDir}/{FileName}"; 
-                //using (var stream = new FileStream(FilePath, FileMode.Create))
-                //{
-                //    await dto.File.CopyToAsync(stream);
-                //}
-                //var AddNotes = new ProjectNotes()
-                //{
-                //    ProjectId = dto.ProjectId,
-                //    FileName = FileName,
-                //    FileExtension = Extension,
-                //    FilePath = FilePath,
-                //    Description = dto.Description,
-                //    CreatedBy = _Session.UserId ?? "TESTING",
-                //    CreatedDate = DateTime.UtcNow
-                //};
-                //await _db.tProjectNotes.AddAsync(AddNotes);
-                //await _db.SaveChangesAsync();
-                //await transaction.CommitAsync();
-                return Ok(new
+                if (dto.File.IsFileCorreupted())
                 {
-                });
+                    return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted!", Title = "File Corrupted" });
+                }
+                string FileName = dto.File.Name;
+                string Extension = Path.GetExtension(FileName);
+                string PathDir = $"{Appsetting.Resources.ProjectNotes}{Project.ReferenceId}";
+                if (!Directory.Exists(PathDir))
+                {
+                    Directory.CreateDirectory(PathDir);
+                }
+                string FilePath = $"{PathDir}/{FileName}";
+
+                string base64Data = dto.File.DataUrl.Contains(",")
+                    ? dto.File.DataUrl.Split(',')[1]
+                    : dto.File.DataUrl;
+                byte[] fileBytes = Convert.FromBase64String(base64Data);
+                if (fileBytes.Length == 0)
+                {
+                    return new BadRequestObjectResult(new { Message = "Uploaded file is empty!", Title = "File Empty" });
+                }
+                await System.IO.File.WriteAllBytesAsync(FilePath, fileBytes);
+                var AddNotes = new ProjectNotes()
+                {
+                    ProjectId = dto.ProjectId,
+                    FileName = FileName,
+                    FileExtension = Extension,
+                    FilePath = FilePath,
+                    Description = dto.Description,
+                    CreatedBy = _Session.UserId ?? "TESTING",
+                    CreatedDate = DateTime.UtcNow
+                };
+                await _db.tProjectNotes.AddAsync(AddNotes);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return Ok(new { Message = "Notes added successfully!", Tile = "Add Success." });
             }
             catch (Exception ex)
             {
