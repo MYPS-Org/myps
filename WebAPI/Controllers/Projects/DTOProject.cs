@@ -32,19 +32,14 @@ namespace WebAPI.Controllers.Programs
     }
     public class UpdateProjectDetailsDTO
     {
-        public ProgramDetails ProgramDetails { get; set; } = new ProgramDetails();
-    /*
-     
-                    ProgramDetails = Program,
-                    ProjectDetails = Project,
-                    ComponentCosts = ComponentCost,
-                    ComponentCostPerYear = ComponentCostYear,
-                    MajorItemOfWorks = MajorItemOfWork,
-                    ProjectNotes = Notes,
-                    FundingProfile = Funding,
-     */
-}
-public class AddNotesDTO : ProjectDetailsDTO
+        public ProjectDetails ProjectDetails { get; set; } = new ProjectDetails();
+        public List<ProjectComponentCost> ComponentCosts { get; set; } = new List<ProjectComponentCost>();
+        public List<ProjectComponentCostYear> ComponentCostYear { get; set; } = new List<ProjectComponentCostYear>();
+        public List<ProjectMajorItemOfWorks> MajorItemOfWorks { get; set; } = new List<ProjectMajorItemOfWorks>();
+        public List<ProjectNotes> ProjectNotes { get; set; } = new List<ProjectNotes>();
+        public List<ProjectFundingProfile> FundingProfile { get; set; } = new List<ProjectFundingProfile>();
+    }
+    public class AddNotesDTO : ProjectDetailsDTO
     {
         [Required]
         [MaxLength(200)]

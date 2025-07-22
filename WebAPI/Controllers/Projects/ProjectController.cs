@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Endpoints;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Scaffolding.Metadata;
 using System.Data.SqlClient;
 using System.Reflection;
 using System.Xml;
@@ -362,10 +363,44 @@ namespace WebAPI.Controllers.Programs
         }
         [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> UpdateProjectDetails([FromBody] ProjectDetailsDTO dto)
+        public async Task<IActionResult> UpdateProjectDetails([FromBody] UpdateProjectDetailsDTO dto)
         {
+            using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                bool hasUpdated = false;
+                DateTime CurrentDate = DateTime.UtcNow;
+                List<TransactionLog> transactionLogs = new List<TransactionLog>();
+                var Project = await _db.vProjectDetails.FirstOrDefaultAsync(x => x.ReferenceId == dto.ProjectDetails.ReferenceId);
+                if (Project == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
+                }
+                var Program = await _db.vProgramDetails.FirstOrDefaultAsync(x => x.ReferenceId == Project.ProgramId);
+                if (Program == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Program not found for this project!", Title = "Program Not Found" });
+                }
+                if (Project.Description != dto.ProjectDetails?.Description)
+                {
+                    hasUpdated = true;
+                    Project.Description = dto.ProjectDetails!.Description;
+                    transactionLogs.Add(new TransactionLog
+                    {
+                        TransactionId = Project.ReferenceId!,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tProjectRevisions",
+                        AffectedColumn = "Name",
+                        NewValue = dto.ProjectDetails!.Description!,
+                        OldValue = Project.Description ?? "",
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    });
+                }
+                if (Project.Category != dto.ProjectDetails?.Category) 
+                {
+
+                }
                 return Ok(new
                 {
                     Message = "Project Update wala pa lods",
@@ -374,6 +409,7 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
+                await transaction.RollbackAsync();
                 return ExceptionHandler(ex);
             }
         }
@@ -393,7 +429,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = "No file uploaded!", Title = "File Upload Error" });
                 }
-                if (dto.File.IsFileCorreupted())
+                if (dto.File.IsFileCorrupted())
                 {
                     return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted!", Title = "File Corrupted" });
                 }

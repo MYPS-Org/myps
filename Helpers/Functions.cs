@@ -19,13 +19,13 @@ namespace Helpers
             int count = endYear - startYear;
             return count.ToString("D3");
         }
-        public static bool IsFileCorreupted(this FileUpload File)
+        public static bool IsFileCorrupted(this FileUpload File)
         {
 
             string FileName = File.Name;
             string Extension = File.Extension;
             var AllowedPngs = new[] { ".jpg", ".jpeg", ".png" };
-            return AllowedPngs.Contains(Extension) ? File.IsFileCorreupted() : (Extension == "pdf" ? File.IsPdfCorrupted() : File.IsExcelCorrupted());
+            return AllowedPngs.Contains(Extension) ? File.IsPhotoCorrupted() : (Extension == "pdf" ? File.IsPdfCorrupted() : File.IsExcelCorrupted());
         }
         public static bool IsPhotoCorrupted(this FileUpload file)
         {
@@ -36,17 +36,15 @@ namespace Helpers
                     : file.DataUrl;
 
                 byte[] imageBytes = Convert.FromBase64String(base64Data);
-                using (var ms = new MemoryStream(imageBytes))
-                {
-                    using (var bmp = new Bitmap(ms))
-                    {
-                    }
-                }
-                return false;
+
+                using var ms = new MemoryStream(imageBytes);
+                using var image = SixLabors.ImageSharp.Image.Load(ms);
+
+                return image == null;
             }
             catch
             {
-                return true;
+                return true; // Corrupted or invalid image
             }
         }
         public static bool IsPdfCorrupted(this FileUpload file)

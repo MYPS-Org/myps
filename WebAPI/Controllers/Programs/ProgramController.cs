@@ -243,6 +243,8 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
+        #endregion
+        #region Program Details
         [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ProgramDetails([FromBody] ProgramDetailsDTO dto)
