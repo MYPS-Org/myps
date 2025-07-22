@@ -16,7 +16,12 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({ isOpen, onClose, projectI
   const [formData, setFormData] = useState<AddNotes>({
     ProjectId: projectId,
     Description: '',
-    File: FileEntity, // Ensures File is nullable
+    File: {
+      Name: '',
+      Extension: '',
+      ContentType: '',
+      DataUrl: ''
+  } // Ensures File is nullable
   });
 
   const [submitting, setSubmitting] = useState(false);
@@ -27,6 +32,24 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({ isOpen, onClose, projectI
       ...prev,
       [field]: value,
     }));
+  };
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({
+          ...prev,
+          File: {
+            Name: file.name,
+            Extension: file.name.split('.').pop() || '',
+            ContentType: file.type,
+            DataUrl: reader.result as string,
+          }
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -52,7 +75,12 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({ isOpen, onClose, projectI
         setFormData({
             ProjectId: projectId,
             Description: '',
-            File: null as unknown as File,
+            File: {
+              Name: '',
+              Extension: '',
+              ContentType: '',
+              DataUrl: ''
+            },
         });
         onClose();
         } catch (error) {
@@ -86,7 +114,7 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({ isOpen, onClose, projectI
             <div className="w-full px-2 py-1 border border-gray-300 rounded">
               <input
                 type="file"
-                onChange={e => handleChange('File', e.target.files?.[0] || null)}
+                onChange={e => handleFileChange(e)}
                 className="w-full"
               />
             </div>

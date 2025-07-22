@@ -1,4 +1,3 @@
-
 interface FileEntity {
 	Name: string,
 	Extension: string,
