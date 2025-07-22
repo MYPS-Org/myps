@@ -16,18 +16,11 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({ isOpen, onClose, projectI
   const [formData, setFormData] = useState<AddNotes>({
     ProjectId: projectId,
     Description: '',
-    File: null as unknown as File, // Ensures File is nullable
+    File: FileEntity, // Ensures File is nullable
   });
 
   const [submitting, setSubmitting] = useState(false);
 
-  // Update ProjectId if it changes
-  useEffect(() => {
-    setFormData(prev => ({
-      ...prev,
-      ProjectId: projectId,
-    }));
-  }, [projectId]);
 
   const handleChange = (field: keyof AddNotes, value: any) => {
     setFormData(prev => ({
