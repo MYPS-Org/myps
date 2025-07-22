@@ -96,6 +96,13 @@ export interface ProjectById {
   Dropdowns: Dropdowns
 }
 
+// #region Notes
+export interface AddNotes {
+	ProjectId: string,
+	Description: string,
+	File: string
+}
+
 // #region fetch data interfaces
 export interface ComponentCost {
 	Id: number;
