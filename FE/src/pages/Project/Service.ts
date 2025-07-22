@@ -1,4 +1,4 @@
-import { httpClient } from "../../services/httpClient";
+import { httpClient, type ApiResponse } from "../../services/httpClient";
 import type { ProgramDetails, ComponentCost, ProjectDetails, MajorItemOfWork, FundingProfile, ProjectNote, ProjectEnums, ProjectFormPayload, ProjectPagination, AddNotes } from "./Model.d";
 
 // #region INITIALIZE Project Lists
@@ -206,13 +206,9 @@ export const deleteFundingProfile = async (fundingProfiles: FundingProfile[]) =>
 // #endregion
 
 // #region Notes
-export const addNote = async (formData: FormData) => {
+export const addNote = async (formData: AddNotes) => {
   try {
-    const response = await httpClient.post(`/Project/UploadNotes/`, formData, {
-      headers: {
-        // Let the browser set this automatically for multipart/form-data
-        'Content-Type': 'multipart/form-data',
-      },
+    const response = await httpClient.post<ApiResponse>(`/Project/UploadNotes/`, formData, {
       preloaderMessage: 'Adding note...',
     });
     return response;
@@ -221,19 +217,6 @@ export const addNote = async (formData: FormData) => {
     throw error;
   }
 };
-
-export const updateNote = async (notes: ProjectNote[]) => {
-    try {
-        const response = await httpClient.post<ProjectNote[]>(`/Program/UpdateNote/`, notes, {
-            preloaderMessage: 'Updating note...'
-        });
-        return response;
-    } catch (ErrorResponse) {
-        console.error('Error updating note:', ErrorResponse);
-        throw ErrorResponse;
-    }
-}
-
 export const deleteNote = async (notes: ProjectNote[]) => {
     try {
         const response = await httpClient.post<ProjectNote[]>(`/Program/DeleteNote/`, notes, {

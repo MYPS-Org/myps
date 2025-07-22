@@ -16,24 +16,40 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({ isOpen, onClose, projectI
   const [formData, setFormData] = useState<AddNotes>({
     ProjectId: projectId,
     Description: '',
-    File: null as unknown as File, // Ensures File is nullable
+    File: {
+      Name: '',
+      Extension: '',
+      ContentType: '',
+      DataUrl: ''
+  } // Ensures File is nullable
   });
 
   const [submitting, setSubmitting] = useState(false);
 
-  // Update ProjectId if it changes
-  useEffect(() => {
-    setFormData(prev => ({
-      ...prev,
-      ProjectId: projectId,
-    }));
-  }, [projectId]);
 
   const handleChange = (field: keyof AddNotes, value: any) => {
     setFormData(prev => ({
       ...prev,
       [field]: value,
     }));
+  };
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({
+          ...prev,
+          File: {
+            Name: file.name,
+            Extension: file.name.split('.').pop() || '',
+            ContentType: file.type,
+            DataUrl: reader.result as string,
+          }
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -42,7 +58,22 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({ isOpen, onClose, projectI
 
     try {
         console.log('Note added:', formData);
-        const response = await addNote(formData);
+        await addNote(formData)
+        .then((response) => {
+          if(response.Data.Message === 'Note added successfully') {
+            setFormData({
+                ProjectId: projectId,
+                Description: '',
+                File: {
+                  Name: '',
+                  Extension: '',
+                  ContentType: '',
+                  DataUrl: ''
+                },
+            });
+            onClose();
+          }
+        }).catch((error) => {});
         // if (response?.Data) {
         //     const newNote: ProjectNote = {
         //     Id: 0,
@@ -56,12 +87,6 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({ isOpen, onClose, projectI
         //     };
         //     onAddNote(newNote);
         // }
-        setFormData({
-            ProjectId: projectId,
-            Description: '',
-            File: null as unknown as File,
-        });
-        onClose();
         } catch (error) {
         console.error('Error adding note:', error);
         } finally {
@@ -93,7 +118,7 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({ isOpen, onClose, projectI
             <div className="w-full px-2 py-1 border border-gray-300 rounded">
               <input
                 type="file"
-                onChange={e => handleChange('File', e.target.files?.[0] || null)}
+                onChange={e => handleFileChange(e)}
                 className="w-full"
               />
             </div>

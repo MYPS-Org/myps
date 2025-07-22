@@ -100,7 +100,7 @@ export interface ProjectById {
 export interface AddNotes {
 	ProjectId: string,
 	Description: string,
-	File: File | null
+	File: FileEntity
 }
 
 // #region fetch data interfaces
