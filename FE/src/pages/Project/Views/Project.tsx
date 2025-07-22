@@ -56,7 +56,7 @@ const Project: React.FC = () => {
     };
 
     const handleViewDetails = (projectId: string) => {
-        navigate(`/projects/${projectId}`);
+        navigate(`/projects/edit/${projectId}`);
     };
 
     const handleAddProject = () => {
@@ -115,10 +115,10 @@ const Project: React.FC = () => {
                                             onClick={() => project.ReferenceId && handleViewDetails(project.ReferenceId)}
                                             className="text-blue-600 hover:text-blue-800 font-medium hover:underline"
                                         >
-                                            {project.Id}
+                                            {project.ReferenceId}
                                         </button>
                                     </TableCell>
-                                    <TableCell>{project.ProgramId}</TableCell>
+                                    <TableCell>{project.ProgramName}</TableCell>
                                     <TableCell>{project.Category}</TableCell>
                                     {/* <TableCell className="text-right">
                                         {formatCurrency(project.TotalProjectCost)}

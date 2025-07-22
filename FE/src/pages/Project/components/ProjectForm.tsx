@@ -22,7 +22,7 @@ import MajorItemOfWorksForm from './MajorItemOfWorksForm';
 import NotesForm from './NotesForm';
 import FundingProfileForm from './FundingProfileForm';
 import ActivitySection from './ActivitySection';
-import { addProjectDetails, getProjectEnums } from '../Service';
+import { addProjectDetails, getProjectEnums, updateProjectDetails } from '../Service';
 
 interface ProjectFormProps {
   initialData?: ProjectFormPayload;
@@ -38,7 +38,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
   const [projectEnums, setProjectEnums] = useState<ProjectEnums | null>(null);
   
   // Initialize state with empty data or provided initial data
-  const [programDetails, setProgramDetails] = useState<ProgramDetails>({
+  const [programDetails, setProgramDetails] = useState<ProgramDetails>(
+    initialData?.ProgramDetails || {
     Id: 0,
     ProgramId: '',
     RevisionNumber: 0,
@@ -157,14 +158,22 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
   // #region Major Items of Work
   const handleAddMajorItem = () => {
     const newItem: MajorItemOfWork = {
-      Id: `MW${majorItems.length + 1}`,
-      ComponentId: '',
+      Id: 0,
+      ProjectId: projectDetails.ReferenceId || '',
+      ComponentId: 0,
       YearOfWork: new Date().getFullYear(),
-      TypeOfWork: '',
-      TargetUnit: '',
-      PhysicalTarget: '',
-      DetailedScopeOfWork: '',
-      InfraId: ''
+      TypeOfWork: 0,
+      PhysicalTarget: 0,
+      Description: '',
+      InfraId: '',
+      StartStationLimit: 0,
+      EndStationLimi: 0,
+      StartFrom: 0,
+      EndFrom: 0,
+      CreatedBy: '',
+      CreatedDate: new Date().toISOString(),
+      UpdatedBy: '',
+      UpdatedDate: new Date().toISOString()
     };
     setMajorItems(prev => [...prev, newItem]);
   };
@@ -181,8 +190,13 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
 // #region Notes
   const handleAddNote = () => {
     const newNote: ProjectNote = {
-      Id: `N${notes.length + 1}`,
+      Id: 0,
+      ProjectId: projectDetails.ReferenceId || '',
+      FileName: '',
+      FileExtension: '',
+      FilePath: '',
       Description: '',
+      CreatedBy: '',
       CreatedDate: new Date().toISOString().split('T')[0]
     };
     setNotes(prev => [...prev, newNote]);
@@ -200,10 +214,13 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
 // #region Funding Profiles
   const handleAddFundingProfile = () => {
     const newProfile: FundingProfile = {
-      Id: `FP${fundingProfiles.length + 1}`,
-      Source: '',
-      Agreement: '',
-      Percentage: 0
+      Id: 0,
+      ProjectId: projectDetails.ReferenceId || '',
+      Source: 0,
+      Agreement: 0,
+      Percentage: 0,
+      CreatedBy: '',
+      CreatedDate: new Date().toISOString().split('T')[0]
     };
     setFundingProfiles(prev => [...prev, newProfile]);
   };
@@ -232,9 +249,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
     }
   };
 
-  const handleSaveProgramDetails = async () => {
-    await handleSaveSection('programDetails', programDetails);
-  };
+  // const handleSaveProgramDetails = async () => {
+  //   await handleSaveSection('programDetails', programDetails);
+  // };
 
   const handleSaveProjectDetails = async () => {
     setSavingSection('projectDetails');
@@ -242,10 +259,18 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
     try {
       console.log('Saving project details:', projectDetails);
       // Call your addProjectDetails service
-      const response = await addProjectDetails(projectDetails);
-      // Update projectDetails state with the returned data
-      if (response.Data.ProjectId) {
-        navigate(`/projects/Edit/${response.Data.ProjectId}`);
+      
+      if (mode === 'add') {
+        const response = await addProjectDetails(projectDetails);
+        // Update projectDetails state with the returned data
+        if (response.Data.ProjectId) {
+          navigate(`/projects/Edit/${response.Data.ProjectId}`);
+        }
+      } else {
+        const response = await updateProjectDetails(projectDetails);
+        if (response.Data.ProjectId) {
+          navigate(`/projects/Edit/${response.Data.ProjectId}`);
+        }
       }
     } catch (error) {
       console.error('Error saving project details:', error);
@@ -323,7 +348,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
                 <span className="mx-2">&gt;</span>
             </nav>
             <div className="flex space-x-3">
-                {mode === 'edit' && <Button color="red">Delete Project</Button>}
+                {mode === 'edit' && <Button color="orange" className='cursor-pointer'>Update Project</Button>}
             </div>
         </div>
 
@@ -340,14 +365,14 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
           <div className="px-4 py-6 sm:p-8">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-lg font-semibold leading-7 text-gray-900">Program Details</h3>
-              <Button
+              {/* <Button
                 outline
                 onClick={handleSaveProgramDetails}
                 disabled={savingSection === 'programDetails'}
                 className="text-sm"
               >
                 {savingSection === 'programDetails' ? 'Saving...' : 'Save Section'}
-              </Button>
+              </Button> */}
             </div>
             <ProgramDetailsForm 
               programDetails={programDetails}
@@ -368,11 +393,12 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
             <ProjectDetailsForm
               projectDetails={projectDetails}
               onChange={handleProjectDetailsChange}
-              mode={mode}
+              // mode={mode}
               projectEnums={projectEnums || undefined} // Ensure projectEnums is not undefined
             />
           </div>
           <div className="flex justify-end px-4 py-6 sm:p-8">
+            {mode === 'add' && (
             <Button
               color='orange'
               onClick={handleSaveProjectDetails}
@@ -381,6 +407,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
             >
               {savingSection === 'projectDetails' ? 'Saving...' : 'Save Section'}
             </Button>
+              )}
           </div>
         </div>
       </div>

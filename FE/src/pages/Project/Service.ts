@@ -78,7 +78,7 @@ export const getProjectDetails = async ({ProjectId}: {ProjectId: string}) => {
 
 export const updateProjectDetails = async (projectDetails: ProjectDetails) => {
     try {
-        const response = await httpClient.post(`/Program/UpdateDetails/`, projectDetails, {
+        const response = await httpClient.post<{ProjectId: string, Title: string, Message: string}>(`/Project/UpdateProjectDetails/`, projectDetails, {
             preloaderMessage: 'Updating project details...'
         });
         return response;

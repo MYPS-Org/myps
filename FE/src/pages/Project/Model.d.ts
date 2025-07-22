@@ -55,6 +55,7 @@ export interface ProgramDetails {
 export interface ProjectDetails {
 	Id?: number;
 	ProgramId?: string;
+	ProgramName?: string;
 	ReferenceId?: string;
 	RevisionNumber?: number;
 	Description?: string;
@@ -79,40 +80,6 @@ export interface ProjectDetails {
 	UpdatedBy?: string;
 	UpdatedDate?: string;
 }
-
-// export interface ComponentCost {
-//   Id: string;
-//   Description: string;
-//   Cost: number;
-//   MYCAApproval: string;
-//   UACsPAPCode: string;
-//   PlannedStartDate: string;
-//   PlannedEndDate?: string;
-// }
-
-// export interface MajorItemOfWork {
-//   Id: string;
-//   ComponentId: string;
-//   YearOfWork: number;
-//   TypeOfWork: string;
-//   TargetUnit: string;
-//   PhysicalTarget: string;
-//   DetailedScopeOfWork: string;
-//   InfraId: string;
-// }
-
-// export interface ProjectNote {
-//   Id: string;
-//   Description: string;
-//   CreatedDate: string;
-// }
-
-// export interface FundingProfile {
-//   Id: string;
-//   Source: string;
-//   Agreement: string;
-//   Percentage: number;
-// }
 
 export interface Activity {
   Id: string;
@@ -167,7 +134,7 @@ export interface ComponentCost {
 	UpdatedDate: string;
 }
 
-export interface ProjectComponentCostYear {
+export interface ComponentCostYear {
 	Id: number;
 	ParentId: number;
 	CostYear: number;
@@ -213,6 +180,110 @@ export interface FundingProfile {
 	Percentage: number;
 	CreatedBy: string;
 	CreatedDate: string;
+}
+
+// #region Additional interfaces for dropdowns and enums
+export interface ComponentType {
+	Id: number;
+	Name: string;
+	Description: string;
+}
+
+export interface Category {
+	Id: number;
+	Name: string;
+	Description: string;
+}
+
+export interface Thrust {
+	Id: number;
+	Name: string;
+	Description: string;
+}
+
+export interface Origin {
+	Id: number;
+	Name: string;
+	Description: string;
+}
+
+export interface City {
+	Id: number;
+	Name: string;
+	Description: string;
+}
+
+export interface LD {
+	Id: number;
+	Name: string;
+	Description: string;
+}
+
+export interface OperatingUnit {
+	Id: number;
+	Name: string;
+	Description: string;
+}
+
+export interface IO {
+	Id: number;
+	Name: string;
+	Description: string;
+}
+
+export interface DEO {
+	Id: number;
+	Name: string;
+	Description: string;
+}
+
+export interface Feasib {
+	Id: number;
+	Name: string;
+	Description: string;
+}
+
+export interface Agency {
+	Id: number;
+	Name: string;
+	Description: string;
+}
+
+export interface ImplementationMode {
+	Id: number;
+	Name: string;
+	Description: string;
+}
+
+export interface EmergencyMode {
+	Id: number;
+	Name: string;
+	Description: string;
+}
+
+export interface Agreement {
+	Id: number;
+	Name: string;
+	Description: string;
+}
+
+export interface Source {
+	Id: number;
+	Name: string;
+	Description: string;
+}
+
+export interface Notes {
+	Id: number;
+	Description: string;
+	CreatedDate: string;
+}
+
+export interface Funding {
+	Id: number;
+	Source: string;
+	Agreement: string;
+	Percentage: number;
 }
 
 //#endregion

@@ -341,7 +341,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     </div>
                 </div>
 
-                {mode === 'edit' && (
+                {/* {mode === 'edit' && (
                     <div className="grid grid-cols-3 gap-5 pt-4 border-t">
                         <div className='flex flex-col text-left gap-2'>
                             <label className="text-gray-600">Project ID:</label>
@@ -373,7 +373,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             />
                         </div>
                     </div>
-                )}
+                )} */}
             </div>
         </div>
     );

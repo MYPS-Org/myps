@@ -48,7 +48,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                 <TableCell>
                   <select
                     value={item.ComponentId}
-                    onChange={(e) => onEdit(index, { ...item, ComponentId: e.target.value })}
+                    onChange={(e) => onEdit(index, { ...item, ComponentId: Number(e.target.value) })}
                     className="w-full px-2 py-1 border border-gray-300 rounded"
                   >
                     <option value="">Select Component</option>
@@ -69,12 +69,12 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                   <input
                     type="text"
                     value={item.TypeOfWork}
-                    onChange={(e) => onEdit(index, { ...item, TypeOfWork: e.target.value })}
+                    onChange={(e) => onEdit(index, { ...item, TypeOfWork: Number(e.target.value) })}
                     className="w-full px-2 py-1 border border-gray-300 rounded"
                     placeholder="Enter type of work"
                   />
                 </TableCell>
-                <TableCell>
+                {/* <TableCell>
                   <input
                     type="text"
                     value={item.TargetUnit}
@@ -82,12 +82,12 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                     className="w-full px-2 py-1 border border-gray-300 rounded"
                     placeholder="Enter target unit"
                   />
-                </TableCell>
+                </TableCell> */}
                 <TableCell>
                   <input
                     type="text"
                     value={item.PhysicalTarget}
-                    onChange={(e) => onEdit(index, { ...item, PhysicalTarget: e.target.value })}
+                    onChange={(e) => onEdit(index, { ...item, PhysicalTarget: Number(e.target.value) })}
                     className="w-full px-2 py-1 border border-gray-300 rounded"
                     placeholder="Enter physical target"
                   />
@@ -95,8 +95,8 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                 <TableCell>
                   <input
                     type="text"
-                    value={item.DetailedScopeOfWork}
-                    onChange={(e) => onEdit(index, { ...item, DetailedScopeOfWork: e.target.value })}
+                    value={item.Description}
+                    onChange={(e) => onEdit(index, { ...item, Description: e.target.value })}
                     className="w-full px-2 py-1 border border-gray-300 rounded"
                     placeholder="Enter detailed scope"
                   />
