@@ -1,0 +1,22 @@
+﻿using DBHelper.Models.Enums;
+using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace DBHelper.Models.Table
+{
+    public class ProjectAgencyLists
+    {
+        [Key]
+        public int Id { get; set; }
+        [Required]
+        [MaxLength(50)]
+        public string Code { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(100)]
+        public string AgencyName { get; set; } = string.Empty;
+    }
+}

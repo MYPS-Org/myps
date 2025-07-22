@@ -17,16 +17,16 @@ namespace DBHelper.Models.Table
         [Required]
         public int RevisionId { get; set; }
         [Required]
-        public EnumProgramStage StageNumber { get; set; }
+        public EnumProgramStage StageId { get; set; }
         [Required]
         [MaxLength(100)]
         public string StageName { get; set; } = string.Empty;
-        [Required]
-        public int StageStatus { get; set; }
         [Required]
         [MaxLength(100)]
         public string CreatedBy { get; set; } = string.Empty;
         [Required]
         public DateTime CreatedDate { get; set; }
+        [Required]
+        public bool IsPublished { get; set; }
     }
 }

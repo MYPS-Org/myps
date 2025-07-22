@@ -10,9 +10,13 @@
 
   <ItemGroup>
     <Compile Remove="Controllers\**" />
+    <Compile Remove="wwwroot\Resources\**" />
     <Content Remove="Controllers\**" />
+    <Content Remove="wwwroot\Resources\**" />
     <EmbeddedResource Remove="Controllers\**" />
+    <EmbeddedResource Remove="wwwroot\Resources\**" />
     <None Remove="Controllers\**" />
+    <None Remove="wwwroot\Resources\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -33,10 +37,6 @@
     <ProjectReference Include="..\DBHelper\DBHelper.csproj" />
     <ProjectReference Include="..\Helpers\Helpers.csproj" />
     <ProjectReference Include="..\WebAPI\WebAPI.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="wwwroot\" />
   </ItemGroup>
 
 	<Target Name="PreBuild" BeforeTargets="PreBuildEvent">

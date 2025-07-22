@@ -9,20 +9,19 @@ namespace DBHelper.Models.Views
     public class Programs
     {
         public int Id { get; set; }
-        public string ReferenceId { get; set; } = string.Empty;
-        public string? Stage { get; set; }
+        public string ProgramId { get; set; } = string.Empty;
+        public int RevisionId { get; set; }
+        public string StageName { get; set; } = string.Empty;
+        public string? Name { get; set; }
+        public string? GroupName { get; set; }
+        public string? RegionCode { get; set; }
         public string? Status { get; set; }
         public string? Type { get; set; }
-        public string Name { get; set; } = string.Empty;
         public Double? Cost { get; set; }
-        public int YearStart { get; set; }
-        public int YearEnd { get; set; }
-        public string? UserGroup { get; set; }
-        public string RegionCode { get; set; } = string.Empty;
+        public int? YearStart { get; set; }
+        public int? YearEnd { get; set; }
         public string CreatedBy { get; set; } = string.Empty;
         public DateTime CreatedDate { get; set; }
-        public string? UpdateBy { get; set; }
-        public DateTime? UpdatedDate { get; set; }
         public bool IsPublished { get; set; }
     }
 }

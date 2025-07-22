@@ -23,6 +23,8 @@ namespace Helpers
         public static string AppName { get; } = "MYPS";
         public static LDAPConfig LDAP { get; set; } = new LDAPConfig();
         public static PISConfig PIS { get; set; } = new PISConfig();
+        public static string WebRootPath { get; set; } = string.Empty;
+        public static string RootPath { get; set; } = string.Empty;
         public static void PrepareAppsettings(IConfiguration config)
         {
             /* PREPARE DATABASE CONNECTIONS */
