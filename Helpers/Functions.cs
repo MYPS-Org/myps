@@ -4,6 +4,7 @@ using SixLabors.ImageSharp;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using DBHelper.Models.Extra;
 
 namespace Helpers
 {
@@ -15,31 +16,25 @@ namespace Helpers
             int count = endYear - startYear;
             return count.ToString("D3");
         }
-        public static bool IsFileCorreupted(this IFormFile File)
+        public static bool IsFileCorreupted(this FileUpload File)
         {
 
-            string FileName = File!.FileName;
-            string Extension = Path.GetExtension(FileName);
+            string FileName = File.Name;
+            string Extension = File.Extension;
             var AllowedPngs = new[] { ".jpg", ".jpeg", ".png" };
             return AllowedPngs.Contains(Extension) ? File.IsFileCorreupted() : (Extension == "pdf" ? File.IsPdfCorrupted() : File.IsExcelCorrupted());
         }
-        public static bool IsPhotoCorrupted(this IFormFile file)
+        public static bool IsPhotoCorrupted(this FileUpload file)
         {
             try
             {
-                // Step 1: Check basic file type
-                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", };
-                var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-
-                if (!allowedExtensions.Contains(extension))
-                    return true; // Unacceptable format
-
-                // Step 2: Check MIME type
                 if (!file.ContentType.StartsWith("image/"))
                     return true;
 
-                // Step 3: Attempt to read image
-                using var img = Image.Load(file.OpenReadStream());
+                using var stream = new MemoryStream();
+                file.CopyTo(stream);
+                stream.Position = 0;
+                using var img = Image.Load(stream.OpenReadStream());
                 if (img == null)
                     return true;
 
