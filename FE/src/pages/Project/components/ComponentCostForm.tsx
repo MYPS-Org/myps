@@ -52,7 +52,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
   };
 
   const calculateTotalCosts = () => {
-    const totalCost = componentCosts.reduce((sum, cost) => sum + (cost.Cost || 0), 0);
+    const totalCost = componentCosts.reduce((sum, cost) => sum + (cost.Total || 0), 0);
 
     return {
       totalCost,
@@ -87,36 +87,35 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
         <Table>
           <TableHead>
             <TableRow>
-              <TableHeader>ID</TableHeader>
+              <TableHeader>Component ID</TableHeader>
+              <TableHeader>Component Type</TableHeader>
               <TableHeader>Description</TableHeader>
-              <TableHeader>Cost 2025</TableHeader>
-              <TableHeader>Cost 2026</TableHeader>
-              <TableHeader>MYCA Approval</TableHeader>
-              <TableHeader>UACs PAP Code</TableHeader>
-              <TableHeader>Planned Start Date</TableHeader>
+              <TableHeader>Total Cost</TableHeader>
+              <TableHeader>Created By</TableHeader>
+              <TableHeader>Created Date</TableHeader>
               <TableHeader>Actions</TableHeader>
             </TableRow>
           </TableHead>
           <TableBody>
             {componentCosts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center text-gray-500 py-8">
+                <TableCell colSpan={7} className="text-center text-gray-500 py-8">
                   No component costs added yet. Click "Add Cost" to get started.
                 </TableCell>
               </TableRow>
             ) : (
               componentCosts.map((cost, index) => (
                 <TableRow key={cost.Id}>
-                  <TableCell className="font-medium">{cost.Id}</TableCell>
+                  <TableCell className="font-medium">{cost.ComponentId}</TableCell>
+                  <TableCell>{cost.ComponentType}</TableCell>
                   <TableCell>
                     <div className="max-w-xs truncate" title={cost.Description}>
                       {cost.Description}
                     </div>
                   </TableCell>
-                  <TableCell>₱{formatCurrency(cost.Cost || 0)}</TableCell>
-                  <TableCell>{cost.MYCAApproval || '-'}</TableCell>
-                  <TableCell>{cost.UACsPAPCode || '-'}</TableCell>
-                  <TableCell>{cost.PlannedStartDate || '-'}</TableCell>
+                  <TableCell>₱{formatCurrency(cost.Total || 0)}</TableCell>
+                  <TableCell>{cost.CreatedBy || '-'}</TableCell>
+                  <TableCell>{cost.CreatedDate ? new Date(cost.CreatedDate).toLocaleDateString() : '-'}</TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
                       <button

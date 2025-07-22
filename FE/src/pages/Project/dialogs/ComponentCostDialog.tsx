@@ -21,12 +21,16 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   mode
 }) => {
   const [formData, setFormData] = useState<ComponentCost>({
-    Id: '',
+    Id: 0,
+    ProjectId: '',
+    ComponentType: '',
+    ComponentId: '',
     Description: '',
-    Cost: 0,
-    MYCAApproval: '',
-    UACsPAPCode: '',
-    PlannedStartDate: ''
+    Total: 0,
+    CreatedBy: '',
+    CreatedDate: new Date().toISOString(),
+    UpdatedBy: '',
+    UpdatedDate: new Date().toISOString()
   });
 
   useEffect(() => {
@@ -35,12 +39,16 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     } else if (mode === 'add') {
       // Reset form for new entry
       setFormData({
-        Id: `CW${Date.now()}`, // Generate unique ID
+        Id: 0,
+        ProjectId: '',
+        ComponentType: 'Civil Works',
+        ComponentId: `CW${Date.now()}`,
         Description: '',
-        Cost: 0,
-        MYCAApproval: '',
-        UACsPAPCode: '',
-        PlannedStartDate: ''
+        Total: 0,
+        CreatedBy: '',
+        CreatedDate: new Date().toISOString(),
+        UpdatedBy: '',
+        UpdatedDate: new Date().toISOString()
       });
     }
   }, [editingCost, mode, isOpen]);
@@ -67,15 +75,18 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
 
     const handleReset = () => {
         setFormData({
-            Id: '',
+            Id: 0,
+            ProjectId: '',
+            ComponentType: 'Civil Works',
+            ComponentId: '',
             Description: '',
-            Cost: 0,
-            MYCAApproval: '',
-            UACsPAPCode: '',
-            PlannedStartDate: '',
-            PlannedEndDate: '' // Add this field
-            });
-        };
+            Total: 0,
+            CreatedBy: '',
+            CreatedDate: new Date().toISOString(),
+            UpdatedBy: '',
+            UpdatedDate: new Date().toISOString()
+        });
+    };
 
   const handleClose = () => {
     handleReset();
@@ -110,10 +121,10 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                     </label>
                     <select 
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value="Civil Works" // You can make this dynamic
-                        disabled
+                        value={formData.ComponentType}
+                        onChange={(e) => handleChange('ComponentType', e.target.value)}
                     >
-                        <option>Civil Works</option>
+                        <option value="Civil Works">Civil Works</option>
                     </select>
                     </div>
                     <div>
@@ -122,8 +133,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                     </label>
                     <input
                         type="text"
-                        value={formData.Id}
-                        onChange={(e) => handleChange('Id', e.target.value)}
+                        value={formData.ComponentId}
+                        onChange={(e) => handleChange('ComponentId', e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="CW"
                         required
@@ -150,12 +161,12 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                 <div className="grid grid-cols-5 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                            1st year Cost {new Date().getFullYear()}
+                            Total Cost
                         </label>
                         <input
                             type="number"
-                            value={formData.Cost}
-                            onChange={(e) => handleChange('Cost', Number(e.target.value))}
+                            value={formData.Total}
+                            onChange={(e) => handleChange('Total', Number(e.target.value))}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                             placeholder="0"
                             min="0"
@@ -163,45 +174,45 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                            MYCA Approval Date
-                        </label>
-                        <input
-                            type="date"
-                            value={formData.MYCAApproval}
-                            onChange={(e) => handleChange('MYCAApproval', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            UACS PAP Code
+                            Created By
                         </label>
                         <input
                             type="text"
-                            value={formData.UACsPAPCode}
-                            onChange={(e) => handleChange('UACsPAPCode', e.target.value)}
+                            value={formData.CreatedBy}
+                            onChange={(e) => handleChange('CreatedBy', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Planned Start Date
+                            Created Date
                         </label>
                         <input
                             type="date"
-                            value={formData.PlannedStartDate}
-                            onChange={(e) => handleChange('PlannedStartDate', e.target.value)}
+                            value={formData.CreatedDate.split('T')[0]}
+                            onChange={(e) => handleChange('CreatedDate', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Planned End Date
+                            Updated By
+                        </label>
+                        <input
+                            type="text"
+                            value={formData.UpdatedBy}
+                            onChange={(e) => handleChange('UpdatedBy', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Updated Date
                         </label>
                         <input
                             type="date"
-                            value={formData.PlannedEndDate}
-                            onChange={(e) => handleChange('PlannedEndDate', e.target.value)}
+                            value={formData.UpdatedDate.split('T')[0]}
+                            onChange={(e) => handleChange('UpdatedDate', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                     </div>

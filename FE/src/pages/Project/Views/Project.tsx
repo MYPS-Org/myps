@@ -2,8 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import type { ProjectData } from '../Model'; // Adjust the import path as necessary
-
+import type { ProjectDetails, ProjectPagination } from '../Model.d'; // Adjust the import path as necessary
+import { fetchProject } from '../Service'; // Adjust the import path as necessary
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '../../../components/tailwindui/table'; // Adjust the import path as necessary
 
 import { Button } from '../../../components/tailwindui/button'; // Adjust the import path as necessary
@@ -14,32 +14,26 @@ import {
 
 const Project: React.FC = () => {
     const navigate = useNavigate();
-    const [projects, setProjects] = useState<ProjectData[]>([
-        {
-            Id: 'P00000001MN',
-            ProgramName: 'BP 2019 - 002',
-            Category: 'DA Farm to Market Roads',
-            TotalProjectCost: 0,
-            CreatedBy: 'John Doe - DPD',
-            CreatedDate: '17-Mar-2025'
+    const [projects, setProjects] = useState<ProjectDetails>(); // Initialize with an empty array of ProjectDetails
+
+    const [ProgramFilters, setProgramFilters] = useState<ProjectPagination>({
+        filters: {
+            ProgramId: '',
+            ReferenceId: ''
         },
-        {
-            Id: 'P00000002MN',
-            ProgramName: 'BP 2019 - 002',
-            Category: 'DA Farm to Market Roads',
-            TotalProjectCost: 10200431,
-            CreatedBy: 'John Doe - DPD',
-            CreatedDate: '17-Mar-2025'
-        },
-        {
-            Id: 'P00000003MN',
-            ProgramName: 'BP 2019 - 002',
-            Category: 'DA Farm to Market Roads',
-            TotalProjectCost: 500123,
-            CreatedBy: 'John Doe - DPD',
-            CreatedDate: '17-Mar-2025'
-        }
-    ]);
+        sortField: '',
+        sortDirection: 1,
+        page: 1,
+        limit: 20
+    });
+
+    const [ProjectData, setProjectData] = useState<PaginationResponse<ProjectDetails>>({
+        total: 0,
+        page: 1,
+        limit: 10,
+        totalPages: 0,
+        lists: []
+    });
 
     useEffect(() => {
         fetchProjects();
@@ -47,12 +41,8 @@ const Project: React.FC = () => {
 
     const fetchProjects = async () => {
         try {
-            const response = await fetch('/api/projects');
-            if (!response.ok) {
-                throw new Error('Failed to fetch projects');
-            }
-            const data = await response.json();
-            setProjects(data);
+            const response = await fetchProject(ProjectData);
+            setProjectData(response.Data);
         } catch (error) {
             console.error('Error fetching projects:', error);
             // You might want to show a toast or alert here
@@ -66,7 +56,7 @@ const Project: React.FC = () => {
     };
 
     const handleViewDetails = (projectId: string) => {
-        navigate(`/projects/${projectId}`);
+        navigate(`/projects/edit/${projectId}`);
     };
 
     const handleAddProject = () => {
@@ -118,28 +108,28 @@ const Project: React.FC = () => {
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {projects.map(project => (
+                            {ProjectData?.lists.map(project => (
                                 <TableRow key={project.Id}>
                                     <TableCell>
                                         <button 
-                                            onClick={() => handleViewDetails(project.Id)}
+                                            onClick={() => project.ReferenceId && handleViewDetails(project.ReferenceId)}
                                             className="text-blue-600 hover:text-blue-800 font-medium hover:underline"
                                         >
-                                            {project.Id}
+                                            {project.ReferenceId}
                                         </button>
                                     </TableCell>
                                     <TableCell>{project.ProgramName}</TableCell>
                                     <TableCell>{project.Category}</TableCell>
-                                    <TableCell className="text-right">
+                                    {/* <TableCell className="text-right">
                                         {formatCurrency(project.TotalProjectCost)}
-                                    </TableCell>
+                                    </TableCell> */}
                                     <TableCell>{project.CreatedBy}</TableCell>
                                     <TableCell>{project.CreatedDate}</TableCell>
                                     <TableCell>
                                         <div className="flex items-center space-x-1">
                                             <Button 
                                                 color="orange"
-                                                onClick={() => handleViewDetails(project.Id)}
+                                                onClick={() => project.ReferenceId && handleViewDetails(project.ReferenceId)}
                                                 className="text-xs px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded"
                                             >
                                                 View Details

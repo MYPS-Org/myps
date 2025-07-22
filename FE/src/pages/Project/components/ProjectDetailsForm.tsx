@@ -5,7 +5,8 @@ interface ProjectDetailsFormProps {
     projectDetails: ProjectDetails;
     onChange: (field: keyof ProjectDetails, value: any) => void;
     mode?: 'add' | 'edit';
-    projectEnums?: ProjectEnums | null;
+    projectEnums?: ProjectEnums;
+    initialData?: any;
 }
 
 const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({ 
@@ -20,17 +21,17 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
     return (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-left text-lg font-semibold text-gray-900 mb-4">Project Details</h2>
             <div className="space-y-4 text-sm">
                 <div className="grid grid-cols-3 gap-5">
                     <div className='w-full flex flex-row text-left gap-5 items-center'>
-                        <label className="flex-1/3 text-gray-600">Project Name:</label>
+                        <label className="flex-1/3 text-gray-600">Project ID:</label>
                         <input
                             type="text"
-                            value={projectDetails.Name}
-                            onChange={(e) => handleInputChange('Name', e.target.value)}
+                            value={projectDetails.ReferenceId}
+                            onChange={(e) => handleInputChange('ReferenceId', (e.target.value))}
                             className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
-                            placeholder="Enter project name"
+                            readOnly
+                            placeholder="Auto-generated Project ID"
                         />
                     </div>
                     
@@ -60,7 +61,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
                         >
                             <option value="">Select Reporting Region</option>
-                            {projectEnums?.Regions?.map((region) => (
+                            {projectEnums?.DEOs?.map((region) => (
                                 <option key={region.Id} value={region.ROCode}>
                                     {region.ROName}
                                 </option>
@@ -214,9 +215,9 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
                         >
                             <option value="">Select Thrust</option>
-                            {projectEnums?.Thursts?.map((thrust) => (
+                            {projectEnums?.Thrusts?.map((thrust) => (
                                 <option key={thrust.Id} value={thrust.PAPKey}>
-                                    {thrust.ProgramName}
+                                    {thrust.SubProgramName}
                                 </option>
                             ))}
                         </select>
@@ -234,8 +235,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                         >
                             <option value="">Select District Engineering Office</option>
                             {projectEnums?.DEOs?.map((deo) => (
-                                <option key={deo.Id} value={deo.ParticipantId}>
-                                    {deo.OrgName}
+                                <option key={deo.Id} value={deo.DeoCode}>
+                                    {deo.DeoName}
                                 </option>
                             ))}
                         </select>
@@ -245,14 +246,14 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                         <select 
                             name="EmergencyCode" 
                             id="EmergencyCode" 
-                            value={projectDetails.EmergencyMode} 
-                            onChange={(e) => handleInputChange('EmergencyMode', parseInt(e.target.value))} 
+                            value={projectDetails.EmergencyMode.toString()} 
+                            onChange={(e) => handleInputChange('EmergencyMode', (e.target.value))} 
                             className='w-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md truncate'
                             style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
                         >
                             <option value="">Select Emergency Mode</option>
                             {projectEnums?.EmergencyModes?.map((emergency) => (
-                                <option key={emergency.Id} value={emergency.Enum ? 1 : 0}>
+                                <option key={emergency.Id} value={emergency.Enum.toString()}>
                                     {emergency.Name}
                                 </option>
                             ))}
@@ -291,6 +292,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                         <input type="date" 
                             value={projectDetails.CreatedDate} 
                             onChange={(e) => handleInputChange('CreatedDate', e.target.value)} 
+                            readOnly
                             className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md' />
                     </div>
                 </div>
@@ -339,7 +341,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     </div>
                 </div>
 
-                {mode === 'edit' && (
+                {/* {mode === 'edit' && (
                     <div className="grid grid-cols-3 gap-5 pt-4 border-t">
                         <div className='flex flex-col text-left gap-2'>
                             <label className="text-gray-600">Project ID:</label>
@@ -371,7 +373,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             />
                         </div>
                     </div>
-                )}
+                )} */}
             </div>
         </div>
     );

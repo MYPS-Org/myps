@@ -1,10 +1,11 @@
 import React from "react";
-import type { FundingProfile } from "../Model";
+import type { FundingProfile, ProjectFormPayload } from "../Model";
 import { Button } from "../../../components/tailwindui/button";
 import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from "../../../components/tailwindui/table";
 
 interface FundingProfileFormProps {
+  initialData?: ProjectFormPayload;
   fundingProfiles: FundingProfile[];
   onAdd: () => void;
   onEdit: (index: number, updatedProfile: FundingProfile) => void;
@@ -15,7 +16,8 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
   fundingProfiles, 
   onAdd, 
   onEdit, 
-  onDelete 
+  onDelete,
+  initialData
 }) => {
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -40,22 +42,34 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
             {fundingProfiles.map((profile, index) => (
             <TableRow key={profile.Id}>
                 <TableCell>
-                  <input
-                    type="text"
+                  <select
+                    name="source"
                     value={profile.Source}
-                    onChange={(e) => onEdit(index, { ...profile, Source: e.target.value })}
+                    onChange={(e) => onEdit(index, { ...profile, Source: Number(e.target.value) })}
                     className="w-full px-2 py-1 border border-gray-300 rounded"
-                    placeholder="Enter source"
-                  />
+                  >
+                    <option value="">Select Source</option>
+                    {initialData?.Dropdowns?.Sources?.map((source) => (
+                      <option key={source.Id} value={source.SourceId}>
+                        {source.Name}
+                      </option>
+                    ))}
+                  </select>
                 </TableCell>
                 <TableCell>
-                  <input
-                    type="text"
+                  <select
+                    name="agreement"
                     value={profile.Agreement}
-                    onChange={(e) => onEdit(index, { ...profile, Agreement: e.target.value })}
+                    onChange={(e) => onEdit(index, { ...profile, Agreement: Number(e.target.value) })}
                     className="w-full px-2 py-1 border border-gray-300 rounded"
-                    placeholder="Enter agreement"
-                  />
+                  >
+                    <option value="">Select Agreement</option>
+                    {initialData?.Dropdowns?.Agreements?.map((agreement) => (
+                      <option key={agreement.Id} value={agreement.AgreementId}>
+                        {agreement.Name}
+                      </option>
+                    ))}
+                  </select>
                 </TableCell>
                 <TableCell>
                   <input

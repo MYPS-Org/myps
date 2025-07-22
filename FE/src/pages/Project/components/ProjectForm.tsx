@@ -9,7 +9,8 @@ import type {
   Activity, 
   ProgramDetails,
   ProjectFormPayload,
-  ProjectEnums
+  ProjectEnums,
+  Dropdowns
 } from '../Model.d';
 
 import { Button } from '../../../components/tailwindui/button';
@@ -22,7 +23,8 @@ import MajorItemOfWorksForm from './MajorItemOfWorksForm';
 import NotesForm from './NotesForm';
 import FundingProfileForm from './FundingProfileForm';
 import ActivitySection from './ActivitySection';
-import { addProjectDetails, getProjectEnums } from '../Service';
+import { addProjectDetails, getProjectEnums, updateProjectDetails } from '../Service';
+import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 
 interface ProjectFormProps {
   initialData?: ProjectFormPayload;
@@ -36,32 +38,39 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
 
   const [savingSection, setSavingSection] = useState<string | null>(null);
   const [projectEnums, setProjectEnums] = useState<ProjectEnums | null>(null);
+
+  // toggle state for Program Details section
+  const [isProgramOpen, setIsProgramOpen] = useState<boolean>(true);
+  const [isProjectOpen, setIsProjectOpen] = useState<boolean>(true);
   
   // Initialize state with empty data or provided initial data
   const [programDetails, setProgramDetails] = useState<ProgramDetails>(
-    initialData?.projectDetails ? {
-      ProgramName: '',  // This will be populated by ProgramDetailsForm
-      ProgramType: '',
-      StartYear: new Date().getFullYear(),
-      ProgramStage: '',
-      UserGroup: '',
-      DataSecurity: 0,
-    } : {
-      ProgramName: '',
-      ProgramType: '',
-      StartYear: new Date().getFullYear(),
-      ProgramStage: '',
-      UserGroup: '',
-      DataSecurity: 0,
-    }
-  );
+    initialData?.ProgramDetails || {
+    Id: 0,
+    ProgramId: '',
+    RevisionNumber: 0,
+    Name: '',
+    StageId: 0,
+    StageName: '',
+    UserGroup: 0,
+    RegionCode: '',
+    Status: 0,
+    Type: 0,
+    Cost: 0,
+    YearStart: 0,
+    YearEnd: 0,
+    CreatedBy: '',
+    CreatedDate: '',
+    UpdatedBy: '',
+    UpdatedDate: '',
+  });
 
   const [projectDetails, setProjectDetails] = useState<ProjectDetails>(
-    initialData?.projectDetails || {
+    initialData?.ProjectDetails || {
       Id: 0,
+      ProgramId: '',
       ReferenceId: '',
       RevisionNumber: 0,
-      Name: '',
       Description: '',
       Category: 0,
       Thrust: 0,
@@ -75,35 +84,49 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
       Agency: 0,
       ProjectCode: '',
       ImplementationMode: 0,
-      EmergencyMode: 0,
+      EmergencyMode: false,
       Feasibility: 0,
       DetailedDesign: false,
       RowAvailable: false,
-      CreatedBy: '',
-      CreatedDate: '',
-      UpdatedBy: '',
-      UpdatedDate: '',
     }
   );
 
   const [componentCosts, setComponentCosts] = useState<ComponentCost[]>(
-    initialData?.componentCosts || []
+    initialData?.ComponentCosts || []
   );
 
   const [majorItems, setMajorItems] = useState<MajorItemOfWork[]>(
-    initialData?.majorItemsOfWork || []
+    initialData?.MajorItemOfWorks || []
   );
 
   const [notes, setNotes] = useState<ProjectNote[]>(
-    initialData?.projectNotes || []
+    initialData?.ProjectNotes || []
   );
 
   const [fundingProfiles, setFundingProfiles] = useState<FundingProfile[]>(
-    initialData?.fundingProfiles || []
+    initialData?.FundingProfile || []
   );
 
+  const [Dropdowns, setDropdowns] = useState<Dropdowns>(
+    initialData?.Dropdowns || {
+    Categories: [],
+    Thrusts: [],
+    Origins: [],
+    Cities: [],
+    LDs: [],
+    OperatingUnits: [],
+    IOs: [],
+    DEOs: [],
+    Agencies: [],
+    Feasibility: [],
+    ImplementationModes: [],
+    EmergencyModes: [],
+    Agreements: [],
+    Sources: [],
+  });
+
   const [activities] = useState<Activity[]>(
-    initialData?.activities || []
+    initialData?.Activities || []
   );
 
   // Load project enums on component mount
@@ -111,6 +134,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
     const loadProjectEnums = async () => {
       try {
         const response = await getProjectEnums();
+        console.log('Project Enums:', response.Data);
         setProjectEnums(response.Data);
       } catch (error) {
         console.error('Error loading project enums:', error);
@@ -126,6 +150,19 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
 
   const handleProjectDetailsChange = (field: keyof ProjectDetails, value: any) => {
     setProjectDetails(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleProgramDetailsChange = (updatedProgramDetails: ProgramDetails) => {
+    console.log('Program details changed in ProjectForm:', updatedProgramDetails);
+    setProgramDetails(updatedProgramDetails);
+    
+    // Update project details with program information
+    setProjectDetails(prev => ({
+      ...prev,
+      ProgramId: updatedProgramDetails.ProgramId,
+      // You can add other program-related fields here if needed
+    }));
+    console.log('Project details updated with ProgramId:', updatedProgramDetails.ProgramId);
   };
 
   // #region Component Costs
@@ -145,14 +182,22 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
   // #region Major Items of Work
   const handleAddMajorItem = () => {
     const newItem: MajorItemOfWork = {
-      Id: `MW${majorItems.length + 1}`,
-      ComponentId: '',
+      Id: 0,
+      ProjectId: projectDetails.ReferenceId || '',
+      ComponentId: 0,
       YearOfWork: new Date().getFullYear(),
-      TypeOfWork: '',
-      TargetUnit: '',
-      PhysicalTarget: '',
-      DetailedScopeOfWork: '',
-      InfraId: ''
+      TypeOfWork: 0,
+      PhysicalTarget: 0,
+      Description: '',
+      InfraId: '',
+      StartStationLimit: 0,
+      EndStationLimi: 0,
+      StartFrom: 0,
+      EndFrom: 0,
+      CreatedBy: '',
+      CreatedDate: new Date().toISOString(),
+      UpdatedBy: '',
+      UpdatedDate: new Date().toISOString()
     };
     setMajorItems(prev => [...prev, newItem]);
   };
@@ -169,8 +214,13 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
 // #region Notes
   const handleAddNote = () => {
     const newNote: ProjectNote = {
-      Id: `N${notes.length + 1}`,
+      Id: 0,
+      ProjectId: projectDetails.ReferenceId || '',
+      FileName: '',
+      FileExtension: '',
+      FilePath: '',
       Description: '',
+      CreatedBy: '',
       CreatedDate: new Date().toISOString().split('T')[0]
     };
     setNotes(prev => [...prev, newNote]);
@@ -188,10 +238,13 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
 // #region Funding Profiles
   const handleAddFundingProfile = () => {
     const newProfile: FundingProfile = {
-      Id: `FP${fundingProfiles.length + 1}`,
-      Source: '',
-      Agreement: '',
-      Percentage: 0
+      Id: 0,
+      ProjectId: projectDetails.ReferenceId || '',
+      Source: 0,
+      Agreement: 0,
+      Percentage: 0,
+      CreatedBy: '',
+      CreatedDate: new Date().toISOString().split('T')[0]
     };
     setFundingProfiles(prev => [...prev, newProfile]);
   };
@@ -220,26 +273,36 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
     }
   };
 
-  const handleSaveProgramDetails = async () => {
-    await handleSaveSection('programDetails', programDetails);
-  };
+  // const handleSaveProgramDetails = async () => {
+  //   await handleSaveSection('programDetails', programDetails);
+  // };
 
   const handleSaveProjectDetails = async () => {
     setSavingSection('projectDetails');
+    projectDetails.EmergencyMode = projectDetails.EmergencyMode ? true : false;
     try {
       console.log('Saving project details:', projectDetails);
       // Call your addProjectDetails service
-      // const response = await addProjectDetails(projectDetails);
-      // Update projectDetails state with the returned data
-      // if (response.Data) {
-      //   setProjectDetails(response.Data);
-      // }
+      
+      if (mode === 'add') {
+        const response = await addProjectDetails(projectDetails);
+        // Update projectDetails state with the returned data
+        if (response.Data.ProjectId) {
+          navigate(`/projects/Edit/${response.Data.ProjectId}`);
+        }
+      } else {
+        const response = await updateProjectDetails(projectDetails);
+        if (response.Data.ProjectId) {
+          navigate(`/projects/Edit/${response.Data.ProjectId}`);
+        }
+      }
     } catch (error) {
       console.error('Error saving project details:', error);
     } finally {
       setSavingSection(null);
     }
   };
+  
 
   const handleSaveComponentCosts = async () => {
     setSavingSection('componentCosts');
@@ -295,7 +358,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
     <div className="max-w-10xl mx-auto p-6 space-y-6">
         <div className='flex items-center justify-between mb-6'>
             {/* Breadcrumb */}
-            <nav className="flex items-center text-sm text-left text-gray-500">
+            {/* <nav className="flex items-center text-sm text-left text-gray-500">
                 <span>MYPS Admin</span>
                 <span className="mx-2">&gt;</span>
                 <span 
@@ -307,66 +370,87 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
                 <span className="mx-2">&gt;</span>
                 <span>{mode === 'add' ? 'Add Project' : 'Edit Project'}</span>
                 <span className="mx-2">&gt;</span>
-            </nav>
+            </nav> */}
+            <div>
+              
+            </div>
             <div className="flex space-x-3">
-                {mode === 'edit' && <Button color="red">Delete Project</Button>}
+                {mode === 'edit' && <Button color="orange" className='cursor-pointer'>Update Project</Button>}
             </div>
         </div>
 
       {/* Map Section */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
         <div className="h-64 bg-blue-100 rounded-lg flex items-center justify-center">
-          <div className="text-gray-500 text-lg">Map View - {projectDetails.Name || 'New Project'}</div>
+          <div className="text-gray-500 text-lg">Map View - {projectDetails.ReferenceId || 'New Project'}</div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6">
         {/* Program Details */}
         <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
-          <div className="px-4 py-6 sm:p-8">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-semibold leading-7 text-gray-900">Program Details</h3>
-              <Button
-                outline
-                onClick={handleSaveProgramDetails}
-                disabled={savingSection === 'programDetails'}
-                className="text-sm"
-              >
-                {savingSection === 'programDetails' ? 'Saving...' : 'Save Section'}
-              </Button>
-            </div>
-            <ProgramDetailsForm 
-              programDetails={programDetails}
-              setProgramDetails={setProgramDetails}
-              onChange={setProgramDetails}
-              mode={mode}
-            />
+          <div
+            className="flex justify-between items-center px-4 py-4 cursor-pointer border-b"
+            onClick={() => setIsProgramOpen(!isProgramOpen)}
+          >
+            <h3 className="text-lg font-semibold leading-7 text-gray-900">Program Details</h3>
+            {isProgramOpen ? (
+              <ChevronDownIcon className="h-5 w-5 text-gray-500" />
+            ) : (
+              <ChevronRightIcon className="h-5 w-5 text-gray-500" />
+            )}
           </div>
+          {isProgramOpen && (
+            <div className="px-4 py-6 sm:p-8">
+              <ProgramDetailsForm
+                programDetails={programDetails}
+                setProgramDetails={setProgramDetails}
+                onChange={handleProgramDetailsChange}
+                mode={mode}
+                projectEnums={projectEnums || undefined}
+                initialData={initialData}
+              />
+            </div>
+          )}
         </div>
 
         {/* Project Details */}
         <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
-          <div className="px-4 py-6 sm:p-8">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-semibold leading-7 text-gray-900">Project Details</h3>
-            </div>
-            <ProjectDetailsForm
-              projectDetails={projectDetails}
-              onChange={handleProjectDetailsChange}
-              mode={mode}
-              projectEnums={projectEnums}
-            />
+          <div
+            className="flex justify-between items-center px-4 py-4 cursor-pointer border-b"
+            onClick={() => setIsProjectOpen(!isProjectOpen)}
+          >
+            <h3 className="text-lg font-semibold leading-7 text-gray-900">Project Details</h3>
+            {isProjectOpen ? (
+              <ChevronDownIcon className="h-5 w-5 text-gray-500" />
+            ) : (
+              <ChevronRightIcon className="h-5 w-5 text-gray-500" />
+            )}
           </div>
-          <div className="flex justify-end px-4 py-6 sm:p-8">
-            <Button
-              color='orange'
-              onClick={handleSaveProjectDetails}
-              disabled={savingSection === 'projectDetails'}
-              className="text-sm"
-            >
-              {savingSection === 'projectDetails' ? 'Saving...' : 'Save Section'}
-            </Button>
-          </div>
+          {isProjectOpen && (
+            <>
+              <div className="px-4 py-6 sm:p-8">
+                <ProjectDetailsForm
+                  projectDetails={projectDetails}
+                  onChange={handleProjectDetailsChange}
+                  projectEnums={projectEnums || undefined}
+                  initialData={initialData}
+                />
+              </div>
+              <div className="flex justify-end px-4 pb-6 sm:px-8">
+                {mode === 'add' && (
+                  <Button
+                    color="orange"
+                    onClick={handleSaveProjectDetails}
+                    disabled={savingSection === 'projectDetails'}
+                    className="text-sm"
+                  >
+                    {savingSection === 'projectDetails' ? 'Saving...' : 'Save Section'}
+                  </Button>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -463,6 +547,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
               onAdd={handleAddFundingProfile}
               onEdit={handleEditFundingProfile}
               onDelete={handleDeleteFundingProfile}
+              initialData={initialData ? { ...initialData, Dropdowns } : undefined}
             />
           </div>
         </div>
