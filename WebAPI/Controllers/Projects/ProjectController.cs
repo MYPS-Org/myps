@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Endpoints;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Scaffolding.Metadata;
+using Newtonsoft.Json;
 using System.Data.SqlClient;
 using System.Reflection;
 using System.Xml;
@@ -362,18 +364,550 @@ namespace WebAPI.Controllers.Programs
         }
         [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> UpdateProjectDetails([FromBody] ProjectDetailsDTO dto)
+        public async Task<IActionResult> UpdateProjectDetails([FromBody] UpdateProjectDetailsDTO dto)
         {
+            using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                bool hasUpdated = false;
+                DateTime CurrentDate = DateTime.UtcNow;
+                List<TransactionLog> transactionLogs = new List<TransactionLog>();
+                var Project = await _db.vProjectDetails.FirstOrDefaultAsync(x => x.ReferenceId == dto.ProjectDetails.ReferenceId);
+                if (Project == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
+                }
+                var Program = await _db.vProgramDetails.FirstOrDefaultAsync(x => x.ReferenceId == Project.ProgramId);
+                if (Program == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Program not found for this project!", Title = "Program Not Found" });
+                }
+                #region Update Project Details
+                if (Project.Description != dto.ProjectDetails?.Description)
+                {
+                    Project.Description = dto.ProjectDetails!.Description;
+                    transactionLogs.Add(new TransactionLog
+                    {
+                        TransactionId = Project.ReferenceId!,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tProjectRevisions",
+                        AffectedColumn = "Name",
+                        NewValue = dto.ProjectDetails!.Description!,
+                        OldValue = Project.Description ?? "",
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    });
+                }
+                if (Project.Category != dto.ProjectDetails?.Category) 
+                {
+                    var Category = await _db.tProjectCategoryEnum.FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.Category);
+                    if(Category == null)
+                    {
+                        return new BadRequestObjectResult(new { Message = $"Selected Category '{dto.ProjectDetails!.Category}' is not valid!", Title = "Invalid Category" });
+                    }
+                    var OldCategory = await _db.tProjectCategoryEnum.FirstOrDefaultAsync(x => x.Enum == Project.Category);
+                    hasUpdated = true;
+                    Project.Category = dto.ProjectDetails!.Category;
+                    transactionLogs.Add(new TransactionLog
+                    {
+                        TransactionId = Project.ReferenceId!,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tProjectRevisions",
+                        AffectedColumn = "Category",
+                        NewValue = Category.Name,
+                        OldValue = OldCategory?.Name ?? "",
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    });
+                }
+                if (Project.Thrust != dto.ProjectDetails?.Thrust)
+                {
+                    var Thrust = await _db.tProjectThrustLists.FirstOrDefaultAsync(x => x.PAPKey == dto.ProjectDetails!.Thrust);
+                    if (Thrust == null)
+                    {
+                        return new BadRequestObjectResult(new { Message = $"Selected Thrust '{dto.ProjectDetails!.Thrust}' is not valid!", Title = "Invalid Thrust" });
+                    }
+                    var OldThrust = await _db.tProjectThrustLists.FirstOrDefaultAsync(x => x.PAPKey == Project.Thrust);
+                    hasUpdated = true;
+                    Project.Thrust = dto.ProjectDetails!.Thrust;
+                    transactionLogs.Add(new TransactionLog
+                    {
+                        TransactionId = Project.ReferenceId!,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tProjectRevisions",
+                        AffectedColumn = "Thrust",
+                        NewValue = Thrust.SubProgramName,
+                        OldValue = OldThrust?.SubProgramName ?? "",
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    });
+                }
+                if (Project.Origin != dto.ProjectDetails?.Origin)
+                {
+                    var Origin = await _db.tProjectOriginEnum.FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.Origin);
+                    if (Origin == null)
+                    {
+                        return new BadRequestObjectResult(new { Message = $"Selected Origin '{dto.ProjectDetails!.Origin}' is not valid!", Title = "Invalid Origin" });
+                    }
+                    var OldOrigin = await _db.tProjectOriginEnum.FirstOrDefaultAsync(x => x.Enum == Project.Origin);
+                    hasUpdated = true;
+                    Project.Origin = dto.ProjectDetails!.Origin;
+                    transactionLogs.Add(new TransactionLog
+                    {
+                        TransactionId = Project.ReferenceId!,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tProjectRevisions",
+                        AffectedColumn = "Thrust",
+                        NewValue = Origin.Name,
+                        OldValue = OldOrigin?.Name ?? "",
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    });
+                }
+                if (Project.City != dto.ProjectDetails?.City)
+                {
+                    var City = await _db.tProjectCityEnum.FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.City);
+                    if (City == null)
+                    {
+                        return new BadRequestObjectResult(new { Message = $"Selected City '{dto.ProjectDetails!.City}' is not valid!", Title = "Invalid City" });
+                    }
+                    var OldCity = await _db.tProjectCityEnum.FirstOrDefaultAsync(x => x.Enum == Project.City);
+                    hasUpdated = true;
+                    Project.City = dto.ProjectDetails!.City;
+                    transactionLogs.Add(new TransactionLog {
+                        TransactionId = Project.ReferenceId!,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tProjectRevisions",
+                        AffectedColumn = "City",
+                        NewValue = City.Name,
+                        OldValue = OldCity?.Name ?? "",
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    });
+                }
+                if (Project.LegislativeDistrict != dto.ProjectDetails?.LegislativeDistrict)
+                {
+                    var LD = await _db.tProjectLegislativeDistrictEnum.FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.LegislativeDistrict);
+                    if (LD == null)
+                    {
+                        return new BadRequestObjectResult(new { Message = $"Selected Legislative District '{dto.ProjectDetails!.LegislativeDistrict}' is not valid!", Title = "Invalid Legislative District" });
+                    }
+                    var OldLD = await _db.tProjectLegislativeDistrictEnum.FirstOrDefaultAsync(x => x.Enum == Project.LegislativeDistrict);
+                    hasUpdated = true;
+                    Project.LegislativeDistrict = dto.ProjectDetails!.LegislativeDistrict;
+                    transactionLogs.Add(new TransactionLog {
+                        TransactionId = Project.ReferenceId!,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tProjectRevisions",
+                        AffectedColumn = "LegislativeDistrict",
+                        NewValue = LD.Name,
+                        OldValue = OldLD?.Name ?? "",
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    });
+                }
+                if (Project.OperatingUnit != dto.ProjectDetails?.OperatingUnit)
+                {
+                    var OperatingUnit = await _db.tProjectOperatingUnitEnum.FirstOrDefaultAsync(x => x.ParticipantId == dto.ProjectDetails!.OperatingUnit);
+                    if (OperatingUnit == null)
+                    {
+                        return new BadRequestObjectResult(new { Message = $"Selected Operating Unit '{dto.ProjectDetails!.OperatingUnit}' is not valid!", Title = "Invalid Operating Unit" });
+                    }
+                    var OldOperatingUnit = await _db.tProjectOperatingUnitEnum.FirstOrDefaultAsync(x => x.ParticipantId == Project.OperatingUnit);
+                    hasUpdated = true;
+                    Project.OperatingUnit = dto.ProjectDetails!.OperatingUnit;
+                    transactionLogs.Add(new TransactionLog
+                    {
+                        TransactionId = Project.ReferenceId!,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tProjectRevisions",
+                        AffectedColumn = "OperatingUnit",
+                        NewValue = OperatingUnit.OrgName,
+                        OldValue = OldOperatingUnit?.OrgName ?? "",
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    });
+                }
+                if (Project.ImplementingOffice != dto.ProjectDetails?.ImplementingOffice)
+                {
+                    var IO = await _db.tProjectImplementingOfficeEnum.FirstOrDefaultAsync(x => x.ParticipantId == dto.ProjectDetails!.ImplementingOffice);
+                    if (IO == null)
+                    {
+                        return new BadRequestObjectResult(new { Message = $"Selected Implementing Office '{dto.ProjectDetails!.ImplementingOffice}' is not valid!", Title = "Invalid Implementing Office" });
+                    }
+                    var OldIO = await _db.tProjectImplementingOfficeEnum.FirstOrDefaultAsync(x => x.ParticipantId == Project.ImplementingOffice);
+                    hasUpdated = true;
+                    Project.ImplementingOffice = dto.ProjectDetails!.ImplementingOffice;
+                    transactionLogs.Add(new TransactionLog {
+                        TransactionId = Project.ReferenceId!,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tProjectRevisions",
+                        AffectedColumn = "ImplementingOffice",
+                        NewValue = IO.OrgName,
+                        OldValue = OldIO?.OrgName ?? "",
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    });
+                }
+                if (Project.DEO != dto.ProjectDetails?.DEO)
+                {
+                    var SelectedDeo = await _db.tProjectRODEOEnum.FirstOrDefaultAsync(x => x.DeoCode == dto.ProjectDetails!.DEO);
+                    if (SelectedDeo == null)
+                    {
+                        return new BadRequestObjectResult(new { Message = $"Selected DEO '{dto.ProjectDetails!.DEO}' is not valid!", Title = "Invalid DEO" });
+                    }
+                    var OldDeo = await _db.tProjectRODEOEnum.FirstOrDefaultAsync(x => x.DeoCode == Project.DEO);
+                    hasUpdated = true;
+                    Project.DEO = SelectedDeo.DeoCode;
+                    transactionLogs.Add(new TransactionLog
+                    {
+                        TransactionId = Project.ReferenceId!,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tProjectRevisions",
+                        AffectedColumn = "DEO",
+                        NewValue = SelectedDeo.DeoName,
+                        OldValue = OldDeo?.DeoName ?? "",
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    });
+                }
+                if (Project.Region != dto.ProjectDetails?.Region)
+                {
+                    hasUpdated = true;
+                    Project.Region = dto.ProjectDetails!.Region;
+                    transactionLogs.Add(new TransactionLog
+                    {
+                        TransactionId = Project.ReferenceId!,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tProjectRevisions",
+                        AffectedColumn = "Region",
+                        NewValue = dto.ProjectDetails!.Region ?? "",
+                        OldValue = Project.Region ?? "",
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    });
+                }
+                if (Project.Agency != dto.ProjectDetails?.Agency)
+                {
+                    var Agency = await _db.tProjectAgencyLists.FirstOrDefaultAsync(x => x.Id == dto.ProjectDetails!.Agency);
+                    if (Agency == null)
+                    {
+                        return new BadRequestObjectResult(new { Message = $"Selected Agency '{dto.ProjectDetails!.Agency}' is not valid!", Title = "Invalid Agency" });
+                    }
+                    var OldAgency = await _db.tProjectAgencyLists.FirstOrDefaultAsync(x => x.Id == Project.Agency);
+                    hasUpdated = true;
+                    Project.Agency = dto.ProjectDetails!.Agency;
+                    transactionLogs.Add(new TransactionLog
+                    {
+                        TransactionId = Project.ReferenceId!,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tProjectRevisions",
+                        AffectedColumn = "Agency",
+                        NewValue = Agency.AgencyName,
+                        OldValue = OldAgency?.AgencyName ?? "",
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    });
+                }
+                if (Project.ProjectCode != dto.ProjectDetails?.ProjectCode)
+                {
+                    hasUpdated = true;
+                    Project.ProjectCode = dto.ProjectDetails!.ProjectCode;
+                    transactionLogs.Add(new TransactionLog
+                    {
+                        TransactionId = Project.ReferenceId!,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tProjectRevisions",
+                        AffectedColumn = "ProjectCode",
+                        NewValue = dto.ProjectDetails!.ProjectCode ?? "",
+                        OldValue = Project.ProjectCode ?? "",
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    });
+                }
+                if (Project.ImplementationMode != dto.ProjectDetails?.ImplementationMode)
+                {
+                    var ImplementationMode = await _db.tProjectImplementModeEnum.FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.ImplementationMode);
+                    if (ImplementationMode == null)
+                    {
+                        return new BadRequestObjectResult(new { Message = $"Selected Implementation Mode '{dto.ProjectDetails!.ImplementationMode}' is not valid!", Title = "Invalid Implementation Mode" });
+                    }
+                    var OldImplementationMode = await _db.tProjectImplementModeEnum.FirstOrDefaultAsync(x => x.Enum == Project.ImplementationMode);
+                    hasUpdated = true;
+                    Project.ImplementationMode = dto.ProjectDetails!.ImplementationMode;
+                    transactionLogs.Add(new TransactionLog
+                    {
+                        TransactionId = Project.ReferenceId!,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tProjectRevisions",
+                        AffectedColumn = "ImplementationMode",
+                        NewValue = ImplementationMode.Name,
+                        OldValue = OldImplementationMode?.Name ?? "",
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    });
+                }
+                if (Project.EmergencyMode != dto.ProjectDetails?.EmergencyMode)
+                {
+                    var EmergencyMode = await _db.tProjectEmergencyModeEnum.FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.EmergencyMode);
+                    if (EmergencyMode == null)
+                    {
+                        return new BadRequestObjectResult(new { Message = $"Selected Emergency Mode '{dto.ProjectDetails!.EmergencyMode}' is not valid!", Title = "Invalid Emergency Mode" });
+                    }
+                    var OldEmergencyMode = await _db.tProjectEmergencyModeEnum.FirstOrDefaultAsync(x => x.Enum == Project.EmergencyMode);
+                    hasUpdated = true;
+                    Project.EmergencyMode = dto.ProjectDetails!.EmergencyMode;
+                    transactionLogs.Add(new TransactionLog
+                    {
+                        TransactionId = Project.ReferenceId!,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tProjectRevisions",
+                        AffectedColumn = "EmergencyMode",
+                        NewValue = EmergencyMode.Name,
+                        OldValue = OldEmergencyMode?.Name ?? "",
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    });
+                }
+                if (Project.Feasibility != dto.ProjectDetails?.Feasibility)
+                {
+                    var Feasib = await _db.tProjectLongFeasibilityEnum.FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.Feasibility);
+                    if (Feasib == null)
+                    {
+                        return new BadRequestObjectResult(new { Message = $"Selected Feasibility '{dto.ProjectDetails!.Feasibility}' is not valid!", Title = "Invalid Feasibility" });
+                    }
+                    var OldFeasibility = await _db.tProjectLongFeasibilityEnum.FirstOrDefaultAsync(x => x.Enum == Project.Feasibility);
+                    hasUpdated = true;
+                    Project.Feasibility = dto.ProjectDetails!.Feasibility;
+                    transactionLogs.Add(new TransactionLog
+                    {
+                        TransactionId = Project.ReferenceId!,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tProjectRevisions",
+                        AffectedColumn = "Feasibility",
+                        NewValue = Feasib.Name,
+                        OldValue = OldFeasibility?.Name ?? "",
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    });
+                }
+                if(Project.DetailedDesign != dto.ProjectDetails?.DetailedDesign)
+                {
+                    var DetailedDesign = await _db.tProjectEmergencyModeEnum.FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.DetailedDesign);
+                    if (DetailedDesign == null)
+                    {
+                        return new BadRequestObjectResult(new { Message = $"Selected Detailed Design '{dto.ProjectDetails!.DetailedDesign}' is not valid!", Title = "Invalid Detailed Design" });
+                    }
+                    var OldDetailedDesign = await _db.tProjectEmergencyModeEnum.FirstOrDefaultAsync(x => x.Enum == Project.DetailedDesign);
+                    hasUpdated = true;
+                    Project.DetailedDesign = dto.ProjectDetails!.DetailedDesign;
+                    transactionLogs.Add(new TransactionLog
+                    {
+                        TransactionId = Project.ReferenceId!,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tProjectRevisions",
+                        AffectedColumn = "DetailedDesign",
+                        NewValue = DetailedDesign.Name ?? "",
+                        OldValue = OldDetailedDesign?.Name ?? "",
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    });
+                }
+                if (Project.RowAvailable != dto.ProjectDetails?.RowAvailable)
+                {
+                    var RowAvailable = await _db.tProjectEmergencyModeEnum.FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.EmergencyMode);
+                    if (RowAvailable == null)
+                    {
+                        return new BadRequestObjectResult(new { Message = $"Selected Row Available '{dto.ProjectDetails!.EmergencyMode}' is not valid!", Title = "Invalid Row Available" });
+                    }
+                    var OldRowAvailable = await _db.tProjectEmergencyModeEnum.FirstOrDefaultAsync(x => x.Enum == Project.RowAvailable);
+                    hasUpdated = true;
+                    Project.RowAvailable = dto.ProjectDetails!.RowAvailable;
+                    transactionLogs.Add(new TransactionLog
+                    {
+                        TransactionId = Project.ReferenceId!,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tProjectRevisions",
+                        AffectedColumn = "RowAvailable",
+                        NewValue = RowAvailable.Name,
+                        OldValue = OldRowAvailable?.Name ?? "",
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    });
+                }
+                if (hasUpdated)
+                {
+                    var NewRevision = new ProjectRevisions()
+                    {
+                        ReferenceId = Project.ReferenceId!,
+                        RevisionNumber = (int)Project.RevisionNumber! + 1,
+                        Description = Project!.Description!,
+                        Category = Project!.Category,
+                        Thrust = Project!.Thrust,
+                        Origin = Project!.Origin,
+                        City = Project!.City,
+                        LegislativeDistrict = Project!.LegislativeDistrict,
+                        OperatingUnit = Project!.OperatingUnit!,
+                        ImplementingOffice = Project!.ImplementingOffice!,
+                        DEO = Project.DEO!,
+                        Region = Project.Region!,
+                        Agency = Project.Agency,
+                        ProjectCode = Project.ProjectCode,
+                        ImplementationMode = Project.ImplementationMode,
+                        EmergencyMode = Project.EmergencyMode,
+                        Feasibility = Project.Feasibility,
+                        DetailedDesign = Project.DetailedDesign,
+                        RowAvailable = Project.RowAvailable,
+                        CreatedBy = _Session.UserId ?? "TESTING",
+                        CreatedDate = CurrentDate
+                    };
+                    await _db.tProjectRevisions.AddAsync(NewRevision);
+                }
+                #endregion
+                #region Update Component Cost
+                var ComponentCost = await _db.tProjectComponentCost.Where(x => x.ProjectId == Project.ReferenceId).ToListAsync();
+                if (ComponentCost.Count > 0)
+                {
+                    var CurrentComponentCost = ComponentCost.Select(x => x.Id).ToList();
+                    var NewComponentCostData = dto.ComponentCosts.Where(x => !CurrentComponentCost.Contains(x.Id)).ToList();
+                    var NewComponentCost = NewComponentCostData.Select(x => x.Id).ToList();
+                    var DeletedComponentCost = CurrentComponentCost.Except(NewComponentCost).ToList();
+                    #region Delete Component Cost and Year
+                    if (DeletedComponentCost.Count > 0)
+                    {
+                        var DeletedItems = await _db.tProjectComponentCost.Where(x => DeletedComponentCost.Contains(x.Id)).ToListAsync();
+                        var DeleteCostPerYear = await _db.tProjectComponentCostYear.Where(x => DeletedComponentCost.Contains(x.ParentId)).ToListAsync();
+                        _db.tProjectComponentCost.RemoveRange(DeletedItems);
+                        _db.tProjectComponentCostYear.RemoveRange(DeleteCostPerYear);
+                        transactionLogs.AddRange(DeletedItems.Select(item => new TransactionLog
+                        {
+                            TransactionId = Project.ReferenceId!,
+                            TypeOfTransaction = "Delete",
+                            AffectedTable = "tProjectComponentCost",
+                            AffectedColumn = "Row",
+                            NewValue = "",
+                            OldValue = JsonConvert.SerializeObject(item),
+                            CreatedBy = _Session.UserId ?? "TESTING",
+                            CreatedDate = CurrentDate
+                        }));
+                        transactionLogs.AddRange(DeleteCostPerYear.Select(item => new TransactionLog
+                        {
+                            TransactionId = Project.ReferenceId!,
+                            TypeOfTransaction = "Delete",
+                            AffectedTable = "tProjectComponentCostYear",
+                            AffectedColumn = "Row",
+                            NewValue = "",
+                            OldValue = JsonConvert.SerializeObject(item),
+                            CreatedBy = _Session.UserId ?? "TESTING",
+                            CreatedDate = CurrentDate
+                        }));
+                    }
+                    #endregion
+                    #region New Component Cost and Year
+                    if (NewComponentCost.Count > 0)
+                    {
+                        await _db.tProjectComponentCost.AddRangeAsync(NewComponentCostData.Select(item => new ProjectComponentCost
+                        {
+                            ProjectId = Project.ReferenceId!,
+                            ComponentId = item.ComponentId,
+                            ComponentType = item.ComponentType,
+                            Description = item.Description,
+                            Total = item.Total,
+                            CreatedBy = _Session.UserId ?? "TESTING",
+                            CreatedDate = CurrentDate
+                        }).ToList());
+                        var CostPerId = dto.ComponentCostYear.Where(x => NewComponentCost.Contains(x.ParentId));
+                        await _db.tProjectComponentCostYear.AddRangeAsync(CostPerId.Select(item => new ProjectComponentCostYear
+                        {
+                            ParentId = item.ParentId,
+                            CostYear = item.CostYear,
+                            Cost = item.Cost,
+                            ApprovalDate = item.ApprovalDate,
+                            PAPCode = item.PAPCode,
+                            StartDate = item.StartDate,
+                            EndDate = item.EndDate
+                        }).ToList());
+                    }
+                    #endregion
+                    #region Update Component Cost and Year
+                    var UpdateComponentCost = dto.ComponentCosts.Where(x => CurrentComponentCost.Contains(x.Id)).ToList();
+                    if (UpdateComponentCost.Count > 0)
+                    {
+                        //foreach (var item in UpdateComponentCost)
+                        //{
+                        //    var ExistingItem = ComponentCost.FirstOrDefault(x => x.Id == item.Id);
+                        //    if (ExistingItem != null)
+                        //    {
+                        //        if (ExistingItem.ComponentId != item.ComponentId)
+                        //        {
+                        //            var Component = await _db.tProjectComponentEnum.FirstOrDefaultAsync(x => x.Name == item.ComponentId);
+                        //            if (Component == null)
+                        //            {
+                        //                return new BadRequestObjectResult(new { Message = $"Selected Component '{item.ComponentId}' is not valid!", Title = "Invalid Component" });
+                        //            }
+                        //            transactionLogs.Add(new TransactionLog
+                        //            {
+                        //                TransactionId = Project.ReferenceId!,
+                        //                TypeOfTransaction = "Update",
+                        //                AffectedTable = "tProjectComponentCost",
+                        //                AffectedColumn = "ComponentId",
+                        //                NewValue = Component.Name,
+                        //                OldValue = ExistingItem.ComponentId,
+                        //                CreatedBy = _Session.UserId ?? "TESTING",
+                        //                CreatedDate = CurrentDate
+                        //            });
+                        //            ExistingItem.ComponentId = item.ComponentId;
+                        //        }
+                        //        if (ExistingItem.ComponentType != item.ComponentType)
+                        //        {
+                        //            var ComponentType = await _db.tProjectComponentEnum.FirstOrDefaultAsync(x => x.Enum == item.ComponentType);
+                        //            if (ComponentType == null)
+                        //            {
+                        //                return new BadRequestObjectResult(new { Message = $"Selected Component Type '{item.ComponentType}' is not valid!", Title = "Invalid Component Type" });
+                        //            }
+                        //            transactionLogs.Add(new TransactionLog
+                        //            {
+                        //                TransactionId = Project.ReferenceId!,
+                        //                TypeOfTransaction = "Update",
+                        //                AffectedTable = "tProjectComponentCost",
+                        //                AffectedColumn = "ComponentType",
+                        //                NewValue = ComponentType.Name,
+                        //                OldValue = ExistingItem.ComponentType.ToString(),
+                        //                CreatedBy = _Session.UserId ?? "TESTING",
+                        //                CreatedDate = CurrentDate
+                        //            });
+                        //            ExistingItem.ComponentType = item.ComponentType;
+                        //        }
+                        //        if (ExistingItem.Description != item.Description)
+                        //        {
+                        //            transactionLogs.Add(new TransactionLog
+                        //            {
+                        //                TransactionId = Project.ReferenceId!,
+                        //                TypeOfTransaction = "Update",
+                        //                AffectedTable = "tProjectComponentCost",
+                        //                AffectedColumn = "Description",
+                        //                NewValue = item.Description ?? "",
+                        //                OldValue = ExistingItem.Description ?? "",
+                        //                CreatedBy = _Session.UserId ?? "TESTING",
+                        //                #endregion
+                        //            });
+                        //        }
+                        //    }
+                        //}
+                    }
+                }
+                #endregion
+                await _db.SaveChangesAsync();
                 return Ok(new
                 {
                     Message = "Project Update wala pa lods",
                     Title = "Under Maintenance"
                 });
+
             }
             catch (Exception ex)
             {
+                await transaction.RollbackAsync();
                 return ExceptionHandler(ex);
             }
         }
@@ -393,38 +927,42 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = "No file uploaded!", Title = "File Upload Error" });
                 }
-                //if(dto.File.IsFileCorreupted())
-                //{
-                //    return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted!", Title = "File Corrupted" });
-                //}
-                //string FileName = dto.File.FileName;
-                //string Extension = Path.GetExtension(FileName);
-                //string PathDir = $"{Appsetting.Resources.ProjectNotes}{Project.ReferenceId}";
-                //if (!Directory.Exists(PathDir))
-                //{
-                //    Directory.CreateDirectory(PathDir);
-                //}
-                //string FilePath = $"{PathDir}/{FileName}"; 
-                //using (var stream = new FileStream(FilePath, FileMode.Create))
-                //{
-                //    await dto.File.CopyToAsync(stream);
-                //}
-                //var AddNotes = new ProjectNotes()
-                //{
-                //    ProjectId = dto.ProjectId,
-                //    FileName = FileName,
-                //    FileExtension = Extension,
-                //    FilePath = FilePath,
-                //    Description = dto.Description,
-                //    CreatedBy = _Session.UserId ?? "TESTING",
-                //    CreatedDate = DateTime.UtcNow
-                //};
-                //await _db.tProjectNotes.AddAsync(AddNotes);
-                //await _db.SaveChangesAsync();
-                //await transaction.CommitAsync();
-                return Ok(new
+                if (dto.File.IsFileCorrupted())
                 {
-                });
+                    return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted!", Title = "File Corrupted" });
+                }
+                string FileName = dto.File.Name;
+                string Extension = Path.GetExtension(FileName);
+                string PathDir = Path.Combine(Appsetting.Resources.ProjectNotes, Project.ReferenceId!);
+                if (!Directory.Exists(PathDir))
+                {
+                    Directory.CreateDirectory(PathDir);
+                }
+                string FilePath = $"{PathDir}/{FileName}";
+
+                string base64Data = dto.File.DataUrl.Contains(",")
+                    ? dto.File.DataUrl.Split(',')[1]
+                    : dto.File.DataUrl;
+                byte[] fileBytes = Convert.FromBase64String(base64Data);
+                if (fileBytes.Length == 0)
+                {
+                    return new BadRequestObjectResult(new { Message = "Uploaded file is empty!", Title = "File Empty" });
+                }
+                await System.IO.File.WriteAllBytesAsync(FilePath, fileBytes);
+                var AddNotes = new ProjectNotes()
+                {
+                    ProjectId = dto.ProjectId,
+                    FileName = FileName,
+                    FileExtension = Extension,
+                    FilePath = FilePath,
+                    Description = dto.Description,
+                    CreatedBy = _Session.UserId ?? "TESTING",
+                    CreatedDate = DateTime.UtcNow
+                };
+                await _db.tProjectNotes.AddAsync(AddNotes);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return Ok(new { Message = "Notes added successfully!", Tile = "Add Success." });
             }
             catch (Exception ex)
             {

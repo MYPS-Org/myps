@@ -1,10 +1,13 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using DBHelper.Models.Extra;
+using Microsoft.AspNetCore.Http;
 using OfficeOpenXml;
 using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats;
+using SixLabors.ImageSharp.PixelFormats;
+using System.Drawing;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
-using DBHelper.Models.Extra;
 
 namespace Helpers
 {
@@ -16,83 +19,79 @@ namespace Helpers
             int count = endYear - startYear;
             return count.ToString("D3");
         }
-        public static bool IsFileCorreupted(this FileUpload File)
+        public static bool IsFileCorrupted(this FileUpload File)
         {
 
             string FileName = File.Name;
             string Extension = File.Extension;
-            var AllowedPngs = new[] { ".jpg", ".jpeg", ".png" };
-            return AllowedPngs.Contains(Extension) ? File.IsFileCorreupted() : (Extension == "pdf" ? File.IsPdfCorrupted() : File.IsExcelCorrupted());
+            var AllowedPngs = new[] { "jpg", "jpeg", "png" };
+            return AllowedPngs.Contains(Extension) ? File.IsPhotoCorrupted() : (Extension == "pdf" ? File.IsPdfCorrupted() : File.IsExcelCorrupted());
         }
         public static bool IsPhotoCorrupted(this FileUpload file)
         {
             try
             {
-                if (!file.ContentType.StartsWith("image/"))
-                    return true;
+                string base64Data = file.DataUrl.Contains(",")
+                    ? file.DataUrl.Split(',')[1]
+                    : file.DataUrl;
 
-                using var stream = new MemoryStream();
-                file.CopyTo(stream);
-                stream.Position = 0;
-                using var img = Image.Load(stream.OpenReadStream());
-                if (img == null)
-                    return true;
+                byte[] imageBytes = Convert.FromBase64String(base64Data);
 
-                // Step 4: Optional size limit check
-                const long maxSize = 10 * 1024 * 1024; // 10MB
-                if (file.Length > maxSize)
-                    return true;
+                using var ms = new MemoryStream(imageBytes);
+                using var image = SixLabors.ImageSharp.Image.Load(ms);
 
-                return false; // Image seems fine
+                return image == null;
             }
             catch
             {
-                return true; // Exception implies corrupted or unsafe image
+                return true; // Corrupted or invalid image
             }
         }
-        public static bool IsPdfCorrupted(this IFormFile file)
+        public static bool IsPdfCorrupted(this FileUpload file)
         {
             try
             {
-                // Basic check
-                if (Path.GetExtension(file.FileName).ToLower() != ".pdf" ||
-                    file.ContentType != "application/pdf")
+                if (file.ContentType != "application/pdf")
                     return true;
 
-                // Size limit (optional)
-                const long maxSize = 20 * 1024 * 1024; // 20MB
-                if (file.Length > maxSize)
-                    return true;
+                string base64Data = file.DataUrl.Contains(",")
+                    ? file.DataUrl.Split(',')[1]
+                    : file.DataUrl;
 
-                // Read first few bytes to validate PDF header
-                using var reader = new BinaryReader(file.OpenReadStream());
-                var signature = reader.ReadBytes(5);
-                return !Encoding.ASCII.GetString(signature).StartsWith("%PDF-");
+                byte[] imageBytes = Convert.FromBase64String(base64Data);
+
+                using (var ms = new MemoryStream(imageBytes))
+                {
+                    using var reader = new BinaryReader(ms);
+                    var signature = reader.ReadBytes(5);
+                    return !Encoding.ASCII.GetString(signature).StartsWith("%PDF-");
+                }
             }
             catch
             {
                 return true;
             }
         }
-        public static bool IsExcelCorrupted(this IFormFile file)
+        public static bool IsExcelCorrupted(this FileUpload file)
         {
             try
             {
                 var allowedExtensions = new[] { ".xls", ".xlsx" };
-                var extension = Path.GetExtension(file.FileName).ToLower();
+                var extension = Path.GetExtension(file.Extension).ToLowerInvariant();
 
                 if (!allowedExtensions.Contains(extension))
                     return true;
 
-                // Check MIME type
                 if (!file.ContentType.Contains("excel") &&
                     !file.ContentType.Contains("spreadsheet"))
                     return true;
 
-                // Use EPPlus to validate Excel content
-                using var stream = new MemoryStream();
-                file.CopyTo(stream);
-                stream.Position = 0;
+                string base64Data = file.DataUrl.Contains(",")
+                    ? file.DataUrl.Split(',')[1]
+                    : file.DataUrl;
+
+                byte[] excelBytes = Convert.FromBase64String(base64Data);
+                using var stream = new MemoryStream(excelBytes);
 
                 using var package = new ExcelPackage(stream);
                 var workbook = package.Workbook;
@@ -103,5 +102,6 @@ namespace Helpers
                 return true;
             }
         }
+
     }
 }

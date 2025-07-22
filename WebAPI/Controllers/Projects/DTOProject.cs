@@ -30,6 +30,15 @@ namespace WebAPI.Controllers.Programs
         [Required]
         public string ProjectId { get; set; } = string.Empty;
     }
+    public class UpdateProjectDetailsDTO
+    {
+        public ProjectDetails ProjectDetails { get; set; } = new ProjectDetails();
+        public List<ProjectComponentCost> ComponentCosts { get; set; } = new List<ProjectComponentCost>();
+        public List<ProjectComponentCostYear> ComponentCostYear { get; set; } = new List<ProjectComponentCostYear>();
+        public List<ProjectMajorItemOfWorks> MajorItemOfWorks { get; set; } = new List<ProjectMajorItemOfWorks>();
+        public List<ProjectNotes> ProjectNotes { get; set; } = new List<ProjectNotes>();
+        public List<ProjectFundingProfile> FundingProfile { get; set; } = new List<ProjectFundingProfile>();
+    }
     public class AddNotesDTO : ProjectDetailsDTO
     {
         [Required]
