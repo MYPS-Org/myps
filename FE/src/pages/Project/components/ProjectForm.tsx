@@ -9,7 +9,8 @@ import type {
   Activity, 
   ProgramDetails,
   ProjectFormPayload,
-  ProjectEnums
+  ProjectEnums,
+  Dropdowns
 } from '../Model.d';
 
 import { Button } from '../../../components/tailwindui/button';
@@ -23,6 +24,7 @@ import NotesForm from './NotesForm';
 import FundingProfileForm from './FundingProfileForm';
 import ActivitySection from './ActivitySection';
 import { addProjectDetails, getProjectEnums, updateProjectDetails } from '../Service';
+import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 
 interface ProjectFormProps {
   initialData?: ProjectFormPayload;
@@ -36,6 +38,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
 
   const [savingSection, setSavingSection] = useState<string | null>(null);
   const [projectEnums, setProjectEnums] = useState<ProjectEnums | null>(null);
+
+  // toggle state for Program Details section
+  const [isProgramOpen, setIsProgramOpen] = useState<boolean>(true);
+  const [isProjectOpen, setIsProjectOpen] = useState<boolean>(true);
   
   // Initialize state with empty data or provided initial data
   const [programDetails, setProgramDetails] = useState<ProgramDetails>(
@@ -100,6 +106,24 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
   const [fundingProfiles, setFundingProfiles] = useState<FundingProfile[]>(
     initialData?.FundingProfile || []
   );
+
+  const [Dropdowns, setDropdowns] = useState<Dropdowns>(
+    initialData?.Dropdowns || {
+    Categories: [],
+    Thrusts: [],
+    Origins: [],
+    Cities: [],
+    LDs: [],
+    OperatingUnits: [],
+    IOs: [],
+    DEOs: [],
+    Agencies: [],
+    Feasibility: [],
+    ImplementationModes: [],
+    EmergencyModes: [],
+    Agreements: [],
+    Sources: [],
+  });
 
   const [activities] = useState<Activity[]>(
     initialData?.Activities || []
@@ -334,7 +358,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
     <div className="max-w-10xl mx-auto p-6 space-y-6">
         <div className='flex items-center justify-between mb-6'>
             {/* Breadcrumb */}
-            <nav className="flex items-center text-sm text-left text-gray-500">
+            {/* <nav className="flex items-center text-sm text-left text-gray-500">
                 <span>MYPS Admin</span>
                 <span className="mx-2">&gt;</span>
                 <span 
@@ -346,7 +370,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
                 <span className="mx-2">&gt;</span>
                 <span>{mode === 'add' ? 'Add Project' : 'Edit Project'}</span>
                 <span className="mx-2">&gt;</span>
-            </nav>
+            </nav> */}
+            <div>
+              
+            </div>
             <div className="flex space-x-3">
                 {mode === 'edit' && <Button color="orange" className='cursor-pointer'>Update Project</Button>}
             </div>
@@ -362,53 +389,68 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
       <div className="grid grid-cols-1 gap-6">
         {/* Program Details */}
         <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
-          <div className="px-4 py-6 sm:p-8">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-semibold leading-7 text-gray-900">Program Details</h3>
-              {/* <Button
-                outline
-                onClick={handleSaveProgramDetails}
-                disabled={savingSection === 'programDetails'}
-                className="text-sm"
-              >
-                {savingSection === 'programDetails' ? 'Saving...' : 'Save Section'}
-              </Button> */}
-            </div>
-            <ProgramDetailsForm 
-              programDetails={programDetails}
-              setProgramDetails={setProgramDetails}
-              onChange={handleProgramDetailsChange}
-              mode={mode}
-              projectEnums={projectEnums || undefined}
-            />
+          <div
+            className="flex justify-between items-center px-4 py-4 cursor-pointer border-b"
+            onClick={() => setIsProgramOpen(!isProgramOpen)}
+          >
+            <h3 className="text-lg font-semibold leading-7 text-gray-900">Program Details</h3>
+            {isProgramOpen ? (
+              <ChevronDownIcon className="h-5 w-5 text-gray-500" />
+            ) : (
+              <ChevronRightIcon className="h-5 w-5 text-gray-500" />
+            )}
           </div>
+          {isProgramOpen && (
+            <div className="px-4 py-6 sm:p-8">
+              <ProgramDetailsForm
+                programDetails={programDetails}
+                setProgramDetails={setProgramDetails}
+                onChange={handleProgramDetailsChange}
+                mode={mode}
+                projectEnums={projectEnums || undefined}
+                initialData={initialData}
+              />
+            </div>
+          )}
         </div>
 
         {/* Project Details */}
         <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
-          <div className="px-4 py-6 sm:p-8">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-semibold leading-7 text-gray-900">Project Details</h3>
-            </div>
-            <ProjectDetailsForm
-              projectDetails={projectDetails}
-              onChange={handleProjectDetailsChange}
-              // mode={mode}
-              projectEnums={projectEnums || undefined} // Ensure projectEnums is not undefined
-            />
+          <div
+            className="flex justify-between items-center px-4 py-4 cursor-pointer border-b"
+            onClick={() => setIsProjectOpen(!isProjectOpen)}
+          >
+            <h3 className="text-lg font-semibold leading-7 text-gray-900">Project Details</h3>
+            {isProjectOpen ? (
+              <ChevronDownIcon className="h-5 w-5 text-gray-500" />
+            ) : (
+              <ChevronRightIcon className="h-5 w-5 text-gray-500" />
+            )}
           </div>
-          <div className="flex justify-end px-4 py-6 sm:p-8">
-            {mode === 'add' && (
-            <Button
-              color='orange'
-              onClick={handleSaveProjectDetails}
-              disabled={savingSection === 'projectDetails'}
-              className="text-sm"
-            >
-              {savingSection === 'projectDetails' ? 'Saving...' : 'Save Section'}
-            </Button>
-              )}
-          </div>
+          {isProjectOpen && (
+            <>
+              <div className="px-4 py-6 sm:p-8">
+                <ProjectDetailsForm
+                  projectDetails={projectDetails}
+                  onChange={handleProjectDetailsChange}
+                  projectEnums={projectEnums || undefined}
+                  initialData={initialData}
+                />
+              </div>
+              <div className="flex justify-end px-4 pb-6 sm:px-8">
+                {mode === 'add' && (
+                  <Button
+                    color="orange"
+                    onClick={handleSaveProjectDetails}
+                    disabled={savingSection === 'projectDetails'}
+                    className="text-sm"
+                  >
+                    {savingSection === 'projectDetails' ? 'Saving...' : 'Save Section'}
+                  </Button>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -505,6 +547,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
               onAdd={handleAddFundingProfile}
               onEdit={handleEditFundingProfile}
               onDelete={handleDeleteFundingProfile}
+              initialData={initialData ? { ...initialData, Dropdowns } : undefined}
             />
           </div>
         </div>

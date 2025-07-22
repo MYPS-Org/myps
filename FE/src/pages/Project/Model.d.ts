@@ -16,9 +16,7 @@ export interface ProjectFormPayload {
   MajorItemOfWorks: MajorItemOfWork[];
   ProjectNotes: ProjectNote[];
   FundingProfile: FundingProfile[];
-  Dropdowns: {
-      ComponentTypes: ComponentType[];
-  };
+  Dropdowns: Dropdowns;
   Activities: Activity[];
 }
 
@@ -95,29 +93,7 @@ export interface ProjectById {
   MajorItemOfWorks: ProjectMajorItemOfWorks[],
   ProjectNotes: Notes,
   FundingProfile: Funding,
-  Dropdowns:
-  {
-      //Project Details
-      Categories: Category,
-      Thrusts: Thrust,
-      Origins: Origin,
-      Cities: City,
-      LDs: LD,
-      OperatingUnits: OperatingUnit,
-      IOs: IO,
-      DEOs: DEO,
-      Feasibility: Feasib,
-      Agencies: Agency,
-      ImplementationModes: ImplementationMode,
-      EmergencyModes: EmergencyMode,
-
-      //Component Cost
-      ComponentTypes: ComponentType,
-
-      //Funding Profile
-      Agreements: Agreement,
-      Sources: Source,
-  }
+  Dropdowns: Dropdowns
 }
 
 // #region fetch data interfaces
@@ -133,7 +109,6 @@ export interface ComponentCost {
 	UpdatedBy: string;
 	UpdatedDate: string;
 }
-
 export interface ComponentCostYear {
 	Id: number;
 	ParentId: number;
@@ -183,112 +158,121 @@ export interface FundingProfile {
 }
 
 // #region Additional interfaces for dropdowns and enums
-export interface ComponentType {
+export interface Dropdowns {
+	Categories: CategoryEnum[];
+	Thrusts: ThrustEnum[];
+	Origins: OriginEnum[];
+	Cities: CityEnum[];
+	LDs: LDEnum[];
+	OperatingUnits: OperatingUnitEnum[];
+	IOs: IOEnum[];
+	DEOs: RODEOEnum[];
+	Agencies: AgencyEnum[];
+	ImplementationModes: ImplementationModeEnum[];
+	EmergencyModes: EmergencyModeEnum[];
+	Feasibility: FeasibEnum[];
+	// Fundimg Profile
+	Agreements: AgreementEnum[];
+	Sources: SourceEnum[];
+}
+export interface CategoryEnum {
 	Id: number;
+	Enum: number;
+	Name: string;
+	Minimum: number;
+	Maximum: number;
+	ValidUntil: number;
+}
+export interface ThrustEnum {
+	Id: number;
+	PAPKey: number;
+	ProgramName: string;
+	SubProgramName: string;
+	ActivityName: string;
+	SequenceNumber: number;
+	ValidFromDate: number;
+	ValidToDate: number;
+	InfrastructureType?: string;
+	ThrustDescription: string;
+}
+export interface OriginEnum {
+	Id: number;
+	Enum: number;
 	Name: string;
 	Description: string;
 }
-
-export interface Category {
+export interface CityEnum {
 	Id: number;
+	Enum: number;
 	Name: string;
 	Description: string;
 }
-
-export interface Thrust {
+export interface LDEnum {
 	Id: number;
+	Enum: number;
+	Name: string;
+}
+export interface OperatingUnitEnum {
+	Id: number;
+	ParticipantId: string;
+	OrgName: string;
+	OrgType: string;
+}
+export interface IOEnum {
+	Id: number;
+	ParticipantId: string;
+	OrgName: string;
+	OrgType: string;
+}
+export interface RODEOEnum {
+	Id: number;
+	DeoCode: string;
+	DeoName: string;
+	ROCode: string;
+	ROName: string;
+	Island?: string;
+}
+export interface FeasibEnum {
+	Id: number;
+	Enum: number;
 	Name: string;
 	Description: string;
 }
-
-export interface Origin {
+export interface AgencyEnum {
 	Id: number;
+	Code: string;
+	AgencyName: string;
+}
+export interface ImplementationModeEnum {
+	Id: number;
+	Enum: number;
 	Name: string;
 	Description: string;
 }
-
-export interface City {
+export interface EmergencyModeEnum {
 	Id: number;
+	Enum: boolean;
 	Name: string;
 	Description: string;
 }
-
-export interface LD {
+export interface AgreementEnum {
 	Id: number;
+	AgreementId: number;
+	SourceId: number;
+	Code: string;
 	Name: string;
-	Description: string;
+	FinancingSource?: string;
 }
-
-export interface OperatingUnit {
+export interface SourceEnum {
 	Id: number;
+	SourceId: number;
+	Org: string;
 	Name: string;
-	Description: string;
+	Nature?: string;
 }
-
-export interface IO {
-	Id: number;
-	Name: string;
-	Description: string;
-}
-
-export interface DEO {
-	Id: number;
-	Name: string;
-	Description: string;
-}
-
-export interface Feasib {
-	Id: number;
-	Name: string;
-	Description: string;
-}
-
-export interface Agency {
-	Id: number;
-	Name: string;
-	Description: string;
-}
-
-export interface ImplementationMode {
-	Id: number;
-	Name: string;
-	Description: string;
-}
-
-export interface EmergencyMode {
-	Id: number;
-	Name: string;
-	Description: string;
-}
-
-export interface Agreement {
-	Id: number;
-	Name: string;
-	Description: string;
-}
-
-export interface Source {
-	Id: number;
-	Name: string;
-	Description: string;
-}
-
-export interface Notes {
-	Id: number;
-	Description: string;
-	CreatedDate: string;
-}
-
-export interface Funding {
-	Id: number;
-	Source: string;
-	Agreement: string;
-	Percentage: number;
-}
-
 //#endregion
 
-// #region Enums
+// #region add Project details Enums
 export interface ProjectEnums {
   Programs: ProgramDetails[];
   Categories: ProjectCategoryEnum[];

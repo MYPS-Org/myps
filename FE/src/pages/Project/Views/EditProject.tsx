@@ -62,7 +62,25 @@ const EditProject: React.FC = () => {
         ProjectNotes: [],
         FundingProfile: [],
         Dropdowns: {
-            ComponentTypes: []
+            Categories: [],
+            Thrusts: [],
+            Origins: [],
+            Cities: [],
+            LDs: [],
+            OperatingUnits: [],
+            IOs: [],
+            DEOs: [],
+            Feasibility: [],
+            Agencies: [],
+            ImplementationModes: [],
+            EmergencyModes: [],
+
+            //Component Cost
+            // ComponentTypes: [],
+
+            //Funding Profile
+            Agreements: [],
+            Sources: [],
         },
         Activities: []
     });

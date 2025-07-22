@@ -4,7 +4,7 @@ import { searchProgram } from "../Service";
 import { MagnifyingGlassIcon } from "@heroicons/react/16/solid";
 
 interface ProgramDetailsFormProps {
-  initialData?: ProjectFormPayload;
+  initialData?: any;
   programDetails: ProgramDetails;
   setProgramDetails: React.Dispatch<React.SetStateAction<ProgramDetails>>;
   onChange?: (updatedDetails: ProgramDetails) => void;
@@ -67,92 +67,91 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
   }
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-left text-lg font-semibold text-gray-900 mb-4">Program Details</h2>
-        <div className="grid grid-cols-3 gap-4 text-sm">
+      <div className="grid grid-cols-3 gap-4 text-sm">
 
-            {mode === 'add' ? (
-            <div className="w-full flex flex-row text-left gap-5 items-center">
-                  <div className='w-full flex flex-row text-left gap-5 items-center'>
-                    <label className="w-1/3 text-gray-600">Program Name</label>
-                    <select
-                      value={searchFormData}
-                      onChange={(e) => setProgram(e.target.value)}
-                      className='w-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md truncate'
-                      disabled={mode !== 'add'}
-                      style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
-                    >
-                      <option value="">Select Program</option>
-                      {projectEnums?.Programs?.map((program) => (
-                        <option key={program.Id} value={program.ProgramId}>
-                          {program.Name}
-                        </option>
-                      ))}
-                    </select>
-                </div>
-                {isLoading && <p className="text-sm text-blue-600 mt-1">Loading program details...</p>}
-            </div>
-            ) : (
-            <div className='flex flex-row text-left gap-5 items-center'>
-                <label className="flex-1/3 text-gray-600">Program Name:</label>
-                <input
-                type="text"
-                value={programDetails.Name || ''}
-                readOnly
-                className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-700'
-                />
-            </div>
-            )}
+          {mode === 'add' ? (
+          <div className="w-full flex flex-row text-left gap-5 items-center">
+                <div className='w-full flex flex-row text-left gap-5 items-center'>
+                  <label className="w-1/3 text-gray-600">Program Name</label>
+                  <select
+                    value={searchFormData}
+                    onChange={(e) => setProgram(e.target.value)}
+                    className='w-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md truncate'
+                    disabled={mode !== 'add'}
+                    style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                  >
+                    <option value="">Select Program</option>
+                    {projectEnums?.Programs?.map((program) => (
+                      <option key={program.Id} value={program.ProgramId}>
+                        {program.Name}
+                      </option>
+                    ))}
+                  </select>
+              </div>
+              {isLoading && <p className="text-sm text-blue-600 mt-1">Loading program details...</p>}
+          </div>
+          ) : (
+          <div className='flex flex-row text-left gap-5 items-center'>
+              <label className="flex-1/3 text-gray-600">Program Name:</label>
+              <input
+              type="text"
+              value={programDetails.Name || ''}
+              readOnly
+              className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-700'
+              />
+          </div>
+          )}
 
-            <div className='flex flex-row text-left gap-5 items-center'>
-                <label className="flex-1/3 text-gray-600">Program Type:</label>
-                <input
-                    type="text"
-                    value={programDetails.Type || ''}
-                    disabled={mode === 'edit'}
-                    className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
-                />
-            </div>
+          <div className='flex flex-row text-left gap-5 items-center'>
+              <label className="flex-1/3 text-gray-600">Program Type:</label>
+              <input
+                  type="text"
+                  value={programDetails.Type || ''}
+                  disabled={mode === 'edit'}
+                  className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
+              />
+          </div>
 
-            <div className='flex flex-row text-left gap-5 items-center'>
-                <label className="flex-1/3 text-gray-600">Start Year:</label>
-                <input
-                    type="number"
-                    value={programDetails.YearStart || ''}
-                    disabled={mode === 'edit'}
-                    className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
-                />
-            </div>
+          <div className='flex flex-row text-left gap-5 items-center'>
+              <label className="flex-1/3 text-gray-600">Start Year:</label>
+              <input
+                  type="number"
+                  value={programDetails.YearStart || ''}
+                  disabled={mode === 'edit'}
+                  className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
+              />
+          </div>
 
-            <div className='flex flex-row text-left gap-5 items-center'>
-                <label className="flex-1/3 text-gray-600">Program Stage:</label>
-                <input
-                    type="text"
-                    value={programDetails.StageName || ''}
-                    disabled={mode === 'edit'}
-                    className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
-                />
-            </div>
+          <div className='flex flex-row text-left gap-5 items-center'>
+              <label className="flex-1/3 text-gray-600">Program Stage:</label>
+              <input
+                  type="text"
+                  value={programDetails.StageName || ''}
+                  disabled={mode === 'edit'}
+                  className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
+              />
+          </div>
 
-            <div className='flex flex-row text-left gap-5 items-center'>
-                <label className="flex-1/3 text-gray-600">User Group:</label>
-                <input
-                    type="text"
-                    value={programDetails.UserGroup || ''}
-                    disabled={mode === 'edit'}
-                    className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
-                />
-            </div>
+          <div className='flex flex-row text-left gap-5 items-center'>
+              <label className="flex-1/3 text-gray-600">User Group:</label>
+              <input
+                  type="text"
+                  value={programDetails.UserGroup || ''}
+                  disabled={mode === 'edit'}
+                  className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
+              />
+          </div>
 
-            <div className='flex flex-row text-left gap-5 items-center'>
-                <label className="flex-1/3 text-gray-600">Data Security:</label>
-                <input
-                    type="text"
-                    value={programDetails.RegionCode || ''}
-                    disabled={mode === 'edit'}
-                    className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
-                />
-            </div>
-        </div>
+          <div className='flex flex-row text-left gap-5 items-center'>
+              <label className="flex-1/3 text-gray-600">Data Security:</label>
+              <input
+                  type="text"
+                  value={programDetails.RegionCode || ''}
+                  disabled={mode === 'edit'}
+                  className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
+              />
+          </div>
+      </div>
     </div>
   );
 };

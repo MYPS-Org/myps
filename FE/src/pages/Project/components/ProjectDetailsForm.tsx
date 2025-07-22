@@ -6,6 +6,7 @@ interface ProjectDetailsFormProps {
     onChange: (field: keyof ProjectDetails, value: any) => void;
     mode?: 'add' | 'edit';
     projectEnums?: ProjectEnums;
+    initialData?: any;
 }
 
 const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({ 
@@ -20,7 +21,6 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
     return (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-left text-lg font-semibold text-gray-900 mb-4">Project Details</h2>
             <div className="space-y-4 text-sm">
                 <div className="grid grid-cols-3 gap-5">
                     <div className='w-full flex flex-row text-left gap-5 items-center'>
