@@ -1,4 +1,4 @@
-import { httpClient } from "../../services/httpClient";
+import { httpClient, type ApiResponse } from "../../services/httpClient";
 import type { ProgramDetails, ComponentCost, ProjectDetails, MajorItemOfWork, FundingProfile, ProjectNote, ProjectEnums, ProjectFormPayload, ProjectPagination, AddNotes } from "./Model.d";
 
 // #region INITIALIZE Project Lists
@@ -208,7 +208,7 @@ export const deleteFundingProfile = async (fundingProfiles: FundingProfile[]) =>
 // #region Notes
 export const addNote = async (formData: AddNotes) => {
   try {
-    const response = await httpClient.post(`/Project/UploadNotes/`, formData, {
+    const response = await httpClient.post<ApiResponse>(`/Project/UploadNotes/`, formData, {
       preloaderMessage: 'Adding note...',
     });
     return response;

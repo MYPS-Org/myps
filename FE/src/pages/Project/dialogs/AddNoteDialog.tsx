@@ -58,7 +58,22 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({ isOpen, onClose, projectI
 
     try {
         console.log('Note added:', formData);
-        const response = await addNote(formData);
+        await addNote(formData)
+        .then((response) => {
+          if(response.Data.Message === 'Note added successfully') {
+            setFormData({
+                ProjectId: projectId,
+                Description: '',
+                File: {
+                  Name: '',
+                  Extension: '',
+                  ContentType: '',
+                  DataUrl: ''
+                },
+            });
+            onClose();
+          }
+        }).catch((error) => {});
         // if (response?.Data) {
         //     const newNote: ProjectNote = {
         //     Id: 0,
@@ -72,17 +87,6 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({ isOpen, onClose, projectI
         //     };
         //     onAddNote(newNote);
         // }
-        setFormData({
-            ProjectId: projectId,
-            Description: '',
-            File: {
-              Name: '',
-              Extension: '',
-              ContentType: '',
-              DataUrl: ''
-            },
-        });
-        onClose();
         } catch (error) {
         console.error('Error adding note:', error);
         } finally {
