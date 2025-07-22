@@ -18,32 +18,7 @@ namespace WebAPI.Controllers.Programs
     public class ProjectController : CoreController
     {
         public ProjectController(AppDbContext db) : base(db) { }
-        #region Program Lists
-        [AllowAnonymous]
-        [HttpPost]
-        public async Task<IActionResult> InitFilterProgram()
-        {
-            try
-            {
-                var AvailableStages = await _db.tProgramStageEnum.ToListAsync();
-                var AvailableTypes = await _db.tProgramTypeEnum.ToListAsync();
-                var AvailableStatuses = await _db.tProgramStatusEnum.ToListAsync();
-                var AvailableGroups = await _db.tGroups.ToListAsync();
-                var response = new
-                {
-                    Stages = AvailableStages,
-                    Types = AvailableTypes,
-                    Statuses = AvailableStatuses,
-                    Groups = AvailableGroups
-                };
-
-                return Ok(response); // Remove the extra wrapper
-            }
-            catch (Exception ex)
-            {
-                return ExceptionHandler(ex);
-            }
-        }
+        #region Project Lists
         [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ShowProjects([FromBody] ShowProjectDTO dto)
@@ -158,6 +133,7 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
+        #endregion
         [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> AddProject([FromBody] AddProjectDTO dto)
@@ -305,6 +281,7 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
+        #region Project Details
         [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ProjectDetails([FromBody] ProjectDetailsDTO dto)
@@ -422,7 +399,7 @@ namespace WebAPI.Controllers.Programs
                 }
                 string FileName = dto.File.FileName;
                 string Extension = Path.GetExtension(FileName);
-                string PathDir = $"{Appsetting.RootPath}/Resources/Projects/Notes/{Project.ReferenceId}";
+                string PathDir = $"{Appsetting.Resources.ProjectNotes}{Project.ReferenceId}";
                 if (!Directory.Exists(PathDir))
                 {
                     Directory.CreateDirectory(PathDir);
