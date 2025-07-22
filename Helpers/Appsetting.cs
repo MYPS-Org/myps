@@ -19,7 +19,7 @@ namespace Helpers
     public class ResourcesFolder
     {
         public string Main { get; set; } = string.Empty;
-        public string Project { get; set; } = string.Empty;
+        public string Projects { get; set; } = string.Empty;
         public string ProjectNotes { get; set; } = string.Empty;
     }
     public static class Appsetting
@@ -40,8 +40,8 @@ namespace Helpers
             LDAP = config.GetSection("LDAP").Get<LDAPConfig>()!;
             PIS = config.GetSection("PIS").Get<PISConfig>()!;
             Resources = config.GetSection("Resources").Get<ResourcesFolder>()!;
-            Resources.Project = Path.Combine(RootPath, Resources.Main, Resources.Project);
-            Resources.ProjectNotes = Path.Combine(Resources.Project, Resources.ProjectNotes);
+            Resources.Projects = Path.Combine(RootPath, Resources.Main, Resources.Projects);
+            Resources.ProjectNotes = Path.Combine(Resources.Projects, Resources.ProjectNotes);
         }
     }
 }

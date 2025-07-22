@@ -24,7 +24,7 @@ namespace Helpers
 
             string FileName = File.Name;
             string Extension = File.Extension;
-            var AllowedPngs = new[] { ".jpg", ".jpeg", ".png" };
+            var AllowedPngs = new[] { "jpg", "jpeg", "png" };
             return AllowedPngs.Contains(Extension) ? File.IsPhotoCorrupted() : (Extension == "pdf" ? File.IsPdfCorrupted() : File.IsExcelCorrupted());
         }
         public static bool IsPhotoCorrupted(this FileUpload file)
