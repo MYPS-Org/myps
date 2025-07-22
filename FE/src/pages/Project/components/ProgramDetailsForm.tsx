@@ -22,12 +22,6 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
   const [searchFormData, setSearchFormData] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-    useEffect(() => {
-      if (mode === 'edit' && initialData?.ProgramDetails) {
-        setProgramDetails(initialData.ProgramDetails);
-      }
-    }, [mode, initialData]);
-
   const setProgram = (value: string) => {
     console.log('Selected program value:', value);
       const selectedProgram = projectEnums?.Programs?.find(

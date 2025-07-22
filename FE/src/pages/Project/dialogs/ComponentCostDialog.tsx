@@ -112,7 +112,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                     <XMarkIcon className="h-6 w-6" />
                 </button>
             </div>
-                <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            <form onSubmit={handleSubmit} className="p-6 space-y-6">
                 {/* Component Type and ID Row */}
                 <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -226,8 +226,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                         {mode === 'add' ? 'Add' : 'Save'}
                     </Button>
                 </div>
-                </form>
-            </DialogPanel>
+            </form>
+        </DialogPanel>
         </div>
     </Dialog>
   );

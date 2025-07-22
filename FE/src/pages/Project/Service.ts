@@ -206,17 +206,21 @@ export const deleteFundingProfile = async (fundingProfiles: FundingProfile[]) =>
 // #endregion
 
 // #region Notes
-export const addNote = async (notes: AddNotes) => {
-    try {
-        const response = await httpClient.post<AddNotes>(`/Program/UploadNotes/`, notes, {
-            preloaderMessage: 'Adding note...'
-        });
-        return response;
-    } catch (ErrorResponse) {
-        console.error('Error adding note:', ErrorResponse);
-        throw ErrorResponse;
-    }
-}
+export const addNote = async (formData: FormData) => {
+  try {
+    const response = await httpClient.post(`/Project/UploadNotes/`, formData, {
+      headers: {
+        // Let the browser set this automatically for multipart/form-data
+        'Content-Type': 'multipart/form-data',
+      },
+      preloaderMessage: 'Adding note...',
+    });
+    return response;
+  } catch (error) {
+    console.error('Error adding note:', error);
+    throw error;
+  }
+};
 
 export const updateNote = async (notes: ProjectNote[]) => {
     try {

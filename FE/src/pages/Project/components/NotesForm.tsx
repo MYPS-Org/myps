@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
 import type { ProjectNote } from "../Model";
 import { Button } from "../../../components/tailwindui/button";
 import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from "../../../components/tailwindui/table";
+import AddNoteDialog from "../dialogs/AddNoteDialog";
 
 interface NotesFormProps {
   notes: ProjectNote[];
@@ -10,6 +11,7 @@ interface NotesFormProps {
   onEdit: (index: number, updatedNote: ProjectNote) => void;
   onDelete: (index: number) => void;
   onFileChange?: (index: number, file: File) => void; // Optional if upload handled externally
+  initialData?: any; // Optional initial data for dropdowns or other purposes
 }
 
 const NotesForm: React.FC<NotesFormProps> = ({
@@ -17,8 +19,21 @@ const NotesForm: React.FC<NotesFormProps> = ({
   onAdd,
   onEdit,
   onDelete,
-  onFileChange
+  onFileChange,
+  initialData
 }) => {
+  const [isAddNoteModalOpen, setIsAddNoteModalOpen] = useState(false);
+  const [localNotes, setLocalNotes] = useState(notes);
+
+  const handleAddNote = (note: ProjectNote) => {
+    setLocalNotes(prev => [...prev, note]);
+    if (onAdd) onAdd(); // Optionally notify parent
+  };
+
+  const handleLog = () => {
+    console.log('Notes:', initialData.ProjectDetails?.ReferenceId);
+  };
+
   const handleFileChange = (index: number, file: File) => {
     const fileName = file.name;
     const fileExtension = fileName.split('.').pop() || '';
@@ -38,7 +53,7 @@ const NotesForm: React.FC<NotesFormProps> = ({
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-semibold text-gray-900">Project Notes</h2>
-        <Button color="blue" onClick={onAdd}>
+        <Button color="blue" onClick={() => setIsAddNoteModalOpen(true)}>
           <PlusIcon className="w-4 h-4 mr-1" />
           Add Note
         </Button>
@@ -107,6 +122,15 @@ const NotesForm: React.FC<NotesFormProps> = ({
           ))}
         </TableBody>
       </Table>
+
+      {/* Dialog */}
+      <AddNoteDialog
+        isOpen={isAddNoteModalOpen}
+        onClose={() => setIsAddNoteModalOpen(false)}
+        projectId={initialData?.ProjectDetails?.ReferenceId || 0}
+        onAddNote={handleAddNote}
+      />
+      
     </div>
   );
 };

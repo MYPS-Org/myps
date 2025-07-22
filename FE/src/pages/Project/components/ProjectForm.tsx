@@ -23,7 +23,7 @@ import MajorItemOfWorksForm from './MajorItemOfWorksForm';
 import NotesForm from './NotesForm';
 import FundingProfileForm from './FundingProfileForm';
 import ActivitySection from './ActivitySection';
-import { addProjectDetails, getProjectEnums, updateProjectDetails } from '../Service';
+import { addProjectDetails, getProjectEnums, updateProjectDetails, addNote } from '../Service';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 
 interface ProjectFormProps {
@@ -91,6 +91,26 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
     }
   );
 
+  useEffect(() => {
+    // Load project enums
+    const loadProjectEnums = async () => {
+      try {
+        const response = await getProjectEnums();
+        console.log('Project Enums:', response.Data);
+        setProjectEnums(response.Data);
+      } catch (error) {
+        console.error('Error loading project enums:', error);
+      }
+    };
+
+    loadProjectEnums();
+
+    // Set program details if in edit mode and initialData is present
+    if (mode === 'edit' && initialData?.ProgramDetails) {
+      setProgramDetails(initialData.ProgramDetails);
+    }
+  }, [mode, initialData]);
+
   const [componentCosts, setComponentCosts] = useState<ComponentCost[]>(
     initialData?.ComponentCosts || []
   );
@@ -128,21 +148,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
   const [activities] = useState<Activity[]>(
     initialData?.Activities || []
   );
-
-  // Load project enums on component mount
-  useEffect(() => {
-    const loadProjectEnums = async () => {
-      try {
-        const response = await getProjectEnums();
-        console.log('Project Enums:', response.Data);
-        setProjectEnums(response.Data);
-      } catch (error) {
-        console.error('Error loading project enums:', error);
-      }
-    };
-    
-    loadProjectEnums();
-  }, []);
 
   const handleGoBack = () => {
     navigate('/projects');
@@ -212,7 +217,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
 // #endregion
 
 // #region Notes
-  const handleAddNote = () => {
+  const handleAddNote = async () => {
     const newNote: ProjectNote = {
       Id: 0,
       ProjectId: projectDetails.ReferenceId || '',
@@ -224,6 +229,13 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
       CreatedDate: new Date().toISOString().split('T')[0]
     };
     setNotes(prev => [...prev, newNote]);
+
+    // Prepare AddNotes payload (only ProjectId, Description, File)
+    const addNotesPayload = {
+      ProjectId: newNote.ProjectId,
+      Description: newNote.Description,
+      File: newNote.FilePath // You may need to handle actual file upload separately
+    };
   };
 
   const handleEditNote = (index: number, updatedNote: ProjectNote) => {
@@ -525,6 +537,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
               onAdd={handleAddNote}
               onEdit={handleEditNote}
               onDelete={handleDeleteNote}
+              initialData={initialData}
             />
           </div>
         </div>
