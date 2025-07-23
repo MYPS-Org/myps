@@ -255,7 +255,12 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = "Expected Parametes missing!", Title = "Parameter Error" });
                 }
-                var program = await _db.vProgramDetails.FirstOrDefaultAsync(x => x.ReferenceId == dto.ProgramId);
+                var CurrentProgramVersion = await _db.vPrograms.FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
+                if (CurrentProgramVersion == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Revisions table. Please contact administrator!", Title = "Program not found" });
+                }
+                var program = await _db.vProgramDetails.FirstOrDefaultAsync(x => x.RevisionNumber == CurrentProgramVersion.RevisionId && x.ReferenceId == dto.ProgramId);
                 var AvailableStages = await _db.tProgramStageEnum.ToListAsync();
                 var AvailableTypes = await _db.tProgramTypeEnum.ToListAsync();
                 var AvailableStatuses = await _db.tProgramStatusEnum.ToListAsync();
