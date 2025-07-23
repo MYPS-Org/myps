@@ -138,6 +138,11 @@ export interface FileEntity {
 	DataUrl: string
 }
 
+export interface ComponentCostFormType
+ {
+	ComponentCost: ComponentCost[];
+	ComponentCostYear: ComponentCostYear[];
+}
 
 // #region fetch data interfaces
 export interface ComponentCost {
@@ -152,6 +157,12 @@ export interface ComponentCost {
 	UpdatedBy: string;
 	UpdatedDate: string;
 }
+
+// Combined interface for UI (ComponentCost with its related ComponentCostYear)
+export interface ComponentCostWithYears extends ComponentCost {
+	CostPerYear?: ComponentCostYear[];
+}
+
 export interface ComponentCostYear {
 	Id: number;
 	ParentId: number;

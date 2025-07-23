@@ -10,7 +10,8 @@ import type {
   ProgramDetails,
   ProjectFormPayload,
   ProjectEnums,
-  Dropdowns
+  Dropdowns,
+  ComponentCostYear
 } from '../Model.d';
 
 import { Button } from '../../../components/tailwindui/button';
@@ -23,16 +24,15 @@ import MajorItemOfWorksForm from './MajorItemOfWorksForm';
 import NotesForm from './NotesForm';
 import FundingProfileForm from './FundingProfileForm';
 import ActivitySection from './ActivitySection';
-import { addProjectDetails, getProjectEnums, updateProjectDetails, addNote } from '../Service';
+import { addProjectDetails, getProjectEnums, updateEntireProject } from '../Service';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 
 interface ProjectFormProps {
   initialData?: ProjectFormPayload;
-  onSaveSection?: (sectionName: string, data: any) => Promise<void>;
   mode?: 'add' | 'edit';
 }
 
-const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, mode = 'add' }) => {
+const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) => {
 
   const navigate = useNavigate();
 
@@ -116,6 +116,16 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
     initialData?.ComponentCosts || []
   );
 
+   const [componentCostsYear, setComponentCostsYear] = useState<ComponentCostYear[]>(
+    initialData?.ComponentCostPerYear || []
+  );
+
+  // Combine componentCosts and componentCostsYear for UI
+  const componentCostsWithYears = componentCosts.map(cost => ({
+    ...cost,
+    CostPerYear: componentCostsYear.filter(year => year.ParentId === cost.Id)
+  }));
+
   const [majorItems, setMajorItems] = useState<MajorItemOfWork[]>(
     initialData?.MajorItemOfWorks || []
   );
@@ -173,23 +183,63 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
   };
 
   // #region Component Costs
-  const handleAddComponentCost = (newCost: ComponentCost) => {
-    setComponentCosts(prev => [...prev, newCost]);
+  const handleAddComponentCost = (newCost: ComponentCost, newCostYear?: ComponentCostYear) => {
+    // Generate a temporary ID for new cost (will be replaced when saved)
+    const tempId = Date.now(); // Simple temp ID
+    const costWithId = { ...newCost, Id: tempId };
+    
+    setComponentCosts(prev => [...prev, costWithId]);
+    
+    // If ComponentCostYear data is provided, add it to the componentCostsYear array
+    if (newCostYear) {
+      const costYearWithParentId = { 
+        ...newCostYear, 
+        ParentId: tempId, // Link to the component cost
+        Id: Date.now() + 1 // Ensure unique ID
+      };
+      setComponentCostsYear(prev => [...prev, costYearWithParentId]);
+      console.log('Added component cost year to staging:', costYearWithParentId);
+    }
+    
+    console.log('Added component cost to staging:', costWithId);
   };
 
   const handleEditComponentCost = (index: number, updatedCost: ComponentCost) => {
     setComponentCosts(prev => prev.map((cost, i) => i === index ? updatedCost : cost));
+    console.log('Updated component cost in staging:', updatedCost);
   };
 
   const handleDeleteComponentCost = (index: number) => {
-    setComponentCosts(prev => prev.filter((_, i) => i !== index));
+    const costToDelete = componentCosts[index];
+    if (costToDelete) {
+      setComponentCosts(prev => prev.filter((_, i) => i !== index));
+      // Also remove related ComponentCostYear entries
+      setComponentCostsYear(prev => prev.filter(year => year.ParentId !== costToDelete.Id));
+      console.log('Deleted component cost from staging:', costToDelete);
+    }
+  };
+
+  // Handlers for ComponentCostYear (these will be used when we implement year-by-year cost breakdown)
+  const handleAddComponentCostYear = (parentId: number, newCostYear: ComponentCostYear) => {
+    setComponentCostsYear(prev => [...prev, { ...newCostYear, ParentId: parentId }]);
+    console.log('Added component cost year to staging:', newCostYear);
+  };
+
+  const handleEditComponentCostYear = (costYearId: number, updatedCostYear: ComponentCostYear) => {
+    setComponentCostsYear(prev => prev.map(year => year.Id === costYearId ? updatedCostYear : year));
+    console.log('Updated component cost year in staging:', updatedCostYear);
+  };
+
+  const handleDeleteComponentCostYear = (costYearId: number) => {
+    setComponentCostsYear(prev => prev.filter(year => year.Id !== costYearId));
+    console.log('Deleted component cost year from staging:', costYearId);
   };
   // #endregion
 
   // #region Major Items of Work
   const handleAddMajorItem = () => {
     const newItem: MajorItemOfWork = {
-      Id: 0,
+      Id: Date.now(), // Temporary ID
       ProjectId: projectDetails.ReferenceId || '',
       ComponentId: 0,
       YearOfWork: new Date().getFullYear(),
@@ -207,14 +257,18 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
       UpdatedDate: new Date().toISOString()
     };
     setMajorItems(prev => [...prev, newItem]);
+    console.log('Added major item to staging:', newItem);
   };
 
   const handleEditMajorItem = (index: number, updatedItem: MajorItemOfWork) => {
     setMajorItems(prev => prev.map((item, i) => i === index ? updatedItem : item));
+    console.log('Updated major item in staging:', updatedItem);
   };
 
   const handleDeleteMajorItem = (index: number) => {
+    const itemToDelete = majorItems[index];
     setMajorItems(prev => prev.filter((_, i) => i !== index));
+    console.log('Deleted major item from staging:', itemToDelete);
   };
 // #endregion
 
@@ -241,7 +295,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
 // #region Funding Profiles
   const handleAddFundingProfile = () => {
     const newProfile: FundingProfile = {
-      Id: 0,
+      Id: Date.now(), // Temporary ID
       ProjectId: projectDetails.ReferenceId || '',
       Source: 0,
       Agreement: 0,
@@ -250,109 +304,38 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
       CreatedDate: new Date().toISOString().split('T')[0]
     };
     setFundingProfiles(prev => [...prev, newProfile]);
+    console.log('Added funding profile to staging:', newProfile);
   };
 
   const handleEditFundingProfile = (index: number, updatedProfile: FundingProfile) => {
     setFundingProfiles(prev => prev.map((profile, i) => i === index ? updatedProfile : profile));
+    console.log('Updated funding profile in staging:', updatedProfile);
   };
 
   const handleDeleteFundingProfile = (index: number) => {
+    const profileToDelete = fundingProfiles[index];
     setFundingProfiles(prev => prev.filter((_, i) => i !== index));
+    console.log('Deleted funding profile from staging:', profileToDelete);
   };
 // #endregion
 
-  // Individual section save handlers
-  const handleSaveSection = async (sectionName: string, data: any) => {
-    if (!onSaveSection) return;
-    
-    setSavingSection(sectionName);
-    try {
-      await onSaveSection(sectionName, data);
-      console.log(`${sectionName} saved successfully`);
-    } catch (error) {
-      console.error(`Error saving ${sectionName}:`, error);
-    } finally {
-      setSavingSection(null);
-    }
-  };
-
-  // const handleSaveProgramDetails = async () => {
-  //   await handleSaveSection('programDetails', programDetails);
-  // };
-
+  // Handler for adding new project (only for 'add' mode)
   const handleSaveProjectDetails = async () => {
+    if (mode !== 'add') return; // Only allow saving new projects in add mode
+    
     setSavingSection('projectDetails');
-    projectDetails.EmergencyMode = projectDetails.EmergencyMode ? true : false;
     try {
-      console.log('Saving project details:', projectDetails);
-      // Call your addProjectDetails service
+      console.log('Adding new project details:', projectDetails);
+      const response = await addProjectDetails({
+        ...projectDetails,
+        EmergencyMode: projectDetails.EmergencyMode ? true : false,
+      });
       
-      if (mode === 'add') {
-        const response = await addProjectDetails(projectDetails);
-        // Update projectDetails state with the returned data
-        if (response.Data.ProjectId) {
-          navigate(`/projects/Edit/${response.Data.ProjectId}`);
-        }
-      } else {
-        const response = await updateProjectDetails(projectDetails);
-        if (response.Data.ProjectId) {
-          navigate(`/projects/Edit/${response.Data.ProjectId}`);
-        }
+      if (response.Data.ProjectId) {
+        navigate(`/projects/Edit/${response.Data.ProjectId}`);
       }
     } catch (error) {
-      console.error('Error saving project details:', error);
-    } finally {
-      setSavingSection(null);
-    }
-  };
-  
-
-  const handleSaveComponentCosts = async () => {
-    setSavingSection('componentCosts');
-    try {
-      await handleSaveSection('componentCosts', componentCosts);
-    } catch (error) {
-      console.error('Error saving component costs:', error);
-    } finally {
-      setSavingSection(null);
-    }
-  };
-
-  const handleSaveMajorItems = async () => {
-    setSavingSection('majorItemsOfWork');
-    try {
-      // Call your save service for major items if needed
-      await handleSaveSection('majorItemsOfWork', majorItems);
-      // setMajorItems(response.Data[]);
-    } catch (error) {
-      console.error('Error saving major items of work:', error);
-    } finally {
-      setSavingSection(null);
-    }
-  };
-
-  const handleSaveNotes = async () => {
-    setSavingSection('projectNotes');
-    try {
-      console.log('Saving project notes:', notes);
-      // Call your save service for notes if needed
-      await handleSaveSection('projectNotes', notes);
-      // Optionally set a state like setIsNotesSaved(true);
-    } catch (error) {
-      console.error('Error saving project notes:', error);
-    } finally {
-      setSavingSection(null);
-    }
-  };
-
-  const handleSaveFundingProfiles = async () => {
-    setSavingSection('fundingProfiles');
-    try {
-      // Call your save service for funding profiles if needed
-      await handleSaveSection('fundingProfiles', fundingProfiles);
-      // Optionally set a state like setIsFundingProfilesSaved(true);
-    } catch (error) {
-      console.error('Error saving funding profiles:', error);
+      console.error('Error adding project details:', error);
     } finally {
       setSavingSection(null);
     }
@@ -360,12 +343,46 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
 
   const handleUpdateProject = async () => {
     setUpdateAllProject(true);
-    const response = await updateProjectDetails({
-      ...projectDetails,
-      EmergencyMode: projectDetails.EmergencyMode ? true : false,
-    });
-    if (response.Data.ProjectId) {
-      navigate(`/projects/Edit/${response.Data.ProjectId}`);
+    
+    try {
+      console.log('=== STAGING DATA BEFORE UPDATE ===');
+      console.log('Component Costs:', componentCosts);
+      console.log('Component Cost Years:', componentCostsYear);
+      console.log('Major Items:', majorItems);
+      console.log('Funding Profiles:', fundingProfiles);
+      
+      // Prepare data for backend matching the expected payload structure
+      const payload = {
+        ProjectDetails: {
+          ...projectDetails,
+          EmergencyMode: projectDetails.EmergencyMode ? true : false,
+        },
+        ComponentCosts: componentCosts,
+        ComponentCostYear: componentCostsYear, // Note: "ComponentCostYear" not "ComponentCostPerYear"
+        MajorItemOfWorks: majorItems,
+        FundingProfile: fundingProfiles,
+        // Include ProjectNotes if needed (you mentioned excluding it, but payload shows it)
+        // ProjectNotes: notes,
+      };
+
+      console.log('=== SENDING TO BACKEND (MATCHING EXPECTED PAYLOAD) ===');
+      console.log('Update payload:', payload);
+      
+      const response = await updateEntireProject(payload);
+      
+      // if (response.Data?.ProjectId) {
+      //   console.log('Project updated successfully, navigating to:', response.Data.ProjectId);
+      //   navigate(`/projects/Edit/${response.Data.ProjectId}`);
+      // } else {
+      //   console.log('Project updated successfully');
+      //   // Show success message or toast here
+      //   alert('Project updated successfully!');
+      // }
+    } catch (error) {
+      console.error('Error updating project:', error);
+      alert('Error updating project. Please try again.');
+    } finally {
+      setUpdateAllProject(false);
     }
   };
 
@@ -390,10 +407,11 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
               
             </div>
             <div className="flex space-x-3">
-                {mode === 'edit' && 
-                  <Button color="orange" className='cursor-pointer' onClick={handleUpdateProject} disabled={!updateAllProject}>Update Project
+                {mode === 'edit' && (
+                  <Button color="orange" className='cursor-pointer' onClick={handleUpdateProject} disabled={updateAllProject}>
+                    {updateAllProject ? 'Updating...' : 'Update Project'}
                   </Button>
-                }
+                )}
             </div>
         </div>
 
@@ -475,22 +493,12 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
       {/* Component Cost Section - Fill this first to populate Major Items */}
       <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
         <div className="px-4 py-6 sm:p-8">
-          <div className="flex justify-between items-center mb-4">
-            <div>
-              <h3 className="text-lg font-semibold leading-7 text-gray-900">Component Costs</h3>
-              <p className="text-sm text-blue-600 font-medium">⚠️ Add component costs first - they are required for Major Items of Work</p>
-            </div>
-            <Button
-              outline
-              onClick={handleSaveComponentCosts}
-              disabled={savingSection === 'componentCosts'}
-              className="text-sm"
-            >
-              {savingSection === 'componentCosts' ? 'Saving...' : 'Save Section'}
-            </Button>
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold leading-7 text-gray-900">Component Costs</h3>
+            <p className="text-sm text-blue-600 font-medium">⚠️ Add component costs first - they are required for Major Items of Work</p>
           </div>
           <ComponentCostForm
-            componentCosts={componentCosts}
+            componentCosts={componentCostsWithYears}
             onAdd={handleAddComponentCost}
             onEdit={handleEditComponentCost}
             onDelete={handleDeleteComponentCost}
@@ -502,16 +510,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
       {/* Major Item of Work Section */}
       <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
         <div className="px-4 py-6 sm:p-8">
-          <div className="flex justify-between items-center mb-6">
+          <div className="mb-6">
             <h3 className="text-lg font-semibold leading-7 text-gray-900">Major Items of Work</h3>
-            <Button
-              outline
-              onClick={handleSaveMajorItems}
-              disabled={savingSection === 'majorItemsOfWork'}
-              className="text-sm"
-            >
-              {savingSection === 'majorItemsOfWork' ? 'Saving...' : 'Save Section'}
-            </Button>
           </div>
           <MajorItemOfWorksForm
             majorItems={majorItems}
@@ -543,16 +543,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
         {/* Funding Profile Section */}
         <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
           <div className="px-4 py-6 sm:p-8">
-            <div className="flex justify-between items-center mb-6">
+            <div className="mb-6">
               <h3 className="text-lg font-semibold leading-7 text-gray-900">Funding Profiles</h3>
-              <Button
-                outline
-                onClick={handleSaveFundingProfiles}
-                disabled={savingSection === 'fundingProfiles'}
-                className="text-sm"
-              >
-                {savingSection === 'fundingProfiles' ? 'Saving...' : 'Save Section'}
-              </Button>
             </div>
             <FundingProfileForm
               fundingProfiles={fundingProfiles}
@@ -567,6 +559,28 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
 
       {/* Activities Section */}
       <ActivitySection activities={activities} />
+
+      {/* Update Project Button - Only show in edit mode */}
+      {mode === 'edit' && (
+        <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
+          <div className="px-4 py-6 sm:p-8">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-semibold leading-7 text-gray-900">Update Project</h3>
+                <p className="text-sm text-gray-600">Save all project sections (excludes Program Details and Notes)</p>
+              </div>
+              <Button
+                color="orange"
+                onClick={handleUpdateProject}
+                disabled={updateAllProject}
+                className="text-sm"
+              >
+                {updateAllProject ? 'Updating...' : 'Update Project'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
