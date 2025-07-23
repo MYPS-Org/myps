@@ -153,6 +153,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
           editingCost={editingIndex !== null ? componentCosts[editingIndex] : undefined}
           mode={modalMode}
           componentTypes={initialData?.Dropdowns?.ComponentTypes}
+          componentCosts={componentCosts}
         />
       </div>
   );

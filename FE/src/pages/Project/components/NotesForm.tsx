@@ -91,22 +91,9 @@ const NotesForm: React.FC<NotesFormProps> = ({
                 />
               </TableCell>
               <TableCell>
-                <div className="w-full px-2 py-1 border border-gray-300 rounded">
-                  <input
-                  type="file"
-                  accept="image/*,application/pdf"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      handleFileChange(index, file);
-                    }
-                  }}
-                  className="w-full cursor-pointer"
-                />
                 {note.FileName && (
-                  <span className="text-xs text-gray-500 block mt-1">{note.FileName}</span>
+                  <span className="text-xs text-gray-500 mt-1 cursor-pointer !text-blue-500 !underline" onClick={() => window.open(note.FilePath, '_blank')}>{note.FileName}</span>
                 )}
-                </div>
               </TableCell>
               <TableCell>
                 <button

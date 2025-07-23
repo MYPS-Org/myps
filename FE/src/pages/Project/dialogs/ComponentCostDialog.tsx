@@ -11,6 +11,7 @@ interface ComponentCostDialogProps {
   editingCost?: ComponentCostWithYears;
   mode: 'add' | 'edit';
   componentTypes: any[];
+  componentCosts: ComponentCost[];
 }
 
 const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
@@ -19,7 +20,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   onSave,
   editingCost,
   mode,
-  componentTypes
+  componentTypes,
+  componentCosts
 }) => {
   const [formData, setFormData] = useState({
     Id: 0,
@@ -80,6 +82,24 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
       [field]: value
     }));
   };
+
+  const [newComponentId, setNewComponentId] = useState('');
+  const handleChangeComponentId = (value: string) => {
+    const selectedComponent = componentTypes.find(type => type.Description === value);
+
+    // Count how many existing componentCosts have the same ComponentType
+    console.log('Selected component:', componentCosts);
+    const matchingCount = componentCosts.filter(item => item.ComponentType === value).length;
+
+    // Create the new ID: "DR-1", "DR-2", etc.
+    const generatedId = `${selectedComponent.Name}${matchingCount + 1}`;
+
+    setNewComponentId(generatedId)
+    // ✅ Save into formData so it's actually submitted
+    handleChange('ComponentId', generatedId);
+  }
+
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -165,30 +185,40 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                     <select 
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         value={formData.ComponentType}
-                        onChange={(e) => handleChange('ComponentType', e.target.value)}
+                        onChange={(e) => { 
+                            const value = e.target.value; 
+                            handleChange('ComponentType', value);
+                            handleChangeComponentId(value);
+                        }}
                     >
                         {componentTypes.map((type: any) => (
-                            <option key={type.Id} value={type.Id}>
+                            <option key={type.Id} value={type.description}>
                                 {type.Description}
                             </option>
                         ))}
                     </select>
                     </div>
                     <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Component ID
-                    </label>
-                    <select 
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Component ID
+                        </label>
+                        <input 
+                            className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500'
+                            type="text" 
+                            value={formData.ComponentId || newComponentId}
+                            readOnly
+                        />
+                    {/* <select 
                     className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500'
                     value={formData.ComponentId}
                     onChange={(e) => handleChange('ComponentId', e.target.value)}
                     >
                         {componentTypes.map((type: any) => (
                             <option key={type.Id} value={type.Id}>
-                                {type.Description}
+                                {type.Name}
                             </option>
                         ))}
-                    </select>
+                    </select> */}
                     </div>
                 </div>
 
