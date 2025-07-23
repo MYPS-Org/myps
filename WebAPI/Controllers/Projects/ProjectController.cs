@@ -331,8 +331,8 @@ namespace WebAPI.Controllers.Programs
                     MajorItemOfWorks = MajorItemOfWork,
                     ProjectNotes = Notes,
                     FundingProfile = Funding,
-                    TransactionLogs = Transactions,
                     ScopeOfWorks = ScopeOfWork,
+                    TransactionLogs = Transactions,
                     Dropdowns = new
                     {
                         //Project Details
@@ -1010,6 +1010,7 @@ namespace WebAPI.Controllers.Programs
                 #endregion
                 await _db.tTransactionLog.AddRangeAsync(transactionLogs);
                 await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
                 return Ok(new
                 {
                     Message = "Project Update wala pa lods",
