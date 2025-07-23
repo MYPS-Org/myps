@@ -98,7 +98,7 @@ export const updateEntireProject = async (payload: {
     ProjectNotes?: ProjectNote[];
 }) => {
     try {
-        const response = await httpClient.post(`/Project/UpdateEntireProject/`, payload, {
+        const response = await httpClient.post(`/Project/UpdateProjectDetails/`, payload, {
             preloaderMessage: 'Updating entire project...'
         });
         return response;
