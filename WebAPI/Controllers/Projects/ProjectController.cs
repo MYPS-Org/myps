@@ -1006,6 +1006,7 @@ namespace WebAPI.Controllers.Programs
                     #endregion
                 }
                 #endregion
+                await _db.tTransactionLog.AddRangeAsync(transactionLogs);
                 await _db.SaveChangesAsync();
                 return Ok(new
                 {
