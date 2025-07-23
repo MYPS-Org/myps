@@ -477,6 +477,15 @@ namespace WebAPI.Controllers.Programs
                 if(hasUpdated)
                 {
                     await _db.tProgramRevisions.AddAsync(NewProgramVersion);
+                    await _db.tProgramStages.AddAsync(new ProgramStages()
+                    {
+                        RevisionId = NewProgramVersion.RevisionNumber,
+                        StageId = getProgram.StageId,
+                        StageName = getProgram.StageName,
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate,
+                        IsPublished = getProgram.IsPublished
+                    });
                     await _db.tTransactionLog.AddRangeAsync(transactionLogs);
                     await _db.SaveChangesAsync();
                     await transaction.CommitAsync();
