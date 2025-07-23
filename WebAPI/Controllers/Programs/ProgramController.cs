@@ -345,7 +345,6 @@ namespace WebAPI.Controllers.Programs
             {
                 bool hasUpdated = false;
                 var getProgram = await _db.vProgramDetails.FirstOrDefaultAsync(x => x.ReferenceId == dto.ReferenceId);
-                var NewProgramVersion = new ProgramRevisions();
                 if (getProgram == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ReferenceId}' does not exist in the Revisions table. Please contact administrator!", Title = "Program not found" });
@@ -353,8 +352,24 @@ namespace WebAPI.Controllers.Programs
                 List<TransactionLog> transactionLogs = new List<TransactionLog>();
                 DateTime CurrentDate = DateTime.UtcNow;
                 if (string.IsNullOrEmpty(dto.Name)) { return new BadRequestObjectResult(new { Message = $"Program name field cannot be empty!", Title = "Update Failed" }); }
-                NewProgramVersion.ReferenceId = getProgram.ReferenceId;
-                if (dto.Name != getProgram.Name && !string.IsNullOrEmpty(dto.Name))
+                var NewProgramVersion = new ProgramRevisions()
+                {
+                    ReferenceId = getProgram.ReferenceId,
+                    RevisionNumber = getProgram.RevisionNumber + 1, // Increment the revision number
+                    Name = getProgram.Name,
+                    UserGroup = getProgram.UserGroup,
+                    RegionCode = getProgram.RegionCode,
+                    Status = getProgram.Status,
+                    Type = getProgram.Type,
+                    Cost = getProgram.Cost,
+                    YearStart = getProgram.YearStart,
+                    YearEnd = getProgram.YearEnd,
+                    CreatedBy = getProgram.CreatedBy,
+                    CreatedDate = getProgram.CreatedDate,
+                    UpdatedBy = _Session.UserId,
+                    UpdatedDate = CurrentDate
+                };
+                if (dto.Name != NewProgramVersion.Name && !string.IsNullOrEmpty(NewProgramVersion.Name))
                 {
                     hasUpdated = true;
                     NewProgramVersion.Name = dto.Name;
@@ -365,17 +380,17 @@ namespace WebAPI.Controllers.Programs
                         AffectedTable = "tProgramRevisions",
                         AffectedColumn = "Name",
                         NewValue = dto.Name,
-                        OldValue = getProgram.Name,
+                        OldValue = NewProgramVersion.Name,
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
                 }
                 var Groups = await _db.tGroups.FirstOrDefaultAsync(x => x.Id == dto.UserGroup);
                 if (Groups == null) { return new BadRequestObjectResult(new { Message = $"The selected User Group is invalid. Please ensure the User Group field has a valid value selected.", Title = "Update Failed" }); }
-                if (dto.UserGroup != getProgram.UserGroup)
+                if (dto.UserGroup != NewProgramVersion.UserGroup)
                 {
                     hasUpdated = true;
-                    var Current = await _db.tGroups.FirstOrDefaultAsync(x => x.Id == getProgram.UserGroup);
+                    var Current = await _db.tGroups.FirstOrDefaultAsync(x => x.Id == NewProgramVersion.UserGroup);
                     NewProgramVersion.UserGroup = dto.UserGroup;
                     transactionLogs.Add(new TransactionLog
                     {
@@ -391,10 +406,10 @@ namespace WebAPI.Controllers.Programs
                 }
                 var Status = await _db.tProgramStatusEnum.FirstOrDefaultAsync(x => x.Enum == (int)dto.Status);
                 if (Status == null) { return new BadRequestObjectResult(new { Message = $"The selected Status is invalid. Please ensure the Status field has a valid value selected.", Title = "Update Failed" }); }
-                if (dto.Status != getProgram.Status)
+                if (dto.Status != NewProgramVersion.Status)
                 {
                     hasUpdated = true;
-                    var Current = await _db.tProgramStatusEnum.FirstOrDefaultAsync(x => x.Enum == (int)dto.Status);
+                    var Current = await _db.tProgramStatusEnum.FirstOrDefaultAsync(x => x.Enum == (int)NewProgramVersion.Status);
                     NewProgramVersion.Status = dto.Status;
                     transactionLogs.Add(new TransactionLog
                     {
@@ -410,10 +425,10 @@ namespace WebAPI.Controllers.Programs
                 }
                 var Types = await _db.tProgramTypeEnum.FirstOrDefaultAsync(x => x.Enum == (int)dto.Type);
                 if (Types == null) { return new BadRequestObjectResult(new { Message = $"The selected Type is invalid. Please ensure the Type field has a valid value selected.", Title = "Update Failed" }); }
-                if (dto.Type != getProgram.Type)
+                if (dto.Type != NewProgramVersion.Type)
                 {
                     hasUpdated = true;
-                    var Current = await _db.tProgramTypeEnum.FirstOrDefaultAsync(x => x.Enum == (int)dto.Type);
+                    var Current = await _db.tProgramTypeEnum.FirstOrDefaultAsync(x => x.Enum == (int)NewProgramVersion.Type);
                     NewProgramVersion.Type = dto.Type;
                     transactionLogs.Add(new TransactionLog
                     {
@@ -427,7 +442,7 @@ namespace WebAPI.Controllers.Programs
                         CreatedDate = CurrentDate
                     });
                 }
-                if (dto.YearStart != getProgram.YearStart)
+                if (dto.YearStart != NewProgramVersion.YearStart)
                 {
                     hasUpdated = true;
                     NewProgramVersion.YearStart = dto.YearStart;
@@ -438,12 +453,12 @@ namespace WebAPI.Controllers.Programs
                         AffectedTable = "tProgramRevisions",
                         AffectedColumn = "YearStart",
                         NewValue = dto.YearStart.ToString(),
-                        OldValue = getProgram.YearStart.ToString(),
+                        OldValue = NewProgramVersion.YearStart.ToString(),
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
                 }
-                if (dto.YearEnd != getProgram.YearEnd)
+                if (dto.YearEnd != NewProgramVersion.YearEnd)
                 {
                     hasUpdated = true;
                     NewProgramVersion.YearEnd = dto.YearEnd;
@@ -454,18 +469,13 @@ namespace WebAPI.Controllers.Programs
                         AffectedTable = "tProgramRevisions",
                         AffectedColumn = "YearEnd",
                         NewValue = dto.YearEnd.ToString(),
-                        OldValue = getProgram.YearEnd.ToString(),
+                        OldValue = NewProgramVersion.YearEnd.ToString(),
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
                 }
                 if(hasUpdated)
                 {
-                    NewProgramVersion.UpdatedBy = _Session.UserId;
-                    NewProgramVersion.UpdatedDate = CurrentDate;
-                    NewProgramVersion.RevisionNumber = getProgram.RevisionNumber;
-                    NewProgramVersion.CreatedBy = _Session.UserId;
-                    NewProgramVersion.CreatedDate = DateTime.UtcNow;
                     await _db.tProgramRevisions.AddAsync(NewProgramVersion);
                     await _db.tTransactionLog.AddRangeAsync(transactionLogs);
                     await _db.SaveChangesAsync();
