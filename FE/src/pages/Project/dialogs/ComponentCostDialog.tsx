@@ -3,7 +3,6 @@ import { Dialog, DialogTitle, DialogPanel } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import type { ComponentCost, ComponentCostYear, ComponentCostWithYears } from '../Model';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { addComponentCost, initProgramDetails } from '../Service';
 
 interface ComponentCostDialogProps {
   isOpen: boolean;
@@ -17,7 +16,7 @@ interface ComponentCostDialogProps {
 const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   isOpen,
   onClose,
-//   onSave,
+  onSave,
   editingCost,
   mode,
   componentTypes
@@ -81,18 +80,18 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
       [field]: value
     }));
   };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     try {
         // Only save the ComponentCost part, not the CostPerYear
-        const { CostPerYear, ...componentCostData } = formData;
+        const { CostPerYear, ApprovalDate, PAPCode, StartDate, EndDate, ...componentCostData } = formData;
         
-        addComponentCost(componentCostData as ComponentCost);
-
-    // onSave(finalCost);
-    onClose();
+        // ginamit ko to para malipat yung data sa parent component (staging) pero dadaan muna sya sa componencostform
+        // maghahandle ng add itong yung sa ProjectForm.tsx
+        onSave(componentCostData as ComponentCost);
+        console.log('Component cost saved:', componentCostData);
+        onClose();
     } catch (error) {
       console.error('Error saving component cost:', error);
     }
