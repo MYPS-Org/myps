@@ -258,7 +258,7 @@ namespace WebAPI.Controllers.Programs
                 var CurrentProgramVersion = await _db.vPrograms.FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
                 if (CurrentProgramVersion == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Revisions table. Please contact administrator!", Title = "Program not found" });
+                    return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Programs table. Please contact administrator!", Title = "Program not found" });
                 }
                 var program = await _db.vProgramDetails.FirstOrDefaultAsync(x => x.RevisionNumber == CurrentProgramVersion.RevisionId && x.ReferenceId == dto.ProgramId);
                 var AvailableStages = await _db.tProgramStageEnum.ToListAsync();
@@ -349,7 +349,12 @@ namespace WebAPI.Controllers.Programs
             try
             {
                 bool hasUpdated = false;
-                var getProgram = await _db.vProgramDetails.FirstOrDefaultAsync(x => x.ReferenceId == dto.ReferenceId);
+                var CurrentProgramVersion = await _db.vPrograms.FirstOrDefaultAsync(x => x.ProgramId == dto.ReferenceId);
+                if (CurrentProgramVersion == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ReferenceId}' does not exist in the Programs table. Please contact administrator!", Title = "Program not found" });
+                }
+                var getProgram = await _db.vProgramDetails.FirstOrDefaultAsync(x => x.RevisionNumber == CurrentProgramVersion.RevisionId && x.ReferenceId == dto.ReferenceId);
                 if (getProgram == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ReferenceId}' does not exist in the Revisions table. Please contact administrator!", Title = "Program not found" });
