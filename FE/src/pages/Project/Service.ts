@@ -1,5 +1,5 @@
 import { httpClient, type ApiResponse } from "../../services/httpClient";
-import type { ProjectLists, ProgramDetails, ComponentCost, ProjectDetails, MajorItemOfWork, FundingProfile, ProjectNote, ProjectEnums, ProjectFormPayload, ProjectPagination, AddNotes } from "./Model.d";
+import type { ProjectLists, ProgramDetails, ComponentCost, ComponentCostYear, ProjectDetails, MajorItemOfWork, FundingProfile, ProjectNote, ProjectEnums, ProjectFormPayload, ProjectPagination, AddNotes } from "./Model.d";
 
 // #region INITIALIZE Project Lists
 export const fetchProject = async (data: ProjectPagination) => {
@@ -84,6 +84,26 @@ export const updateProjectDetails = async (projectDetails: ProjectDetails) => {
         return response;
     } catch (ErrorResponse) {
         console.error('Error updating project details:', ErrorResponse);
+        throw ErrorResponse;
+    }
+};
+
+// Update entire project (all sections except ProgramDetails and Notes)
+export const updateEntireProject = async (payload: {
+    ProjectDetails: ProjectDetails;
+    ComponentCosts: ComponentCost[];
+    ComponentCostYear: ComponentCostYear[];
+    MajorItemOfWorks: MajorItemOfWork[];
+    FundingProfile: FundingProfile[];
+    ProjectNotes?: ProjectNote[];
+}) => {
+    try {
+        const response = await httpClient.post(`/Project/UpdateEntireProject/`, payload, {
+            preloaderMessage: 'Updating entire project...'
+        });
+        return response;
+    } catch (ErrorResponse) {
+        console.error('Error updating entire project:', ErrorResponse);
         throw ErrorResponse;
     }
 };
