@@ -95,7 +95,6 @@ export const updateEntireProject = async (payload: {
     ComponentCostYear: ComponentCostYear[];
     MajorItemOfWorks: MajorItemOfWork[];
     FundingProfile: FundingProfile[];
-    ProjectNotes?: ProjectNote[];
 }) => {
     try {
         const response = await httpClient.post(`/Project/UpdateEntireProject/`, payload, {
