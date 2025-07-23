@@ -2,19 +2,19 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import type { ProjectDetails, ProjectPagination } from '../Model.d'; // Adjust the import path as necessary
+import type { ProjectLists, ProjectPagination } from '../Model.d'; // Adjust the import path as necessary
 import { fetchProject } from '../Service'; // Adjust the import path as necessary
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '../../../components/tailwindui/table'; // Adjust the import path as necessary
 
 import { Button } from '../../../components/tailwindui/button'; // Adjust the import path as necessary
-import { 
+import {
     PlusIcon, 
     MagnifyingGlassIcon
 } from '@heroicons/react/24/outline'; // Adjust the import path as necessary
 
 const Project: React.FC = () => {
     const navigate = useNavigate();
-    const [projects, setProjects] = useState<ProjectDetails>(); // Initialize with an empty array of ProjectDetails
+    const [projects, setProjects] = useState<ProjectLists>(); // Initialize with an empty array of ProjectDetails
 
     const [ProgramFilters, setProgramFilters] = useState<ProjectPagination>({
         filters: {
@@ -27,7 +27,7 @@ const Project: React.FC = () => {
         limit: 20
     });
 
-    const [ProjectData, setProjectData] = useState<PaginationResponse<ProjectDetails>>({
+    const [ProjectData, setProjectData] = useState<PaginationResponse<ProjectLists>>({
         total: 0,
         page: 1,
         limit: 10,
