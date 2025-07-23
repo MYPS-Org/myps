@@ -178,7 +178,7 @@ const ProgramDetail: React.FC = () => {
           {/* Left Column - Form Fields */}
           
           <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <div>
                 <label className="block text-left text-sm font-medium text-gray-700 mb-1">Name</label>
                 <input
@@ -188,12 +188,24 @@ const ProgramDetail: React.FC = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
                 />
               </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-left text-sm font-medium text-gray-700 mb-1">Start Year</label>
                 <input
-                  type="text"
+                  type="number"
+                  onChange={(e) => handleChange('YearStart', e.target.value)}
                   value={programEnums?.Details.YearStart}
-                  readOnly
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
+                />
+              </div>
+              <div>
+                <label className="block text-left text-sm font-medium text-gray-700 mb-1">End Year</label>
+                <input
+                  type="number"
+                  onChange={(e) => handleChange('YearEnd', e.target.value)}
+                  value={programEnums?.Details.YearEnd}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
                 />
               </div>
