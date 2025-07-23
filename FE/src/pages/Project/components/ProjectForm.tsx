@@ -561,7 +561,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       <ActivitySection activities={activities} />
 
       {/* Update Project Button - Only show in edit mode */}
-      {mode === 'edit' && (
+      {/* {mode === 'edit' && (
         <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
           <div className="px-4 py-6 sm:p-8">
             <div className="flex justify-between items-center">
@@ -580,7 +580,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
             </div>
           </div>
         </div>
-      )}
+      )} */}
     </div>
   );
 };
