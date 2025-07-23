@@ -320,6 +320,7 @@ namespace WebAPI.Controllers.Programs
                 var Agreement = await _db.tProjectFundingAgreementLists.ToListAsync();
                 var Source = await _db.tProjectFundingSource.ToListAsync();
 
+                var ScopeOfWork = await _db.tProjectScopeOfWorkEnum.ToListAsync();
                 var Transactions = await _db.tTransactionLog.Where(x => x.TransactionId == dto.ProjectId).ToListAsync();
                 return Ok(new
                 {
@@ -331,6 +332,7 @@ namespace WebAPI.Controllers.Programs
                     ProjectNotes = Notes,
                     FundingProfile = Funding,
                     TransactionLogs = Transactions,
+                    ScopeOfWorks = ScopeOfWork,
                     Dropdowns = new
                     {
                         //Project Details
