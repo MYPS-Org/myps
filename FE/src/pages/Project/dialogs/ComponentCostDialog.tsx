@@ -95,6 +95,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     const generatedId = `${selectedComponent.Name}${matchingCount + 1}`;
 
     setNewComponentId(generatedId)
+    // ✅ Save into formData so it's actually submitted
+    handleChange('ComponentId', generatedId);
   }
 
 

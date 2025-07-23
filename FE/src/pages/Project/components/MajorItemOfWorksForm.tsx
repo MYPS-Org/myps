@@ -53,7 +53,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                   >
                     <option value="">Select Component</option>
                     {componentCosts.map(cost => (
-                      <option key={cost.Id} value={cost.Id}>{cost.Id}</option>
+                      <option key={cost.Id} value={cost.Id}>{cost.ComponentName}</option>
                     ))}
                   </select>
                 </TableCell>
