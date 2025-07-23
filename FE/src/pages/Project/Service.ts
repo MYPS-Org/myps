@@ -1,10 +1,10 @@
 import { httpClient, type ApiResponse } from "../../services/httpClient";
-import type { ProgramDetails, ComponentCost, ProjectDetails, MajorItemOfWork, FundingProfile, ProjectNote, ProjectEnums, ProjectFormPayload, ProjectPagination, AddNotes } from "./Model.d";
+import type { ProjectLists, ProgramDetails, ComponentCost, ProjectDetails, MajorItemOfWork, FundingProfile, ProjectNote, ProjectEnums, ProjectFormPayload, ProjectPagination, AddNotes } from "./Model.d";
 
 // #region INITIALIZE Project Lists
 export const fetchProject = async (data: ProjectPagination) => {
     try {
-        const response = await httpClient.post<PaginationResponse<ProjectDetails>>(`/Project/showprojects`, data, {
+        const response = await httpClient.post<PaginationResponse<ProjectLists>>(`/Project/showprojects`, data, {
             preloaderMessage: 'Loading project details...'
         });
         return response;

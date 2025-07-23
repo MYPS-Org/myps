@@ -33,7 +33,7 @@ namespace WebAPI.Controllers.Programs
                 }
                 if (!string.IsNullOrEmpty(dto.SortField))
                 {
-                    bool isValid = typeof(ProjectDetails)
+                    bool isValid = typeof(DBHelper.Models.Views.Projects)
                         .GetProperties(BindingFlags.Public | BindingFlags.Instance)
                         .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
                     if (!isValid)
@@ -52,7 +52,7 @@ namespace WebAPI.Controllers.Programs
                 if (dto.page < 1) dto.page = 1;
                 if (dto.limit < 1) dto.limit = 10;
 
-                var baseQuery = _db.vProjectDetails.AsNoTracking();
+                var baseQuery = _db.vProjects.AsNoTracking();
 
                 // Apply filters to base query
                 if (!string.IsNullOrEmpty(dto.Filters?.ProgramId))
@@ -71,7 +71,7 @@ namespace WebAPI.Controllers.Programs
                         : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField));
 
                 // Apply pagination and execute query
-                 List<ProjectDetails> permissionLists = await sortedQuery
+                 List<DBHelper.Models.Views.Projects> permissionLists = await sortedQuery
                     .Skip((dto.page - 1) * dto.limit)
                     .Take(dto.limit)
                     .ToListAsync();
@@ -222,7 +222,7 @@ namespace WebAPI.Controllers.Programs
                     .FirstOrDefault() ?? string.Empty;
                 string ReferenceId = $"{ProgramDetails.StageName}{Functions.GenerateProjec2ndSegment(ProgramDetails.YearEnd)}{UID}";
                 DateTime CurrentDate = DateTime.UtcNow;
-                var SubmitProject = new Projects()
+                var SubmitProject = new DBHelper.Models.Table.Projects()
                 {
                     ProgramId = ProgramDetails.ReferenceId,
                     ReferenceId = ReferenceId,

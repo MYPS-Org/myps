@@ -59,6 +59,7 @@ namespace DBHelper.Data
         public DbSet<Models.Views.Permissions> vPermissions { get; set; }
         public DbSet<Models.Views.Programs> vPrograms { get; set; }
         public DbSet<Models.Views.ProgramDetails> vProgramDetails { get; set; }
+        public DbSet<Models.Views.Projects> vProjects { get; set; }
         public DbSet<Models.Views.ProjectDetails> vProjectDetails { get; set; }
         #endregion
         protected override void OnModelCreating(ModelBuilder modelBuilder)

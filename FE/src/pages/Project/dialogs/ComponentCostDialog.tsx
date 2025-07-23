@@ -3,7 +3,7 @@ import { Dialog, DialogTitle, DialogPanel } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import type { ComponentCost } from '../Model';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { addComponentCost } from '../Service';
+import { addComponentCost, initProgramDetails } from '../Service';
 
 interface ComponentCostDialogProps {
   isOpen: boolean;

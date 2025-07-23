@@ -78,6 +78,35 @@ export interface ProjectDetails {
 	UpdatedBy?: string;
 	UpdatedDate?: string;
 }
+export interface ProjectLists {
+	Id: number;
+	ProgramId: string;
+	ProgramName: string;
+	ReferenceId: string;
+	RevisionNumber: number;
+	Description: string;
+	Category?: string;
+	Thrust?: string;
+	Origin?: string;
+	City?: string;
+	LegislativeDistrict?: string;
+	OperatingUnit?: string;
+	ImplementingOffice?: string;
+	DEO?: string;
+	Region?: string;
+	Agency?: string;
+	ImplementationMode?: string;
+	EmergencyMode?: string;
+	Feasibility?: string;
+	DetailedDesign?: string;
+	RowAvailable?: string;
+	StageName: string;
+	CreatedBy: string;
+	CreatedDate: string;
+	UpdateBy?: string;
+	UpdatedDate?: string;
+	IsPublished: boolean;
+}
 
 export interface Activity {
   Id: string;
