@@ -70,48 +70,22 @@ const NotesForm: React.FC<NotesFormProps> = ({
           {notes.map((note, index) => (
             <TableRow key={`${note.Id}-${index}-${note.CreatedDate}`}>
               <TableCell>
-                <textarea
-                  value={note.Description}
-                  onChange={(e) =>
-                    onEdit(index, { ...note, Description: e.target.value })
-                  }
-                  className="w-full px-2 py-1 border border-gray-300 rounded"
-                  placeholder="Enter note description"
-                  rows={1}
-                />
+                
+                  <span title={note.Description} className="text-xs text-gray-500 mt-1">{note.Description}</span>
               </TableCell>
               <TableCell>
-                <input
-                  type="date"
-                  value={note.CreatedDate?.split('T')[0] || note.CreatedDate || ''}
-                  onChange={(e) =>
-                    onEdit(index, { ...note, CreatedDate: e.target.value })
-                  }
-                  className="w-full px-2 py-1 border border-gray-300 rounded"
-                />
+                <span className="text-xs text-gray-500 mt-1">{note.CreatedDate ? new Date(note.CreatedDate).toLocaleDateString() : '-'}</span>
+                
               </TableCell>
               <TableCell>
-                <div className="w-full px-2 py-1 border border-gray-300 rounded">
-                  <input
-                  type="file"
-                  accept="image/*,application/pdf"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      handleFileChange(index, file);
-                    }
-                  }}
-                  className="w-full cursor-pointer"
-                />
                 {note.FileName && (
-                  <span className="text-xs text-gray-500 block mt-1">{note.FileName}</span>
+                  <span className="text-xs text-gray-500 mt-1 cursor-pointer !text-blue-500 !underline" onClick={() => window.open(`/${note.FilePath}`, '_blank')}>{note.FileName}</span>
                 )}
-                </div>
               </TableCell>
               <TableCell>
                 <button
                   onClick={() => onDelete(index)}
-                  className="text-red-600 hover:text-red-800"
+                  className="text-red-600 hover:text-red-800 cursor-pointer"
                 >
                   <TrashIcon className="w-4 h-4" />
                 </button>

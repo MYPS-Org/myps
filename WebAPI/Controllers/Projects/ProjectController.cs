@@ -1054,7 +1054,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = "Uploaded file is empty!", Title = "File Empty" });
                 }
-                await System.IO.File.WriteAllBytesAsync(FilePath, fileBytes);
+                await System.IO.File.WriteAllBytesAsync(Path.Combine(Appsetting.RootPath, FilePath), fileBytes);
                 var AddNotes = new ProjectNotes()
                 {
                     ProjectId = dto.ProjectId,

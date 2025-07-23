@@ -40,7 +40,7 @@ namespace Helpers
             LDAP = config.GetSection("LDAP").Get<LDAPConfig>()!;
             PIS = config.GetSection("PIS").Get<PISConfig>()!;
             Resources = config.GetSection("Resources").Get<ResourcesFolder>()!;
-            Resources.Projects = Path.Combine(RootPath, Resources.Main, Resources.Projects);
+            Resources.Projects = Path.Combine(Resources.Main, Resources.Projects);
             Resources.ProjectNotes = Path.Combine(Resources.Projects, Resources.ProjectNotes);
         }
     }
