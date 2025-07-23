@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogTitle, DialogPanel } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
-import type { ComponentCost } from '../Model';
+import type { ComponentCost, ComponentCostYear, ComponentCostWithYears } from '../Model';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { addComponentCost } from '../Service';
 
@@ -9,7 +9,7 @@ interface ComponentCostDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (cost: ComponentCost) => void;
-  editingCost?: ComponentCost;
+  editingCost?: ComponentCostWithYears;
   mode: 'add' | 'edit';
   componentTypes: any[];
 }
@@ -22,7 +22,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   mode,
   componentTypes
 }) => {
-  const [formData, setFormData] = useState<ComponentCost>({
+  const [formData, setFormData] = useState({
     Id: 0,
     ProjectId: '',
     ComponentType: '',
@@ -32,12 +32,26 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     CreatedBy: '',
     CreatedDate: new Date().toISOString(),
     UpdatedBy: '',
-    UpdatedDate: new Date().toISOString()
+    UpdatedDate: new Date().toISOString(),
+    CostPerYear: [] as ComponentCostYear[],
+    // Fields for ComponentCostYear
+    ApprovalDate: '',
+    PAPCode: '',
+    StartDate: new Date().toISOString(),
+    EndDate: new Date().toISOString(),
   });
 
   useEffect(() => {
     if (editingCost && mode === 'edit') {
-      setFormData(editingCost);
+      setFormData({
+        ...editingCost,
+        CostPerYear: editingCost.CostPerYear || [],
+        // Initialize ComponentCostYear fields from the first year if available
+        ApprovalDate: editingCost.CostPerYear?.[0]?.ApprovalDate || '',
+        PAPCode: editingCost.CostPerYear?.[0]?.PAPCode || '',
+        StartDate: editingCost.CostPerYear?.[0]?.StartDate || new Date().toISOString(),
+        EndDate: editingCost.CostPerYear?.[0]?.EndDate || new Date().toISOString(),
+      });
     } else if (mode === 'add') {
       // Reset form for new entry
       setFormData({
@@ -50,12 +64,18 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         CreatedBy: '',
         CreatedDate: new Date().toISOString(),
         UpdatedBy: '',
-        UpdatedDate: new Date().toISOString()
+        UpdatedDate: new Date().toISOString(),
+        CostPerYear: [] as ComponentCostYear[],
+        // Fields for ComponentCostYear
+        ApprovalDate: '',
+        PAPCode: '',
+        StartDate: new Date().toISOString(),
+        EndDate: new Date().toISOString(),
       });
     }
   }, [editingCost, mode, isOpen]);
 
-  const handleChange = (field: keyof ComponentCost, value: string | number) => {
+  const handleChange = (field: string, value: string | number) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -66,7 +86,10 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     e.preventDefault();
     
     try {
-        addComponentCost(formData)
+        // Only save the ComponentCost part, not the CostPerYear
+        const { CostPerYear, ...componentCostData } = formData;
+        
+        addComponentCost(componentCostData as ComponentCost);
 
     // onSave(finalCost);
     onClose();
@@ -86,7 +109,13 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
             CreatedBy: '',
             CreatedDate: new Date().toISOString(),
             UpdatedBy: '',
-            UpdatedDate: new Date().toISOString()
+            UpdatedDate: new Date().toISOString(),
+            CostPerYear: [] as ComponentCostYear[],
+            // Fields for ComponentCostYear
+            ApprovalDate: '',
+            PAPCode: '',
+            StartDate: new Date().toISOString(),
+            EndDate: new Date().toISOString(),
         });
     };
 
@@ -170,7 +199,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                 <div className="grid grid-cols-5 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Total Cost
+                            Cost
                         </label>
                         <input
                             type="number"
@@ -183,45 +212,45 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Created By
+                            Date of Approval
                         </label>
                         <input
                             type="text"
-                            value={formData.CreatedBy}
-                            onChange={(e) => handleChange('CreatedBy', e.target.value)}
+                            value={formData.ApprovalDate}
+                            onChange={(e) => handleChange('ApprovalDate', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Created Date
-                        </label>
-                        <input
-                            type="date"
-                            value={formData.CreatedDate.split('T')[0]}
-                            onChange={(e) => handleChange('CreatedDate', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Updated By
+                            UACsPAP Code
                         </label>
                         <input
                             type="text"
-                            value={formData.UpdatedBy}
-                            onChange={(e) => handleChange('UpdatedBy', e.target.value)}
+                            value={formData.PAPCode}
+                            onChange={(e) => handleChange('PAPCode', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Updated Date
+                            Planned Start Date
                         </label>
                         <input
                             type="date"
-                            value={formData.UpdatedDate.split('T')[0]}
-                            onChange={(e) => handleChange('UpdatedDate', e.target.value)}
+                            value={formData.StartDate.split('T')[0]}
+                            onChange={(e) => handleChange('StartDate', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Planned End Date
+                        </label>
+                        <input
+                            type="date"
+                            value={formData.EndDate.split('T')[0]}
+                            onChange={(e) => handleChange('EndDate', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                     </div>

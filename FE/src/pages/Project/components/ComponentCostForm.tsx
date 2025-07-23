@@ -1,12 +1,12 @@
 import React, { useState } from "react";
-import type { ComponentCost } from "../Model";
+import type { ComponentCost, ComponentCostWithYears } from "../Model";
 import { Button } from "../../../components/tailwindui/button";
 import { PlusIcon, TrashIcon, PencilIcon } from "@heroicons/react/24/outline";
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from "../../../components/tailwindui/table";
 import { ComponentCostDialog } from "../dialogs";
 
 interface ComponentCostFormProps {
-  componentCosts: ComponentCost[];
+  componentCosts: ComponentCostWithYears[];
   onAdd: (cost: ComponentCost) => void;
   onEdit: (index: number, updatedCost: ComponentCost) => void;
   onDelete: (index: number) => void;

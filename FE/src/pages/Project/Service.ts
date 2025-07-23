@@ -87,6 +87,48 @@ export const updateProjectDetails = async (projectDetails: ProjectDetails) => {
         throw ErrorResponse;
     }
 };
+
+// Update entire project (all sections except ProgramDetails and Notes)
+export const updateEntireProject = async (payload: {
+    ProjectDetails: ProjectDetails;
+    ComponentCosts: ComponentCost[];
+    ComponentCostPerYear: any[];
+    MajorItemOfWorks: MajorItemOfWork[];
+    FundingProfile: FundingProfile[];
+    Dropdowns: any;
+    Activities: any[];
+}) => {
+    try {
+        // Since there's no single endpoint, we'll call multiple endpoints
+        const projectResponse = await updateProjectDetails(payload.ProjectDetails);
+        
+        // Update component costs if any
+        if (payload.ComponentCosts.length > 0) {
+            for (const cost of payload.ComponentCosts) {
+                if (cost.Id > 0) {
+                    await updateComponentCost(cost);
+                } else {
+                    await addComponentCost(cost);
+                }
+            }
+        }
+
+        // Update Major Items of Work if any
+        if (payload.MajorItemOfWorks.length > 0) {
+            await updateMajorItemOfWork(payload.MajorItemOfWorks);
+        }
+
+        // Update Funding Profiles if any
+        if (payload.FundingProfile.length > 0) {
+            await updateFundingProfile(payload.FundingProfile);
+        }
+
+        return projectResponse;
+    } catch (ErrorResponse) {
+        console.error('Error updating entire project:', ErrorResponse);
+        throw ErrorResponse;
+    }
+};
 // #endregion
 
 // #region Component Costs

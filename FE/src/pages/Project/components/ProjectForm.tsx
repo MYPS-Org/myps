@@ -10,7 +10,8 @@ import type {
   ProgramDetails,
   ProjectFormPayload,
   ProjectEnums,
-  Dropdowns
+  Dropdowns,
+  ComponentCostYear
 } from '../Model.d';
 
 import { Button } from '../../../components/tailwindui/button';
@@ -23,7 +24,7 @@ import MajorItemOfWorksForm from './MajorItemOfWorksForm';
 import NotesForm from './NotesForm';
 import FundingProfileForm from './FundingProfileForm';
 import ActivitySection from './ActivitySection';
-import { addProjectDetails, getProjectEnums, updateProjectDetails, addNote } from '../Service';
+import { addProjectDetails, getProjectEnums, updateProjectDetails, updateEntireProject, addNote } from '../Service';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 
 interface ProjectFormProps {
@@ -116,6 +117,16 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
     initialData?.ComponentCosts || []
   );
 
+   const [componentCostsYear, setComponentCostsYear] = useState<ComponentCostYear[]>(
+    initialData?.ComponentCostPerYear || []
+  );
+
+  // Combine componentCosts and componentCostsYear for UI
+  const componentCostsWithYears = componentCosts.map(cost => ({
+    ...cost,
+    CostPerYear: componentCostsYear.filter(year => year.ParentId === cost.Id)
+  }));
+
   const [majorItems, setMajorItems] = useState<MajorItemOfWork[]>(
     initialData?.MajorItemOfWorks || []
   );
@@ -183,6 +194,23 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
 
   const handleDeleteComponentCost = (index: number) => {
     setComponentCosts(prev => prev.filter((_, i) => i !== index));
+    // Also remove related ComponentCostYear entries
+    const costToDelete = componentCosts[index];
+    if (costToDelete) {
+      setComponentCostsYear(prev => prev.filter(year => year.ParentId !== costToDelete.Id));
+    }
+  };
+
+  const handleAddComponentCostYear = (parentId: number, newCostYear: ComponentCostYear) => {
+    setComponentCostsYear(prev => [...prev, { ...newCostYear, ParentId: parentId }]);
+  };
+
+  const handleEditComponentCostYear = (costYearId: number, updatedCostYear: ComponentCostYear) => {
+    setComponentCostsYear(prev => prev.map(year => year.Id === costYearId ? updatedCostYear : year));
+  };
+
+  const handleDeleteComponentCostYear = (costYearId: number) => {
+    setComponentCostsYear(prev => prev.filter(year => year.Id !== costYearId));
   };
   // #endregion
 
@@ -360,12 +388,43 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
 
   const handleUpdateProject = async () => {
     setUpdateAllProject(true);
-    const response = await updateProjectDetails({
-      ...projectDetails,
-      EmergencyMode: projectDetails.EmergencyMode ? true : false,
-    });
-    if (response.Data.ProjectId) {
-      navigate(`/projects/Edit/${response.Data.ProjectId}`);
+    
+    try {
+      // Flatten componentCostsWithYears back to two separate arrays for backend
+      const flatComponentCosts: ComponentCost[] = componentCosts.map(cost => cost);
+      const flatComponentCostYears: ComponentCostYear[] = componentCostsYear.map(year => year);
+
+      // Compose payload (exclude ProgramDetails and ProjectNotes)
+      const payload = {
+        ProjectDetails: {
+          ...projectDetails,
+          EmergencyMode: projectDetails.EmergencyMode ? true : false,
+        },
+        ComponentCosts: flatComponentCosts,
+        ComponentCostPerYear: flatComponentCostYears,
+        MajorItemOfWorks: majorItems,
+        FundingProfile: fundingProfiles,
+        Dropdowns: Dropdowns,
+        Activities: activities,
+        // Exclude ProgramDetails and ProjectNotes as requested
+      };
+
+      console.log('Updating project with payload:', payload);
+      
+      const response = await updateEntireProject(payload);
+      
+      if (response.Data?.ProjectId) {
+        console.log('Project updated successfully:', response.Data.ProjectId);
+        navigate(`/projects/Edit/${response.Data.ProjectId}`);
+      } else {
+        console.log('Project updated successfully');
+        // You might want to show a success message here
+      }
+    } catch (error) {
+      console.error('Error updating project:', error);
+      // You might want to show an error message here
+    } finally {
+      setUpdateAllProject(false);
     }
   };
 
@@ -490,7 +549,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
             </Button>
           </div>
           <ComponentCostForm
-            componentCosts={componentCosts}
+            componentCosts={componentCostsWithYears}
             onAdd={handleAddComponentCost}
             onEdit={handleEditComponentCost}
             onDelete={handleDeleteComponentCost}
@@ -567,6 +626,28 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
 
       {/* Activities Section */}
       <ActivitySection activities={activities} />
+
+      {/* Update Project Button - Only show in edit mode */}
+      {mode === 'edit' && (
+        <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
+          <div className="px-4 py-6 sm:p-8">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-semibold leading-7 text-gray-900">Update Project</h3>
+                <p className="text-sm text-gray-600">Save all project sections (excludes Program Details and Notes)</p>
+              </div>
+              <Button
+                color="orange"
+                onClick={handleUpdateProject}
+                disabled={updateAllProject}
+                className="text-sm"
+              >
+                {updateAllProject ? 'Updating...' : 'Update Project'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

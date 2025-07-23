@@ -74,7 +74,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                     placeholder="Enter type of work"
                   />
                 </TableCell>
-                {/* <TableCell>
+                <TableCell>
                   <input
                     type="text"
                     value={item.TargetUnit}
@@ -82,7 +82,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                     className="w-full px-2 py-1 border border-gray-300 rounded"
                     placeholder="Enter target unit"
                   />
-                </TableCell> */}
+                </TableCell>
                 <TableCell>
                   <input
                     type="text"
