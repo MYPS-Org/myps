@@ -177,6 +177,7 @@ export interface Dropdowns {
 	Thrusts: ThrustEnum[];
 	Origins: OriginEnum[];
 	Cities: CityEnum[];
+	ComponentTypes: ComponentTypeEnum[];
 	LDs: LDEnum[];
 	OperatingUnits: OperatingUnitEnum[];
 	IOs: IOEnum[];
@@ -185,9 +186,16 @@ export interface Dropdowns {
 	ImplementationModes: ImplementationModeEnum[];
 	EmergencyModes: EmergencyModeEnum[];
 	Feasibility: FeasibEnum[];
-	// Fundimg Profile
+	// Funding Profile
 	Agreements: AgreementEnum[];
 	Sources: SourceEnum[];
+}
+export interface ComponentTypeEnum {
+	Description: string;
+	Enum: number;
+	ExportToPCMA: string;
+	Id: number;
+	Name: string;
 }
 export interface CategoryEnum {
 	Id: number;

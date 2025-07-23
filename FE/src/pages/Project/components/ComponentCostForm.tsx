@@ -30,6 +30,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
   const handleOpenAddModal = () => {
     setModalMode('add');
     setEditingIndex(null);
+    // console.log('componentTypes:', initialData?.Dropdowns?.ComponentTypes);
     setIsModalOpen(true);
   };
 
@@ -52,6 +53,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
     }
     handleCloseModal();
   };
+
 
   const calculateTotalCosts = () => {
     const totalCost = componentCosts.reduce((sum, cost) => sum + (cost.Total || 0), 0);
@@ -149,6 +151,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
           onSave={handleSaveCost}
           editingCost={editingIndex !== null ? componentCosts[editingIndex] : undefined}
           mode={modalMode}
+          componentTypes={initialData?.Dropdowns?.ComponentTypes}
         />
       </div>
   );

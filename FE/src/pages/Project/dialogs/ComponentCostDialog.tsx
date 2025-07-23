@@ -11,6 +11,7 @@ interface ComponentCostDialogProps {
   onSave: (cost: ComponentCost) => void;
   editingCost?: ComponentCost;
   mode: 'add' | 'edit';
+  componentTypes: any[];
 }
 
 const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
@@ -18,7 +19,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   onClose,
 //   onSave,
   editingCost,
-  mode
+  mode,
+  componentTypes
 }) => {
   const [formData, setFormData] = useState<ComponentCost>({
     Id: 0,
@@ -41,8 +43,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
       setFormData({
         Id: 0,
         ProjectId: '',
-        ComponentType: 'Civil Works',
-        ComponentId: `CW${Date.now()}`,
+        ComponentType: '',
+        ComponentId: '',
         Description: '',
         Total: 0,
         CreatedBy: '',
@@ -77,7 +79,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         setFormData({
             Id: 0,
             ProjectId: '',
-            ComponentType: 'Civil Works',
+            ComponentType: '',
             ComponentId: '',
             Description: '',
             Total: 0,
@@ -124,21 +126,28 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                         value={formData.ComponentType}
                         onChange={(e) => handleChange('ComponentType', e.target.value)}
                     >
-                        <option value="Civil Works">Civil Works</option>
+                        {componentTypes.map((type: any) => (
+                            <option key={type.Id} value={type.Id}>
+                                {type.Description}
+                            </option>
+                        ))}
                     </select>
                     </div>
                     <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                         Component ID
                     </label>
-                    <input
-                        type="text"
-                        value={formData.ComponentId}
-                        onChange={(e) => handleChange('ComponentId', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="CW"
-                        required
-                    />
+                    <select 
+                    className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500'
+                    value={formData.ComponentId}
+                    onChange={(e) => handleChange('ComponentId', e.target.value)}
+                    >
+                        {componentTypes.map((type: any) => (
+                            <option key={type.Id} value={type.Id}>
+                                {type.Description}
+                            </option>
+                        ))}
+                    </select>
                     </div>
                 </div>
 

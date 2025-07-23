@@ -66,6 +66,7 @@ const EditProject: React.FC = () => {
             Thrusts: [],
             Origins: [],
             Cities: [],
+            ComponentTypes: [],
             LDs: [],
             OperatingUnits: [],
             IOs: [],

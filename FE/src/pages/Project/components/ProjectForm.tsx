@@ -38,6 +38,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
 
   const [savingSection, setSavingSection] = useState<string | null>(null);
   const [projectEnums, setProjectEnums] = useState<ProjectEnums | null>(null);
+  const [updateAllProject, setUpdateAllProject] = useState<boolean>(false);
 
   // toggle state for Program Details section
   const [isProgramOpen, setIsProgramOpen] = useState<boolean>(true);
@@ -133,6 +134,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
     Thrusts: [],
     Origins: [],
     Cities: [],
+    ComponentTypes: [],
     LDs: [],
     OperatingUnits: [],
     IOs: [],
@@ -356,6 +358,17 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
     }
   };
 
+  const handleUpdateProject = async () => {
+    setUpdateAllProject(true);
+    const response = await updateProjectDetails({
+      ...projectDetails,
+      EmergencyMode: projectDetails.EmergencyMode ? true : false,
+    });
+    if (response.Data.ProjectId) {
+      navigate(`/projects/Edit/${response.Data.ProjectId}`);
+    }
+  };
+
   return (
     <div className="max-w-10xl mx-auto p-6 space-y-6">
         <div className='flex items-center justify-between mb-6'>
@@ -377,7 +390,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSaveSection, m
               
             </div>
             <div className="flex space-x-3">
-                {mode === 'edit' && <Button color="orange" className='cursor-pointer'>Update Project</Button>}
+                {mode === 'edit' && 
+                  <Button color="orange" className='cursor-pointer' onClick={handleUpdateProject} disabled={!updateAllProject}>Update Project
+                  </Button>
+                }
             </div>
         </div>
 
