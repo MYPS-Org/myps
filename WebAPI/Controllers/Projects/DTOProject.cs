@@ -45,6 +45,11 @@ namespace WebAPI.Controllers.Programs
         [MaxLength(200)]
         public string Description { get; set; } = string.Empty;
         [Required]
-        public FileUpload File { get; set; } = new FileUpload(); // Using IFormFile for file uploads
+        public FileUpload File { get; set; } = new FileUpload();
+    }
+    public class DeleteNotesDTO
+    {
+        [Required]
+        public int Id { get; set; }
     }
 }
