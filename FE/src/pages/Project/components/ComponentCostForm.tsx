@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import type { ComponentCost, ComponentCostWithYears } from "../Model";
+import type { ComponentCost, ComponentCostWithYears, ComponentCostYear } from "../Model";
 import { Button } from "../../../components/tailwindui/button";
 import { PlusIcon, TrashIcon, PencilIcon } from "@heroicons/react/24/outline";
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from "../../../components/tailwindui/table";
@@ -7,7 +7,7 @@ import { ComponentCostDialog } from "../dialogs";
 
 interface ComponentCostFormProps {
   componentCosts: ComponentCostWithYears[];
-  onAdd: (cost: ComponentCost) => void;
+  onAdd: (cost: ComponentCost, costYear?: ComponentCostYear) => void;
   onEdit: (index: number, updatedCost: ComponentCost) => void;
   onDelete: (index: number) => void;
   initialData?: any; // Optional initial data for dropdowns or other purposes
@@ -45,11 +45,12 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
     setEditingIndex(null);
   };
 
-  const handleSaveCost = (cost: ComponentCost) => {
+  const handleSaveCost = (cost: ComponentCost, costYear?: ComponentCostYear) => {
     if (modalMode === 'add') {
-      onAdd(cost);
+      onAdd(cost, costYear);
     } else if (modalMode === 'edit' && editingIndex !== null) {
       onEdit(editingIndex, cost);
+      // TODO: Handle costYear updates for edit mode
     }
     handleCloseModal();
   };

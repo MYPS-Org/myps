@@ -7,7 +7,7 @@ import { XMarkIcon } from '@heroicons/react/24/outline';
 interface ComponentCostDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (cost: ComponentCost) => void;
+  onSave: (cost: ComponentCost, costYear?: ComponentCostYear) => void; // Added costYear parameter
   editingCost?: ComponentCostWithYears;
   mode: 'add' | 'edit';
   componentTypes: any[];
@@ -84,13 +84,26 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     e.preventDefault();
     
     try {
-        // Only save the ComponentCost part, not the CostPerYear
+        // Split the form data into ComponentCost and ComponentCostYear parts
         const { CostPerYear, ApprovalDate, PAPCode, StartDate, EndDate, ...componentCostData } = formData;
         
-        // ginamit ko to para malipat yung data sa parent component (staging) pero dadaan muna sya sa componencostform
-        // maghahandle ng add itong yung sa ProjectForm.tsx
-        onSave(componentCostData as ComponentCost);
+        // Create ComponentCostYear object if we have the required fields
+        const componentCostYear: ComponentCostYear = {
+          Id: 0, // Will be set by backend
+          ParentId: componentCostData.Id, // Will be linked after ComponentCost is saved
+          CostYear: new Date().getFullYear(), // Default to current year
+          Cost: componentCostData.Total, // Use the same cost value
+          ApprovalDate: ApprovalDate || undefined,
+          PAPCode: PAPCode || '',
+          StartDate: StartDate || new Date().toISOString(),
+          EndDate: EndDate || new Date().toISOString()
+        };
+
+        // Send both ComponentCost and ComponentCostYear data to parent
+        onSave(componentCostData as ComponentCost, componentCostYear);
+        
         console.log('Component cost saved:', componentCostData);
+        console.log('Component cost year saved:', componentCostYear);
         onClose();
     } catch (error) {
       console.error('Error saving component cost:', error);

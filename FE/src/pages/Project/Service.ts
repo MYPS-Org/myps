@@ -1,5 +1,5 @@
 import { httpClient, type ApiResponse } from "../../services/httpClient";
-import type { ProjectLists, ProgramDetails, ComponentCost, ProjectDetails, MajorItemOfWork, FundingProfile, ProjectNote, ProjectEnums, ProjectFormPayload, ProjectPagination, AddNotes } from "./Model.d";
+import type { ProjectLists, ProgramDetails, ComponentCost, ComponentCostYear, ProjectDetails, MajorItemOfWork, FundingProfile, ProjectNote, ProjectEnums, ProjectFormPayload, ProjectPagination, AddNotes } from "./Model.d";
 
 // #region INITIALIZE Project Lists
 export const fetchProject = async (data: ProjectPagination) => {
@@ -92,38 +92,16 @@ export const updateProjectDetails = async (projectDetails: ProjectDetails) => {
 export const updateEntireProject = async (payload: {
     ProjectDetails: ProjectDetails;
     ComponentCosts: ComponentCost[];
-    ComponentCostPerYear: any[];
+    ComponentCostYear: ComponentCostYear[];
     MajorItemOfWorks: MajorItemOfWork[];
     FundingProfile: FundingProfile[];
-    Dropdowns: any;
-    Activities: any[];
+    ProjectNotes?: ProjectNote[];
 }) => {
     try {
-        // Since there's no single endpoint, we'll call multiple endpoints
-        const projectResponse = await updateProjectDetails(payload.ProjectDetails);
-        
-        // Update component costs if any
-        if (payload.ComponentCosts.length > 0) {
-            for (const cost of payload.ComponentCosts) {
-                if (cost.Id > 0) {
-                    await updateComponentCost(cost);
-                } else {
-                    await addComponentCost(cost);
-                }
-            }
-        }
-
-        // Update Major Items of Work if any
-        if (payload.MajorItemOfWorks.length > 0) {
-            await updateMajorItemOfWork(payload.MajorItemOfWorks);
-        }
-
-        // Update Funding Profiles if any
-        if (payload.FundingProfile.length > 0) {
-            await updateFundingProfile(payload.FundingProfile);
-        }
-
-        return projectResponse;
+        const response = await httpClient.post(`/Project/UpdateEntireProject/`, payload, {
+            preloaderMessage: 'Updating entire project...'
+        });
+        return response;
     } catch (ErrorResponse) {
         console.error('Error updating entire project:', ErrorResponse);
         throw ErrorResponse;

@@ -183,12 +183,24 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
   };
 
   // #region Component Costs
-  const handleAddComponentCost = (newCost: ComponentCost) => {
+  const handleAddComponentCost = (newCost: ComponentCost, newCostYear?: ComponentCostYear) => {
     // Generate a temporary ID for new cost (will be replaced when saved)
     const tempId = Date.now(); // Simple temp ID
     const costWithId = { ...newCost, Id: tempId };
     
     setComponentCosts(prev => [...prev, costWithId]);
+    
+    // If ComponentCostYear data is provided, add it to the componentCostsYear array
+    if (newCostYear) {
+      const costYearWithParentId = { 
+        ...newCostYear, 
+        ParentId: tempId, // Link to the component cost
+        Id: Date.now() + 1 // Ensure unique ID
+      };
+      setComponentCostsYear(prev => [...prev, costYearWithParentId]);
+      console.log('Added component cost year to staging:', costYearWithParentId);
+    }
+    
     console.log('Added component cost to staging:', costWithId);
   };
 
@@ -339,34 +351,33 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       console.log('Major Items:', majorItems);
       console.log('Funding Profiles:', fundingProfiles);
       
-      // Prepare data for backend (exclude Program Details and Notes)
+      // Prepare data for backend matching the expected payload structure
       const payload = {
         ProjectDetails: {
           ...projectDetails,
           EmergencyMode: projectDetails.EmergencyMode ? true : false,
         },
         ComponentCosts: componentCosts,
-        ComponentCostPerYear: componentCostsYear,
+        ComponentCostYear: componentCostsYear, // Note: "ComponentCostYear" not "ComponentCostPerYear"
         MajorItemOfWorks: majorItems,
         FundingProfile: fundingProfiles,
-        Dropdowns: Dropdowns,
-        Activities: activities,
-        // Exclude ProgramDetails and ProjectNotes as requested
+        // Include ProjectNotes if needed (you mentioned excluding it, but payload shows it)
+        // ProjectNotes: notes,
       };
 
-      console.log('=== SENDING TO BACKEND ===');
+      console.log('=== SENDING TO BACKEND (MATCHING EXPECTED PAYLOAD) ===');
       console.log('Update payload:', payload);
       
       const response = await updateEntireProject(payload);
       
-      if (response.Data?.ProjectId) {
-        console.log('Project updated successfully, navigating to:', response.Data.ProjectId);
-        navigate(`/projects/Edit/${response.Data.ProjectId}`);
-      } else {
-        console.log('Project updated successfully');
-        // Show success message or toast here
-        alert('Project updated successfully!');
-      }
+      // if (response.Data?.ProjectId) {
+      //   console.log('Project updated successfully, navigating to:', response.Data.ProjectId);
+      //   navigate(`/projects/Edit/${response.Data.ProjectId}`);
+      // } else {
+      //   console.log('Project updated successfully');
+      //   // Show success message or toast here
+      //   alert('Project updated successfully!');
+      // }
     } catch (error) {
       console.error('Error updating project:', error);
       alert('Error updating project. Please try again.');
