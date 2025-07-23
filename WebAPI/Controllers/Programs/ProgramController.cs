@@ -201,8 +201,7 @@ namespace WebAPI.Controllers.Programs
                     IsDeleted= false
                 };
                 await _db.tPrograms.AddAsync(newProgram);
-                await _db.SaveChangesAsync();
-                var newRevisions = new DBHelper.Models.Table.ProgramRevisions()
+                var newRevisions = new ProgramRevisions()
                 {
                     ReferenceId = ReferenceId,
                     RevisionNumber = 1,
@@ -219,16 +218,15 @@ namespace WebAPI.Controllers.Programs
                 };
                 await _db.tProgramRevisions.AddAsync(newRevisions);
                 await _db.SaveChangesAsync();
-                var newStage = new DBHelper.Models.Table.ProgramStages()
+                await _db.tProgramStages.AddAsync(new ProgramStages()
                 {
-                    RevisionId = 1,
+                    RevisionId = newRevisions.Id,
                     StageId = dto.Stage,
                     StageName = dto.Stage.ToString(),
                     CreatedBy = UserId,
                     CreatedDate = currentDate,
                     IsPublished = false,
-                };
-                await _db.tProgramStages.AddAsync(newStage);
+                });
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
                 return Ok(new
@@ -514,189 +512,16 @@ namespace WebAPI.Controllers.Programs
                 if(hasUpdated)
                 {
                     await _db.tProgramRevisions.AddAsync(NewProgramVersion);
+                    await _db.SaveChangesAsync();
                     await _db.tProgramStages.AddAsync(new ProgramStages()
                     {
-                        RevisionId = NewProgramVersion.RevisionNumber,
+                        RevisionId = NewProgramVersion.Id,
                         StageId = getProgram.StageId,
                         StageName = getProgram.StageName,
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate,
                         IsPublished = getProgram.IsPublished
                     });
-                    await _db.tTransactionLog.AddRangeAsync(transactionLogs);
-                    await _db.SaveChangesAsync();
-                    await transaction.CommitAsync();
-                }
-                return Ok(new
-                {
-                    Message = $"Program {dto.ReferenceId} updated successfully!",
-                    Title = "Update Complete"
-                });
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                return ExceptionHandler(ex);
-            }
-        }
-        [AllowAnonymous]
-        [HttpPost]
-        public async Task<IActionResult> AddProjectProgramDetails([FromBody] DBHelper.Models.Table.ProgramRevisions dto)
-        {
-            using var transaction = await _db.Database.BeginTransactionAsync();
-            try
-            {
-                bool hasUpdated = false;
-                var getProgram = await _db.vProgramDetails.FirstOrDefaultAsync(x => x.ReferenceId == dto.ReferenceId);
-                if(getProgram == null)
-                {
-                    return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ReferenceId}' does not exist in the Revisions table. Please contact administrator!", Title = "Program not found" });
-                }
-                List<TransactionLog> transactionLogs = new List<TransactionLog>();
-                DateTime CurrentDate = DateTime.UtcNow;
-                if (string.IsNullOrEmpty(dto.Name)) { return new BadRequestObjectResult(new { Message = $"Program name field cannot be empty!", Title = "Update Failed" }); }
-                if (dto.Name != getProgram.Name && !string.IsNullOrEmpty(dto.Name))
-                {
-                    hasUpdated = true;
-                    getProgram.Name = dto.Name;
-                    transactionLogs.Add(new TransactionLog
-                    {
-                        TransactionId = dto.ReferenceId,
-                        TypeOfTransaction = "Update",
-                        AffectedTable = "tProgramRevisions",
-                        AffectedColumn = "Name",
-                        NewValue = dto.Name,
-                        OldValue = getProgram.Name,
-                        CreatedBy = _Session.UserId,
-                        CreatedDate = CurrentDate
-                    });
-                }
-                var Groups = await _db.tGroups.FirstOrDefaultAsync(x => x.Id == dto.UserGroup);
-                if (Groups == null) { return new BadRequestObjectResult(new { Message = $"The selected User Group is invalid. Please ensure the User Group field has a valid value selected.", Title = "Update Failed" }); }
-                if (dto.UserGroup != getProgram.UserGroup)
-                {
-                    hasUpdated = true;
-                    var Current = await _db.tGroups.FirstOrDefaultAsync(x => x.Id == getProgram.UserGroup);
-                    getProgram.UserGroup = dto.UserGroup;
-                    transactionLogs.Add(new TransactionLog
-                    {
-                        TransactionId = dto.ReferenceId,
-                        TypeOfTransaction = "Update",
-                        AffectedTable = "tProgramRevisions",    
-                        AffectedColumn = "UserGroup",
-                        NewValue = Groups.GroupName!,
-                        OldValue = Current!.GroupName!,
-                        CreatedBy = _Session.UserId,
-                        CreatedDate = CurrentDate
-                    });
-                }
-                var Status = await _db.tProgramStatusEnum.FirstOrDefaultAsync(x => x.Enum == (int)dto.Status);
-                if (Status == null) { return new BadRequestObjectResult(new { Message = $"The selected Status is invalid. Please ensure the Status field has a valid value selected.", Title = "Update Failed" }); }
-                if (dto.Status != getProgram.Status)
-                {
-                    hasUpdated = true;
-                    var Current = await _db.tProgramStatusEnum.FirstOrDefaultAsync(x => x.Enum == (int)dto.Status);
-                    getProgram.Status = dto.Status;
-                    transactionLogs.Add(new TransactionLog
-                    {
-                        TransactionId = dto.ReferenceId,
-                        TypeOfTransaction = "Update",
-                        AffectedTable = "tProgramRevisions",
-                        AffectedColumn = "UserGroup",
-                        NewValue = Status.Name!,
-                        OldValue = Current!.Name!,
-                        CreatedBy = _Session.UserId,
-                        CreatedDate = CurrentDate
-                    });
-                }
-                var Types = await _db.tProgramTypeEnum.FirstOrDefaultAsync(x => x.Enum == (int)dto.Type);
-                if (Types == null) { return new BadRequestObjectResult(new { Message = $"The selected Type is invalid. Please ensure the Type field has a valid value selected.", Title = "Update Failed" }); }
-                if (dto.Type != getProgram.Type)
-                {
-                    hasUpdated = true;
-                    var Current = await _db.tProgramTypeEnum.FirstOrDefaultAsync(x => x.Enum == (int)dto.Type);
-                    getProgram.Type = dto.Type;
-                    transactionLogs.Add(new TransactionLog
-                    {
-                        TransactionId = dto.ReferenceId,
-                        TypeOfTransaction = "Update",
-                        AffectedTable = "tProgramRevisions",
-                        AffectedColumn = "Type",
-                        NewValue = Types.Name!,
-                        OldValue = Current!.Name!,
-                        CreatedBy = _Session.UserId,
-                        CreatedDate = CurrentDate
-                    });
-                }
-                if(dto.Cost != getProgram.Cost)
-                {
-                    hasUpdated = true;
-                    getProgram.Cost = dto.Cost;
-                    transactionLogs.Add(new TransactionLog
-                    {
-                        TransactionId = dto.ReferenceId,
-                        TypeOfTransaction = "Update",
-                        AffectedTable = "tProgramRevisions",
-                        AffectedColumn = "Cost",
-                        NewValue = dto.Cost.ToString(),
-                        OldValue = getProgram.Cost.ToString(),
-                        CreatedBy = _Session.UserId,
-                        CreatedDate = CurrentDate
-                    });
-                }
-                if (dto.YearStart != getProgram.YearStart)
-                {
-                    hasUpdated = true;
-                    getProgram.YearStart = dto.YearStart;
-                    transactionLogs.Add(new TransactionLog
-                    {
-                        TransactionId = dto.ReferenceId,
-                        TypeOfTransaction = "Update",
-                        AffectedTable = "tProgramRevisions",
-                        AffectedColumn = "YearStart",
-                        NewValue = dto.YearStart.ToString(),
-                        OldValue = getProgram.YearStart.ToString(),
-                        CreatedBy = _Session.UserId,
-                        CreatedDate = CurrentDate
-                    });
-                }
-                if (dto.YearEnd != getProgram.YearEnd)
-                {
-                    hasUpdated = true;
-                    getProgram.YearEnd = dto.YearEnd;
-                    transactionLogs.Add(new TransactionLog
-                    {
-                        TransactionId = dto.ReferenceId,
-                        TypeOfTransaction = "Update",
-                        AffectedTable = "tProgramRevisions",
-                        AffectedColumn = "YearEnd",
-                        NewValue = dto.YearEnd.ToString(),
-                        OldValue = getProgram.YearEnd.ToString(),
-                        CreatedBy = _Session.UserId,
-                        CreatedDate = CurrentDate
-                    });
-                }
-                getProgram.UpdatedBy = _Session.UserId;
-                getProgram.UpdatedDate = CurrentDate;
-                if(hasUpdated)
-                {
-                    getProgram.RevisionNumber += 1;
-                    ProgramRevisions newProgramRevisions = new ProgramRevisions()
-                    {
-                        ReferenceId = getProgram.ReferenceId,
-                        RevisionNumber = getProgram.RevisionNumber,
-                        Name = getProgram.Name,
-                        UserGroup = getProgram.UserGroup,
-                        RegionCode = getProgram.RegionCode,
-                        Status = getProgram.Status,
-                        Type = getProgram.Type,
-                        Cost = getProgram.Cost,
-                        YearStart = getProgram.YearStart,
-                        YearEnd = getProgram.YearEnd,
-                        CreatedBy = _Session.UserId,
-                        CreatedDate = DateTime.UtcNow
-                    };
-                    await _db.tProgramRevisions.AddAsync(newProgramRevisions);
                     await _db.tTransactionLog.AddRangeAsync(transactionLogs);
                     await _db.SaveChangesAsync();
                     await transaction.CommitAsync();
@@ -735,7 +560,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Program ID Revision '{checkRevisions.Id}' does not exist in the Stages table. Please contact administrator!", Title = "Program Stage not found" });
                 }
-                var newStage = new DBHelper.Models.Table.ProgramStages()
+                var newStage = new ProgramStages()
                 {
                     RevisionId = checkRevisions.Id,
                     StageId = dto.Stage,

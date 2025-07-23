@@ -234,16 +234,16 @@ namespace WebAPI.Controllers.Programs
                 {
                     ReferenceId = ReferenceId,
                     RevisionNumber = 1,
-                    Description = dto.Description,
+                    Description = dto.Description!,
                     Category = dto.Category,
                     Thrust = dto.Thrust,
                     Origin = dto.Origin,
                     City = dto.City,
                     LegislativeDistrict = dto.LegislativeDistrict,
-                    OperatingUnit = dto.OperatingUnit,
-                    ImplementingOffice = dto.ImplementingOffice,
+                    OperatingUnit = dto.OperatingUnit!,
+                    ImplementingOffice = dto.ImplementingOffice!,
                     DEO = SelectedDeo.DeoCode,
-                    Region = dto.Region,
+                    Region = dto.Region!,
                     Agency = dto.Agency,
                     ProjectCode = dto.ProjectCode,
                     ImplementationMode = dto.ImplementationMode,
@@ -253,14 +253,9 @@ namespace WebAPI.Controllers.Programs
                 };
                 await _db.tProjectRevisions.AddAsync(ProjectRevision);
                 await _db.SaveChangesAsync();
-                var GetProjectRevision = await _db.tProjectRevisions.Where(x => x.ReferenceId == ReferenceId).FirstOrDefaultAsync();
-                if(GetProjectRevision == null)
-                {
-                    return new BadRequestObjectResult(new { Message = "Failed to create project revision!", Title = "Project Revision Error" });
-                }
                 var ProjectStage = new ProjectStages()
                 {
-                    RevisionId = GetProjectRevision.Id,
+                    RevisionId = ProjectRevision.Id,
                     StageId = ProgramDetails.StageId,
                     StageName = ProgramDetails.StageName,
                     CreatedBy = _Session.UserId ?? "TESTING",
@@ -268,7 +263,7 @@ namespace WebAPI.Controllers.Programs
                     IsPublished = false
                 };
                 await _db.tProjectStages.AddAsync(ProjectStage);
-
+                await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
                 return Ok(new
                 {
