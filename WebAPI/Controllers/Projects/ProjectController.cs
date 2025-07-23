@@ -833,68 +833,75 @@ namespace WebAPI.Controllers.Programs
                     var UpdateComponentCost = dto.ComponentCosts.Where(x => CurrentComponentCost.Contains(x.Id)).ToList();
                     if (UpdateComponentCost.Count > 0)
                     {
-                        //foreach (var item in UpdateComponentCost)
-                        //{
-                        //    var ExistingItem = ComponentCost.FirstOrDefault(x => x.Id == item.Id);
-                        //    if (ExistingItem != null)
-                        //    {
-                        //        if (ExistingItem.ComponentId != item.ComponentId)
-                        //        {
-                        //            var Component = await _db.tProjectComponentEnum.FirstOrDefaultAsync(x => x.Name == item.ComponentId);
-                        //            if (Component == null)
-                        //            {
-                        //                return new BadRequestObjectResult(new { Message = $"Selected Component '{item.ComponentId}' is not valid!", Title = "Invalid Component" });
-                        //            }
-                        //            transactionLogs.Add(new TransactionLog
-                        //            {
-                        //                TransactionId = Project.ReferenceId!,
-                        //                TypeOfTransaction = "Update",
-                        //                AffectedTable = "tProjectComponentCost",
-                        //                AffectedColumn = "ComponentId",
-                        //                NewValue = Component.Name,
-                        //                OldValue = ExistingItem.ComponentId,
-                        //                CreatedBy = _Session.UserId ?? "TESTING",
-                        //                CreatedDate = CurrentDate
-                        //            });
-                        //            ExistingItem.ComponentId = item.ComponentId;
-                        //        }
-                        //        if (ExistingItem.ComponentType != item.ComponentType)
-                        //        {
-                        //            var ComponentType = await _db.tProjectComponentEnum.FirstOrDefaultAsync(x => x.Enum == item.ComponentType);
-                        //            if (ComponentType == null)
-                        //            {
-                        //                return new BadRequestObjectResult(new { Message = $"Selected Component Type '{item.ComponentType}' is not valid!", Title = "Invalid Component Type" });
-                        //            }
-                        //            transactionLogs.Add(new TransactionLog
-                        //            {
-                        //                TransactionId = Project.ReferenceId!,
-                        //                TypeOfTransaction = "Update",
-                        //                AffectedTable = "tProjectComponentCost",
-                        //                AffectedColumn = "ComponentType",
-                        //                NewValue = ComponentType.Name,
-                        //                OldValue = ExistingItem.ComponentType.ToString(),
-                        //                CreatedBy = _Session.UserId ?? "TESTING",
-                        //                CreatedDate = CurrentDate
-                        //            });
-                        //            ExistingItem.ComponentType = item.ComponentType;
-                        //        }
-                        //        if (ExistingItem.Description != item.Description)
-                        //        {
-                        //            transactionLogs.Add(new TransactionLog
-                        //            {
-                        //                TransactionId = Project.ReferenceId!,
-                        //                TypeOfTransaction = "Update",
-                        //                AffectedTable = "tProjectComponentCost",
-                        //                AffectedColumn = "Description",
-                        //                NewValue = item.Description ?? "",
-                        //                OldValue = ExistingItem.Description ?? "",
-                        //                CreatedBy = _Session.UserId ?? "TESTING",
-                        //                #endregion
-                        //            });
-                        //        }
-                        //    }
-                        //}
+                        foreach (var item in UpdateComponentCost)
+                        {
+                            var ExistingItem = ComponentCost.FirstOrDefault(x => x.Id == item.Id);
+                            bool ComponentUpdate = false;
+                            if (ExistingItem != null)
+                            {
+                                if (ExistingItem.ComponentType != item.ComponentType)
+                                {
+                                    ComponentUpdate = true;
+                                    var Component = await _db.tProjectComponentEnum.FirstOrDefaultAsync(x => x.Description == item.ComponentType);
+                                    if (Component == null)
+                                    {
+                                        return new BadRequestObjectResult(new { Message = $"Selected Component '{item.ComponentType}' is not valid!", Title = "Invalid Component" });
+                                    }
+                                    transactionLogs.Add(new TransactionLog
+                                    {
+                                        TransactionId = Project.ReferenceId!,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tProjectComponentCost",
+                                        AffectedColumn = "ComponentType",
+                                        NewValue = Component.Name,
+                                        OldValue = ExistingItem.ComponentType,
+                                        CreatedBy = _Session.UserId ?? "TESTING",
+                                        CreatedDate = CurrentDate
+                                    });
+                                    ExistingItem.ComponentId = item.ComponentId;
+                                    ExistingItem.ComponentType = Component.Description;
+                                }
+                                if (ExistingItem.Description != item.Description)
+                                {
+                                    ComponentUpdate = true;
+                                    transactionLogs.Add(new TransactionLog
+                                    {
+                                        TransactionId = Project.ReferenceId!,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tProjectComponentCost",
+                                        AffectedColumn = "Description",
+                                        NewValue = item.Description ?? "",
+                                        OldValue = ExistingItem.Description ?? "",
+                                        CreatedBy = _Session.UserId ?? "TESTING",
+                                    });
+                                    ExistingItem.Description = item.Description ?? "";
+                                }
+                                if (ExistingItem.Total != item.Total)
+                                {
+                                    ComponentUpdate = true;
+                                    transactionLogs.Add(new TransactionLog
+                                    {
+                                        TransactionId = Project.ReferenceId!,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tProjectComponentCost",
+                                        AffectedColumn = "Total",
+                                        NewValue = item.Total.ToString(),
+                                        OldValue = ExistingItem.Total.ToString(),
+                                        CreatedBy = _Session.UserId ?? "TESTING",
+                                        CreatedDate = CurrentDate
+                                    });
+                                    ExistingItem.Total = item.Total;
+                                }
+                                if (ComponentUpdate)
+                                {
+                                    ExistingItem.UpdatedBy = _Session.UserId ?? "TESTING";
+                                    ExistingItem.UpdatedDate = CurrentDate;
+                                    _db.tProjectComponentCost.Update(ExistingItem);
+                                }
+                            }
+                        }
                     }
+                    #endregion
                 }
                 #endregion
                 await _db.SaveChangesAsync();

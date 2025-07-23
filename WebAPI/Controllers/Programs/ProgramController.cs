@@ -345,17 +345,19 @@ namespace WebAPI.Controllers.Programs
             {
                 bool hasUpdated = false;
                 var getProgram = await _db.vProgramDetails.FirstOrDefaultAsync(x => x.ReferenceId == dto.ReferenceId);
-                if(getProgram == null)
+                var NewProgramVersion = new ProgramRevisions();
+                if (getProgram == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ReferenceId}' does not exist in the Revisions table. Please contact administrator!", Title = "Program not found" });
                 }
                 List<TransactionLog> transactionLogs = new List<TransactionLog>();
                 DateTime CurrentDate = DateTime.UtcNow;
                 if (string.IsNullOrEmpty(dto.Name)) { return new BadRequestObjectResult(new { Message = $"Program name field cannot be empty!", Title = "Update Failed" }); }
+                NewProgramVersion.ReferenceId = getProgram.ReferenceId;
                 if (dto.Name != getProgram.Name && !string.IsNullOrEmpty(dto.Name))
                 {
                     hasUpdated = true;
-                    getProgram.Name = dto.Name;
+                    NewProgramVersion.Name = dto.Name;
                     transactionLogs.Add(new TransactionLog
                     {
                         TransactionId = dto.ReferenceId,
@@ -374,7 +376,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     hasUpdated = true;
                     var Current = await _db.tGroups.FirstOrDefaultAsync(x => x.Id == getProgram.UserGroup);
-                    getProgram.UserGroup = dto.UserGroup;
+                    NewProgramVersion.UserGroup = dto.UserGroup;
                     transactionLogs.Add(new TransactionLog
                     {
                         TransactionId = dto.ReferenceId,
@@ -393,13 +395,13 @@ namespace WebAPI.Controllers.Programs
                 {
                     hasUpdated = true;
                     var Current = await _db.tProgramStatusEnum.FirstOrDefaultAsync(x => x.Enum == (int)dto.Status);
-                    getProgram.Status = dto.Status;
+                    NewProgramVersion.Status = dto.Status;
                     transactionLogs.Add(new TransactionLog
                     {
                         TransactionId = dto.ReferenceId,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProgramRevisions",
-                        AffectedColumn = "UserGroup",
+                        AffectedColumn = "Status",
                         NewValue = Status.Name!,
                         OldValue = Current!.Name!,
                         CreatedBy = _Session.UserId,
@@ -412,7 +414,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     hasUpdated = true;
                     var Current = await _db.tProgramTypeEnum.FirstOrDefaultAsync(x => x.Enum == (int)dto.Type);
-                    getProgram.Type = dto.Type;
+                    NewProgramVersion.Type = dto.Type;
                     transactionLogs.Add(new TransactionLog
                     {
                         TransactionId = dto.ReferenceId,
@@ -425,26 +427,10 @@ namespace WebAPI.Controllers.Programs
                         CreatedDate = CurrentDate
                     });
                 }
-                if(dto.Cost != getProgram.Cost)
-                {
-                    hasUpdated = true;
-                    getProgram.Cost = dto.Cost;
-                    transactionLogs.Add(new TransactionLog
-                    {
-                        TransactionId = dto.ReferenceId,
-                        TypeOfTransaction = "Update",
-                        AffectedTable = "tProgramRevisions",
-                        AffectedColumn = "Cost",
-                        NewValue = dto.Cost.ToString(),
-                        OldValue = getProgram.Cost.ToString(),
-                        CreatedBy = _Session.UserId,
-                        CreatedDate = CurrentDate
-                    });
-                }
                 if (dto.YearStart != getProgram.YearStart)
                 {
                     hasUpdated = true;
-                    getProgram.YearStart = dto.YearStart;
+                    NewProgramVersion.YearStart = dto.YearStart;
                     transactionLogs.Add(new TransactionLog
                     {
                         TransactionId = dto.ReferenceId,
@@ -460,7 +446,7 @@ namespace WebAPI.Controllers.Programs
                 if (dto.YearEnd != getProgram.YearEnd)
                 {
                     hasUpdated = true;
-                    getProgram.YearEnd = dto.YearEnd;
+                    NewProgramVersion.YearEnd = dto.YearEnd;
                     transactionLogs.Add(new TransactionLog
                     {
                         TransactionId = dto.ReferenceId,
@@ -473,27 +459,14 @@ namespace WebAPI.Controllers.Programs
                         CreatedDate = CurrentDate
                     });
                 }
-                getProgram.UpdatedBy = _Session.UserId;
-                getProgram.UpdatedDate = CurrentDate;
                 if(hasUpdated)
                 {
-                    getProgram.RevisionNumber += 1;
-                    ProgramRevisions newProgramRevisions = new ProgramRevisions()
-                    {
-                        ReferenceId = getProgram.ReferenceId,
-                        RevisionNumber = getProgram.RevisionNumber,
-                        Name = getProgram.Name,
-                        UserGroup = getProgram.UserGroup,
-                        RegionCode = getProgram.RegionCode,
-                        Status = getProgram.Status,
-                        Type = getProgram.Type,
-                        Cost = getProgram.Cost,
-                        YearStart = getProgram.YearStart,
-                        YearEnd = getProgram.YearEnd,
-                        CreatedBy = _Session.UserId,
-                        CreatedDate = DateTime.UtcNow
-                    };
-                    await _db.tProgramRevisions.AddAsync(newProgramRevisions);
+                    NewProgramVersion.UpdatedBy = _Session.UserId;
+                    NewProgramVersion.UpdatedDate = CurrentDate;
+                    NewProgramVersion.RevisionNumber = getProgram.RevisionNumber;
+                    NewProgramVersion.CreatedBy = _Session.UserId;
+                    NewProgramVersion.CreatedDate = DateTime.UtcNow;
+                    await _db.tProgramRevisions.AddAsync(NewProgramVersion);
                     await _db.tTransactionLog.AddRangeAsync(transactionLogs);
                     await _db.SaveChangesAsync();
                     await transaction.CommitAsync();
