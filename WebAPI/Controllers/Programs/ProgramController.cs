@@ -349,15 +349,42 @@ namespace WebAPI.Controllers.Programs
             try
             {
                 bool hasUpdated = false;
-                var CurrentProgramVersion = await _db.vPrograms.FirstOrDefaultAsync(x => x.ProgramId == dto.ReferenceId);
-                if (CurrentProgramVersion == null)
+                var referenceId = dto.ReferenceId;
+                var expectedRevision = dto.RevisionNumber;
+
+                var currentVersion = await _db.vPrograms.FirstOrDefaultAsync(x => x.ProgramId == referenceId);
+                if (currentVersion == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ReferenceId}' does not exist in the Programs table. Please contact administrator!", Title = "Program not found" });
+                    return new BadRequestObjectResult(new
+                    {
+                        Title = "Program Not Found",
+                        Message = $"The program with ID '{referenceId}' does not exist in the system."
+                    });
                 }
-                var getProgram = await _db.vProgramDetails.FirstOrDefaultAsync(x => x.RevisionNumber == CurrentProgramVersion.RevisionId && x.ReferenceId == dto.ReferenceId);
+
+                var getProgram = await _db.vProgramDetails
+                    .FirstOrDefaultAsync(x => x.RevisionNumber == currentVersion.RevisionId && x.ReferenceId == referenceId);
+
                 if (getProgram == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ReferenceId}' does not exist in the Revisions table. Please contact administrator!", Title = "Program not found" });
+                    return new BadRequestObjectResult(new
+                    {
+                        Title = "Revision Details Not Found",
+                        Message = $"Revision details for Program ID '{referenceId}' could not be found. Please contact the system administrator."
+                    });
+                }
+
+                if (currentVersion.RevisionId != expectedRevision)
+                {
+
+                    var updatedBy = getProgram?.UpdatedBy ?? "Unknown";
+                    var updatedDate = getProgram?.UpdatedDate?.ToString("MM-dd-yyyy HH:mm:ss") ?? "Unknown";
+
+                    return new BadRequestObjectResult(new
+                    {
+                        Title = "Outdated Revision",
+                        Message = $"The provided Program ID '{referenceId}' does not match the latest revision. Last modified by: {updatedBy} on {updatedDate}. Please refresh to the most recent version before proceeding."
+                    });
                 }
                 List<TransactionLog> transactionLogs = new List<TransactionLog>();
                 DateTime CurrentDate = DateTime.UtcNow;
