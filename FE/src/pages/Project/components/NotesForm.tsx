@@ -92,7 +92,7 @@ const NotesForm: React.FC<NotesFormProps> = ({
               </TableCell>
               <TableCell>
                 {note.FileName && (
-                  <span className="text-xs text-gray-500 mt-1 cursor-pointer !text-blue-500 !underline" onClick={() => window.open(note.FilePath, '_blank')}>{note.FileName}</span>
+                  <span className="text-xs text-gray-500 mt-1 cursor-pointer !text-blue-500 !underline" onClick={() => window.open(`/${note.FilePath}`, '_blank')}>{note.FileName}</span>
                 )}
               </TableCell>
               <TableCell>
