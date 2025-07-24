@@ -125,6 +125,29 @@ export interface ProjectById {
   Dropdowns: Dropdowns
 }
 
+export interface ProjectScopeOfWorkEnum {
+	Id: number;
+	Enum: number;
+	InfraType: string;
+	WorkCategory: string;
+	Description: string;
+	Measure: string;
+	MaxAmount: number;
+	MinAmount: number;
+}
+
+export interface RoadSections {
+	Id: number;
+	SectionId: string;
+	NetworkStatus: number;
+	SectionLength: number;
+	RegionCode: string;
+	DeoCode: string;
+	RoadId: string;
+	CDOCode: string;
+	CDOName: string;
+}
+
 // #region Notes
 export interface AddNotes {
 	ProjectId: string,

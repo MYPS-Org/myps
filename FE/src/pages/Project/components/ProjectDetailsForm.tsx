@@ -280,24 +280,6 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             ))}
                         </select>
                     </div>
-                    <div className='w-full flex flex-row text-left gap-5 items-center'>
-                        <label className="flex-1/3 text-gray-600">Created By:</label>
-                        <input type="text" 
-                            value={projectDetails.CreatedBy} 
-                            onChange={(e) => handleInputChange('CreatedBy', e.target.value)} 
-                            className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md' />
-                    </div>
-                    <div className='w-full flex flex-row text-left gap-5 items-center'>
-                        <label className="flex-1/3 text-gray-600">Created Date:</label>
-                        <input type="date" 
-                            value={projectDetails.CreatedDate} 
-                            onChange={(e) => handleInputChange('CreatedDate', e.target.value)} 
-                            readOnly
-                            className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md' />
-                    </div>
-                </div>
-
-                <div className='grid grid-cols-3 gap-5'>
                     <div className="w-full flex flex-row text-left gap-5 items-center">
                         <label className="w-1/3 text-gray-600">Feasibility Study:</label>
                         <select 
@@ -326,6 +308,25 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             <option value="false">No</option>
                             <option value="true">Yes</option>
                         </select>
+                    </div>
+                </div>
+
+                <div className='grid grid-cols-3 gap-5'>
+                    <div className='w-full flex flex-row text-left gap-5 items-center'>
+                        <label className="flex-1/3 text-gray-600">Created By:</label>
+                        <input type="text" 
+                            value={projectDetails.CreatedBy} 
+                            onChange={(e) => handleInputChange('CreatedBy', e.target.value)} 
+                            className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
+                            disabled={mode === 'edit'} />
+                    </div>
+                    <div className='w-full flex flex-row text-left gap-5 items-center'>
+                        <label className="flex-1/3 text-gray-600">Created Date:</label>
+                        <input type="date" 
+                            value={projectDetails.CreatedDate} 
+                            onChange={(e) => handleInputChange('CreatedDate', e.target.value)} 
+                            disabled={mode === 'edit'}
+                            className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md' />
                     </div>
 
                     <div className='w-full flex flex-row text-left gap-5 items-center'>
