@@ -258,7 +258,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Programs table. Please contact administrator!", Title = "Program not found" });
                 }
-                var program = await _db.vProgramDetails.FirstOrDefaultAsync(x => x.RevisionNumber == CurrentProgramVersion.RevisionId && x.ReferenceId == dto.ProgramId);
+                var program = await _db.vProgramDetails.FirstOrDefaultAsync(x => x.Id == CurrentProgramVersion.RevisionId && x.ReferenceId == dto.ProgramId);
                 var AvailableStages = await _db.tProgramStageEnum.ToListAsync();
                 var AvailableTypes = await _db.tProgramTypeEnum.ToListAsync();
                 var AvailableStatuses = await _db.tProgramStatusEnum.ToListAsync();
