@@ -148,6 +148,45 @@ export interface RoadSections {
 	CDOName: string;
 }
 
+export interface Bridge {
+	Id: number;
+	BridgeId: string;
+	BridgeName: string;
+	Location: string;
+	Length: number;
+	Width: number;
+	RegionCode: string;
+	DeoCode: string;
+}
+
+export interface FCS {
+	Id: number;
+	FCSId: string;
+	FCSName: string;
+	Location: string;
+	Capacity: number;
+	RegionCode: string;
+	DeoCode: string;
+}
+
+export interface OtherInfra {
+	Id: number;
+	InfraId: string;
+	InfraName: string;
+	InfraType: string;
+	Location: string;
+	Description: string;
+	RegionCode: string;
+	DeoCode: string;
+}
+
+export interface InfraData {
+	RoadSections: RoadSections[];
+	Bridges: Bridge[];
+	FCS: FCS[];
+	OtherInfra: OtherInfra[];
+}
+
 // #region Notes
 export interface AddNotes {
 	ProjectId: string,
@@ -203,6 +242,7 @@ export interface MajorItemOfWork {
 	YearOfWork: number;
 	TypeOfWork: number;
 	PhysicalTarget: number;
+	TargetUnit: string;
 	Description: string;
 	InfraId: string;
 	StartStationLimit: number;

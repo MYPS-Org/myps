@@ -11,7 +11,7 @@ interface ComponentCostDialogProps {
   editingCost?: ComponentCostWithYears;
   mode: 'add' | 'edit';
   componentTypes: any[];
-  componentCosts: ComponentCost[] | null;
+  componentCosts: ComponentCost[];
 }
 
 const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({

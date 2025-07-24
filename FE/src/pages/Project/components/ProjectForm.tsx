@@ -11,7 +11,8 @@ import type {
   ProjectFormPayload,
   ProjectEnums,
   Dropdowns,
-  ComponentCostYear
+  ComponentCostYear,
+  InfraData
 } from '../Model.d';
 
 import { Button } from '../../../components/tailwindui/button';
@@ -24,7 +25,7 @@ import MajorItemOfWorksForm from './MajorItemOfWorksForm';
 import NotesForm from './NotesForm';
 import FundingProfileForm from './FundingProfileForm';
 import ActivitySection from './ActivitySection';
-import { addProjectDetails, getProjectEnums, updateEntireProject } from '../Service';
+import { addProjectDetails, getProjectEnums, updateEntireProject, getInfrastructureData } from '../Service';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 
 interface ProjectFormProps {
@@ -104,7 +105,26 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       }
     };
 
+    // Load infrastructure data
+    const loadInfrastructureData = async () => {
+      try {
+        const response = await getInfrastructureData();
+        console.log('Infrastructure Data:', response.Data);
+        setInfraData(response.Data);
+      } catch (error) {
+        console.error('Error loading infrastructure data:', error);
+        // Set empty data on error to prevent crashes
+        setInfraData({
+          RoadSections: [],
+          Bridges: [],
+          FCS: [],
+          OtherInfra: []
+        });
+      }
+    };
+
     loadProjectEnums();
+    loadInfrastructureData();
 
     // Set program details if in edit mode and initialData is present
     if (mode === 'edit' && initialData?.ProgramDetails) {
@@ -155,6 +175,13 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
     EmergencyModes: [],
     Agreements: [],
     Sources: [],
+  });
+
+  const [infraData, setInfraData] = useState<InfraData>({
+    RoadSections: [],
+    Bridges: [],
+    FCS: [],
+    OtherInfra: []
   });
 
   const [activities] = useState<Activity[]>(
@@ -245,6 +272,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       YearOfWork: new Date().getFullYear(),
       TypeOfWork: 0,
       PhysicalTarget: 0,
+      TargetUnit: '',
       Description: '',
       InfraId: '',
       StartStationLimit: 0,
@@ -518,6 +546,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
           <MajorItemOfWorksForm
             majorItems={majorItems}
             componentCosts={componentCosts}
+            infraData={infraData}
             onAdd={handleAddMajorItem}
             onEdit={handleEditMajorItem}
             onDelete={handleDeleteMajorItem}

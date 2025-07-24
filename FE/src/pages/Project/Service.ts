@@ -1,5 +1,5 @@
 import { httpClient, type ApiResponse } from "../../services/httpClient";
-import type { ProjectLists, ProgramDetails, ComponentCost, ComponentCostYear, ProjectDetails, MajorItemOfWork, FundingProfile, ProjectNote, ProjectEnums, ProjectFormPayload, ProjectPagination, AddNotes } from "./Model.d";
+import type { ProjectLists, ProgramDetails, ComponentCost, ComponentCostYear, ProjectDetails, MajorItemOfWork, FundingProfile, ProjectNote, ProjectEnums, ProjectFormPayload, ProjectPagination, AddNotes, InfraData } from "./Model.d";
 
 // #region INITIALIZE Project Lists
 export const fetchProject = async (data: ProjectPagination) => {
@@ -247,4 +247,18 @@ export const deleteNote = async (notes: ProjectNote[]) => {
         throw ErrorResponse;
     }
 }
+// #endregion
+
+// #region Infrastructure Data
+export const getInfrastructureData = async () => {
+    try {
+        const response = await httpClient.post<InfraData>(`/Project/InfrastructureData`, null, {
+            preloaderMessage: 'Loading infrastructure data...'
+        });
+        return response;
+    } catch (ErrorResponse) {
+        console.error('Error fetching infrastructure data:', ErrorResponse);
+        throw ErrorResponse;
+    }
+};
 // #endregion
