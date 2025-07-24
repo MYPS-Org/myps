@@ -7,7 +7,6 @@ import type {
   ProjectNote, 
   FundingProfile, 
   Activity, 
-  ProgramDetails,
   ProjectFormPayload,
   ProjectEnums,
   Dropdowns,
@@ -27,6 +26,7 @@ import FundingProfileForm from './FundingProfileForm';
 import ActivitySection from './ActivitySection';
 import { addProjectDetails, getProjectEnums, updateEntireProject, getInfrastructureData } from '../Service';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import type { ProgramList } from '../../Program/Model';
 
 interface ProjectFormProps {
   initialData?: ProjectFormPayload;
@@ -46,25 +46,23 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
   const [isProjectOpen, setIsProjectOpen] = useState<boolean>(true);
   
   // Initialize state with empty data or provided initial data
-  const [programDetails, setProgramDetails] = useState<ProgramDetails>(
+  const [programDetails, setProgramDetails] = useState<ProgramList>(
     initialData?.ProgramDetails || {
     Id: 0,
+    RevisionId: 0,
     ProgramId: '',
-    RevisionNumber: 0,
-    Name: '',
-    StageId: 0,
     StageName: '',
-    UserGroup: 0,
+    Name: '',
+    GroupName: '',
     RegionCode: '',
-    Status: 0,
-    Type: 0,
+    Status: '',
+    Type: '',
     Cost: 0,
     YearStart: 0,
     YearEnd: 0,
     CreatedBy: '',
     CreatedDate: '',
-    UpdatedBy: '',
-    UpdatedDate: '',
+    IsPublished: false,
   });
 
   const [projectDetails, setProjectDetails] = useState<ProjectDetails>(
@@ -196,7 +194,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
     setProjectDetails(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleProgramDetailsChange = (updatedProgramDetails: ProgramDetails) => {
+  const handleProgramDetailsChange = (updatedProgramDetails: ProgramList) => {
     console.log('Program details changed in ProjectForm:', updatedProgramDetails);
     setProgramDetails(updatedProgramDetails);
     

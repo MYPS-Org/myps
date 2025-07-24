@@ -65,15 +65,16 @@ export interface ProgramFilter {
 export interface ProgramList {
 	Id: number;
 	RevisionId: number;
-	ProgramId?: string;
+	ProgramId: string;
 	StageName: string;
-	Name?: string;
+	Name: string;
 	GroupName?: string;
+	RegionCode: string;
 	Status?: string;
 	Type?: string;
 	Cost?: number;
-	YearStart?: number;
-	YearEnd?: number;
+	YearStart: number;
+	YearEnd: number;
 	CreatedBy: string;
 	CreatedDate: string;
 	IsPublished: boolean;

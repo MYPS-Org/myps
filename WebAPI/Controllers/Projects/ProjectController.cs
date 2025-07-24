@@ -291,7 +291,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
                 }
-                var Program = await _db.vProgramDetails.OrderByDescending(x => x.RevisionNumber).FirstOrDefaultAsync(x => x.ReferenceId == Project.ProgramId);
+                var Program = await _db.vPrograms.FirstOrDefaultAsync(x => x.ProgramId == Project.ProgramId);
                 if (Program == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Program not found for this project!", Title = "Program Not Found" });
@@ -331,7 +331,6 @@ namespace WebAPI.Controllers.Programs
                     MajorItemOfWorks = MajorItemOfWork,
                     ProjectNotes = Notes,
                     FundingProfile = Funding,
-                    ScopeOfWorks = ScopeOfWork,
                     TransactionLogs = Transactions,
                     Dropdowns = new
                     {
@@ -351,6 +350,9 @@ namespace WebAPI.Controllers.Programs
 
                         //Component Cost
                         ComponentTypes = ComponentType,
+
+                        //Major Item Of Work
+                        ScopeOfWorks = ScopeOfWork,
 
                         //Funding Profile
                         Agreements = Agreement,
