@@ -1,3 +1,5 @@
+import type { ProgramList } from "../Program/Model";
+
 export interface ProjectPagination extends PaginationParams {
   filters?: ProjectFilter;
   sortField?: string; // Remove the = 'Id' default value - this is invalid in TypeScript interfaces
@@ -9,7 +11,7 @@ export interface ProjectFilter {
 }
 
 export interface ProjectFormPayload {
-  ProgramDetails: ProgramDetails;
+  ProgramDetails: ProgramList;
   ProjectDetails: ProjectDetails;
   ComponentCosts: ComponentCost[];
   ComponentCostPerYear: ComponentCostYear[];
@@ -359,7 +361,7 @@ export interface SourceEnum {
 
 // #region add Project details Enums
 export interface ProjectEnums {
-  Programs: ProgramDetails[];
+  Programs: ProgramList[];
   Categories: ProjectCategoryEnum[];
   Thrusts: ProjectThurstEnum[];
   Origins: ProjectOriginEnum[];

@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import type { ProgramDetails, ProjectEnums, ProjectFormPayload } from "../Model";
+import type { ProgramList } from "../../Program/Model";
 
 interface ProgramDetailsFormProps {
   initialData?: any;
-  programDetails: ProgramDetails;
-  setProgramDetails: React.Dispatch<React.SetStateAction<ProgramDetails>>;
-  onChange?: (updatedDetails: ProgramDetails) => void;
+  programDetails: ProgramList;
+  setProgramDetails: React.Dispatch<React.SetStateAction<ProgramList>>;
+  onChange?: (updatedDetails: ProgramList) => void;
   mode?: 'add' | 'edit';
   projectEnums?: ProjectEnums;
 }
@@ -30,32 +31,30 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
       console.log(projectEnums?.Programs);
       if(!selectedProgram) {
         // Clear the program details if no program is selected
-        const emptyProgramDetails: ProgramDetails = {
-          Id: 0,
-          ProgramId: '',
-          RevisionNumber: 0,
-          Name: '',
-          StageId: 0,
-          StageName: '',
-          UserGroup: 0,
-          RegionCode: '',
-          Status: 0,
-          Type: 0,
-          Cost: 0,
-          YearStart: 0,
-          YearEnd: 0,
-          CreatedBy: '',
-          CreatedDate: '',
-          UpdatedBy: '',
-          UpdatedDate: '',
+        const emptyProgramDetails: ProgramList = {
+        Id: 0,
+        RevisionId: 0,
+        ProgramId: '',
+        StageName: '',
+        Name: '',
+        GroupName: '',
+        RegionCode: '',
+        Status: '',
+        Type: '',
+        Cost: 0,
+        YearStart: 0,
+        YearEnd: 0,
+        CreatedBy: '',
+        CreatedDate: '',
+        IsPublished: false,
         };
         setProgramDetails(emptyProgramDetails);
         setSearchFormData('');
         return;
       }
-      onChange?.(selectedProgram as ProgramDetails);
+      onChange?.(selectedProgram as ProgramList);
       setSearchFormData(selectedProgram!.ProgramId);
-      setProgramDetails(selectedProgram as ProgramDetails);
+      setProgramDetails(selectedProgram as ProgramList);
   }
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -131,7 +130,7 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
               <label className="flex-1/3 text-gray-600">User Group:</label>
               <input
                   type="text"
-                  value={programDetails.UserGroup || ''}
+                  value={programDetails.GroupName || ''}
                   disabled={mode === 'edit'}
                   className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
                   readOnly
