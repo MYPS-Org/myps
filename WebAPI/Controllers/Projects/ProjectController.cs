@@ -320,6 +320,7 @@ namespace WebAPI.Controllers.Programs
                 var Agreement = await _db.tProjectFundingAgreementLists.ToListAsync();
                 var Source = await _db.tProjectFundingSource.ToListAsync();
 
+                var ScopeOfWork = await _db.tProjectScopeOfWorkEnum.ToListAsync();
                 var Transactions = await _db.tTransactionLog.Where(x => x.TransactionId == dto.ProjectId).ToListAsync();
                 return Ok(new
                 {
@@ -330,6 +331,7 @@ namespace WebAPI.Controllers.Programs
                     MajorItemOfWorks = MajorItemOfWork,
                     ProjectNotes = Notes,
                     FundingProfile = Funding,
+                    ScopeOfWorks = ScopeOfWork,
                     TransactionLogs = Transactions,
                     Dropdowns = new
                     {
@@ -1008,6 +1010,7 @@ namespace WebAPI.Controllers.Programs
                 #endregion
                 await _db.tTransactionLog.AddRangeAsync(transactionLogs);
                 await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
                 return Ok(new
                 {
                     Message = "Project Update wala pa lods",
