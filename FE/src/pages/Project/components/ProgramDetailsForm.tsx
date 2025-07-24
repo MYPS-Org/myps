@@ -101,6 +101,7 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
                   value={programDetails.Type || ''}
                   disabled={mode === 'edit'}
                   className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
+                  readOnly
               />
           </div>
 
@@ -111,6 +112,7 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
                   value={programDetails.YearStart || ''}
                   disabled={mode === 'edit'}
                   className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
+                  readOnly
               />
           </div>
 
@@ -121,6 +123,7 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
                   value={programDetails.StageName || ''}
                   disabled={mode === 'edit'}
                   className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
+                  readOnly
               />
           </div>
 
@@ -131,6 +134,7 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
                   value={programDetails.UserGroup || ''}
                   disabled={mode === 'edit'}
                   className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
+                  readOnly
               />
           </div>
 
@@ -141,6 +145,7 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
                   value={programDetails.RegionCode || ''}
                   disabled={mode === 'edit'}
                   className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
+                  readOnly
               />
           </div>
       </div>

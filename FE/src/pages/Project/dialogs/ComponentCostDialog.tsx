@@ -11,7 +11,7 @@ interface ComponentCostDialogProps {
   editingCost?: ComponentCostWithYears;
   mode: 'add' | 'edit';
   componentTypes: any[];
-  componentCosts: ComponentCost[];
+  componentCosts: ComponentCost[] | null;
 }
 
 const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
@@ -191,7 +191,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                             handleChangeComponentId(value);
                         }}
                     >
-                        {componentTypes.map((type: any) => (
+                        {componentTypes?.map((type: any) => (
                             <option key={type.Id} value={type.description}>
                                 {type.Description}
                             </option>

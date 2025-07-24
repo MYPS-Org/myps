@@ -490,6 +490,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
         </div>
       </div>
 
+      {mode === 'edit' && (
+        <>
       {/* Component Cost Section - Fill this first to populate Major Items */}
       <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
         <div className="px-4 py-6 sm:p-8">
@@ -559,28 +561,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
 
       {/* Activities Section */}
       <ActivitySection activities={activities} />
-
-      {/* Update Project Button - Only show in edit mode */}
-      {/* {mode === 'edit' && (
-        <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
-          <div className="px-4 py-6 sm:p-8">
-            <div className="flex justify-between items-center">
-              <div>
-                <h3 className="text-lg font-semibold leading-7 text-gray-900">Update Project</h3>
-                <p className="text-sm text-gray-600">Save all project sections (excludes Program Details and Notes)</p>
-              </div>
-              <Button
-                color="orange"
-                onClick={handleUpdateProject}
-                disabled={updateAllProject}
-                className="text-sm"
-              >
-                {updateAllProject ? 'Updating...' : 'Update Project'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )} */}
+      </>
+      )}
     </div>
   );
 };
