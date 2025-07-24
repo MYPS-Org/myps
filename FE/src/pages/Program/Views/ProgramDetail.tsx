@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
-import type { ProgramDetails, ProgramDetailsEnums } from '../Model.d'; // Adjust the import path as necessary
+import type { ProgramDetailsEnums } from '../Model.d'; // Adjust the import path as necessary
 import { Button } from '../../../components/tailwindui/button';
 import { editProgram, fetchProgramById } from '../Service';
 // import { Badge } from '../../../components/tailwindui/badge';

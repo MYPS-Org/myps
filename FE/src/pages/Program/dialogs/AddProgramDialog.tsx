@@ -5,6 +5,7 @@ import { Button } from '../../../components/tailwindui/button';
 import type { ProgramEnums, ProgramModel } from '../Model';
 import { addProgram } from '../Service'; // Adjust the import path as necessary
 import XMarkIcon from '@heroicons/react/24/outline/XMarkIcon';
+import { useNavigate } from 'react-router-dom';
 
 interface AddProgramDialogProps {
   isOpen: boolean;
@@ -23,7 +24,7 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
   onClose, 
   onSubmit, 
   programEnums, }) => {
-  
+  const navigate = useNavigate();
   const Status = programEnums?.Statuses || [];
   const Stage = programEnums?.Stages || [];
   const Type = programEnums?.Types || [];
@@ -44,10 +45,10 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await addProgram(formData);
+      const response = await addProgram(formData);
       onSubmit(formData); // Call the onSubmit prop with the form data
       handleReset(); // Reset the form data
-      onClose(); // Close the dialog after submission
+      navigate(`programdetails/${response.Data.Id}`); // Navigate to the program details page
     } catch (error) {
       console.error('Error submitting program:', error);
     }
@@ -55,6 +56,11 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
 
   const handleChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleClose = () => {
+    handleReset();
+    onClose();
   };
 
   const handleReset = () => {
@@ -199,7 +205,7 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
             
 
           <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-            <Button type="button" onClick={onClose} color='zinc'>
+            <Button type="button" onClick={handleClose} color='zinc'>
               Cancel
             </Button>
             <Button type="submit" color='orange'>

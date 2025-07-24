@@ -15,7 +15,7 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({ isOpen, onClose, onAdd,
 
   useEffect(() => {
     if (isOpen) {
-      setInfraId('');
+      setInfraId('');``
     }
   }, [isOpen]);
 
@@ -70,7 +70,7 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({ isOpen, onClose, onAdd,
                         Cancel
                     </Button>
                     <Button type="submit" color="orange" onClick={handleSubmit}>
-                        {/* {mode === 'add' ? 'Add' : 'Save'} */}
+                        {mode === 'add' ? 'Add' : 'Save'}
                     </Button>
                 </div>
             </form>

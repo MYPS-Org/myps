@@ -197,8 +197,8 @@ const Program: React.FC = () => {
                     </TableRow>
                     </TableHead>
                     <TableBody>
-                    {ProgramData.lists.map(program => (
-                        <TableRow key={program.Id}>
+                    {ProgramData.lists.map((program, idx) => (
+                        <TableRow key={`${program.Id}-${idx}`}>
                         <TableCell>
                             <button 
                                 onClick={() => handleViewDetails(program.ProgramId)}
