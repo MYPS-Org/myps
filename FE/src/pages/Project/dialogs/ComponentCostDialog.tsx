@@ -257,7 +257,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                             Date of Approval
                         </label>
                         <input
-                            type="text"
+                            type="date"
                             value={formData.ApprovalDate}
                             onChange={(e) => handleChange('ApprovalDate', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"

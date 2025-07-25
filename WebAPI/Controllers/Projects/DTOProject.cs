@@ -33,11 +33,49 @@ namespace WebAPI.Controllers.Programs
     public class UpdateProjectDetailsDTO
     {
         public ProjectDetails ProjectDetails { get; set; } = new ProjectDetails();
-        public List<ProjectComponentCost> ComponentCosts { get; set; } = new List<ProjectComponentCost>();
-        public List<ProjectComponentCostYear> ComponentCostYear { get; set; } = new List<ProjectComponentCostYear>();
+        public List<ProjectComponentCostDTO> ComponentCosts { get; set; } = new List<ProjectComponentCostDTO>();
+        public List<ProjectComponentCostYearDTO> ComponentCostYear { get; set; } = new List<ProjectComponentCostYearDTO>();
         public List<ProjectMajorItemOfWorks> MajorItemOfWorks { get; set; } = new List<ProjectMajorItemOfWorks>();
         public List<ProjectNotes> ProjectNotes { get; set; } = new List<ProjectNotes>();
         public List<ProjectFundingProfile> FundingProfile { get; set; } = new List<ProjectFundingProfile>();
+    }
+    public class ProjectComponentCostDTO
+    {
+        [Required]
+        public int Id { get; set; }
+        [Required]
+        [MaxLength(100)]
+        public string ProjectId { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(10)]
+        public string ComponentType { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(10)]
+        public string ComponentId { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(400)]
+        public string Description { get; set; } = string.Empty;
+        [Required]
+        public Double Total { get; set; }
+    }
+    public class ProjectComponentCostYearDTO
+    {
+        [Required]
+        public int Id { get; set; }
+        [Required]
+        public int ParentId { get; set; }
+        [Required]
+        public int CostYear { get; set; }
+        [Required]
+        public Double Cost { get; set; }
+        public DateTime? ApprovalDate { get; set; }
+        [Required]
+        [MaxLength(100)]
+        public string PAPCode { get; set; } = string.Empty;
+        [Required]
+        public DateTime StartDate { get; set; }
+        [Required]
+        public DateTime EndDate { get; set; }
     }
     public class AddNotesDTO : ProjectDetailsDTO
     {
