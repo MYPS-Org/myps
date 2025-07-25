@@ -771,9 +771,12 @@ namespace WebAPI.Controllers.Programs
                 var ComponentCost = await _db.tProjectComponentCost.Where(x => x.ProjectId == Project.ReferenceId).ToListAsync();
                 if (ComponentCost.Count > 0)
                 {
-                    var CurrentComponentCost = ComponentCost.Select(x => x.Id).ToList();
+                    HashSet<long> CurrentComponentCost = new HashSet<long>(ComponentCost.Select(x => (long)x.Id));
                     var NewComponentCostData = dto.ComponentCosts.Where(x => !CurrentComponentCost.Contains(x.Id)).ToList();
-                    var NewComponentCost = NewComponentCostData.Select(x => x.Id).ToList();
+                    HashSet<long> NewComponentCost = new HashSet<long>(NewComponentCostData.Select(x => x.Id));
+
+                    //var CurrentComponentCost = ComponentCost.Select(x => x.Id).ToList();
+                    //var NewComponentCost = NewComponentCostData.Select(x => x.Id).ToList();
                     var DeletedComponentCost = CurrentComponentCost.Except(NewComponentCost).ToList();
                     #region Delete Component Cost and Year
                     if (DeletedComponentCost.Count > 0)
@@ -896,11 +899,10 @@ namespace WebAPI.Controllers.Programs
                                     ExistingItem.Total = item.Total;
                                 }
                                 var ComponentCostYear = await _db.tProjectComponentCostYear.Where(x => x.ParentId == item.Id).ToListAsync();
+                                HashSet<long> currentCostIds = new HashSet<long>(ComponentCostYear.Select(x => (long)x.Id));
+                                HashSet<long> incomingCostIds = new HashSet<long>(dto.ComponentCostYear.Select(x => x.Id));
 
-                                HashSet<int> currentCostIds = new HashSet<int>(ComponentCostYear.Select(x => x.Id));
-                                HashSet<int> incomingCostIds = new HashSet<int>(dto.ComponentCostYear.Select(x => x.Id));
-
-                                var NewComponentCostYear = dto.ComponentCostYear.Where(x => !currentCostIds.Contains(x.Id)).ToList();
+                                var NewComponentCostYear = dto.ComponentCostYear.Where(x => !currentCostIds.Contains((long)x.Id)).ToList();
 
                                 var deletedComponentCostYearIds = currentCostIds.Except(incomingCostIds).ToList();
                                 var UpdateCostYearIds = currentCostIds.Intersect(incomingCostIds).ToHashSet();
