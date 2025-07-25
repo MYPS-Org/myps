@@ -16,7 +16,7 @@ namespace DBHelper.Models.Table
         [MaxLength(100)]
         public string ProjectId { get; set; } = string.Empty;
         [Required]
-        [MaxLength(10)]
+        [MaxLength(50)]
         public string ComponentType { get; set; } = string.Empty;
         [Required]
         [MaxLength(10)]
