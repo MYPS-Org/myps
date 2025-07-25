@@ -43,11 +43,9 @@ namespace WebAPI.Controllers.Programs
     {
         [Required]
         public long Id { get; set; }
-        [Required]
-        [MaxLength(100)]
         public string ProjectId { get; set; } = string.Empty;
         [Required]
-        [MaxLength(10)]
+        [MaxLength(100)]
         public string ComponentType { get; set; } = string.Empty;
         [Required]
         [MaxLength(10)]
