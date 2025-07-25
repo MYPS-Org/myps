@@ -8,34 +8,6 @@ import { editProgram, fetchProgramById } from '../Service';
 // import { Badge } from '../../../components/tailwindui/badge';
 
 // Mock projects data for the table
-const mockProjects = [
-  {
-    id: 'P00000001MN',
-    programName: 'BP 2019 - 002',
-    category: 'DA Farm to Market Roads',
-    totalCost: '90,000,123',
-    createdBy: 'John Doe - DPD',
-    createdDate: '17-Mar-2025'
-  },
-  {
-    id: 'P00000002MN',
-    programName: 'BP 2019 - 002',
-    category: 'DA Farm to Market Roads',
-    totalCost: '10,200,431',
-    createdBy: 'John Doe - DPD',
-    createdDate: '17-Mar-2025'
-  },
-  {
-    id: 'P00000003MN',
-    programName: 'BP 2019 - 002',
-    category: 'DA Farm to Market Roads',
-    totalCost: '500,123',
-    createdBy: 'John Doe - DPD',
-    createdDate: '17-Mar-2025'
-  }
-];
-
-
 const ProgramDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -59,6 +31,7 @@ const ProgramDetail: React.FC = () => {
         UpdatedBy: '',
         UpdatedDate: '',
     },
+    Projects: [],
     Dropdowns: {
       Statuses: [],
       Stages: [],
@@ -86,6 +59,7 @@ const ProgramDetail: React.FC = () => {
         UpdatedBy: '',
         UpdatedDate: '',
     },
+    Projects: [],
     Dropdowns: {
       Statuses: [],
       Stages: [],
@@ -335,13 +309,37 @@ const ProgramDetail: React.FC = () => {
                   Project ID
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Program Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Category
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Description
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Origin
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  City
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Total Project Cost
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Legislative District
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Operating Unit
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Implementing Office
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  DEO
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Region
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Agency
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Created By
@@ -352,27 +350,51 @@ const ProgramDetail: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {mockProjects.map((project) => (
-                <tr key={project.id} className="hover:bg-gray-50">
+              {programEnums.Projects.map((project) => (
+                <tr key={project.Id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <button className="text-blue-600 hover:text-blue-800 font-medium">
-                      {project.id}
+                      {project.Id}
                     </button>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {project.programName}
+                    {project.ReferenceId}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {project.category}
+                    {project.Category}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {project.totalCost}
+                    {project.Description}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {project.createdBy}
+                    {project.Origin}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {project.createdDate}
+                    {project.City}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {project.LegislativeDistrict}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {project.OperatingUnit}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {project.ImplementingOffice}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {project.DEO}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {project.Region}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {project.Agency}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {project.CreatedBy}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {project.CreatedDate.StringToDate()}
                   </td>
                 </tr>
               ))}

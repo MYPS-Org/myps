@@ -1,3 +1,4 @@
+import type { ProjectLists } from "../Project/Model";
 
 export interface ProgramModel {
   Id: number,
@@ -39,6 +40,7 @@ export interface ProgramDetails {
 
 export interface ProgramDetailsEnums{
   Details: ProgramDetails;
+  Projects: ProjectLists[];
   Dropdowns: {
     Stages: ProgramEnums[];
     Statuses: ProgramEnums[];
