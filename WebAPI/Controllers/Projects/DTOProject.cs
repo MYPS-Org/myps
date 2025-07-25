@@ -63,7 +63,7 @@ namespace WebAPI.Controllers.Programs
         [Required]
         public long Id { get; set; }
         [Required]
-        public int ParentId { get; set; }
+        public long ParentId { get; set; }
         [Required]
         public int CostYear { get; set; }
         [Required]

@@ -812,7 +812,7 @@ namespace WebAPI.Controllers.Programs
                     #region New Component Cost and Year
                     if (NewComponentCost.Count > 0)
                     {
-                        await _db.tProjectComponentCost.AddRangeAsync(NewComponentCostData.Select(item => new ProjectComponentCost
+                        var NewCostToAdd = NewComponentCostData.Select(item => new ProjectComponentCost
                         {
                             ProjectId = Project.ReferenceId!,
                             ComponentId = item.ComponentId,
@@ -821,18 +821,37 @@ namespace WebAPI.Controllers.Programs
                             Total = item.Total,
                             CreatedBy = _Session.UserId ?? "TESTING",
                             CreatedDate = CurrentDate
-                        }).ToList());
-                        var CostPerId = dto.ComponentCostYear.Where(x => NewComponentCost.Contains(x.ParentId));
-                        await _db.tProjectComponentCostYear.AddRangeAsync(CostPerId.Select(item => new ProjectComponentCostYear
+                        }).ToList();
+
+                        await _db.tProjectComponentCost.AddRangeAsync(NewCostToAdd);
+                        await _db.SaveChangesAsync();
+
+                        var relatedYears = new List<ProjectComponentCostYear>();
+                        foreach (var parent in NewCostToAdd)
                         {
-                            ParentId = item.ParentId,
-                            CostYear = item.CostYear,
-                            Cost = item.Cost,
-                            ApprovalDate = item.ApprovalDate,
-                            PAPCode = item.PAPCode,
-                            StartDate = item.StartDate,
-                            EndDate = item.EndDate
-                        }).ToList());
+                            var matchingDto = NewComponentCostData.FirstOrDefault(dto =>
+                                dto.ComponentId == parent.ComponentId &&
+                                dto.ComponentType == parent.ComponentType &&
+                                dto.Total == parent.Total);
+
+                            if (matchingDto != null)
+                            {
+                                var matchingYears = dto.ComponentCostYear
+                                    .Where(x => x.ParentId == matchingDto.Id)
+                                    .Select(year => new ProjectComponentCostYear
+                                    {
+                                        ParentId = parent.Id,
+                                        CostYear = year.CostYear,
+                                        Cost = year.Cost,
+                                        ApprovalDate = year.ApprovalDate,
+                                        PAPCode = year.PAPCode,
+                                        StartDate = year.StartDate,
+                                        EndDate = year.EndDate
+                                    });
+
+                                relatedYears.AddRange(matchingYears);
+                            }
+                        }
                     }
                     #endregion
                     #region Update Component Cost and Year
