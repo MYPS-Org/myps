@@ -173,6 +173,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
     EmergencyModes: [],
     Agreements: [],
     Sources: [],
+    ScopeOfWorks: []
   });
 
   const [infraData, setInfraData] = useState<InfraData>({
@@ -245,20 +246,20 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
   };
 
   // Handlers for ComponentCostYear (these will be used when we implement year-by-year cost breakdown)
-  const handleAddComponentCostYear = (parentId: number, newCostYear: ComponentCostYear) => {
-    setComponentCostsYear(prev => [...prev, { ...newCostYear, ParentId: parentId }]);
-    console.log('Added component cost year to staging:', newCostYear);
-  };
+  // const handleAddComponentCostYear = (parentId: number, newCostYear: ComponentCostYear) => {
+  //   setComponentCostsYear(prev => [...prev, { ...newCostYear, ParentId: parentId }]);
+  //   console.log('Added component cost year to staging:', newCostYear);
+  // };
 
-  const handleEditComponentCostYear = (costYearId: number, updatedCostYear: ComponentCostYear) => {
-    setComponentCostsYear(prev => prev.map(year => year.Id === costYearId ? updatedCostYear : year));
-    console.log('Updated component cost year in staging:', updatedCostYear);
-  };
+  // const handleEditComponentCostYear = (costYearId: number, updatedCostYear: ComponentCostYear) => {
+  //   setComponentCostsYear(prev => prev.map(year => year.Id === costYearId ? updatedCostYear : year));
+  //   console.log('Updated component cost year in staging:', updatedCostYear);
+  // };
 
-  const handleDeleteComponentCostYear = (costYearId: number) => {
-    setComponentCostsYear(prev => prev.filter(year => year.Id !== costYearId));
-    console.log('Deleted component cost year from staging:', costYearId);
-  };
+  // const handleDeleteComponentCostYear = (costYearId: number) => {
+  //   setComponentCostsYear(prev => prev.filter(year => year.Id !== costYearId));
+  //   console.log('Deleted component cost year from staging:', costYearId);
+  // };
   // #endregion
 
   // #region Major Items of Work
@@ -548,6 +549,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
             onAdd={handleAddMajorItem}
             onEdit={handleEditMajorItem}
             onDelete={handleDeleteMajorItem}
+            dropDowns={initialData?.Dropdowns?.ScopeOfWorks}
           />
         </div>
       </div>

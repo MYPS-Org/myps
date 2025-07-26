@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import type { MajorItemOfWork, ComponentCost, InfraData } from '../Model.d';
+import type { MajorItemOfWork, ComponentCost, InfraData, ScopeOfWorkEnum } from '../Model.d';
 import { Button } from '../../../components/tailwindui/button';
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '../../../components/tailwindui/table';
@@ -12,6 +12,7 @@ interface MajorItemOfWorksFormProps {
   onAdd: () => void;
   onEdit: (index: number, updatedItem: MajorItemOfWork) => void;
   onDelete: (index: number) => void;
+  dropDowns?: ScopeOfWorkEnum[]; // Optional initial data for dropdowns or other purposes
 }
 
 const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({ 
@@ -20,7 +21,8 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
   infraData,
   onAdd, 
   onEdit, 
-  onDelete 
+  onDelete,
+  dropDowns
 }) => {
   const [infraDialogOpen, setInfraDialogOpen] = useState(false);
   const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(null);
@@ -91,13 +93,19 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                   />
                 </TableCell>
                 <TableCell>
-                  <input
+                  <select name="typeOfWork" id="typeOfWork" value={item.TypeOfWork} onChange={(e) => onEdit(index, { ...item, TypeOfWork: e.target.value })}>
+                    <option value="">Select Type of Work</option>
+                    {dropDowns?.map(option => (
+                      <option key={option.Id} value={option.Id}>{option.Name}</option>
+                    ))}
+                  </select>
+                  {/* <input
                     type="text"
                     value={item.TypeOfWork}
                     onChange={(e) => onEdit(index, { ...item, TypeOfWork: Number(e.target.value) })}
                     className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
                     placeholder="Enter type of work"
-                  />
+                  /> */}
                 </TableCell>
                 <TableCell>
                   <input
