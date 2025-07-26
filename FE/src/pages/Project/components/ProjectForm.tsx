@@ -269,7 +269,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       ProjectId: projectDetails.ReferenceId || '',
       ComponentId: 0,
       YearOfWork: new Date().getFullYear(),
-      TypeOfWork: 0,
+      TypeOfWork:0,
       PhysicalTarget: 0,
       TargetUnit: '',
       Description: '',

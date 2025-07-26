@@ -41,6 +41,26 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     setSelectedItemIndex(null);
   };
 
+  const [maxUnit, setMaxUnit] = useState<number | undefined>();
+  const [minUnit, setMinUnit] = useState<number | undefined>();
+
+  const handleChange = (index: number, field: string, value: any) => {
+    onEdit(index, { ...majorItems[index], [field]: value });
+  };
+
+  const changeTargetUnit = (index: number, value: number) => {
+    console.log("Selected TypeOfWork:", value);
+    const newTargetUnit = dropDowns?.find(option => option.Enum === value);
+    if (newTargetUnit) {
+      setMaxUnit(newTargetUnit.MaxAmount);
+      setMinUnit(newTargetUnit.MinAmount);
+      console.log("Matched Target Unit:", newTargetUnit.Measure);
+      handleChange(index, 'TargetUnit', newTargetUnit.Measure);
+    } else {
+      console.log("No match found for", value);
+    }
+  };
+
   const openInfraDialog = (index: number) => {
     setSelectedItemIndex(index);
     setInfraDialogOpen(true);
@@ -75,7 +95,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                 <TableCell>
                   <select
                     value={item.ComponentId}
-                    onChange={(e) => onEdit(index, { ...item, ComponentId: Number(e.target.value) })}
+                    onChange={(e) => handleChange(index, 'ComponentId', Number(e.target.value))}
                     className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
                   >
                     <option value="">Select Component</option>
@@ -88,48 +108,51 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                   <input
                     type="number"
                     value={item.YearOfWork}
-                    onChange={(e) => onEdit(index, { ...item, YearOfWork: Number(e.target.value) })}
+                    onChange={(e) => handleChange(index, 'YearOfWork', Number(e.target.value))}
                     className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
                   />
                 </TableCell>
-                <TableCell>
-                  <select name="typeOfWork" id="typeOfWork" value={item.TypeOfWork} onChange={(e) => onEdit(index, { ...item, TypeOfWork: e.target.value })}>
+                <TableCell className="w-1/4">
+                  <select name="typeOfWork" id="typeOfWork" 
+                          value={item.TypeOfWork}
+                          onChange={(e) => { const value = e.target.value; handleChange(index, 'TypeOfWork', value); changeTargetUnit(index, Number(value)); }}
+                          className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500 truncate"
+                          style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}
+                          >
                     <option value="">Select Type of Work</option>
                     {dropDowns?.map(option => (
-                      <option key={option.Id} value={option.Id}>{option.Name}</option>
+                      <option key={option.Id} value={option.Enum}>{option.Description}</option>
                     ))}
                   </select>
-                  {/* <input
-                    type="text"
-                    value={item.TypeOfWork}
-                    onChange={(e) => onEdit(index, { ...item, TypeOfWork: Number(e.target.value) })}
-                    className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
-                    placeholder="Enter type of work"
-                  /> */}
                 </TableCell>
                 <TableCell>
                   <input
                     type="text"
                     value={item.TargetUnit}
-                    onChange={(e) => onEdit(index, { ...item, TargetUnit: e.target.value })}
+                    onChange={(e) => handleChange(index, 'TargetUnit', e.target.value)}
                     className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
                     placeholder="Enter target unit"
                   />
                 </TableCell>
                 <TableCell>
                   <input
-                    type="text"
+                    type="number"
                     value={item.PhysicalTarget}
-                    onChange={(e) => onEdit(index, { ...item, PhysicalTarget: Number(e.target.value) })}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      handleChange(index, 'PhysicalTarget', val === '' ? null : Number(val));
+                    }}
+                    max={maxUnit}
+                    min={minUnit}
                     className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
-                    placeholder="Enter physical target"
+                    // placeholder={`Minimum ${minUnit} - Maximum ${maxUnit}`}
                   />
                 </TableCell>
                 <TableCell>
                   <input
                     type="text"
                     value={item.Description}
-                    onChange={(e) => onEdit(index, { ...item, Description: e.target.value })}
+                    onChange={(e) => handleChange(index, 'Description', e.target.value)}
                     className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
                     placeholder="Enter detailed scope"
                   />
@@ -139,7 +162,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                     <input
                       type="text"
                       value={item.InfraId}
-                      onChange={(e) => onEdit(index, { ...item, InfraId: e.target.value })}
+                      onChange={(e) => handleChange(index, 'InfraId', e.target.value)}
                       className="flex-1 px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
                       placeholder="Enter infra ID"
                       readOnly
