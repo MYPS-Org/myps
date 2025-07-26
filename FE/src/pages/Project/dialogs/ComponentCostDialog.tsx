@@ -12,6 +12,7 @@ interface ComponentCostDialogProps {
   mode: 'add' | 'edit';
   componentTypes: any[];
   componentCosts: ComponentCost[];
+  ProjectId: string;
 }
 
 const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
@@ -21,11 +22,12 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   editingCost,
   mode,
   componentTypes,
-  componentCosts
+  componentCosts,
+  ProjectId
 }) => {
   const [formData, setFormData] = useState({
     Id: 0,
-    ProjectId: '',
+    ProjectId: ProjectId,
     ComponentType: '',
     ComponentId: '',
     Description: '',
@@ -57,7 +59,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
       // Reset form for new entry
       setFormData({
         Id: 0,
-        ProjectId: '',
+        ProjectId: ProjectId,
         ComponentType: '',
         ComponentId: '',
         Description: '',
