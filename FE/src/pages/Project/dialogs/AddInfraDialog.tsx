@@ -4,6 +4,7 @@ import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '../../../components/tailwindui/table';
 import type { RoadSections, Bridge, FCS, OtherInfra, InfraData } from '../Model.d';
+import { mockInfraData } from './mockInfraData';
 
 interface AddInfraDialogProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
   initialData,
   mode = 'add' 
 }) => {
+
   const [activeTab, setActiveTab] = useState<'road' | 'bridge' | 'fcs' | 'other'>('road');
   const [selectedInfra, setSelectedInfra] = useState<{
     id: string;
@@ -73,7 +75,8 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
   };
 
   const renderRoadSections = () => {
-    const filteredData = filterData(initialData?.RoadSections || [], ['SectionId', 'CDOName', 'RoadId']);
+    const data = initialData?.RoadSections || mockInfraData.RoadSections;
+    const filteredData = filterData(data, ['SectionId', 'CDOName', 'RoadId']);
     
     return (
       <div className="space-y-4">
@@ -121,7 +124,8 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
   };
 
   const renderBridges = () => {
-    const filteredData = filterData(initialData?.Bridges || [], ['BridgeId', 'BridgeName', 'Location']);
+    const data = initialData?.Bridges || mockInfraData.Bridges;
+    const filteredData = filterData(data, ['BridgeId', 'BridgeName', 'Location']);
     
     return (
       <div className="space-y-4">
@@ -163,7 +167,8 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
   };
 
   const renderFCS = () => {
-    const filteredData = filterData(initialData?.FCS || [], ['FCSId', 'FCSName', 'Location']);
+    const data = initialData?.FCS || mockInfraData.FCS;
+    const filteredData = filterData(data, ['FCSId', 'FCSName', 'Location']);
     
     return (
       <div className="space-y-4">
@@ -203,7 +208,8 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
   };
 
   const renderOtherInfra = () => {
-    const filteredData = filterData(initialData?.OtherInfra || [], ['InfraId', 'InfraName', 'InfraType', 'Location']);
+    const data = initialData?.OtherInfra || mockInfraData.OtherInfra;
+    const filteredData = filterData(data, ['InfraId', 'InfraName', 'InfraType', 'Location']);
     
     return (
       <div className="space-y-4">

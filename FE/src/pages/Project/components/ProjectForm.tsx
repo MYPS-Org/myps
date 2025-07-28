@@ -104,25 +104,25 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
     };
 
     // Load infrastructure data
-    const loadInfrastructureData = async () => {
-      try {
-        const response = await getInfrastructureData();
-        console.log('Infrastructure Data:', response.Data);
-        setInfraData(response.Data);
-      } catch (error) {
-        console.error('Error loading infrastructure data:', error);
-        // Set empty data on error to prevent crashes
-        setInfraData({
-          RoadSections: [],
-          Bridges: [],
-          FCS: [],
-          OtherInfra: []
-        });
-      }
-    };
+    // const loadInfrastructureData = async () => {
+    //   try {
+    //     const response = await getInfrastructureData();
+    //     console.log('Infrastructure Data:', response.Data);
+    //     setInfraData(response.Data);
+    //   } catch (error) {
+    //     console.error('Error loading infrastructure data:', error);
+    //     // Set empty data on error to prevent crashes
+    //     setInfraData({
+    //       RoadSections: [],
+    //       Bridges: [],
+    //       FCS: [],
+    //       OtherInfra: []
+    //     });
+    //   }
+    // };
 
     loadProjectEnums();
-    loadInfrastructureData();
+    // loadInfrastructureData();
 
     // Set program details if in edit mode and initialData is present
     if (mode === 'edit' && initialData?.ProgramDetails) {
@@ -156,7 +156,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
     initialData?.FundingProfile || []
   );
 
-  const [Dropdowns, setDropdowns] = useState<Dropdowns>(
+  const [Dropdowns] = useState<Dropdowns>(
     initialData?.Dropdowns || {
     Categories: [],
     Thrusts: [],
@@ -176,7 +176,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
     ScopeOfWorks: []
   });
 
-  const [infraData, setInfraData] = useState<InfraData>({
+  const [infraData] = useState<InfraData>({
     RoadSections: [],
     Bridges: [],
     FCS: [],
@@ -396,15 +396,11 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       console.log('Update payload:', payload);
       
       const response = await updateEntireProject(payload);
-      
-      // if (response.Data?.ProjectId) {
-      //   console.log('Project updated successfully, navigating to:', response.Data.ProjectId);
-      //   navigate(`/projects/Edit/${response.Data.ProjectId}`);
-      // } else {
-      //   console.log('Project updated successfully');
-      //   // Show success message or toast here
-      //   alert('Project updated successfully!');
-      // }
+      if( response.Data) {
+        console.log('Project updated successfully:', response.Data);
+        // Optionally navigate or show success message
+        // navigate(`/projects/Edit/${response.Data.ProjectId}`);
+      }
     } catch (error) {
       console.error('Error updating project:', error);
       alert('Error updating project. Please try again.');
