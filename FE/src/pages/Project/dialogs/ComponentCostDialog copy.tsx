@@ -296,7 +296,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
 
                                 <div className="col-span-1">
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    UACs PAP Code
+                                    UACS PAP Code
                                     </label>
                                     <input
                                     type="text"
