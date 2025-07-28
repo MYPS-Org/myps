@@ -3,7 +3,7 @@ import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '../../../components/tailwindui/table';
-import type { RoadSections, Bridge, FCS, OtherInfra, InfraData } from '../Model.d';
+import type { InfraData } from '../Model.d';
 import { mockInfraData } from './mockInfraData';
 
 interface AddInfraDialogProps {
@@ -27,6 +27,7 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
     id: string;
     name: string;
     type: string;
+    length?: number;
   } | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
 
@@ -75,7 +76,7 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
   };
 
   const renderRoadSections = () => {
-    const data = initialData?.RoadSections || mockInfraData.RoadSections;
+    const data = /*initialData?.RoadSections ||*/ mockInfraData.RoadSections;
     const filteredData = filterData(data, ['SectionId', 'CDOName', 'RoadId']);
     
     return (
@@ -124,7 +125,7 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
   };
 
   const renderBridges = () => {
-    const data = initialData?.Bridges || mockInfraData.Bridges;
+    const data = /*initialData?.Bridges ||*/ mockInfraData.Bridges;
     const filteredData = filterData(data, ['BridgeId', 'BridgeName', 'Location']);
     
     return (
@@ -167,7 +168,7 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
   };
 
   const renderFCS = () => {
-    const data = initialData?.FCS || mockInfraData.FCS;
+    const data = /*initialData?.FCS ||*/ mockInfraData.FCS;
     const filteredData = filterData(data, ['FCSId', 'FCSName', 'Location']);
     
     return (
@@ -208,7 +209,7 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
   };
 
   const renderOtherInfra = () => {
-    const data = initialData?.OtherInfra || mockInfraData.OtherInfra;
+    const data = /*initialData?.OtherInfra ||*/ mockInfraData.OtherInfra;
     const filteredData = filterData(data, ['InfraId', 'InfraName', 'InfraType', 'Location']);
     
     return (

@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import type { MajorItemOfWork, ComponentCost, InfraData, ScopeOfWorkEnum } from '../Model.d';
 import { Button } from '../../../components/tailwindui/button';
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '../../../components/tailwindui/table';
 import AddInfraDialog from '../dialogs/AddInfraDialog';
+import { mockInfraData } from "../dialogs/mockInfraData";
 
 interface MajorItemOfWorksFormProps {
   majorItems: MajorItemOfWork[];
@@ -27,6 +28,14 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
   const [infraDialogOpen, setInfraDialogOpen] = useState(false);
   const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(null);
 
+  // Debug: Monitor when majorItems prop changes
+  useEffect(() => {
+    console.log('MajorItemOfWorksForm: majorItems prop changed:', majorItems);
+    majorItems.forEach((item, index) => {
+      console.log(`Item ${index} - TypeOfWork:`, item.TypeOfWork, typeof item.TypeOfWork);
+    });
+  }, [majorItems]);
+
   const handleInfraSelect = (infraId: string, infraName: string, infraType: string) => {
     if (selectedItemIndex !== null) {
       const updatedItem = { 
@@ -41,24 +50,76 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     setSelectedItemIndex(null);
   };
 
-  const [maxUnit, setMaxUnit] = useState<number | undefined>();
-  const [minUnit, setMinUnit] = useState<number | undefined>();
+  // Store max/min units per row index
+  const [rowUnits, setRowUnits] = useState<Record<number, { max?: number; min?: number }>>({});
 
   const handleChange = (index: number, field: string, value: any) => {
-    onEdit(index, { ...majorItems[index], [field]: value });
+    console.log(`Updating field '${field}' at index ${index} with value:`, value);
+    console.log('Current item before update:', majorItems[index]);
+    const updatedItem = { ...majorItems[index], [field]: value };
+    console.log('Updated item being sent to parent:', updatedItem);
+    onEdit(index, updatedItem);
   };
 
-  const changeTargetUnit = (index: number, value: number) => {
-    console.log("Selected TypeOfWork:", value);
-    const newTargetUnit = dropDowns?.find(option => option.Enum === value);
-    if (newTargetUnit) {
-      setMaxUnit(newTargetUnit.MaxAmount);
-      setMinUnit(newTargetUnit.MinAmount);
-      console.log("Matched Target Unit:", newTargetUnit.Measure);
-      handleChange(index, 'TargetUnit', newTargetUnit.Measure);
+  const handleTypeOfWorkChange = (index: number, value: string) => {
+    const numValue = value === '' ? 0 : Number(value);
+    console.log("TypeOfWork select changed - string value:", value, "number value:", numValue);
+    
+    // Create the updated item with both TypeOfWork and TargetUnit
+    let updatedItem = { ...majorItems[index], TypeOfWork: numValue };
+    
+    // If we have a valid selection, also update the TargetUnit
+    if (numValue > 0) {
+      console.log("Looking for TypeOfWork enum:", numValue);
+      const newTargetUnit = dropDowns?.find(option => option.Enum === numValue);
+      if (newTargetUnit) {
+        console.log("Found matching target unit:", newTargetUnit.Measure);
+        updatedItem.TargetUnit = newTargetUnit.Measure;
+        
+        // Update row-specific units
+        setRowUnits(prev => ({
+          ...prev,
+          [index]: {
+            max: newTargetUnit.MaxAmount,
+            min: newTargetUnit.MinAmount
+          }
+        }));
+        console.log("Setting max/min units:", { max: newTargetUnit.MaxAmount, min: newTargetUnit.MinAmount });
+      } else {
+        console.log("No match found for TypeOfWork value:", numValue);
+        updatedItem.TargetUnit = '';
+      }
     } else {
-      console.log("No match found for", value);
+      // Clear target unit if no valid selection
+      updatedItem.TargetUnit = '';
+      // Clear row-specific units
+      setRowUnits(prev => ({
+        ...prev,
+        [index]: { max: undefined, min: undefined }
+      }));
     }
+    
+    console.log("Final updated item to send to parent:", updatedItem);
+    onEdit(index, updatedItem);
+  };
+
+  const getInfraLength = (infraId: string) => {
+    const data = mockInfraData;
+    // if (!infraId || !infraData) return '';
+    if (!infraId || !data) return '';
+    console.log("Fetching length for InfraId:", infraId);
+    // Check in RoadSections
+    const roadSection = data.RoadSections?.find(road => road.SectionId === infraId);
+    console.log("Found RoadSection:", roadSection);
+    if (roadSection) return roadSection.SectionLength?.toString() || '';
+    
+    // Check in Bridges
+    // const bridge = infraData.Bridges?.find(bridge => bridge.BridgeId === infraId);
+    const bridge = data.Bridges?.find(bridge => bridge.BridgeId === infraId);
+    if (bridge) return bridge.Length?.toString() || '';
+    
+    // For FCS and OtherInfra, they might not have length properties
+    return '';
   };
 
   const openInfraDialog = (index: number) => {
@@ -76,21 +137,29 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
           </Button>
         </div>
 
+        <div className="overflow-x-auto">
         <Table>
           <TableHead>
             <TableRow>
-              <TableHeader>Component ID</TableHeader>
-              <TableHeader>Year of Work</TableHeader>
-              <TableHeader>Type of Work</TableHeader>
-              <TableHeader>Target Unit</TableHeader>
-              <TableHeader>Physical Target</TableHeader>
-              <TableHeader>Detailed Scope</TableHeader>
-              <TableHeader>Infra ID</TableHeader>
-              <TableHeader>Actions</TableHeader>
+              <TableHeader className="min-w-[120px]">Component ID</TableHeader>
+              <TableHeader className="min-w-[100px]">Year of Work</TableHeader>
+              <TableHeader className="min-w-[140px]">Type of Work</TableHeader>
+              <TableHeader className="min-w-[100px]">Target Unit</TableHeader>
+              <TableHeader className="min-w-[120px]">Physical Target</TableHeader>
+              <TableHeader className="min-w-[120px]">Detailed Scope</TableHeader>
+              <TableHeader className="min-w-[100px]">Infra ID</TableHeader>
+              <TableHeader className="min-w-[80px]">Length</TableHeader>
+              <TableHeader className="min-w-[80px]">Start Station</TableHeader>
+              <TableHeader className="min-w-[80px]">End Station</TableHeader>
+              <TableHeader className="min-w-[80px]">Start From</TableHeader>
+              <TableHeader className="min-w-[80px]">End From</TableHeader>
+              <TableHeader className="min-w-[80px]">Actions</TableHeader>
             </TableRow>
           </TableHead>
           <TableBody>
-            {majorItems.map((item, index) => (
+            {majorItems.map((item, index) => {
+              console.log(`Row ${index} - TypeOfWork:`, item.TypeOfWork, typeof item.TypeOfWork);
+              return (
               <TableRow key={item.Id}>
                 <TableCell>
                   <select
@@ -112,11 +181,11 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                     className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
                   />
                 </TableCell>
-                <TableCell className="w-1/4">
+                <TableCell className="">
                   <select name="typeOfWork" id="typeOfWork" 
                           value={item.TypeOfWork}
-                          onChange={(e) => { const value = e.target.value; handleChange(index, 'TypeOfWork', value); changeTargetUnit(index, Number(value)); }}
-                          className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500 truncate"
+                          onChange={(e) => handleTypeOfWorkChange(index, e.target.value)}
+                          className="max-w-sm px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500 truncate"
                           style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}
                           >
                     <option value="">Select Type of Work</option>
@@ -142,10 +211,10 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                       const val = e.target.value;
                       handleChange(index, 'PhysicalTarget', val === '' ? null : Number(val));
                     }}
-                    max={maxUnit}
-                    min={minUnit}
+                    max={rowUnits[index]?.max}
+                    min={rowUnits[index]?.min}
                     className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
-                    // placeholder={`Minimum ${minUnit} - Maximum ${maxUnit}`}
+                    // placeholder={`Minimum ${rowUnits[index]?.min} - Maximum ${rowUnits[index]?.max}`}
                   />
                 </TableCell>
                 <TableCell>
@@ -177,6 +246,51 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                   </div>
                 </TableCell>
                 <TableCell>
+                  <input
+                    type="text"
+                    value={getInfraLength(item.InfraId)}
+                    className="w-20 px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
+                    placeholder="Length"
+                    readOnly
+                  />
+                </TableCell>
+                <TableCell>
+                  <input
+                    type="number"
+                    value={item.StartStationLimit}
+                    onChange={(e) => handleChange(index, 'StartStationLimit', Number(e.target.value))}
+                    className="w-24 px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
+                    placeholder="Start"
+                  />
+                </TableCell>
+                <TableCell>
+                  <input
+                    type="number"
+                    value={item.EndStationLimi}
+                    onChange={(e) => handleChange(index, 'EndStationLimi', Number(e.target.value))}
+                    className="w-24 px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
+                    placeholder="End"
+                  />
+                </TableCell>
+                <TableCell>
+                  <input
+                    type="number"
+                    value={item.StartFrom}
+                    onChange={(e) => handleChange(index, 'StartFrom', Number(e.target.value))}
+                    className="w-24 px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
+                    placeholder="Start"
+                  />
+                </TableCell>
+                <TableCell>
+                  <input
+                    type="number"
+                    value={item.EndFrom}
+                    onChange={(e) => handleChange(index, 'EndFrom', Number(e.target.value))}
+                    className="w-24 px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
+                    placeholder="End"
+                  />
+                </TableCell>
+                <TableCell>
                   <button
                     onClick={() => onDelete(index)}
                     className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50"
@@ -185,9 +299,11 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                   </button>
                 </TableCell>
               </TableRow>
-            ))}
+              );
+            })}
           </TableBody>
         </Table>
+        </div>
 
         {/* Add Infrastructure Dialog */}
         <AddInfraDialog

@@ -288,7 +288,13 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
   };
 
   const handleEditMajorItem = (index: number, updatedItem: MajorItemOfWork) => {
-    setMajorItems(prev => prev.map((item, i) => i === index ? updatedItem : item));
+    console.log('ProjectForm: Editing major item at index', index);
+    console.log('ProjectForm: Updated item received:', updatedItem);
+    setMajorItems(prev => {
+      const newItems = prev.map((item, i) => i === index ? updatedItem : item);
+      console.log('ProjectForm: New majorItems state:', newItems);
+      return newItems;
+    });
     console.log('Updated major item in staging:', updatedItem);
   };
 
