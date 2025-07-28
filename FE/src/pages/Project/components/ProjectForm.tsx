@@ -388,14 +388,40 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       const payload = {
         ProjectDetails: {
           ...projectDetails,
+          // Add missing required fields for the expected payload
+          ProgramName: programDetails.Name || '',
           EmergencyMode: projectDetails.EmergencyMode ? true : false,
+          CreatedBy: projectDetails.CreatedBy || 'SYSTEM',
+          CreatedDate: projectDetails.CreatedDate || new Date().toISOString(),
+          UpdatedBy: 'SYSTEM', // Set current user
+          UpdatedDate: new Date().toISOString(),
         },
-        ComponentCosts: componentCosts,
-        ComponentCostYear: componentCostsYear, // Note: "ComponentCostYear" not "ComponentCostPerYear"
+        ComponentCosts: componentCosts.map(cost => ({
+          Id: cost.Id,
+          ProjectId: cost.ProjectId || projectDetails.ReferenceId || '',
+          ComponentType: cost.ComponentType || '',
+          ComponentId: cost.ComponentId || '',
+          Description: cost.Description || '',
+          Total: cost.Total || 0,
+          CreatedBy: cost.CreatedBy || 'SYSTEM',
+          CreatedDate: cost.CreatedDate || new Date().toISOString(),
+          UpdatedBy: cost.UpdatedBy || 'SYSTEM',
+          UpdatedDate: cost.UpdatedDate || new Date().toISOString()
+        })),
+        ComponentCostYear: componentCostsYear.map(year => ({
+          Id: year.Id,
+          ParentId: year.ParentId,
+          CostYear: year.CostYear,
+          Cost: year.Cost,
+          // Add missing required fields for ComponentCostYear
+          ApprovalDate: year.ApprovalDate || new Date().toISOString(),
+          PAPCode: year.PAPCode || '',
+          StartDate: year.StartDate || new Date().toISOString(),
+          EndDate: year.EndDate || new Date().toISOString()
+        })),
         MajorItemOfWorks: majorItems,
+        ProjectNotes: notes, // Include ProjectNotes as it's in the expected payload
         FundingProfile: fundingProfiles,
-        // Include ProjectNotes if needed (you mentioned excluding it, but payload shows it)
-        // ProjectNotes: notes,
       };
 
       console.log('=== SENDING TO BACKEND (MATCHING EXPECTED PAYLOAD) ===');
