@@ -104,25 +104,25 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
     };
 
     // Load infrastructure data
-    const loadInfrastructureData = async () => {
-      try {
-        const response = await getInfrastructureData();
-        console.log('Infrastructure Data:', response.Data);
-        setInfraData(response.Data);
-      } catch (error) {
-        console.error('Error loading infrastructure data:', error);
-        // Set empty data on error to prevent crashes
-        setInfraData({
-          RoadSections: [],
-          Bridges: [],
-          FCS: [],
-          OtherInfra: []
-        });
-      }
-    };
+    // const loadInfrastructureData = async () => {
+    //   try {
+    //     const response = await getInfrastructureData();
+    //     console.log('Infrastructure Data:', response.Data);
+    //     setInfraData(response.Data);
+    //   } catch (error) {
+    //     console.error('Error loading infrastructure data:', error);
+    //     // Set empty data on error to prevent crashes
+    //     setInfraData({
+    //       RoadSections: [],
+    //       Bridges: [],
+    //       FCS: [],
+    //       OtherInfra: []
+    //     });
+    //   }
+    // };
 
     loadProjectEnums();
-    loadInfrastructureData();
+    // loadInfrastructureData();
 
     // Set program details if in edit mode and initialData is present
     if (mode === 'edit' && initialData?.ProgramDetails) {
@@ -156,7 +156,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
     initialData?.FundingProfile || []
   );
 
-  const [Dropdowns, setDropdowns] = useState<Dropdowns>(
+  const [Dropdowns] = useState<Dropdowns>(
     initialData?.Dropdowns || {
     Categories: [],
     Thrusts: [],
@@ -173,9 +173,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
     EmergencyModes: [],
     Agreements: [],
     Sources: [],
+    ScopeOfWorks: []
   });
 
-  const [infraData, setInfraData] = useState<InfraData>({
+  const [infraData] = useState<InfraData>({
     RoadSections: [],
     Bridges: [],
     FCS: [],
@@ -245,20 +246,20 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
   };
 
   // Handlers for ComponentCostYear (these will be used when we implement year-by-year cost breakdown)
-  const handleAddComponentCostYear = (parentId: number, newCostYear: ComponentCostYear) => {
-    setComponentCostsYear(prev => [...prev, { ...newCostYear, ParentId: parentId }]);
-    console.log('Added component cost year to staging:', newCostYear);
-  };
+  // const handleAddComponentCostYear = (parentId: number, newCostYear: ComponentCostYear) => {
+  //   setComponentCostsYear(prev => [...prev, { ...newCostYear, ParentId: parentId }]);
+  //   console.log('Added component cost year to staging:', newCostYear);
+  // };
 
-  const handleEditComponentCostYear = (costYearId: number, updatedCostYear: ComponentCostYear) => {
-    setComponentCostsYear(prev => prev.map(year => year.Id === costYearId ? updatedCostYear : year));
-    console.log('Updated component cost year in staging:', updatedCostYear);
-  };
+  // const handleEditComponentCostYear = (costYearId: number, updatedCostYear: ComponentCostYear) => {
+  //   setComponentCostsYear(prev => prev.map(year => year.Id === costYearId ? updatedCostYear : year));
+  //   console.log('Updated component cost year in staging:', updatedCostYear);
+  // };
 
-  const handleDeleteComponentCostYear = (costYearId: number) => {
-    setComponentCostsYear(prev => prev.filter(year => year.Id !== costYearId));
-    console.log('Deleted component cost year from staging:', costYearId);
-  };
+  // const handleDeleteComponentCostYear = (costYearId: number) => {
+  //   setComponentCostsYear(prev => prev.filter(year => year.Id !== costYearId));
+  //   console.log('Deleted component cost year from staging:', costYearId);
+  // };
   // #endregion
 
   // #region Major Items of Work
@@ -268,7 +269,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       ProjectId: projectDetails.ReferenceId || '',
       ComponentId: 0,
       YearOfWork: new Date().getFullYear(),
-      TypeOfWork: 0,
+      TypeOfWork:0,
       PhysicalTarget: 0,
       TargetUnit: '',
       Description: '',
@@ -287,7 +288,13 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
   };
 
   const handleEditMajorItem = (index: number, updatedItem: MajorItemOfWork) => {
-    setMajorItems(prev => prev.map((item, i) => i === index ? updatedItem : item));
+    console.log('ProjectForm: Editing major item at index', index);
+    console.log('ProjectForm: Updated item received:', updatedItem);
+    setMajorItems(prev => {
+      const newItems = prev.map((item, i) => i === index ? updatedItem : item);
+      console.log('ProjectForm: New majorItems state:', newItems);
+      return newItems;
+    });
     console.log('Updated major item in staging:', updatedItem);
   };
 
@@ -381,29 +388,51 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       const payload = {
         ProjectDetails: {
           ...projectDetails,
+          // Add missing required fields for the expected payload
+          ProgramName: programDetails.Name || '',
           EmergencyMode: projectDetails.EmergencyMode ? true : false,
+          CreatedBy: projectDetails.CreatedBy || 'SYSTEM',
+          CreatedDate: projectDetails.CreatedDate || new Date().toISOString(),
+          UpdatedBy: 'SYSTEM', // Set current user
+          UpdatedDate: new Date().toISOString(),
         },
-        ComponentCosts: componentCosts,
-        ComponentCostYear: componentCostsYear, // Note: "ComponentCostYear" not "ComponentCostPerYear"
+        ComponentCosts: componentCosts.map(cost => ({
+          Id: cost.Id,
+          ProjectId: cost.ProjectId || projectDetails.ReferenceId || '',
+          ComponentType: cost.ComponentType || '',
+          ComponentId: cost.ComponentId || '',
+          Description: cost.Description || '',
+          Total: cost.Total || 0,
+          CreatedBy: cost.CreatedBy || 'SYSTEM',
+          CreatedDate: cost.CreatedDate || new Date().toISOString(),
+          UpdatedBy: cost.UpdatedBy || 'SYSTEM',
+          UpdatedDate: cost.UpdatedDate || new Date().toISOString()
+        })),
+        ComponentCostYear: componentCostsYear.map(year => ({
+          Id: year.Id,
+          ParentId: year.ParentId,
+          CostYear: year.CostYear,
+          Cost: year.Cost,
+          // Add missing required fields for ComponentCostYear
+          ApprovalDate: year.ApprovalDate || new Date().toISOString(),
+          PAPCode: year.PAPCode || '',
+          StartDate: year.StartDate || new Date().toISOString(),
+          EndDate: year.EndDate || new Date().toISOString()
+        })),
         MajorItemOfWorks: majorItems,
+        ProjectNotes: notes, // Include ProjectNotes as it's in the expected payload
         FundingProfile: fundingProfiles,
-        // Include ProjectNotes if needed (you mentioned excluding it, but payload shows it)
-        // ProjectNotes: notes,
       };
 
       console.log('=== SENDING TO BACKEND (MATCHING EXPECTED PAYLOAD) ===');
       console.log('Update payload:', payload);
       
       const response = await updateEntireProject(payload);
-      
-      // if (response.Data?.ProjectId) {
-      //   console.log('Project updated successfully, navigating to:', response.Data.ProjectId);
-      //   navigate(`/projects/Edit/${response.Data.ProjectId}`);
-      // } else {
-      //   console.log('Project updated successfully');
-      //   // Show success message or toast here
-      //   alert('Project updated successfully!');
-      // }
+      if( response.Data) {
+        console.log('Project updated successfully:', response.Data);
+        // Optionally navigate or show success message
+        // navigate(`/projects/Edit/${response.Data.ProjectId}`);
+      }
     } catch (error) {
       console.error('Error updating project:', error);
       alert('Error updating project. Please try again.');
@@ -548,6 +577,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
             onAdd={handleAddMajorItem}
             onEdit={handleEditMajorItem}
             onDelete={handleDeleteMajorItem}
+            dropDowns={initialData?.Dropdowns?.ScopeOfWorks}
           />
         </div>
       </div>

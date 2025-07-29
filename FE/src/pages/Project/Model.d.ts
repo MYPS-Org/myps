@@ -127,7 +127,7 @@ export interface ProjectById {
   Dropdowns: Dropdowns
 }
 
-export interface ProjectScopeOfWorkEnum {
+export interface ScopeOfWorkEnum {
 	Id: number;
 	Enum: number;
 	InfraType: string;
@@ -294,6 +294,8 @@ export interface Dropdowns {
 	// Funding Profile
 	Agreements: AgreementEnum[];
 	Sources: SourceEnum[];
+	// Major Item of Works
+	ScopeOfWorks: ScopeOfWorkEnum[];
 }
 export interface ComponentTypeEnum {
 	Description: string;
