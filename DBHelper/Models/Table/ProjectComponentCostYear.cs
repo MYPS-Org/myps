@@ -13,7 +13,8 @@ namespace DBHelper.Models.Table
         [Key]
         public int Id { get; set; }
         [Required]
-        public int ParentId { get; set; }
+        [MaxLength(200)]
+        public string ParentId { get; set; } = string.Empty;
         [Required]
         public int CostYear { get; set; }
         [Required]

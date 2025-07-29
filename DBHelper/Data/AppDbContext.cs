@@ -47,11 +47,12 @@ namespace DBHelper.Data
         public DbSet<Models.Table.ProjectComponentCostYear> tProjectComponentCostYear { get; set; }
         public DbSet<Models.Table.TransactionLog> tTransactionLog { get; set; }
         public DbSet<Models.Table.ProjectScopeOfWorkEnum> tProjectScopeOfWorkEnum { get; set; }
-        public DbSet<Models.Table.ProjectMajorItemOfWorks> tProjectMajorItemOfWorks { get; set; }
+        public DbSet<Models.Table.ProjectMajorWorkItem> tProjectMajorWorkItem { get; set; }
         public DbSet<Models.Table.ProjectNotes> tProjectNotes { get; set; }
         public DbSet<Models.Table.ProjectFundingProfile> tProjectFundingProfile { get; set; }
         public DbSet<Models.Table.ProjectFundingAgreementLists> tProjectFundingAgreementLists { get; set; }
         public DbSet<Models.Table.ProjectFundingSource> tProjectFundingSource { get; set; }
+        public DbSet<Models.Table.InfraType> tInfraType { get; set; }
         #endregion
         #region Views
         public DbSet<Models.Views.Users> vUsers { get; set; }

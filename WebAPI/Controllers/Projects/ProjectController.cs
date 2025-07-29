@@ -218,9 +218,17 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Selected Emergency Mode '{dto.EmergencyMode}' is not valid!", Title = "Invalid Emergency Mode" });
                 }
+                var param = new Dictionary<string, object>
+                {
+                    {"@Table", "tCountSequence"}
+                };
                 string UID = Sql.NormalQuery<string>(Appsetting.ConnectionString,
-                        "EXEC pGenerateUID")
+                        "EXEC pGenerateUID @Table = @Table", param)
                     .FirstOrDefault() ?? string.Empty;
+                if (string.Empty == UID)
+                {
+                    return new BadRequestObjectResult(new { Message = "Unable to generate Reference ID for the Program!", Title = "Please contact administrator" });
+                }
                 string ReferenceId = $"{ProgramDetails.StageName}{Functions.GenerateProjec2ndSegment(ProgramDetails.YearEnd)}{UID}";
                 DateTime CurrentDate = DateTime.UtcNow;
                 var SubmitProject = new DBHelper.Models.Table.Projects()
@@ -298,8 +306,8 @@ namespace WebAPI.Controllers.Programs
                 }
                 var ComponentType = await _db.tProjectComponentEnum.ToListAsync();
                 var ComponentCost = await _db.tProjectComponentCost.Where(x => x.ProjectId == Project.ReferenceId).ToListAsync();
-                var ComponentCostYear = await _db.tProjectComponentCostYear.Where(x => ComponentCost.Select(a => a.Id).Contains(x.ParentId)).ToListAsync();
-                var MajorItemOfWork = await _db.tProjectMajorItemOfWorks.Where(x => x.ProjectId == Project.ReferenceId).ToListAsync();
+                var ComponentCostYear = await _db.tProjectComponentCostYear.Where(x => ComponentCost.Select(a => a.ReferenceId).Contains(x.ParentId)).ToListAsync();
+                var MajorItemOfWork = await _db.tProjectMajorWorkItem.Where(x => x.ProjectId == Project.ReferenceId).ToListAsync();
                 var Notes = await _db.tProjectNotes.Where(x => x.ProjectId == Project.ReferenceId).ToListAsync();
                 var Funding = await _db.tProjectFundingProfile.Where(x => x.ProjectId == Project.ReferenceId).ToListAsync();
 
@@ -401,10 +409,10 @@ namespace WebAPI.Controllers.Programs
                     });
                     Project.Description = dto.ProjectDetails!.Description;
                 }
-                if (Project.Category != dto.ProjectDetails?.Category) 
+                if (Project.Category != dto.ProjectDetails?.Category)
                 {
                     var Category = await _db.tProjectCategoryEnum.FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.Category);
-                    if(Category == null)
+                    if (Category == null)
                     {
                         return new BadRequestObjectResult(new { Message = $"Selected Category '{dto.ProjectDetails!.Category}' is not valid!", Title = "Invalid Category" });
                     }
@@ -476,7 +484,8 @@ namespace WebAPI.Controllers.Programs
                     }
                     var OldCity = await _db.tProjectCityEnum.FirstOrDefaultAsync(x => x.Enum == Project.City);
                     hasUpdated = true;
-                    transactionLogs.Add(new TransactionLog {
+                    transactionLogs.Add(new TransactionLog
+                    {
                         TransactionId = Project.ReferenceId!,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
@@ -497,7 +506,8 @@ namespace WebAPI.Controllers.Programs
                     }
                     var OldLD = await _db.tProjectLegislativeDistrictEnum.FirstOrDefaultAsync(x => x.Enum == Project.LegislativeDistrict);
                     hasUpdated = true;
-                    transactionLogs.Add(new TransactionLog {
+                    transactionLogs.Add(new TransactionLog
+                    {
                         TransactionId = Project.ReferenceId!,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
@@ -540,7 +550,8 @@ namespace WebAPI.Controllers.Programs
                     }
                     var OldIO = await _db.tProjectImplementingOfficeEnum.FirstOrDefaultAsync(x => x.ParticipantId == Project.ImplementingOffice);
                     hasUpdated = true;
-                    transactionLogs.Add(new TransactionLog {
+                    transactionLogs.Add(new TransactionLog
+                    {
                         TransactionId = Project.ReferenceId!,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
@@ -694,7 +705,7 @@ namespace WebAPI.Controllers.Programs
                     });
                     Project.Feasibility = dto.ProjectDetails!.Feasibility;
                 }
-                if(Project.DetailedDesign != dto.ProjectDetails?.DetailedDesign)
+                if (Project.DetailedDesign != dto.ProjectDetails?.DetailedDesign)
                 {
                     var DetailedDesign = await _db.tProjectEmergencyModeEnum.FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.DetailedDesign);
                     if (DetailedDesign == null)
@@ -771,17 +782,14 @@ namespace WebAPI.Controllers.Programs
                 var ComponentCost = await _db.tProjectComponentCost.Where(x => x.ProjectId == Project.ReferenceId).ToListAsync();
                 if (ComponentCost.Count > 0)
                 {
-                    HashSet<long> CurrentComponentCost = new HashSet<long>(ComponentCost.Select(x => (long)x.Id));
-                    var NewComponentCostData = dto.ComponentCosts.Where(x => !CurrentComponentCost.Contains(x.Id)).ToList();
-                    HashSet<long> NewComponentCost = new HashSet<long>(NewComponentCostData.Select(x => x.Id));
-
-                    //var CurrentComponentCost = ComponentCost.Select(x => x.Id).ToList();
-                    //var NewComponentCost = NewComponentCostData.Select(x => x.Id).ToList();
-                    var DeletedComponentCost = CurrentComponentCost.Except(NewComponentCost).ToList();
+                    HashSet<string> CurrentComponentCost = new HashSet<string>(ComponentCost.Select(x => x.ReferenceId));
+                    var NewComponentCostData = dto.ComponentCosts.Where(x => !CurrentComponentCost.Contains(x.ReferenceId)).ToList();
+                    HashSet<string> NewComponentCost = new HashSet<string>(NewComponentCostData.Select(x => x.ReferenceId));
                     #region Delete Component Cost and Year
+                    var DeletedComponentCost = CurrentComponentCost.Except(NewComponentCost).ToList();
                     if (DeletedComponentCost.Count > 0)
                     {
-                        var DeletedItems = await _db.tProjectComponentCost.Where(x => DeletedComponentCost.Contains(x.Id)).ToListAsync();
+                        var DeletedItems = await _db.tProjectComponentCost.Where(x => DeletedComponentCost.Contains(x.ReferenceId)).ToListAsync();
                         var DeleteCostPerYear = await _db.tProjectComponentCostYear.Where(x => DeletedComponentCost.Contains(x.ParentId)).ToListAsync();
                         _db.tProjectComponentCost.RemoveRange(DeletedItems);
                         _db.tProjectComponentCostYear.RemoveRange(DeleteCostPerYear);
@@ -812,9 +820,22 @@ namespace WebAPI.Controllers.Programs
                     #region New Component Cost and Year
                     if (NewComponentCost.Count > 0)
                     {
-                        var NewCostToAdd = NewComponentCostData.Select(item => new ProjectComponentCost
+                        var uidList = new List<string>();
+                        var param = new Dictionary<string, object> { { "@Table", "tCountSequence" } };
+
+                        foreach (var _ in NewComponentCostData)
+                        {
+                            var uid = Sql.NormalQuery<string>(
+                                Appsetting.ConnectionString,
+                                "EXEC pGenerateUID @Table = @Table", param
+                            ).FirstOrDefault() ?? string.Empty;
+
+                            uidList.Add(uid);
+                        }
+                        var NewCostToAdd = NewComponentCostData.Select((item, index) => new ProjectComponentCost
                         {
                             ProjectId = Project.ReferenceId!,
+                            ReferenceId = Project.ReferenceId + "-" + uidList[index],
                             ComponentId = item.ComponentId,
                             ComponentType = item.ComponentType,
                             Description = item.Description,
@@ -822,40 +843,37 @@ namespace WebAPI.Controllers.Programs
                             CreatedBy = _Session.UserId ?? "TESTING",
                             CreatedDate = CurrentDate
                         }).ToList();
-
                         await _db.tProjectComponentCost.AddRangeAsync(NewCostToAdd);
-                        await _db.SaveChangesAsync();
 
                         var relatedYears = new List<ProjectComponentCostYear>();
                         foreach (var parent in NewCostToAdd)
                         {
-                            var matchingDto = NewComponentCostData.FirstOrDefault(dto =>
+                            var matchingDto = NewCostToAdd.FirstOrDefault(dto =>
                                 dto.ComponentId == parent.ComponentId &&
                                 dto.ComponentType == parent.ComponentType &&
                                 dto.Total == parent.Total);
 
                             if (matchingDto != null)
                             {
-                                var matchingYears = dto.ComponentCostYear
-                                    .Where(x => x.ParentId == matchingDto.Id)
-                                    .Select(year => new ProjectComponentCostYear
-                                    {
-                                        ParentId = parent.Id,
-                                        CostYear = year.CostYear,
-                                        Cost = year.Cost,
-                                        ApprovalDate = year.ApprovalDate,
-                                        PAPCode = year.PAPCode,
-                                        StartDate = year.StartDate,
-                                        EndDate = year.EndDate
-                                    });
+                                var matchingYears = dto.ComponentCostYear.Select(year => new ProjectComponentCostYear
+                                {
+                                    ParentId = matchingDto.ReferenceId,
+                                    CostYear = year.CostYear,
+                                    Cost = year.Cost,
+                                    ApprovalDate = year.ApprovalDate,
+                                    PAPCode = year.PAPCode,
+                                    StartDate = year.StartDate,
+                                    EndDate = year.EndDate
+                                });
 
                                 relatedYears.AddRange(matchingYears);
                             }
                         }
+                        await _db.tProjectComponentCostYear.AddRangeAsync(relatedYears);
                     }
                     #endregion
                     #region Update Component Cost and Year
-                    var UpdateComponentCost = dto.ComponentCosts.Where(x => CurrentComponentCost.Contains(x.Id)).ToList();
+                    var UpdateComponentCost = dto.ComponentCosts.Where(x => CurrentComponentCost.Contains(x.ReferenceId)).ToList();
                     if (UpdateComponentCost.Count > 0)
                     {
                         foreach (var item in UpdateComponentCost)
@@ -917,17 +935,17 @@ namespace WebAPI.Controllers.Programs
                                     });
                                     ExistingItem.Total = item.Total;
                                 }
-                                var ComponentCostYear = await _db.tProjectComponentCostYear.Where(x => x.ParentId == item.Id).ToListAsync();
-                                HashSet<long> currentCostIds = new HashSet<long>(ComponentCostYear.Select(x => (long)x.Id));
-                                HashSet<long> incomingCostIds = new HashSet<long>(dto.ComponentCostYear.Select(x => x.Id));
+                                var ComponentCostYear = await _db.tProjectComponentCostYear.Where(x => x.ParentId == item.ReferenceId).ToListAsync();
+                                HashSet<string> currentCostIds = new HashSet<string>(ComponentCostYear.Select(x => x.ParentId));
+                                HashSet<string> incomingCostIds = new HashSet<string>(dto.ComponentCostYear.Select(x => x.ParentId));
 
-                                var NewComponentCostYear = dto.ComponentCostYear.Where(x => !currentCostIds.Contains((long)x.Id)).ToList();
+                                var NewComponentCostYear = dto.ComponentCostYear.Where(x => !currentCostIds.Contains(x.ParentId)).ToList();
 
                                 var deletedComponentCostYearIds = currentCostIds.Except(incomingCostIds).ToList();
                                 var UpdateCostYearIds = currentCostIds.Intersect(incomingCostIds).ToHashSet();
 
                                 var UpdateCostYear = ComponentCostYear
-                                    .Where(x => UpdateCostYearIds.Contains(x.Id))
+                                    .Where(x => UpdateCostYearIds.Contains(x.ParentId))
                                     .ToList();
                                 bool hasYearUpdate = false;
                                 foreach (var yearItem in UpdateCostYear)
@@ -1030,14 +1048,335 @@ namespace WebAPI.Controllers.Programs
                     }
                     #endregion
                 }
+                else if (dto.ComponentCosts.Count > 0)
+                {
+                    var uidList = new List<string>();
+                    var param = new Dictionary<string, object> { { "@Table", "tCountSequence" } };
+
+                    foreach (var _ in dto.ComponentCosts)
+                    {
+                        var uid = Sql.NormalQuery<string>(
+                            Appsetting.ConnectionString,
+                            "EXEC pGenerateUID @Table = @Table", param
+                        ).FirstOrDefault() ?? string.Empty;
+
+                        uidList.Add(uid);
+                    }
+                    var NewCostToAdd = dto.ComponentCosts.Select((item, index) => new ProjectComponentCost
+                    {
+                        ProjectId = Project.ReferenceId!,
+                        ReferenceId = Project.ReferenceId + "-" + uidList[index],
+                        ComponentId = item.ComponentId,
+                        ComponentType = item.ComponentType,
+                        Description = item.Description,
+                        Total = item.Total,
+                        CreatedBy = _Session.UserId ?? "TESTING",
+                        CreatedDate = CurrentDate
+                    }).ToList();
+                    await _db.tProjectComponentCost.AddRangeAsync(NewCostToAdd);
+
+                    var relatedYears = new List<ProjectComponentCostYear>();
+                    foreach (var parent in NewCostToAdd)
+                    {
+                        var matchingDto = NewCostToAdd.FirstOrDefault(dto =>
+                            dto.ComponentId == parent.ComponentId &&
+                            dto.ComponentType == parent.ComponentType &&
+                            dto.Total == parent.Total);
+
+                        if (matchingDto != null)
+                        {
+                            var matchingYears = dto.ComponentCostYear.Select(year => new ProjectComponentCostYear
+                            {
+                                ParentId = matchingDto.ReferenceId,
+                                CostYear = year.CostYear,
+                                Cost = year.Cost,
+                                ApprovalDate = year.ApprovalDate,
+                                PAPCode = year.PAPCode,
+                                StartDate = year.StartDate,
+                                EndDate = year.EndDate
+                            });
+
+                            relatedYears.AddRange(matchingYears);
+                        }
+                    }
+                    await _db.tProjectComponentCostYear.AddRangeAsync(relatedYears);
+                }
+                #endregion
+                #region Major Item of Works
+                var MajorItemOfWorks = await _db.tProjectMajorWorkItem.Where(x => x.ProjectId == Project.ReferenceId).ToListAsync();
+                if (MajorItemOfWorks.Count > 0)
+                {
+                    var currentMajorItemIds = new HashSet<int>(MajorItemOfWorks.Select(x => x.WorkTypeId));
+                    var newMajorItems = dto.MajorItemOfWorks.Where(x => !currentMajorItemIds.Contains(x.WorkTypeId)).ToList();
+                    var deletedMajorItems = currentMajorItemIds.Except(dto.MajorItemOfWorks.Select(x => x.WorkTypeId)).ToList();
+                    #region Delete Major Item of Works
+                    if (deletedMajorItems.Count > 0)
+                    {
+                        var DeletedItems = MajorItemOfWorks.Where(x => deletedMajorItems.Contains(x.WorkTypeId)).ToList();
+                        _db.tProjectMajorWorkItem.RemoveRange(DeletedItems);
+                        transactionLogs.AddRange(DeletedItems.Select(item => new TransactionLog
+                        {
+                            TransactionId = Project.ReferenceId!,
+                            TypeOfTransaction = "Delete",
+                            AffectedTable = "tProjectMajorItemOfWorks",
+                            AffectedColumn = "Row",
+                            NewValue = "",
+                            OldValue = JsonConvert.SerializeObject(item),
+                            CreatedBy = _Session.UserId ?? "TESTING",
+                            CreatedDate = CurrentDate
+                        }));
+                    }
+                    #endregion
+                    #region New Major Item of Works
+                    if (newMajorItems.Count > 0)
+                    {
+                        await _db.tProjectMajorWorkItem.AddRangeAsync(newMajorItems.Select(item => new ProjectMajorWorkItem
+                        {
+                            ProjectId = Project.ReferenceId!,
+                            ComponentId = item.ComponentId,
+                            YearOfWork = item.YearOfWork,
+                            WorkTypeId = item.WorkTypeId,
+                            InfraId = item.InfraId,
+                            TargetUnitId = item.TargetUnitId,
+                            StartX = item.StartX,
+                            StartY = item.StartY,
+                            EndX = item.EndX,
+                            EndY = item.EndY,
+                            TargetAmount = item.TargetAmount,
+                            StartStationLimit = item.StartStationLimit,
+                            EndStationLimit = item.EndStationLimit,
+                            CreatedBy = _Session.UserId ?? "TESTING",
+                            CreatedDate = CurrentDate
+                        }));
+                    }
+                    #endregion
+                    #region Update Major Item of Works
+                    var UpdateMajorItems = dto.MajorItemOfWorks.Where(x => currentMajorItemIds.Contains(x.WorkTypeId)).ToList();
+                    if (UpdateMajorItems.Count > 0)
+                    {
+                        foreach (var item in UpdateMajorItems)
+                        {
+                            var ExistingItem = MajorItemOfWorks.FirstOrDefault(x => x.Id == item.Id);
+                            if (ExistingItem != null)
+                            {
+                                bool hasUpdate = false;
+                                if (ExistingItem.ComponentId != item.ComponentId)
+                                {
+                                    hasUpdate = true;
+                                    transactionLogs.Add(new TransactionLog
+                                    {
+                                        TransactionId = Project.ReferenceId!,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tProjectMajorItemOfWorks",
+                                        AffectedColumn = "ComponentId",
+                                        NewValue = item.ComponentId,
+                                        OldValue = ExistingItem.ComponentId,
+                                        CreatedBy = _Session.UserId ?? "TESTING",
+                                        CreatedDate = CurrentDate
+                                    });
+                                    ExistingItem.ComponentId = item.ComponentId;
+                                }
+                                if (ExistingItem.YearOfWork != item.YearOfWork)
+                                {
+                                    hasUpdate = true;
+                                    transactionLogs.Add(new TransactionLog
+                                    {
+                                        TransactionId = Project.ReferenceId!,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tProjectMajorItemOfWorks",
+                                        AffectedColumn = "YearOfWork",
+                                        NewValue = item.YearOfWork.ToString(),
+                                        OldValue = ExistingItem.YearOfWork.ToString(),
+                                        CreatedBy = _Session.UserId ?? "TESTING",
+                                        CreatedDate = CurrentDate
+                                    });
+                                    ExistingItem.YearOfWork = item.YearOfWork;
+                                }
+                                if (ExistingItem.WorkTypeId != item.WorkTypeId)
+                                {
+                                    hasUpdate = true;
+                                    var WorkTypeEnum = await _db.tProgramStageEnum.FirstOrDefaultAsync(x => x.Enum == item.WorkTypeId);
+                                    if (WorkTypeEnum == null)
+                                    {
+                                        return new BadRequestObjectResult(new { Message = $"Selected Work Type '{item.WorkTypeId}' is not valid!", Title = "Invalid Work Type" });
+                                    }
+                                    transactionLogs.Add(new TransactionLog
+                                    {
+                                        TransactionId = Project.ReferenceId!,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tProjectMajorItemOfWorks",
+                                        AffectedColumn = "WorkTypeId",
+                                        NewValue = WorkTypeEnum.Name,
+                                        OldValue = ExistingItem.WorkTypeId.ToString(),
+                                        CreatedBy = _Session.UserId ?? "TESTING",
+                                        CreatedDate = CurrentDate
+                                    });
+                                    ExistingItem.WorkTypeId = item.WorkTypeId;
+                                }
+                                if (ExistingItem.InfraId != item.InfraId)
+                                {
+                                    hasUpdate = true;
+                                    transactionLogs.Add(new TransactionLog
+                                    {
+                                        TransactionId = Project.ReferenceId!,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tProjectMajorItemOfWorks",
+                                        AffectedColumn = "InfraId",
+                                        NewValue = item.InfraId,
+                                        OldValue = ExistingItem.InfraId,
+                                        CreatedBy = _Session.UserId ?? "TESTING",
+                                        CreatedDate = CurrentDate
+                                    });
+                                    ExistingItem.InfraId = item.InfraId;
+                                }
+                                if (ExistingItem.TargetUnitId != item.TargetUnitId)
+                                {
+                                    hasUpdate = true;
+                                    transactionLogs.Add(new TransactionLog
+                                    {
+                                        TransactionId = Project.ReferenceId!,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tProjectMajorItemOfWorks",
+                                        AffectedColumn = "TargetUnitId",
+                                        NewValue = item.TargetUnitId.ToString(),
+                                        OldValue = ExistingItem.TargetUnitId.ToString(),
+                                        CreatedBy = _Session.UserId ?? "TESTING",
+                                        CreatedDate = CurrentDate
+                                    });
+                                    ExistingItem.TargetUnitId = item.TargetUnitId;
+                                }
+                                if (ExistingItem.StartX != item.StartX)
+                                {
+                                    hasUpdate = true;
+                                    transactionLogs.Add(new TransactionLog
+                                    {
+                                        TransactionId = Project.ReferenceId!,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tProjectMajorItemOfWorks",
+                                        AffectedColumn = "StartX",
+                                        NewValue = item.StartX.ToString(),
+                                        OldValue = ExistingItem.StartX.ToString(),
+                                        CreatedBy = _Session.UserId ?? "TESTING",
+                                        CreatedDate = CurrentDate
+                                    });
+                                    ExistingItem.StartX = item.StartX;
+                                }
+                                if (ExistingItem.StartY != item.StartY)
+                                {
+                                    hasUpdate = true;
+                                    transactionLogs.Add(new TransactionLog
+                                    {
+                                        TransactionId = Project.ReferenceId!,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tProjectMajorItemOfWorks",
+                                        AffectedColumn = "StartY",
+                                        NewValue = item.StartY.ToString(),
+                                        OldValue = ExistingItem.StartY.ToString(),
+                                        CreatedBy = _Session.UserId ?? "TESTING",
+                                        CreatedDate = CurrentDate
+                                    });
+                                    ExistingItem.StartY = item.StartY;
+                                }
+                                if (ExistingItem.EndX != item.EndX)
+                                {
+                                    hasUpdate = true;
+                                    transactionLogs.Add(new TransactionLog
+                                    {
+                                        TransactionId = Project.ReferenceId!,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tProjectMajorItemOfWorks",
+                                        AffectedColumn = "EndX",
+                                        NewValue = item.EndX.ToString(),
+                                        OldValue = ExistingItem.EndX.ToString(),
+                                        CreatedBy = _Session.UserId ?? "TESTING",
+                                        CreatedDate = CurrentDate
+                                    });
+                                    ExistingItem.EndX = item.EndX;
+                                }
+                                if (ExistingItem.EndY != item.EndY)
+                                {
+                                    hasUpdate = true;
+                                    transactionLogs.Add(new TransactionLog
+                                    {
+                                        TransactionId = Project.ReferenceId!,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tProjectMajorItemOfWorks",
+                                        AffectedColumn = "EndY",
+                                        NewValue = item.EndY.ToString(),
+                                        OldValue = ExistingItem.EndY.ToString(),
+                                        CreatedBy = _Session.UserId ?? "TESTING",
+                                        CreatedDate = CurrentDate
+                                    });
+                                    ExistingItem.EndY = item.EndY;
+                                }
+                                if (ExistingItem.TargetAmount != item.TargetAmount)
+                                {
+                                    hasUpdate = true;
+                                    transactionLogs.Add(new TransactionLog
+                                    {
+                                        TransactionId = Project.ReferenceId!,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tProjectMajorItemOfWorks",
+                                        AffectedColumn = "TargetAmount",
+                                        NewValue = item.TargetAmount.ToString(),
+                                        OldValue = ExistingItem.TargetAmount.ToString(),
+                                        CreatedBy = _Session.UserId ?? "TESTING",
+                                        CreatedDate = CurrentDate
+                                    });
+                                    ExistingItem.TargetAmount = item.TargetAmount;
+                                }
+                                if (ExistingItem.StartStationLimit != item.StartStationLimit)
+                                {
+                                    hasUpdate = true;
+                                    transactionLogs.Add(new TransactionLog
+                                    {
+                                        TransactionId = Project.ReferenceId!,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tProjectMajorItemOfWorks",
+                                        AffectedColumn = "StartStationLimit",
+                                        NewValue = item.StartStationLimit.ToString(),
+                                        OldValue = ExistingItem.StartStationLimit.ToString(),
+                                        CreatedBy = _Session.UserId ?? "TESTING",
+                                        CreatedDate = CurrentDate
+                                    });
+                                    ExistingItem.StartStationLimit = item.StartStationLimit;
+                                }
+                                if (ExistingItem.EndStationLimit != item.EndStationLimit)
+                                {
+                                    hasUpdate = true;
+                                    transactionLogs.Add(new TransactionLog
+                                    {
+                                        TransactionId = Project.ReferenceId!,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tProjectMajorItemOfWorks",
+                                        AffectedColumn = "EndStationLimit",
+                                        NewValue = item.EndStationLimit.ToString(),
+                                        OldValue = ExistingItem.EndStationLimit.ToString(),
+                                        CreatedBy = _Session.UserId ?? "TESTING",
+                                        CreatedDate = CurrentDate
+                                    });
+                                    ExistingItem.EndStationLimit = item.EndStationLimit;
+                                }
+                                if (hasUpdate)
+                                {
+                                    ExistingItem.UpdatedBy = _Session.UserId ?? "TESTING";
+                                    ExistingItem.UpdatedDate = CurrentDate;
+                                    _db.tProjectMajorWorkItem.Update(ExistingItem);
+                                }
+                            }
+                        }
+                    }
+                    #endregion
+
+                }
                 #endregion
                 await _db.tTransactionLog.AddRangeAsync(transactionLogs);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
                 return Ok(new
                 {
-                    Message = "Project Update wala pa lods",
-                    Title = "Under Maintenance"
+                    Message = $"Project {dto.ProjectDetails!.ReferenceId} updated successfully!",
+                    Title = "Update Complete"
                 });
 
             }

@@ -14,7 +14,7 @@ namespace DBHelper.Data
                     {"@username", username},
                     {"@ConnectionID", ConnectionID},
                 };
-                var Sup = NormalQuery<Forwarders>(AppsettingsConfig.ConnectionString, "SELECT * FROM tForwarders WHERE tid = @username", parameters);
+                var Sup = NormalQuery<q>(AppsettingsConfig.ConnectionString, "SELECT * FROM tForwarders WHERE tid = @username", parameters);
             
             List<UniqueID> list = NormalQuery<UniqueID>(AppsettingsConfig.ConnectionString, "EXEC pGenerateUID");
              */

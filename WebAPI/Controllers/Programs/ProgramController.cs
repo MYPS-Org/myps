@@ -9,6 +9,8 @@ using Microsoft.EntityFrameworkCore;
 using System.Data.SqlClient;
 using System.Reflection;
 using System.Xml;
+using static Eaf.Domain.Uow.EafDataFilters;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 namespace WebAPI.Controllers.Programs
 {
@@ -183,8 +185,12 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"User Group '{dto.UserGroup}' is not valid!", Title = "Invalid User Group" });
                 }
+                var param = new Dictionary<string, object>
+                {
+                    {"@Table", "tCountSequence"}
+                };
                 string uid = Sql.NormalQuery<string>(Appsetting.ConnectionString,
-                        "EXEC pGenerateUID")
+                        "EXEC pGenerateUID @Table = @Table", param)
                     .FirstOrDefault() ?? string.Empty;
                 if(string.Empty == uid)
                 {
