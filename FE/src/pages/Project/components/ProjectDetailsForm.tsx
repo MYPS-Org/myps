@@ -1,5 +1,8 @@
 import React from 'react';
 import type { ProjectDetails, ProjectEnums } from "../Model.d";
+import type { projectDetailsRules } from "../rules/projectDetailsRules";
+
+
 
 interface ProjectDetailsFormProps {
     projectDetails: ProjectDetails;
