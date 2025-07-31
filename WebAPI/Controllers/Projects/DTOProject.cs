@@ -35,7 +35,7 @@ namespace WebAPI.Controllers.Programs
         public ProjectDetails ProjectDetails { get; set; } = new ProjectDetails();
         public List<ProjectComponentCostDTO> ComponentCosts { get; set; } = new List<ProjectComponentCostDTO>();
         public List<ProjectComponentCostYearDTO> ComponentCostYear { get; set; } = new List<ProjectComponentCostYearDTO>();
-        public List<ProjectMajorWorkItemDTO> MajorItemOfWorks { get; set; } = new List<ProjectMajorWorkItemDTO>();
+        //public List<ProjectMajorWorkItemDTO> MajorItemOfWorks { get; set; } = new List<ProjectMajorWorkItemDTO>();
         public List<ProjectNotes> ProjectNotes { get; set; } = new List<ProjectNotes>();
         public List<ProjectFundingProfile> FundingProfile { get; set; } = new List<ProjectFundingProfile>();
     }

@@ -1102,7 +1102,7 @@ namespace WebAPI.Controllers.Programs
                     await _db.tProjectComponentCostYear.AddRangeAsync(relatedYears);
                 }
                 #endregion
-                #region Major Item of Works
+                //#region Major Item of Works
                 var MajorItemOfWorks = await _db.tProjectMajorWorkItem.Where(x => x.ProjectId == Project.ReferenceId).ToListAsync();
                 if (MajorItemOfWorks.Count > 0)
                 {

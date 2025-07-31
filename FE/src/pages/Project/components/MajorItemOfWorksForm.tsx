@@ -32,7 +32,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
   useEffect(() => {
     console.log('MajorItemOfWorksForm: majorItems prop changed:', majorItems);
     majorItems.forEach((item, index) => {
-      console.log(`Item ${index} - TypeOfWork:`, item.TypeOfWork, typeof item.TypeOfWork);
+      console.log(`Item ${index} - TypeOfWork:`, item.WorkTypeId, typeof item.WorkTypeId);
     });
   }, [majorItems]);
 
