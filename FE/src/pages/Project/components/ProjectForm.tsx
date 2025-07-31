@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { formValidation, type FormValidationError } from '../../../utils/FormValidation';
+import { projectDetailsRules } from '../rules/projectDetailsRules';
 import type { 
   ProjectDetails, 
   ComponentCost, 
@@ -40,6 +42,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
   const [savingSection, setSavingSection] = useState<string | null>(null);
   const [projectEnums, setProjectEnums] = useState<ProjectEnums | null>(null);
   const [updateAllProject, setUpdateAllProject] = useState<boolean>(false);
+  const [errors, setErrors] = useState<FormValidationError<ProjectDetails>>({});
 
   // toggle state for Program Details section
   const [isProgramOpen, setIsProgramOpen] = useState<boolean>(true);
@@ -193,6 +196,11 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
 
   const handleProjectDetailsChange = (field: keyof ProjectDetails, value: any) => {
     setProjectDetails(prev => ({ ...prev, [field]: value }));
+    
+    // Clear validation error for this field when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: undefined }));
+    }
   };
 
   const handleProgramDetailsChange = (updatedProgramDetails: ProgramList) => {
@@ -356,6 +364,16 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
   const handleSaveProjectDetails = async () => {
     if (mode !== 'add') return; // Only allow saving new projects in add mode
     
+    // Validate form before saving
+    const validationErrors = formValidation(projectDetails, projectDetailsRules);
+    setErrors(validationErrors);
+    
+    // If there are validation errors, don't proceed with save
+    if (Object.keys(validationErrors).length > 0) {
+      console.log('Validation errors found:', validationErrors);
+      return;
+    }
+    
     setSavingSection('projectDetails');
     try {
       console.log('Adding new project details:', projectDetails);
@@ -375,6 +393,16 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
   };
 
   const handleUpdateProject = async () => {
+    // Validate form before updating
+    const validationErrors = formValidation(projectDetails, projectDetailsRules);
+    setErrors(validationErrors);
+    
+    // If there are validation errors, don't proceed with update
+    if (Object.keys(validationErrors).length > 0) {
+      console.log('Validation errors found:', validationErrors);
+      return;
+    }
+    
     setUpdateAllProject(true);
     
     try {
@@ -526,6 +554,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
                   onChange={handleProjectDetailsChange}
                   projectEnums={projectEnums || undefined}
                   initialData={initialData}
+                  errors={errors}
                 />
               </div>
               <div className="flex justify-end px-4 pb-6 sm:px-8">
