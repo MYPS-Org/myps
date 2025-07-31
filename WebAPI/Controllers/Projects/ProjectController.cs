@@ -1102,274 +1102,274 @@ namespace WebAPI.Controllers.Programs
                     await _db.tProjectComponentCostYear.AddRangeAsync(relatedYears);
                 }
                 #endregion
-                #region Major Item of Works
-                var MajorItemOfWorks = await _db.tProjectMajorWorkItem.Where(x => x.ProjectId == Project.ReferenceId).ToListAsync();
-                if (MajorItemOfWorks.Count > 0)
-                {
-                    var currentMajorItemIds = new HashSet<int>(MajorItemOfWorks.Select(x => x.WorkTypeId));
-                    var newMajorItems = dto.MajorItemOfWorks.Where(x => !currentMajorItemIds.Contains(x.WorkTypeId)).ToList();
-                    var deletedMajorItems = currentMajorItemIds.Except(dto.MajorItemOfWorks.Select(x => x.WorkTypeId)).ToList();
-                    #region Delete Major Item of Works
-                    if (deletedMajorItems.Count > 0)
-                    {
-                        var DeletedItems = MajorItemOfWorks.Where(x => deletedMajorItems.Contains(x.WorkTypeId)).ToList();
-                        _db.tProjectMajorWorkItem.RemoveRange(DeletedItems);
-                        transactionLogs.AddRange(DeletedItems.Select(item => new TransactionLog
-                        {
-                            TransactionId = Project.ReferenceId!,
-                            TypeOfTransaction = "Delete",
-                            AffectedTable = "tProjectMajorItemOfWorks",
-                            AffectedColumn = "Row",
-                            NewValue = "",
-                            OldValue = JsonConvert.SerializeObject(item),
-                            CreatedBy = _Session.UserId ?? "TESTING",
-                            CreatedDate = CurrentDate
-                        }));
-                    }
-                    #endregion
-                    #region New Major Item of Works
-                    if (newMajorItems.Count > 0)
-                    {
-                        await _db.tProjectMajorWorkItem.AddRangeAsync(newMajorItems.Select(item => new ProjectMajorWorkItem
-                        {
-                            ProjectId = Project.ReferenceId!,
-                            ComponentId = item.ComponentId,
-                            YearOfWork = item.YearOfWork,
-                            WorkTypeId = item.WorkTypeId,
-                            InfraId = item.InfraId,
-                            TargetUnitId = item.TargetUnitId,
-                            StartX = item.StartX,
-                            StartY = item.StartY,
-                            EndX = item.EndX,
-                            EndY = item.EndY,
-                            TargetAmount = item.TargetAmount,
-                            StartStationLimit = item.StartStationLimit,
-                            EndStationLimit = item.EndStationLimit,
-                            CreatedBy = _Session.UserId ?? "TESTING",
-                            CreatedDate = CurrentDate
-                        }));
-                    }
-                    #endregion
-                    #region Update Major Item of Works
-                    var UpdateMajorItems = dto.MajorItemOfWorks.Where(x => currentMajorItemIds.Contains(x.WorkTypeId)).ToList();
-                    if (UpdateMajorItems.Count > 0)
-                    {
-                        foreach (var item in UpdateMajorItems)
-                        {
-                            var ExistingItem = MajorItemOfWorks.FirstOrDefault(x => x.Id == item.Id);
-                            if (ExistingItem != null)
-                            {
-                                bool hasUpdate = false;
-                                if (ExistingItem.ComponentId != item.ComponentId)
-                                {
-                                    hasUpdate = true;
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        TransactionId = Project.ReferenceId!,
-                                        TypeOfTransaction = "Update",
-                                        AffectedTable = "tProjectMajorItemOfWorks",
-                                        AffectedColumn = "ComponentId",
-                                        NewValue = item.ComponentId,
-                                        OldValue = ExistingItem.ComponentId,
-                                        CreatedBy = _Session.UserId ?? "TESTING",
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.ComponentId = item.ComponentId;
-                                }
-                                if (ExistingItem.YearOfWork != item.YearOfWork)
-                                {
-                                    hasUpdate = true;
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        TransactionId = Project.ReferenceId!,
-                                        TypeOfTransaction = "Update",
-                                        AffectedTable = "tProjectMajorItemOfWorks",
-                                        AffectedColumn = "YearOfWork",
-                                        NewValue = item.YearOfWork.ToString(),
-                                        OldValue = ExistingItem.YearOfWork.ToString(),
-                                        CreatedBy = _Session.UserId ?? "TESTING",
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.YearOfWork = item.YearOfWork;
-                                }
-                                if (ExistingItem.WorkTypeId != item.WorkTypeId)
-                                {
-                                    hasUpdate = true;
-                                    var WorkTypeEnum = await _db.tProgramStageEnum.FirstOrDefaultAsync(x => x.Enum == item.WorkTypeId);
-                                    if (WorkTypeEnum == null)
-                                    {
-                                        return new BadRequestObjectResult(new { Message = $"Selected Work Type '{item.WorkTypeId}' is not valid!", Title = "Invalid Work Type" });
-                                    }
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        TransactionId = Project.ReferenceId!,
-                                        TypeOfTransaction = "Update",
-                                        AffectedTable = "tProjectMajorItemOfWorks",
-                                        AffectedColumn = "WorkTypeId",
-                                        NewValue = WorkTypeEnum.Name,
-                                        OldValue = ExistingItem.WorkTypeId.ToString(),
-                                        CreatedBy = _Session.UserId ?? "TESTING",
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.WorkTypeId = item.WorkTypeId;
-                                }
-                                if (ExistingItem.InfraId != item.InfraId)
-                                {
-                                    hasUpdate = true;
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        TransactionId = Project.ReferenceId!,
-                                        TypeOfTransaction = "Update",
-                                        AffectedTable = "tProjectMajorItemOfWorks",
-                                        AffectedColumn = "InfraId",
-                                        NewValue = item.InfraId,
-                                        OldValue = ExistingItem.InfraId,
-                                        CreatedBy = _Session.UserId ?? "TESTING",
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.InfraId = item.InfraId;
-                                }
-                                if (ExistingItem.TargetUnitId != item.TargetUnitId)
-                                {
-                                    hasUpdate = true;
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        TransactionId = Project.ReferenceId!,
-                                        TypeOfTransaction = "Update",
-                                        AffectedTable = "tProjectMajorItemOfWorks",
-                                        AffectedColumn = "TargetUnitId",
-                                        NewValue = item.TargetUnitId.ToString(),
-                                        OldValue = ExistingItem.TargetUnitId.ToString(),
-                                        CreatedBy = _Session.UserId ?? "TESTING",
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.TargetUnitId = item.TargetUnitId;
-                                }
-                                if (ExistingItem.StartX != item.StartX)
-                                {
-                                    hasUpdate = true;
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        TransactionId = Project.ReferenceId!,
-                                        TypeOfTransaction = "Update",
-                                        AffectedTable = "tProjectMajorItemOfWorks",
-                                        AffectedColumn = "StartX",
-                                        NewValue = item.StartX.ToString(),
-                                        OldValue = ExistingItem.StartX.ToString(),
-                                        CreatedBy = _Session.UserId ?? "TESTING",
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.StartX = item.StartX;
-                                }
-                                if (ExistingItem.StartY != item.StartY)
-                                {
-                                    hasUpdate = true;
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        TransactionId = Project.ReferenceId!,
-                                        TypeOfTransaction = "Update",
-                                        AffectedTable = "tProjectMajorItemOfWorks",
-                                        AffectedColumn = "StartY",
-                                        NewValue = item.StartY.ToString(),
-                                        OldValue = ExistingItem.StartY.ToString(),
-                                        CreatedBy = _Session.UserId ?? "TESTING",
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.StartY = item.StartY;
-                                }
-                                if (ExistingItem.EndX != item.EndX)
-                                {
-                                    hasUpdate = true;
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        TransactionId = Project.ReferenceId!,
-                                        TypeOfTransaction = "Update",
-                                        AffectedTable = "tProjectMajorItemOfWorks",
-                                        AffectedColumn = "EndX",
-                                        NewValue = item.EndX.ToString(),
-                                        OldValue = ExistingItem.EndX.ToString(),
-                                        CreatedBy = _Session.UserId ?? "TESTING",
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.EndX = item.EndX;
-                                }
-                                if (ExistingItem.EndY != item.EndY)
-                                {
-                                    hasUpdate = true;
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        TransactionId = Project.ReferenceId!,
-                                        TypeOfTransaction = "Update",
-                                        AffectedTable = "tProjectMajorItemOfWorks",
-                                        AffectedColumn = "EndY",
-                                        NewValue = item.EndY.ToString(),
-                                        OldValue = ExistingItem.EndY.ToString(),
-                                        CreatedBy = _Session.UserId ?? "TESTING",
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.EndY = item.EndY;
-                                }
-                                if (ExistingItem.TargetAmount != item.TargetAmount)
-                                {
-                                    hasUpdate = true;
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        TransactionId = Project.ReferenceId!,
-                                        TypeOfTransaction = "Update",
-                                        AffectedTable = "tProjectMajorItemOfWorks",
-                                        AffectedColumn = "TargetAmount",
-                                        NewValue = item.TargetAmount.ToString(),
-                                        OldValue = ExistingItem.TargetAmount.ToString(),
-                                        CreatedBy = _Session.UserId ?? "TESTING",
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.TargetAmount = item.TargetAmount;
-                                }
-                                if (ExistingItem.StartStationLimit != item.StartStationLimit)
-                                {
-                                    hasUpdate = true;
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        TransactionId = Project.ReferenceId!,
-                                        TypeOfTransaction = "Update",
-                                        AffectedTable = "tProjectMajorItemOfWorks",
-                                        AffectedColumn = "StartStationLimit",
-                                        NewValue = item.StartStationLimit.ToString(),
-                                        OldValue = ExistingItem.StartStationLimit.ToString(),
-                                        CreatedBy = _Session.UserId ?? "TESTING",
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.StartStationLimit = item.StartStationLimit;
-                                }
-                                if (ExistingItem.EndStationLimit != item.EndStationLimit)
-                                {
-                                    hasUpdate = true;
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        TransactionId = Project.ReferenceId!,
-                                        TypeOfTransaction = "Update",
-                                        AffectedTable = "tProjectMajorItemOfWorks",
-                                        AffectedColumn = "EndStationLimit",
-                                        NewValue = item.EndStationLimit.ToString(),
-                                        OldValue = ExistingItem.EndStationLimit.ToString(),
-                                        CreatedBy = _Session.UserId ?? "TESTING",
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.EndStationLimit = item.EndStationLimit;
-                                }
-                                if (hasUpdate)
-                                {
-                                    ExistingItem.UpdatedBy = _Session.UserId ?? "TESTING";
-                                    ExistingItem.UpdatedDate = CurrentDate;
-                                    _db.tProjectMajorWorkItem.Update(ExistingItem);
-                                }
-                            }
-                        }
-                    }
-                    #endregion
+                //#region Major Item of Works
+                //var MajorItemOfWorks = await _db.tProjectMajorWorkItem.Where(x => x.ProjectId == Project.ReferenceId).ToListAsync();
+                //if (MajorItemOfWorks.Count > 0)
+                //{
+                //    var currentMajorItemIds = new HashSet<int>(MajorItemOfWorks.Select(x => x.WorkTypeId));
+                //    var newMajorItems = dto.MajorItemOfWorks.Where(x => !currentMajorItemIds.Contains(x.WorkTypeId)).ToList();
+                //    var deletedMajorItems = currentMajorItemIds.Except(dto.MajorItemOfWorks.Select(x => x.WorkTypeId)).ToList();
+                //    #region Delete Major Item of Works
+                //    if (deletedMajorItems.Count > 0)
+                //    {
+                //        var DeletedItems = MajorItemOfWorks.Where(x => deletedMajorItems.Contains(x.WorkTypeId)).ToList();
+                //        _db.tProjectMajorWorkItem.RemoveRange(DeletedItems);
+                //        transactionLogs.AddRange(DeletedItems.Select(item => new TransactionLog
+                //        {
+                //            TransactionId = Project.ReferenceId!,
+                //            TypeOfTransaction = "Delete",
+                //            AffectedTable = "tProjectMajorItemOfWorks",
+                //            AffectedColumn = "Row",
+                //            NewValue = "",
+                //            OldValue = JsonConvert.SerializeObject(item),
+                //            CreatedBy = _Session.UserId ?? "TESTING",
+                //            CreatedDate = CurrentDate
+                //        }));
+                //    }
+                //    #endregion
+                //    #region New Major Item of Works
+                //    if (newMajorItems.Count > 0)
+                //    {
+                //        await _db.tProjectMajorWorkItem.AddRangeAsync(newMajorItems.Select(item => new ProjectMajorWorkItem
+                //        {
+                //            ProjectId = Project.ReferenceId!,
+                //            ComponentId = item.ComponentId,
+                //            YearOfWork = item.YearOfWork,
+                //            WorkTypeId = item.WorkTypeId,
+                //            InfraId = item.InfraId,
+                //            TargetUnitId = item.TargetUnitId,
+                //            StartX = item.StartX,
+                //            StartY = item.StartY,
+                //            EndX = item.EndX,
+                //            EndY = item.EndY,
+                //            TargetAmount = item.TargetAmount,
+                //            StartStationLimit = item.StartStationLimit,
+                //            EndStationLimit = item.EndStationLimit,
+                //            CreatedBy = _Session.UserId ?? "TESTING",
+                //            CreatedDate = CurrentDate
+                //        }));
+                //    }
+                //    #endregion
+                //    #region Update Major Item of Works
+                //    var UpdateMajorItems = dto.MajorItemOfWorks.Where(x => currentMajorItemIds.Contains(x.WorkTypeId)).ToList();
+                //    if (UpdateMajorItems.Count > 0)
+                //    {
+                //        foreach (var item in UpdateMajorItems)
+                //        {
+                //            var ExistingItem = MajorItemOfWorks.FirstOrDefault(x => x.Id == item.Id);
+                //            if (ExistingItem != null)
+                //            {
+                //                bool hasUpdate = false;
+                //                if (ExistingItem.ComponentId != item.ComponentId)
+                //                {
+                //                    hasUpdate = true;
+                //                    transactionLogs.Add(new TransactionLog
+                //                    {
+                //                        TransactionId = Project.ReferenceId!,
+                //                        TypeOfTransaction = "Update",
+                //                        AffectedTable = "tProjectMajorItemOfWorks",
+                //                        AffectedColumn = "ComponentId",
+                //                        NewValue = item.ComponentId,
+                //                        OldValue = ExistingItem.ComponentId,
+                //                        CreatedBy = _Session.UserId ?? "TESTING",
+                //                        CreatedDate = CurrentDate
+                //                    });
+                //                    ExistingItem.ComponentId = item.ComponentId;
+                //                }
+                //                if (ExistingItem.YearOfWork != item.YearOfWork)
+                //                {
+                //                    hasUpdate = true;
+                //                    transactionLogs.Add(new TransactionLog
+                //                    {
+                //                        TransactionId = Project.ReferenceId!,
+                //                        TypeOfTransaction = "Update",
+                //                        AffectedTable = "tProjectMajorItemOfWorks",
+                //                        AffectedColumn = "YearOfWork",
+                //                        NewValue = item.YearOfWork.ToString(),
+                //                        OldValue = ExistingItem.YearOfWork.ToString(),
+                //                        CreatedBy = _Session.UserId ?? "TESTING",
+                //                        CreatedDate = CurrentDate
+                //                    });
+                //                    ExistingItem.YearOfWork = item.YearOfWork;
+                //                }
+                //                if (ExistingItem.WorkTypeId != item.WorkTypeId)
+                //                {
+                //                    hasUpdate = true;
+                //                    var WorkTypeEnum = await _db.tProgramStageEnum.FirstOrDefaultAsync(x => x.Enum == item.WorkTypeId);
+                //                    if (WorkTypeEnum == null)
+                //                    {
+                //                        return new BadRequestObjectResult(new { Message = $"Selected Work Type '{item.WorkTypeId}' is not valid!", Title = "Invalid Work Type" });
+                //                    }
+                //                    transactionLogs.Add(new TransactionLog
+                //                    {
+                //                        TransactionId = Project.ReferenceId!,
+                //                        TypeOfTransaction = "Update",
+                //                        AffectedTable = "tProjectMajorItemOfWorks",
+                //                        AffectedColumn = "WorkTypeId",
+                //                        NewValue = WorkTypeEnum.Name,
+                //                        OldValue = ExistingItem.WorkTypeId.ToString(),
+                //                        CreatedBy = _Session.UserId ?? "TESTING",
+                //                        CreatedDate = CurrentDate
+                //                    });
+                //                    ExistingItem.WorkTypeId = item.WorkTypeId;
+                //                }
+                //                if (ExistingItem.InfraId != item.InfraId)
+                //                {
+                //                    hasUpdate = true;
+                //                    transactionLogs.Add(new TransactionLog
+                //                    {
+                //                        TransactionId = Project.ReferenceId!,
+                //                        TypeOfTransaction = "Update",
+                //                        AffectedTable = "tProjectMajorItemOfWorks",
+                //                        AffectedColumn = "InfraId",
+                //                        NewValue = item.InfraId,
+                //                        OldValue = ExistingItem.InfraId,
+                //                        CreatedBy = _Session.UserId ?? "TESTING",
+                //                        CreatedDate = CurrentDate
+                //                    });
+                //                    ExistingItem.InfraId = item.InfraId;
+                //                }
+                //                if (ExistingItem.TargetUnitId != item.TargetUnitId)
+                //                {
+                //                    hasUpdate = true;
+                //                    transactionLogs.Add(new TransactionLog
+                //                    {
+                //                        TransactionId = Project.ReferenceId!,
+                //                        TypeOfTransaction = "Update",
+                //                        AffectedTable = "tProjectMajorItemOfWorks",
+                //                        AffectedColumn = "TargetUnitId",
+                //                        NewValue = item.TargetUnitId.ToString(),
+                //                        OldValue = ExistingItem.TargetUnitId.ToString(),
+                //                        CreatedBy = _Session.UserId ?? "TESTING",
+                //                        CreatedDate = CurrentDate
+                //                    });
+                //                    ExistingItem.TargetUnitId = item.TargetUnitId;
+                //                }
+                //                if (ExistingItem.StartX != item.StartX)
+                //                {
+                //                    hasUpdate = true;
+                //                    transactionLogs.Add(new TransactionLog
+                //                    {
+                //                        TransactionId = Project.ReferenceId!,
+                //                        TypeOfTransaction = "Update",
+                //                        AffectedTable = "tProjectMajorItemOfWorks",
+                //                        AffectedColumn = "StartX",
+                //                        NewValue = item.StartX.ToString(),
+                //                        OldValue = ExistingItem.StartX.ToString(),
+                //                        CreatedBy = _Session.UserId ?? "TESTING",
+                //                        CreatedDate = CurrentDate
+                //                    });
+                //                    ExistingItem.StartX = item.StartX;
+                //                }
+                //                if (ExistingItem.StartY != item.StartY)
+                //                {
+                //                    hasUpdate = true;
+                //                    transactionLogs.Add(new TransactionLog
+                //                    {
+                //                        TransactionId = Project.ReferenceId!,
+                //                        TypeOfTransaction = "Update",
+                //                        AffectedTable = "tProjectMajorItemOfWorks",
+                //                        AffectedColumn = "StartY",
+                //                        NewValue = item.StartY.ToString(),
+                //                        OldValue = ExistingItem.StartY.ToString(),
+                //                        CreatedBy = _Session.UserId ?? "TESTING",
+                //                        CreatedDate = CurrentDate
+                //                    });
+                //                    ExistingItem.StartY = item.StartY;
+                //                }
+                //                if (ExistingItem.EndX != item.EndX)
+                //                {
+                //                    hasUpdate = true;
+                //                    transactionLogs.Add(new TransactionLog
+                //                    {
+                //                        TransactionId = Project.ReferenceId!,
+                //                        TypeOfTransaction = "Update",
+                //                        AffectedTable = "tProjectMajorItemOfWorks",
+                //                        AffectedColumn = "EndX",
+                //                        NewValue = item.EndX.ToString(),
+                //                        OldValue = ExistingItem.EndX.ToString(),
+                //                        CreatedBy = _Session.UserId ?? "TESTING",
+                //                        CreatedDate = CurrentDate
+                //                    });
+                //                    ExistingItem.EndX = item.EndX;
+                //                }
+                //                if (ExistingItem.EndY != item.EndY)
+                //                {
+                //                    hasUpdate = true;
+                //                    transactionLogs.Add(new TransactionLog
+                //                    {
+                //                        TransactionId = Project.ReferenceId!,
+                //                        TypeOfTransaction = "Update",
+                //                        AffectedTable = "tProjectMajorItemOfWorks",
+                //                        AffectedColumn = "EndY",
+                //                        NewValue = item.EndY.ToString(),
+                //                        OldValue = ExistingItem.EndY.ToString(),
+                //                        CreatedBy = _Session.UserId ?? "TESTING",
+                //                        CreatedDate = CurrentDate
+                //                    });
+                //                    ExistingItem.EndY = item.EndY;
+                //                }
+                //                if (ExistingItem.TargetAmount != item.TargetAmount)
+                //                {
+                //                    hasUpdate = true;
+                //                    transactionLogs.Add(new TransactionLog
+                //                    {
+                //                        TransactionId = Project.ReferenceId!,
+                //                        TypeOfTransaction = "Update",
+                //                        AffectedTable = "tProjectMajorItemOfWorks",
+                //                        AffectedColumn = "TargetAmount",
+                //                        NewValue = item.TargetAmount.ToString(),
+                //                        OldValue = ExistingItem.TargetAmount.ToString(),
+                //                        CreatedBy = _Session.UserId ?? "TESTING",
+                //                        CreatedDate = CurrentDate
+                //                    });
+                //                    ExistingItem.TargetAmount = item.TargetAmount;
+                //                }
+                //                if (ExistingItem.StartStationLimit != item.StartStationLimit)
+                //                {
+                //                    hasUpdate = true;
+                //                    transactionLogs.Add(new TransactionLog
+                //                    {
+                //                        TransactionId = Project.ReferenceId!,
+                //                        TypeOfTransaction = "Update",
+                //                        AffectedTable = "tProjectMajorItemOfWorks",
+                //                        AffectedColumn = "StartStationLimit",
+                //                        NewValue = item.StartStationLimit.ToString(),
+                //                        OldValue = ExistingItem.StartStationLimit.ToString(),
+                //                        CreatedBy = _Session.UserId ?? "TESTING",
+                //                        CreatedDate = CurrentDate
+                //                    });
+                //                    ExistingItem.StartStationLimit = item.StartStationLimit;
+                //                }
+                //                if (ExistingItem.EndStationLimit != item.EndStationLimit)
+                //                {
+                //                    hasUpdate = true;
+                //                    transactionLogs.Add(new TransactionLog
+                //                    {
+                //                        TransactionId = Project.ReferenceId!,
+                //                        TypeOfTransaction = "Update",
+                //                        AffectedTable = "tProjectMajorItemOfWorks",
+                //                        AffectedColumn = "EndStationLimit",
+                //                        NewValue = item.EndStationLimit.ToString(),
+                //                        OldValue = ExistingItem.EndStationLimit.ToString(),
+                //                        CreatedBy = _Session.UserId ?? "TESTING",
+                //                        CreatedDate = CurrentDate
+                //                    });
+                //                    ExistingItem.EndStationLimit = item.EndStationLimit;
+                //                }
+                //                if (hasUpdate)
+                //                {
+                //                    ExistingItem.UpdatedBy = _Session.UserId ?? "TESTING";
+                //                    ExistingItem.UpdatedDate = CurrentDate;
+                //                    _db.tProjectMajorWorkItem.Update(ExistingItem);
+                //                }
+                //            }
+                //        }
+                //    }
+                //    #endregion
 
-                }
-                #endregion
+                //}
+                //#endregion
                 await _db.tTransactionLog.AddRangeAsync(transactionLogs);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
