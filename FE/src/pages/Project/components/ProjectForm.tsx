@@ -144,7 +144,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
   // Combine componentCosts and componentCostsYear for UI
   const componentCostsWithYears = componentCosts.map(cost => ({
     ...cost,
-    CostPerYear: componentCostsYear.filter(year => year.ParentId === cost.Id)
+    CostPerYear: componentCostsYear.filter(year => year.ParentId === cost.ReferenceId)
   }));
 
   const [majorItems, setMajorItems] = useState<MajorItemOfWork[]>(
@@ -219,8 +219,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
   // #region Component Costs
   const handleAddComponentCost = (newCost: ComponentCost, newCostYear?: ComponentCostYear) => {
     // Generate a temporary ID for new cost (will be replaced when saved)
-    const tempId = Date.now(); // Simple temp ID
-    const costWithId = { ...newCost, Id: tempId };
+    const tempId = Date.now().toString(); // Simple temp ID
+    const costWithId = { ...newCost, ReferenceId: tempId };
     
     setComponentCosts(prev => [...prev, costWithId]);
     
@@ -248,7 +248,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
     if (costToDelete) {
       setComponentCosts(prev => prev.filter((_, i) => i !== index));
       // Also remove related ComponentCostYear entries
-      setComponentCostsYear(prev => prev.filter(year => year.ParentId !== costToDelete.Id));
+      setComponentCostsYear(prev => prev.filter(year => year.ParentId !== costToDelete.ReferenceId));
       console.log('Deleted component cost from staging:', costToDelete);
     }
   };
@@ -274,22 +274,21 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
   const handleAddMajorItem = () => {
     const newItem: MajorItemOfWork = {
       Id: Date.now(), // Temporary ID
-      ProjectId: projectDetails.ReferenceId || '',
-      ComponentId: 0,
-      YearOfWork: new Date().getFullYear(),
-      TypeOfWork:0,
-      PhysicalTarget: 0,
-      TargetUnit: '',
-      Description: '',
+      ProjectId: '',
+      ComponentId: '',
+      YearOfWork: 0,
+      WorkTypeId: 0,
       InfraId: '',
+      TargetUnitId: 0,
+      StartX: 0,
+      StartY: 0,
+      EndX: 0,
+      EndY: 0,
+      TargetAmount: 0,
       StartStationLimit: 0,
-      EndStationLimi: 0,
-      StartFrom: 0,
-      EndFrom: 0,
+      EndStationLimit: 0,
       CreatedBy: '',
-      CreatedDate: new Date().toISOString(),
-      UpdatedBy: '',
-      UpdatedDate: new Date().toISOString()
+      CreatedDate: Date.now().toString(),
     };
     setMajorItems(prev => [...prev, newItem]);
     console.log('Added major item to staging:', newItem);
@@ -427,6 +426,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
         ComponentCosts: componentCosts.map(cost => ({
           Id: cost.Id,
           ProjectId: cost.ProjectId || projectDetails.ReferenceId || '',
+          ReferenceId: cost.ReferenceId || '',
           ComponentType: cost.ComponentType || '',
           ComponentId: cost.ComponentId || '',
           Description: cost.Description || '',
