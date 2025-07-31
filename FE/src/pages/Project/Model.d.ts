@@ -133,7 +133,7 @@ export interface ScopeOfWorkEnum {
 	InfraType: string;
 	WorkCategory: string;
 	Description: string;
-	Measure: string;
+	Measure: number;
 	MaxAmount: number;
 	MinAmount: number;
 }
@@ -212,6 +212,7 @@ export interface ComponentCostFormType
 export interface ComponentCost {
 	Id: number;
 	ProjectId: string;
+	ReferenceId: string;
 	ComponentType: string;
 	ComponentId: string;
 	Description: string;
@@ -229,32 +230,32 @@ export interface ComponentCostWithYears extends ComponentCost {
 
 export interface ComponentCostYear {
 	Id: number;
-	ParentId: number;
+	ParentId: string;
 	CostYear: number;
 	Cost: number;
 	ApprovalDate?: string;
 	PAPCode: string;
 	StartDate: string;
 	EndDate: string;
-}
-export interface MajorItemOfWork {
+}export interface MajorItemOfWork {
 	Id: number;
 	ProjectId: string;
-	ComponentId: number;
+	ComponentId: string;
 	YearOfWork: number;
-	TypeOfWork: number;
-	PhysicalTarget: number;
-	TargetUnit: string;
-	Description: string;
+	WorkTypeId: number;
 	InfraId: string;
+	TargetUnitId: number;
+	StartX: number;
+	StartY: number;
+	EndX: number;
+	EndY: number;
+	TargetAmount: number;
 	StartStationLimit: number;
-	EndStationLimi: number;
-	StartFrom: number;
-	EndFrom: number;
+	EndStationLimit: number;
 	CreatedBy: string;
-	CreatedDate: string;
-	UpdatedBy: string;
-	UpdatedDate: string;
+	CreatedDate?: string;
+	UpdatedBy?: string;
+	UpdatedDate?: string;
 }
 export interface ProjectNote {
 	Id: number;
