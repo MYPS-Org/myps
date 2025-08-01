@@ -11,7 +11,7 @@ namespace DBHelper.Models.Views
         public int Id { get; set; }
         public string ProgramId { get; set; } = string.Empty;
         public string ProgramName { get; set; } = string.Empty;
-        public string ReferenceId { get; set; } = string.Empty;
+        public string ProjectId { get; set; } = string.Empty;
         public int RevisionNumber { get; set; }
         public string Description { get; set; } = string.Empty;
         public string? Category { get; set; }

@@ -60,7 +60,7 @@ namespace WebAPI.Controllers.Programs
                     baseQuery = baseQuery.Where(e => e.ProgramId!.Contains(dto.Filters.ProgramId));
 
                 if (!string.IsNullOrEmpty(dto.Filters?.ReferenceId))
-                    baseQuery = baseQuery.Where(e => e.ReferenceId!.Contains(dto.Filters.ReferenceId));
+                    baseQuery = baseQuery.Where(e => e.ProjectId!.Contains(dto.Filters.ReferenceId));
 
                 // Get total count of filtered results (before pagination)
                 var totalRecords = await baseQuery.CountAsync();
@@ -144,7 +144,7 @@ namespace WebAPI.Controllers.Programs
             var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                var ProgramDetails = await _db.vProgramDetails.FirstOrDefaultAsync(x => x.ReferenceId == dto.ProgramId);
+                var ProgramDetails = await _db.vProgramDetails.FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
                 if (ProgramDetails == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Selected Program not found!", Title = "Program Not Found" });
@@ -233,15 +233,15 @@ namespace WebAPI.Controllers.Programs
                 DateTime CurrentDate = DateTime.UtcNow;
                 var SubmitProject = new DBHelper.Models.Table.Projects()
                 {
-                    ProgramId = ProgramDetails.ReferenceId,
-                    ReferenceId = ReferenceId,
+                    ProgramId = ProgramDetails.ProgramId,
+                    ProjectId = ReferenceId,
                     CreatedBy = _Session.UserId ?? "TESTING",
                     CreatedDate = CurrentDate
                 };
                 await _db.tProjects.AddAsync(SubmitProject);
                 var ProjectRevision = new ProjectRevisions()
                 {
-                    ReferenceId = ReferenceId,
+                    ProjectId = ReferenceId,
                     RevisionNumber = 1,
                     Description = dto.Description!,
                     Category = dto.Category,
@@ -294,7 +294,7 @@ namespace WebAPI.Controllers.Programs
         {
             try
             {
-                var Project = await _db.vProjectDetails.FirstOrDefaultAsync(x => x.ReferenceId == dto.ProjectId);
+                var Project = await _db.vProjectDetails.FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId);
                 if(Project == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
@@ -305,11 +305,11 @@ namespace WebAPI.Controllers.Programs
                     return new BadRequestObjectResult(new { Message = "Program not found for this project!", Title = "Program Not Found" });
                 }
                 var ComponentType = await _db.tProjectComponentEnum.ToListAsync();
-                var ComponentCost = await _db.tProjectComponentCost.Where(x => x.ProjectId == Project.ReferenceId).ToListAsync();
+                var ComponentCost = await _db.tProjectComponentCost.Where(x => x.ProjectId == Project.ProjectId).ToListAsync();
                 var ComponentCostYear = await _db.tProjectComponentCostYear.Where(x => ComponentCost.Select(a => a.ReferenceId).Contains(x.ParentId)).ToListAsync();
-                var MajorItemOfWork = await _db.tProjectMajorWorkItem.Where(x => x.ProjectId == Project.ReferenceId).ToListAsync();
-                var Notes = await _db.tProjectNotes.Where(x => x.ProjectId == Project.ReferenceId).ToListAsync();
-                var Funding = await _db.tProjectFundingProfile.Where(x => x.ProjectId == Project.ReferenceId).ToListAsync();
+                var MajorItemOfWork = await _db.tProjectMajorWorkItem.Where(x => x.ProjectId == Project.ProjectId).ToListAsync();
+                var Notes = await _db.tProjectNotes.Where(x => x.ProjectId == Project.ProjectId).ToListAsync();
+                var Funding = await _db.tProjectFundingProfile.Where(x => x.ProjectId == Project.ProjectId).ToListAsync();
 
 
                 var Category = await _db.tProjectCategoryEnum.ToListAsync();
@@ -383,12 +383,12 @@ namespace WebAPI.Controllers.Programs
                 bool hasUpdated = false;
                 DateTime CurrentDate = DateTime.UtcNow;
                 List<TransactionLog> transactionLogs = new List<TransactionLog>();
-                var Project = await _db.vProjectDetails.FirstOrDefaultAsync(x => x.ReferenceId == dto.ProjectDetails.ReferenceId);
+                var Project = await _db.vProjectDetails.FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectDetails.ProjectId);
                 if (Project == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
                 }
-                var Program = await _db.vProgramDetails.FirstOrDefaultAsync(x => x.ReferenceId == Project.ProgramId);
+                var Program = await _db.vProgramDetails.FirstOrDefaultAsync(x => x.ProgramId == Project.ProgramId);
                 if (Program == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Program not found for this project!", Title = "Program Not Found" });
@@ -398,7 +398,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     transactionLogs.Add(new TransactionLog
                     {
-                        TransactionId = Project.ReferenceId!,
+                        TransactionId = Project.ProjectId!,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "Name",
@@ -420,7 +420,7 @@ namespace WebAPI.Controllers.Programs
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
-                        TransactionId = Project.ReferenceId!,
+                        TransactionId = Project.ProjectId!,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "Category",
@@ -442,7 +442,7 @@ namespace WebAPI.Controllers.Programs
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
-                        TransactionId = Project.ReferenceId!,
+                        TransactionId = Project.ProjectId!,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "Thrust",
@@ -464,7 +464,7 @@ namespace WebAPI.Controllers.Programs
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
-                        TransactionId = Project.ReferenceId!,
+                        TransactionId = Project.ProjectId!,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "Thrust",
@@ -486,7 +486,7 @@ namespace WebAPI.Controllers.Programs
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
-                        TransactionId = Project.ReferenceId!,
+                        TransactionId = Project.ProjectId!,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "City",
@@ -508,7 +508,7 @@ namespace WebAPI.Controllers.Programs
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
-                        TransactionId = Project.ReferenceId!,
+                        TransactionId = Project.ProjectId!,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "LegislativeDistrict",
@@ -530,7 +530,7 @@ namespace WebAPI.Controllers.Programs
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
-                        TransactionId = Project.ReferenceId!,
+                        TransactionId = Project.ProjectId!,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "OperatingUnit",
@@ -552,7 +552,7 @@ namespace WebAPI.Controllers.Programs
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
-                        TransactionId = Project.ReferenceId!,
+                        TransactionId = Project.ProjectId!,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "ImplementingOffice",
@@ -574,7 +574,7 @@ namespace WebAPI.Controllers.Programs
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
-                        TransactionId = Project.ReferenceId!,
+                        TransactionId = Project.ProjectId!,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "DEO",
@@ -590,7 +590,7 @@ namespace WebAPI.Controllers.Programs
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
-                        TransactionId = Project.ReferenceId!,
+                        TransactionId = Project.ProjectId!,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "Region",
@@ -612,7 +612,7 @@ namespace WebAPI.Controllers.Programs
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
-                        TransactionId = Project.ReferenceId!,
+                        TransactionId = Project.ProjectId!,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "Agency",
@@ -628,7 +628,7 @@ namespace WebAPI.Controllers.Programs
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
-                        TransactionId = Project.ReferenceId!,
+                        TransactionId = Project.ProjectId!,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "ProjectCode",
@@ -650,7 +650,7 @@ namespace WebAPI.Controllers.Programs
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
-                        TransactionId = Project.ReferenceId!,
+                        TransactionId = Project.ProjectId!,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "ImplementationMode",
@@ -672,7 +672,7 @@ namespace WebAPI.Controllers.Programs
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
-                        TransactionId = Project.ReferenceId!,
+                        TransactionId = Project.ProjectId!,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "EmergencyMode",
@@ -694,7 +694,7 @@ namespace WebAPI.Controllers.Programs
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
-                        TransactionId = Project.ReferenceId!,
+                        TransactionId = Project.ProjectId!,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "Feasibility",
@@ -716,7 +716,7 @@ namespace WebAPI.Controllers.Programs
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
-                        TransactionId = Project.ReferenceId!,
+                        TransactionId = Project.ProjectId!,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "DetailedDesign",
@@ -738,7 +738,7 @@ namespace WebAPI.Controllers.Programs
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
-                        TransactionId = Project.ReferenceId!,
+                        TransactionId = Project.ProjectId!,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "RowAvailable",
@@ -753,7 +753,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     var NewRevision = new ProjectRevisions()
                     {
-                        ReferenceId = Project.ReferenceId!,
+                        ProjectId = Project.ProjectId!,
                         RevisionNumber = (int)Project.RevisionNumber! + 1,
                         Description = Project!.Description!,
                         Category = Project!.Category,
@@ -779,7 +779,7 @@ namespace WebAPI.Controllers.Programs
                 }
                 #endregion
                 #region Update Component Cost
-                var ComponentCost = await _db.tProjectComponentCost.Where(x => x.ProjectId == Project.ReferenceId).ToListAsync();
+                var ComponentCost = await _db.tProjectComponentCost.Where(x => x.ProjectId == Project.ProjectId).ToListAsync();
                 if (ComponentCost.Count > 0)
                 {
                     HashSet<string> CurrentComponentCost = new HashSet<string>(ComponentCost.Select(x => x.ReferenceId));
@@ -795,7 +795,7 @@ namespace WebAPI.Controllers.Programs
                         _db.tProjectComponentCostYear.RemoveRange(DeleteCostPerYear);
                         transactionLogs.AddRange(DeletedItems.Select(item => new TransactionLog
                         {
-                            TransactionId = Project.ReferenceId!,
+                            TransactionId = Project.ProjectId!,
                             TypeOfTransaction = "Delete",
                             AffectedTable = "tProjectComponentCost",
                             AffectedColumn = "Row",
@@ -806,7 +806,7 @@ namespace WebAPI.Controllers.Programs
                         }));
                         transactionLogs.AddRange(DeleteCostPerYear.Select(item => new TransactionLog
                         {
-                            TransactionId = Project.ReferenceId!,
+                            TransactionId = Project.ProjectId!,
                             TypeOfTransaction = "Delete",
                             AffectedTable = "tProjectComponentCostYear",
                             AffectedColumn = "Row",
@@ -834,8 +834,8 @@ namespace WebAPI.Controllers.Programs
                         }
                         var NewCostToAdd = NewComponentCostData.Select((item, index) => new ProjectComponentCost
                         {
-                            ProjectId = Project.ReferenceId!,
-                            ReferenceId = Project.ReferenceId + "-" + uidList[index],
+                            ProjectId = Project.ProjectId!,
+                            ReferenceId = Project.ProjectId + "-" + uidList[index],
                             ComponentId = item.ComponentId,
                             ComponentType = item.ComponentType,
                             Description = item.Description,
@@ -892,7 +892,7 @@ namespace WebAPI.Controllers.Programs
                                     }
                                     transactionLogs.Add(new TransactionLog
                                     {
-                                        TransactionId = Project.ReferenceId!,
+                                        TransactionId = Project.ProjectId!,
                                         TypeOfTransaction = "Update",
                                         AffectedTable = "tProjectComponentCost",
                                         AffectedColumn = "ComponentType",
@@ -909,7 +909,7 @@ namespace WebAPI.Controllers.Programs
                                     ComponentUpdate = true;
                                     transactionLogs.Add(new TransactionLog
                                     {
-                                        TransactionId = Project.ReferenceId!,
+                                        TransactionId = Project.ProjectId!,
                                         TypeOfTransaction = "Update",
                                         AffectedTable = "tProjectComponentCost",
                                         AffectedColumn = "Description",
@@ -924,7 +924,7 @@ namespace WebAPI.Controllers.Programs
                                     ComponentUpdate = true;
                                     transactionLogs.Add(new TransactionLog
                                     {
-                                        TransactionId = Project.ReferenceId!,
+                                        TransactionId = Project.ProjectId!,
                                         TypeOfTransaction = "Update",
                                         AffectedTable = "tProjectComponentCost",
                                         AffectedColumn = "Total",
@@ -957,7 +957,7 @@ namespace WebAPI.Controllers.Programs
                                         hasYearUpdate = true;
                                         transactionLogs.Add(new TransactionLog
                                         {
-                                            TransactionId = Project.ReferenceId!,
+                                            TransactionId = Project.ProjectId!,
                                             TypeOfTransaction = "Update",
                                             AffectedTable = "tProjectComponentCostYear",
                                             AffectedColumn = "Cost",
@@ -973,7 +973,7 @@ namespace WebAPI.Controllers.Programs
                                         hasYearUpdate = true;
                                         transactionLogs.Add(new TransactionLog
                                         {
-                                            TransactionId = Project.ReferenceId!,
+                                            TransactionId = Project.ProjectId!,
                                             TypeOfTransaction = "Update",
                                             AffectedTable = "tProjectComponentCostYear",
                                             AffectedColumn = "ApprovalDate",
@@ -989,7 +989,7 @@ namespace WebAPI.Controllers.Programs
                                         hasYearUpdate = true;
                                         transactionLogs.Add(new TransactionLog
                                         {
-                                            TransactionId = Project.ReferenceId!,
+                                            TransactionId = Project.ProjectId!,
                                             TypeOfTransaction = "Update",
                                             AffectedTable = "tProjectComponentCostYear",
                                             AffectedColumn = "PAPCode",
@@ -1005,7 +1005,7 @@ namespace WebAPI.Controllers.Programs
                                         hasYearUpdate = true;
                                         transactionLogs.Add(new TransactionLog
                                         {
-                                            TransactionId = Project.ReferenceId!,
+                                            TransactionId = Project.ProjectId!,
                                             TypeOfTransaction = "Update",
                                             AffectedTable = "tProjectComponentCostYear",
                                             AffectedColumn = "StartDate",
@@ -1021,7 +1021,7 @@ namespace WebAPI.Controllers.Programs
                                         hasYearUpdate = true;
                                         transactionLogs.Add(new TransactionLog
                                         {
-                                            TransactionId = Project.ReferenceId!,
+                                            TransactionId = Project.ProjectId!,
                                             TypeOfTransaction = "Update",
                                             AffectedTable = "tProjectComponentCostYear",
                                             AffectedColumn = "EndDate",
@@ -1064,8 +1064,8 @@ namespace WebAPI.Controllers.Programs
                     }
                     var NewCostToAdd = dto.ComponentCosts.Select((item, index) => new ProjectComponentCost
                     {
-                        ProjectId = Project.ReferenceId!,
-                        ReferenceId = Project.ReferenceId + "-" + uidList[index],
+                        ProjectId = Project.ProjectId!,
+                        ReferenceId = Project.ProjectId + "-" + uidList[index],
                         ComponentId = item.ComponentId,
                         ComponentType = item.ComponentType,
                         Description = item.Description,
@@ -1103,7 +1103,7 @@ namespace WebAPI.Controllers.Programs
                 }
                 #endregion
                 //#region Major Item of Works
-                //var MajorItemOfWorks = await _db.tProjectMajorWorkItem.Where(x => x.ProjectId == Project.ReferenceId).ToListAsync();
+                //var MajorItemOfWorks = await _db.tProjectMajorWorkItem.Where(x => x.ProjectId == Project.ProjectId).ToListAsync();
                 //if (MajorItemOfWorks.Count > 0)
                 //{
                 //    var currentMajorItemIds = new HashSet<int>(MajorItemOfWorks.Select(x => x.WorkTypeId));
@@ -1116,7 +1116,7 @@ namespace WebAPI.Controllers.Programs
                 //        _db.tProjectMajorWorkItem.RemoveRange(DeletedItems);
                 //        transactionLogs.AddRange(DeletedItems.Select(item => new TransactionLog
                 //        {
-                //            TransactionId = Project.ReferenceId!,
+                //            TransactionId = Project.ProjectId!,
                 //            TypeOfTransaction = "Delete",
                 //            AffectedTable = "tProjectMajorItemOfWorks",
                 //            AffectedColumn = "Row",
@@ -1132,7 +1132,7 @@ namespace WebAPI.Controllers.Programs
                 //    {
                 //        await _db.tProjectMajorWorkItem.AddRangeAsync(newMajorItems.Select(item => new ProjectMajorWorkItem
                 //        {
-                //            ProjectId = Project.ReferenceId!,
+                //            ProjectId = Project.ProjectId!,
                 //            ComponentId = item.ComponentId,
                 //            YearOfWork = item.YearOfWork,
                 //            WorkTypeId = item.WorkTypeId,
@@ -1165,7 +1165,7 @@ namespace WebAPI.Controllers.Programs
                 //                    hasUpdate = true;
                 //                    transactionLogs.Add(new TransactionLog
                 //                    {
-                //                        TransactionId = Project.ReferenceId!,
+                //                        TransactionId = Project.ProjectId!,
                 //                        TypeOfTransaction = "Update",
                 //                        AffectedTable = "tProjectMajorItemOfWorks",
                 //                        AffectedColumn = "ComponentId",
@@ -1181,7 +1181,7 @@ namespace WebAPI.Controllers.Programs
                 //                    hasUpdate = true;
                 //                    transactionLogs.Add(new TransactionLog
                 //                    {
-                //                        TransactionId = Project.ReferenceId!,
+                //                        TransactionId = Project.ProjectId!,
                 //                        TypeOfTransaction = "Update",
                 //                        AffectedTable = "tProjectMajorItemOfWorks",
                 //                        AffectedColumn = "YearOfWork",
@@ -1202,7 +1202,7 @@ namespace WebAPI.Controllers.Programs
                 //                    }
                 //                    transactionLogs.Add(new TransactionLog
                 //                    {
-                //                        TransactionId = Project.ReferenceId!,
+                //                        TransactionId = Project.ProjectId!,
                 //                        TypeOfTransaction = "Update",
                 //                        AffectedTable = "tProjectMajorItemOfWorks",
                 //                        AffectedColumn = "WorkTypeId",
@@ -1218,7 +1218,7 @@ namespace WebAPI.Controllers.Programs
                 //                    hasUpdate = true;
                 //                    transactionLogs.Add(new TransactionLog
                 //                    {
-                //                        TransactionId = Project.ReferenceId!,
+                //                        TransactionId = Project.ProjectId!,
                 //                        TypeOfTransaction = "Update",
                 //                        AffectedTable = "tProjectMajorItemOfWorks",
                 //                        AffectedColumn = "InfraId",
@@ -1234,7 +1234,7 @@ namespace WebAPI.Controllers.Programs
                 //                    hasUpdate = true;
                 //                    transactionLogs.Add(new TransactionLog
                 //                    {
-                //                        TransactionId = Project.ReferenceId!,
+                //                        TransactionId = Project.ProjectId!,
                 //                        TypeOfTransaction = "Update",
                 //                        AffectedTable = "tProjectMajorItemOfWorks",
                 //                        AffectedColumn = "TargetUnitId",
@@ -1250,7 +1250,7 @@ namespace WebAPI.Controllers.Programs
                 //                    hasUpdate = true;
                 //                    transactionLogs.Add(new TransactionLog
                 //                    {
-                //                        TransactionId = Project.ReferenceId!,
+                //                        TransactionId = Project.ProjectId!,
                 //                        TypeOfTransaction = "Update",
                 //                        AffectedTable = "tProjectMajorItemOfWorks",
                 //                        AffectedColumn = "StartX",
@@ -1266,7 +1266,7 @@ namespace WebAPI.Controllers.Programs
                 //                    hasUpdate = true;
                 //                    transactionLogs.Add(new TransactionLog
                 //                    {
-                //                        TransactionId = Project.ReferenceId!,
+                //                        TransactionId = Project.ProjectId!,
                 //                        TypeOfTransaction = "Update",
                 //                        AffectedTable = "tProjectMajorItemOfWorks",
                 //                        AffectedColumn = "StartY",
@@ -1282,7 +1282,7 @@ namespace WebAPI.Controllers.Programs
                 //                    hasUpdate = true;
                 //                    transactionLogs.Add(new TransactionLog
                 //                    {
-                //                        TransactionId = Project.ReferenceId!,
+                //                        TransactionId = Project.ProjectId!,
                 //                        TypeOfTransaction = "Update",
                 //                        AffectedTable = "tProjectMajorItemOfWorks",
                 //                        AffectedColumn = "EndX",
@@ -1298,7 +1298,7 @@ namespace WebAPI.Controllers.Programs
                 //                    hasUpdate = true;
                 //                    transactionLogs.Add(new TransactionLog
                 //                    {
-                //                        TransactionId = Project.ReferenceId!,
+                //                        TransactionId = Project.ProjectId!,
                 //                        TypeOfTransaction = "Update",
                 //                        AffectedTable = "tProjectMajorItemOfWorks",
                 //                        AffectedColumn = "EndY",
@@ -1314,7 +1314,7 @@ namespace WebAPI.Controllers.Programs
                 //                    hasUpdate = true;
                 //                    transactionLogs.Add(new TransactionLog
                 //                    {
-                //                        TransactionId = Project.ReferenceId!,
+                //                        TransactionId = Project.ProjectId!,
                 //                        TypeOfTransaction = "Update",
                 //                        AffectedTable = "tProjectMajorItemOfWorks",
                 //                        AffectedColumn = "TargetAmount",
@@ -1330,7 +1330,7 @@ namespace WebAPI.Controllers.Programs
                 //                    hasUpdate = true;
                 //                    transactionLogs.Add(new TransactionLog
                 //                    {
-                //                        TransactionId = Project.ReferenceId!,
+                //                        TransactionId = Project.ProjectId!,
                 //                        TypeOfTransaction = "Update",
                 //                        AffectedTable = "tProjectMajorItemOfWorks",
                 //                        AffectedColumn = "StartStationLimit",
@@ -1346,7 +1346,7 @@ namespace WebAPI.Controllers.Programs
                 //                    hasUpdate = true;
                 //                    transactionLogs.Add(new TransactionLog
                 //                    {
-                //                        TransactionId = Project.ReferenceId!,
+                //                        TransactionId = Project.ProjectId!,
                 //                        TypeOfTransaction = "Update",
                 //                        AffectedTable = "tProjectMajorItemOfWorks",
                 //                        AffectedColumn = "EndStationLimit",
@@ -1375,7 +1375,7 @@ namespace WebAPI.Controllers.Programs
                 await transaction.CommitAsync();
                 return Ok(new
                 {
-                    Message = $"Project {dto.ProjectDetails!.ReferenceId} updated successfully!",
+                    Message = $"Project {dto.ProjectDetails!.ProjectId} updated successfully!",
                     Title = "Update Complete"
                 });
 
@@ -1393,7 +1393,7 @@ namespace WebAPI.Controllers.Programs
             var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                var Project = await _db.vProjectDetails.FirstOrDefaultAsync(x => x.ReferenceId == dto.ProjectId);
+                var Project = await _db.vProjectDetails.FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId);
                 if(Project == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
@@ -1408,7 +1408,7 @@ namespace WebAPI.Controllers.Programs
                 }
                 string FileName = dto.File.Name;
                 string Extension = Path.GetExtension(FileName);
-                string PathDir = Path.Combine(Appsetting.Resources.ProjectNotes, Project.ReferenceId!);
+                string PathDir = Path.Combine(Appsetting.Resources.ProjectNotes, Project.ProjectId!);
                 if (!Directory.Exists(PathDir))
                 {
                     Directory.CreateDirectory(PathDir);

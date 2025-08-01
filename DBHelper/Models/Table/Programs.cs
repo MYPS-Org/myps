@@ -9,7 +9,7 @@ namespace DBHelper.Models.Table
         public int Id { get; set; }
         [Required]
         [MaxLength(200)]
-        public string ReferenceId { get; set; } = string.Empty;
+        public string ProgramId { get; set; } = string.Empty;
         [Required]
         [MaxLength(50)]
         public string CreatedBy { get; set; } = string.Empty;

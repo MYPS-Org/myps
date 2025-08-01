@@ -5,7 +5,7 @@ namespace DBHelper.Models.Views
     public class ProgramDetails
     {
         public int Id { get; set; }
-        public string ReferenceId { get; set; } = string.Empty;
+        public string ProgramId { get; set; } = string.Empty;
         public int RevisionNumber { get; set; }
         public string Name { get; set; } = string.Empty;
         public EnumProgramStage StageId { get; set; }
