@@ -1,44 +1,41 @@
 ﻿using DBHelper.Data;
-using DBHelper.Models.Dtos;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Table;
 using DBHelper.Models.Views;
+using Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Migrations.Operations;
-using Newtonsoft.Json;
+using System.Data.SqlClient;
 using System.Reflection;
-using WebAPI.Controllers.Programs;
-
-namespace WebAPI.Controllers.UserProfile
+using System.Xml;
+using static Eaf.Domain.Uow.EafDataFilters;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
+using static System.Runtime.InteropServices.JavaScript.JSType;
+namespace WebAPI.Controllers.Programs
 {
     [ApiController]
     [Route("api/[controller]/[action]")]
-    [Authorize(Roles = "Admin")]
     public class ProgramController : CoreController
     {
         public ProgramController(AppDbContext db) : base(db) { }
-
+        #region Program Lists
+        [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> AddProgram([FromBody] AddProgramDTO dto)
+        public async Task<IActionResult> InitFilterProgram()
         {
             try
             {
-                var CountUsers = await _db.vUsers.CountAsync();
-                var CountPermissions = await _db.tPermissions.CountAsync();
-                var CountGroups = await _db.tGroups.CountAsync();
-                List<DBHelper.Models.Views.Users> UserLists = await _db.vUsers
-                .AsNoTracking()
-                .OrderByDescending(x => x.Id)
-                .Take(10)
-                .ToListAsync();
+                var AvailableStages = await _db.tProgramStageEnum.ToListAsync();
+                var AvailableTypes = await _db.tProgramTypeEnum.ToListAsync();
+                var AvailableStatuses = await _db.tProgramStatusEnum.ToListAsync();
+                var AvailableGroups = await _db.tGroups.ToListAsync();
                 var response = new
                 {
-                    NumberOfUsers = CountUsers,
-                    NumberOfPermissions = CountPermissions,
-                    NumberOfGroups = CountGroups,
-                    Users = UserLists,
+                    Stages = AvailableStages,
+                    Types = AvailableTypes,
+                    Statuses = AvailableStatuses,
+                    Groups = AvailableGroups
                 };
 
                 return Ok(response); // Remove the extra wrapper
@@ -48,9 +45,9 @@ namespace WebAPI.Controllers.UserProfile
                 return ExceptionHandler(ex);
             }
         }
-        #region USERS TAB
+        [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> ShowUsers([FromBody] UsersPaginationDto dto)
+        public async Task<IActionResult> ShowProgram([FromBody] ShowProgramDTO dto)
         {
             try
             {
@@ -60,7 +57,7 @@ namespace WebAPI.Controllers.UserProfile
                 }
                 if (!string.IsNullOrEmpty(dto.SortField))
                 {
-                    bool isValid = typeof(DBHelper.Models.Views.Users)
+                    bool isValid = typeof(DBHelper.Models.Views.Programs)
                         .GetProperties(BindingFlags.Public | BindingFlags.Instance)
                         .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
                     if (!isValid)
@@ -79,29 +76,35 @@ namespace WebAPI.Controllers.UserProfile
                 if (dto.page < 1) dto.page = 1;
                 if (dto.limit < 1) dto.limit = 10;
 
-                var baseQuery = _db.vUsers.AsNoTracking();
+                var baseQuery = _db.vPrograms.AsNoTracking();
 
                 // Apply filters to base query
                 if (!string.IsNullOrEmpty(dto.Filters?.Name))
                     baseQuery = baseQuery.Where(e => e.Name!.Contains(dto.Filters.Name));
 
-                if (!string.IsNullOrEmpty(dto.Filters?.UserGroup))
-                    baseQuery = baseQuery.Where(e => e.UserGroups!.Contains(dto.Filters.UserGroup));
+                if (!string.IsNullOrEmpty(dto.Filters?.YearStart))
+                    baseQuery = baseQuery.Where(e => e.YearStart.ToString() == dto.Filters.YearStart);
 
-                if (dto.Filters?.IsActive != null)
-                    baseQuery = baseQuery.Where(e => e.IsActive == dto.Filters.IsActive);
+                if (!string.IsNullOrEmpty(dto.Filters?.YearEnd))
+                    baseQuery = baseQuery.Where(e => e.YearEnd.ToString() == dto.Filters.YearEnd);
+
+                if (dto.Filters?.GroupName != null)
+                    baseQuery = baseQuery.Where(e => e.GroupName == dto.Filters.GroupName);
+
+                if (dto.Filters?.StageName != null)
+                    baseQuery = baseQuery.Where(e => e.StageName == dto.Filters.StageName);
 
                 // Get total count of filtered results (before pagination)
                 var totalRecords = await baseQuery.CountAsync();
 
                 // Apply sorting and pagination
                 dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "Id";
-                var sortedQuery = (dto.sortDirection == sortDirectionList.ASC
+                var sortedQuery = dto.sortDirection == sortDirectionList.ASC
                         ? baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField))
-                        : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField)));
+                        : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField));
 
                 // Apply pagination and execute query
-                List<DBHelper.Models.Views.Users> permissionLists = await sortedQuery
+                 List<DBHelper.Models.Views.Programs> permissionLists = await sortedQuery
                     .Skip((dto.page - 1) * dto.limit)
                     .Take(dto.limit)
                     .ToListAsync();
@@ -111,10 +114,10 @@ namespace WebAPI.Controllers.UserProfile
                 var response = new
                 {
                     lists = permissionLists,
-                    page = dto.page,
-                    limit = dto.limit,
+                    dto.page,
+                    dto.limit,
                     total = totalRecords,
-                    totalPages = totalPages
+                    totalPages
                 };
 
                 return Ok(response); // Remove the extra wrapper
@@ -124,156 +127,117 @@ namespace WebAPI.Controllers.UserProfile
                 return ExceptionHandler(ex);
             }
         }
+        [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> DeleteUser([FromBody] DBHelper.Models.Views.Users dto)
+        public async Task<IActionResult> InitAddProgram()
         {
-            using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                var getUser = await _db.tUsers.FirstOrDefaultAsync(x => x.Id == dto.Id);
-                if (getUser == null)
-                {
-                    return new BadRequestObjectResult(new { Message = $"User '{dto.UserId}' does not exists in the System!", Title = "User not found" });
-                }
-                var getUserGroups = await _db.tUserGroups.Where(x => x.UserId == getUser.UserId).ToListAsync();
-                if(getUserGroups.Count > 0)
-                {
-                    _db.tUserGroups.RemoveRange(getUserGroups);
-                }
-                _db.tUsers.Remove(getUser);
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
+                var Stage = await _db.tProgramStageEnum.ToListAsync();
+                var Type = await _db.tProgramTypeEnum.ToListAsync();
+                var Status = await _db.tProgramStatusEnum.ToListAsync();
+                var Group = await _db.tGroups.ToListAsync();
+                string[] includes = { "C", "R", "PMO", "PMOC", "B" };
+                var Security = await _db.tProjectImplementingOfficeEnum.Where(x => includes.Contains(x.OrgType)).ToListAsync();
                 return Ok(new
                 {
-                    Message = "User deleted updated successfully",
-                    Title = "Delete Complete"
+                    Stages = Stage,
+                    Types = Type,
+                    Statuses = Status,
+                    Groups = Group,
+                    DataSecurity = Security
                 });
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
                 return ExceptionHandler(ex);
             }
         }
+        [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> UpdateUser([FromBody] DBHelper.Models.Views.Users dto)
+        public async Task<IActionResult> AddProgram([FromBody] AddProgramDTO dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                var getUser = await _db.tUsers.FirstOrDefaultAsync(x => x.Id == dto.Id);
-                if (getUser == null)
+                var checkProgram = await _db.tProgramRevisions.FirstOrDefaultAsync(x => x.Name == dto.Name);
+                if (checkProgram != null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"User '{dto.UserId}' does not exists in the System!", Title = "User not found" });
+                    return new BadRequestObjectResult(new { Message = $"Program name '{dto.Name}' already exists in the System!", Title = "Program Already Exists" });
                 }
-                getUser.Name = dto.Name;
-                getUser.Email = dto.Email;
-                getUser.IsActive = dto.IsActive;
-                getUser.PlantillaOffice = dto.PlantillaOffice;
-                getUser.EmployeeId = dto.EmployeeId;
-                getUser.RegCode = dto.RegCode;
-                if (!string.IsNullOrEmpty(dto.UserGroups) && dto.UserGroups.Contains(","))
+                var checkStageType = await _db.tProgramStageEnum.FirstOrDefaultAsync(x => x.Enum == (int)dto.Stage);
+                if(checkStageType == null)
                 {
-                    string[] groups = dto.UserGroups.Split(',');
-                    string newUserId = dto.UserId;
-                    var getUserGroups = await _db.tUserGroups.Where(x => x.UserId == getUser.UserId).ToListAsync();
-                    var getGroups = await _db.tGroups.Where(x => groups.Contains(x.GroupName)).Select(x => x.Id).ToListAsync();
-                    var toRemoveGroups = getUserGroups.Where(x => !getGroups.Contains(x.GroupId)).ToList();
-                    if (getUserGroups.Count() > 0)
-                    {
-                        var toAddGroups = getGroups.Where(selected => !getUserGroups.Any(ug => ug.GroupId == selected)).ToList();
-                        if(toRemoveGroups.Count > 0)
-                        {
-                            _db.tUserGroups.RemoveRange(toRemoveGroups);
-                        }
-                        if (toAddGroups.Count > 0)
-                        {
-                            _db.tUserGroups.AddRange(toAddGroups.Select(x =>
-                                new DBHelper.Models.Table.UserGroups()
-                                {
-                                    UserId = newUserId,
-                                    GroupId = x,
-                                    CreatedBy = _Session.UserId,
-                                    CreatedDate = DateTime.UtcNow
-                                }
-                            ));
-                        }
-                    }
-                    else if(getUserGroups.Count() < 1 && getGroups.Count > 0)
-                    {
-                        _db.tUserGroups.AddRange(getGroups.Select(x =>
-                            new DBHelper.Models.Table.UserGroups()
-                            {
-                                UserId = newUserId,
-                                GroupId = x,
-                                CreatedBy = _Session.UserId,
-                                CreatedDate = DateTime.UtcNow
-                            }
-                        ));
-                    }
+                    return new BadRequestObjectResult(new { Message = $"Program Stage '{dto.Stage}' is not valid!", Title = "Invalid Stage" });
                 }
-
-                _db.tUsers.Update(getUser);
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
-                return Ok(new
+                var checkStatusType = await _db.tProgramStatusEnum.FirstOrDefaultAsync(x => x.Enum == (int)dto.Status);
+                if(checkStatusType == null)
                 {
-                    Message = "User Info updated successfully",
-                    Title = "Under Maintenance"
-                });
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                return ExceptionHandler(ex);
-            }
-        }
-        [HttpPost]
-        public async Task<IActionResult> AddUser([FromBody] DBHelper.Models.Views.Users dto)
-        {
-            using var transaction = await _db.Database.BeginTransactionAsync();
-            try
-            {
-                var getUser = await _db.tUsers.FirstOrDefaultAsync(x => x.UserId == dto.UserId && x.Id == dto.Id);
-                if (getUser != null)
-                {
-                    return new BadRequestObjectResult(new { Message = $"User '{dto.UserId}' already exists in the System!", Title = "User Already Exists" });
+                    return new BadRequestObjectResult(new { Message = $"Program Status '{dto.Status}' is not valid!", Title = "Invalid Status" });
                 }
-                var getPlantillaOffice = await _db.tImplementingOffice.FirstOrDefaultAsync(x => x.OrgName == dto.PlantillaOffice);
-                var getRegCode = await _db.tImplementingOffice.FirstOrDefaultAsync(x => x.OrgName == dto.RegCode);
-                DBHelper.Models.Table.Users addUser = new DBHelper.Models.Table.Users()
+                var checkType = await _db.tProgramTypeEnum.FirstOrDefaultAsync(x => x.Enum == (int)dto.Type);
+                if (checkType == null)
                 {
-                    UserId = dto.UserId,
-                    Name = dto.Name,
-                    Email = dto.Email,
-                    IsActive = dto.IsActive,
-                    PlantillaOffice = (getPlantillaOffice != null) ? getPlantillaOffice.OrgName : dto.PlantillaOffice,
-                    EmployeeId = dto.EmployeeId,
-                    RegCode = (getRegCode != null) ? getRegCode.OrgName! : dto.RegCode,
+                    return new BadRequestObjectResult(new { Message = $"Program Type '{dto.Type}' is not valid!", Title = "Invalid Type" });
+                }
+                var checkUserGroup = await _db.tGroups.FirstOrDefaultAsync(x => x.Id == dto.UserGroup);
+                if (checkUserGroup == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"User Group '{dto.UserGroup}' is not valid!", Title = "Invalid User Group" });
+                }
+                var param = new Dictionary<string, object>
+                {
+                    {"@Table", "tCountSequence"}
                 };
-                if (!string.IsNullOrEmpty(dto.UserGroups) && dto.UserGroups.Contains(","))
+                string uid = Sql.NormalQuery<string>(Appsetting.ConnectionString,
+                        "EXEC pGenerateUID @Table = @Table", param)
+                    .FirstOrDefault() ?? string.Empty;
+                if(string.Empty == uid)
                 {
-                    string[] groups = dto.UserGroups.Split(',');
-                    var getGroups = await _db.tGroups.Where(x => groups.Contains(x.GroupName)).Select(x => x.Id).ToListAsync();
-                    if (getGroups.Count > 0)
-                    {
-                        _db.tUserGroups.AddRange(getGroups.Select(GrouId =>
-                            new DBHelper.Models.Table.UserGroups()
-                            {
-                                UserId = dto.UserId,
-                                GroupId = GrouId,
-                                CreatedBy = _Session.UserId,
-                                CreatedDate = DateTime.UtcNow
-                            }
-                        ));
-                    }
+                    return new BadRequestObjectResult(new { Message = "Unable to generate Reference ID for the Program!", Title = "Please contact administrator" });
                 }
-                _db.tUsers.Add(addUser);
+                string ReferenceId = "PR" + uid ?? string.Empty;
+                DateTime currentDate = DateTime.UtcNow;
+                string UserId = _Session.UserId ?? "TESTING";
+                var newProgram = new DBHelper.Models.Table.Programs()
+                {
+                    ReferenceId = ReferenceId,
+                    CreatedBy = UserId,
+                    CreatedDate = currentDate,
+                    IsDeleted= false
+                };
+                await _db.tPrograms.AddAsync(newProgram);
+                var newRevisions = new ProgramRevisions()
+                {
+                    ReferenceId = ReferenceId,
+                    RevisionNumber = 1,
+                    Name = dto.Name,
+                    UserGroup = dto.UserGroup,
+                    RegionCode = dto.RegionCode,
+                    Status = dto.Status,
+                    Type = dto.Type,
+                    YearStart = dto.YearStart,
+                    YearEnd = dto.YearEnd,
+                    CreatedBy = UserId,
+                    CreatedDate = currentDate,
+
+                };
+                await _db.tProgramRevisions.AddAsync(newRevisions);
+                await _db.SaveChangesAsync();
+                await _db.tProgramStages.AddAsync(new ProgramStages()
+                {
+                    RevisionId = newRevisions.Id,
+                    StageId = dto.Stage,
+                    StageName = dto.Stage.ToString(),
+                    CreatedBy = UserId,
+                    CreatedDate = currentDate,
+                    IsPublished = false,
+                });
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
                 return Ok(new
                 {
-                    Message = "User added successfully",
+                    Message = "Program added successfully",
                     Title = "Add Complete"
                 });
             }
@@ -284,127 +248,98 @@ namespace WebAPI.Controllers.UserProfile
             }
         }
         #endregion
-        #region PERMISSIONS TAB
+        #region Program Details
+        [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> ShowPermissions([FromBody] ShowPermissionsDTO dto)
+        public async Task<IActionResult> ProgramDetails([FromBody] ProgramDetailsDTO dto)
         {
             try
             {
-                if (dto.Filters == null)
+                if (string.IsNullOrEmpty(dto.ProgramId))
                 {
                     return new BadRequestObjectResult(new { Message = "Expected Parametes missing!", Title = "Parameter Error" });
                 }
-                if (!string.IsNullOrEmpty(dto.SortField))
+                var CurrentProgramVersion = await _db.vPrograms.FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
+                if (CurrentProgramVersion == null)
                 {
-                    bool isValid = typeof(DBHelper.Models.Views.Permissions)
-                        .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                        .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
-                    if (!isValid)
-                    {
-                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort!", Title = "Parameter Error" });
-                    }
+                    return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Programs table. Please contact administrator!", Title = "Program not found" });
                 }
-                dto.sortDirection = string.IsNullOrEmpty(dto.sortDirection.ToString()) ? sortDirectionList.DESC : dto.sortDirection;
-
-                bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!);
-                if (!isValidDirection)
-                {
-                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed!", Title = "Invalid sort option" });
-                }
-                // Validate pagination parameters
-                if (dto.page < 1) dto.page = 1;
-                if (dto.limit < 1) dto.limit = 10;
-
-                var baseQuery = _db.vPermissions.AsNoTracking();
-
-                if (!string.IsNullOrEmpty(dto.Filters?.ModuleFunction))
-                    baseQuery = baseQuery.Where(e => e.ModuleFunction!.Contains(dto.Filters.ModuleFunction));
-
-                if (!string.IsNullOrEmpty(dto.Filters?.Description))
-                    baseQuery = baseQuery.Where(e => e.Description!.Contains(dto.Filters.Description));
-
-                if (!string.IsNullOrEmpty(dto.Filters?.PermissionGroupName))
-                    baseQuery = baseQuery.Where(e => e.PermissionGroupName!.Contains(dto.Filters.PermissionGroupName));
-
-                // Get total count of filtered results (before pagination)
-                var totalRecords = await baseQuery.CountAsync();
-                dto.sortDirection = string.IsNullOrEmpty(dto.SortField) ? sortDirectionList.DESC : dto.sortDirection;
-                dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "Id";
-                // Apply sorting and pagination
-                var sortedQuery = (dto.sortDirection == sortDirectionList.ASC
-                        ? baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField))
-                        : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField)));
-
-                // Apply pagination and execute query
-                var permissionLists = await sortedQuery
-                    .Skip((dto.page - 1) * dto.limit)
-                    .Take(dto.limit)
-                    .ToListAsync();
-
-                var totalPages = (int)Math.Ceiling((double)totalRecords / dto.limit);
-
+                var program = await _db.vProgramDetails.FirstOrDefaultAsync(x => x.Id == CurrentProgramVersion.RevisionId && x.ReferenceId == dto.ProgramId);
+                var ProjectLists = await _db.vProjects.Where(x => x.ProgramId == dto.ProgramId).ToListAsync();
+                var AvailableStages = await _db.tProgramStageEnum.ToListAsync();
+                var AvailableTypes = await _db.tProgramTypeEnum.ToListAsync();
+                var AvailableStatuses = await _db.tProgramStatusEnum.ToListAsync();
+                var AvailableGroups = await _db.tGroups.ToListAsync();
+                string[] includes = { "C", "R", "PMO", "PMOC", "B" };
+                var Security = await _db.tProjectImplementingOfficeEnum.Where(x => includes.Contains(x.OrgType)).ToListAsync();
                 var response = new
                 {
-                    lists = permissionLists, // Match your frontend expectation
-                    page = dto.page,
-                    limit = dto.limit,
-                    total = totalRecords,
-                    totalPages = totalPages
+                    Details = program,
+                    Projects = ProjectLists,
+                    Dropdowns = new
+                    {
+                        Stages = AvailableStages,
+                        Types = AvailableTypes,
+                        Statuses = AvailableStatuses,
+                        Groups = AvailableGroups,
+                        DataSecurity = Security
+                    }
                 };
-
-                return Ok(response); // Remove the extra wrapper
+                return Ok(response);
             }
             catch (Exception ex)
             {
                 return ExceptionHandler(ex);
             }
         }
+        [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> ShowPermissionGroups()
+        public async Task<IActionResult> DeleteProgram([FromBody] DeleteProgramDTO dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                List<PermissionGroups> Groups = await _db.tPermissionGroups.ToListAsync();
-                return Ok(Groups);
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                return ExceptionHandler(ex);
-            }
-        }
-        [HttpPost]
-        public async Task<IActionResult> AddPermission([FromBody] AddPermissionsDTO dto)
-        {
-            using var transaction = await _db.Database.BeginTransactionAsync();
-            try
-            {
-                if (string.IsNullOrEmpty(dto.ModuleFunction))
+                if (string.IsNullOrEmpty(dto.ProgramId))
                 {
-                    return new BadRequestObjectResult(new { Message = "Module Function is required!", Title = "Parameter Error" });
+                    return new BadRequestObjectResult(new { Message = "Expected Parametes missing!", Title = "Parameter Error" });
                 }
-                if (string.IsNullOrEmpty(dto.Description))
+                var program = await _db.tPrograms.FirstOrDefaultAsync(x => x.ReferenceId == dto.ProgramId);
+                if (program == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Module Description is required!", Title = "Parameter Error" });
+                    return new BadRequestObjectResult(new { Message = $"Program {dto.ProgramId} does not exist in the ", Title = "Delete Failed" });
                 }
-                var getPermission = await _db.tPermissions.FirstOrDefaultAsync(x => x.ModuleFunction == dto.ModuleFunction);
-                if (getPermission != null)
-                {
-                    return new BadRequestObjectResult(new { Message = $"Permission '{dto.ModuleFunction}' already exists!", Title = "Permission Exists" });
+                var ProgramStage = await _db.tProgramStages.FirstOrDefaultAsync(x => x.RevisionId == dto.RevisionId);
+                if(ProgramStage == null) {
+                    return new BadRequestObjectResult(new { Message = $"Program Stage with Revision ID '{dto.RevisionId}' does not exist in the Program Stages table. Please contact administrator!", Title = "Stage not found" });
                 }
-                DBHelper.Models.Table.Permissions Add = new DBHelper.Models.Table.Permissions()
+                var AllowedStages = Enum.GetValues(typeof(EnumProgramStage))
+                    .Cast<EnumProgramStage>()
+                    .Where(x => new[] { EnumProgramStage.RBP, EnumProgramStage.RDIP, EnumProgramStage.PIP }.Contains(x))
+                    .ToList();
+                if (ProgramStage.StageId == EnumProgramStage.RBP)
+                { }
+                program.IsDeleted = true;
+                var TransactionLog = new TransactionLog()
                 {
-                    ModuleFunction = dto.ModuleFunction,
-                    PermissionGroupId = dto.PermissionGroupId,
-                    Description = dto.Description,
+                    TransactionId = dto.ProgramId,
+                    TypeOfTransaction = "Delete",
+                    AffectedTable = "tPrograms",
+                    AffectedColumn = "IsDeleted",
+                    NewValue = "true",
+                    OldValue = "false",
                     CreatedBy = _Session.UserId,
                     CreatedDate = DateTime.UtcNow
+
                 };
-                _db.tPermissions.Add(Add);
-                await _db.SaveChangesAsync();
+                _db.tPrograms.Update(program);
+                await _db.tTransactionLog.AddRangeAsync(TransactionLog);
+                //await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
-                return Ok(new { Message = $"{dto.ModuleFunction} added successfully!", Title = "Add Complete" });
+                return Ok(new
+                {
+                    Message = "Program delete successfully!",
+                    Title = "Delete Complete"
+                });
             }
             catch (Exception ex)
             {
@@ -412,290 +347,242 @@ namespace WebAPI.Controllers.UserProfile
                 return ExceptionHandler(ex);
             }
         }
+        [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> UpdatePermission([FromBody] DBHelper.Models.Views.Permissions dto)
+        public async Task<IActionResult> UpdateProgramDetails([FromBody] UpdateProgramDTO dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                var getPermission = await _db.tPermissions.FirstOrDefaultAsync(x => x.Id == dto.Id);
-                if (getPermission == null)
-                {
-                    return new BadRequestObjectResult(new { Message = $"Permission '{dto.PermissionGroupName}' does not exists in the System!", Title = "Permission not found" });
-                }
-                getPermission.Description = dto.Description;
-                getPermission.PermissionGroupId = dto.PermissionGroupId;
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
-                return Ok(new { Message = $"{dto.PermissionGroupName} updated successfully!", Title = "Update Complete" });
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                return ExceptionHandler(ex);
-            }
-        }
-        [HttpPost]
-        public async Task<IActionResult> DeletePermission([FromBody] DBHelper.Models.Views.Permissions dto)
-        {
-            using var transaction = await _db.Database.BeginTransactionAsync();
-            try
-            {
-                var getPermission = await _db.tPermissions.FirstOrDefaultAsync(x => x.Id == dto.Id);
-                if (getPermission == null)
-                {
-                    return new BadRequestObjectResult(new { Message = $"Permission '{dto.PermissionGroupName}' does not exists in the System!", Title = "Permission not found" });
-                }
-                var usersInGroup = await _db.tUserGroups.Where(x => x.GroupId == dto.Id).CountAsync();
-                if (usersInGroup > 0)
-                {
-                    return new BadRequestObjectResult(new { Message = $"Cannot delete permission '{dto.PermissionGroupName}' because it has {usersInGroup} user(s) assigned to it. Please remove all users from this group first.", Title = "Group has members" });
-                }
-                _db.tPermissions.Remove(getPermission);
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
-                return Ok(new { Message = $"{dto.PermissionGroupName} updated successfully!", Title = "Update Complete" });
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                return ExceptionHandler(ex);
-            }
-        }
-        #endregion
-        #region USER GROUP TAB
-        [HttpPost]
-        public async Task<IActionResult> ShowUserGroups([FromBody] UserGroupsPaginationDto dto)
-        {
-            try
-            {
-                if (dto.Filters == null)
-                {
-                    return new BadRequestObjectResult(new { Message = "Expected Parametes missing!", Title = "Parameter Error" });
-                }
-                if (!string.IsNullOrEmpty(dto.SortField))
-                {
-                    bool isValid = typeof(DBHelper.Models.Views.UserGroups)
-                        .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-                        .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
-                    if (!isValid)
-                    {
-                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort!", Title = "Parameter Error" });
-                    }
-                }
-                dto.sortDirection = string.IsNullOrEmpty(dto.sortDirection.ToString()) ? sortDirectionList.DESC : dto.sortDirection;
+                bool hasUpdated = false;
+                var referenceId = dto.ReferenceId;
+                var expectedRevision = dto.RevisionNumber;
 
-                bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!);
-                if (!isValidDirection)
-                {
-                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed!", Title = "Invalid sort option" });
-                }
-                // Validate pagination parameters
-                if (dto.page < 1) dto.page = 1;
-                if (dto.limit < 1) dto.limit = 10;
-
-                var baseQuery = _db.vUserGroups.AsNoTracking();
-
-                // Apply filters to base query
-                if (!string.IsNullOrEmpty(dto.Filters?.GroupName))
-                    baseQuery = _db.vUserGroups.AsNoTracking().Where(e => e.GroupName!.Contains(dto.Filters.GroupName));
-
-                if (!string.IsNullOrEmpty(dto.Filters?.PermissionNames))
-                    baseQuery = _db.vUserGroups.AsNoTracking().Where(e => e.PermissionNames!.Contains(dto.Filters.PermissionNames));
-
-                // Get total count of filtered results (before pagination)
-                var totalRecords = await baseQuery.CountAsync();
-                dto.sortDirection = string.IsNullOrEmpty(dto.SortField) ? sortDirectionList.DESC : dto.sortDirection;
-                dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "Id";
-                // Apply sorting and pagination
-                var sortedQuery = (dto.sortDirection == sortDirectionList.ASC
-                        ? baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField))
-                        : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField)));
-
-                // Apply pagination and execute query
-                var permissionLists = await sortedQuery
-                    .Skip((dto.page - 1) * dto.limit)
-                    .Take(dto.limit)
-                    .ToListAsync();
-
-                var totalPages = (int)Math.Ceiling((double)totalRecords / dto.limit);
-
-                var response = new
-                {
-                    lists = permissionLists, // Match your frontend expectation
-                    page = dto.page,
-                    limit = dto.limit,
-                    total = totalRecords,
-                    totalPages = totalPages
-                };
-
-                return Ok(response); // Remove the extra wrapper
-            }
-            catch (Exception ex)
-            {
-                return ExceptionHandler(ex);
-            }
-        }
-        [HttpPost]
-        public async Task<IActionResult> AddUserGroup([FromBody] AddUserGroupsDTO dto)
-        {
-            using var transaction = await _db.Database.BeginTransactionAsync();
-            try
-            {// Check if group name already exists
-                var existingGroup = await _db.tGroups.FirstOrDefaultAsync(x => x.GroupName == dto.GroupName);
-                if (existingGroup != null)
+                var currentVersion = await _db.vPrograms.FirstOrDefaultAsync(x => x.ProgramId == referenceId);
+                if (currentVersion == null)
                 {
                     return new BadRequestObjectResult(new
                     {
-                        Message = $"Group Name '{dto.GroupName}' already exists!",
-                        Title = "Group Name Exists"
+                        Title = "Program Not Found",
+                        Message = $"The program with ID '{referenceId}' does not exist in the system."
                     });
                 }
 
-                // Get all valid permission IDs
-                var validPermissionIds = await _db.tPermissions.Select(x => x.Id).ToListAsync();
+                var getProgram = await _db.vProgramDetails
+                    .FirstOrDefaultAsync(x => x.RevisionNumber == currentVersion.RevisionId && x.ReferenceId == referenceId);
 
-                // Create and save the new group
-                var newGroup = new Groups
+                if (getProgram == null)
                 {
-                    GroupName = dto.GroupName,
-                    Description = dto.Description,
-                    CreatedBy = _Session.UserId,
-                    CreatedDate = DateTime.UtcNow
+                    return new BadRequestObjectResult(new
+                    {
+                        Title = "Revision Details Not Found",
+                        Message = $"Revision details for Program ID '{referenceId}' could not be found. Please contact the system administrator."
+                    });
+                }
+
+                if (currentVersion.RevisionId != expectedRevision)
+                {
+
+                    var updatedBy = getProgram?.UpdatedBy ?? "Unknown";
+                    var updatedDate = getProgram?.UpdatedDate?.ToString("MM-dd-yyyy HH:mm:ss") ?? "Unknown";
+
+                    return new BadRequestObjectResult(new
+                    {
+                        Title = "Outdated Revision",
+                        Message = $"The provided Program ID '{referenceId}' does not match the latest revision. Last modified by: {updatedBy} on {updatedDate}. Please refresh to the most recent version before proceeding."
+                    });
+                }
+                List<TransactionLog> transactionLogs = new List<TransactionLog>();
+                DateTime CurrentDate = DateTime.UtcNow;
+                if (string.IsNullOrEmpty(dto.Name)) { return new BadRequestObjectResult(new { Message = $"Program name field cannot be empty!", Title = "Update Failed" }); }
+                var NewProgramVersion = new ProgramRevisions()
+                {
+                    ReferenceId = getProgram.ReferenceId,
+                    RevisionNumber = getProgram.RevisionNumber + 1, // Increment the revision number
+                    Name = getProgram.Name,
+                    UserGroup = getProgram.UserGroup,
+                    RegionCode = getProgram.RegionCode,
+                    Status = getProgram.Status,
+                    Type = getProgram.Type,
+                    Cost = getProgram.Cost,
+                    YearStart = getProgram.YearStart,
+                    YearEnd = getProgram.YearEnd,
+                    CreatedBy = getProgram.CreatedBy,
+                    CreatedDate = getProgram.CreatedDate,
+                    UpdatedBy = _Session.UserId,
+                    UpdatedDate = CurrentDate
                 };
-
-                await _db.tGroups.AddAsync(newGroup);
-                await _db.SaveChangesAsync();
-
-                // If permissions are provided, validate and insert them
-                if (dto.PermissionIds?.Length > 0)
+                if (dto.Name != NewProgramVersion.Name && !string.IsNullOrEmpty(NewProgramVersion.Name))
                 {
-                    var invalidIds = dto.PermissionIds.Except(validPermissionIds).ToList();
-                    if (invalidIds.Any())
+                    hasUpdated = true;
+                    NewProgramVersion.Name = dto.Name;
+                    transactionLogs.Add(new TransactionLog
                     {
-                        return new BadRequestObjectResult(new
-                        {
-                            Message = "Some of the selected Permission IDs do not exist in the system!",
-                            Title = "Invalid Permission IDs"
-                        });
-                    }
-
-                    var groupRoles = dto.PermissionIds.Select(permissionId => new GroupRoles
-                    {
-                        GroupId = newGroup.Id,
-                        PermissionId = permissionId,
+                        TransactionId = dto.ReferenceId,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tProgramRevisions",
+                        AffectedColumn = "Name",
+                        NewValue = dto.Name,
+                        OldValue = NewProgramVersion.Name,
                         CreatedBy = _Session.UserId,
-                        CreatedDate = DateTime.UtcNow
+                        CreatedDate = CurrentDate
                     });
-
-                    await _db.tGroupRoles.AddRangeAsync(groupRoles);
                 }
-
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
-                return Ok(
-                    new
-                    {
-                        Message = "New Group added successfully!",
-                        Title = "Add Complete"
-                    }
-                );
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                return ExceptionHandler(ex);
-            }
-
-        }
-        [HttpPost]
-        public async Task<IActionResult> UpdateUserGroup([FromBody] AddUserGroupsDTO dto)
-        {
-            using var transaction = await _db.Database.BeginTransactionAsync();
-            try
-            {
-                var checkSameName = await _db.tGroups.FirstOrDefaultAsync(x => x.GroupName == dto.GroupName);
-                if (checkSameName == null)
+                var Groups = await _db.tGroups.FirstOrDefaultAsync(x => x.Id == dto.UserGroup);
+                if (Groups == null) { return new BadRequestObjectResult(new { Message = $"The selected User Group is invalid. Please ensure the User Group field has a valid value selected.", Title = "Update Failed" }); }
+                if (dto.UserGroup != NewProgramVersion.UserGroup)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Group Name '{dto.GroupName}' does no exists!", Title = "Group not found" });
-                }
-                if (dto.PermissionIds.Length > 0)
-                {
-                    var permissions = await _db.tPermissions.Select(x => x.Id).ToListAsync();
-                    var checkIds = dto.PermissionIds!.Where(x => !permissions.Contains(x)).ToList();
-                    if (checkIds.Count > 0)
+                    hasUpdated = true;
+                    var Current = await _db.tGroups.FirstOrDefaultAsync(x => x.Id == NewProgramVersion.UserGroup);
+                    NewProgramVersion.UserGroup = dto.UserGroup;
+                    transactionLogs.Add(new TransactionLog
                     {
-                        return new BadRequestObjectResult(new { Message = $"Some of the selected Permission IDs do not exist in the System!", Title = "Invalid Permission IDs" });
-                    }
-                    var existingRoles = await _db.tGroupRoles.Where(x => x.GroupId == checkSameName.Id).ToListAsync();
-                    if (existingRoles.Count > 0)
-                    {
-                        var toRemoveRoles = existingRoles.Where(x => !dto.PermissionIds!.Contains(x.PermissionId)).ToList();
-                        var toAddRoles = dto.PermissionIds.Where(selected => !existingRoles.Any(ug => ug.PermissionId == selected)).ToList();
-                        if (toRemoveRoles.Count > 0)
-                        {
-                            _db.tGroupRoles.RemoveRange(toRemoveRoles);
-                        }
-                        if (toAddRoles.Count > 0)
-                        {
-                            _db.tGroupRoles.AddRange(toAddRoles.Select(permissionId =>
-                                new GroupRoles()
-                                {
-                                    GroupId = checkSameName.Id,
-                                    PermissionId = permissionId,
-                                    CreatedBy = _Session.UserId,
-                                    CreatedDate = DateTime.UtcNow
-                                }
-                            ));
-                        }
-                    }
+                        TransactionId = dto.ReferenceId,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tProgramRevisions",    
+                        AffectedColumn = "UserGroup",
+                        NewValue = Groups.GroupName!,
+                        OldValue = Current!.GroupName!,
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    });
                 }
-                checkSameName.GroupName = dto.GroupName;
-                checkSameName.Description = dto.Description;
-                _db.tGroups.Update(checkSameName);
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
-                return Ok(
-                    new
-                    {
-                        Message = $"Group {dto.GroupName} updated successfully!",
-                        Title = "Update Complete"
-                    }
-                );
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                return ExceptionHandler(ex);
-            }
-
-        }
-        [HttpPost]
-        public async Task<IActionResult> DeleteUserGroup([FromBody] DBHelper.Models.Views.UserGroups dto)
-        {
-            using var transaction = await _db.Database.BeginTransactionAsync();
-            try
-            {
-                var getGroup = await _db.tGroups.FirstOrDefaultAsync(x => x.Id == dto.Id);
-                if (getGroup == null)
+                var Status = await _db.tProgramStatusEnum.FirstOrDefaultAsync(x => x.Enum == (int)dto.Status);
+                if (Status == null) { return new BadRequestObjectResult(new { Message = $"The selected Status is invalid. Please ensure the Status field has a valid value selected.", Title = "Update Failed" }); }
+                if (dto.Status != NewProgramVersion.Status)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Group with ID '{dto.Id}' does not exist in the System!", Title = "Group not found" });
+                    hasUpdated = true;
+                    var Current = await _db.tProgramStatusEnum.FirstOrDefaultAsync(x => x.Enum == (int)NewProgramVersion.Status);
+                    NewProgramVersion.Status = dto.Status;
+                    transactionLogs.Add(new TransactionLog
+                    {
+                        TransactionId = dto.ReferenceId,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tProgramRevisions",
+                        AffectedColumn = "Status",
+                        NewValue = Status.Name!,
+                        OldValue = Current!.Name!,
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    });
                 }
-
-                var usersInGroup = await _db.tUserGroups.Where(x => x.GroupId == dto.Id).CountAsync();
-                if (usersInGroup > 0)
+                var Types = await _db.tProgramTypeEnum.FirstOrDefaultAsync(x => x.Enum == (int)dto.Type);
+                if (Types == null) { return new BadRequestObjectResult(new { Message = $"The selected Type is invalid. Please ensure the Type field has a valid value selected.", Title = "Update Failed" }); }
+                if (dto.Type != NewProgramVersion.Type)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Cannot delete group '{getGroup.GroupName}' because it has {usersInGroup} user(s) assigned to it. Please remove all users from this group first.", Title = "Group has members" });
+                    hasUpdated = true;
+                    var Current = await _db.tProgramTypeEnum.FirstOrDefaultAsync(x => x.Enum == (int)NewProgramVersion.Type);
+                    NewProgramVersion.Type = dto.Type;
+                    transactionLogs.Add(new TransactionLog
+                    {
+                        TransactionId = dto.ReferenceId,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tProgramRevisions",
+                        AffectedColumn = "Type",
+                        NewValue = Types.Name!,
+                        OldValue = Current!.Name!,
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    });
                 }
-
-                _db.tGroups.Remove(getGroup);
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
-                
+                if (dto.YearStart != NewProgramVersion.YearStart)
+                {
+                    hasUpdated = true;
+                    NewProgramVersion.YearStart = dto.YearStart;
+                    transactionLogs.Add(new TransactionLog
+                    {
+                        TransactionId = dto.ReferenceId,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tProgramRevisions",
+                        AffectedColumn = "YearStart",
+                        NewValue = dto.YearStart.ToString(),
+                        OldValue = NewProgramVersion.YearStart.ToString(),
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    });
+                }
+                if (dto.YearEnd != NewProgramVersion.YearEnd)
+                {
+                    hasUpdated = true;
+                    NewProgramVersion.YearEnd = dto.YearEnd;
+                    transactionLogs.Add(new TransactionLog
+                    {
+                        TransactionId = dto.ReferenceId,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tProgramRevisions",
+                        AffectedColumn = "YearEnd",
+                        NewValue = dto.YearEnd.ToString(),
+                        OldValue = NewProgramVersion.YearEnd.ToString(),
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    });
+                }
+                if(hasUpdated)
+                {
+                    await _db.tProgramRevisions.AddAsync(NewProgramVersion);
+                    await _db.SaveChangesAsync();
+                    await _db.tProgramStages.AddAsync(new ProgramStages()
+                    {
+                        RevisionId = NewProgramVersion.Id,
+                        StageId = getProgram.StageId,
+                        StageName = getProgram.StageName,
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate,
+                        IsPublished = getProgram.IsPublished
+                    });
+                    await _db.tTransactionLog.AddRangeAsync(transactionLogs);
+                    await _db.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                }
                 return Ok(new
                 {
-                    Message = $"Group '{getGroup.GroupName}' deleted successfully!",
-                    Title = "Delete Complete"
+                    Message = $"Program {dto.ReferenceId} updated successfully!",
+                    Title = "Update Complete"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> UpdateProgramStage([FromBody] UpdateProgramStageDTO dto)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var checkProgram = await _db.tPrograms.FirstOrDefaultAsync(x => x.ReferenceId == dto.ProgramId);
+                if (checkProgram == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Programs table. Please contact administrator!", Title = "Program not found" });
+                }
+                var checkRevisions = await _db.tProgramRevisions.FirstOrDefaultAsync(x => x.ReferenceId == dto.ProgramId);
+                if(checkRevisions == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Revisions table. Please contact administrator!", Title = "Program not found" });
+                }
+                var checkStage = await _db.tProgramStages.FirstOrDefaultAsync(x => x.RevisionId == checkRevisions.Id);
+                if (checkStage == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Program ID Revision '{checkRevisions.Id}' does not exist in the Stages table. Please contact administrator!", Title = "Program Stage not found" });
+                }
+                var newStage = new ProgramStages()
+                {
+                    RevisionId = checkRevisions.Id,
+                    StageId = dto.Stage,
+                    StageName = dto.Stage.ToString(),
+                    CreatedBy = _Session.UserId,
+                    CreatedDate = DateTime.UtcNow,
+                    IsPublished = false,
+                };
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return Ok(new
+                {
+                    Message = "Program updated successfully",
+                    Title = "Update Stage Complete"
                 });
             }
             catch (Exception ex)

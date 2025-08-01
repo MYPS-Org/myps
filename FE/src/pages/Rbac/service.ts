@@ -1,6 +1,5 @@
 // Service functions for RBAC operations
 import type { PermissionPagination, Permissions, AddPermission, PermissionGroup, Users, UserPagination, UserGroups, AddUserGroups, UserGroupPagination, Pis, InitialDataResponse } from './Model.d';
-import type { PaginationResponse } from '../../types/Pagination.d';
 import { httpClient, type ErrorResponse } from '../../services/httpClient';
 // import type { ErrorResponse } from '';
 

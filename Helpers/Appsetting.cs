@@ -1,4 +1,5 @@
-﻿using System.Security.Cryptography;
+﻿using System.Resources;
+using System.Security.Cryptography;
 using Microsoft.Extensions.Configuration;
 
 namespace Helpers
@@ -15,6 +16,12 @@ namespace Helpers
         public string userName { get; set; } = string.Empty;
         public string password { get; set; } = string.Empty;
     }
+    public class ResourcesFolder
+    {
+        public string Main { get; set; } = string.Empty;
+        public string Projects { get; set; } = string.Empty;
+        public string ProjectNotes { get; set; } = string.Empty;
+    }
     public static class Appsetting
     {
         public static string ConnectionString { get; set; } = string.Empty;
@@ -23,12 +30,18 @@ namespace Helpers
         public static string AppName { get; } = "MYPS";
         public static LDAPConfig LDAP { get; set; } = new LDAPConfig();
         public static PISConfig PIS { get; set; } = new PISConfig();
+        public static string WebRootPath { get; set; } = string.Empty;
+        public static string RootPath { get; set; } = string.Empty;
+        public static ResourcesFolder Resources { get; set; } = new ResourcesFolder();
         public static void PrepareAppsettings(IConfiguration config)
         {
             /* PREPARE DATABASE CONNECTIONS */
             ConnectionString = config.GetConnectionString("DbConnection")!;
             LDAP = config.GetSection("LDAP").Get<LDAPConfig>()!;
             PIS = config.GetSection("PIS").Get<PISConfig>()!;
+            Resources = config.GetSection("Resources").Get<ResourcesFolder>()!;
+            Resources.Projects = Path.Combine(Resources.Main, Resources.Projects);
+            Resources.ProjectNotes = Path.Combine(Resources.Projects, Resources.ProjectNotes);
         }
     }
 }

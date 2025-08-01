@@ -1,10 +1,11 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import './utils'
 import App from './App.tsx'
-console.log('Environment:', import.meta.env.VITE_APP_ENV);
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
+import './index.css'
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
     <App />
-  </StrictMode>,
+  </React.StrictMode>,
 )
