@@ -14,3 +14,9 @@ export interface ProjectList {
     Id: number;
     ProgramId: string;
 }
+
+export interface ProgramStagePagination extends PaginationParams {
+    filters?: ProgramStageFilter;
+    sortField?: string;
+    sortDirection?: 0 | 1;
+}
