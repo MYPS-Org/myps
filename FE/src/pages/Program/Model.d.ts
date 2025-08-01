@@ -20,7 +20,7 @@ export interface ProgramEnums {
 
 export interface ProgramDetails {
 	Id: number;
-	ReferenceId: string;
+	ProgramId: string;
 	RevisionNumber: number;
 	Name: string;
 	StageId: number;

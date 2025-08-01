@@ -7,7 +7,7 @@ export interface ProjectPagination extends PaginationParams {
 }
 export interface ProjectFilter {
   ProgramId?: string;
-  ReferenceId?: string;
+  ProjectId?: string;
 }
 
 export interface ProjectFormPayload {
@@ -34,7 +34,7 @@ export interface AddProject {
 
 export interface ProgramDetails {
 	Id: number;
-  ProgramId: string;
+  	ProgramId: string;
 	RevisionNumber: number;
 	Name: string;
 	StageId: number;
@@ -56,7 +56,7 @@ export interface ProjectDetails {
 	Id?: number;
 	ProgramId?: string;
 	ProgramName?: string;
-	ReferenceId?: string;
+	ProjectId?: string;
 	RevisionNumber?: number;
 	Description?: string;
 	Category?: number;
@@ -84,7 +84,7 @@ export interface ProjectLists {
 	Id: number;
 	ProgramId: string;
 	ProgramName: string;
-	ReferenceId: string;
+	ProjectId: string;
 	RevisionNumber: number;
 	Description: string;
 	Category?: string;

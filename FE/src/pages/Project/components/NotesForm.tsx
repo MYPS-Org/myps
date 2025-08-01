@@ -102,7 +102,6 @@ const NotesForm: React.FC<NotesFormProps> = ({
         projectId={initialData?.ProjectDetails?.ReferenceId || ''}
         onAddNote={handleAddNote}
       />
-      
     </div>
   );
 };

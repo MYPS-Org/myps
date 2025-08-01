@@ -20,7 +20,7 @@ namespace WebAPI.Controllers.Programs
     public class ShowProjectFilterDTO
     {
         public string? ProgramId { get; set; }
-        public string? ReferenceId { get; set; }
+        public string? ProjectId { get; set; }
     }
     public class AddProjectDTO : ProjectDetails
     {

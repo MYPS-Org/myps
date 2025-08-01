@@ -72,7 +72,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
     initialData?.ProjectDetails || {
       Id: 0,
       ProgramId: '',
-      ReferenceId: '',
+      ProjectId: '',
       RevisionNumber: 0,
       Description: '',
       Category: 0,
@@ -336,7 +336,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
   const handleAddFundingProfile = () => {
     const newProfile: FundingProfile = {
       Id: Date.now(), // Temporary ID
-      ProjectId: projectDetails.ReferenceId || '',
+      ProjectId: projectDetails.ProjectId || '',
       Source: 0,
       Agreement: 0,
       Percentage: 0,
@@ -425,7 +425,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
         },
         ComponentCosts: componentCosts.map(cost => ({
           Id: cost.Id,
-          ProjectId: cost.ProjectId || projectDetails.ReferenceId || '',
+          ProjectId: cost.ProjectId || projectDetails.ProjectId || '',
           ReferenceId: cost.ReferenceId || '',
           ComponentType: cost.ComponentType || '',
           ComponentId: cost.ComponentId || '',
@@ -501,7 +501,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       {/* Map Section */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
         <div className="h-64 bg-blue-100 rounded-lg flex items-center justify-center">
-          <div className="text-gray-500 text-lg">Map View - {projectDetails.ReferenceId || 'New Project'}</div>
+          <div className="text-gray-500 text-lg">Map View - {projectDetails.ProjectId || 'New Project'}</div>
         </div>
       </div>
 

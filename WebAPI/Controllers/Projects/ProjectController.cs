@@ -59,8 +59,8 @@ namespace WebAPI.Controllers.Programs
                 if (!string.IsNullOrEmpty(dto.Filters?.ProgramId))
                     baseQuery = baseQuery.Where(e => e.ProgramId!.Contains(dto.Filters.ProgramId));
 
-                if (!string.IsNullOrEmpty(dto.Filters?.ReferenceId))
-                    baseQuery = baseQuery.Where(e => e.ProjectId!.Contains(dto.Filters.ReferenceId));
+                if (!string.IsNullOrEmpty(dto.Filters?.ProjectId))
+                    baseQuery = baseQuery.Where(e => e.ProjectId!.Contains(dto.Filters.ProjectId));
 
                 // Get total count of filtered results (before pagination)
                 var totalRecords = await baseQuery.CountAsync();

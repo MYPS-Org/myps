@@ -30,8 +30,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                         <label className="flex-1/3 text-gray-600">Project ID:</label>
                         <input
                             type="text"
-                            value={projectDetails.ReferenceId}
-                            onChange={(e) => handleInputChange('ReferenceId', (e.target.value))}
+                            value={projectDetails.ProjectId}
+                            onChange={(e) => handleInputChange('ProjectId', (e.target.value))}
                             className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
                             readOnly
                             placeholder="Auto-generated Project ID"
