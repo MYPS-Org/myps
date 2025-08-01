@@ -14,7 +14,7 @@ const ProgramDetail: React.FC = () => {
   const [programEnums, setProgramEnums] = useState<ProgramDetailsEnums>({
     Details: {
       	Id: 0,
-        ReferenceId: '',
+        ProgramId: '',
         RevisionNumber: 0,
         Name: '',
         StageId: 0,
@@ -42,7 +42,7 @@ const ProgramDetail: React.FC = () => {
   const [defaultProgramEnums, setDefaultProgramEnums] = useState<ProgramDetailsEnums>({
     Details: {
       	Id: 0,
-        ReferenceId: '',
+        ProgramId: '',
         RevisionNumber: 0,
         Name: '',
         StageId: 0,
@@ -115,7 +115,7 @@ const ProgramDetail: React.FC = () => {
     try {
       await editProgram(programEnums?.Details);
       console.log('Update program details');
-      await fetchProgramDetail(programEnums?.Details.ReferenceId);
+      await fetchProgramDetail(programEnums?.Details.ProgramId);
     } catch (error) {
       console.error('Error updating program details:', error);
     } finally {
@@ -358,7 +358,7 @@ const ProgramDetail: React.FC = () => {
                     </button>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {project.ReferenceId}
+                    {project.ProjectId}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {project.Category}

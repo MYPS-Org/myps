@@ -19,7 +19,7 @@ const Project: React.FC = () => {
     const [ProgramFilters, setProgramFilters] = useState<ProjectPagination>({
         filters: {
             ProgramId: '',
-            ReferenceId: ''
+            ProjectId: ''
         },
         sortField: '',
         sortDirection: 1,
@@ -112,10 +112,10 @@ const Project: React.FC = () => {
                                 <TableRow key={project.Id}>
                                     <TableCell>
                                         <button 
-                                            onClick={() => project.ReferenceId && handleViewDetails(project.ReferenceId)}
+                                            onClick={() => project.ProjectId && handleViewDetails(project.ProjectId)}
                                             className="text-blue-600 hover:text-blue-800 font-medium hover:underline"
                                         >
-                                            {project.ReferenceId}
+                                            {project.ProjectId}
                                         </button>
                                     </TableCell>
                                     <TableCell>{project.ProgramName}</TableCell>
@@ -129,7 +129,7 @@ const Project: React.FC = () => {
                                         <div className="flex items-center space-x-1">
                                             <Button 
                                                 color="orange"
-                                                onClick={() => project.ReferenceId && handleViewDetails(project.ReferenceId)}
+                                                onClick={() => project.ProjectId && handleViewDetails(project.ProjectId)}
                                                 className="text-xs px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded"
                                             >
                                                 View Details

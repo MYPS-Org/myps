@@ -16,7 +16,7 @@ namespace DBHelper.Models.Table
         public int Id { get; set; }
         [Required]
         [MaxLength(200)]
-        public string ReferenceId { get; set; } = string.Empty;
+        public string ProgramId { get; set; } = string.Empty;
         [Required]
         public int RevisionNumber { get; set; }
         [Required]

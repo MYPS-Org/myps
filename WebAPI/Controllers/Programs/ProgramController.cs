@@ -201,7 +201,7 @@ namespace WebAPI.Controllers.Programs
                 string UserId = _Session.UserId ?? "TESTING";
                 var newProgram = new DBHelper.Models.Table.Programs()
                 {
-                    ReferenceId = ReferenceId,
+                    ProgramId = ReferenceId,
                     CreatedBy = UserId,
                     CreatedDate = currentDate,
                     IsDeleted= false
@@ -209,7 +209,7 @@ namespace WebAPI.Controllers.Programs
                 await _db.tPrograms.AddAsync(newProgram);
                 var newRevisions = new ProgramRevisions()
                 {
-                    ReferenceId = ReferenceId,
+                    ProgramId = ReferenceId,
                     RevisionNumber = 1,
                     Name = dto.Name,
                     UserGroup = dto.UserGroup,
@@ -264,7 +264,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Programs table. Please contact administrator!", Title = "Program not found" });
                 }
-                var program = await _db.vProgramDetails.FirstOrDefaultAsync(x => x.Id == CurrentProgramVersion.RevisionId && x.ReferenceId == dto.ProgramId);
+                var program = await _db.vProgramDetails.FirstOrDefaultAsync(x => x.Id == CurrentProgramVersion.RevisionId && x.ProgramId == dto.ProgramId);
                 var ProjectLists = await _db.vProjects.Where(x => x.ProgramId == dto.ProgramId).ToListAsync();
                 var AvailableStages = await _db.tProgramStageEnum.ToListAsync();
                 var AvailableTypes = await _db.tProgramTypeEnum.ToListAsync();
@@ -303,7 +303,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = "Expected Parametes missing!", Title = "Parameter Error" });
                 }
-                var program = await _db.tPrograms.FirstOrDefaultAsync(x => x.ReferenceId == dto.ProgramId);
+                var program = await _db.tPrograms.FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
                 if (program == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program {dto.ProgramId} does not exist in the ", Title = "Delete Failed" });
@@ -333,7 +333,7 @@ namespace WebAPI.Controllers.Programs
                 };
                 _db.tPrograms.Update(program);
                 await _db.tTransactionLog.AddRangeAsync(TransactionLog);
-                //await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
                 return Ok(new
                 {
@@ -355,7 +355,7 @@ namespace WebAPI.Controllers.Programs
             try
             {
                 bool hasUpdated = false;
-                var referenceId = dto.ReferenceId;
+                var referenceId = dto.ProgramId;
                 var expectedRevision = dto.RevisionNumber;
 
                 var currentVersion = await _db.vPrograms.FirstOrDefaultAsync(x => x.ProgramId == referenceId);
@@ -369,7 +369,7 @@ namespace WebAPI.Controllers.Programs
                 }
 
                 var getProgram = await _db.vProgramDetails
-                    .FirstOrDefaultAsync(x => x.RevisionNumber == currentVersion.RevisionId && x.ReferenceId == referenceId);
+                    .FirstOrDefaultAsync(x => x.RevisionNumber == currentVersion.RevisionId && x.ProgramId == referenceId);
 
                 if (getProgram == null)
                 {
@@ -397,7 +397,7 @@ namespace WebAPI.Controllers.Programs
                 if (string.IsNullOrEmpty(dto.Name)) { return new BadRequestObjectResult(new { Message = $"Program name field cannot be empty!", Title = "Update Failed" }); }
                 var NewProgramVersion = new ProgramRevisions()
                 {
-                    ReferenceId = getProgram.ReferenceId,
+                    ProgramId = getProgram.ProgramId,
                     RevisionNumber = getProgram.RevisionNumber + 1, // Increment the revision number
                     Name = getProgram.Name,
                     UserGroup = getProgram.UserGroup,
@@ -418,7 +418,7 @@ namespace WebAPI.Controllers.Programs
                     NewProgramVersion.Name = dto.Name;
                     transactionLogs.Add(new TransactionLog
                     {
-                        TransactionId = dto.ReferenceId,
+                        TransactionId = dto.ProgramId,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProgramRevisions",
                         AffectedColumn = "Name",
@@ -437,7 +437,7 @@ namespace WebAPI.Controllers.Programs
                     NewProgramVersion.UserGroup = dto.UserGroup;
                     transactionLogs.Add(new TransactionLog
                     {
-                        TransactionId = dto.ReferenceId,
+                        TransactionId = dto.ProgramId,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProgramRevisions",    
                         AffectedColumn = "UserGroup",
@@ -456,7 +456,7 @@ namespace WebAPI.Controllers.Programs
                     NewProgramVersion.Status = dto.Status;
                     transactionLogs.Add(new TransactionLog
                     {
-                        TransactionId = dto.ReferenceId,
+                        TransactionId = dto.ProgramId,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProgramRevisions",
                         AffectedColumn = "Status",
@@ -475,7 +475,7 @@ namespace WebAPI.Controllers.Programs
                     NewProgramVersion.Type = dto.Type;
                     transactionLogs.Add(new TransactionLog
                     {
-                        TransactionId = dto.ReferenceId,
+                        TransactionId = dto.ProgramId,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProgramRevisions",
                         AffectedColumn = "Type",
@@ -491,7 +491,7 @@ namespace WebAPI.Controllers.Programs
                     NewProgramVersion.YearStart = dto.YearStart;
                     transactionLogs.Add(new TransactionLog
                     {
-                        TransactionId = dto.ReferenceId,
+                        TransactionId = dto.ProgramId,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProgramRevisions",
                         AffectedColumn = "YearStart",
@@ -507,7 +507,7 @@ namespace WebAPI.Controllers.Programs
                     NewProgramVersion.YearEnd = dto.YearEnd;
                     transactionLogs.Add(new TransactionLog
                     {
-                        TransactionId = dto.ReferenceId,
+                        TransactionId = dto.ProgramId,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProgramRevisions",
                         AffectedColumn = "YearEnd",
@@ -536,7 +536,7 @@ namespace WebAPI.Controllers.Programs
                 }
                 return Ok(new
                 {
-                    Message = $"Program {dto.ReferenceId} updated successfully!",
+                    Message = $"Program {dto.ProgramId} updated successfully!",
                     Title = "Update Complete"
                 });
             }
@@ -553,12 +553,12 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                var checkProgram = await _db.tPrograms.FirstOrDefaultAsync(x => x.ReferenceId == dto.ProgramId);
+                var checkProgram = await _db.tPrograms.FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
                 if (checkProgram == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Programs table. Please contact administrator!", Title = "Program not found" });
                 }
-                var checkRevisions = await _db.tProgramRevisions.FirstOrDefaultAsync(x => x.ReferenceId == dto.ProgramId);
+                var checkRevisions = await _db.tProgramRevisions.FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
                 if(checkRevisions == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Revisions table. Please contact administrator!", Title = "Program not found" });

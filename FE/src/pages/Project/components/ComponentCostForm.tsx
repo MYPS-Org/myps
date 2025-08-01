@@ -154,7 +154,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
           mode={modalMode}
           componentTypes={initialData?.Dropdowns?.ComponentTypes}
           componentCosts={componentCosts}
-          ProjectId={initialData?.ProjectDetails?.ReferenceId}
+          ProjectId={initialData?.ProjectDetails?.ProjectId}
         />
       </div>
   );
