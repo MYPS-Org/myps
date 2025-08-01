@@ -17,6 +17,7 @@ import Project from './pages/Project/Views/Project';
 import ProjectDetails from './pages/Project/Views/ProjectDetails';
 import AddProject from './pages/Project/Views/AddProject';
 import EditProject from './pages/Project/Views/EditProject';
+import ProgramStages from './pages/ProgramStages/Views/ProgramStages';
 // import AddProgram from './pages/Program/Views/AddProgram';
 
 function App() {
@@ -59,6 +60,14 @@ function App() {
 								element={
 									<ProtectedRoute>
 										<ProgramDetail />
+									</ProtectedRoute>
+								} 
+							/>
+							<Route 
+								path="/program-stages" 
+								element={
+									<ProtectedRoute>
+										<ProgramStages />
 									</ProtectedRoute>
 								} 
 							/>

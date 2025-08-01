@@ -96,6 +96,10 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 				<Square2StackIcon />
 				<SidebarLabel className="text-gray-500">Projects</SidebarLabel>
 			</SidebarItem>
+			<SidebarItem href="/program-stages" current={currentPath === '/program-stages'}>
+				<Square2StackIcon />
+				<SidebarLabel className="text-gray-500">Program Stages</SidebarLabel>
+			</SidebarItem>
 			<SidebarItem href="/mult-year" current={currentPath === '/mult-year'}>
 				<CalendarDateRangeIcon />
 				<SidebarLabel className="text-gray-500">Mult-Year</SidebarLabel>
