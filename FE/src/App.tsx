@@ -18,6 +18,7 @@ import ProjectDetails from './pages/Project/Views/ProjectDetails';
 import AddProject from './pages/Project/Views/AddProject';
 import EditProject from './pages/Project/Views/EditProject';
 import ProgramStages from './pages/ProgramStages/Views/ProgramStages';
+import ProjectGroup from './pages/ProjectGroups/Views/ProjectGroup';
 // import AddProgram from './pages/Program/Views/AddProgram';
 
 function App() {
@@ -108,6 +109,14 @@ function App() {
 								element={
 									<ProtectedRoute>
 										<EditProject />
+									</ProtectedRoute>
+								} 
+							/>
+							<Route 
+								path="/project-groups" 
+								element={
+									<ProtectedRoute>
+										<ProjectGroup />
 									</ProtectedRoute>
 								} 
 							/>

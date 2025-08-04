@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchProgram, fetchProgramEnums } from '../Service'; // Adjust the import path as necessary
-import type { ProgramEnums, ProgramList, ProgramPagination, } from '../Model'; // Adjust the import path as necessary
+import type { ProgramEnums, ProgramList, ProgramPagination, } from '../Model.d'; // Adjust the import path as necessary
 import { Pagination, PaginationPrevious, PaginationNext, PaginationPage, PaginationList } from '../../../components/tailwindui/pagination'; // Adjust the import path as necessary
 
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '../../../components/tailwindui/table'; // Adjust the import path as necessary
