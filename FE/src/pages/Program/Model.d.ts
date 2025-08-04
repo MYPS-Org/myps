@@ -13,7 +13,7 @@ export interface ProgramModel {
 export interface ProgramEnums {
 	Id: number;
 	Enum: number;
-  GroupName?: string;
+	GroupName?: string;
 	Name: string;
 	Description: string;
 }
