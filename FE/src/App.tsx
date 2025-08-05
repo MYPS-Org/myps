@@ -122,7 +122,7 @@ function App() {
 								} 
 							/>
 							<Route 
-								path="/project-groups/:id" 
+								path="/project-groups/:groupId" 
 								element={
 									<ProtectedRoute>
 										<ProjectGroupDetails />

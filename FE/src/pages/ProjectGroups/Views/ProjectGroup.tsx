@@ -61,6 +61,16 @@ const ProjectGroup: React.FC = () => {
             page: 1,
             limit: 20
         });
+    // #region Sorting Logic
+    // const newFilter: ProjectGroupPagination = {
+    //     ...ProjectGroupFilters,
+    //     sortField: field === 0 ? 'Name' : '',
+    //     sortDirection: (direction || 0) as 0 | 1,
+    //     page: 1 // Reset to first page when sorting
+    // };
+    // setProjectGroupFilters(newFilter);
+    // #endregion
+
 
     const handleOpenDialog = async () => {
         try {

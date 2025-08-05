@@ -1,9 +1,9 @@
-import type { ProjectGroupPagination, AddProjectGroupModel, ProjectGroupDetails, ProjectGroupsDropDowns } from "./Model.d";
+import type { ProjectGroupPagination, AddProjectGroupModel, ProjectGroupDetailsModel, ProjectGroupsDropDowns } from "./Model.d";
 import { httpClient, type ErrorResponse } from '../../services/httpClient';
 
 export const fetchProjectGroup = async (data: ProjectGroupPagination) => {
     try {
-        const response = await httpClient.post<ProjectGroupsDropDowns>('/api/projectgroup/showprojectgroups', data, {
+        const response = await httpClient.post<ProjectGroupsDropDowns>('/projectgroup/showprojectgroups', data, {
             preloaderMessage: 'Loading project groups...'
         });
         return response;
@@ -15,7 +15,7 @@ export const fetchProjectGroup = async (data: ProjectGroupPagination) => {
 
 export const addProjectGroup = async (data: AddProjectGroupModel) => {
     try {
-        const response = await httpClient.post<AddProjectGroupModel>('/api/project-groups/add', data, {
+        const response = await httpClient.post<AddProjectGroupModel>('/projectgroup/addprojectgroup', data, {
             preloaderMessage: 'Adding project group...'
         });
         return response;
@@ -27,7 +27,7 @@ export const addProjectGroup = async (data: AddProjectGroupModel) => {
 
 export const fetchProjectGroupByName = async (name: string) => {
     try {
-        const response = await httpClient.post<ProjectGroupDetails>(`/api/project-groups/${name}`, {
+        const response = await httpClient.post<ProjectGroupDetailsModel>(`/projectgroup/projectgroupdetails`,{GroupId: name}, {
             preloaderMessage: 'Loading project group details...'
         });
         return response;
@@ -39,7 +39,7 @@ export const fetchProjectGroupByName = async (name: string) => {
 
 export const deleteProjectGroup = async (groupId: string) => {
     try {
-        const response = await httpClient.post<ErrorResponse>(`/api/project-groups/${groupId}`, {
+        const response = await httpClient.post<ErrorResponse>(`/projectgroup/${groupId}`, {
             preloaderMessage: 'Deleting project group...'
         });
         return response;

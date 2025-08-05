@@ -25,7 +25,7 @@ export interface AddProjectGroupModel {
     UserGroup: number;
 }
 
-export interface ProjectGroupDetails {
+export interface ProjectGroupDetailsModel {
     GroupDetails: ProjectGroups
     Projects: ProjectList[]
     UserGroups: UserGroups[]
