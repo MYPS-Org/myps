@@ -2,9 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, /*useNavigate*/ } from 'react-router-dom';
 
-import type { ProjectGroupDetailsModel } from '../Model.d'; // Adjust the import path as necessary
+import type { ProjectGroupDetailsModel, updateProjectGroupModel } from '../Model.d'; // Adjust the import path as necessary
 import { Button } from '../../../components/tailwindui/button';
-import { fetchProjectGroupByName  } from '../Service';
+import { fetchProjectGroupByName, updateProjectGroup  } from '../Service';
 // import { editProjectGroup, fetchProjectGroupByName } from '../Service';
 // import { Badge } from '../../../components/tailwindui/badge';
 
@@ -28,18 +28,31 @@ const ProjectGroupDetails: React.FC = () => {
   });
   const [isLoading, setIsLoading] = useState(true);
 
+  const [formData, setFormData] = useState<updateProjectGroupModel>({
+    GroupDetails: {
+      Id: 0,
+      GroupId: '',
+      Name: '',
+      Description: '',
+      UserGroup: 0,
+      UserGroupName: '',
+      CreatedBy: '',
+      CreatedDate: ''
+    },
+    Projects: []
+  });
+
   useEffect(() => {
     const loadProjectGroupDetails = async () => {
       try {
         if (groupId) {
-          const response = await fetchProjectGroupDetails(groupId);
+          await fetchProjectGroupDetails(groupId);
           console.log('Project group details loaded:', groupId);
         }
       } catch (error) {
         console.error('Error fetching project group details:', error);
       }
     };
-
     loadProjectGroupDetails();
   }, [groupId]);
 
@@ -48,6 +61,10 @@ const ProjectGroupDetails: React.FC = () => {
     try {
       const response = await fetchProjectGroupByName(groupId);
       setProjectGroupDetails(response.Data);
+      setFormData({
+        GroupDetails: response.Data.GroupDetails,
+        Projects: response.Data.Projects
+      });
     } catch (error) {
       console.error('Error fetching program details:', error);
     //   setProgramEnums(defaultProgramEnums);
@@ -56,12 +73,14 @@ const ProjectGroupDetails: React.FC = () => {
     }
   };
 
+  const [isAddProjectOpen, setIsAddProjectOpen] = useState(false);
+
   // const handleBack = () => {
   //   navigate('/project-groups');
   // };
 
   const handleReset = () => {
-    setProjectGroupDetails({
+    setFormData({
       GroupDetails: {
         Id: 0,
         GroupId: '',
@@ -72,15 +91,17 @@ const ProjectGroupDetails: React.FC = () => {
         CreatedBy: '',
         CreatedDate: ''
       },
-      Projects: [],
-      UserGroups: []
+      Projects: []
     });
   };
 
-  const handleChange = (field: string, value: any) => {
-    setProjectGroupDetails(prev => ({
+  const handleChange = (field: keyof ProjectGroupDetailsModel['GroupDetails'], value: any) => {
+    setFormData(prev => ({
       ...prev,
-      [field]: value
+      GroupDetails: {
+        ...prev.GroupDetails,
+        [field]: value
+      }
     }));
   };
 
@@ -89,8 +110,8 @@ const ProjectGroupDetails: React.FC = () => {
     try {
       // await editProgram(programEnums?.Details);
       console.log('Update program details');
-      // await fetchProgramDetail(programEnums?.Details.ProgramId);
-      handleReset();
+      await updateProjectGroup(formData);
+      // handleReset();
     } catch (error) {
       console.error('Error updating program details:', error);
     } finally {
@@ -98,17 +119,23 @@ const ProjectGroupDetails: React.FC = () => {
     }
   };
 
-  // if (isLoading) {
-  //   return (
-  //     <div className="mx-auto p-6">
-  //       <div className="animate-pulse">
-  //         <div className="h-8 bg-gray-300 rounded w-1/3 mb-4"></div>
-  //         <div className="h-4 bg-gray-300 rounded w-full mb-2"></div>
-  //         <div className="h-4 bg-gray-300 rounded w-2/3"></div>
-  //       </div>
-  //     </div>
-  //   );
-  // }
+  const handleOpenDialog = async () => {
+    setIsAddProjectOpen(true);
+    // Logic to open the dialog for adding a new project
+    // This could involve setting state or navigating to a different route
+  }
+
+  if (isLoading) {
+    return (
+      <div className="mx-auto p-6">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-300 rounded w-1/3 mb-4"></div>
+          <div className="h-4 bg-gray-300 rounded w-full mb-2"></div>
+          <div className="h-4 bg-gray-300 rounded w-2/3"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full text-left mx-auto p-6 space-y-6">
@@ -133,7 +160,7 @@ const ProjectGroupDetails: React.FC = () => {
                     <input
                     type="text"
                     onChange={(e) => handleChange('Name', e.target.value)}
-                    value={projectGroupDetails?.GroupDetails?.Name}
+                    value={formData?.GroupDetails?.Name}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
                     />
                 </div>
@@ -144,7 +171,7 @@ const ProjectGroupDetails: React.FC = () => {
                       <label className="block text-left text-sm font-medium text-gray-700 mb-1">Description</label>
                       <textarea name="" id=""
                           onChange={(e) => handleChange('Description', e.target.value)}
-                          value={projectGroupDetails?.GroupDetails?.Description}
+                          value={formData?.GroupDetails?.Description}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
                       ></textarea>
                   </div>
@@ -154,7 +181,7 @@ const ProjectGroupDetails: React.FC = () => {
                   <div>
                       <label className="block text-left text-sm font-medium text-gray-700 mb-1">User Group</label>
                       <select
-                      value={projectGroupDetails?.GroupDetails?.UserGroup}
+                      value={formData?.GroupDetails?.UserGroup}
                       onChange={(e) => handleChange('UserGroup', Number(e.target.value))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
                       >
@@ -195,7 +222,7 @@ const ProjectGroupDetails: React.FC = () => {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
             <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
             <h2 className="text-xl font-semibold text-gray-900">Projects</h2>
-            <Button color="blue">
+            <Button color="blue" onClick={handleOpenDialog}>
                 Add Project
             </Button>
             </div>

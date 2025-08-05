@@ -90,7 +90,7 @@ const DeleteProjectGroupDialog: React.FC<DeleteProjectGroupDialogProps> = ({ isO
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600 dark:text-gray-400">Name:</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">{projectGroup.Name}</span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">{projectGroup?.Name}</span>
                 </div>
                 
               </div>

@@ -1,4 +1,4 @@
-import type { ProjectGroupPagination, AddProjectGroupModel, ProjectGroupDetailsModel, ProjectGroupsDropDowns } from "./Model.d";
+import type { ProjectGroupPagination, AddProjectGroupModel, ProjectGroupDetailsModel, ProjectGroupsDropDowns, UserGroups, updateProjectGroupModel } from "./Model.d";
 import { httpClient, type ErrorResponse } from '../../services/httpClient';
 
 export const fetchProjectGroup = async (data: ProjectGroupPagination) => {
@@ -27,7 +27,7 @@ export const addProjectGroup = async (data: AddProjectGroupModel) => {
 
 export const fetchProjectGroupByName = async (name: string) => {
     try {
-        const response = await httpClient.post<ProjectGroupDetailsModel>(`/projectgroup/projectgroupdetails`,{GroupId: name}, {
+        const response = await httpClient.post<ProjectGroupDetailsModel & UserGroups>(`/projectgroup/projectgroupdetails`,{GroupId: name}, {
             preloaderMessage: 'Loading project group details...'
         });
         return response;
@@ -37,9 +37,21 @@ export const fetchProjectGroupByName = async (name: string) => {
     }
 }
 
+export const updateProjectGroup = async (data: updateProjectGroupModel) => {
+    try {
+        const response = await httpClient.post<ProjectGroupDetailsModel>(`/projectgroup/updateprojectgroupdetails`, data, {
+            preloaderMessage: 'Updating project group...'
+        });
+        return response;
+    } catch (error) {
+        console.error('Error updating project group:', error);
+        throw error;
+    }
+};
+
 export const deleteProjectGroup = async (groupId: string) => {
     try {
-        const response = await httpClient.post<ErrorResponse>(`/projectgroup/${groupId}`, {
+        const response = await httpClient.post<ErrorResponse>(`/projectgroup/deleteprojectgroup`, { GroupId: groupId }, {
             preloaderMessage: 'Deleting project group...'
         });
         return response;

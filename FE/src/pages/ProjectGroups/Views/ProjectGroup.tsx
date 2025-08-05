@@ -104,15 +104,8 @@ const ProjectGroup: React.FC = () => {
         );
     };
 
-    const handleViewDetails = async (id?: number) => {
-        try {
-            if (id) {
-                navigate(`/project-groups/project-details/${id}`);
-            }
-        } catch (error) {
-            console.error('Error navigating to program details:', error);
-        }
-        
+    const handleViewDetails = async (id: string) => {
+        navigate(`/project-groups/${id}`);
     };
 
     const Paginate = async (page: number) => {
@@ -195,20 +188,21 @@ const ProjectGroup: React.FC = () => {
                         <TableRow key={`${group.Id}-${idx}`}>
                         <TableCell>
                             <button 
-                                onClick={() => handleViewDetails(group.Id)}
+                                onClick={() => handleViewDetails(group.GroupId)}
                                 className="text-blue-600 hover:text-blue-800 font-medium hover:underline"
                             >
                                 {group.Name}
                             </button>
                         </TableCell>
                         <TableCell>
-                            {getStatusBadge(group.Name || '')}
-                        </TableCell>
-                        <TableCell>
-                            {group.Description}
+                            {/* {getStatusBadge(group.Name || '')} */}
+                            {group.Description || 'N/A'}
                         </TableCell>
                         <TableCell>
                             {group.NumberOfProjects || 0}
+                        </TableCell>
+                        <TableCell>
+                            {group.UserGroupName || 'N/A'}
                         </TableCell>
                         <TableCell>
                             {group.CreatedDate}

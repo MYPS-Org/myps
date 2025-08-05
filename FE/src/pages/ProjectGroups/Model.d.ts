@@ -31,6 +31,11 @@ export interface ProjectGroupDetailsModel {
     UserGroups: UserGroups[]
 }
 
+export interface updateProjectGroupModel {
+    GroupDetails: ProjectGroups
+    Projects: ProjectList[]
+}
+
 export interface ProjectList {
     Id: number;
     Name: string;
