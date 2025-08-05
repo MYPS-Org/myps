@@ -14,7 +14,7 @@ using System.Data.SqlClient;
 using System.Reflection;
 using System.Xml;
 using static System.Runtime.InteropServices.JavaScript.JSType;
-namespace WebAPI.Controllers.Programs
+namespace WebAPI.Controllers.Projects
 {
     [ApiController]
     [Route("api/[controller]/[action]")]

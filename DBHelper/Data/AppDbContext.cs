@@ -53,6 +53,8 @@ namespace DBHelper.Data
         public DbSet<Models.Table.ProjectFundingAgreementLists> tProjectFundingAgreementLists { get; set; }
         public DbSet<Models.Table.ProjectFundingSource> tProjectFundingSource { get; set; }
         public DbSet<Models.Table.InfraType> tInfraType { get; set; }
+        public DbSet<Models.Table.ProjectInGroups> tProjectInGroups { get; set; }
+        public DbSet<Models.Table.ProjectGroups> tProjectGroups { get; set; }
         #endregion
         #region Views
         public DbSet<Models.Views.Users> vUsers { get; set; }
@@ -62,6 +64,7 @@ namespace DBHelper.Data
         public DbSet<Models.Views.ProgramDetails> vProgramDetails { get; set; }
         public DbSet<Models.Views.Projects> vProjects { get; set; }
         public DbSet<Models.Views.ProjectDetails> vProjectDetails { get; set; }
+        public DbSet<Models.Views.ProjectGroups> vProjectGroups { get; set; }
         #endregion
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
