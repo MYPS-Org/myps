@@ -10,7 +10,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace WebAPI.Controllers.Programs
+namespace WebAPI.Controllers.Projects
 {
     public class ShowProjectDTO : EnumPagination
     {
