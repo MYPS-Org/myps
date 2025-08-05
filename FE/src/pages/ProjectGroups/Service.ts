@@ -73,3 +73,26 @@ export const fetchProjectById = async (projectId: string) => {
     }
 }
 
+export const addProjectToGroup = async (data: { GroupId: string, ProjectId: number }) => {
+    try {
+        const response = await httpClient.post<ErrorResponse>(`/projectgroup/addprojecttogroup`, data, {
+            preloaderMessage: 'Adding project to group...'
+        });
+        return response;
+    } catch (error) {
+        console.error('Error adding project to group:', error);
+        throw error;
+    }
+};
+
+export const deleteProject = async (projectId: string) => {
+    try {
+        const response = await httpClient.post<ErrorResponse>(`/projectgroup/deleteproject`, { ProjectId: projectId }, {
+            preloaderMessage: 'Deleting project...'
+        });
+        return response;
+    } catch (error) {
+        console.error('Error deleting project:', error);
+        throw error;
+    }
+}
