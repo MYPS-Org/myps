@@ -5,7 +5,9 @@ import { useParams, /*useNavigate*/ } from 'react-router-dom';
 import type { ProjectGroupDetailsModel, updateProjectGroupModel, ProjectList } from '../Model.d'; // Adjust the import path as necessary
 import { Button } from '../../../components/tailwindui/button';
 import { fetchProjectGroupByName, updateProjectGroup  } from '../Service';
-import AddProjectDialog from '../dialogs/AddProject';
+import { AddProjectDialog, DeleteProjectDialog} from '../dialogs';
+import { Table, TableBody, TableCell, TableHead, TableRow } from '../../../components/tailwindui/table';
+import { TrashIcon } from '@heroicons/react/24/outline';
 // import { editProjectGroup, fetchProjectGroupByName } from '../Service';
 // import { Badge } from '../../../components/tailwindui/badge';
 
@@ -74,7 +76,18 @@ const ProjectGroupDetails: React.FC = () => {
     }
   };
 
+  // Set Dialog Open/Close State
   const [isAddProjectOpen, setIsAddProjectOpen] = useState(false);
+  const [isDeleteProjectOpen, setIsDeleteProjectOpen] = useState(false);
+
+  const [selectedProject, setSelectedProject] = useState({
+    ProjectId: ''
+  });
+
+  const handleDeleteOpen = (project: string) => {
+    setSelectedProject({ ProjectId: project });
+    setIsDeleteProjectOpen(true);
+  };
 
   // const handleBack = () => {
   //   navigate('/project-groups');
@@ -155,6 +168,32 @@ const ProjectGroupDetails: React.FC = () => {
       console.error('Error adding projects:', error);
     }
   }
+
+  const handleDeleteProject = async (projectId: string) => {
+    try {
+      // Remove project from the current group's project list
+      const updatedProjects = formData.Projects.filter(p => p.ProjectId !== projectId);
+
+      // Update the form data
+      setFormData(prev => ({
+        ...prev,
+        Projects: updatedProjects
+      }));
+
+      // Update the display data
+      setProjectGroupDetails(prev => ({
+        ...prev,
+        Projects: updatedProjects
+      }));
+
+      // Optionally save to backend immediately
+      // await updateProjectGroup(formData);
+
+      console.log('Deleted project:', projectId);
+    } catch (error) {
+      console.error('Error deleting project:', error);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -259,71 +298,76 @@ const ProjectGroupDetails: React.FC = () => {
             </div>
             
             <div className="overflow-x-auto">
-            <table className="w-full">
-                <thead className="bg-gray-50">
-                <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Project ID
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Category
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Description
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Origin
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    City
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Legislative District
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Operating Unit
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Implementing Office
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    DEO
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Region
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Agency
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Created By
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Created Date
-                    </th>
-                </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                {projectGroupDetails.Projects?.map((project) => (
-                    <tr key={project.Id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                        <button className="text-blue-600 hover:text-blue-800 font-medium">
-                        {project.Id}
-                        </button>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {project.ProjectId}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {project.Description}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {project.CreatedDate ? project.CreatedDate.StringToDate() : ''}
-                    </td>
-                    </tr>
-                ))}
-                </tbody>
-            </table>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                      <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Project ID
+                      </TableHead>
+                      <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Category
+                      </TableHead>
+                      <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Description
+                      </TableHead>
+                      <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Origin
+                      </TableHead>
+                      <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      City
+                      </TableHead>
+                      <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Legislative District
+                      </TableHead>
+                      <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Operating Unit
+                      </TableHead>
+                      <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Implementing Office
+                      </TableHead>
+                      <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      DEO
+                      </TableHead>
+                      <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Region
+                      </TableHead>
+                      <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Agency
+                      </TableHead>
+                      <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Created By
+                      </TableHead>
+                      <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Created Date
+                      </TableHead>
+                  </TableRow>
+                </TableHead>
+                  <TableBody>
+                  {projectGroupDetails.Projects?.map((project) => (
+                      <TableRow key={project.Id} className="hover:bg-gray-50">
+                        <TableCell className="px-6 py-4 whitespace-nowrap">
+                            <button className="text-blue-600 hover:text-blue-800 font-medium">
+                            {project.Id}
+                            </button>
+                        </TableCell>
+                        <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {project.ProjectId}
+                        </TableCell>
+                        <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {project.Description}
+                        </TableCell>
+                        <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {project.CreatedDate ? project.CreatedDate.StringToDate() : ''}
+                        </TableCell>
+                        <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <Button onClick={() => handleDeleteOpen(project.ProjectId ?? '')} color="red" className="px-2 py-1">
+                              <TrashIcon />
+                            </Button>
+                        </TableCell>
+                      </TableRow>
+                  ))}
+                  </TableBody>
+              </Table>
             </div>
         </div>
 
@@ -332,6 +376,13 @@ const ProjectGroupDetails: React.FC = () => {
           isOpen={isAddProjectOpen}
           onClose={handleCloseDialog}
           onSubmit={handleAddProjects}
+        />
+        {/* Delete Project Dialog */}
+        <DeleteProjectDialog
+          isOpen={isDeleteProjectOpen}
+          onClose={handleCloseDialog}
+          onSubmit={handleDeleteProject}
+          project={selectedProject}
         />
       </div>
   );

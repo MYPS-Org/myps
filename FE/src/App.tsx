@@ -14,7 +14,6 @@ import Programs from './pages/Program/Views/Program';
 import ProgramDetail from './pages/Program/Views/ProgramDetail';
 import Settings from './pages/Settings/Settings';
 import Project from './pages/Project/Views/Project';
-import ProjectDetails from './pages/Project/Views/ProjectDetails';
 import AddProject from './pages/Project/Views/AddProject';
 import EditProject from './pages/Project/Views/EditProject';
 import ProgramStages from './pages/ProgramStages/Views/ProgramStages';
@@ -78,14 +77,6 @@ function App() {
 								element={
 									<ProtectedRoute>
 										<Project />
-									</ProtectedRoute>
-								} 
-							/>
-							<Route 
-								path="/projects/:id" 
-								element={
-									<ProtectedRoute>
-										<ProjectDetails />
 									</ProtectedRoute>
 								} 
 							/>

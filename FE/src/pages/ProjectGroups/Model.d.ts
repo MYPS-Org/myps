@@ -55,7 +55,7 @@ export interface ProjectList {
 	Agency?: number;
 	ProjectCode?: string;
 	ImplementationMode?: number;
-	EmergencyMode: boolean;
+	EmergencyMode?: boolean;
 	Feasibility?: number;
 	DetailedDesign?: boolean;
 	RowAvailable?: boolean;
