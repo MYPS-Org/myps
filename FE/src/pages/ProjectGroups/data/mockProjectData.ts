@@ -1,0 +1,288 @@
+import type { ProjectLists } from '../../Project/Model.d';
+import type { ProjectList } from '../Model.d';
+
+export const mockProjectsData: ProjectLists[] = [
+  {
+    Id: 1,
+    ProgramId: "PROG-001",
+    ProgramName: "Infrastructure Development Program",
+    ProjectId: "PROJ-2024-001",
+    RevisionNumber: 1,
+    Description: "Construction of Bridge Connecting Metro Manila to Laguna",
+    Category: "Infrastructure",
+    Thrust: "Economic Development",
+    Origin: "National Government",
+    City: "Manila",
+    LegislativeDistrict: "District 1",
+    OperatingUnit: "Department of Public Works and Highways",
+    ImplementingOffice: "DPWH Metro Manila",
+    DEO: "Juan Dela Cruz",
+    Region: "NCR",
+    Agency: "DPWH",
+    ImplementationMode: "Contract",
+    EmergencyMode: "No",
+    Feasibility: "Completed",
+    DetailedDesign: "In Progress",
+    RowAvailable: "Yes",
+    StageName: "Design Phase",
+    CreatedBy: "admin",
+    CreatedDate: "2024-01-15",
+    UpdateBy: "admin",
+    UpdatedDate: "2024-03-01",
+    IsPublished: true
+  },
+  {
+    Id: 2,
+    ProgramId: "PROG-002",
+    ProgramName: "Education Enhancement Program",
+    ProjectId: "PROJ-2024-002",
+    RevisionNumber: 1,
+    Description: "Construction of 50 New Classrooms in Quezon City",
+    Category: "Education",
+    Thrust: "Social Development",
+    Origin: "Local Government",
+    City: "Quezon City",
+    LegislativeDistrict: "District 2",
+    OperatingUnit: "Department of Education",
+    ImplementingOffice: "DepEd Quezon City",
+    DEO: "Maria Santos",
+    Region: "NCR",
+    Agency: "DepEd",
+    ImplementationMode: "Administration",
+    EmergencyMode: "No",
+    Feasibility: "Completed",
+    DetailedDesign: "Completed",
+    RowAvailable: "Yes",
+    StageName: "Implementation",
+    CreatedBy: "admin",
+    CreatedDate: "2024-02-01",
+    UpdateBy: "admin",
+    UpdatedDate: "2024-03-15",
+    IsPublished: true
+  },
+  {
+    Id: 3,
+    ProgramId: "PROG-003",
+    ProgramName: "Healthcare Improvement Program",
+    ProjectId: "PROJ-2024-003",
+    RevisionNumber: 1,
+    Description: "Establishment of Rural Health Units in Batangas",
+    Category: "Healthcare",
+    Thrust: "Social Development",
+    Origin: "Provincial Government",
+    City: "Batangas",
+    LegislativeDistrict: "District 3",
+    OperatingUnit: "Department of Health",
+    ImplementingOffice: "DOH Batangas",
+    DEO: "Dr. Antonio Reyes",
+    Region: "Region IV-A",
+    Agency: "DOH",
+    ImplementationMode: "Contract",
+    EmergencyMode: "No",
+    Feasibility: "In Progress",
+    DetailedDesign: "Not Started",
+    RowAvailable: "No",
+    StageName: "Planning Phase",
+    CreatedBy: "admin",
+    CreatedDate: "2024-01-20",
+    UpdateBy: "admin",
+    UpdatedDate: "2024-02-28",
+    IsPublished: false
+  },
+  {
+    Id: 4,
+    ProgramId: "PROG-004",
+    ProgramName: "Water Supply Program",
+    ProjectId: "PROJ-2024-004",
+    RevisionNumber: 2,
+    Description: "Installation of Water Distribution System in Mindanao",
+    Category: "Water Resources",
+    Thrust: "Economic Development",
+    Origin: "Regional Government",
+    City: "Davao",
+    LegislativeDistrict: "District 1",
+    OperatingUnit: "Metropolitan Waterworks and Sewerage System",
+    ImplementingOffice: "MWSS Mindanao",
+    DEO: "Pedro Gonzales",
+    Region: "Region XI",
+    Agency: "MWSS",
+    ImplementationMode: "Public-Private Partnership",
+    EmergencyMode: "No",
+    Feasibility: "Completed",
+    DetailedDesign: "Completed",
+    RowAvailable: "Yes",
+    StageName: "Pre-Implementation",
+    CreatedBy: "admin",
+    CreatedDate: "2024-01-10",
+    UpdateBy: "admin",
+    UpdatedDate: "2024-03-20",
+    IsPublished: true
+  },
+  {
+    Id: 5,
+    ProgramId: "PROG-005",
+    ProgramName: "Agricultural Development Program",
+    ProjectId: "PROJ-2024-005",
+    RevisionNumber: 1,
+    Description: "Farm-to-Market Road Construction in Camarines Sur",
+    Category: "Agriculture",
+    Thrust: "Economic Development",
+    Origin: "Provincial Government",
+    City: "Naga",
+    LegislativeDistrict: "District 2",
+    OperatingUnit: "Department of Agriculture",
+    ImplementingOffice: "DA Bicol",
+    DEO: "Rosa Martinez",
+    Region: "Region V",
+    Agency: "DA",
+    ImplementationMode: "Contract",
+    EmergencyMode: "No",
+    Feasibility: "Completed",
+    DetailedDesign: "In Progress",
+    RowAvailable: "Partial",
+    StageName: "Design Phase",
+    CreatedBy: "admin",
+    CreatedDate: "2024-02-05",
+    UpdateBy: "admin",
+    UpdatedDate: "2024-03-10",
+    IsPublished: true
+  },
+  {
+    Id: 6,
+    ProgramId: "PROG-006",
+    ProgramName: "Tourism Development Program",
+    ProjectId: "PROJ-2024-006",
+    RevisionNumber: 1,
+    Description: "Development of Eco-Tourism Parks in Palawan",
+    Category: "Tourism",
+    Thrust: "Economic Development",
+    Origin: "Provincial Government",
+    City: "Puerto Princesa",
+    LegislativeDistrict: "District 1",
+    OperatingUnit: "Department of Tourism",
+    ImplementingOffice: "DOT Palawan",
+    DEO: "Carmen Dela Cruz",
+    Region: "Region IV-B",
+    Agency: "DOT",
+    ImplementationMode: "Contract",
+    EmergencyMode: "No",
+    Feasibility: "In Progress",
+    DetailedDesign: "Not Started",
+    RowAvailable: "Yes",
+    StageName: "Feasibility Study",
+    CreatedBy: "admin",
+    CreatedDate: "2024-03-01",
+    UpdateBy: "admin",
+    UpdatedDate: "2024-03-25",
+    IsPublished: true
+  },
+  {
+    Id: 7,
+    ProgramId: "PROG-007",
+    ProgramName: "Digital Infrastructure Program",
+    ProjectId: "PROJ-2024-007",
+    RevisionNumber: 1,
+    Description: "Fiber Optic Network Expansion in Remote Areas",
+    Category: "Information Technology",
+    Thrust: "Economic Development",
+    Origin: "National Government",
+    City: "Various",
+    LegislativeDistrict: "Multiple",
+    OperatingUnit: "Department of Information and Communications Technology",
+    ImplementingOffice: "DICT Central Office",
+    DEO: "Jose Rivera",
+    Region: "Multiple Regions",
+    Agency: "DICT",
+    ImplementationMode: "Public-Private Partnership",
+    EmergencyMode: "No",
+    Feasibility: "Completed",
+    DetailedDesign: "In Progress",
+    RowAvailable: "Yes",
+    StageName: "Design Phase",
+    CreatedBy: "admin",
+    CreatedDate: "2024-02-15",
+    UpdateBy: "admin",
+    UpdatedDate: "2024-03-18",
+    IsPublished: true
+  },
+  {
+    Id: 8,
+    ProgramId: "PROG-008",
+    ProgramName: "Disaster Risk Reduction Program",
+    ProjectId: "PROJ-2024-008",
+    RevisionNumber: 1,
+    Description: "Construction of Evacuation Centers in Typhoon-Prone Areas",
+    Category: "Disaster Management",
+    Thrust: "Social Development",
+    Origin: "Regional Government",
+    City: "Tacloban",
+    LegislativeDistrict: "District 1",
+    OperatingUnit: "Office of Civil Defense",
+    ImplementingOffice: "OCD Eastern Visayas",
+    DEO: "Michael Santos",
+    Region: "Region VIII",
+    Agency: "OCD",
+    ImplementationMode: "Administration",
+    EmergencyMode: "Yes",
+    Feasibility: "Completed",
+    DetailedDesign: "Completed",
+    RowAvailable: "Yes",
+    StageName: "Ready for Implementation",
+    CreatedBy: "admin",
+    CreatedDate: "2024-01-05",
+    UpdateBy: "admin",
+    UpdatedDate: "2024-03-22",
+    IsPublished: true
+  }
+];
+
+// Mock selected projects for testing
+// export const mockSelectedProjects: ProjectList[] = [
+//   {
+//     Id: 1,
+//     Name: "Construction of Bridge Connecting Metro Manila to Laguna",
+//     Description: "Infrastructure project for improved connectivity",
+//     Cost: 5000000000,
+//     UserGroup: 1,
+//     CreatedBy: "admin",
+//     CreatedDate: "2024-01-15"
+//   },
+//   {
+//     Id: 2,
+//     Name: "Construction of 50 New Classrooms in Quezon City",
+//     Description: "Education enhancement project",
+//     Cost: 250000000,
+//     UserGroup: 1,
+//     CreatedBy: "admin",
+//     CreatedDate: "2024-02-01"
+//   }
+// ];
+
+// Utility function to search mock data
+export const searchMockProjects = (searchTerm: string): ProjectLists[] => {
+  if (!searchTerm.trim()) return [];
+  
+  const term = searchTerm.toLowerCase();
+  return mockProjectsData.filter(project => 
+    project.ProjectId.toLowerCase().includes(term) ||
+    project.Description.toLowerCase().includes(term) ||
+    project.ProgramName.toLowerCase().includes(term) ||
+    project.Category?.toLowerCase().includes(term) ||
+    project.City?.toLowerCase().includes(term) ||
+    project.Agency?.toLowerCase().includes(term) ||
+    project.StageName.toLowerCase().includes(term)
+  );
+};
+
+// Utility function to convert ProjectLists to ProjectList
+// export const convertToProjectList = (project: ProjectLists): ProjectList => {
+//   return {
+//     Id: project.Id,
+//     Name: project.Description || project.ProjectId || '',
+//     Description: project.Description,
+//     Cost: 0, // ProjectLists doesn't have cost property
+//     UserGroup: 0, // Will be set by parent component
+//     CreatedBy: project.CreatedBy,
+//     CreatedDate: project.CreatedDate
+//   };
+// };

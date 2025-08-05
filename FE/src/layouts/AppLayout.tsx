@@ -8,7 +8,7 @@ const DashboardLayout: React.FC = () => (
     <div className='bg-gray-50 shadow-xl transition-colors duration-200'>
       <AppSidebar/>
     </div>
-    <div className='w-full'>
+    <div className='w-full overflow-x-auto'>
         <div className='bg-gray-50 shadow-md transition-colors duration-200'>
         <AppNavbar/>
         </div>

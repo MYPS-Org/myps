@@ -37,13 +37,32 @@ export interface updateProjectGroupModel {
 }
 
 export interface ProjectList {
-    Id: number;
-    Name: string;
-    Description?: string;
-    Cost?: number;
-    UserGroup: number;
-    CreatedBy?: string;
-    CreatedDate?: string;
+    Id?: number;
+	ProgramId?: string;
+	ProgramName?: string;
+	ProjectId?: string;
+	RevisionNumber?: number;
+	Description?: string;
+	Category?: number;
+	Thrust?: number;
+	Origin?: number;
+	City?: number;
+	LegislativeDistrict?: number;
+	OperatingUnit?: string;
+	ImplementingOffice?: string;
+	DEO?: string;
+	Region?: string;
+	Agency?: number;
+	ProjectCode?: string;
+	ImplementationMode?: number;
+	EmergencyMode: boolean;
+	Feasibility?: number;
+	DetailedDesign?: boolean;
+	RowAvailable?: boolean;
+	CreatedBy?: string;
+	CreatedDate?: string;
+	UpdatedBy?: string;
+	UpdatedDate?: string;
 }
 
 export interface ProjectGroupList {

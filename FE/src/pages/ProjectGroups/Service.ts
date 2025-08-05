@@ -1,4 +1,4 @@
-import type { ProjectGroupPagination, AddProjectGroupModel, ProjectGroupDetailsModel, ProjectGroupsDropDowns, UserGroups, updateProjectGroupModel } from "./Model.d";
+import type { ProjectGroupPagination, AddProjectGroupModel, ProjectGroupDetailsModel, ProjectGroupsDropDowns, UserGroups, updateProjectGroupModel, ProjectList } from "./Model.d";
 import { httpClient, type ErrorResponse } from '../../services/httpClient';
 
 export const fetchProjectGroup = async (data: ProjectGroupPagination) => {
@@ -57,6 +57,18 @@ export const deleteProjectGroup = async (groupId: string) => {
         return response;
     } catch (error) {
         console.error('Error deleting project group:', error);
+        throw error;
+    }
+}
+
+export const fetchProjectById = async (projectId: string) => {
+    try {
+        const response = await httpClient.post<ProjectList>(`/projectgroup/projectdetails`, { ProjectId: projectId }, {
+            preloaderMessage: 'Loading project details...'
+        });
+        return response;
+    } catch (error) {
+        console.error('Error fetching project by ID:', error);
         throw error;
     }
 }

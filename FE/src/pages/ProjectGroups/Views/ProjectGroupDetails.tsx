@@ -2,9 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, /*useNavigate*/ } from 'react-router-dom';
 
-import type { ProjectGroupDetailsModel, updateProjectGroupModel } from '../Model.d'; // Adjust the import path as necessary
+import type { ProjectGroupDetailsModel, updateProjectGroupModel, ProjectList } from '../Model.d'; // Adjust the import path as necessary
 import { Button } from '../../../components/tailwindui/button';
 import { fetchProjectGroupByName, updateProjectGroup  } from '../Service';
+import AddProjectDialog from '../dialogs/AddProject';
 // import { editProjectGroup, fetchProjectGroupByName } from '../Service';
 // import { Badge } from '../../../components/tailwindui/badge';
 
@@ -123,6 +124,36 @@ const ProjectGroupDetails: React.FC = () => {
     setIsAddProjectOpen(true);
     // Logic to open the dialog for adding a new project
     // This could involve setting state or navigating to a different route
+  }
+
+  const handleCloseDialog = () => {
+    setIsAddProjectOpen(false);
+  }
+
+  const handleAddProjects = async (projects: ProjectList[]) => {
+    try {
+      // Add projects to the current group's project list
+      const updatedProjects = [...formData.Projects, ...projects];
+      
+      // Update the form data
+      setFormData(prev => ({
+        ...prev,
+        Projects: updatedProjects
+      }));
+
+      // Update the display data
+      setProjectGroupDetails(prev => ({
+        ...prev,
+        Projects: updatedProjects
+      }));
+
+      // Optionally save to backend immediately
+      // await updateProjectGroup(formData);
+      
+      console.log('Added projects:', projects);
+    } catch (error) {
+      console.error('Error adding projects:', error);
+    }
   }
 
   if (isLoading) {
@@ -247,9 +278,6 @@ const ProjectGroupDetails: React.FC = () => {
                     City
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total Project Cost
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Legislative District
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -284,10 +312,7 @@ const ProjectGroupDetails: React.FC = () => {
                         </button>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {project.Name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {project.Cost}
+                        {project.ProjectId}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {project.Description}
@@ -301,6 +326,13 @@ const ProjectGroupDetails: React.FC = () => {
             </table>
             </div>
         </div>
+
+        {/* Add Project Dialog */}
+        <AddProjectDialog
+          isOpen={isAddProjectOpen}
+          onClose={handleCloseDialog}
+          onSubmit={handleAddProjects}
+        />
       </div>
   );
 }
