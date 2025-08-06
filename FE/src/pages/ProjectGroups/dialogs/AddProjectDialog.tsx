@@ -72,14 +72,14 @@ const AddProjectDialog: React.FC<AddProjectDialogProps> = ({
   const handleAddProject = (project: ProjectList) => {
     // Check if project is already selected
     console.log('Adding project:', project);
-    if (!selectedProjects.find(p => p.Id === project.ProjectId)) {
+    if (!selectedProjects.find(p => p.ProjectId === project.ProjectId)) {
       console.log('Project added:', project.ProjectId);
       setSelectedProjects(prev => [...prev, { ProjectId: project.ProjectId, GroupId: groupId }]);
     }
   };
 
   // Remove project from selected list
-  const handleRemoveProject = (projectId: string | undefined) => {
+  const handleRemoveProject = (projectId: string) => {
     if (projectId) {
       setSelectedProjects(prev => prev.filter(p => p.ProjectId !== projectId));
     }
@@ -89,15 +89,12 @@ const AddProjectDialog: React.FC<AddProjectDialogProps> = ({
   const handleSubmit = async () => {
     if (selectedProjects.length > 0) {
       try {
-        // Note: updateProjectDetails expects different format, 
-        // so we'll let the parent component handle the API call
-        // await addProjectToGroup(selecte)
         console.log('Submitting selected projects:', selectedProjects);
         await addProjectToGroup({
-          ProjectId: selectedProjects.map(p => p.ProjectId).join(','),
+          ProjectId: selectedProjects.map(p => p.ProjectId),
           GroupId: groupId ?? ''
         });
-        // onSubmit(selectedProjects);
+        onSubmit(selectedProjects);
         onClose();
       } catch (error) {
         console.error('Error submitting projects:', error);

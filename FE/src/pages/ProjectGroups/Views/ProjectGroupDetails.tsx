@@ -89,6 +89,12 @@ const ProjectGroupDetails: React.FC = () => {
     setIsDeleteProjectOpen(true);
   };
 
+  const handleAutoRefresh = async () => {
+    if (groupId) {
+      await fetchProjectGroupDetails(groupId);
+    }
+  };
+
   // const handleBack = () => {
   //   navigate('/project-groups');
   // };
@@ -138,30 +144,14 @@ const ProjectGroupDetails: React.FC = () => {
     // Logic to open the dialog for adding a new project
     // This could involve setting state or navigating to a different route
   }
-
   const handleCloseDialog = () => {
     setIsAddProjectOpen(false);
-  }
+    setIsDeleteProjectOpen(false);
+  };
 
   const handleAddProjects = async (projects: ProjectList[]) => {
     try {
-      // Add projects to the current group's project list
-      const updatedProjects = [...formData.Projects, ...projects];
-      
-      // Update the form data
-      setFormData(prev => ({
-        ...prev,
-        Projects: updatedProjects
-      }));
-
-      // Update the display data
-      setProjectGroupDetails(prev => ({
-        ...prev,
-        Projects: updatedProjects
-      }));
-
-      // Optionally save to backend immediately
-      // await updateProjectGroup(formData);
+      handleAutoRefresh();
       
       console.log('Added projects:', projects);
     } catch (error) {
@@ -340,6 +330,9 @@ const ProjectGroupDetails: React.FC = () => {
                       <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Created Date
                       </TableHeader>
+                      <TableHeader>
+                        Actions
+                      </TableHeader>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -347,14 +340,41 @@ const ProjectGroupDetails: React.FC = () => {
                     <TableRow key={project.Id} className="hover:bg-gray-50">
                       <TableCell className="px-6 py-4 whitespace-nowrap">
                           <button className="text-blue-600 hover:text-blue-800 font-medium">
-                          {project.Id}
+                          {project.ProjectId}
                           </button>
                       </TableCell>
                       <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {project.ProjectId}
+                          {project.Category}
                       </TableCell>
                       <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {project.Description}
+                      </TableCell>
+                      <TableCell className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>
+                          {project.Origin}
+                      </TableCell>
+                      <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {project.City}
+                      </TableCell>
+                      <TableCell className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>
+                          {project.LegislativeDistrict}
+                      </TableCell>
+                      <TableCell>
+                          {project.OperatingUnit}
+                      </TableCell>
+                      <TableCell>
+                          {project.ImplementingOffice}
+                      </TableCell>
+                      <TableCell>
+                          {project.DEO}
+                      </TableCell>
+                      <TableCell>
+                          {project.Region}
+                      </TableCell>
+                      <TableCell>
+                          {project.Agency}
+                      </TableCell>
+                      <TableCell>
+                          {project.CreatedBy}
                       </TableCell>
                       <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {project.CreatedDate ? project.CreatedDate.StringToDate() : ''}

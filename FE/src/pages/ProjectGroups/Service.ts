@@ -73,12 +73,9 @@ export const fetchProjectById = async (projectId: string) => {
     }
 }
 
-export const addProjectToGroup = async (data: { ProjectId: string, GroupId: string }) => {
+export const addProjectToGroup = async (data: { ProjectId: string[], GroupId: string }) => {
     try {
-        const response = await httpClient.post<ErrorResponse>(`/projectgroup/addprojecttogroup`, {
-                ProjectId: data.ProjectId,
-                GroupId: data.GroupId
-            }, {
+        const response = await httpClient.post<ErrorResponse>(`/projectgroup/addproject`, data, {
             preloaderMessage: 'Adding project to group...'
         });
         return response;
