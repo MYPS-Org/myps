@@ -26,6 +26,11 @@ namespace WebAPI.Controllers.ProjectGroup
         [Required]
         public int UserGroup { get; set; }
     }
+    public class SearchProjectDTO
+    {
+        [Required]
+        public string ProjectId { get; set; } = string.Empty;
+    }
     public class DeleteProjectGroupDTO
     {
         [Required]
@@ -41,6 +46,6 @@ namespace WebAPI.Controllers.ProjectGroup
         [Required]
         public DBHelper.Models.Views.ProjectGroups GroupDetails { get; set; } = new DBHelper.Models.Views.ProjectGroups();
         [Required]
-        public List<DBHelper.Models.Views.Projects> Projects { get; set; } = new List<DBHelper.Models.Views.Projects>();
+        public List<DBHelper.Models.Views.ProjectsInGroup> Projects { get; set; } = new List<DBHelper.Models.Views.ProjectsInGroup>();
     }
 }

@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace DBHelper.Models.Table
 {
-    public class ProjectInGroups
+    public class ProjectsInGroup
     {
         [Key]
         public int Id { get; set; }

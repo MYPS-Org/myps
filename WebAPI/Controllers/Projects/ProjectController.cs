@@ -137,6 +137,7 @@ namespace WebAPI.Controllers.Projects
             }
         }
         #endregion
+        #region Add Project
         [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> AddProject([FromBody] AddProjectDTO dto)
@@ -287,6 +288,7 @@ namespace WebAPI.Controllers.Projects
                 return ExceptionHandler(ex);
             }
         }
+        #endregion
         #region Project Details
         [AllowAnonymous]
         [HttpPost]
