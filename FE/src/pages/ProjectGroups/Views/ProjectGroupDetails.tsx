@@ -6,7 +6,7 @@ import type { ProjectGroupDetailsModel, updateProjectGroupModel, ProjectList } f
 import { Button } from '../../../components/tailwindui/button';
 import { fetchProjectGroupByName, updateProjectGroup  } from '../Service';
 import { AddProjectDialog, DeleteProjectDialog} from '../dialogs';
-import { Table, TableBody, TableCell, TableHead, TableRow } from '../../../components/tailwindui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
 import { TrashIcon } from '@heroicons/react/24/outline';
 // import { editProjectGroup, fetchProjectGroupByName } from '../Service';
 // import { Badge } from '../../../components/tailwindui/badge';
@@ -301,72 +301,72 @@ const ProjectGroupDetails: React.FC = () => {
               <Table>
                 <TableHead>
                   <TableRow>
-                      <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Project ID
-                      </TableHead>
-                      <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      </TableHeader>
+                      <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Category
-                      </TableHead>
-                      <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      </TableHeader>
+                      <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Description
-                      </TableHead>
-                      <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      </TableHeader>
+                      <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Origin
-                      </TableHead>
-                      <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      </TableHeader>
+                      <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       City
-                      </TableHead>
-                      <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      </TableHeader>
+                      <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Legislative District
-                      </TableHead>
-                      <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      </TableHeader>
+                      <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Operating Unit
-                      </TableHead>
-                      <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      </TableHeader>
+                      <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Implementing Office
-                      </TableHead>
-                      <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      </TableHeader>
+                      <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       DEO
-                      </TableHead>
-                      <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      </TableHeader>
+                      <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Region
-                      </TableHead>
-                      <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      </TableHeader>
+                      <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Agency
-                      </TableHead>
-                      <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      </TableHeader>
+                      <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Created By
-                      </TableHead>
-                      <TableHead className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      </TableHeader>
+                      <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Created Date
-                      </TableHead>
+                      </TableHeader>
                   </TableRow>
                 </TableHead>
-                  <TableBody>
-                  {projectGroupDetails.Projects?.map((project) => (
-                      <TableRow key={project.Id} className="hover:bg-gray-50">
-                        <TableCell className="px-6 py-4 whitespace-nowrap">
-                            <button className="text-blue-600 hover:text-blue-800 font-medium">
-                            {project.Id}
-                            </button>
-                        </TableCell>
-                        <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {project.ProjectId}
-                        </TableCell>
-                        <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {project.Description}
-                        </TableCell>
-                        <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {project.CreatedDate ? project.CreatedDate.StringToDate() : ''}
-                        </TableCell>
-                        <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            <Button onClick={() => handleDeleteOpen(project.ProjectId ?? '')} color="red" className="px-2 py-1">
-                              <TrashIcon />
-                            </Button>
-                        </TableCell>
-                      </TableRow>
-                  ))}
-                  </TableBody>
+                <TableBody>
+                {projectGroupDetails.Projects?.map((project) => (
+                    <TableRow key={project.Id} className="hover:bg-gray-50">
+                      <TableCell className="px-6 py-4 whitespace-nowrap">
+                          <button className="text-blue-600 hover:text-blue-800 font-medium">
+                          {project.Id}
+                          </button>
+                      </TableCell>
+                      <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {project.ProjectId}
+                      </TableCell>
+                      <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {project.Description}
+                      </TableCell>
+                      <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {project.CreatedDate ? project.CreatedDate.StringToDate() : ''}
+                      </TableCell>
+                      <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <Button onClick={() => handleDeleteOpen(project.ProjectId ?? '')} color="red" className="px-2 py-1">
+                            <TrashIcon />
+                          </Button>
+                      </TableCell>
+                    </TableRow>
+                ))}
+                </TableBody>
               </Table>
             </div>
         </div>
