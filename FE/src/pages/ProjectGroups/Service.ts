@@ -63,7 +63,7 @@ export const deleteProjectGroup = async (groupId: string) => {
 
 export const fetchProjectById = async (projectId: string) => {
     try {
-        const response = await httpClient.post<ProjectList>(`/projectgroup/projectdetails`, { ProjectId: projectId }, {
+        const response = await httpClient.post<{Project: ProjectList}>(`/projectgroup/searchproject`, { ProjectId: projectId }, {
             preloaderMessage: 'Loading project details...'
         });
         return response;
@@ -73,9 +73,12 @@ export const fetchProjectById = async (projectId: string) => {
     }
 }
 
-export const addProjectToGroup = async (data: { GroupId: string, ProjectId: number }) => {
+export const addProjectToGroup = async (data: { ProjectId: string, GroupId: string }) => {
     try {
-        const response = await httpClient.post<ErrorResponse>(`/projectgroup/addprojecttogroup`, data, {
+        const response = await httpClient.post<ErrorResponse>(`/projectgroup/addprojecttogroup`, {
+                ProjectId: data.ProjectId,
+                GroupId: data.GroupId
+            }, {
             preloaderMessage: 'Adding project to group...'
         });
         return response;
