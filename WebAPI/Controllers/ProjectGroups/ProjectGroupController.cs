@@ -62,7 +62,7 @@ namespace WebAPI.Controllers.ProjectGroup
                 if (!string.IsNullOrEmpty(dto.Filters?.Name))
                     baseQuery = baseQuery.Where(e => e.Name!.Contains(dto.Filters.Name));
 
-                var SearchId = await _db.tProjectInGroups.FirstOrDefaultAsync(x => x.ProjectId == dto.Filters!.ProjectId);
+                var SearchId = await _db.tProjectsInGroup.FirstOrDefaultAsync(x => x.ProjectId == dto.Filters!.ProjectId);
                 if (SearchId != null)
                     baseQuery = baseQuery.Where(e => e.GroupId.Contains(SearchId.GroupId));
 
@@ -154,7 +154,39 @@ namespace WebAPI.Controllers.ProjectGroup
             }
         }
         #endregion
-        #region Delete Project Group
+        #region Add Project
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> SearchProject([FromBody] SearchProjectDTO dto)
+        {
+            try
+            {
+                var CheckName = await _db.vProjectsInGroup.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId);
+                if (CheckName != null)
+                {
+                    return new BadRequestObjectResult(
+                    new {
+                        Title = "Project Already Grouped",
+                        Message = "This project is already assigned to a group. Please remove it from the current group before reassigning."
+                    });
+                }
+                var CheckProject = await _db.vProjects.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId);
+                if (CheckProject == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Not Found" });
+                }
+                return Ok(new
+                {
+                    Project = CheckProject
+                });
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
+        #endregion
+        #region Delete Project
         [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> DeleteProjectGroup([FromBody] DeleteProjectGroupDTO dto)
@@ -167,11 +199,12 @@ namespace WebAPI.Controllers.ProjectGroup
                 {
                     return new BadRequestObjectResult(new { Message = "Project Group not found!", Title = "Not Found" });
                 }
-                var ExistingProjects = await _db.tProjectInGroups
+                var ExistingProjects = await _db.tProjectsInGroup
                     .AsNoTracking()
                     .Where(x => x.GroupId == dto.GroupId)
                     .ToListAsync();
                 var transactionLogs = new List<TransactionLog>();
+                DateTime CurrentDate = DateTime.UtcNow;
                 transactionLogs.Add(new TransactionLog
                 {
                     TransactionId = dto.GroupId,
@@ -181,7 +214,7 @@ namespace WebAPI.Controllers.ProjectGroup
                     NewValue = "",
                     OldValue = JsonConvert.SerializeObject(CheckName),
                     CreatedBy = _Session.UserId,
-                    CreatedDate = DateTime.UtcNow
+                    CreatedDate = CurrentDate
                 });
                 _db.tProjectGroups.Remove(CheckName);
                 if (ExistingProjects.Count > 0)
@@ -192,22 +225,21 @@ namespace WebAPI.Controllers.ProjectGroup
                         {
                             TransactionId = dto.GroupId,
                             TypeOfTransaction = "Delete",
-                            AffectedTable = "tProjectInGroups",
+                            AffectedTable = "tProjectsInGroup",
                             AffectedColumn = "ProjectId",
                             NewValue = "",
                             OldValue = JsonConvert.SerializeObject(project),
                             CreatedBy = _Session.UserId,
-                            CreatedDate = DateTime.UtcNow
+                            CreatedDate = CurrentDate
                         });
                     }
                 }
-                _db.tProjectInGroups.RemoveRange(ExistingProjects);
+                _db.tProjectsInGroup.RemoveRange(ExistingProjects);
                 await _db.tTransactionLog.AddRangeAsync(transactionLogs);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
                 return Ok(new
                 {
-                    //NewGroupId = NewGroup.GroupId,
                     Message = "Project Group deleted successfully",
                     Title = "Delete Complete"
                 });
@@ -237,15 +269,17 @@ namespace WebAPI.Controllers.ProjectGroup
                 {
                     return new BadRequestObjectResult(new { Message = "Project Group not found!", Title = "Not Found" });
                 }
-                var ProjectDetails = await _db.tProjectInGroups.AsNoTracking().Select(x => x.ProjectId).ToListAsync();
+                var ProjectDetails = await _db.tProjectsInGroup.AsNoTracking().Select(x => x.ProjectId).ToListAsync();
                 var ProjectList = await _db.vProjects
                     .AsNoTracking()
                     .Where(x => ProjectDetails.Contains(x.ProjectId))
                     .ToListAsync();
+                var UserGroup = await _db.tGroups.ToListAsync();
                 return Ok(new
                 {
                     GroupDetails = GroupDetail,
-                    Projects = ProjectList
+                    Projects = ProjectList,
+                    UserGroups = UserGroup
                 });
             }
             catch (Exception ex)
@@ -331,7 +365,7 @@ namespace WebAPI.Controllers.ProjectGroup
                 #endregion
                 #region Update Projects
                 bool hasChangesInProjects = false;
-                var ExistingProjects = await _db.tProjectInGroups
+                var ExistingProjects = await _db.tProjectsInGroup
                     .AsNoTracking()
                     .Where(x => x.GroupId == GroupDetail.GroupId)
                     .ToListAsync();
@@ -353,14 +387,14 @@ namespace WebAPI.Controllers.ProjectGroup
                         {
                             TransactionId = GroupDetail.GroupId!,
                             TypeOfTransaction = "Delete",
-                            AffectedTable = "tProjectInGroups",
-                            AffectedColumn = "ProjectId",
+                            AffectedTable = "tProjectsInGroup",
+                            AffectedColumn = "Row",
                             NewValue = "",
                             OldValue = JsonConvert.SerializeObject(project),
                             CreatedBy = _Session.UserId,
                             CreatedDate = CurrentDate
                         });
-                        _db.tProjectInGroups.Remove(project);
+                        _db.tProjectsInGroup.Remove(project);
                     }
                 }
                 if (NewProjectIds.Count > 0)
@@ -374,21 +408,12 @@ namespace WebAPI.Controllers.ProjectGroup
                         if (!ExistingProjectIds.Contains(project.ProjectId))
                         {
                             hasChangesInProjects = true;
-                            transactionLogs.Add(new TransactionLog
-                            {
-                                TransactionId = GroupDetail.GroupId!,
-                                TypeOfTransaction = "Insert",
-                                AffectedTable = "tProjectInGroups",
-                                AffectedColumn = "ProjectId",
-                                NewValue = project.ProjectId,
-                                OldValue = "",
-                                CreatedBy = _Session.UserId,
-                                CreatedDate = CurrentDate
-                            });
-                            _db.tProjectInGroups.Add(new DBHelper.Models.Table.ProjectInGroups
+                            _db.tProjectsInGroup.Add(new DBHelper.Models.Table.ProjectsInGroup
                             {
                                 GroupId = GroupDetail.GroupId!,
-                                ProjectId = project.ProjectId
+                                ProjectId = project.ProjectId,
+                                CreatedBy = _Session.UserId,
+                                CreatedDate = CurrentDate
                             });
                         }
                     }

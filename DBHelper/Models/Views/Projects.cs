@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace DBHelper.Models.Views
 {
-    public class Projects
+    public class ProjectsInGroup
     {
         public int Id { get; set; }
         public string ProgramId { get; set; } = string.Empty;
