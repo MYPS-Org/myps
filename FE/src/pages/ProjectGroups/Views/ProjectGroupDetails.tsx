@@ -376,6 +376,7 @@ const ProjectGroupDetails: React.FC = () => {
           isOpen={isAddProjectOpen}
           onClose={handleCloseDialog}
           onSubmit={handleAddProjects}
+          groupId={projectGroupDetails.GroupDetails.GroupId}
         />
         {/* Delete Project Dialog */}
         <DeleteProjectDialog

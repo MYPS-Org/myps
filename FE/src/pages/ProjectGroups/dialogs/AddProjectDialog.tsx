@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { MagnifyingGlassIcon, XMarkIcon, PlusIcon } from '@heroicons/react/24/outline';
-import { fetchProjectById } from '../Service';
+import { addProjectToGroup, fetchProjectById } from '../Service';
 import type { ProjectList } from '../Model';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
 
@@ -10,12 +10,14 @@ interface AddProjectDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (projects: ProjectList[]) => void;
+  groupId?: string;
 }
 
 const AddProjectDialog: React.FC<AddProjectDialogProps> = ({
   isOpen,
   onClose,
-  onSubmit
+  onSubmit,
+  groupId
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<ProjectList | null>(null);
@@ -46,7 +48,8 @@ const AddProjectDialog: React.FC<AddProjectDialogProps> = ({
     try {
       const response = await fetchProjectById(searchTerm);
       // API returns a single project object for exact ProjectId search
-      setSearchResults(response.Data);
+      console.log('Search response:', response.Data);
+      setSearchResults(response.Data.Project);
     } catch (error) {
       console.error('Error searching projects:', error);
       setSearchResults(null);
@@ -68,8 +71,10 @@ const AddProjectDialog: React.FC<AddProjectDialogProps> = ({
   // Add project to selected list
   const handleAddProject = (project: ProjectList) => {
     // Check if project is already selected
-    if (!selectedProjects.find(p => p.Id === project.Id)) {
-      setSelectedProjects(prev => [...prev, project]);
+    console.log('Adding project:', project);
+    if (!selectedProjects.find(p => p.Id === project.ProjectId)) {
+      console.log('Project added:', project.ProjectId);
+      setSelectedProjects(prev => [...prev, { ProjectId: project.ProjectId, GroupId: groupId }]);
     }
   };
 
@@ -86,7 +91,13 @@ const AddProjectDialog: React.FC<AddProjectDialogProps> = ({
       try {
         // Note: updateProjectDetails expects different format, 
         // so we'll let the parent component handle the API call
-        onSubmit(selectedProjects);
+        // await addProjectToGroup(selecte)
+        console.log('Submitting selected projects:', selectedProjects);
+        await addProjectToGroup({
+          ProjectId: selectedProjects.map(p => p.ProjectId).join(','),
+          GroupId: groupId ?? ''
+        });
+        // onSubmit(selectedProjects);
         onClose();
       } catch (error) {
         console.error('Error submitting projects:', error);
@@ -138,7 +149,7 @@ const AddProjectDialog: React.FC<AddProjectDialogProps> = ({
                     placeholder="Search projects by ID or name..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    onKeyPress={handleKeyPress}
+                    // onKeyPress={handleKeyPress}
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
@@ -180,32 +191,40 @@ const AddProjectDialog: React.FC<AddProjectDialogProps> = ({
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                          <tr key={searchResults.Id} className="hover:bg-gray-50">
-                            <td className="px-4 py-3 text-sm font-medium text-blue-600">
-                              {searchResults.ProjectId}
-                            </td>
-                            <td className="px-4 py-3 text-sm text-gray-900">
-                              <div>
-                                <div className="font-medium">{searchResults.Description || 'N/A'}</div>
-                                <div className="text-gray-500 text-xs truncate max-w-xs">
-                                  {searchResults.ProgramName}
+                          {searchResults ? (
+                            <tr key={searchResults.Id} className="hover:bg-gray-50">
+                              <td className="px-4 py-3 text-sm font-medium text-blue-600">
+                                {searchResults.ProjectId}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-900">
+                                <div>
+                                  <div className="font-medium">{searchResults.Description || 'N/A'}</div>
+                                  <div className="text-gray-500 text-xs truncate max-w-xs">
+                                    {searchResults.ProgramName}
+                                  </div>
                                 </div>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-sm text-gray-900">
-                              N/A
-                            </td>
-                            <td className="px-4 py-3 text-sm">
-                              <Button
-                                color="green"
-                                onClick={() => handleAddProject(searchResults)}
-                                disabled={selectedProjects.some(p => p.Id === searchResults.Id)}
-                              >
-                                <PlusIcon className="w-4 h-4 mr-1" />
-                                {selectedProjects.some(p => p.Id === searchResults.Id) ? 'Added' : 'Add'}
-                              </Button>
-                            </td>
-                          </tr>
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-900">
+                                N/A
+                              </td>
+                              <td className="px-4 py-3 text-sm">
+                                <Button
+                                  color="green"
+                                  onClick={() => handleAddProject(searchResults)}
+                                  disabled={selectedProjects.some(p => p.ProjectId === searchResults.ProjectId)}
+                                >
+                                  <PlusIcon className="w-4 h-4 mr-1" />
+                                  {selectedProjects.some(p => p.ProjectId === searchResults.ProjectId) ? 'Added' : 'Add'}
+                                </Button>
+                              </td>
+                            </tr>
+                          ) : (
+                            <tr>
+                              <td colSpan={4} className="px-4 py-3 text-center text-sm text-gray-500">
+                                No valid project data found.
+                              </td>
+                            </tr>
+                          )}
                         </tbody>
                       </table>
                     </div>
@@ -235,12 +254,6 @@ const AddProjectDialog: React.FC<AddProjectDialogProps> = ({
                                     Project
                                 </TableHeader>
                                 <TableHeader className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Description
-                                </TableHeader>
-                                <TableHeader className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Details
-                                </TableHeader>
-                                <TableHeader className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Action
                                 </TableHeader>
                             </TableRow>
@@ -250,14 +263,6 @@ const AddProjectDialog: React.FC<AddProjectDialogProps> = ({
                                 <TableRow key={project.Id} className="hover:bg-gray-50">
                                     <TableCell className="px-4 py-3 text-sm font-medium text-blue-600">
                                         {project.ProjectId}
-                                    </TableCell>
-                                    <TableCell className="px-4 py-3 text-sm text-gray-900">
-                                        <div className="truncate max-w-xs">
-                                            {project.Description || 'N/A'}
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="px-4 py-3 text-sm text-gray-900">
-                                        {project.Description || 'N/A'}
                                     </TableCell>
                                     <TableCell className="px-4 py-3 text-sm">
                                         <Button
