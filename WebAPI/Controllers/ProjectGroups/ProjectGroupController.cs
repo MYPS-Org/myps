@@ -1,19 +1,12 @@
 ﻿using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Table;
-using DBHelper.Models.Views;
 using Helpers;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Components.Endpoints;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Scaffolding.Metadata;
-using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
-using System.Data.SqlClient;
 using System.Reflection;
-using System.Xml;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 namespace WebAPI.Controllers.ProjectGroup
 {
     [ApiController]
@@ -154,39 +147,7 @@ namespace WebAPI.Controllers.ProjectGroup
             }
         }
         #endregion
-        #region Add Project
-        [AllowAnonymous]
-        [HttpPost]
-        public async Task<IActionResult> SearchProject([FromBody] SearchProjectDTO dto)
-        {
-            try
-            {
-                var CheckName = await _db.vProjectsInGroup.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId);
-                if (CheckName != null)
-                {
-                    return new BadRequestObjectResult(
-                    new {
-                        Title = "Project Already Grouped",
-                        Message = "This project is already assigned to a group. Please remove it from the current group before reassigning."
-                    });
-                }
-                var CheckProject = await _db.vProjects.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId);
-                if (CheckProject == null)
-                {
-                    return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Not Found" });
-                }
-                return Ok(new
-                {
-                    Project = CheckProject
-                });
-            }
-            catch (Exception ex)
-            {
-                return ExceptionHandler(ex);
-            }
-        }
-        #endregion
-        #region Delete Project
+        #region Delete Project Group
         [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> DeleteProjectGroup([FromBody] DeleteProjectGroupDTO dto)
@@ -195,7 +156,7 @@ namespace WebAPI.Controllers.ProjectGroup
             try
             {
                 var CheckName = await _db.tProjectGroups.AsNoTracking().FirstOrDefaultAsync(x => x.GroupId == dto.GroupId);
-                if(CheckName == null)
+                if (CheckName == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Project Group not found!", Title = "Not Found" });
                 }
@@ -241,6 +202,128 @@ namespace WebAPI.Controllers.ProjectGroup
                 return Ok(new
                 {
                     Message = "Project Group deleted successfully",
+                    Title = "Delete Complete"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
+        #endregion
+        #region Add Project
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> SearchProject([FromBody] SearchProjectDTO dto)
+        {
+            try
+            {
+                var CheckName = await _db.vProjectsInGroup.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId);
+                if (CheckName != null)
+                {
+                    return new BadRequestObjectResult(
+                    new {
+                        Title = "Project Already Grouped",
+                        Message = "This project is already assigned to a group. Please remove it from the current group before reassigning."
+                    });
+                }
+                var CheckProject = await _db.vProjects.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId);
+                if (CheckProject == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Not Found" });
+                }
+                return Ok(new
+                {
+                    Project = CheckProject
+                });
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> AddProject([FromBody] ProjectGroupAddProjectDTO dto)
+        {
+            var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var CheckName = await _db.vProjectsInGroup.AsNoTracking().Where(x => dto.ProjectId.Contains(x.ProjectId)).ToListAsync();
+                if (CheckName != null)
+                {
+                    string joinedProjectIds = string.Join(", ", CheckName.Select(x => x.ProjectId));
+                    return new BadRequestObjectResult(
+                    new
+                    {
+                        Title = "Project Already Grouped",
+                        Message = $"Projects {joinedProjectIds} is already assigned to a group. Please remove it from the current group before reassigning."
+                    });
+                }
+                var CheckProjects = await _db.tProjects
+                    .AsNoTracking()
+                    .Where(x => dto.ProjectId.Contains(x.ProjectId))
+                    .ToListAsync();
+                var CheckMissingProjects = dto.ProjectId.Except(CheckProjects.Select(x => x.ProjectId)).ToList();
+                if (CheckMissingProjects.Count > 0)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Projects {string.Join(", ", CheckMissingProjects)} not found!", Title = "Not Found" });
+                }
+                if (CheckProjects.Count < 1)
+                {
+                    return new BadRequestObjectResult(new { Message = $"No Projects not found!", Title = "Not Found" });
+                }
+                await _db.tProjectsInGroup.AddRangeAsync(CheckProjects.Select(x =>
+                {
+                    return new DBHelper.Models.Table.ProjectsInGroup
+                    {
+                        GroupId = dto.GroupId,
+                        ProjectId = x.ProjectId,
+                        CreatedBy = _Session.UserId ?? "TEST",
+                        CreatedDate = DateTime.UtcNow
+                    };
+                }));
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return Ok(new
+                {
+                    Message = "Project(s) added to group successfully",
+                    Title = "Add Complete"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> DeleteProject([FromBody] ProjectGroupDeleteProjectDTO dto)
+        {
+            var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var CheckName = await _db.vProjectsInGroup.AsNoTracking().FirstOrDefaultAsync(x => dto.ProjectId == x.ProjectId);
+                if (CheckName == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Project not found in group!", Title = "Not Found" });
+                }
+                var CheckProjects = await _db.tProjects.AsNoTracking().FirstOrDefaultAsync(x => dto.ProjectId == x.ProjectId);
+                if (CheckProjects == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Project not found! Please contact administrator", Title = "Not Found" });
+                }
+                var ExistingProject = await _db.tProjectsInGroup
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId);
+                _db.tProjectsInGroup.Remove(ExistingProject!);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return Ok(new
+                {
+                    Message = "Project removed from group successfully",
                     Title = "Delete Complete"
                 });
             }
@@ -363,63 +446,7 @@ namespace WebAPI.Controllers.ProjectGroup
                     GroupDetail.UserGroup = dto.GroupDetails!.UserGroup;
                 }
                 #endregion
-                #region Update Projects
-                bool hasChangesInProjects = false;
-                var ExistingProjects = await _db.tProjectsInGroup
-                    .AsNoTracking()
-                    .Where(x => x.GroupId == GroupDetail.GroupId)
-                    .ToListAsync();
-                var ExistingProjectIds = ExistingProjects.Select(x => x.ProjectId).ToList();
-                var NewProjectIds = dto.Projects.Select(x => x.ProjectId).ToList();
-                // Remove projects that are no longer in the list
-                var projectsToRemove = ExistingProjects
-                    .Where(x => !NewProjectIds.Contains(x.ProjectId))
-                    .ToList();
-                var projectsToAdd = ExistingProjectIds
-                    .Where(x => !NewProjectIds.Contains(x))
-                    .ToList();
-                if (projectsToRemove.Count > 0)
-                {
-                    hasChangesInProjects = true;
-                    foreach (var project in projectsToRemove)
-                    {
-                        transactionLogs.Add(new TransactionLog
-                        {
-                            TransactionId = GroupDetail.GroupId!,
-                            TypeOfTransaction = "Delete",
-                            AffectedTable = "tProjectsInGroup",
-                            AffectedColumn = "Row",
-                            NewValue = "",
-                            OldValue = JsonConvert.SerializeObject(project),
-                            CreatedBy = _Session.UserId,
-                            CreatedDate = CurrentDate
-                        });
-                        _db.tProjectsInGroup.Remove(project);
-                    }
-                }
-                if (NewProjectIds.Count > 0)
-                {
-                    var projectsToAddDetails = await _db.tProjects
-                        .AsNoTracking()
-                        .Where(x => NewProjectIds.Contains(x.ProjectId))
-                        .ToListAsync();
-                    foreach (var project in projectsToAddDetails)
-                    {
-                        if (!ExistingProjectIds.Contains(project.ProjectId))
-                        {
-                            hasChangesInProjects = true;
-                            _db.tProjectsInGroup.Add(new DBHelper.Models.Table.ProjectsInGroup
-                            {
-                                GroupId = GroupDetail.GroupId!,
-                                ProjectId = project.ProjectId,
-                                CreatedBy = _Session.UserId,
-                                CreatedDate = CurrentDate
-                            });
-                        }
-                    }
-                }
-                #endregion
-                if (hasChangesInDetails || hasChangesInProjects)
+                if (hasChangesInDetails)
                 {
                     if (hasChangesInDetails) { _db.tProjectGroups.Update(GroupDetail); }
                     await _db.tTransactionLog.AddRangeAsync(transactionLogs);

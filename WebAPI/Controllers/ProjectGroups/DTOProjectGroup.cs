@@ -3,6 +3,7 @@ using DBHelper.Models.Table;
 using DBHelper.Models.Views;
 using Eaf.Webhooks;
 using System.ComponentModel.DataAnnotations;
+using System.Security;
 
 namespace WebAPI.Controllers.ProjectGroup
 {
@@ -26,15 +27,27 @@ namespace WebAPI.Controllers.ProjectGroup
         [Required]
         public int UserGroup { get; set; }
     }
+    public class DeleteProjectGroupDTO
+    {
+        [Required]
+        public string GroupId { get; set; } = string.Empty;
+    }
     public class SearchProjectDTO
     {
         [Required]
         public string ProjectId { get; set; } = string.Empty;
     }
-    public class DeleteProjectGroupDTO
+    public class ProjectGroupAddProjectDTO
     {
         [Required]
         public string GroupId { get; set; } = string.Empty;
+        [Required]
+        public string[] ProjectId { get; set; } = Array.Empty<string>();
+    }
+    public class ProjectGroupDeleteProjectDTO
+    {
+        [Required]
+        public string ProjectId { get; set; } = string.Empty;
     }
     public class ShowProjectGroupDetailsDTO
     {
