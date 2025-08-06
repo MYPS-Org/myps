@@ -1,6 +1,6 @@
 "use-client";
 import React, { useState, useEffect } from 'react';
-import { useParams, /*useNavigate*/ } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 
 import type { ProjectGroupDetailsModel, updateProjectGroupModel, ProjectList } from '../Model.d'; // Adjust the import path as necessary
 import { Button } from '../../../components/tailwindui/button';
@@ -14,7 +14,7 @@ import { TrashIcon } from '@heroicons/react/24/outline';
 // Mock projects data for the table
 const ProjectGroupDetails: React.FC = () => {
   const { groupId } = useParams<{ groupId: string }>();
-  // const navigate = useNavigate();
+  const navigate = useNavigate();
   const [projectGroupDetails, setProjectGroupDetails] = useState<ProjectGroupDetailsModel>({
     GroupDetails: {
         Id: 0,
@@ -98,22 +98,6 @@ const ProjectGroupDetails: React.FC = () => {
   // const handleBack = () => {
   //   navigate('/project-groups');
   // };
-
-  const handleReset = () => {
-    setFormData({
-      GroupDetails: {
-        Id: 0,
-        GroupId: '',
-        Name: '',
-        Description: '',
-        UserGroup: 0,
-        UserGroupName: '',
-        CreatedBy: '',
-        CreatedDate: ''
-      },
-      Projects: []
-    });
-  };
 
   const handleChange = (field: keyof ProjectGroupDetailsModel['GroupDetails'], value: any) => {
     setFormData(prev => ({
@@ -339,8 +323,8 @@ const ProjectGroupDetails: React.FC = () => {
                 {projectGroupDetails.Projects?.map((project) => (
                     <TableRow key={project.Id} className="hover:bg-gray-50">
                       <TableCell className="px-6 py-4 whitespace-nowrap">
-                          <button className="text-blue-600 hover:text-blue-800 font-medium">
-                          {project.ProjectId}
+                          <button className="text-blue-600 hover:text-blue-800 font-medium" onClick={() => navigate(`/projects/project-details/${project.ProjectId}`)}>
+                            {project.ProjectId}
                           </button>
                       </TableCell>
                       <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">

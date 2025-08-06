@@ -97,7 +97,7 @@ function App() {
 								} 
 							/>
 							<Route 
-								path="/projects/Edit/:id" 
+								path="/projects/project-details/:id" 
 								element={
 									<ProtectedRoute>
 										<EditProject />
