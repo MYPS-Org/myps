@@ -87,6 +87,18 @@ const Program: React.FC = () => {
         }
     };
 
+    // Helper function to map status numbers to strings
+    const getStatusString = (statusId: number): string => {
+        const statusMap: { [key: number]: string } = {
+            1: 'Working',
+            2: 'Approved', 
+            3: 'Pending',
+            4: 'Rejected',
+            5: 'Proposed'
+        };
+        return statusMap[statusId] || 'Unknown';
+    };
+
     // Helper function to render status badge
     const getStatusBadge = (status: string) => {
         const statusColors = {
@@ -238,7 +250,7 @@ const Program: React.FC = () => {
                                     </div>
                                 </TableCell>
                                 <TableCell>
-                                    {getStatusBadge(program.Status || '')}
+                                    {getStatusBadge(getStatusString(program.Status ?? 0))}
                                 </TableCell>
                                 <TableCell>
                                     {program.StageName}
@@ -275,52 +287,55 @@ const Program: React.FC = () => {
                                         <div className="px-8 py-6">
                                             <div className="flex items-center justify-between mb-4">
                                                 <h4 className="text-sm font-semibold text-gray-900">
-                                                    Projects under "{program.Name}"
+                                                    Program Stages under "{program.Name}"
                                                 </h4>
                                                 <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded-full border">
-                                                    {getSampleChildData(program.ProgramId || '').length} projects
+                                                    {program.Stages?.length || 0} stages
                                                 </span>
                                             </div>
                                             <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
                                                 <Table className="mb-0">
                                                     <TableHead>
                                                         <TableRow>
-                                                            <TableHeader className="text-xs">Project Name</TableHeader>
+                                                            <TableHeader className="text-xs">Stage Name</TableHeader>
                                                             <TableHeader className="text-xs">Status</TableHeader>
-                                                            <TableHeader className="text-xs">Start Date</TableHeader>
-                                                            <TableHeader className="text-xs">End Date</TableHeader>
-                                                            <TableHeader className="text-xs">Budget</TableHeader>
+                                                            <TableHeader className="text-xs">Type</TableHeader>
+                                                            <TableHeader className="text-xs">Start Year</TableHeader>
+                                                            <TableHeader className="text-xs">End Year</TableHeader>
+                                                            <TableHeader className="text-xs">Cost</TableHeader>
                                                             <TableHeader className="text-xs">Actions</TableHeader>
                                                         </TableRow>
                                                     </TableHead>
                                                     <TableBody>
-                                                        {getSampleChildData(program.ProgramId || '').map((project) => (
-                                                            <TableRow key={project.id}>
-                                                                <TableCell className="font-medium text-sm">{project.name}</TableCell>
+                                                        {program.Stages?.map((stage) => (
+                                                            <TableRow key={stage.Id}>
+                                                                <TableCell className="font-medium text-sm">{stage.Name}</TableCell>
                                                                 <TableCell>
-                                                                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${
-                                                                        project.status === 'Completed' 
-                                                                            ? 'bg-green-100 text-green-800 border-green-200' 
-                                                                            : project.status === 'In Progress'
-                                                                            ? 'bg-blue-100 text-blue-800 border-blue-200'
-                                                                            : 'bg-yellow-100 text-yellow-800 border-yellow-200'
-                                                                    }`}>
-                                                                        {project.status}
-                                                                    </span>
+                                                                    {getStatusBadge(stage.Status || 'Unknown')}
                                                                 </TableCell>
-                                                                <TableCell className="text-sm text-gray-600">{project.startDate}</TableCell>
-                                                                <TableCell className="text-sm text-gray-600">{project.endDate}</TableCell>
-                                                                <TableCell className="text-sm font-medium">{project.budget}</TableCell>
+                                                                <TableCell className="text-sm text-gray-600">{stage.Type}</TableCell>
+                                                                <TableCell className="text-sm text-gray-600">{stage.YearStart}</TableCell>
+                                                                <TableCell className="text-sm text-gray-600">{stage.YearEnd}</TableCell>
+                                                                <TableCell className="text-sm font-medium">
+                                                                    {stage.Cost ? `$${stage.Cost.toLocaleString()}` : 'N/A'}
+                                                                </TableCell>
                                                                 <TableCell>
                                                                     <Button 
                                                                         color="blue"
                                                                         className="text-xs px-3 py-1.5"
+                                                                        onClick={() => handleViewDetails(stage.ProgramId)}
                                                                     >
                                                                         View Details
                                                                     </Button>
                                                                 </TableCell>
                                                             </TableRow>
-                                                        ))}
+                                                        )) || (
+                                                            <TableRow>
+                                                                <TableCell colSpan={7} className="text-center py-4 text-gray-500">
+                                                                    No stages available for this program
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        )}
                                                     </TableBody>
                                                 </Table>
                                             </div>
@@ -419,7 +434,7 @@ const Program: React.FC = () => {
                 <DeleteProgramDialog
                     isOpen={isDeleteProgramOpen}
                     onClose={() => setIsDeleteProgramOpen(false)}
-                    program={ProgramData.lists?.find((program: any) => program.ProgramId === selectedProgram)!} // Pass the selected program or an empty object
+                    program={ProgramData.lists?.find((program: any) => program.ProgramId === selectedProgram) as any} // Cast to match expected type
                     onSubmit={(programId: any) => {
                         setProgramData(prev => ({
                             ...prev,

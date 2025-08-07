@@ -36,7 +36,7 @@ export interface ParentProgram {
 	CreatedDate: string;
 	UpdatedBy?: string;
 	UpdatedDate?: string;
-	Stages: ProgramDetails[];
+	Stages: ProgramList[];
 }
 
 export interface ProgramDetails {
