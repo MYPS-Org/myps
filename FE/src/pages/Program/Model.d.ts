@@ -20,22 +20,20 @@ export interface ProgramEnums {
 
 export interface ParentProgram {
 	Id: number;
+	RevisionId: number;
 	ProgramId: string;
-	RevisionNumber: number;
-	Name: string;
-	StageId: number;
 	StageName: string;
-	UserGroup: number;
+	Name: string;
+	GroupName?: string;
 	RegionCode: string;
-	Status: number;
-	Type: number;
+	Status?: string;
+	Type?: string;
 	Cost?: number;
 	YearStart: number;
 	YearEnd: number;
 	CreatedBy: string;
 	CreatedDate: string;
-	UpdatedBy?: string;
-	UpdatedDate?: string;
+	IsPublished: boolean;
 	Stages: ProgramList[];
 }
 

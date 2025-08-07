@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 const ProgramDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [nextStageName, setNextStageName] = useState<string | null>(null);
   const [programEnums, setProgramEnums] = useState<ProgramDetailsEnums>({
     Details: {
       	Id: 0,
@@ -75,6 +76,10 @@ const ProgramDetail: React.FC = () => {
       try {
         if (id) {
           await fetchProgramDetail(id);
+
+          const getCurrentStageIndex = programEnums?.Dropdowns.Stages.findIndex(stage => stage.Id === programEnums?.Details.StageId);
+          const newStageId = getCurrentStageIndex !== -1 ? programEnums?.Dropdowns.Stages[getCurrentStageIndex + 1]?.Id : null;
+          setNextStageName(programEnums?.Dropdowns.Stages.find(stage => stage.Id === newStageId)?.Name || null);
         }
       } catch (error) {
         console.error('Error fetching program details:', error);
@@ -123,6 +128,20 @@ const ProgramDetail: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  const handleProceed = async () => {
+    setIsLoading(true);
+    try {
+      await editProgram(programEnums?.Details);
+      console.log('Proceed with program details');
+      await fetchProgramDetail(programEnums?.Details.ProgramId);
+    } catch (error) {
+      console.error('Error proceeding with program details:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
 
   if (isLoading) {
     return (
@@ -271,7 +290,10 @@ const ProgramDetail: React.FC = () => {
               </div>
             </div>
 
-            <div className="pt-4 text-right">
+            <div className="pt-4 flex justify-end gap-4">
+              <Button color="green" className="w-24" onClick={handleProceed}>
+                Proceed to {nextStageName}
+              </Button>
               <Button color="green" className="w-24" onClick={handleUpdate}>
                 Update
               </Button>
@@ -356,11 +378,8 @@ const ProgramDetail: React.FC = () => {
                 <TableRow key={project.Id} className="hover:bg-gray-50">
                   <TableCell className="px-6 py-4 whitespace-nowrap">
                     <button className="text-blue-600 hover:text-blue-800 font-medium">
-                      {project.Id}
+                      {project.ProjectId}
                     </button>
-                  </TableCell>
-                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {project.ProjectId}
                   </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {project.Category}
@@ -394,6 +413,9 @@ const ProgramDetail: React.FC = () => {
                   </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {project.CreatedBy}
+                  </TableCell>
+                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {project.CreatedDate.StringToDate()}
                   </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {project.CreatedDate.StringToDate()}

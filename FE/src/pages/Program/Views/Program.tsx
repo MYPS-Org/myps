@@ -250,7 +250,7 @@ const Program: React.FC = () => {
                                     </div>
                                 </TableCell>
                                 <TableCell>
-                                    {getStatusBadge(getStatusString(program.Status ?? 0))}
+                                    {getStatusBadge(program.Status || '')}
                                 </TableCell>
                                 <TableCell>
                                     {program.StageName}
