@@ -184,7 +184,7 @@ const Program: React.FC = () => {
                             </div>
                         </div>
                     </div>
-                <Table className="px-5">
+                <Table className="px-5" striped>
                     <TableHead>
                     <TableRow>
                         <TableHeader>Name</TableHeader>
@@ -198,45 +198,47 @@ const Program: React.FC = () => {
                     </TableHead>
                     <TableBody>
                     {ProgramData.lists.map((program, idx) => (
+                        <>
                         <TableRow key={`${program.Id}-${idx}`}>
-                        <TableCell>
-                            <button 
-                                onClick={() => handleViewDetails(program.ProgramId)}
-                                className="text-blue-600 hover:text-blue-800 font-medium hover:underline"
-                            >
-                                {program.Name}
-                            </button>
-                        </TableCell>
-                        <TableCell>
-                            {getStatusBadge(program.Status || '')}
-                        </TableCell>
-                        <TableCell>
-                            {program.StageName}
-                        </TableCell>
-                        <TableCell>
-                            {program.Type}
-                        </TableCell>
-                        <TableCell>
-                            {program.YearStart}
-                        </TableCell>
-                        <TableCell>
-                            {program.YearEnd}
-                        </TableCell>
-                        <TableCell>
-                            <div className="flex items-center space-x-1">
-                                <Button 
-                                    color="orange"
+                            <TableCell>
+                                <button 
                                     onClick={() => handleViewDetails(program.ProgramId)}
-                                    className="text-xs px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded"
+                                    className="text-blue-600 hover:text-blue-800 font-medium hover:underline"
                                 >
-                                    Validate
-                                </Button>
-                                <Button color="red" onClick={() => {setIsDeleteProgramOpen(true); setSelectedProgram(program.ProgramId);}} className="text-xs px-3 py-1.5 bg-red-500 hover:bg-red-600 rounded">
-                                    <TrashIcon stroke='white' className="h-5 w-5 text-gray-900" />
-                                </Button>
-                            </div>
-                        </TableCell>
+                                    {program.Name}
+                                </button>
+                            </TableCell>
+                            <TableCell>
+                                {getStatusBadge(program.Status || '')}
+                            </TableCell>
+                            <TableCell>
+                                {program.StageName}
+                            </TableCell>
+                            <TableCell>
+                                {program.Type}
+                            </TableCell>
+                            <TableCell>
+                                {program.YearStart}
+                            </TableCell>
+                            <TableCell>
+                                {program.YearEnd}
+                            </TableCell>
+                            <TableCell>
+                                <div className="flex items-center space-x-1">
+                                    <Button 
+                                        color="orange"
+                                        onClick={() => handleViewDetails(program.ProgramId)}
+                                        className="text-xs px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded"
+                                    >
+                                        Validate
+                                    </Button>
+                                    <Button color="red" onClick={() => {setIsDeleteProgramOpen(true); setSelectedProgram(program.ProgramId);}} className="text-xs px-3 py-1.5 bg-red-500 hover:bg-red-600 rounded">
+                                        <TrashIcon stroke='white' className="h-5 w-5 text-gray-900" />
+                                    </Button>
+                                </div>
+                            </TableCell>
                         </TableRow>
+                        </>
                     ))}
                     </TableBody>
                 </Table>

@@ -1,7 +1,7 @@
 import type { ProjectLists } from "../Project/Model";
 
 export interface ProgramModel {
-  Id: number,
+	Id: number;
 	Stage: number;
 	Status: number;
 	Type: number;
