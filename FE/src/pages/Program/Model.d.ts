@@ -18,6 +18,27 @@ export interface ProgramEnums {
 	Description: string;
 }
 
+export interface ParentProgram {
+	Id: number;
+	ProgramId: string;
+	RevisionNumber: number;
+	Name: string;
+	StageId: number;
+	StageName: string;
+	UserGroup: number;
+	RegionCode: string;
+	Status: number;
+	Type: number;
+	Cost?: number;
+	YearStart: number;
+	YearEnd: number;
+	CreatedBy: string;
+	CreatedDate: string;
+	UpdatedBy?: string;
+	UpdatedDate?: string;
+	Stages: ProgramDetails[];
+}
+
 export interface ProgramDetails {
 	Id: number;
 	ProgramId: string;

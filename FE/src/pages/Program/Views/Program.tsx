@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchProgram, fetchProgramEnums } from '../Service'; // Adjust the import path as necessary
-import type { ProgramEnums, ProgramList, ProgramPagination, } from '../Model.d'; // Adjust the import path as necessary
+import type { ProgramEnums, ParentProgram, ProgramPagination, } from '../Model.d'; // Adjust the import path as necessary
 import { Pagination, PaginationPrevious, PaginationNext, PaginationPage, PaginationList } from '../../../components/tailwindui/pagination'; // Adjust the import path as necessary
 
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '../../../components/tailwindui/table'; // Adjust the import path as necessary
@@ -15,7 +15,9 @@ import { Button } from '../../../components/tailwindui/button'; // Adjust the im
 import { 
     PlusIcon, 
     MagnifyingGlassIcon,
-    TrashIcon
+    TrashIcon,
+    ChevronDownIcon,
+    ChevronRightIcon
 } from '@heroicons/react/24/outline'; // Adjust the import path as necessary
 
 const Program: React.FC = () => {
@@ -31,6 +33,7 @@ const Program: React.FC = () => {
     const [isAddProgramOpen, setIsAddProgramOpen] = useState(false);
     const [isDeleteProgramOpen, setIsDeleteProgramOpen] = useState(false);
     const [selectedProgram, setSelectedProgram] = useState<string | null>(); // Initialize with an empty string or a default value
+    const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set()); // Track expanded rows
 
     useEffect(() => {
         const getPrograms = async () => {
@@ -47,7 +50,7 @@ const Program: React.FC = () => {
         getPrograms();
     }, []);
 
-    const [ProgramData, setProgramData] = useState<PaginationResponse<ProgramList>>({
+    const [ProgramData, setProgramData] = useState<PaginationResponse<ParentProgram>>({
         total: 0,
         page: 1,
         limit: 10,
@@ -103,6 +106,26 @@ const Program: React.FC = () => {
         );
     };
 
+    const handleDropDownTable = async (programId?: string) => {
+        try {
+            if (programId) {
+                // Toggle the expanded state for this row
+                setExpandedRows(prev => {
+                    const newExpanded = new Set(prev);
+                    if (newExpanded.has(programId)) {
+                        newExpanded.delete(programId);
+                    } else {
+                        newExpanded.add(programId);
+                    }
+                    return newExpanded;
+                });
+                console.log('toggle dropdown', programId);
+            }
+        } catch (error) {
+            console.error('Error toggling program details:', error);
+        }
+    };
+
     const handleViewDetails = async (programId?: string) => {
         try {
             if (programId) {
@@ -111,7 +134,6 @@ const Program: React.FC = () => {
         } catch (error) {
             console.error('Error navigating to program details:', error);
         }
-        
     };
 
     const Paginate = async (page: number) => {
@@ -198,47 +220,115 @@ const Program: React.FC = () => {
                     </TableHead>
                     <TableBody>
                     {ProgramData.lists.map((program, idx) => (
-                        <>
-                        <TableRow key={`${program.Id}-${idx}`}>
-                            <TableCell>
-                                <button 
-                                    onClick={() => handleViewDetails(program.ProgramId)}
-                                    className="text-blue-600 hover:text-blue-800 font-medium hover:underline"
-                                >
-                                    {program.Name}
-                                </button>
-                            </TableCell>
-                            <TableCell>
-                                {getStatusBadge(program.Status || '')}
-                            </TableCell>
-                            <TableCell>
-                                {program.StageName}
-                            </TableCell>
-                            <TableCell>
-                                {program.Type}
-                            </TableCell>
-                            <TableCell>
-                                {program.YearStart}
-                            </TableCell>
-                            <TableCell>
-                                {program.YearEnd}
-                            </TableCell>
-                            <TableCell>
-                                <div className="flex items-center space-x-1">
-                                    <Button 
-                                        color="orange"
-                                        onClick={() => handleViewDetails(program.ProgramId)}
-                                        className="text-xs px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded"
-                                    >
-                                        Validate
-                                    </Button>
-                                    <Button color="red" onClick={() => {setIsDeleteProgramOpen(true); setSelectedProgram(program.ProgramId);}} className="text-xs px-3 py-1.5 bg-red-500 hover:bg-red-600 rounded">
-                                        <TrashIcon stroke='white' className="h-5 w-5 text-gray-900" />
-                                    </Button>
-                                </div>
-                            </TableCell>
-                        </TableRow>
-                        </>
+                        <React.Fragment key={`${program.Id}-${idx}`}>
+                            <TableRow>
+                                <TableCell>
+                                    <div className="flex items-center">
+                                        <button 
+                                            onClick={() => handleDropDownTable(program.ProgramId)}
+                                            className="flex items-center text-blue-600 hover:text-blue-800 font-medium hover:underline transition-colors"
+                                        >
+                                            {expandedRows.has(program.ProgramId || '') ? (
+                                                <ChevronDownIcon className="w-4 h-4 mr-2 text-gray-500 transition-transform" />
+                                            ) : (
+                                                <ChevronRightIcon className="w-4 h-4 mr-2 text-gray-500 transition-transform" />
+                                            )}
+                                            {program.Name}
+                                        </button>
+                                    </div>
+                                </TableCell>
+                                <TableCell>
+                                    {getStatusBadge(program.Status || '')}
+                                </TableCell>
+                                <TableCell>
+                                    {program.StageName}
+                                </TableCell>
+                                <TableCell>
+                                    {program.Type}
+                                </TableCell>
+                                <TableCell>
+                                    {program.YearStart}
+                                </TableCell>
+                                <TableCell>
+                                    {program.YearEnd}
+                                </TableCell>
+                                <TableCell>
+                                    <div className="flex items-center space-x-1">
+                                        <Button 
+                                            color="orange"
+                                            onClick={() => handleViewDetails(program.ProgramId)}
+                                            className="text-xs px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded"
+                                        >
+                                            Validate
+                                        </Button>
+                                        <Button color="red" onClick={() => {setIsDeleteProgramOpen(true); setSelectedProgram(program.ProgramId);}} className="text-xs px-3 py-1.5 bg-red-500 hover:bg-red-600 rounded">
+                                            <TrashIcon stroke='white' className="h-5 w-5 text-gray-900" />
+                                        </Button>
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                            
+                            {/* Expandable Child Table */}
+                            {expandedRows.has(program.ProgramId || '') && (
+                                <TableRow>
+                                    <TableCell colSpan={7} className="p-0 bg-gray-50/50 border-t border-gray-200">
+                                        <div className="px-8 py-6">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <h4 className="text-sm font-semibold text-gray-900">
+                                                    Projects under "{program.Name}"
+                                                </h4>
+                                                <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded-full border">
+                                                    {getSampleChildData(program.ProgramId || '').length} projects
+                                                </span>
+                                            </div>
+                                            <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                                                <Table className="mb-0">
+                                                    <TableHead>
+                                                        <TableRow>
+                                                            <TableHeader className="text-xs">Project Name</TableHeader>
+                                                            <TableHeader className="text-xs">Status</TableHeader>
+                                                            <TableHeader className="text-xs">Start Date</TableHeader>
+                                                            <TableHeader className="text-xs">End Date</TableHeader>
+                                                            <TableHeader className="text-xs">Budget</TableHeader>
+                                                            <TableHeader className="text-xs">Actions</TableHeader>
+                                                        </TableRow>
+                                                    </TableHead>
+                                                    <TableBody>
+                                                        {getSampleChildData(program.ProgramId || '').map((project) => (
+                                                            <TableRow key={project.id}>
+                                                                <TableCell className="font-medium text-sm">{project.name}</TableCell>
+                                                                <TableCell>
+                                                                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${
+                                                                        project.status === 'Completed' 
+                                                                            ? 'bg-green-100 text-green-800 border-green-200' 
+                                                                            : project.status === 'In Progress'
+                                                                            ? 'bg-blue-100 text-blue-800 border-blue-200'
+                                                                            : 'bg-yellow-100 text-yellow-800 border-yellow-200'
+                                                                    }`}>
+                                                                        {project.status}
+                                                                    </span>
+                                                                </TableCell>
+                                                                <TableCell className="text-sm text-gray-600">{project.startDate}</TableCell>
+                                                                <TableCell className="text-sm text-gray-600">{project.endDate}</TableCell>
+                                                                <TableCell className="text-sm font-medium">{project.budget}</TableCell>
+                                                                <TableCell>
+                                                                    <Button 
+                                                                        color="blue"
+                                                                        className="text-xs px-3 py-1.5"
+                                                                    >
+                                                                        View Details
+                                                                    </Button>
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        ))}
+                                                    </TableBody>
+                                                </Table>
+                                            </div>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </React.Fragment>
                     ))}
                     </TableBody>
                 </Table>

@@ -2,7 +2,7 @@
 import { httpClient } from '../../services/httpClient';
 
 
-import type { ProgramModel, ProgramEnums, ProgramPagination, ProgramList, ProgramDetailsEnums, ProgramDetails } from './Model';
+import type { ProgramModel, ProgramEnums, ProgramPagination, ProgramList, ProgramDetailsEnums, ProgramDetails, ParentProgram } from './Model';
 
 export const fetchProgramEnums = async () => {
     try {
@@ -22,7 +22,7 @@ export const fetchProgramEnums = async () => {
 
 export const fetchProgram = async (data: ProgramPagination) => {
     try {
-        const response = await httpClient.post<PaginationResponse<ProgramList>>('/program/showprogram', data, {
+        const response = await httpClient.post<PaginationResponse<ParentProgram>>('/program/showprogram', data, {
             preloaderMessage: 'Loading program...'
         });
         return response;
