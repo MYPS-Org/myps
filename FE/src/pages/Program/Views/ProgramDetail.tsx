@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 
 import type { ProgramDetailsEnums } from '../Model.d'; // Adjust the import path as necessary
 import { Button } from '../../../components/tailwindui/button';
-import { editProgram, fetchProgramById } from '../Service';
+import { editProgram, fetchProgramById, nextStage } from '../Service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
 // import { Badge } from '../../../components/tailwindui/badge';
 
@@ -76,10 +76,6 @@ const ProgramDetail: React.FC = () => {
       try {
         if (id) {
           await fetchProgramDetail(id);
-
-          const getCurrentStageIndex = programEnums?.Dropdowns.Stages.findIndex(stage => stage.Id === programEnums?.Details.StageId);
-          const newStageId = getCurrentStageIndex !== -1 ? programEnums?.Dropdowns.Stages[getCurrentStageIndex + 1]?.Id : null;
-          setNextStageName(programEnums?.Dropdowns.Stages.find(stage => stage.Id === newStageId)?.Name || null);
         }
       } catch (error) {
         console.error('Error fetching program details:', error);
@@ -89,11 +85,17 @@ const ProgramDetail: React.FC = () => {
     loadProgramDetail();
   }, [id]);
 
+
+
   const fetchProgramDetail = async (programId: string) => {
     setIsLoading(true);
     try {
       const response = await fetchProgramById(programId);
       setProgramEnums(response.Data);
+
+      const nextStageId = response.Data.Details.StageId + 1;
+      const nextStage = response.Data.Dropdowns.Stages.find(stage => stage.Id === nextStageId);
+      setNextStageName(nextStage ? nextStage.Name : 'Final Stage');
     } catch (error) {
       console.error('Error fetching program details:', error);
       setProgramEnums(defaultProgramEnums);
@@ -132,9 +134,9 @@ const ProgramDetail: React.FC = () => {
   const handleProceed = async () => {
     setIsLoading(true);
     try {
-      await editProgram(programEnums?.Details);
-      console.log('Proceed with program details');
-      await fetchProgramDetail(programEnums?.Details.ProgramId);
+      const nextStageId = programEnums?.Details.StageId + 1;
+      console.log('Proceeding to next stage:', nextStageId);
+      await nextStage({ ProgramId: programEnums?.Details.ProgramId, Stage: nextStageId });
     } catch (error) {
       console.error('Error proceeding with program details:', error);
     } finally {
@@ -291,7 +293,7 @@ const ProgramDetail: React.FC = () => {
             </div>
 
             <div className="pt-4 flex justify-end gap-4">
-              <Button color="green" className="w-24" onClick={handleProceed}>
+              <Button color="blue" className="w-auto" onClick={handleProceed}>
                 Proceed to {nextStageName}
               </Button>
               <Button color="green" className="w-24" onClick={handleUpdate}>

@@ -56,7 +56,7 @@ const Project: React.FC = () => {
     };
 
     const handleViewDetails = (projectId: string) => {
-        navigate(`/projects/edit/${projectId}`);
+        navigate(`/projects/project-details/${projectId}`);
     };
 
     const handleAddProject = () => {

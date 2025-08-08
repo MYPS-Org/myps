@@ -79,3 +79,15 @@ export const deleteProgram = async (program: ProgramList) => {
         throw ErrorResponse;
     }
 };
+
+export const nextStage = async (data: { ProgramId: string; Stage: number }) => {
+    try {
+        const request = await httpClient.post<ProgramDetails>('/Program/updateProgramStage', data, {
+            preloaderMessage: 'Proceeding to next stage...'
+        });
+        return request;
+    } catch (ErrorResponse) {
+        console.error('Error proceeding to next stage:', ErrorResponse);
+        throw ErrorResponse;
+    }
+}
