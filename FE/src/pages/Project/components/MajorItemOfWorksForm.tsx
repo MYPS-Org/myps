@@ -74,7 +74,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
       const newTargetUnit = dropDowns?.find(option => option.Enum === numValue);
       if (newTargetUnit) {
         console.log("Found matching target unit:", newTargetUnit.Measure);
-        updatedItem.TargetUnit = newTargetUnit.Measure;
+        updatedItem.TargetUnitId = newTargetUnit.Measure;
         
         // Update row-specific units
         setRowUnits(prev => ({
@@ -87,11 +87,11 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
         console.log("Setting max/min units:", { max: newTargetUnit.MaxAmount, min: newTargetUnit.MinAmount });
       } else {
         console.log("No match found for TypeOfWork value:", numValue);
-        updatedItem.TargetUnit = '';
+        updatedItem.TargetUnitId = 0;
       }
     } else {
       // Clear target unit if no valid selection
-      updatedItem.TargetUnit = '';
+      updatedItem.TargetUnitId = 0;
       // Clear row-specific units
       setRowUnits(prev => ({
         ...prev,
@@ -158,7 +158,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
           </TableHead>
           <TableBody>
             {majorItems.map((item, index) => {
-              console.log(`Row ${index} - TypeOfWork:`, item.TypeOfWork, typeof item.TypeOfWork);
+              console.log(`Row ${index} - WorkTypeId:`, item.WorkTypeId, typeof item.WorkTypeId);
               return (
               <TableRow key={item.Id}>
                 <TableCell>
@@ -183,7 +183,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                 </TableCell>
                 <TableCell className="">
                   <select name="typeOfWork" id="typeOfWork" 
-                          value={item.TypeOfWork}
+                          value={item.WorkTypeId}
                           onChange={(e) => handleTypeOfWorkChange(index, e.target.value)}
                           className="max-w-sm px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500 truncate"
                           style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}
@@ -197,8 +197,8 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                 <TableCell>
                   <input
                     type="text"
-                    value={item.TargetUnit}
-                    onChange={(e) => handleChange(index, 'TargetUnit', e.target.value)}
+                    value={item.TargetUnitId}
+                    onChange={(e) => handleChange(index, 'TargetUnitId', e.target.value)}
                     className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
                     placeholder="Enter target unit"
                   />
@@ -275,7 +275,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                 <TableCell>
                   <input
                     type="number"
-                    value={item.StartFrom}
+                    value={item.Start}
                     onChange={(e) => handleChange(index, 'StartFrom', Number(e.target.value))}
                     className="w-24 px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
                     placeholder="Start"
