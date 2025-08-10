@@ -19,6 +19,7 @@ import EditProject from './pages/Project/Views/EditProject';
 import ProgramStages from './pages/ProgramStages/Views/ProgramStages';
 import ProjectGroup from './pages/ProjectGroups/Views/ProjectGroup';
 import ProjectGroupDetails from './pages/ProjectGroups/Views/ProjectGroupDetails';
+import CodeTables from './pages/CodeTables/Views/CodeTables';
 // import AddProgram from './pages/Program/Views/AddProgram';
 
 function App() {
@@ -125,6 +126,14 @@ function App() {
 								element={
 									<ProtectedRoute>
 										<Settings />
+									</ProtectedRoute>
+								} 
+							/>
+							<Route 
+								path="/code-tables" 
+								element={
+									<ProtectedRoute>
+										<CodeTables />
 									</ProtectedRoute>
 								} 
 							/>

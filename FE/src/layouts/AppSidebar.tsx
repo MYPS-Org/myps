@@ -114,8 +114,8 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 				className="text-gray-500"
 				>
 				<Cog6ToothIcon />
-				<SidebarDropdownItem href="/settings/general" current={currentPath === '/settings/general'}>
-					<SidebarLabel>General</SidebarLabel>
+				<SidebarDropdownItem href="/code-tables" current={currentPath === '/code-tables'}>
+					<SidebarLabel>Code Tables</SidebarLabel>
 				</SidebarDropdownItem>
 				<SidebarDropdownItem href="/settings/security" current={currentPath === '/settings/security'}>
 					<SidebarLabel>Security</SidebarLabel>
