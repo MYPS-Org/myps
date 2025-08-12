@@ -251,7 +251,7 @@ export interface MajorItemOfWork {
 	InfraId: string;
 	InfraType: string;
 	TargetUnitId: number;
-	TargetUnit: number;
+	TargetUnit: string; // Changed from number to string to match the UI usage
 	StartX: number;
 	StartY: number;
 	EndX: number;

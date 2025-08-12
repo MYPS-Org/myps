@@ -148,9 +148,15 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
     CostPerYear: componentCostsYear.filter(year => year.ParentId === cost.ReferenceId)
   }));
 
-  const [majorItems, setMajorItems] = useState<MajorItemOfWorksWithDropdown[]>(
-    initialData?.MajorItemOfWorks || []
-  );
+  const [majorItems, setMajorItems] = useState<MajorItemOfWorksWithDropdown[]>(() => {
+    if (!initialData?.MajorItemOfWorks) return [];
+    
+    // Transform backend MajorItemOfWork[] to MajorItemOfWorksWithDropdown[]
+    return initialData.MajorItemOfWorks.map(item => ({
+      ...item,
+      DropdownData: initialData?.Dropdowns?.ScopeOfWorks?.filter(scope => scope.InfraType === item.InfraType) || []
+    }));
+  });
 
   const [notes, setNotes] = useState<ProjectNote[]>(
     initialData?.ProjectNotes || []
@@ -283,7 +289,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       InfraId: '',
       InfraType: '',
       TargetUnitId: 0,
-      TargetUnit: 0,
+      TargetUnit: '',
       StartX: 0,
       StartY: 0,
       EndX: 0,

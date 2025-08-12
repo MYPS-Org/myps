@@ -38,10 +38,67 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
   // Debug: Monitor when majorItems prop changes
   useEffect(() => {
     console.log('MajorItemOfWorksForm: majorItems prop changed:', majorItems);
+    console.log('Available dropDowns:', dropDowns);
     majorItems.forEach((item, index) => {
-      console.log(`Item ${index} - TypeOfWork:`, item.WorkTypeId, 'InfrastructureType:', item.InfraType);
+      console.log(`Item ${index} - WorkTypeId:`, item.WorkTypeId, 'InfraType:', item.InfraType, 'DropdownData length:', item.DropdownData?.length);
+      if (item.InfraType) {
+        const filtered = dropDowns?.filter(x => x.InfraType === item.InfraType);
+        console.log(`Filtered dropdowns for InfraType '${item.InfraType}':`, filtered);
+      }
     });
-  }, [majorItems]);
+  }, [majorItems, dropDowns]);
+
+  // Initialize rowUnits and TargetUnit display for items loaded from backend
+  useEffect(() => {
+    if (majorItems.length > 0 && dropDowns?.length) {
+      const newRowUnits: Record<number, { max?: number; min?: number }> = {};
+      
+      majorItems.forEach((item, index) => {
+        if (item.TargetUnitId && item.TargetUnitId > 0) {
+          const targetUnitEnum = dropDowns.find(option => option.Enum === item.TargetUnitId);
+          if (targetUnitEnum) {
+            newRowUnits[index] = {
+              max: targetUnitEnum.MaxAmount,
+              min: targetUnitEnum.MinAmount
+            };
+          }
+        }
+      });
+      
+      setRowUnits(newRowUnits);
+    }
+  }, [majorItems, dropDowns]);
+
+  // Update dropdown data for items that have InfraType but no DropdownData (from backend)
+  useEffect(() => {
+    if (majorItems.length > 0 && dropDowns?.length) {
+      let hasUpdates = false;
+      const updatedItems = majorItems.map((item, index) => {
+        // If item has InfraType but no or empty DropdownData, update it
+        if (item.InfraType && (!item.DropdownData || item.DropdownData.length === 0)) {
+          const filteredDropdowns = dropDowns.filter(x => x.InfraType === item.InfraType);
+          console.log(`Updating DropdownData for item ${index} with InfraType '${item.InfraType}':`, filteredDropdowns);
+          hasUpdates = true;
+          return {
+            ...item,
+            DropdownData: filteredDropdowns
+          };
+        }
+        return item;
+      });
+      
+      if (hasUpdates) {
+        console.log('Updating majorItems with proper DropdownData');
+        // We need to call onEdit for each updated item
+        updatedItems.forEach((item, index) => {
+          if (item.InfraType && item.DropdownData && item.DropdownData.length > 0 && 
+              (!majorItems[index].DropdownData || majorItems[index].DropdownData.length === 0)) {
+            onEdit(index, item);
+          }
+        });
+      }
+    }
+  }, [majorItems, dropDowns, onEdit]);
 
   const handleInfraSelect = (infraId: string, infraName: string, infraType: string) => {
     if (isAddingNewItem) {
@@ -51,7 +108,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
       
       // Store the infrastructure data to be applied to the new item
       setSelectedInfraData({ infraId, infraName, infraType });
-      console.log("New item added, applying InfraId:", selectedInfraData);
+      console.log("New item added, storing infra data for application:", { infraId, infraName, infraType });
       setIsAddingNewItem(false);
     } else if (selectedItemIndex !== null) {
       // Update existing item
@@ -59,9 +116,9 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
         ...majorItems[selectedItemIndex], 
         InfraId: infraId,
         InfraType: infraType,
-        DropdownData: (dropDowns?.filter(x => x.InfraType === infraType)) ?? [], // Ensure dropdown data is always an array
+        DropdownData: (dropDowns?.filter(x => x.InfraType === infraType)) ?? [], // Filter dropdown data by InfraType
       };
-      console.log("dinee:", selectedItemIndex, "with InfraId:", infraId);
+      console.log("Updating existing item at index:", selectedItemIndex, "with InfraType:", infraType);
       onEdit(selectedItemIndex, updatedItem);
     }
     setInfraDialogOpen(false);
@@ -76,7 +133,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     if (selectedInfraData && majorItems.length > 0) {
       const lastIndex = majorItems.length - 1;
       const lastItem = majorItems[lastIndex];
-      console.log("Applying InfraId to last item:", lastItem, "with selectedInfraData:", selectedInfraData.infraType);
+      console.log("Applying InfraId to last item:", lastItem, "with selectedInfraData:", selectedInfraData);
       
       // Check if this is a new item without InfraId
       if (!lastItem.InfraId) {
@@ -84,15 +141,15 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
           ...lastItem,
           InfraId: selectedInfraData.infraId,
           InfraType: selectedInfraData.infraType,
-          DropdownData: (dropDowns?.filter(x => x.InfraType === selectedInfraData.infraType)) ?? [], // Ensure dropdown data is always an array
+          DropdownData: (dropDowns?.filter(x => x.InfraType === selectedInfraData.infraType)) ?? [], // Filter dropdown data by InfraType
         };
-        console.log("Updating last item with InfraId:", updatedItem);
+        console.log("Updating last item with InfraId and filtered dropdown data:", updatedItem);
         
         onEdit(lastIndex, updatedItem);
         setSelectedInfraData(null);
       }
     }
-  }, [majorItems, selectedInfraData, onEdit]);
+  }, [majorItems, selectedInfraData, onEdit, dropDowns]);
 
   // Store max/min units per row index
   const [rowUnits, setRowUnits] = useState<Record<number, { max?: number; min?: number }>>({});
@@ -119,7 +176,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
       if (newTargetUnit) {
         console.log("Found matching target unit:", newTargetUnit.Measure);
         updatedItem.TargetUnitId = newTargetUnit.Enum;
-        updatedItem.TargetUnit = newTargetUnit.Measure; // Update the TargetUnit field
+        updatedItem.TargetUnit = newTargetUnit.Measure.toString(); // Keep this for compatibility, convert to string
         
         // Update row-specific units
         setRowUnits(prev => ({
@@ -133,10 +190,12 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
       } else {
         console.log("No match found for TypeOfWork value:", numValue);
         updatedItem.TargetUnitId = 0;
+        updatedItem.TargetUnit = '';
       }
     } else {
       // Clear target unit if no valid selection
       updatedItem.TargetUnitId = 0;
+      updatedItem.TargetUnit = '';
       // Clear row-specific units
       setRowUnits(prev => ({
         ...prev,
@@ -234,7 +293,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                 </TableCell>
                 <TableCell className="">
                   <select name="typeOfWork" id="typeOfWork" 
-                          value={item.WorkTypeId}
+                          value={item.WorkTypeId || ''}
                           onChange={(e) => handleTypeOfWorkChange(index, e.target.value)}
                           className="w-[150px] px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500 truncate"
                           style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}
@@ -250,10 +309,18 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                 <TableCell>
                   <input
                     type="text"
-                    value={item.TargetUnit}
-                    onChange={(e) => handleChange(index, 'TargetUnit', e.target.value)}
+                    value={(() => {
+                      if (item.TargetUnitId > 0) {
+                        const targetUnit = dropDowns?.find(option => option.Enum === item.TargetUnitId);
+                        if (targetUnit) {
+                          return targetUnit.Measure.toString();
+                        }
+                      }
+                      return item.TargetUnit || '';
+                    })()}
                     className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
-                    placeholder="Enter target unit"
+                    placeholder="Target unit"
+                    readOnly
                   />
                 </TableCell>
                 <TableCell>
