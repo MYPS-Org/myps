@@ -281,7 +281,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       YearOfWork: 0,
       WorkTypeId: 0,
       InfraId: '',
+      InfraType: '',
       TargetUnitId: 0,
+      TargetUnit: 0,
       StartX: 0,
       StartY: 0,
       EndX: 0,
@@ -290,7 +292,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       StartStationLimit: 0,
       EndStationLimit: 0,
       CreatedBy: '',
-      CreatedDate: Date.now().toString(),
       DropdownData: []
     };
     setMajorItems(prev => [...prev, newItem]);

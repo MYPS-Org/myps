@@ -39,7 +39,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
   useEffect(() => {
     console.log('MajorItemOfWorksForm: majorItems prop changed:', majorItems);
     majorItems.forEach((item, index) => {
-      console.log(`Item ${index} - TypeOfWork:`, item.WorkTypeId, typeof item.WorkTypeId);
+      console.log(`Item ${index} - TypeOfWork:`, item.WorkTypeId, 'InfrastructureType:', item.InfraType);
     });
   }, [majorItems]);
 
@@ -58,6 +58,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
       const updatedItem: MajorItemOfWorksWithDropdown = { 
         ...majorItems[selectedItemIndex], 
         InfraId: infraId,
+        InfraType: infraType,
         DropdownData: (dropDowns?.filter(x => x.InfraType === infraType)) ?? [], // Ensure dropdown data is always an array
       };
       console.log("dinee:", selectedItemIndex, "with InfraId:", infraId);
@@ -82,7 +83,8 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
         const updatedItem = {
           ...lastItem,
           InfraId: selectedInfraData.infraId,
-        DropdownData: (dropDowns?.filter(x => x.InfraType === selectedInfraData.infraType)) ?? [], // Ensure dropdown data is always an array
+          InfraType: selectedInfraData.infraType,
+          DropdownData: (dropDowns?.filter(x => x.InfraType === selectedInfraData.infraType)) ?? [], // Ensure dropdown data is always an array
         };
         console.log("Updating last item with InfraId:", updatedItem);
         
@@ -116,7 +118,8 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
       const newTargetUnit = dropDowns?.find(option => option.Enum === numValue);
       if (newTargetUnit) {
         console.log("Found matching target unit:", newTargetUnit.Measure);
-        updatedItem.TargetUnitId = newTargetUnit.Measure;
+        updatedItem.TargetUnitId = newTargetUnit.Enum;
+        updatedItem.TargetUnit = newTargetUnit.Measure; // Update the TargetUnit field
         
         // Update row-specific units
         setRowUnits(prev => ({
@@ -212,12 +215,12 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                 <TableCell>
                   <select
                     value={item.ComponentId}
-                    onChange={(e) => handleChange(index, 'ComponentId', Number(e.target.value))}
+                    onChange={(e) => handleChange(index, 'ComponentId', String(e.target.value))}
                     className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
                   >
                     <option value="">Select Component</option>
                     {componentCosts.map(cost => (
-                      <option key={cost.Id} value={cost.Id}>{cost.ComponentId}</option>
+                      <option key={cost.Id} value={cost.ComponentId}>{cost.ComponentId}</option>
                     ))}
                   </select>
                 </TableCell>
@@ -247,8 +250,8 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                 <TableCell>
                   <input
                     type="text"
-                    value={item.TargetUnitId}
-                    onChange={(e) => handleChange(index, 'TargetUnitId', e.target.value)}
+                    value={item.TargetUnit}
+                    onChange={(e) => handleChange(index, 'TargetUnit', e.target.value)}
                     className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
                     placeholder="Enter target unit"
                   />

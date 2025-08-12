@@ -67,11 +67,11 @@ export const projectDetailsRules: ValidationRule<ProjectDetails>[] = [
         message: "Agency is required.",
         validate: (value) => typeof value === 'number' && value > 0
     },
-    {
-        field: "ProjectCode",
-        message: "Agency is required.",
-        validate: (value) => typeof value === 'number' && value > 0
-    },
+    // {
+    //     field: "ProjectCode",
+    //     message: "Agency is required.",
+    //     validate: (value) => typeof value === 'number' && value > 0
+    // },
     {
         field: "ImplementationMode",
         message: "Implementation Mode is required.",

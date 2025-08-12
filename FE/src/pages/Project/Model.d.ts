@@ -249,7 +249,9 @@ export interface MajorItemOfWork {
 	YearOfWork: number;
 	WorkTypeId: number;
 	InfraId: string;
+	InfraType: string;
 	TargetUnitId: number;
+	TargetUnit: number;
 	StartX: number;
 	StartY: number;
 	EndX: number;
@@ -258,9 +260,6 @@ export interface MajorItemOfWork {
 	StartStationLimit: number;
 	EndStationLimit: number;
 	CreatedBy: string;
-	CreatedDate?: string;
-	UpdatedBy?: string;
-	UpdatedDate?: string;
 }
 export interface ProjectNote {
 	Id: number;
