@@ -245,6 +245,7 @@ export interface MajorItemOfWork {
 	Id: number;
 	ProjectId: string;
 	ComponentId: string;
+	DetailedScope: string;
 	YearOfWork: number;
 	WorkTypeId: number;
 	InfraId: string;

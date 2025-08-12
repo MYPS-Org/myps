@@ -233,7 +233,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                   <select name="typeOfWork" id="typeOfWork" 
                           value={item.WorkTypeId}
                           onChange={(e) => handleTypeOfWorkChange(index, e.target.value)}
-                          className="max-w-sm px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500 truncate"
+                          className="w-[150px] px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500 truncate"
                           style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}
                           >
                     <option value="">Select Type of Work</option>
@@ -268,12 +268,12 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                   />
                 </TableCell>
                 <TableCell>
-                  <input
-                    type="text"
-                    value={item.InfraId} // Using InfraId as the detailed scope for now
-                    onChange={(e) => handleChange(index, 'InfraId', e.target.value)}
+                  <textarea
+                    value={item.DetailedScope}
+                    onChange={(e) => handleChange(index, 'DetailedScope', e.target.value)}
                     className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
                     placeholder="Enter detailed scope"
+                    rows={1}
                   />
                 </TableCell>
                 <TableCell>

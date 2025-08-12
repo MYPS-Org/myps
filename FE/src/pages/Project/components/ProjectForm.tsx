@@ -274,9 +274,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
   // #region Major Items of Work
   const handleAddMajorItem = () => {
     const newItem: MajorItemOfWorksWithDropdown = {
-      Id: Date.now(), // Temporary ID
+      Id: 0, // Temporary ID
       ProjectId: '',
       ComponentId: '',
+      DetailedScope: '',
       YearOfWork: 0,
       WorkTypeId: 0,
       InfraId: '',
