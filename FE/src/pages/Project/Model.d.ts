@@ -15,7 +15,7 @@ export interface ProjectFormPayload {
   ProjectDetails: ProjectDetails;
   ComponentCosts: ComponentCost[];
   ComponentCostPerYear: ComponentCostYear[];
-  MajorItemOfWorks: MajorItemOfWork[];
+  MajorItemOfWorks: MajorItemOfWorksWithDropdown[];
   ProjectNotes: ProjectNote[];
   FundingProfile: FundingProfile[];
   Dropdowns: Dropdowns;
@@ -237,7 +237,11 @@ export interface ComponentCostYear {
 	PAPCode: string;
 	StartDate: string;
 	EndDate: string;
-}export interface MajorItemOfWork {
+}
+export interface MajorItemOfWorksWithDropdown extends MajorItemOfWork {
+	DropdownData: ScopeOfWorkEnum[];
+}
+export interface MajorItemOfWork {
 	Id: number;
 	ProjectId: string;
 	ComponentId: string;

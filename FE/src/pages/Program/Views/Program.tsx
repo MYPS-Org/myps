@@ -168,12 +168,12 @@ const Program: React.FC = () => {
         
         <div className="max-w-10xl mx-auto p-6 space-y-6">
             {/* Breadcrumb */}
-            <nav className="text-sm text-left text-gray-500 mb-4">
+            {/* <nav className="text-sm text-left text-gray-500 mb-4">
                 <span>Program Management</span>
                 <span className="mx-2">&gt;</span>
                 <span>Programs</span>
                 <span className="mx-2">&gt;</span>
-            </nav>
+            </nav> */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200">
                 <div className="overflow-hidden">
                     <div className="px-6 py-4 border-b border-gray-200">

@@ -28,6 +28,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   const [formData, setFormData] = useState({
     Id: 0,
     ProjectId: ProjectId,
+    ReferenceId: '',
     ComponentType: '',
     ComponentId: '',
     Description: '',
@@ -60,6 +61,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
       setFormData({
         Id: 0,
         ProjectId: ProjectId,
+        ReferenceId: '',
         ComponentType: '',
         ComponentId: '',
         Description: '',
@@ -112,7 +114,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         // Create ComponentCostYear object if we have the required fields
         const componentCostYear: ComponentCostYear = {
           Id: 0, // Will be set by backend
-          ParentId: componentCostData.Id, // Will be linked after ComponentCost is saved
+          ParentId: componentCostData.ReferenceId, // Will be linked after ComponentCost is saved
           CostYear: new Date().getFullYear(), // Default to current year
           Cost: componentCostData.Total, // Use the same cost value
           ApprovalDate: ApprovalDate || undefined,
@@ -136,6 +138,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         setFormData({
             Id: 0,
             ProjectId: '',
+            ReferenceId: '',
             ComponentType: '',
             ComponentId: '',
             Description: '',
@@ -192,7 +195,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                             handleChange('ComponentType', value);
                             handleChangeComponentId(value);
                         }}
-                    >
+                    >   
+                    <option value="">Select Component Type</option>
                         {componentTypes?.map((type: any) => (
                             <option key={type.Id} value={type.description}>
                                 {type.Description}

@@ -16,7 +16,6 @@ import Settings from './pages/Settings/Settings';
 import Project from './pages/Project/Views/Project';
 import AddProject from './pages/Project/Views/AddProject';
 import EditProject from './pages/Project/Views/EditProject';
-import ProgramStages from './pages/ProgramStages/Views/ProgramStages';
 import ProjectGroup from './pages/ProjectGroups/Views/ProjectGroup';
 import ProjectGroupDetails from './pages/ProjectGroups/Views/ProjectGroupDetails';
 import CodeTables from './pages/CodeTables/Views/CodeTables';
@@ -62,14 +61,6 @@ function App() {
 								element={
 									<ProtectedRoute>
 										<ProgramDetail />
-									</ProtectedRoute>
-								} 
-							/>
-							<Route 
-								path="/program-stages" 
-								element={
-									<ProtectedRoute>
-										<ProgramStages />
 									</ProtectedRoute>
 								} 
 							/>

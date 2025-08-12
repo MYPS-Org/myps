@@ -13,7 +13,8 @@ import type {
   ProjectEnums,
   Dropdowns,
   ComponentCostYear,
-  InfraData
+  InfraData,
+  MajorItemOfWorksWithDropdown
 } from '../Model.d';
 
 import { Button } from '../../../components/tailwindui/button';
@@ -147,7 +148,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
     CostPerYear: componentCostsYear.filter(year => year.ParentId === cost.ReferenceId)
   }));
 
-  const [majorItems, setMajorItems] = useState<MajorItemOfWork[]>(
+  const [majorItems, setMajorItems] = useState<MajorItemOfWorksWithDropdown[]>(
     initialData?.MajorItemOfWorks || []
   );
 
@@ -272,7 +273,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
 
   // #region Major Items of Work
   const handleAddMajorItem = () => {
-    const newItem: MajorItemOfWork = {
+    const newItem: MajorItemOfWorksWithDropdown = {
       Id: Date.now(), // Temporary ID
       ProjectId: '',
       ComponentId: '',
@@ -289,12 +290,13 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       EndStationLimit: 0,
       CreatedBy: '',
       CreatedDate: Date.now().toString(),
+      DropdownData: []
     };
     setMajorItems(prev => [...prev, newItem]);
     console.log('Added major item to staging:', newItem);
   };
 
-  const handleEditMajorItem = (index: number, updatedItem: MajorItemOfWork) => {
+  const handleEditMajorItem = (index: number, updatedItem: MajorItemOfWorksWithDropdown) => {
     console.log('ProjectForm: Editing major item at index', index);
     console.log('ProjectForm: Updated item received:', updatedItem);
     setMajorItems(prev => {
