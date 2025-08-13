@@ -81,7 +81,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
           hasUpdates = true;
           return {
             ...item,
-            DropdownData: filteredDropdowns
+            DropdownData: filteredDropdowns,
           };
         }
         return item;
@@ -109,6 +109,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
       // Store the infrastructure data to be applied to the new item
       setSelectedInfraData({ infraId, infraName, infraType });
       console.log("New item added, storing infra data for application:", { infraId, infraName, infraType });
+      
       setIsAddingNewItem(false);
     } else if (selectedItemIndex !== null) {
       // Update existing item
@@ -155,10 +156,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
   const [rowUnits, setRowUnits] = useState<Record<number, { max?: number; min?: number }>>({});
 
   const handleChange = (index: number, field: string, value: any) => {
-    console.log(`Updating field '${field}' at index ${index} with value:`, value);
-    console.log('Current item before update:', majorItems[index]);
     const updatedItem = { ...majorItems[index], [field]: value };
-    console.log('Updated item being sent to parent:', updatedItem);
     onEdit(index, updatedItem);
   };
 
