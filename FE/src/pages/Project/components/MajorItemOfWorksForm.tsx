@@ -5,6 +5,7 @@ import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '../../../components/tailwindui/table';
 import AddInfraDialog from '../dialogs/AddInfraDialog';
 import { mockInfraData } from "../dialogs/mockInfraData";
+import { handleNumberFocus } from "../../../utils/GlobalFunctions";
 
 interface SelectedInfraData {
   infraId: string;
@@ -329,6 +330,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                       const val = e.target.value;
                       handleChange(index, 'TargetAmount', val === '' ? null : Number(val));
                     }}
+                    onFocus={handleNumberFocus}
                     max={rowUnits[index]?.max}
                     min={rowUnits[index]?.min}
                     className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
@@ -339,8 +341,8 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                   <textarea
                     value={item.DetailedScope}
                     onChange={(e) => handleChange(index, 'DetailedScope', e.target.value)}
-                    className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
-                    placeholder="Enter detailed scope"
+                    className="w-full px-2 py-1 mt-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
+                    placeholder="Enter scope"
                     rows={1}
                   />
                 </TableCell>
@@ -377,6 +379,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                     type="number"
                     value={item.StartStationLimit}
                     onChange={(e) => handleChange(index, 'StartStationLimit', Number(e.target.value))}
+                    onFocus={handleNumberFocus}
                     className="w-24 px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
                     placeholder="Start"
                   />
@@ -386,6 +389,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                     type="number"
                     value={item.EndStationLimit}
                     onChange={(e) => handleChange(index, 'EndStationLimit', Number(e.target.value))}
+                    onFocus={handleNumberFocus}
                     className="w-24 px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
                     placeholder="End"
                   />
@@ -395,6 +399,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                     type="number"
                     value={item.StartX}
                     onChange={(e) => handleChange(index, 'StartX', Number(e.target.value))}
+                    onFocus={handleNumberFocus}
                     className="w-24 px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
                     placeholder="Start"
                   />
@@ -404,6 +409,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                     type="number"
                     value={item.EndX}
                     onChange={(e) => handleChange(index, 'EndX', Number(e.target.value))}
+                    onFocus={handleNumberFocus}
                     className="w-24 px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
                     placeholder="End"
                   />

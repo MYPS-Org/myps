@@ -8,3 +8,10 @@ String.prototype.StringToDate = function (): string {
     day: '2-digit',
   });
 };
+
+export const handleNumberFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+  // Clear the field if it contains 0
+  if (e.target.value === '0') {
+    e.target.value = '';
+  }
+};
