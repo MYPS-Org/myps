@@ -3,6 +3,7 @@ import { Dialog, DialogTitle, DialogPanel } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import type { ComponentCost, ComponentCostYear, ComponentCostWithYears } from '../Model';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import { handleNumberFocus } from '../../../utils/GlobalFunctions';
 
 interface ComponentCostDialogProps {
   isOpen: boolean;
@@ -253,6 +254,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                             type="number"
                             value={formData.Total}
                             onChange={(e) => handleChange('Total', Number(e.target.value))}
+                            onFocus={handleNumberFocus}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                             placeholder="0"
                             min="0"

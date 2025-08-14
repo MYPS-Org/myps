@@ -409,7 +409,7 @@ export interface SourceEnum {
 // #region add Project details Enums
 export interface ProjectEnums {
   Programs: ProgramList[];
-  Categories: ProjectCategoryEnum[];
+  Categories: CategoryEnum[];
   Thrusts: ProjectThurstEnum[];
   Origins: ProjectOriginEnum[];
   Cities: ProjectCityEnum[];

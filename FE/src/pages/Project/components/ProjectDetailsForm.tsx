@@ -59,17 +59,17 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
                     <div className='w-full flex flex-col text-left gap-2'>
                         <div className="flex flex-row gap-5 items-center">
-                            <label className={`w-1/3 ${errors.Region ? 'text-red-500' : 'text-gray-600'}`}>Reporting Region:</label>
+                            <label className={`w-1/3 ${errors.LegislativeDistrict ? 'text-red-500' : 'text-gray-600'}`}>Legislative District:</label>
                             <select
-                                value={projectDetails.Region}
-                                onChange={(e) => handleInputChange('Region', e.target.value)}
-                                className={`w-2/3 mt-1 px-3 py-2 border ${errors.Region ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
+                                value={projectDetails.LegislativeDistrict}
+                                onChange={(e) => handleInputChange('LegislativeDistrict', parseInt(e.target.value))}
+                                className={`w-2/3 mt-1 px-3 py-2 border ${errors.LegislativeDistrict ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
                                 style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
                             >
-                                <option value="">Select Reporting Region</option>
-                                {projectEnums?.DEOs?.map((region) => (
-                                    <option key={region.Id} value={region.ROCode}>
-                                        {region.ROName}
+                                <option value="">Select Legislative District</option>
+                                {projectEnums?.LDs?.filter(x => x.Enum === projectDetails.City).map((district) => (
+                                    <option key={district.Id} value={district.Enum}>
+                                        {district.Name}
                                     </option>
                                 ))}
                             </select>
@@ -95,17 +95,17 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     <div>
                         <div className='w-full flex flex-col text-left gap-2 mb-4'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.LegislativeDistrict ? 'text-red-500' : 'text-gray-600'}`}>Legislative District:</label>
+                                <label className={`w-1/3 ${errors.OperatingUnit ? 'text-red-500' : 'text-gray-600'}`}>Operating Unit:</label>
                                 <select
-                                    value={projectDetails.LegislativeDistrict}
-                                    onChange={(e) => handleInputChange('LegislativeDistrict', parseInt(e.target.value))}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.LegislativeDistrict ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
+                                    value={projectDetails.OperatingUnit}
+                                    onChange={(e) => handleInputChange('OperatingUnit', e.target.value)}
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.OperatingUnit ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
                                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
                                 >
-                                    <option value="">Select Legislative District</option>
-                                    {projectEnums?.LDs?.map((district) => (
-                                        <option key={district.Id} value={district.Enum}>
-                                            {district.Name}
+                                    <option value="">Select Operating Unit</option>
+                                    {projectEnums?.OperatingUnits?.map((unit) => (
+                                        <option key={unit.Id} value={unit.ParticipantId}>
+                                            {unit.OrgName}
                                         </option>
                                     ))}
                                 </select>
@@ -114,17 +114,19 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                         
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.Agency ? 'text-red-500' : 'text-gray-600'}`}>Originating Agency:</label>
-                                <select
-                                    value={projectDetails.Agency}
-                                    onChange={(e) => handleInputChange('Agency', parseInt(e.target.value))}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.Agency ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
+                                <label className={`w-1/3 ${errors.DEO ? 'text-red-500' : 'text-gray-600'}`}>District Engineering Office:</label>
+                                <select 
+                                    name="DistrictEngOffice" 
+                                    id="DistrictEngOffice" 
+                                    value={projectDetails.DEO} 
+                                    onChange={(e) => handleInputChange('DEO', e.target.value)} 
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.DEO ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
                                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
                                 >
-                                    <option value="">Select Originating Agency</option>
-                                    {projectEnums?.Agencies?.map((agency) => (
-                                        <option key={agency.Id} value={agency.Id}>
-                                            {agency.AgencyName}
+                                    <option value="">Select District Engineering Office</option>
+                                    {projectEnums?.DEOs?.map((deo) => (
+                                        <option key={deo.Id} value={deo.DeoCode}>
+                                            {deo.DeoName}
                                         </option>
                                     ))}
                                 </select>
@@ -134,33 +136,35 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     
                     <div>
                         <div className='w-full flex flex-row text-left gap-5 items-center mb-4'>
-                            <label className={`w-1/3 ${errors.OperatingUnit ? 'text-red-500' : 'text-gray-600'}`}>Operating Unit:</label>
+                            <label className={`w-1/3 ${errors.ImplementingOffice ? 'text-red-500' : 'text-gray-600'}`}>Implementing Office:</label>
                             <select
-                                value={projectDetails.OperatingUnit}
-                                onChange={(e) => handleInputChange('OperatingUnit', e.target.value)}
-                                className={`w-2/3 mt-1 px-3 py-2 border ${errors.OperatingUnit ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
+                                value={projectDetails.ImplementingOffice}
+                                onChange={(e) => handleInputChange('ImplementingOffice', e.target.value)}
+                                className={`w-2/3 mt-1 px-3 py-2 border ${errors.ImplementingOffice ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
                                 style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
                             >
-                                <option value="">Select Operating Unit</option>
-                                {projectEnums?.OperatingUnits?.map((unit) => (
-                                    <option key={unit.Id} value={unit.ParticipantId}>
-                                        {unit.OrgName}
+                                <option value="">Select Implementing Office</option>
+                                {projectEnums?.IOs?.filter(x => projectDetails.OperatingUnit != "" && (x.ParticipantId === projectDetails.OperatingUnit || x.ParticipantId === "OI10")).map((office) => (
+                                    <option key={office.Id} value={office.ParticipantId}>
+                                        {office.OrgName}
                                     </option>
                                 ))}
                             </select>
                         </div>
                         <div className='w-full flex flex-row text-left gap-5 items-center'>
-                            <label className={`w-1/3 ${errors.ProjectCode ? 'text-red-500' : 'text-gray-600'}`}>Alternative Project Code:</label>
+                            <label className={`w-1/3 ${errors.Region ? 'text-red-500' : 'text-gray-600'}`}>Reporting Region:</label>
                             <select
-                                value={projectDetails.ProjectCode}
-                                onChange={(e) => handleInputChange('ProjectCode', e.target.value)}
-                                className={`w-2/3 mt-1 px-3 py-2 border ${errors.ProjectCode ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
+                                value={projectDetails.Region}
+                                onChange={(e) => handleInputChange('Region', e.target.value)}
+                                className={`w-2/3 mt-1 px-3 py-2 border ${errors.Region ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
                                 style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
                             >
-                                <option value="">Select Project Code</option>
-                                <option value="ProjCode1">ProjCode1</option>
-                                <option value="ProjCode2">ProjCode2</option>
-                                <option value="ProjCode3">ProjCode3</option>
+                                <option value="">Select Reporting Region</option>
+                                {projectEnums?.DEOs?.filter(x => x.DeoCode === projectDetails.DEO).map((region) => (
+                                    <option key={region.Id} value={region.ROCode}>
+                                        {region.ROName}
+                                    </option>
+                                ))}
                             </select>
                         </div>
                     </div>
@@ -176,7 +180,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
                             >
                                 <option value="">Select Category</option>
-                                {projectEnums?.Categories?.map((category) => (
+                                {projectEnums?.Categories?.filter(x => x.ValidUntil === 0 || x.ValidUntil > new Date().getFullYear()).map((category) => (
                                 <option key={category.Id} value={category.Enum}>
                                     {category.Name}
                                 </option>
@@ -187,17 +191,17 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     
                     <div className='w-full flex flex-col text-left gap-2'>
                         <div className="flex flex-row gap-5 items-center">
-                            <label className={`w-1/3 ${errors.ImplementingOffice ? 'text-red-500' : 'text-gray-600'}`}>Implementing Office:</label>
+                            <label className={`w-1/3 ${errors.Agency ? 'text-red-500' : 'text-gray-600'}`}>Originating Agency:</label>
                             <select
-                                value={projectDetails.ImplementingOffice}
-                                onChange={(e) => handleInputChange('ImplementingOffice', e.target.value)}
-                                className={`w-2/3 mt-1 px-3 py-2 border ${errors.ImplementingOffice ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
+                                value={projectDetails.Agency}
+                                onChange={(e) => handleInputChange('Agency', parseInt(e.target.value))}
+                                className={`w-2/3 mt-1 px-3 py-2 border ${errors.Agency ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
                                 style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
                             >
-                                <option value="">Select Implementing Office</option>
-                                {projectEnums?.IOs?.map((office) => (
-                                    <option key={office.Id} value={office.ParticipantId}>
-                                        {office.OrgName}
+                                <option value="">Select Originating Agency</option>
+                                {projectEnums?.Agencies?.map((agency) => (
+                                    <option key={agency.Id} value={agency.Id}>
+                                        {agency.AgencyName}
                                     </option>
                                 ))}
                             </select>
@@ -247,21 +251,17 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     
                     <div className='w-full flex flex-col text-left gap-2'>
                         <div className="flex flex-row gap-5 items-center">
-                            <label className={`w-1/3 ${errors.DEO ? 'text-red-500' : 'text-gray-600'}`}>District Engineering Office:</label>
-                            <select 
-                                name="DistrictEngOffice" 
-                                id="DistrictEngOffice" 
-                                value={projectDetails.DEO} 
-                                onChange={(e) => handleInputChange('DEO', e.target.value)} 
-                                className={`w-2/3 mt-1 px-3 py-2 border ${errors.DEO ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
+                            <label className={`w-1/3 ${errors.ProjectCode ? 'text-red-500' : 'text-gray-600'}`}>Alternative Project Code:</label>
+                            <select
+                                value={projectDetails.ProjectCode}
+                                onChange={(e) => handleInputChange('ProjectCode', e.target.value)}
+                                className={`w-2/3 mt-1 px-3 py-2 border ${errors.ProjectCode ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
                                 style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
                             >
-                                <option value="">Select District Engineering Office</option>
-                                {projectEnums?.DEOs?.map((deo) => (
-                                    <option key={deo.Id} value={deo.DeoCode}>
-                                        {deo.DeoName}
-                                    </option>
-                                ))}
+                                <option value="">Select Project Code</option>
+                                <option value="ProjCode1">ProjCode1</option>
+                                <option value="ProjCode2">ProjCode2</option>
+                                <option value="ProjCode3">ProjCode3</option>
                             </select>
                         </div>
                     </div>

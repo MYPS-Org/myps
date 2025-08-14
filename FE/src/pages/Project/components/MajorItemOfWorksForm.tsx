@@ -287,6 +287,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                     type="number"
                     value={item.YearOfWork}
                     onChange={(e) => handleChange(index, 'YearOfWork', Number(e.target.value))}
+                    onFocus={handleNumberFocus}
                     className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
                   />
                 </TableCell>
