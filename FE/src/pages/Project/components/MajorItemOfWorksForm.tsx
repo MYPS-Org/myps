@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import type { MajorItemOfWork, ComponentCost, InfraData, ScopeOfWorkEnum, MajorItemOfWorksWithDropdown } from '../Model.d';
+import type { ComponentCost, InfraData, ScopeOfWorkEnum, MajorItemOfWorksWithDropdown } from '../Model.d';
 import { Button } from '../../../components/tailwindui/button';
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '../../../components/tailwindui/table';

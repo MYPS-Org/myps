@@ -17,27 +17,27 @@ interface NotesFormProps {
 const NotesForm: React.FC<NotesFormProps> = ({
   notes,
   onAdd,
-  onEdit,
+  // onEdit,
   onDelete,
-  onFileChange,
+  // onFileChange,
   initialData
 }) => {
   const [isAddNoteModalOpen, setIsAddNoteModalOpen] = useState(false);
 
-  const handleFileChange = (index: number, file: File) => {
-    const fileName = file.name;
-    const fileExtension = fileName.split('.').pop() || '';
+  // const handleFileChange = (index: number, file: File) => {
+  //   const fileName = file.name;
+  //   const fileExtension = fileName.split('.').pop() || '';
 
-    const updatedNote: ProjectNote = {
-      ...notes[index],
-      FileName: fileName,
-      FileExtension: fileExtension,
-      FilePath: URL.createObjectURL(file), // preview only, not actual path
-    };
+  //   const updatedNote: ProjectNote = {
+  //     ...notes[index],
+  //     FileName: fileName,
+  //     FileExtension: fileExtension,
+  //     FilePath: URL.createObjectURL(file), // preview only, not actual path
+  //   };
 
-    onEdit(index, updatedNote);
-    if (onFileChange) onFileChange(index, file); // optional actual upload
-  };
+  //   onEdit(index, updatedNote);
+  //   if (onFileChange) onFileChange(index, file); // optional actual upload
+  // };
 
   // Add this function to handle adding a new note
   const handleAddNote = (newNote: ProjectNote) => {
@@ -79,7 +79,7 @@ const NotesForm: React.FC<NotesFormProps> = ({
               </TableCell>
               <TableCell>
                 {note.FileName && (
-                  <span className="text-xs text-gray-500 mt-1 cursor-pointer !text-blue-500 !underline" onClick={() => window.open(`/${note.FilePath}`, '_blank')}>{note.FileName}</span>
+                  <span className="text-xs text-gray-500 mt-1 cursor-pointer !underline" onClick={() => window.open(`/${note.FilePath}`, '_blank')}>{note.FileName}</span>
                 )}
               </TableCell>
               <TableCell>

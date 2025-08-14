@@ -5,7 +5,6 @@ import { projectDetailsRules } from '../rules/projectDetailsRules';
 import type { 
   ProjectDetails, 
   ComponentCost, 
-  MajorItemOfWork, 
   ProjectNote, 
   FundingProfile, 
   Activity, 
@@ -27,7 +26,7 @@ import MajorItemOfWorksForm from './MajorItemOfWorksForm';
 import NotesForm from './NotesForm';
 import FundingProfileForm from './FundingProfileForm';
 import ActivitySection from './ActivitySection';
-import { addProjectDetails, getProjectEnums, updateEntireProject, getInfrastructureData } from '../Service';
+import { addProjectDetails, getProjectEnums, updateEntireProject } from '../Service';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import type { ProgramList } from '../../Program/Model';
 
@@ -197,9 +196,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
     initialData?.Activities || []
   );
 
-  const handleGoBack = () => {
-    navigate('/projects');
-  };
+  // const handleGoBack = () => {
+  //   navigate('/projects');
+  // };
 
   const handleProjectDetailsChange = (field: keyof ProjectDetails, value: any) => {
     setProjectDetails(prev => ({ ...prev, [field]: value }));
