@@ -103,13 +103,13 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
                   <select
                     name="source"
                     value={profile.Source}
-                    onChange={(e) => onEdit(index, { ...profile, Source: Number(e.target.value) })}
+                    onChange={(e) => onEdit(index, { ...profile, Source: String(e.target.value) })}
                     className=" w-full px-2 py-1 border border-gray-300 rounded"
                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
                   >
                     <option value="">Select Source</option>
                     {initialData?.Dropdowns?.Sources?.map((source) => (
-                      <option key={source.Id} value={source.SourceId}>
+                      <option key={source.Id} value={source.Organization}>
                         {source.Name}
                       </option>
                     ))}
@@ -126,9 +126,9 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
                   >
                     <option value="">Select Agreement</option>
                     {initialData?.Dropdowns?.Agreements
-                      ?.filter((agreement) => agreement.SourceId === profile.Source) // Filter by selected source
+                      ?.filter((agreement) => agreement.SourceOrg === profile.Source) // Filter by selected source
                       .map((agreement) => (
-                        <option key={agreement.Id} value={agreement.AgreementId}>
+                        <option key={agreement.Id} value={agreement.Id}>
                           {agreement.Name}
                         </option>
                       ))}

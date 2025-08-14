@@ -18,7 +18,7 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
   isOpen, 
   onClose, 
   onAdd, 
-  initialData,
+  // initialData,
   mode = 'add' 
 }) => {
 

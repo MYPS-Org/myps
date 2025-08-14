@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import ProjectForm from '../components/ProjectForm';
-import type { ProjectDetails, ProjectFormPayload } from '../Model.d';
+import type { ProjectFormPayload } from '../Model.d';
 import { getProjectDetails } from '../Service';
 
 const EditProject: React.FC = () => {

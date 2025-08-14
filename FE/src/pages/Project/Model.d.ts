@@ -274,7 +274,7 @@ export interface ProjectNote {
 export interface FundingProfile {
 	Id: number;
 	ProjectId: string;
-	Source: number;
+	Source: string;
 	Agreement: number;
 	Percentage: number;
 	CreatedBy: string;
@@ -391,18 +391,24 @@ export interface EmergencyModeEnum {
 }
 export interface AgreementEnum {
 	Id: number;
-	AgreementId: number;
-	SourceId: number;
+	SourceOrg: string;
 	Code: string;
 	Name: string;
-	FinancingSource?: string;
+	FinancingSourceSegmentCode: string;
+	CreatedBy: string;
+	CreatedDate: string;
+	UpdatedBy?: string;
+	UpdatedDate?: string;
 }
 export interface SourceEnum {
 	Id: number;
-	SourceId: number;
-	Org: string;
+	Organization: string;
 	Name: string;
 	Nature?: string;
+	CreatedBy: string;
+	CreatedDate: string;
+	UpdatedBy?: string;
+	UpdatedDate?: string;
 }
 //#endregion
 

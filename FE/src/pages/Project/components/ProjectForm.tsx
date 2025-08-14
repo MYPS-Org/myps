@@ -344,9 +344,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
 // #region Funding Profiles
   const handleAddFundingProfile = () => {
     const newProfile: FundingProfile = {
-      Id: Date.now(), // Temporary ID
+      Id: 0, // Temporary ID
       ProjectId: projectDetails.ProjectId || '',
-      Source: 0,
+      Source: '',
       Agreement: 0,
       Percentage: 0,
       CreatedBy: '',
