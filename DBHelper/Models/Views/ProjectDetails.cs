@@ -8,6 +8,8 @@ namespace DBHelper.Models.Views
         public string? ProgramId { get; set; }
         public string? ProgramName { get; set; }
         public string? ProjectId { get; set; }
+        public string? AlternateId { get; set; }
+        public string IslandCode { get; set; } = string.Empty;
         public int? RevisionNumber { get; set; }
         public string? Description { get; set; }
         public int Category { get; set; }

@@ -21,12 +21,18 @@ namespace DBHelper.Models.Table
         [MaxLength(50)]
         public string ComponentId { get; set; } = string.Empty;
         [Required]
+        [MaxLength(255)]
+        public string DetailedScope { get; set; } = string.Empty;
+        [Required]
         public int YearOfWork { get; set; }
         [Required]
         public int WorkTypeId { get; set; }
         [Required]
         [MaxLength(100)]
         public string InfraId { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(50)]
+        public string InfraType { get; set; } = string.Empty;
         [Required]
         public int TargetUnitId { get; set; }
         [Required]
