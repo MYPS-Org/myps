@@ -571,6 +571,7 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                DateTime CurrentDate = DateTime.UtcNow;
                 var checkProgram = await _db.tPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
                 if (checkProgram == null)
                 {
@@ -598,7 +599,7 @@ namespace WebAPI.Controllers.Programs
                     StageId = dto.Stage,
                     StageName = checkStageType.Name,
                     CreatedBy = _Session.UserId,
-                    CreatedDate = DateTime.UtcNow,
+                    CreatedDate = CurrentDate,
                     IsPublished = false,
                 };
                 await _db.tProgramStages.AddAsync(newStage);
@@ -637,13 +638,23 @@ namespace WebAPI.Controllers.Programs
                                 DetailedDesign = project.DetailedDesign,
                                 RowAvailable = project.RowAvailable,
                                 CreatedBy = _Session.UserId,
-                                CreatedDate = DateTime.UtcNow
+                                CreatedDate = CurrentDate
                             };
-                            await _db.tProjectRevisions.AddAsync(newRevision);
                             NewRevisions.Add(newRevision);
                         }
+                        await _db.tProjectRevisions.AddRangeAsync(NewRevisions);
+                        await _db.SaveChangesAsync();
+                        var newStages = NewRevisions.Select(pr => new ProjectStages
+                        {
+                            RevisionId = pr.Id,
+                            StageId = dto.Stage,
+                            StageName = checkStageType.Name,
+                            CreatedBy = _Session.UserId,
+                            CreatedDate = CurrentDate,
+                            IsPublished = false
+                        });
+                        await _db.tProjectStages.AddRangeAsync(newStages);
                     }
-                    var ProjectStages = await _db.tProjectStages.AsNoTracking().Where(x => projectIds.Contains(x.ProjectId)).ToListAsync();
                 }
                 var transactionLog = new TransactionLog()
                 {
@@ -654,7 +665,7 @@ namespace WebAPI.Controllers.Programs
                     NewValue = checkStageType.Name,
                     OldValue = checkStage.StageName,
                     CreatedBy = _Session.UserId,
-                    CreatedDate = DateTime.UtcNow
+                    CreatedDate = CurrentDate
                 };
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
