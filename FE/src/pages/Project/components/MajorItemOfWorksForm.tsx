@@ -1,17 +1,24 @@
 import React, { useState, useEffect } from "react";
-import type { MajorItemOfWork, ComponentCost, InfraData, ScopeOfWorkEnum } from '../Model.d';
+import type { ComponentCost, InfraData, ScopeOfWorkEnum, MajorItemOfWorksWithDropdown } from '../Model.d';
 import { Button } from '../../../components/tailwindui/button';
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '../../../components/tailwindui/table';
 import AddInfraDialog from '../dialogs/AddInfraDialog';
 import { mockInfraData } from "../dialogs/mockInfraData";
+import { handleNumberFocus } from "../../../utils/GlobalFunctions";
+
+interface SelectedInfraData {
+  infraId: string;
+  infraName: string;
+  infraType: string;
+}
 
 interface MajorItemOfWorksFormProps {
-  majorItems: MajorItemOfWork[];
+  majorItems: MajorItemOfWorksWithDropdown[];
   componentCosts: ComponentCost[];
   infraData?: InfraData;
   onAdd: () => void;
-  onEdit: (index: number, updatedItem: MajorItemOfWork) => void;
+  onEdit: (index: number, updatedItem: MajorItemOfWorksWithDropdown) => void;
   onDelete: (index: number) => void;
   dropDowns?: ScopeOfWorkEnum[]; // Optional initial data for dropdowns or other purposes
 }
@@ -27,37 +34,130 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
 }) => {
   const [infraDialogOpen, setInfraDialogOpen] = useState(false);
   const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(null);
+  const [isAddingNewItem, setIsAddingNewItem] = useState(false);
 
   // Debug: Monitor when majorItems prop changes
   useEffect(() => {
     console.log('MajorItemOfWorksForm: majorItems prop changed:', majorItems);
+    console.log('Available dropDowns:', dropDowns);
     majorItems.forEach((item, index) => {
-      console.log(`Item ${index} - TypeOfWork:`, item.WorkTypeId, typeof item.WorkTypeId);
+      console.log(`Item ${index} - WorkTypeId:`, item.WorkTypeId, 'InfraType:', item.InfraType, 'DropdownData length:', item.DropdownData?.length);
+      if (item.InfraType) {
+        const filtered = dropDowns?.filter(x => x.InfraType === item.InfraType);
+        console.log(`Filtered dropdowns for InfraType '${item.InfraType}':`, filtered);
+      }
     });
-  }, [majorItems]);
+  }, [majorItems, dropDowns]);
+
+  // Initialize rowUnits and TargetUnit display for items loaded from backend
+  useEffect(() => {
+    if (majorItems.length > 0 && dropDowns?.length) {
+      const newRowUnits: Record<number, { max?: number; min?: number }> = {};
+      
+      majorItems.forEach((item, index) => {
+        if (item.TargetUnitId && item.TargetUnitId > 0) {
+          const targetUnitEnum = dropDowns.find(option => option.Enum === item.TargetUnitId);
+          if (targetUnitEnum) {
+            newRowUnits[index] = {
+              max: targetUnitEnum.MaxAmount,
+              min: targetUnitEnum.MinAmount
+            };
+          }
+        }
+      });
+      
+      setRowUnits(newRowUnits);
+    }
+  }, [majorItems, dropDowns]);
+
+  // Update dropdown data for items that have InfraType but no DropdownData (from backend)
+  useEffect(() => {
+    if (majorItems.length > 0 && dropDowns?.length) {
+      let hasUpdates = false;
+      const updatedItems = majorItems.map((item, index) => {
+        // If item has InfraType but no or empty DropdownData, update it
+        if (item.InfraType && (!item.DropdownData || item.DropdownData.length === 0)) {
+          const filteredDropdowns = dropDowns.filter(x => x.InfraType === item.InfraType);
+          console.log(`Updating DropdownData for item ${index} with InfraType '${item.InfraType}':`, filteredDropdowns);
+          hasUpdates = true;
+          return {
+            ...item,
+            DropdownData: filteredDropdowns,
+          };
+        }
+        return item;
+      });
+      
+      if (hasUpdates) {
+        console.log('Updating majorItems with proper DropdownData');
+        // We need to call onEdit for each updated item
+        updatedItems.forEach((item, index) => {
+          if (item.InfraType && item.DropdownData && item.DropdownData.length > 0 && 
+              (!majorItems[index].DropdownData || majorItems[index].DropdownData.length === 0)) {
+            onEdit(index, item);
+          }
+        });
+      }
+    }
+  }, [majorItems, dropDowns, onEdit]);
 
   const handleInfraSelect = (infraId: string, infraName: string, infraType: string) => {
-    if (selectedItemIndex !== null) {
-      const updatedItem = { 
+    if (isAddingNewItem) {
+      // Create a new item with the selected infrastructure data
+      // We'll call onAdd first, then immediately update the new item with infrastructure data
+      onAdd();
+      
+      // Store the infrastructure data to be applied to the new item
+      setSelectedInfraData({ infraId, infraName, infraType });
+      console.log("New item added, storing infra data for application:", { infraId, infraName, infraType });
+      
+      setIsAddingNewItem(false);
+    } else if (selectedItemIndex !== null) {
+      // Update existing item
+      const updatedItem: MajorItemOfWorksWithDropdown = { 
         ...majorItems[selectedItemIndex], 
         InfraId: infraId,
-        // You can also store infraName and infraType if needed in your model
-        Description: `${infraType}: ${infraName}` // Update description with selected infrastructure
+        InfraType: infraType,
+        DropdownData: (dropDowns?.filter(x => x.InfraType === infraType)) ?? [], // Filter dropdown data by InfraType
       };
+      console.log("Updating existing item at index:", selectedItemIndex, "with InfraType:", infraType);
       onEdit(selectedItemIndex, updatedItem);
     }
     setInfraDialogOpen(false);
     setSelectedItemIndex(null);
   };
 
+  // Store infrastructure data for new items
+  const [selectedInfraData, setSelectedInfraData] = useState<SelectedInfraData | null>(null);
+
+  // Apply infrastructure data to newly created item
+  useEffect(() => {
+    if (selectedInfraData && majorItems.length > 0) {
+      const lastIndex = majorItems.length - 1;
+      const lastItem = majorItems[lastIndex];
+      console.log("Applying InfraId to last item:", lastItem, "with selectedInfraData:", selectedInfraData);
+      
+      // Check if this is a new item without InfraId
+      if (!lastItem.InfraId) {
+        const updatedItem = {
+          ...lastItem,
+          InfraId: selectedInfraData.infraId,
+          InfraType: selectedInfraData.infraType,
+          DropdownData: (dropDowns?.filter(x => x.InfraType === selectedInfraData.infraType)) ?? [], // Filter dropdown data by InfraType
+        };
+        console.log("Updating last item with InfraId and filtered dropdown data:", updatedItem);
+        
+        onEdit(lastIndex, updatedItem);
+        setSelectedInfraData(null);
+      }
+    }
+  }, [majorItems, selectedInfraData, onEdit, dropDowns]);
+
   // Store max/min units per row index
   const [rowUnits, setRowUnits] = useState<Record<number, { max?: number; min?: number }>>({});
 
   const handleChange = (index: number, field: string, value: any) => {
-    console.log(`Updating field '${field}' at index ${index} with value:`, value);
-    console.log('Current item before update:', majorItems[index]);
     const updatedItem = { ...majorItems[index], [field]: value };
-    console.log('Updated item being sent to parent:', updatedItem);
     onEdit(index, updatedItem);
   };
 
@@ -66,7 +166,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     console.log("TypeOfWork select changed - string value:", value, "number value:", numValue);
     
     // Create the updated item with both TypeOfWork and TargetUnit
-    let updatedItem = { ...majorItems[index], TypeOfWork: numValue };
+    let updatedItem = { ...majorItems[index], WorkTypeId: numValue };
     
     // If we have a valid selection, also update the TargetUnit
     if (numValue > 0) {
@@ -74,7 +174,8 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
       const newTargetUnit = dropDowns?.find(option => option.Enum === numValue);
       if (newTargetUnit) {
         console.log("Found matching target unit:", newTargetUnit.Measure);
-        updatedItem.TargetUnit = newTargetUnit.Measure;
+        updatedItem.TargetUnitId = newTargetUnit.Enum;
+        updatedItem.TargetUnit = newTargetUnit.Measure.toString(); // Keep this for compatibility, convert to string
         
         // Update row-specific units
         setRowUnits(prev => ({
@@ -87,10 +188,12 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
         console.log("Setting max/min units:", { max: newTargetUnit.MaxAmount, min: newTargetUnit.MinAmount });
       } else {
         console.log("No match found for TypeOfWork value:", numValue);
+        updatedItem.TargetUnitId = 0;
         updatedItem.TargetUnit = '';
       }
     } else {
       // Clear target unit if no valid selection
+      updatedItem.TargetUnitId = 0;
       updatedItem.TargetUnit = '';
       // Clear row-specific units
       setRowUnits(prev => ({
@@ -127,11 +230,17 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     setInfraDialogOpen(true);
   };
 
+  const openInfraDialogForNewItem = () => {
+    setIsAddingNewItem(true);
+    setSelectedItemIndex(null);
+    setInfraDialogOpen(true);
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-semibold text-gray-900">Major Item of Work</h2>
-          <Button color="blue" onClick={onAdd}>
+          <Button color="blue" onClick={openInfraDialogForNewItem}>
             <PlusIcon className="w-4 h-4 mr-1" />
             Add Item
           </Button>
@@ -158,18 +267,18 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
           </TableHead>
           <TableBody>
             {majorItems.map((item, index) => {
-              console.log(`Row ${index} - TypeOfWork:`, item.TypeOfWork, typeof item.TypeOfWork);
+              console.log(`Row ${index} - WorkTypeId:`, item.WorkTypeId, typeof item.WorkTypeId);
               return (
               <TableRow key={item.Id}>
                 <TableCell>
                   <select
                     value={item.ComponentId}
-                    onChange={(e) => handleChange(index, 'ComponentId', Number(e.target.value))}
+                    onChange={(e) => handleChange(index, 'ComponentId', String(e.target.value))}
                     className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
                   >
                     <option value="">Select Component</option>
                     {componentCosts.map(cost => (
-                      <option key={cost.Id} value={cost.Id}>{cost.ComponentId}</option>
+                      <option key={cost.Id} value={cost.ComponentId}>{cost.ComponentId}</option>
                     ))}
                   </select>
                 </TableCell>
@@ -178,39 +287,51 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                     type="number"
                     value={item.YearOfWork}
                     onChange={(e) => handleChange(index, 'YearOfWork', Number(e.target.value))}
+                    onFocus={handleNumberFocus}
                     className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
                   />
                 </TableCell>
                 <TableCell className="">
                   <select name="typeOfWork" id="typeOfWork" 
-                          value={item.TypeOfWork}
+                          value={item.WorkTypeId || ''}
                           onChange={(e) => handleTypeOfWorkChange(index, e.target.value)}
-                          className="max-w-sm px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500 truncate"
+                          className="w-[150px] px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500 truncate"
                           style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}
                           >
                     <option value="">Select Type of Work</option>
-                    {dropDowns?.map(option => (
-                      <option key={option.Id} value={option.Enum}>{option.Description}</option>
+                    {item.DropdownData?.map(option => (
+                      <option key={option.Id} value={option.Enum}>
+                        {option.Description}
+                      </option>
                     ))}
                   </select>
                 </TableCell>
                 <TableCell>
                   <input
                     type="text"
-                    value={item.TargetUnit}
-                    onChange={(e) => handleChange(index, 'TargetUnit', e.target.value)}
+                    value={(() => {
+                      if (item.TargetUnitId > 0) {
+                        const targetUnit = dropDowns?.find(option => option.Enum === item.TargetUnitId);
+                        if (targetUnit) {
+                          return targetUnit.Measure.toString();
+                        }
+                      }
+                      return item.TargetUnit || '';
+                    })()}
                     className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
-                    placeholder="Enter target unit"
+                    placeholder="Target unit"
+                    readOnly
                   />
                 </TableCell>
                 <TableCell>
                   <input
                     type="number"
-                    value={item.PhysicalTarget}
+                    value={item.TargetAmount}
                     onChange={(e) => {
                       const val = e.target.value;
-                      handleChange(index, 'PhysicalTarget', val === '' ? null : Number(val));
+                      handleChange(index, 'TargetAmount', val === '' ? null : Number(val));
                     }}
+                    onFocus={handleNumberFocus}
                     max={rowUnits[index]?.max}
                     min={rowUnits[index]?.min}
                     className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
@@ -218,12 +339,12 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                   />
                 </TableCell>
                 <TableCell>
-                  <input
-                    type="text"
-                    value={item.Description}
-                    onChange={(e) => handleChange(index, 'Description', e.target.value)}
-                    className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
-                    placeholder="Enter detailed scope"
+                  <textarea
+                    value={item.DetailedScope}
+                    onChange={(e) => handleChange(index, 'DetailedScope', e.target.value)}
+                    className="w-full px-2 py-1 mt-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
+                    placeholder="Enter scope"
+                    rows={1}
                   />
                 </TableCell>
                 <TableCell>
@@ -259,6 +380,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                     type="number"
                     value={item.StartStationLimit}
                     onChange={(e) => handleChange(index, 'StartStationLimit', Number(e.target.value))}
+                    onFocus={handleNumberFocus}
                     className="w-24 px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
                     placeholder="Start"
                   />
@@ -266,8 +388,9 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                 <TableCell>
                   <input
                     type="number"
-                    value={item.EndStationLimi}
-                    onChange={(e) => handleChange(index, 'EndStationLimi', Number(e.target.value))}
+                    value={item.EndStationLimit}
+                    onChange={(e) => handleChange(index, 'EndStationLimit', Number(e.target.value))}
+                    onFocus={handleNumberFocus}
                     className="w-24 px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
                     placeholder="End"
                   />
@@ -275,8 +398,9 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                 <TableCell>
                   <input
                     type="number"
-                    value={item.StartFrom}
-                    onChange={(e) => handleChange(index, 'StartFrom', Number(e.target.value))}
+                    value={item.StartX}
+                    onChange={(e) => handleChange(index, 'StartX', Number(e.target.value))}
+                    onFocus={handleNumberFocus}
                     className="w-24 px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
                     placeholder="Start"
                   />
@@ -284,8 +408,9 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                 <TableCell>
                   <input
                     type="number"
-                    value={item.EndFrom}
-                    onChange={(e) => handleChange(index, 'EndFrom', Number(e.target.value))}
+                    value={item.EndX}
+                    onChange={(e) => handleChange(index, 'EndX', Number(e.target.value))}
+                    onFocus={handleNumberFocus}
                     className="w-24 px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
                     placeholder="End"
                   />
@@ -311,6 +436,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
           onClose={() => {
             setInfraDialogOpen(false);
             setSelectedItemIndex(null);
+            setIsAddingNewItem(false);
           }}
           onAdd={handleInfraSelect}
           initialData={infraData}

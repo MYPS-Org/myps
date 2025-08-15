@@ -1,6 +1,6 @@
 "use-client";
 import React, { useState, useEffect } from 'react';
-import { useParams, /*useNavigate*/ } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 
 import type { ProjectGroupDetailsModel, updateProjectGroupModel, ProjectList } from '../Model.d'; // Adjust the import path as necessary
 import { Button } from '../../../components/tailwindui/button';
@@ -14,7 +14,7 @@ import { TrashIcon } from '@heroicons/react/24/outline';
 // Mock projects data for the table
 const ProjectGroupDetails: React.FC = () => {
   const { groupId } = useParams<{ groupId: string }>();
-  // const navigate = useNavigate();
+  const navigate = useNavigate();
   const [projectGroupDetails, setProjectGroupDetails] = useState<ProjectGroupDetailsModel>({
     GroupDetails: {
         Id: 0,
@@ -89,25 +89,15 @@ const ProjectGroupDetails: React.FC = () => {
     setIsDeleteProjectOpen(true);
   };
 
+  const handleAutoRefresh = async () => {
+    if (groupId) {
+      await fetchProjectGroupDetails(groupId);
+    }
+  };
+
   // const handleBack = () => {
   //   navigate('/project-groups');
   // };
-
-  const handleReset = () => {
-    setFormData({
-      GroupDetails: {
-        Id: 0,
-        GroupId: '',
-        Name: '',
-        Description: '',
-        UserGroup: 0,
-        UserGroupName: '',
-        CreatedBy: '',
-        CreatedDate: ''
-      },
-      Projects: []
-    });
-  };
 
   const handleChange = (field: keyof ProjectGroupDetailsModel['GroupDetails'], value: any) => {
     setFormData(prev => ({
@@ -138,30 +128,14 @@ const ProjectGroupDetails: React.FC = () => {
     // Logic to open the dialog for adding a new project
     // This could involve setting state or navigating to a different route
   }
-
   const handleCloseDialog = () => {
     setIsAddProjectOpen(false);
-  }
+    setIsDeleteProjectOpen(false);
+  };
 
   const handleAddProjects = async (projects: ProjectList[]) => {
     try {
-      // Add projects to the current group's project list
-      const updatedProjects = [...formData.Projects, ...projects];
-      
-      // Update the form data
-      setFormData(prev => ({
-        ...prev,
-        Projects: updatedProjects
-      }));
-
-      // Update the display data
-      setProjectGroupDetails(prev => ({
-        ...prev,
-        Projects: updatedProjects
-      }));
-
-      // Optionally save to backend immediately
-      // await updateProjectGroup(formData);
+      handleAutoRefresh();
       
       console.log('Added projects:', projects);
     } catch (error) {
@@ -340,21 +314,51 @@ const ProjectGroupDetails: React.FC = () => {
                       <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Created Date
                       </TableHeader>
+                      <TableHeader>
+                        Actions
+                      </TableHeader>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                 {projectGroupDetails.Projects?.map((project) => (
                     <TableRow key={project.Id} className="hover:bg-gray-50">
                       <TableCell className="px-6 py-4 whitespace-nowrap">
-                          <button className="text-blue-600 hover:text-blue-800 font-medium">
-                          {project.Id}
+                          <button className="text-blue-600 hover:text-blue-800 font-medium" onClick={() => navigate(`/projects/project-details/${project.ProjectId}`)}>
+                            {project.ProjectId}
                           </button>
                       </TableCell>
                       <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {project.ProjectId}
+                          {project.Category}
                       </TableCell>
                       <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {project.Description}
+                      </TableCell>
+                      <TableCell className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>
+                          {project.Origin}
+                      </TableCell>
+                      <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {project.City}
+                      </TableCell>
+                      <TableCell className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>
+                          {project.LegislativeDistrict}
+                      </TableCell>
+                      <TableCell>
+                          {project.OperatingUnit}
+                      </TableCell>
+                      <TableCell>
+                          {project.ImplementingOffice}
+                      </TableCell>
+                      <TableCell>
+                          {project.DEO}
+                      </TableCell>
+                      <TableCell>
+                          {project.Region}
+                      </TableCell>
+                      <TableCell>
+                          {project.Agency}
+                      </TableCell>
+                      <TableCell>
+                          {project.CreatedBy}
                       </TableCell>
                       <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {project.CreatedDate ? project.CreatedDate.StringToDate() : ''}

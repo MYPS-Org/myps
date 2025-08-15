@@ -3,6 +3,7 @@ import { Dialog, DialogTitle, DialogPanel } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import type { ComponentCost, ComponentCostYear, ComponentCostWithYears } from '../Model';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import { handleNumberFocus } from '../../../utils/GlobalFunctions';
 
 interface ComponentCostDialogProps {
   isOpen: boolean;
@@ -28,6 +29,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   const [formData, setFormData] = useState({
     Id: 0,
     ProjectId: ProjectId,
+    ReferenceId: '',
     ComponentType: '',
     ComponentId: '',
     Description: '',
@@ -60,6 +62,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
       setFormData({
         Id: 0,
         ProjectId: ProjectId,
+        ReferenceId: '',
         ComponentType: '',
         ComponentId: '',
         Description: '',
@@ -112,7 +115,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         // Create ComponentCostYear object if we have the required fields
         const componentCostYear: ComponentCostYear = {
           Id: 0, // Will be set by backend
-          ParentId: componentCostData.Id, // Will be linked after ComponentCost is saved
+          ParentId: componentCostData.ReferenceId, // Will be linked after ComponentCost is saved
           CostYear: new Date().getFullYear(), // Default to current year
           Cost: componentCostData.Total, // Use the same cost value
           ApprovalDate: ApprovalDate || undefined,
@@ -136,6 +139,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         setFormData({
             Id: 0,
             ProjectId: '',
+            ReferenceId: '',
             ComponentType: '',
             ComponentId: '',
             Description: '',
@@ -192,7 +196,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                             handleChange('ComponentType', value);
                             handleChangeComponentId(value);
                         }}
-                    >
+                    >   
+                    <option value="">Select Component Type</option>
                         {componentTypes?.map((type: any) => (
                             <option key={type.Id} value={type.description}>
                                 {type.Description}
@@ -249,6 +254,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                             type="number"
                             value={formData.Total}
                             onChange={(e) => handleChange('Total', Number(e.target.value))}
+                            onFocus={handleNumberFocus}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                             placeholder="0"
                             min="0"

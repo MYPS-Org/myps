@@ -15,7 +15,7 @@ export interface ProjectFormPayload {
   ProjectDetails: ProjectDetails;
   ComponentCosts: ComponentCost[];
   ComponentCostPerYear: ComponentCostYear[];
-  MajorItemOfWorks: MajorItemOfWork[];
+  MajorItemOfWorks: MajorItemOfWorksWithDropdown[];
   ProjectNotes: ProjectNote[];
   FundingProfile: FundingProfile[];
   Dropdowns: Dropdowns;
@@ -237,14 +237,21 @@ export interface ComponentCostYear {
 	PAPCode: string;
 	StartDate: string;
 	EndDate: string;
-}export interface MajorItemOfWork {
+}
+export interface MajorItemOfWorksWithDropdown extends MajorItemOfWork {
+	DropdownData: ScopeOfWorkEnum[];
+}
+export interface MajorItemOfWork {
 	Id: number;
 	ProjectId: string;
 	ComponentId: string;
+	DetailedScope: string;
 	YearOfWork: number;
 	WorkTypeId: number;
 	InfraId: string;
+	InfraType: string;
 	TargetUnitId: number;
+	TargetUnit: string; // Changed from number to string to match the UI usage
 	StartX: number;
 	StartY: number;
 	EndX: number;
@@ -253,9 +260,6 @@ export interface ComponentCostYear {
 	StartStationLimit: number;
 	EndStationLimit: number;
 	CreatedBy: string;
-	CreatedDate?: string;
-	UpdatedBy?: string;
-	UpdatedDate?: string;
 }
 export interface ProjectNote {
 	Id: number;
@@ -270,7 +274,7 @@ export interface ProjectNote {
 export interface FundingProfile {
 	Id: number;
 	ProjectId: string;
-	Source: number;
+	Source: string;
 	Agreement: number;
 	Percentage: number;
 	CreatedBy: string;
@@ -387,25 +391,31 @@ export interface EmergencyModeEnum {
 }
 export interface AgreementEnum {
 	Id: number;
-	AgreementId: number;
-	SourceId: number;
+	SourceOrg: string;
 	Code: string;
 	Name: string;
-	FinancingSource?: string;
+	FinancingSourceSegmentCode: string;
+	CreatedBy: string;
+	CreatedDate: string;
+	UpdatedBy?: string;
+	UpdatedDate?: string;
 }
 export interface SourceEnum {
 	Id: number;
-	SourceId: number;
-	Org: string;
+	Organization: string;
 	Name: string;
 	Nature?: string;
+	CreatedBy: string;
+	CreatedDate: string;
+	UpdatedBy?: string;
+	UpdatedDate?: string;
 }
 //#endregion
 
 // #region add Project details Enums
 export interface ProjectEnums {
   Programs: ProgramList[];
-  Categories: ProjectCategoryEnum[];
+  Categories: CategoryEnum[];
   Thrusts: ProjectThurstEnum[];
   Origins: ProjectOriginEnum[];
   Cities: ProjectCityEnum[];

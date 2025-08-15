@@ -40,7 +40,7 @@ export interface ProjectList {
     Id?: number;
 	ProgramId?: string;
 	ProgramName?: string;
-	ProjectId?: string;
+	ProjectId: string;
 	RevisionNumber?: number;
 	Description?: string;
 	Category?: number;

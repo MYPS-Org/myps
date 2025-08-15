@@ -5,7 +5,6 @@ import { projectDetailsRules } from '../rules/projectDetailsRules';
 import type { 
   ProjectDetails, 
   ComponentCost, 
-  MajorItemOfWork, 
   ProjectNote, 
   FundingProfile, 
   Activity, 
@@ -13,7 +12,8 @@ import type {
   ProjectEnums,
   Dropdowns,
   ComponentCostYear,
-  InfraData
+  InfraData,
+  MajorItemOfWorksWithDropdown
 } from '../Model.d';
 
 import { Button } from '../../../components/tailwindui/button';
@@ -26,7 +26,7 @@ import MajorItemOfWorksForm from './MajorItemOfWorksForm';
 import NotesForm from './NotesForm';
 import FundingProfileForm from './FundingProfileForm';
 import ActivitySection from './ActivitySection';
-import { addProjectDetails, getProjectEnums, updateEntireProject, getInfrastructureData } from '../Service';
+import { addProjectDetails, getProjectEnums, updateEntireProject } from '../Service';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import type { ProgramList } from '../../Program/Model';
 
@@ -147,9 +147,15 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
     CostPerYear: componentCostsYear.filter(year => year.ParentId === cost.ReferenceId)
   }));
 
-  const [majorItems, setMajorItems] = useState<MajorItemOfWork[]>(
-    initialData?.MajorItemOfWorks || []
-  );
+  const [majorItems, setMajorItems] = useState<MajorItemOfWorksWithDropdown[]>(() => {
+    if (!initialData?.MajorItemOfWorks) return [];
+    
+    // Transform backend MajorItemOfWork[] to MajorItemOfWorksWithDropdown[]
+    return initialData.MajorItemOfWorks.map(item => ({
+      ...item,
+      DropdownData: initialData?.Dropdowns?.ScopeOfWorks?.filter(scope => scope.InfraType === item.InfraType) || []
+    }));
+  });
 
   const [notes, setNotes] = useState<ProjectNote[]>(
     initialData?.ProjectNotes || []
@@ -190,9 +196,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
     initialData?.Activities || []
   );
 
-  const handleGoBack = () => {
-    navigate('/projects');
-  };
+  // const handleGoBack = () => {
+  //   navigate('/projects');
+  // };
 
   const handleProjectDetailsChange = (field: keyof ProjectDetails, value: any) => {
     setProjectDetails(prev => ({ ...prev, [field]: value }));
@@ -272,14 +278,17 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
 
   // #region Major Items of Work
   const handleAddMajorItem = () => {
-    const newItem: MajorItemOfWork = {
-      Id: Date.now(), // Temporary ID
+    const newItem: MajorItemOfWorksWithDropdown = {
+      Id: 0, // Temporary ID
       ProjectId: '',
       ComponentId: '',
+      DetailedScope: '',
       YearOfWork: 0,
       WorkTypeId: 0,
       InfraId: '',
+      InfraType: '',
       TargetUnitId: 0,
+      TargetUnit: '',
       StartX: 0,
       StartY: 0,
       EndX: 0,
@@ -288,13 +297,13 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       StartStationLimit: 0,
       EndStationLimit: 0,
       CreatedBy: '',
-      CreatedDate: Date.now().toString(),
+      DropdownData: []
     };
     setMajorItems(prev => [...prev, newItem]);
     console.log('Added major item to staging:', newItem);
   };
 
-  const handleEditMajorItem = (index: number, updatedItem: MajorItemOfWork) => {
+  const handleEditMajorItem = (index: number, updatedItem: MajorItemOfWorksWithDropdown) => {
     console.log('ProjectForm: Editing major item at index', index);
     console.log('ProjectForm: Updated item received:', updatedItem);
     setMajorItems(prev => {
@@ -335,9 +344,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
 // #region Funding Profiles
   const handleAddFundingProfile = () => {
     const newProfile: FundingProfile = {
-      Id: Date.now(), // Temporary ID
+      Id: 0, // Temporary ID
       ProjectId: projectDetails.ProjectId || '',
-      Source: 0,
+      Source: '',
       Agreement: 0,
       Percentage: 0,
       CreatedBy: '',

@@ -18,7 +18,7 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
   isOpen, 
   onClose, 
   onAdd, 
-  initialData,
+  // initialData,
   mode = 'add' 
 }) => {
 
@@ -101,7 +101,7 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
                     name="infraSelection"
                     value={road.SectionId}
                     checked={selectedInfra?.id === road.SectionId}
-                    onChange={() => handleInfraSelect(road.SectionId, `${road.CDOName} - ${road.RoadId}`, 'Road Section')}
+                    onChange={() => handleInfraSelect(road.SectionId, `${road.CDOName} - ${road.RoadId}`, 'Roads')}
                     className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300"
                   />
                 </TableCell>
@@ -150,7 +150,7 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
                     name="infraSelection"
                     value={bridge.BridgeId}
                     checked={selectedInfra?.id === bridge.BridgeId}
-                    onChange={() => handleInfraSelect(bridge.BridgeId, bridge.BridgeName, 'Bridge')}
+                    onChange={() => handleInfraSelect(bridge.BridgeId, bridge.BridgeName, 'Bridges')}
                     className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300"
                   />
                 </TableCell>

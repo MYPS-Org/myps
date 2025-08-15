@@ -25,7 +25,7 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
   onSubmit, 
   programEnums, }) => {
   const navigate = useNavigate();
-  const Status = programEnums?.Statuses || [];
+  // const Status = programEnums?.Statuses || [];
   const Stage = programEnums?.Stages || [];
   const Type = programEnums?.Types || [];
   const Group = programEnums?.Groups || [];
@@ -33,12 +33,12 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
   const [formData, setFormData] = useState({
     Id: 0,
     Stage: 0,
-    Status: 0,
+    Status: 1,
     Type: 0,
     UserGroup: 0,
     Name: '',
     YearStart: new Date().getFullYear(),
-    YearEnd: new Date().getFullYear() + 6,
+    YearEnd: new Date().getFullYear(),
   });
 
 
@@ -86,7 +86,7 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
       <DialogPanel className="w-full max-w-4xl bg-white rounded-lg shadow-xl p-6">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <DialogTitle className="text-lg font-semibold text-gray-900">
-              Add New Group
+              Add New Program
             </DialogTitle>
             <button
               onClick={onClose}
@@ -119,7 +119,24 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
                 required
               />
             </div>
-            <div className="mb-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Program Type</label>
+              <select
+                value={formData.Type}
+                onChange={(e) => handleChange('Type', Number(e.target.value))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+              >
+                <option className="text-gray-500" value="">
+                  Select Type
+                </option>
+                {Type.map((type) => (
+                  <option key={type.Id} value={type.Enum}>
+                    {type.Name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {/* <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">End Year</label>
               <input
                 type="number"
@@ -128,7 +145,7 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
                 required
               />
-            </div>
+            </div> */}
           </div>
           <div className="mb-4 grid grid-cols-2 gap-5">
             <div>
@@ -167,40 +184,7 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
             </div>
           </div>
           <div className="grid grid-cols-2 gap-5 mb-8">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Program Status</label>
-              <select
-                value={formData.Status}
-                onChange={(e) => handleChange('Status', Number(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
-              >
-                <option className="text-gray-500" value="">
-                  Select Status
-                </option>
-                {Status.map((status) => (
-                  <option key={status.Id} value={status.Enum}>
-                    {status.Name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Program Type</label>
-              <select
-                value={formData.Type}
-                onChange={(e) => handleChange('Type', Number(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
-              >
-                <option className="text-gray-500" value="">
-                  Select Type
-                </option>
-                {Type.map((type) => (
-                  <option key={type.Id} value={type.Enum}>
-                    {type.Name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            
           </div>
             
 

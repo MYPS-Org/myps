@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 
 import type { ProgramDetailsEnums } from '../Model.d'; // Adjust the import path as necessary
 import { Button } from '../../../components/tailwindui/button';
-import { editProgram, fetchProgramById } from '../Service';
+import { editProgram, fetchProgramById, nextStage } from '../Service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
 // import { Badge } from '../../../components/tailwindui/badge';
 
@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 const ProgramDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [nextStageName, setNextStageName] = useState<string | null>(null);
   const [programEnums, setProgramEnums] = useState<ProgramDetailsEnums>({
     Details: {
       	Id: 0,
@@ -84,11 +85,17 @@ const ProgramDetail: React.FC = () => {
     loadProgramDetail();
   }, [id]);
 
+
+
   const fetchProgramDetail = async (programId: string) => {
     setIsLoading(true);
     try {
       const response = await fetchProgramById(programId);
       setProgramEnums(response.Data);
+
+      const nextStageId = response.Data.Details.StageId + 1;
+      const nextStage = response.Data.Dropdowns.Stages.find(stage => stage.Id === nextStageId);
+      setNextStageName(nextStage ? nextStage.Name : 'Final Stage');
     } catch (error) {
       console.error('Error fetching program details:', error);
       setProgramEnums(defaultProgramEnums);
@@ -123,6 +130,20 @@ const ProgramDetail: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  const handleProceed = async () => {
+    setIsLoading(true);
+    try {
+      const nextStageId = programEnums?.Details.StageId + 1;
+      console.log('Proceeding to next stage:', nextStageId);
+      await nextStage({ ProgramId: programEnums?.Details.ProgramId, Stage: nextStageId });
+    } catch (error) {
+      console.error('Error proceeding with program details:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
 
   if (isLoading) {
     return (
@@ -271,7 +292,12 @@ const ProgramDetail: React.FC = () => {
               </div>
             </div>
 
-            <div className="pt-4 text-right">
+            <div className="pt-4 flex justify-end gap-4">
+              {programEnums?.Details.StageId <= 4 && programEnums?.Details.StageId <= 11 && (
+                <Button color="blue" className="w-auto" onClick={handleProceed}>
+                  Proceed to {nextStageName}
+                </Button>
+              )}
               <Button color="green" className="w-24" onClick={handleUpdate}>
                 Update
               </Button>
@@ -356,11 +382,8 @@ const ProgramDetail: React.FC = () => {
                 <TableRow key={project.Id} className="hover:bg-gray-50">
                   <TableCell className="px-6 py-4 whitespace-nowrap">
                     <button className="text-blue-600 hover:text-blue-800 font-medium">
-                      {project.Id}
+                      {project.ProjectId}
                     </button>
-                  </TableCell>
-                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {project.ProjectId}
                   </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {project.Category}
@@ -394,6 +417,9 @@ const ProgramDetail: React.FC = () => {
                   </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {project.CreatedBy}
+                  </TableCell>
+                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {project.CreatedDate.StringToDate()}
                   </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {project.CreatedDate.StringToDate()}

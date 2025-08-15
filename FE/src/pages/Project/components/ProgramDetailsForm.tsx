@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import type { ProgramDetails, ProjectEnums, ProjectFormPayload } from "../Model";
+import { useState } from "react";
+import type { ProjectEnums } from "../Model";
 import type { ProgramList } from "../../Program/Model";
 
 interface ProgramDetailsFormProps {
@@ -13,7 +13,6 @@ interface ProgramDetailsFormProps {
 
 
 const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
-  initialData,
   programDetails,
   setProgramDetails,
   onChange,
@@ -21,7 +20,7 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
   projectEnums
 }) => {
   const [searchFormData, setSearchFormData] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading] = useState(false);
 
   const setProgram = (value: string) => {
     console.log('Selected program value:', value);

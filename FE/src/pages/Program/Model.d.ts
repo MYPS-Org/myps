@@ -1,7 +1,7 @@
 import type { ProjectLists } from "../Project/Model";
 
 export interface ProgramModel {
-  Id: number,
+	Id: number;
 	Stage: number;
 	Status: number;
 	Type: number;
@@ -16,6 +16,25 @@ export interface ProgramEnums {
 	GroupName?: string;
 	Name: string;
 	Description: string;
+}
+
+export interface ParentProgram {
+	Id: number;
+	RevisionId: number;
+	ProgramId: string;
+	StageName: string;
+	Name: string;
+	GroupName?: string;
+	RegionCode: string;
+	Status?: string;
+	Type?: string;
+	Cost?: number;
+	YearStart: number;
+	YearEnd: number;
+	CreatedBy: string;
+	CreatedDate: string;
+	IsPublished: boolean;
+	Stages: ProgramList[];
 }
 
 export interface ProgramDetails {

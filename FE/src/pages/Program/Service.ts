@@ -2,11 +2,11 @@
 import { httpClient } from '../../services/httpClient';
 
 
-import type { ProgramModel, ProgramEnums, ProgramPagination, ProgramList, ProgramDetailsEnums, ProgramDetails } from './Model';
+import type { ProgramModel, ProgramEnums, ProgramPagination, ProgramList, ProgramDetailsEnums, ProgramDetails, ParentProgram } from './Model';
 
 export const fetchProgramEnums = async () => {
     try {
-        const response = await httpClient.post< { Statuses: ProgramEnums[]; Stages: ProgramEnums[]; Types: ProgramEnums[]; Groups: ProgramEnums[] } >(
+        const response = await httpClient.post< { Stages: ProgramEnums[]; Types: ProgramEnums[]; Groups: ProgramEnums[] } >(
             '/Program/InitAddProgram',
             null,
             {
@@ -22,7 +22,7 @@ export const fetchProgramEnums = async () => {
 
 export const fetchProgram = async (data: ProgramPagination) => {
     try {
-        const response = await httpClient.post<PaginationResponse<ProgramList>>('/program/showprogram', data, {
+        const response = await httpClient.post<PaginationResponse<ParentProgram>>('/program/showprogram', data, {
             preloaderMessage: 'Loading program...'
         });
         return response;
@@ -79,3 +79,15 @@ export const deleteProgram = async (program: ProgramList) => {
         throw ErrorResponse;
     }
 };
+
+export const nextStage = async (data: { ProgramId: string; Stage: number }) => {
+    try {
+        const request = await httpClient.post<ProgramDetails>('/Program/updateProgramStage', data, {
+            preloaderMessage: 'Proceeding to next stage...'
+        });
+        return request;
+    } catch (ErrorResponse) {
+        console.error('Error proceeding to next stage:', ErrorResponse);
+        throw ErrorResponse;
+    }
+}
