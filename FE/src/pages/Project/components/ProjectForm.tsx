@@ -73,6 +73,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       Id: 0,
       ProgramId: '',
       ProjectId: '',
+      IslandCode: '',
       RevisionNumber: 0,
       Description: '',
       Category: 0,
@@ -85,7 +86,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       DEO: '',
       Region: '',
       Agency: 0,
-      ProjectCode: '',
+      AlternateId: '',
       ImplementationMode: 0,
       EmergencyMode: false,
       Feasibility: 0,
@@ -563,6 +564,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
                   onChange={handleProjectDetailsChange}
                   projectEnums={projectEnums || undefined}
                   initialData={initialData}
+                  mode={mode}
                   errors={errors}
                 />
               </div>

@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { ProjectDetails, ProjectEnums } from "../Model.d";
 import type { FormValidationError } from "../../../utils/FormValidation";
 
 interface ProjectDetailsFormProps {
     projectDetails: ProjectDetails;
     onChange: (field: keyof ProjectDetails, value: any) => void;
-    mode?: 'add' | 'edit';
+    mode?: string; // 'add' or 'edit'
     projectEnums?: ProjectEnums;
     initialData?: any;
     errors?: FormValidationError<ProjectDetails>;
@@ -14,16 +14,39 @@ interface ProjectDetailsFormProps {
 const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({ 
     projectDetails, 
     onChange, 
-    mode = 'edit',
     projectEnums,
+    mode = '',
     errors = {}
 }) => {
     const handleInputChange = (field: keyof ProjectDetails, value: any) => {
         onChange(field, value);
     };
+    const [selectedBox, setSelectedBox] = useState<string | null>(null);
+
+    const handleBoxClick = (boxValue: string) => {
+        if (mode === 'edit') return; // Prevent clicking in edit mode
+        
+        const newValue = selectedBox === boxValue ? null : boxValue;
+        setSelectedBox(newValue);
+        handleInputChange('IslandCode', newValue);
+    };
+
+
 
     return (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className='w-full flex flex-row items-end justify-end mb-4'>
+                { [{ label: "Lump Sum", value: "LS"}, { label: "Non Project", value: "N"}].map((item, index) => (
+                    <label key={index} className={`flex-row items-center ${mode === 'edit' ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} mr-4`}>
+                        <input className='mr-1'
+                            type="checkbox" 
+                            checked={selectedBox === item.value}
+                            disabled={ mode === 'edit'}
+                            onChange={() => handleBoxClick(item.value)} />
+                        {item.label}
+                    </label>
+                ))}
+            </div>
             <div className="space-y-4 text-sm">
                 <div className="grid grid-cols-3 gap-5">
                     <div className='w-full flex flex-row text-left gap-5 items-center'>
@@ -251,17 +274,14 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     
                     <div className='w-full flex flex-col text-left gap-2'>
                         <div className="flex flex-row gap-5 items-center">
-                            <label className={`w-1/3 ${errors.ProjectCode ? 'text-red-500' : 'text-gray-600'}`}>Alternative Project Code:</label>
-                            <select
-                                value={projectDetails.ProjectCode}
-                                onChange={(e) => handleInputChange('ProjectCode', e.target.value)}
-                                className={`w-2/3 mt-1 px-3 py-2 border ${errors.ProjectCode ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
-                                style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                            <label className={`flex-1/3 ${errors.RowAvailable ? 'text-red-500' : 'text-gray-600'}`}>ROW Available:</label>
+                            <select 
+                                value={projectDetails.RowAvailable ? 'true' : 'false'} 
+                                onChange={(e) => handleInputChange('RowAvailable', e.target.value === 'true')}
+                                className={`flex-2/3 mt-1 px-3 py-2 border ${errors.RowAvailable ? 'border-red-500' : 'border-gray-300'} rounded-md`}
                             >
-                                <option value="">Select Project Code</option>
-                                <option value="ProjCode1">ProjCode1</option>
-                                <option value="ProjCode2">ProjCode2</option>
-                                <option value="ProjCode3">ProjCode3</option>
+                                <option value="false">No</option>
+                                <option value="true">Yes</option>
                             </select>
                         </div>
                     </div>
@@ -367,15 +387,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
                     <div className='w-full flex flex-col text-left gap-2'>
                         <div className="flex flex-row gap-5 items-center">
-                            <label className={`flex-1/3 ${errors.RowAvailable ? 'text-red-500' : 'text-gray-600'}`}>ROW Available:</label>
-                            <select 
-                                value={projectDetails.RowAvailable ? 'true' : 'false'} 
-                                onChange={(e) => handleInputChange('RowAvailable', e.target.value === 'true')}
-                                className={`flex-2/3 mt-1 px-3 py-2 border ${errors.RowAvailable ? 'border-red-500' : 'border-gray-300'} rounded-md`}
-                            >
-                                <option value="false">No</option>
-                                <option value="true">Yes</option>
-                            </select>
+                            
                         </div>
                     </div>
                 </div>
