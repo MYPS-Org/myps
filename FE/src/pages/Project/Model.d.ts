@@ -20,6 +20,7 @@ export interface ProjectFormPayload {
   FundingProfile: FundingProfile[];
   Dropdowns: Dropdowns;
   Activities: Activity[];
+  TransactionLogs: TransactionLog[];
 }
 
 export interface AddProject {
@@ -115,6 +116,18 @@ export interface Activity {
   Id: string;
   Description: string;
   Date: string;
+}
+
+export interface TransactionLog {
+  Id: number;
+  TransactionId: string;
+  TypeOfTransaction: string;
+  AffectedTable: string;
+  AffectedColumn: string;
+  OldValue: string;
+  NewValue: string;
+  CreatedBy: string;
+  CreatedDate: string;
 }
 
 export interface ProjectById {

@@ -72,29 +72,29 @@ export const projectDetailsRules: ValidationRule<ProjectDetails>[] = [
     //     message: "Agency is required.",
     //     validate: (value) => typeof value === 'number' && value > 0
     // },
-    {
-        field: "ImplementationMode",
-        message: "Implementation Mode is required.",
-        validate: (value) => typeof value === 'number' && value > 0
-    },
-    {
-        field: "EmergencyMode",
-        message: "Emergency Mode is required.",
-        validate: (value) => typeof value === 'boolean' && value !== undefined
-    },
-    {
-        field: "Feasibility",
-        message: "Feasibility is required.",
-        validate: (value) => typeof value === 'number' && value > 0
-    },
-    {
-        field: "DetailedDesign",
-        message: "Detailed Design is required.",
-        validate: (value) => typeof value === 'boolean'
-    },
-    {
-        field: "RowAvailable",
-        message: "Row Available is required.",
-        validate: (value) => typeof value === 'boolean'
-    }
+    // {
+    //     field: "ImplementationMode",
+    //     message: "Implementation Mode is required.",
+    //     validate: (value) => typeof value === 'number' && value > 0
+    // },
+    // {
+    //     field: "EmergencyMode",
+    //     message: "Emergency Mode is required.",
+    //     validate: (value) => typeof value === 'boolean' && value !== undefined
+    // },
+    // {
+    //     field: "Feasibility",
+    //     message: "Feasibility is required.",
+    //     validate: (value) => typeof value === 'number' && value > 0
+    // },
+    // {
+    //     field: "DetailedDesign",
+    //     message: "Detailed Design is required.",
+    //     validate: (value) => typeof value === 'boolean'
+    // },
+    // {
+    //     field: "RowAvailable",
+    //     message: "Row Available is required.",
+    //     validate: (value) => typeof value === 'boolean'
+    // }
 ]

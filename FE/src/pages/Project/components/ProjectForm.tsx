@@ -8,6 +8,7 @@ import type {
   ProjectNote, 
   FundingProfile, 
   Activity, 
+  TransactionLog,
   ProjectFormPayload,
   ProjectEnums,
   Dropdowns,
@@ -195,6 +196,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
 
   const [activities] = useState<Activity[]>(
     initialData?.Activities || []
+  );
+
+  const [transactionLogs] = useState<TransactionLog[]>(
+    initialData?.TransactionLogs || []
   );
 
   // const handleGoBack = () => {
@@ -458,7 +463,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
           EndDate: year.EndDate || new Date().toISOString()
         })),
         MajorItemOfWorks: majorItems,
-        ProjectNotes: notes, // Include ProjectNotes as it's in the expected payload
+        // ProjectNotes: notes, // Include ProjectNotes as it's in the expected payload
         FundingProfile: fundingProfiles,
       };
 
@@ -657,7 +662,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       </div>
 
       {/* Activities Section */}
-      <ActivitySection activities={activities} />
+      <ActivitySection activities={activities} transactionLogs={transactionLogs} />
       </>
       )}
     </div>
