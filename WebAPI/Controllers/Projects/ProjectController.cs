@@ -221,10 +221,7 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = $"Selected Emergency Mode '{dto.EmergencyMode}' is not valid!", Title = "Invalid Emergency Mode" });
                 }
-                string[] BP = { "RBP", "UPMO", "UBP" };
-                string[] MY = { "RDIP", "UDIP", "PIP" };
-                string[] P = { "BP", "NEP", "HGAB", "GAA" };
-                string FirstSegment = BP.Contains(ProgramDetails.StageName) ? "BP" : (MY.Contains(ProgramDetails.StageName) ? "MY" : "P");
+                string FirstSegment = Functions.GenerateProjec1stSegment(ProgramDetails.StageName);
                 string SecondSegment = Functions.GenerateProjec2ndSegment(ProgramDetails.YearEnd);
                 Random rand = new Random();
                 string ThirdSegment = rand.Next(Category.Minimum, Category.Maximum+1).ToString("D5");
@@ -241,6 +238,7 @@ namespace WebAPI.Controllers.Projects
                 var ProjectRevision = new ProjectRevisions()
                 {
                     ProjectId = ReferenceId,
+                    AlternateId = ReferenceId,
                     RevisionNumber = 1,
                     Description = dto.Description!,
                     Category = dto.Category,
@@ -253,9 +251,9 @@ namespace WebAPI.Controllers.Projects
                     DEO = SelectedDeo.DeoCode,
                     Region = dto.Region!,
                     Agency = dto.Agency,
-                    ProjectCode = dto.ProjectCode,
                     ImplementationMode = dto.ImplementationMode,
                     EmergencyMode = dto.EmergencyMode,
+                    IslandCode = dto.IslandCode,
                     CreatedBy = _Session.UserId ?? "TESTING",
                     CreatedDate = CurrentDate
                 };
@@ -623,22 +621,6 @@ namespace WebAPI.Controllers.Projects
                     });
                     Project.Agency = dto.ProjectDetails!.Agency;
                 }
-                if (Project.ProjectCode != dto.ProjectDetails?.ProjectCode)
-                {
-                    hasUpdated = true;
-                    transactionLogs.Add(new TransactionLog
-                    {
-                        TransactionId = Project.ProjectId!,
-                        TypeOfTransaction = "Update",
-                        AffectedTable = "tProjectRevisions",
-                        AffectedColumn = "ProjectCode",
-                        NewValue = dto.ProjectDetails!.ProjectCode ?? "",
-                        OldValue = Project.ProjectCode ?? "",
-                        CreatedBy = _Session.UserId,
-                        CreatedDate = CurrentDate
-                    });
-                    Project.ProjectCode = dto.ProjectDetails!.ProjectCode;
-                }
                 if (Project.ImplementationMode != dto.ProjectDetails?.ImplementationMode)
                 {
                     var ImplementationMode = await _db.tProjectImplementModeEnum.FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.ImplementationMode);
@@ -754,6 +736,8 @@ namespace WebAPI.Controllers.Projects
                     var NewRevision = new ProjectRevisions()
                     {
                         ProjectId = Project.ProjectId!,
+                        AlternateId = Project.AlternateId ?? Project.ProjectId,
+                        IslandCode = Project.IslandCode,
                         RevisionNumber = (int)Project.RevisionNumber! + 1,
                         Description = Project!.Description!,
                         Category = Project!.Category,
@@ -766,7 +750,6 @@ namespace WebAPI.Controllers.Projects
                         DEO = Project.DEO!,
                         Region = Project.Region!,
                         Agency = Project.Agency,
-                        ProjectCode = Project.ProjectCode,
                         ImplementationMode = Project.ImplementationMode,
                         EmergencyMode = Project.EmergencyMode,
                         Feasibility = Project.Feasibility,

@@ -15,6 +15,8 @@ namespace DBHelper.Models.Table
         [Required]
         [MaxLength(200)]
         public string ProjectId { get; set; } = string.Empty;
+        [MaxLength(200)]
+        public string AlternateId { get; set; } = string.Empty;
         [Required]
         public int RevisionNumber { get; set; }
         [Required]
@@ -43,8 +45,9 @@ namespace DBHelper.Models.Table
         public string Region { get; set; } = string.Empty;
         [Required]
         public int Agency { get; set; }
-        [MaxLength(50)]
-        public string? ProjectCode { get; set; }
+        [Required]
+        [MaxLength(2)]
+        public string IslandCode { get; set; } = string.Empty;
         [Required]
         public int ImplementationMode { get; set; }
         [Required]

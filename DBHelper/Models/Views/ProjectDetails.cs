@@ -22,7 +22,6 @@ namespace DBHelper.Models.Views
         public string? DEO { get; set; }
         public string? Region { get; set; }
         public int Agency { get; set; }
-        public string? ProjectCode { get; set; }
         public int ImplementationMode { get; set; }
         public bool EmergencyMode { get; set; }
         public int? Feasibility { get; set; }
