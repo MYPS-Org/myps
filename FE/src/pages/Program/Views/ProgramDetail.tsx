@@ -293,9 +293,11 @@ const ProgramDetail: React.FC = () => {
             </div>
 
             <div className="pt-4 flex justify-end gap-4">
-              <Button color="blue" className="w-auto" onClick={handleProceed}>
-                Proceed to {nextStageName}
-              </Button>
+              {programEnums?.Details.StageId <= 4 && programEnums?.Details.StageId <= 11 && (
+                <Button color="blue" className="w-auto" onClick={handleProceed}>
+                  Proceed to {nextStageName}
+                </Button>
+              )}
               <Button color="green" className="w-24" onClick={handleUpdate}>
                 Update
               </Button>

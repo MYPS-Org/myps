@@ -240,9 +240,9 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
                             >
                                 <option value="">Select Thrust</option>
-                                {projectEnums?.Thrusts?.map((thrust) => (
+                                {projectEnums?.Thrusts?.filter(x => x.ValidFromDate < new Date().getFullYear() && x.ValidToDate > new Date().getFullYear() || x.ValidToDate === 0).map((thrust) => (
                                     <option key={thrust.Id} value={thrust.PAPKey}>
-                                        {thrust.SubProgramName}
+                                        {thrust.ThrustDescription}
                                     </option>
                                 ))}
                             </select>
