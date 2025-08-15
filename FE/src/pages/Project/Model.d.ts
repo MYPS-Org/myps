@@ -57,6 +57,7 @@ export interface ProjectDetails {
 	ProgramId?: string;
 	ProgramName?: string;
 	ProjectId?: string;
+	IslandCode?: string;
 	RevisionNumber?: number;
 	Description?: string;
 	Category?: number;
@@ -69,7 +70,7 @@ export interface ProjectDetails {
 	DEO?: string;
 	Region?: string;
 	Agency?: number;
-	ProjectCode?: string;
+	AlternateId?: string;
 	ImplementationMode?: number;
 	EmergencyMode: boolean;
 	Feasibility?: number;
