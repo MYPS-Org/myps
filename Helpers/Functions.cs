@@ -19,6 +19,16 @@ namespace Helpers
             int count = endYear - startYear;
             return count.ToString("D3");
         }
+        public static string GenerateProjec1stSegment(string StageName)
+        {
+            var stageGroups = new Dictionary<string, string[]>
+            {
+                { "BP", new[] { "RBP", "UPMO", "UBP" } },
+                { "MY", new[] { "RDIP", "UDIP", "PIP" } },
+                { "P",  new[] { "BP", "NEP", "HGAB", "GAA" } }
+            };
+            return stageGroups.FirstOrDefault(g => g.Value.Contains(StageName)).Key ?? "P";
+        }
         public static bool IsFileCorrupted(this FileUpload File)
         {
 

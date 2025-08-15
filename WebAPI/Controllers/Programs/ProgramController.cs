@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Data.SqlClient;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using System.Xml;
 using static Eaf.Domain.Uow.EafDataFilters;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
@@ -570,32 +571,91 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                var checkProgram = await _db.tPrograms.FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
+                var checkProgram = await _db.tPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
                 if (checkProgram == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Programs table. Please contact administrator!", Title = "Program not found" });
                 }
-                var checkRevisions = await _db.tProgramRevisions.FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
+                var checkRevisions = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
                 if(checkRevisions == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Revisions table. Please contact administrator!", Title = "Program not found" });
                 }
-                var checkStage = await _db.tProgramStages.FirstOrDefaultAsync(x => x.RevisionId == checkRevisions.Id);
+                var checkStage = await _db.tProgramStages.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionId == checkRevisions.Id);
                 if (checkStage == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program ID Revision '{checkRevisions.Id}' does not exist in the Stages table. Please contact administrator!", Title = "Program Stage not found" });
+                }
+                var checkStageType = await _db.tProgramStageEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == (int)dto.Stage);
+                if(checkStageType == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Program Stage '{dto.Stage}' is not valid!", Title = "Invalid Stage" });
                 }
                 var newStage = new ProgramStages()
                 {
                     ProgramId = dto.ProgramId,
                     RevisionId = checkRevisions.RevisionNumber,
                     StageId = dto.Stage,
-                    StageName = dto.Stage.ToString(),
+                    StageName = checkStageType.Name,
                     CreatedBy = _Session.UserId,
                     CreatedDate = DateTime.UtcNow,
                     IsPublished = false,
                 };
                 await _db.tProgramStages.AddAsync(newStage);
+                var checkProjects = await _db.vProjectDetails.AsNoTracking().Where(x => x.ProgramId == dto.ProgramId).ToListAsync();
+                if (checkProjects.Count > 0)
+                {
+                    HashSet<string> projectIds = checkProjects.Select(p => p.ProjectId!).ToHashSet();
+                    var ProjectRevisions = await _db.tProjectRevisions.AsNoTracking().Where(x => projectIds.Contains(x.AlternateId)).ToListAsync();
+                    List<ProjectRevisions> NewRevisions = new List<ProjectRevisions>();
+                    if (ProjectRevisions.Count > 0)
+                    {
+                        foreach (var project in ProjectRevisions)
+                        {
+                            string FirstSegment = Functions.GenerateProjec1stSegment(checkStageType.Name);
+                            string NewProjectId = Regex.Replace(project.ProjectId, @"\b(BP|MY|P)\b", FirstSegment);
+                            var newRevision = new ProjectRevisions()
+                            {
+                                ProjectId = NewProjectId,
+                                AlternateId = project.AlternateId,
+                                RevisionNumber = project.RevisionNumber + 1,
+                                Description = project.Description,
+                                Category = project.Category,
+                                Thrust = project.Thrust,
+                                Origin = project.Origin,
+                                City = project.City,
+                                LegislativeDistrict = project.LegislativeDistrict,
+                                OperatingUnit = project.OperatingUnit,
+                                ImplementingOffice = project.ImplementingOffice,
+                                DEO = project.DEO,
+                                Region = project.Region,
+                                Agency = project.Agency,
+                                IslandCode = project.IslandCode,
+                                ImplementationMode = project.ImplementationMode,
+                                EmergencyMode = project.EmergencyMode,
+                                Feasibility = project.Feasibility,
+                                DetailedDesign = project.DetailedDesign,
+                                RowAvailable = project.RowAvailable,
+                                CreatedBy = _Session.UserId,
+                                CreatedDate = DateTime.UtcNow
+                            };
+                            await _db.tProjectRevisions.AddAsync(newRevision);
+                            NewRevisions.Add(newRevision);
+                        }
+                    }
+                    var ProjectStages = await _db.tProjectStages.AsNoTracking().Where(x => projectIds.Contains(x.ProjectId)).ToListAsync();
+                }
+                var transactionLog = new TransactionLog()
+                {
+                    TransactionId = dto.ProgramId,
+                    TypeOfTransaction = "Update",
+                    AffectedTable = "tProgramStages",
+                    AffectedColumn = "StageName",
+                    NewValue = checkStageType.Name,
+                    OldValue = checkStage.StageName,
+                    CreatedBy = _Session.UserId,
+                    CreatedDate = DateTime.UtcNow
+                };
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
                 return Ok(new
