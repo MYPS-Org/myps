@@ -35,9 +35,9 @@ namespace WebAPI.Controllers.Projects
         public ProjectDetails ProjectDetails { get; set; } = new ProjectDetails();
         public List<ProjectComponentCostDTO> ComponentCosts { get; set; } = new List<ProjectComponentCostDTO>();
         public List<ProjectComponentCostYearDTO> ComponentCostYear { get; set; } = new List<ProjectComponentCostYearDTO>();
-        //public List<ProjectMajorWorkItemDTO> MajorItemOfWorks { get; set; } = new List<ProjectMajorWorkItemDTO>();
+        public List<ProjectMajorWorkItemDTO> MajorItemOfWorks { get; set; } = new List<ProjectMajorWorkItemDTO>();
         public List<ProjectNotes> ProjectNotes { get; set; } = new List<ProjectNotes>();
-        public List<ProjectFundingProfile> FundingProfile { get; set; } = new List<ProjectFundingProfile>();
+        public List<FundingProfileDTO> FundingProfile { get; set; } = new List<FundingProfileDTO>();
     }
     public class ProjectComponentCostDTO
     {
@@ -79,13 +79,14 @@ namespace WebAPI.Controllers.Projects
     }
     public class ProjectMajorWorkItemDTO
     {
-        public int Id { get; set; }
         [Required]
-        [MaxLength(100)]
-        public string ProjectId { get; set; } = string.Empty;
+        public int Id { get; set; }
         [Required]
         [MaxLength(50)]
         public string ComponentId { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(255)]
+        public string DetailedScope { get; set; } = string.Empty;
         [Required]
         public int YearOfWork { get; set; }
         [Required]
@@ -93,6 +94,9 @@ namespace WebAPI.Controllers.Projects
         [Required]
         [MaxLength(100)]
         public string InfraId { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(50)]
+        public string InfraType { get; set; } = string.Empty;
         [Required]
         public int TargetUnitId { get; set; }
         [Required]
@@ -109,10 +113,6 @@ namespace WebAPI.Controllers.Projects
         public Double StartStationLimit { get; set; }
         [Required]
         public Double EndStationLimit { get; set; }
-        public string CreatedBy { get; set; } = string.Empty;
-        public DateTime? CreatedDate { get; set; }
-        public string? UpdatedBy { get; set; }
-        public DateTime? UpdatedDate { get; set; }
     }
     public class AddNotesDTO : ProjectDetailsDTO
     {
@@ -126,5 +126,18 @@ namespace WebAPI.Controllers.Projects
     {
         [Required]
         public int Id { get; set; }
+    }
+    public class FundingProfileDTO
+    {
+        public int Id { get; set; }
+        [Required]
+        [MaxLength(100)]
+        public string ProjectId { get; set; } = string.Empty;
+        [Required]
+        public string Source { get; set; } = string.Empty;
+        [Required]
+        public int Agreement { get; set; }
+        [Required]
+        public Double Percentage { get; set; }
     }
 }

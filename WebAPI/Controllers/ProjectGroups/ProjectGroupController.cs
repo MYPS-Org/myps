@@ -251,7 +251,7 @@ namespace WebAPI.Controllers.ProjectGroup
             try
             {
                 var CheckName = await _db.vProjectsInGroup.AsNoTracking().Where(x => dto.ProjectId.Contains(x.ProjectId)).ToListAsync();
-                if (CheckName != null)
+                if (CheckName.Count > 0)
                 {
                     string joinedProjectIds = string.Join(", ", CheckName.Select(x => x.ProjectId));
                     return new BadRequestObjectResult(
@@ -318,6 +318,17 @@ namespace WebAPI.Controllers.ProjectGroup
                 var ExistingProject = await _db.tProjectsInGroup
                     .AsNoTracking()
                     .FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId);
+                await _db.tTransactionLog.AddAsync(new TransactionLog
+                {
+                    TransactionId = dto.ProjectId,
+                    TypeOfTransaction = "Delete",
+                    AffectedTable = "tProjectsInGroup",
+                    AffectedColumn = "Row",
+                    NewValue = "",
+                    OldValue = JsonConvert.SerializeObject(ExistingProject),
+                    CreatedBy = _Session.UserId,
+                    CreatedDate = DateTime.UtcNow
+                });
                 _db.tProjectsInGroup.Remove(ExistingProject!);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();

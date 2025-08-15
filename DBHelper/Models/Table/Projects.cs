@@ -18,6 +18,11 @@ namespace DBHelper.Models.Table
         [Required]
         [MaxLength(200)]
         public string ProjectId { get; set; } = string.Empty;
+        [MaxLength(200)]
+        public string? AlternateId { get; set; }
+        [Required]
+        [MaxLength(2)]
+        public string IslandCode { get; set; } = string.Empty;
         [Required]
         [MaxLength(50)]
         public string CreatedBy { get; set; } = string.Empty;

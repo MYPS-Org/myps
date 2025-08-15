@@ -52,6 +52,8 @@ namespace DBHelper.Data
         public DbSet<Models.Table.ProjectFundingProfile> tProjectFundingProfile { get; set; }
         public DbSet<Models.Table.ProjectFundingAgreementLists> tProjectFundingAgreementLists { get; set; }
         public DbSet<Models.Table.ProjectFundingSource> tProjectFundingSource { get; set; }
+        public DbSet<Models.Table.OptionFundingSource> tOptionFundingSource { get; set; }
+        public DbSet<Models.Table.OptionFundingAgreement> tOptionFundingAgreement { get; set; }
         public DbSet<Models.Table.InfraType> tInfraType { get; set; }
         public DbSet<Models.Table.ProjectsInGroup> tProjectsInGroup { get; set; }
         public DbSet<Models.Table.ProjectGroups> tProjectGroups { get; set; }

@@ -1,4 +1,5 @@
 ﻿using DBHelper.Models.Enums;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DBHelper.Models.Views
 {

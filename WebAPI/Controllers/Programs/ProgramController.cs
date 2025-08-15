@@ -26,7 +26,9 @@ namespace WebAPI.Controllers.Programs
         {
             try
             {
-                var AvailableStages = await _db.tProgramStageEnum.ToListAsync();
+                var SelectedStage = new[] { EnumProgramStage.RBP, EnumProgramStage.BP }.Select(stage => (int)stage).ToList();
+
+                var AvailableStages = await _db.tProgramStageEnum.Where(x => SelectedStage.Contains(x.Id)).ToListAsync();
                 var AvailableTypes = await _db.tProgramTypeEnum.ToListAsync();
                 var AvailableStatuses = await _db.tProgramStatusEnum.ToListAsync();
                 var AvailableGroups = await _db.tGroups.ToListAsync();
@@ -133,17 +135,27 @@ namespace WebAPI.Controllers.Programs
         {
             try
             {
-                var Stage = await _db.tProgramStageEnum.ToListAsync();
-                var Type = await _db.tProgramTypeEnum.ToListAsync();
-                var Status = await _db.tProgramStatusEnum.ToListAsync();
+                int[] initialStageInts = new[]
+                {
+                    (int)EnumProgramStage.RBP,
+                    (int)EnumProgramStage.BP
+                };
+                //int[] initialStatus = new[]
+                //{
+                //    (int)EnumProgramStatus.Working
+                //};
+
+                var Stage = await _db.tProgramStageEnum.AsNoTracking().Where(x => initialStageInts.Contains(x.Enum)).ToListAsync();
+                var Type = await _db.tProgramTypeEnum.AsNoTracking().ToListAsync();
+                //var Status = await _db.tProgramStatusEnum.AsNoTracking().Where(x => initialStatus.Contains(x.Enum)).ToListAsync();
                 var Group = await _db.tGroups.ToListAsync();
                 string[] includes = { "C", "R", "PMO", "PMOC", "B" };
-                var Security = await _db.tProjectImplementingOfficeEnum.Where(x => includes.Contains(x.OrgType)).ToListAsync();
+                var Security = await _db.tProjectImplementingOfficeEnum.AsNoTracking().Where(x => includes.Contains(x.OrgType)).ToListAsync();
                 return Ok(new
                 {
                     Stages = Stage,
                     Types = Type,
-                    Statuses = Status,
+                    //Statuses = Status,
                     Groups = Group,
                     DataSecurity = Security
                 });
@@ -160,27 +172,27 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                var checkProgram = await _db.tProgramRevisions.FirstOrDefaultAsync(x => x.Name == dto.Name);
+                var checkProgram = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Name == dto.Name);
                 if (checkProgram != null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program name '{dto.Name}' already exists in the System!", Title = "Program Already Exists" });
                 }
-                var checkStageType = await _db.tProgramStageEnum.FirstOrDefaultAsync(x => x.Enum == (int)dto.Stage);
+                var checkStageType = await _db.tProgramStageEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == (int)dto.Stage);
                 if(checkStageType == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program Stage '{dto.Stage}' is not valid!", Title = "Invalid Stage" });
                 }
-                var checkStatusType = await _db.tProgramStatusEnum.FirstOrDefaultAsync(x => x.Enum == (int)dto.Status);
+                var checkStatusType = await _db.tProgramStatusEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == (int)dto.Status);
                 if(checkStatusType == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program Status '{dto.Status}' is not valid!", Title = "Invalid Status" });
                 }
-                var checkType = await _db.tProgramTypeEnum.FirstOrDefaultAsync(x => x.Enum == (int)dto.Type);
+                var checkType = await _db.tProgramTypeEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == (int)dto.Type);
                 if (checkType == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program Type '{dto.Type}' is not valid!", Title = "Invalid Type" });
                 }
-                var checkUserGroup = await _db.tGroups.FirstOrDefaultAsync(x => x.Id == dto.UserGroup);
+                var checkUserGroup = await _db.tGroups.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dto.UserGroup);
                 if (checkUserGroup == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"User Group '{dto.UserGroup}' is not valid!", Title = "Invalid User Group" });
@@ -210,11 +222,11 @@ namespace WebAPI.Controllers.Programs
                 var newRevisions = new ProgramRevisions()
                 {
                     ProgramId = ReferenceId,
-                    RevisionNumber = 1,
+                    RevisionNumber = newProgram.Id,
                     Name = dto.Name,
                     UserGroup = dto.UserGroup,
                     RegionCode = dto.RegionCode,
-                    Status = dto.Status,
+                    Status = EnumProgramStatus.Working,
                     Type = dto.Type,
                     YearStart = dto.YearStart,
                     YearEnd = dto.YearEnd,
@@ -226,6 +238,7 @@ namespace WebAPI.Controllers.Programs
                 await _db.SaveChangesAsync();
                 await _db.tProgramStages.AddAsync(new ProgramStages()
                 {
+                    ProgramId = ReferenceId,
                     RevisionId = newRevisions.Id,
                     StageId = dto.Stage,
                     StageName = dto.Stage.ToString(),
@@ -237,6 +250,7 @@ namespace WebAPI.Controllers.Programs
                 await transaction.CommitAsync();
                 return Ok(new
                 {
+                    Id = ReferenceId,
                     Message = "Program added successfully",
                     Title = "Add Complete"
                 });
@@ -259,19 +273,19 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = "Expected Parametes missing!", Title = "Parameter Error" });
                 }
-                var CurrentProgramVersion = await _db.vPrograms.FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
+                var CurrentProgramVersion = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
                 if (CurrentProgramVersion == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Programs table. Please contact administrator!", Title = "Program not found" });
                 }
-                var program = await _db.vProgramDetails.FirstOrDefaultAsync(x => x.Id == CurrentProgramVersion.RevisionId && x.ProgramId == dto.ProgramId);
-                var ProjectLists = await _db.vProjects.Where(x => x.ProgramId == dto.ProgramId).ToListAsync();
-                var AvailableStages = await _db.tProgramStageEnum.ToListAsync();
-                var AvailableTypes = await _db.tProgramTypeEnum.ToListAsync();
-                var AvailableStatuses = await _db.tProgramStatusEnum.ToListAsync();
-                var AvailableGroups = await _db.tGroups.ToListAsync();
+                var program = await _db.vProgramDetails.AsNoTracking().FirstOrDefaultAsync(x => x.Id == CurrentProgramVersion.RevisionId && x.ProgramId == dto.ProgramId);
+                var ProjectLists = await _db.vProjects.AsNoTracking().Where(x => x.ProgramId == dto.ProgramId).ToListAsync();
+                var AvailableStages = await _db.tProgramStageEnum.AsNoTracking().ToListAsync();
+                var AvailableTypes = await _db.tProgramTypeEnum.AsNoTracking().ToListAsync();
+                var AvailableStatuses = await _db.tProgramStatusEnum.AsNoTracking().ToListAsync();
+                var AvailableGroups = await _db.tGroups.AsNoTracking().ToListAsync();
                 string[] includes = { "C", "R", "PMO", "PMOC", "B" };
-                var Security = await _db.tProjectImplementingOfficeEnum.Where(x => includes.Contains(x.OrgType)).ToListAsync();
+                var Security = await _db.tProjectImplementingOfficeEnum.AsNoTracking().Where(x => includes.Contains(x.OrgType)).ToListAsync();
                 var response = new
                 {
                     Details = program,
@@ -303,19 +317,21 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = "Expected Parametes missing!", Title = "Parameter Error" });
                 }
-                var program = await _db.tPrograms.FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
+                var program = await _db.tPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
                 if (program == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program {dto.ProgramId} does not exist in the ", Title = "Delete Failed" });
                 }
-                var ProgramStage = await _db.tProgramStages.FirstOrDefaultAsync(x => x.RevisionId == dto.RevisionId);
+                var ProgramStage = await _db.tProgramStages.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionId == dto.RevisionId);
                 if(ProgramStage == null) {
                     return new BadRequestObjectResult(new { Message = $"Program Stage with Revision ID '{dto.RevisionId}' does not exist in the Program Stages table. Please contact administrator!", Title = "Stage not found" });
                 }
-                var AllowedStages = Enum.GetValues(typeof(EnumProgramStage))
-                    .Cast<EnumProgramStage>()
-                    .Where(x => new[] { EnumProgramStage.RBP, EnumProgramStage.RDIP, EnumProgramStage.PIP }.Contains(x))
-                    .ToList();
+                int[] AllowedStages =
+                {
+                    (int)EnumProgramStage.RBP,
+                    (int)EnumProgramStage.RDIP,
+                    (int)EnumProgramStage.PIP
+                };
                 if (ProgramStage.StageId == EnumProgramStage.RBP)
                 { }
                 program.IsDeleted = true;
@@ -523,6 +539,7 @@ namespace WebAPI.Controllers.Programs
                     await _db.SaveChangesAsync();
                     await _db.tProgramStages.AddAsync(new ProgramStages()
                     {
+                        ProgramId = getProgram.ProgramId,
                         RevisionId = NewProgramVersion.Id,
                         StageId = getProgram.StageId,
                         StageName = getProgram.StageName,
@@ -570,13 +587,15 @@ namespace WebAPI.Controllers.Programs
                 }
                 var newStage = new ProgramStages()
                 {
-                    RevisionId = checkRevisions.Id,
+                    ProgramId = dto.ProgramId,
+                    RevisionId = checkRevisions.RevisionNumber,
                     StageId = dto.Stage,
                     StageName = dto.Stage.ToString(),
                     CreatedBy = _Session.UserId,
                     CreatedDate = DateTime.UtcNow,
                     IsPublished = false,
                 };
+                await _db.tProgramStages.AddAsync(newStage);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
                 return Ok(new

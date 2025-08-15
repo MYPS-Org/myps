@@ -16,7 +16,7 @@ namespace DBHelper.Models.Table
         [MaxLength(100)]
         public string ProjectId { get; set; } = string.Empty;
         [Required]
-        public int Source { get; set; }
+        public string Source { get; set; } = string.Empty;
         [Required]
         public int Agreement { get; set; }
         [Required]
@@ -26,5 +26,8 @@ namespace DBHelper.Models.Table
         public string CreatedBy { get; set; } = string.Empty;
         [Required]
         public DateTime CreatedDate { get; set; }
+        [MaxLength(100)]
+        public string? UpdatedBy { get; set; }
+        public DateTime? UpdatedDate { get; set; }
     }
 }
