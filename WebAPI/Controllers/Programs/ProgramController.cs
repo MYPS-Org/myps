@@ -132,6 +132,23 @@ namespace WebAPI.Controllers.Programs
         }
         [AllowAnonymous]
         [HttpPost]
+        public async Task<IActionResult> ShowProgramStages([FromBody] ProgramDetailsDTO dto)
+        {
+            try
+            {
+                var Stage = await _db.vProgramDetails.AsNoTracking().Where(x => dto.ProgramId == x.ProgramId).ToListAsync();
+                return Ok(new
+                {
+                    Stages = Stage
+                });
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
+        [AllowAnonymous]
+        [HttpPost]
         public async Task<IActionResult> InitAddProgram()
         {
             try
@@ -223,7 +240,7 @@ namespace WebAPI.Controllers.Programs
                 var newRevisions = new ProgramRevisions()
                 {
                     ProgramId = ReferenceId,
-                    RevisionNumber = newProgram.Id,
+                    RevisionNumber = 1,
                     Name = dto.Name,
                     UserGroup = dto.UserGroup,
                     RegionCode = dto.RegionCode,
