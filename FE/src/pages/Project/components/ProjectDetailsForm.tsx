@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import type { ProjectDetails, ProjectEnums } from "../Model.d";
 import type { FormValidationError } from "../../../utils/FormValidation";
 
@@ -21,13 +21,11 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
     const handleInputChange = (field: keyof ProjectDetails, value: any) => {
         onChange(field, value);
     };
-    const [selectedBox, setSelectedBox] = useState<string | null>(null);
 
     const handleBoxClick = (boxValue: string) => {
         if (mode === 'edit') return; // Prevent clicking in edit mode
         
-        const newValue = selectedBox === boxValue ? null : boxValue;
-        setSelectedBox(newValue);
+        const newValue = projectDetails.IslandCode === boxValue ? null : boxValue;
         handleInputChange('IslandCode', newValue);
     };
 
@@ -40,7 +38,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     <label key={index} className={`flex-row items-center ${mode === 'edit' ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} mr-4`}>
                         <input className='mr-1'
                             type="checkbox" 
-                            checked={selectedBox === item.value}
+                            checked={projectDetails.IslandCode === item.value}
                             disabled={ mode === 'edit'}
                             onChange={() => handleBoxClick(item.value)} />
                         {item.label}
