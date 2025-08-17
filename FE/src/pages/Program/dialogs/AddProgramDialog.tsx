@@ -12,7 +12,7 @@ interface AddProgramDialogProps {
   onClose: () => void;
   onSubmit: (program: ProgramModel) => void;
   programEnums?: {
-    Statuses: ProgramEnums[];
+    // Statuses: ProgramEnums[];
     Stages: ProgramEnums[];
     Types: ProgramEnums[];
     Groups: ProgramEnums[];

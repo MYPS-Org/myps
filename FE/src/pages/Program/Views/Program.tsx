@@ -24,7 +24,7 @@ const Program: React.FC = () => {
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(false);
     const [programEnums, setProgramEnums] = useState<{
-        Statuses: ProgramEnums[];
+        // Statuses: ProgramEnums[];
         Stages: ProgramEnums[];
         Types: ProgramEnums[];
         Groups: ProgramEnums[];
@@ -88,16 +88,16 @@ const Program: React.FC = () => {
     };
 
     // Helper function to map status numbers to strings
-    const getStatusString = (statusId: number): string => {
-        const statusMap: { [key: number]: string } = {
-            1: 'Working',
-            2: 'Approved', 
-            3: 'Pending',
-            4: 'Rejected',
-            5: 'Proposed'
-        };
-        return statusMap[statusId] || 'Unknown';
-    };
+    // const getStatusString = (statusId: number): string => {
+    //     const statusMap: { [key: number]: string } = {
+    //         1: 'Working',
+    //         2: 'Approved', 
+    //         3: 'Pending',
+    //         4: 'Rejected',
+    //         5: 'Proposed'
+    //     };
+    //     return statusMap[statusId] || 'Unknown';
+    // };
 
     // Helper function to render status badge
     const getStatusBadge = (status: string) => {
@@ -271,7 +271,7 @@ const Program: React.FC = () => {
                                             onClick={() => handleViewDetails(program.ProgramId)}
                                             className="text-xs px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded"
                                         >
-                                            Validate
+                                            View
                                         </Button>
                                         <Button color="red" onClick={() => {setIsDeleteProgramOpen(true); setSelectedProgram(program.ProgramId);}} className="text-xs px-3 py-1.5 bg-red-500 hover:bg-red-600 rounded">
                                             <TrashIcon stroke='white' className="h-5 w-5 text-gray-900" />

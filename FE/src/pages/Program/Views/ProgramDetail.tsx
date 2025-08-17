@@ -92,6 +92,7 @@ const ProgramDetail: React.FC = () => {
     try {
       const response = await fetchProgramById(programId);
       setProgramEnums(response.Data);
+      setDefaultProgramEnums(response.Data); // Store the original data for comparison
 
       const nextStageId = response.Data.Details.StageId + 1;
       const nextStage = response.Data.Dropdowns.Stages.find(stage => stage.Id === nextStageId);
@@ -104,9 +105,13 @@ const ProgramDetail: React.FC = () => {
     }
   };
 
-  const handleBack = () => {
-    navigate('/programs');
-  };
+  const handleAddProject = () => {
+        navigate('/projects/addproject');
+    };
+
+  // const handleBack = () => {
+  //   navigate('/programs');
+  // };
 
   const handleChange = (field: string, value: any) => {
     setProgramEnums(prev => ({
@@ -129,6 +134,24 @@ const ProgramDetail: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const preventUpdate = () => {
+    // Compare the editable fields between current and default values
+    const currentDetails = programEnums?.Details;
+    const defaultDetails = defaultProgramEnums?.Details;
+    
+    if (!currentDetails || !defaultDetails) return true;
+    
+    // Check if any editable field has changed
+    return (
+      currentDetails.Name === defaultDetails.Name &&
+      currentDetails.YearStart === defaultDetails.YearStart &&
+      currentDetails.YearEnd === defaultDetails.YearEnd &&
+      currentDetails.Status === defaultDetails.Status &&
+      currentDetails.Type === defaultDetails.Type &&
+      currentDetails.UserGroup === defaultDetails.UserGroup
+    );
   };
 
   const handleProceed = async () => {
@@ -298,7 +321,12 @@ const ProgramDetail: React.FC = () => {
                   Proceed to {nextStageName}
                 </Button>
               )}
-              <Button color="green" className="w-24" onClick={handleUpdate}>
+              <Button 
+                color="green" 
+                className="w-24" 
+                onClick={handleUpdate}
+                disabled={preventUpdate() || isLoading}
+              >
                 Update
               </Button>
             </div>
@@ -323,7 +351,7 @@ const ProgramDetail: React.FC = () => {
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
           <h2 className="text-xl font-semibold text-gray-900">Projects</h2>
-          <Button color="blue">
+          <Button color="blue" onClick={handleAddProject}>
             Add Project
           </Button>
         </div>

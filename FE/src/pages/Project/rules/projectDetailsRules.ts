@@ -7,11 +7,11 @@ export const projectDetailsRules: ValidationRule<ProjectDetails>[] = [
         message: "Program ID is required.",
         validate: (value) => !!value
     },
-    {
-        field: "ProgramName",
-        message: "Program Name is required.",
-        validate: (value) => !!value
-    },
+    // {
+    //     field: "ProgramName",
+    //     message: "Program Name is required.",
+    //     validate: (value) => !!value
+    // },
     {
         field: "Description",
         message: "Description is required.",
