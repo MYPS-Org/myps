@@ -5,8 +5,15 @@ import CategoryTable from './ProjectCategoryTable';
 import ThrustTable from './ThrustTable';
 import ProjectOriginTable from './ProjectOriginTable';
 import MajorWorkCategoryTable from './MajorWorkCategoryTable';
+import MultiCriteriaAnalysisTable from './MultiCriteriaAnalysisTable';
+import FundingSourceTable from './FundingSourceTable';
+import ModificationValidationDatesTable from './ModificationValidationDatesTable';
+import ModificationCategoryTable from './ModificationCategoryTable';
+import ModificationReasonTable from './ModificationReasonTable';
+import CostTypeTable from './CostTypeTable';
+import OtherInfraTable from './OtherInfraTable';
 
-type TableType = 'Category' | 'Thrust' | 'ProjectOrigin' | 'MajorWorkCategory' | '';
+type TableType = 'Category' | 'Thrust' | 'ProjectOrigin' | 'MajorWorkCategory' | 'MultiCriteriaAnalysis' | 'FundingSource' | 'ModificationValidationDates' | 'ModificationCategory' | 'ModificationReason' | 'CostType' | 'OtherInfra' | '';
 
 const CodeTables: React.FC = () => {
   const [selectedTable, setSelectedTable] = useState<TableType>('');
@@ -25,6 +32,20 @@ const CodeTables: React.FC = () => {
         return <ProjectOriginTable />;
       case 'MajorWorkCategory':
         return <MajorWorkCategoryTable />;
+      case 'MultiCriteriaAnalysis':
+        return <MultiCriteriaAnalysisTable />;
+      case 'FundingSource':
+        return <FundingSourceTable />;
+      case 'ModificationValidationDates':
+        return <ModificationValidationDatesTable />;
+      case 'ModificationCategory':
+        return <ModificationCategoryTable />;
+      case 'ModificationReason':
+        return <ModificationReasonTable />;
+      case 'CostType':
+        return <CostTypeTable />;
+      case 'OtherInfra':
+        return <OtherInfraTable />;
       default:
         return (
           <div className="text-center py-8 text-gray-500">
@@ -54,6 +75,13 @@ const CodeTables: React.FC = () => {
                 <option value="Thrust">Thrust</option>
                 <option value="ProjectOrigin">Project Origin</option>
                 <option value="MajorWorkCategory">Major Work Category</option>
+                <option value="MultiCriteriaAnalysis">Multi Criteria Analysis</option>
+                <option value="FundingSource">Funding Source</option>
+                <option value="ModificationValidationDates">Modification Validation Dates</option>
+                <option value="ModificationCategory">Modification Category</option>
+                <option value="ModificationReason">Modification Reason</option>
+                <option value="CostType">Cost Type</option>
+                <option value="OtherInfra">Other Infrastructure</option>
               </select>
             </div>
         </div>
