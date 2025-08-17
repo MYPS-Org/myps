@@ -326,7 +326,7 @@ const Program: React.FC = () => {
                                                                 <TableCell className="text-sm text-gray-600">{stage.YearStart}</TableCell>
                                                                 <TableCell className="text-sm text-gray-600">{stage.YearEnd}</TableCell>
                                                                 <TableCell className="text-sm font-medium">
-                                                                    {stage.Cost ? `$${stage.Cost.toLocaleString()}` : 'N/A'}
+                                                                    {stage.Cost ? `₱${stage.Cost.toLocaleString()}` : 'N/A'}
                                                                 </TableCell>
                                                                 <TableCell>
                                                                     <Button 

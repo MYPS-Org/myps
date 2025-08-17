@@ -37,7 +37,7 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
     Type: 0,
     UserGroup: 0,
     Name: '',
-    YearStart: new Date().getFullYear(),
+    YearStart: new Date().getFullYear() + 1,
     YearEnd: new Date().getFullYear(),
   });
 
