@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
+import { Button } from '../../../components/tailwindui/button';
+import { TrashIcon } from '@heroicons/react/24/outline';
 
 interface ProjectOriginData {
   id: number;
@@ -122,12 +124,18 @@ const ProjectOriginTable: React.FC = () => {
               </TableCell>
               <TableCell>
                 <div className="flex space-x-2">
-                  <button className="text-blue-600 hover:text-blue-800 text-sm">
-                    Edit
-                  </button>
-                  <button className="text-red-600 hover:text-red-800 text-sm">
-                    Delete
-                  </button>
+                  <Button 
+                      color="orange"
+                      // onClick={() => handleViewDetails(program.ProgramId)}
+                      className="text-xs px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded"
+                  >
+                      View
+                  </Button>
+                  <Button color="red" 
+                      // onClick={() => {setIsDeleteProgramOpen(true); setSelectedProgram(program.ProgramId);}} 
+                      className="text-xs px-3 py-1.5 bg-red-500 hover:bg-red-600 rounded">
+                      <TrashIcon stroke='white' className="h-5 w-5 text-gray-900" />
+                  </Button>
                 </div>
               </TableCell>
             </TableRow>
