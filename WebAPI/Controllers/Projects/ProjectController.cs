@@ -292,7 +292,7 @@ namespace WebAPI.Controllers.Projects
         {
             try
             {
-                var Project = await _db.vProjectDetails.FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId);
+                var Project = await _db.vProjectDetails.AsNoTracking().Where(x => x.ProjectId == dto.ProjectId).OrderByDescending(x => x.RevisionNumber).FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId);
                 if(Project == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
@@ -733,12 +733,16 @@ namespace WebAPI.Controllers.Projects
                 }
                 if (hasUpdated)
                 {
+                    var LatestRevision = await _db.tProjectRevisions
+                        .Where(x => x.ProjectId == Project.ProjectId)
+                        .OrderByDescending(x => x.RevisionNumber)
+                        .FirstOrDefaultAsync();
                     var NewRevision = new ProjectRevisions()
                     {
                         ProjectId = Project.ProjectId!,
                         AlternateId = Project.AlternateId ?? Project.ProjectId,
                         IslandCode = Project.IslandCode,
-                        RevisionNumber = (int)Project.RevisionNumber! + 1,
+                        RevisionNumber = LatestRevision!.RevisionNumber! + 1,
                         Description = Project!.Description!,
                         Category = Project!.Category,
                         Thrust = Project!.Thrust,
@@ -759,6 +763,17 @@ namespace WebAPI.Controllers.Projects
                         CreatedDate = CurrentDate
                     };
                     await _db.tProjectRevisions.AddAsync(NewRevision);
+                    await _db.SaveChangesAsync();
+                    var newStage = new ProjectStages()
+                    {
+                        RevisionId = NewRevision.Id,
+                        StageId = Program.StageId,
+                        StageName = Program.StageName,
+                        CreatedBy = _Session.UserId ?? "TESTING",
+                        CreatedDate = CurrentDate,
+                        IsPublished = false
+                    };
+                    await _db.tProjectStages.AddAsync(newStage);
                 }
                 #endregion
                 #region Update Component Cost
