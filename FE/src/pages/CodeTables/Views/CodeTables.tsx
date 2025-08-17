@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import CategoryTable from './CategoryTable';
+import CategoryTable from './ProjectCategoryTable';
 import ThrustTable from './ThrustTable';
 import ProjectOriginTable from './ProjectOriginTable';
 import MajorWorkCategoryTable from './MajorWorkCategoryTable';

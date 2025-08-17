@@ -4,13 +4,8 @@ import { Button } from '../../../components/tailwindui/button';
 import { TrashIcon } from '@heroicons/react/24/outline';
 
 interface MajorWorkCategoryData {
-  id: number;
-  name: string;
-  description: string;
+  infraType: string;
   category: string;
-  budget: number;
-  status: 'Active' | 'Inactive';
-  createdDate: string;
 }
 
 const MajorWorkCategoryTable: React.FC = () => {
@@ -19,10 +14,53 @@ const MajorWorkCategoryTable: React.FC = () => {
 
   // Sample data - replace with actual API call
   const [workCategories] = useState<MajorWorkCategoryData[]>([
-    { id: 1, name: 'Infrastructure Development', description: 'Major infrastructure projects', category: 'Construction', budget: 1000000, status: 'Active', createdDate: '2024-01-15' },
-    { id: 2, name: 'Software Development', description: 'Large scale software projects', category: 'Technology', budget: 500000, status: 'Active', createdDate: '2024-01-20' },
-    { id: 3, name: 'Research & Development', description: 'R&D initiatives', category: 'Research', budget: 750000, status: 'Active', createdDate: '2024-02-01' },
-    { id: 4, name: 'Training Programs', description: 'Large scale training initiatives', category: 'Education', budget: 250000, status: 'Inactive', createdDate: '2024-02-10' },
+    { infraType: 'Accessibility Facility', category: 'Construction' },
+    { infraType: 'Accessibility Facility', category: 'Rehabilitation/Major Repair' },
+    { infraType: 'Bridges', category: 'Construction' },
+    { infraType: 'Bridges', category: 'Rehabilitation/Major Repair' },
+    { infraType: 'Bridges', category: 'Replacement' },
+    { infraType: 'Bridges', category: 'Retrofitting/Strengthening' },
+    { infraType: 'Bridges', category: 'Widening' },
+    { infraType: 'Drainage Protection Works', category: 'Rehabilitation/Major Repair' },
+    { infraType: 'Drainage Structures along Roads', category: 'Construction' },
+    { infraType: 'Drainage Structures along Roads', category: 'Rehabilitation/Major Repair' },
+    { infraType: 'Drainage Structures along Roads', category: 'Upgrading' },
+    { infraType: 'Flood Control Structures', category: 'Construction' },
+    { infraType: 'Flood Control Structures', category: 'Rehabilitation/Major Repair' },
+    { infraType: 'Flood Control Structures', category: 'Repair/Maintenance' },
+    { infraType: 'Flood Control Structures', category: 'Replacement' },
+    { infraType: 'Hospitals', category: 'Construction' },
+    { infraType: 'Hospitals', category: 'Rehabilitation/Major Repair' },
+    { infraType: 'Multi Purpose Buildings', category: 'Construction' },
+    { infraType: 'Multi Purpose Buildings', category: 'Rehabilitation/Major Repair' },
+    { infraType: 'Multi Purpose Buildings', category: 'Repair/Maintenance' },
+    { infraType: 'Multi Purpose Buildings', category: 'Retrofitting/Strengthening' },
+    { infraType: 'Other Buildings', category: 'Construction' },
+    { infraType: 'Other Buildings', category: 'Rehabilitation/Major Repair' },
+    { infraType: 'Other Buildings', category: 'Retrofitting/Strengthening' },
+    { infraType: 'Rain Water Collector', category: 'Construction' },
+    { infraType: 'Rehabilitation/Major Repair', category: 'Rehabilitation' },
+    { infraType: 'Road Slope Protection Strucutures', category: 'Construction' },
+    { infraType: 'Road Slope Protection Strucutures', category: 'Rehabilitation/Major Repair' },
+    { infraType: 'Roads', category: 'Construction' },
+    { infraType: 'Roads', category: 'Off Carriageway Improvement' },
+    { infraType: 'Roads', category: 'Off-Carriageway Improvement' },
+    { infraType: 'Roads', category: 'Preventive Maintenance' },
+    { infraType: 'Roads', category: 'ROW Acquisition' },
+    { infraType: 'Roads', category: 'Reconstruction' },
+    { infraType: 'Roads', category: 'Rehabilitation' },
+    { infraType: 'Roads', category: 'Rehabilitation/Major Repair' },
+    { infraType: 'Roads', category: 'Road Safety' },
+    { infraType: 'Roads', category: 'Upgrading' },
+    { infraType: 'Roads', category: 'Widening' },
+    { infraType: 'School Buildings', category: 'Construction' },
+    { infraType: 'School Buildings', category: 'Rehabilitation/Major Repair' },
+    { infraType: 'Septage and Sewerage Plants', category: 'Construction' },
+    { infraType: 'Septage and Sewerage Plants', category: 'Rehabilitation/Major Repair' },
+    { infraType: 'Water Supply Systems', category: 'Construction' },
+    { infraType: 'Water Supply Systems', category: 'Rehabilitation' },
+    { infraType: 'Waterway', category: 'Channelization' },
+    { infraType: 'Waterway', category: 'Dredging / Desilting' },
   ]);
 
   const handleSort = (columnIndex: number, direction: 0 | 1) => {
@@ -57,7 +95,7 @@ const MajorWorkCategoryTable: React.FC = () => {
               onSort={(direction) => handleSort(0, direction)}
               className="text-gray-500"
             >
-              ID
+              Infra Type
             </TableHeader>
             <TableHeader 
               sortable 
@@ -65,82 +103,21 @@ const MajorWorkCategoryTable: React.FC = () => {
               onSort={(direction) => handleSort(1, direction)}
               className="text-gray-500"
             >
-              Name
-            </TableHeader>
-            <TableHeader 
-              sortable 
-              sortDirection={sortColumn === 2 ? sortDirection : null} 
-              onSort={(direction) => handleSort(2, direction)}
-              className="text-gray-500"
-            >
-              Description
-            </TableHeader>
-            <TableHeader 
-              sortable 
-              sortDirection={sortColumn === 3 ? sortDirection : null} 
-              onSort={(direction) => handleSort(3, direction)}
-              className="text-gray-500"
-            >
               Category
-            </TableHeader>
-            <TableHeader 
-              sortable 
-              sortDirection={sortColumn === 4 ? sortDirection : null} 
-              onSort={(direction) => handleSort(4, direction)}
-              className="text-gray-500"
-            >
-              Budget
-            </TableHeader>
-            <TableHeader 
-              sortable 
-              sortDirection={sortColumn === 5 ? sortDirection : null} 
-              onSort={(direction) => handleSort(5, direction)}
-              className="text-gray-500"
-            >
-              Status
-            </TableHeader>
-            <TableHeader 
-              sortable 
-              sortDirection={sortColumn === 6 ? sortDirection : null} 
-              onSort={(direction) => handleSort(6, direction)}
-              className="text-gray-500"
-            >
-              Created Date
             </TableHeader>
             <TableHeader className="text-gray-500">Actions</TableHeader>
           </TableRow>
         </TableHead>
         <TableBody>
           {workCategories.map((category, index) => (
-            <TableRow key={category.id} className={`hover:bg-gray-50 ${
+            <TableRow className={`hover:bg-gray-50 ${
               index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
             }`}>
               <TableCell className="font-medium text-gray-900">
-                {category.id}
+                {category.infraType}
               </TableCell>
               <TableCell className="text-gray-900">
-                {category.name}
-              </TableCell>
-              <TableCell className="text-gray-600">
-                {category.description}
-              </TableCell>
-              <TableCell className="text-gray-600">
                 {category.category}
-              </TableCell>
-              <TableCell className="text-gray-600 font-medium">
-                {formatCurrency(category.budget)}
-              </TableCell>
-              <TableCell>
-                <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                  category.status === 'Active' 
-                    ? 'bg-green-100 text-green-800' 
-                    : 'bg-red-100 text-red-800'
-                }`}>
-                  {category.status}
-                </span>
-              </TableCell>
-              <TableCell className="text-gray-600">
-                {new Date(category.createdDate).toLocaleDateString()}
               </TableCell>
               <TableCell>
                 <div className="flex space-x-2">
