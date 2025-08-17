@@ -11,7 +11,7 @@ interface CategoryData {
   createdDate: string;
 }
 
-const CategoryTable: React.FC = () => {
+const ProjectCategoryTable: React.FC = () => {
   const [sortDirection, setSortDirection] = useState<0 | 1 | null>(null);
   const [sortColumn, setSortColumn] = useState<number | null>(null);
 
@@ -135,4 +135,4 @@ const CategoryTable: React.FC = () => {
   );
 };
 
-export default CategoryTable;
+export default ProjectCategoryTable;
