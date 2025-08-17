@@ -2,7 +2,7 @@
 import { httpClient } from '../../services/httpClient';
 
 
-import type { ProgramModel, ProgramEnums, ProgramPagination, ProgramList, ProgramDetailsEnums, ProgramDetails, ParentProgram } from './Model';
+import type { ProgramModel, ProgramEnums, ProgramPagination, ProgramList, ProgramDetailsEnums, ProgramDetails, ParentProgram, StageList } from './Model';
 
 export const fetchProgramEnums = async () => {
     try {
@@ -89,5 +89,17 @@ export const nextStage = async (data: { ProgramId: string; Stage: number }) => {
     } catch (ErrorResponse) {
         console.error('Error proceeding to next stage:', ErrorResponse);
         throw ErrorResponse;
+    }
+}
+
+export const fetchStagesByProgramId = async (programId: string) => {
+    try {
+        const request = await httpClient.post<StageList>(`/Program/ShowProgramStages`, { ProgramId: programId }, {
+            preloaderMessage: 'Loading program stages...'
+        });
+        return request;
+    } catch (error) {
+        console.error('Error fetching program stages:', error);
+        throw error;
     }
 }

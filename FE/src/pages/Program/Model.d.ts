@@ -34,7 +34,7 @@ export interface ParentProgram {
 	CreatedBy: string;
 	CreatedDate: string;
 	IsPublished: boolean;
-	Stages: ProgramList[];
+	// Stages: ProgramList[];
 }
 
 export interface ProgramDetails {
@@ -55,6 +55,10 @@ export interface ProgramDetails {
 	CreatedDate: string;
 	UpdatedBy?: string;
 	UpdatedDate?: string;
+}
+
+export interface StageList {
+	Stages: ProgramDetails[];
 }
 
 export interface ProgramDetailsEnums{

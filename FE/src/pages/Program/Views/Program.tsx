@@ -1,8 +1,8 @@
 "use-client";
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchProgram, fetchProgramEnums } from '../Service'; // Adjust the import path as necessary
-import type { ProgramEnums, ParentProgram, ProgramPagination, } from '../Model.d'; // Adjust the import path as necessary
+import { fetchProgram, fetchProgramEnums, fetchStagesByProgramId } from '../Service'; // Adjust the import path as necessary
+import type { ProgramEnums, ParentProgram, ProgramPagination, StageList, } from '../Model.d'; // Adjust the import path as necessary
 import { Pagination, PaginationPrevious, PaginationNext, PaginationPage, PaginationList } from '../../../components/tailwindui/pagination'; // Adjust the import path as necessary
 
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '../../../components/tailwindui/table'; // Adjust the import path as necessary
@@ -34,6 +34,7 @@ const Program: React.FC = () => {
     const [isDeleteProgramOpen, setIsDeleteProgramOpen] = useState(false);
     const [selectedProgram, setSelectedProgram] = useState<string | null>(); // Initialize with an empty string or a default value
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set()); // Track expanded rows
+    const [stageList, setStageList] = useState<StageList>();
 
     useEffect(() => {
         const getPrograms = async () => {
@@ -88,16 +89,16 @@ const Program: React.FC = () => {
     };
 
     // Helper function to map status numbers to strings
-    // const getStatusString = (statusId: number): string => {
-    //     const statusMap: { [key: number]: string } = {
-    //         1: 'Working',
-    //         2: 'Approved', 
-    //         3: 'Pending',
-    //         4: 'Rejected',
-    //         5: 'Proposed'
-    //     };
-    //     return statusMap[statusId] || 'Unknown';
-    // };
+    const getStatusString = (statusId: number): string => {
+        const statusMap: { [key: number]: string } = {
+            1: 'Working',
+            2: 'Approved', 
+            3: 'Pending',
+            4: 'Rejected',
+            5: 'Proposed'
+        };
+        return statusMap[statusId] || 'Unknown';
+    };
 
     // Helper function to render status badge
     const getStatusBadge = (status: string) => {
@@ -121,6 +122,9 @@ const Program: React.FC = () => {
     const handleDropDownTable = async (programId?: string) => {
         try {
             if (programId) {
+                // Check if the row is already expanded
+                const isCurrentlyExpanded = expandedRows.has(programId);
+                
                 // Toggle the expanded state for this row
                 setExpandedRows(prev => {
                     const newExpanded = new Set(prev);
@@ -131,7 +135,12 @@ const Program: React.FC = () => {
                     }
                     return newExpanded;
                 });
-                console.log('toggle dropdown', programId);
+
+                // Only fetch data if we're expanding (not collapsing)
+                if (!isCurrentlyExpanded) {
+                    const response = await fetchStagesByProgramId(programId);
+                    setStageList(response.Data);
+                }
             }
         } catch (error) {
             console.error('Error toggling program details:', error);
@@ -290,7 +299,7 @@ const Program: React.FC = () => {
                                                     Program Stages under "{program.Name}"
                                                 </h4>
                                                 <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded-full border">
-                                                    {program.Stages?.length || 0} stages
+                                                    {stageList?.Stages?.length || 0} stages
                                                 </span>
                                             </div>
                                             <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
@@ -307,11 +316,11 @@ const Program: React.FC = () => {
                                                         </TableRow>
                                                     </TableHead>
                                                     <TableBody>
-                                                        {program.Stages?.map((stage) => (
+                                                        {stageList?.Stages?.map((stage) => (
                                                             <TableRow key={stage.Id}>
                                                                 <TableCell className="font-medium text-sm">{stage.Name}</TableCell>
                                                                 <TableCell>
-                                                                    {getStatusBadge(stage.Status || 'Unknown')}
+                                                                    {getStatusBadge(getStatusString(stage.Status || 0))}
                                                                 </TableCell>
                                                                 <TableCell className="text-sm text-gray-600">{stage.Type}</TableCell>
                                                                 <TableCell className="text-sm text-gray-600">{stage.YearStart}</TableCell>
