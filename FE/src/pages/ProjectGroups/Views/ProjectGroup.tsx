@@ -9,13 +9,14 @@ import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '.
 
 // #region Import Dialogs
 import { AddProjectGroupDialog, DeleteProjectGroupDialog } from '../dialogs';
+import FilterProjectGroupDialog from '../dialogs/FilterProjectGroupDialog';
 // #endregion
 
 import { Button } from '../../../components/tailwindui/button'; // Adjust the import path as necessary
 import { 
     PlusIcon, 
-    MagnifyingGlassIcon,
-    TrashIcon
+    TrashIcon,
+    AdjustmentsVerticalIcon
 } from '@heroicons/react/24/outline'; // Adjust the import path as necessary
 
 const ProjectGroup: React.FC = () => {
@@ -24,13 +25,14 @@ const ProjectGroup: React.FC = () => {
 
     const [isAddProjectGroupOpen, setIsAddProjectGroupOpen] = useState(false);
     const [isDeleteProjectGroupOpen, setIsDeleteProjectGroupOpen] = useState(false);
+    const [isFilterProjectGroupDialogOpen, setIsFilterProjectGroupDialogOpen] = useState(false);
     const [selectedProjectGroup, setSelectedProjectGroup] = useState<string | null>(); // Initialize with an empty string or a default value
 
     useEffect(() => {
         const getProjectGroups = async () => {
             setIsLoading(true);
             try {
-                const response = await fetchProjectGroup(ProjectGroupData);
+                const response = await fetchProjectGroup(ProjectGroupFilters);
                 setProjectGroupData(response.Data);
             } catch (error) {
                 console.error('Error fetching project groups:', error);
@@ -40,6 +42,19 @@ const ProjectGroup: React.FC = () => {
         };
         getProjectGroups();
     }, []);
+
+    const fetchProjectGroups = async (filters?: ProjectGroupPagination) => {
+        try {
+            setIsLoading(true);
+            const filtersToUse = filters || ProjectGroupFilters;
+            const response = await fetchProjectGroup(filtersToUse);
+            setProjectGroupData(response.Data);
+        } catch (error) {
+            console.error('Error fetching project groups:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const [ProjectGroupData, setProjectGroupData] = useState<ProjectGroupsDropDowns>({
         total: 0,
@@ -86,33 +101,57 @@ const ProjectGroup: React.FC = () => {
     };
 
     // Helper function to render status badge
-    const getStatusBadge = (status: string) => {
-        const statusColors = {
-            'Working': 'bg-orange-100 text-orange-800 border-orange-200',
-            'Approved': 'bg-green-100 text-green-800 border-green-200',
-            'Pending': 'bg-yellow-100 text-yellow-800 border-yellow-200',
-            'Rejected': 'bg-red-100 text-red-800 border-red-200',
-            'Proposed': 'bg-blue-100 text-blue-800 border-blue-200',
-        };
+    // const getStatusBadge = (status: string) => {
+    //     const statusColors = {
+    //         'Working': 'bg-orange-100 text-orange-800 border-orange-200',
+    //         'Approved': 'bg-green-100 text-green-800 border-green-200',
+    //         'Pending': 'bg-yellow-100 text-yellow-800 border-yellow-200',
+    //         'Rejected': 'bg-red-100 text-red-800 border-red-200',
+    //         'Proposed': 'bg-blue-100 text-blue-800 border-blue-200',
+    //     };
         
-        const colorClass = statusColors[status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800 border-gray-200';
+    //     const colorClass = statusColors[status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800 border-gray-200';
         
-        return (
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${colorClass}`}>
-                {status}
-            </span>
-        );
-    };
+    //     return (
+    //         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${colorClass}`}>
+    //             {status}
+    //         </span>
+    //     );
+    // };
 
     const handleViewDetails = async (id: string) => {
         navigate(`/project-groups/${id}`);
     };
 
+    const handleFilterSubmit = async (filterData: any) => {
+        const updatedFilters = {
+            ...ProjectGroupFilters,
+            filters: {
+                ...ProjectGroupFilters.filters,
+                Name: filterData.Name || '',
+                ProjectId: filterData.ProjectId || ''
+            },
+            page: 1 // Reset to first page when filtering
+        };
+        
+        setProjectGroupFilters(updatedFilters);
+        await fetchProjectGroups(updatedFilters);
+    };
+
+    const handleClear = async () => {
+        const clearedFilters = {
+            ...ProjectGroupFilters,
+            filters: {
+                Name: '',
+            },
+            page: 1
+        };
+        
+        setProjectGroupFilters(clearedFilters);
+        await fetchProjectGroups(clearedFilters);
+    };
+
     const Paginate = async (page: number) => {
-        setProjectGroupData(prev => ({
-            ...prev,
-            page: page
-        }));
         try {
             const response = await fetchProjectGroup({
                 ...ProjectGroupFilters,
@@ -134,35 +173,36 @@ const ProjectGroup: React.FC = () => {
                             <h3 className="text-lg font-medium text-gray-900">Project Groups</h3>
                             <div className="flex items-center space-x-3">
                                 <div className="flex items-center space-x-2">
-                                    {/* <Button 
-                                        color={groupByCreatedDate ? "blue" : "zinc"}
-                                        onClick={() => setGroupByCreatedDate(!groupByCreatedDate)}
-                                        className="text-xs px-3 py-1.5"
-                                    >
-                                        {groupByCreatedDate ? "Group by Created Date" : "Group by Start Year"}
-                                    </Button>
+                                    {ProjectGroupFilters.filters?.Name && (
+                                        <Button 
+                                            color="red" 
+                                            className="shadow-md text-xs px-3 py-1.5" 
+                                            onClick={handleClear}
+                                            disabled={isLoading}
+                                        >
+                                            Clear Filters
+                                        </Button>
+                                    )}
                                     <Button 
-                                        color="zinc"
-                                        onClick={expandAllYears}
-                                        className="text-xs px-3 py-1.5"
+                                        color="white" 
+                                        className={`shadow-md text-xs px-3 py-1.5 ${ProjectGroupFilters.filters?.Name ? 'ring-2 ring-orange-500 bg-orange-50' : ''}`}
+                                        onClick={() => setIsFilterProjectGroupDialogOpen(true)}
+                                        disabled={isLoading}
                                     >
-                                        Expand All
+                                        <AdjustmentsVerticalIcon className="w-4 h-4 mr-1" />
+                                        Filter
+                                        {(() => {
+                                            const activeFilters = [
+                                                ProjectGroupFilters.filters?.Name
+                                            ].filter(Boolean).length;
+                                            
+                                            return activeFilters > 0 && (
+                                                <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
+                                                    {activeFilters}
+                                                </span>
+                                            );
+                                        })()}
                                     </Button>
-                                    <Button 
-                                        color="zinc"
-                                        onClick={collapseAllYears}
-                                        className="text-xs px-3 py-1.5"
-                                    >
-                                        Collapse All
-                                    </Button> */}
-                                </div>
-                                <div className="relative">
-                                    <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                                    <input
-                                        type="text"
-                                        placeholder="Search Project Groups..."
-                                        className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    />
                                 </div>
                                 <Button color="blue" onClick={handleOpenDialog} disabled={isLoading} className="text-xs px-3 py-1.5">
                                     <PlusIcon className="w-4 h-4 mr-1" />
@@ -214,10 +254,10 @@ const ProjectGroup: React.FC = () => {
                             <div className="flex items-center space-x-1">
                                 <Button 
                                     color="orange"
-                                    /*onClick={() => handleViewDetails(program.ProgramId)}*/
+                                    onClick={() => handleViewDetails(group.GroupId)}
                                     className="text-xs px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded"
                                 >
-                                    Validate
+                                    View
                                 </Button>
                                 <Button color="red" onClick={() => {setIsDeleteProjectGroupOpen(true); setSelectedProjectGroup(group.GroupId);}} className="text-xs px-3 py-1.5 bg-red-500 hover:bg-red-600 rounded">
                                     <TrashIcon stroke='white' className="h-5 w-5 text-gray-900" />
@@ -325,6 +365,15 @@ const ProjectGroup: React.FC = () => {
                     }}
             />
             )}
+
+            {/* Filter Project Group Dialog */}
+            <FilterProjectGroupDialog
+                isOpen={isFilterProjectGroupDialogOpen}
+                onClose={() => setIsFilterProjectGroupDialogOpen(false)}
+                onSubmit={handleFilterSubmit}
+                onClear={handleClear}
+                initialData={ProjectGroupFilters.filters}
+            />
         </div>
     );
 }

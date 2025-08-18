@@ -10,6 +10,11 @@ export interface ProjectGroups {
 	CreatedDate?: string;
 }
 
+export interface ProjectGroupFilter {
+	ProjectId?: string;
+	Name?: string;
+}
+
 export interface ProjectGroupPagination extends PaginationParams {
     filters?: {
         Name?: string;

@@ -12,8 +12,9 @@ import ModificationCategoryTable from './ModificationCategoryTable';
 import ModificationReasonTable from './ModificationReasonTable';
 import CostTypeTable from './CostTypeTable';
 import OtherInfraTable from './OtherInfraTable';
+import TypeOfWorkTable from './TypeOfWorkTable';
 
-type TableType = 'Category' | 'Thrust' | 'ProjectOrigin' | 'MajorWorkCategory' | 'MultiCriteriaAnalysis' | 'FundingSource' | 'ModificationValidationDates' | 'ModificationCategory' | 'ModificationReason' | 'CostType' | 'OtherInfra' | '';
+type TableType = 'Category' | 'Thrust' | 'ProjectOrigin' | 'MajorWorkCategory' | 'MultiCriteriaAnalysis' | 'FundingSource' | 'ModificationValidationDates' | 'ModificationCategory' | 'ModificationReason' | 'CostType' | 'OtherInfra' | 'TypeOfWork' | '';
 
 const CodeTables: React.FC = () => {
   const [selectedTable, setSelectedTable] = useState<TableType>('');
@@ -46,6 +47,8 @@ const CodeTables: React.FC = () => {
         return <CostTypeTable />;
       case 'OtherInfra':
         return <OtherInfraTable />;
+      case 'TypeOfWork':
+        return <TypeOfWorkTable />;
       default:
         return (
           <div className="text-center py-8 text-gray-500">
@@ -82,6 +85,7 @@ const CodeTables: React.FC = () => {
                 <option value="ModificationReason">Modification Reason</option>
                 <option value="CostType">Cost Type</option>
                 <option value="OtherInfra">Other Infrastructure</option>
+                <option value="TypeOfWork">Type of Work</option>
               </select>
             </div>
         </div>
