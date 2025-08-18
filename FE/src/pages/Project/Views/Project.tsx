@@ -172,7 +172,7 @@ const Project: React.FC = () => {
                                 <TableHeader>Project ID</TableHeader>
                                 <TableHeader>Program Name</TableHeader>
                                 <TableHeader>Category</TableHeader>
-                                <TableHeader>Total Project Cost (PHP)</TableHeader>
+                                {/* <TableHeader>Total Project Cost (PHP)</TableHeader> */}
                                 <TableHeader>Created By</TableHeader>
                                 <TableHeader>Created Date</TableHeader>
                                 <TableHeader>Actions</TableHeader>
@@ -195,7 +195,7 @@ const Project: React.FC = () => {
                                         {formatCurrency(project.TotalProjectCost)}
                                     </TableCell> */}
                                     <TableCell>{project.CreatedBy}</TableCell>
-                                    <TableCell>{project.CreatedDate}</TableCell>
+                                    <TableCell>{project.CreatedDate.StringToDate()}</TableCell>
                                     <TableCell>
                                         <div className="flex items-center space-x-1">
                                             <Button 

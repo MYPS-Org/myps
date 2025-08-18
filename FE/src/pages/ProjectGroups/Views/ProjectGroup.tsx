@@ -245,7 +245,7 @@ const ProjectGroup: React.FC = () => {
                             {group.UserGroupName || 'N/A'}
                         </TableCell>
                         <TableCell>
-                            {group.CreatedDate}
+                            {group.CreatedDate!.StringToDate()}
                         </TableCell>
                         <TableCell>
                             {group.CreatedBy}
