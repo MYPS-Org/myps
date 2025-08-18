@@ -9,16 +9,19 @@ import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '.
 import { Button } from '../../../components/tailwindui/button'; // Adjust the import path as necessary
 import {
     PlusIcon, 
-    MagnifyingGlassIcon
+    MagnifyingGlassIcon,
+    XMarkIcon
 } from '@heroicons/react/24/outline'; // Adjust the import path as necessary
 
 const Project: React.FC = () => {
     const navigate = useNavigate();
-    const [projects, setProjects] = useState<ProjectLists>(); // Initialize with an empty array of ProjectDetails
+    const [isLoading, setIsLoading] = useState(false);
+    const [searchInput, setSearchInput] = useState<string>(''); // Separate state for search input
+    // const [projects, setProjects] = useState<ProjectLists>(); // Initialize with an empty array of ProjectDetails
 
-    const [ProgramFilters, setProgramFilters] = useState<ProjectPagination>({
+    const [ProjectFilters, setProjectFilters] = useState<ProjectPagination>({
         filters: {
-            ProgramId: '',
+            // ProgramId: '',
             ProjectId: ''
         },
         sortField: '',
@@ -39,21 +42,60 @@ const Project: React.FC = () => {
         fetchProjects();
     }, []);
 
-    const fetchProjects = async () => {
+    const fetchProjects = async (filters?: ProjectPagination) => {
         try {
-            const response = await fetchProject(ProjectData);
+            setIsLoading(true);
+            const filtersToUse = filters || ProjectFilters;
+            const response = await fetchProject(filtersToUse);
             setProjectData(response.Data);
         } catch (error) {
             console.error('Error fetching projects:', error);
             // You might want to show a toast or alert here
             alert('Failed to fetch projects: ' + (error instanceof Error ? error.message : 'Unknown error'));
+        } finally {
+            setIsLoading(false);
         }
     };
 
-    // Helper function to format PHP currency
-    const formatCurrency = (amount: number) => {
-        return amount.toLocaleString('en-PH');
+    const handleSearchChange = (value: string) => {
+        // Only update the input state, don't trigger API call
+        setSearchInput(value);
     };
+
+    const handleSearchSubmit = async () => {
+        // Update the filter state and trigger API call
+        const updatedFilters = {
+            ...ProjectFilters,
+            filters: {
+                ...ProjectFilters.filters,
+                ProjectId: searchInput
+            },
+            page: 1 // Reset to first page when searching
+        };
+        
+        setProjectFilters(updatedFilters);
+        await fetchProjects(updatedFilters);
+    };
+
+    const handleClearSearch = async () => {
+        setSearchInput('');
+        const updatedFilters = {
+            ...ProjectFilters,
+            filters: {
+                ...ProjectFilters.filters,
+                ProjectId: ''
+            },
+            page: 1
+        };
+        
+        setProjectFilters(updatedFilters);
+        await fetchProjects(updatedFilters);
+    };
+
+    // Helper function to format PHP currency
+    // const formatCurrency = (amount: number) => {
+    //     return amount.toLocaleString('en-PH');
+    // };
 
     const handleViewDetails = (projectId: string) => {
         navigate(`/projects/project-details/${projectId}`);
@@ -79,17 +121,46 @@ const Project: React.FC = () => {
                         <div className="flex items-center justify-between">
                             <h3 className="text-lg font-medium text-gray-900">Projects</h3>
                             <div className="flex items-center space-x-3">
-                                <div className="relative">
-                                    <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                                    <input
-                                        type="text"
-                                        placeholder="Search Projects..."
-                                        className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    />
+                                <div className="flex items-center space-x-2">
+                                    <div className="relative">
+                                        <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                                        <input
+                                            type="text"
+                                            placeholder="Search by Project ID..."
+                                            value={searchInput}
+                                            onChange={(e) => handleSearchChange(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    handleSearchSubmit();
+                                                }
+                                            }}
+                                            className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        />
+                                    </div>
+                                    <Button 
+                                        color="blue" 
+                                        onClick={handleSearchSubmit}
+                                        disabled={isLoading}
+                                        className="text-xs px-3 py-1.5"
+                                    >
+                                        <MagnifyingGlassIcon className="w-4 h-4 mr-1" />
+                                        Search
+                                    </Button>
+                                    {(searchInput || ProjectFilters.filters?.ProjectId) && (
+                                        <Button 
+                                            color="zinc" 
+                                            onClick={handleClearSearch}
+                                            disabled={isLoading}
+                                            className="text-xs px-3 py-1.5"
+                                        >
+                                            <XMarkIcon className="w-4 h-4 mr-1" />
+                                            Clear
+                                        </Button>
+                                    )}
                                 </div>
-                                <Button color="blue" onClick={handleAddProject}>
+                                <Button color="blue" onClick={handleAddProject} disabled={isLoading}>
                                     <PlusIcon className="w-4 h-4 mr-1" />
-                                    Add Project
+                                    {isLoading ? 'Loading...' : 'Add Project'}
                                 </Button>
                             </div>
                         </div>
