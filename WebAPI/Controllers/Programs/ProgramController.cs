@@ -28,10 +28,12 @@ namespace WebAPI.Controllers.Programs
             try
             {
                 var SelectedStage = new[] { EnumProgramStage.RBP, EnumProgramStage.BP }.Select(stage => (int)stage).ToList();
+                var SelectedStatus = new[] { EnumProgramStatus.Working, EnumProgramStatus.Approved }.Select(stage => (int)stage).ToList();
 
                 var AvailableStages = await _db.tProgramStageEnum.Where(x => SelectedStage.Contains(x.Id)).ToListAsync();
                 var AvailableTypes = await _db.tProgramTypeEnum.ToListAsync();
-                var AvailableStatuses = await _db.tProgramStatusEnum.ToListAsync();
+
+                var AvailableStatuses = await _db.tProgramStatusEnum.Where(x => SelectedStatus.Contains(x.Enum)).ToListAsync();
                 var AvailableGroups = await _db.tGroups.ToListAsync();
                 var response = new
                 {

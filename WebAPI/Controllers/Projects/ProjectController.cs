@@ -391,6 +391,7 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = "Program not found for this project!", Title = "Program Not Found" });
                 }
+                bool HasCostUpdate = false;
                 #region Update Project Details
                 if (Project.Description != dto.ProjectDetails?.Description)
                 {
@@ -787,6 +788,7 @@ namespace WebAPI.Controllers.Projects
                     var DeletedComponentCost = CurrentComponentCost.Except(dto.ComponentCosts.Select(x => x.ReferenceId)).ToList();
                     if (DeletedComponentCost.Count > 0)
                     {
+                        HasCostUpdate = true;
                         var DeletedItems = await _db.tProjectComponentCost.Where(x => DeletedComponentCost.Contains(x.ReferenceId)).ToListAsync();
                         var DeleteCostPerYear = await _db.tProjectComponentCostYear.Where(x => DeletedComponentCost.Contains(x.ParentId)).ToListAsync();
                         _db.tProjectComponentCost.RemoveRange(DeletedItems);
@@ -818,6 +820,7 @@ namespace WebAPI.Controllers.Projects
                     #region New Component Cost and Year
                     if (NewComponentCost.Count > 0)
                     {
+                        HasCostUpdate = true;
                         var uidList = new List<string>();
                         var param = new Dictionary<string, object> { { "@Table", "tCountSequence" } };
 
@@ -874,6 +877,7 @@ namespace WebAPI.Controllers.Projects
                     var UpdateComponentCost = dto.ComponentCosts.Where(x => CurrentComponentCost.Contains(x.ReferenceId)).ToList();
                     if (UpdateComponentCost.Count > 0)
                     {
+                        HasCostUpdate = true;
                         foreach (var item in UpdateComponentCost)
                         {
                             var ExistingItem = ComponentCost.FirstOrDefault(x => x.Id == item.Id);
@@ -1048,6 +1052,7 @@ namespace WebAPI.Controllers.Projects
                 }
                 else if (dto.ComponentCosts.Count > 0)
                 {
+                    HasCostUpdate = true;
                     var uidList = new List<string>();
                     var param = new Dictionary<string, object> { { "@Table", "tCountSequence" } };
 
@@ -1488,6 +1493,14 @@ namespace WebAPI.Controllers.Projects
                 await _db.tTransactionLog.AddRangeAsync(transactionLogs);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
+                if (HasCostUpdate)
+                {
+                    var param = new Dictionary<string, object> { { "@ProgramId", dto.ProjectDetails!.ProgramId! } };
+                    Sql.NormalQuery<Double>(
+                            Appsetting.ConnectionString,
+                            "EXEC pUpdateProgramCost @ProgramId = @ProgramId", param
+                        );
+                }
                 return Ok(new
                 {
                     Message = $"Project {dto.ProjectDetails!.ProjectId} updated successfully!",
