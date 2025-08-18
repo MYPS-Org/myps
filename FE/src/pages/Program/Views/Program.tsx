@@ -17,7 +17,8 @@ import {
     MagnifyingGlassIcon,
     TrashIcon,
     ChevronDownIcon,
-    ChevronRightIcon
+    ChevronRightIcon,
+    XMarkIcon
 } from '@heroicons/react/24/outline'; // Adjust the import path as necessary
 
 const Program: React.FC = () => {
@@ -35,6 +36,7 @@ const Program: React.FC = () => {
     const [selectedProgram, setSelectedProgram] = useState<string | null>(); // Initialize with an empty string or a default value
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set()); // Track expanded rows
     const [stageList, setStageList] = useState<StageList>();
+    const [searchInput, setSearchInput] = useState<string>(''); // Separate state for search input
 
     useEffect(() => {
         const getPrograms = async () => {
@@ -62,12 +64,6 @@ const Program: React.FC = () => {
     const [ProgramFilters, setProgramFilters] = useState<ProgramPagination>({
             filters: {
                 Name: '',
-                YearStart: '',
-                YearEnd: '',
-                StageName: '',
-                GroupName: '',
-                Status: '',
-                Type: '',
             },
             sortField: '',
             sortDirection: 1,
@@ -157,11 +153,62 @@ const Program: React.FC = () => {
         }
     };
 
+    const handleSearchChange = (value: string) => {
+        // Only update the input state, don't trigger API call
+        setSearchInput(value);
+    };
+
+    const handleSearchSubmit = async () => {
+        // Update the filter state and trigger API call
+        const updatedFilters = {
+            ...ProgramFilters,
+            filters: {
+                ...ProgramFilters.filters,
+                Name: searchInput
+            },
+            page: 1 // Reset to first page when searching
+        };
+        
+        setProgramFilters(updatedFilters);
+
+        // Fetch programs with the new filter
+        try {
+            setIsLoading(true);
+            const response = await fetchProgram(updatedFilters);
+            setProgramData(response.Data);
+        } catch (error) {
+            console.error('Error filtering programs:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleClearSearch = async () => {
+        setSearchInput('');
+        const updatedFilters = {
+            ...ProgramFilters,
+            filters: {
+                ...ProgramFilters.filters,
+                Name: ''
+            },
+            page: 1
+        };
+        
+        setProgramFilters(updatedFilters);
+
+        // Fetch programs with cleared filter
+        try {
+            setIsLoading(true);
+            const response = await fetchProgram(updatedFilters);
+            setProgramData(response.Data);
+        } catch (error) {
+            console.error('Error clearing search:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const Paginate = async (page: number) => {
-        setProgramData(prev => ({
-            ...prev,
-            page: page
-        }));
         try {
             const response = await fetchProgram({
                 ...ProgramFilters,
@@ -212,13 +259,42 @@ const Program: React.FC = () => {
                                         Collapse All
                                     </Button> */}
                                 </div>
-                                <div className="relative">
-                                    <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                                    <input
-                                        type="text"
-                                        placeholder="Search Programs..."
-                                        className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    />
+                                <div className="flex items-center space-x-2">
+                                    <div className="relative">
+                                        <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                                        <input
+                                            type="text"
+                                            placeholder="Search Programs..."
+                                            value={searchInput}
+                                            onChange={(e) => handleSearchChange(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    handleSearchSubmit();
+                                                }
+                                            }}
+                                            className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        />
+                                    </div>
+                                    <Button 
+                                        color="blue" 
+                                        onClick={handleSearchSubmit}
+                                        disabled={isLoading}
+                                        className="text-xs px-3 py-1.5"
+                                    >
+                                        <MagnifyingGlassIcon className="w-4 h-4 mr-1" />
+                                        Search
+                                    </Button>
+                                    {(searchInput || ProgramFilters.filters?.Name) && (
+                                        <Button 
+                                            color="red" 
+                                            onClick={handleClearSearch}
+                                            disabled={isLoading}
+                                            className="text-xs px-3 py-1.5"
+                                        >
+                                            <XMarkIcon className="w-4 h-4 mr-1" />
+                                            Clear
+                                        </Button>
+                                    )}
                                 </div>
                                 <Button color="blue" onClick={handleOpenDialog} disabled={isLoading} className="text-xs px-3 py-1.5">
                                     <PlusIcon className="w-4 h-4 mr-1" />
@@ -307,7 +383,7 @@ const Program: React.FC = () => {
                                                     <TableHead>
                                                         <TableRow>
                                                             <TableHeader className="text-xs">Stage Name</TableHeader>
-                                                            <TableHeader className="text-xs">Status</TableHeader>
+                                                            {/* <TableHeader className="text-xs">Status</TableHeader> */}
                                                             <TableHeader className="text-xs">Type</TableHeader>
                                                             <TableHeader className="text-xs">Start Year</TableHeader>
                                                             <TableHeader className="text-xs">End Year</TableHeader>
@@ -319,9 +395,9 @@ const Program: React.FC = () => {
                                                         {stageList?.Stages?.map((stage) => (
                                                             <TableRow key={stage.Id}>
                                                                 <TableCell className="font-medium text-sm">{stage.Name}</TableCell>
-                                                                <TableCell>
+                                                                {/* <TableCell>
                                                                     {getStatusBadge(getStatusString(stage.Status || 0))}
-                                                                </TableCell>
+                                                                </TableCell> */}
                                                                 <TableCell className="text-sm text-gray-600">{stage.Type}</TableCell>
                                                                 <TableCell className="text-sm text-gray-600">{stage.YearStart}</TableCell>
                                                                 <TableCell className="text-sm text-gray-600">{stage.YearEnd}</TableCell>
