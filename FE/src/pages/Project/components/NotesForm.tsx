@@ -99,7 +99,7 @@ const NotesForm: React.FC<NotesFormProps> = ({
       <AddNoteDialog
         isOpen={isAddNoteModalOpen}
         onClose={() => setIsAddNoteModalOpen(false)}
-        projectId={initialData?.ProjectDetails?.ReferenceId || ''}
+        projectId={initialData?.ProjectDetails?.ProjectId || ''}
         onAddNote={handleAddNote}
       />
     </div>

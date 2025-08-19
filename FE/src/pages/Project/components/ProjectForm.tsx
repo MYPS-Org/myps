@@ -397,7 +397,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       });
       
       if (response.Data.ProjectId) {
-        navigate(`/projects/Edit/${response.Data.ProjectId}`);
+        navigate(`/projects/project-details/${response.Data.ProjectId}`);
       }
     } catch (error) {
       console.error('Error adding project details:', error);
