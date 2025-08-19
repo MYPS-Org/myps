@@ -611,17 +611,6 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Program Stage '{dto.Stage}' is not valid!", Title = "Invalid Stage" });
                 }
-                var newStage = new ProgramStages()
-                {
-                    ProgramId = dto.ProgramId,
-                    RevisionId = checkRevisions.RevisionNumber,
-                    StageId = dto.Stage,
-                    StageName = checkStageType.Name,
-                    CreatedBy = _Session.UserId,
-                    CreatedDate = CurrentDate,
-                    IsPublished = false,
-                };
-                await _db.tProgramStages.AddAsync(newStage);
                 var checkProjects = await _db.vProjectDetails.AsNoTracking().Where(x => x.ProgramId == dto.ProgramId).ToListAsync();
                 if (checkProjects.Count > 0)
                 {
@@ -686,6 +675,37 @@ namespace WebAPI.Controllers.Programs
                     CreatedBy = _Session.UserId,
                     CreatedDate = CurrentDate
                 };
+                await _db.tTransactionLog.AddAsync(transactionLog);
+                var newProgramRevision = new ProgramRevisions()
+                {
+                    ProgramId = dto.ProgramId,
+                    RevisionNumber = checkRevisions.RevisionNumber + 1,
+                    Name = checkRevisions.Name,
+                    UserGroup = checkRevisions.UserGroup,
+                    RegionCode = checkRevisions.RegionCode,
+                    Status = checkRevisions.Status,
+                    Type = checkRevisions.Type,
+                    Cost = checkRevisions.Cost,
+                    YearStart = checkRevisions.YearStart,
+                    YearEnd = checkRevisions.YearEnd,
+                    CreatedBy = _Session.UserId,
+                    CreatedDate = CurrentDate,
+                    UpdatedBy = _Session.UserId,
+                    UpdatedDate = CurrentDate
+                };
+                await _db.tProgramRevisions.AddAsync(newProgramRevision);
+                await _db.SaveChangesAsync();
+                var newStage = new ProgramStages()
+                {
+                    ProgramId = dto.ProgramId,
+                    RevisionId = newProgramRevision.Id,
+                    StageId = dto.Stage,
+                    StageName = checkStageType.Name,
+                    CreatedBy = _Session.UserId,
+                    CreatedDate = CurrentDate,
+                    IsPublished = false,
+                };
+                await _db.tProgramStages.AddAsync(newStage);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
                 return Ok(new

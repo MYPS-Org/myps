@@ -103,18 +103,19 @@ namespace WebAPI.Controllers.Projects
             try
             {
                 var AvailablePrograms = await _db.vPrograms.Where(x => x.IsPublished != true).ToListAsync();
-                var Category = await _db.tProjectCategoryEnum.ToListAsync();
-                var Thrust = await _db.tProjectThrustLists.ToListAsync();
-                var Origin = await _db.tProjectOriginEnum.ToListAsync();
-                var City = await _db.tProjectCityEnum.ToListAsync();
-                var LD = await _db.tProjectLegislativeDistrictEnum.ToListAsync();
-                var OperatingUnit = await _db.tProjectOperatingUnitEnum.ToListAsync();
-                var IO = await _db.tProjectImplementingOfficeEnum.ToListAsync();
-                var DEO = await _db.tProjectRODEOEnum.ToListAsync();
-                var Feasib = await _db.tProjectLongFeasibilityEnum.ToListAsync();
-                var Agency = await _db.tProjectAgencyLists.ToListAsync();
-                var ImplementationMode = await _db.tProjectImplementModeEnum.ToListAsync();
-                var EmergencyMode = await _db.tProjectEmergencyModeEnum.ToListAsync();
+                int CurrentYear = (int)DateTime.UtcNow.Year;
+                var Category = await _db.tProjectCategoryEnum.Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync();
+                var Thrust = await _db.tProjectThrustLists.OrderBy(x => x.ThrustDescription).ToListAsync();
+                var Origin = await _db.tProjectOriginEnum.OrderBy(x => x.Name).ToListAsync();
+                var City = await _db.tProjectCityEnum.OrderBy(x => x.Name).ToListAsync();
+                var LD = await _db.tProjectLegislativeDistrictEnum.OrderBy(x => x.Name).ToListAsync();
+                var OperatingUnit = await _db.tProjectOperatingUnitEnum.OrderBy(x => x.OrgName).ToListAsync();
+                var IO = await _db.tProjectImplementingOfficeEnum.OrderBy(x => x.OrgName).ToListAsync();
+                var DEO = await _db.tProjectRODEOEnum.OrderBy(x => x.DeoName).ToListAsync();
+                var Feasib = await _db.tProjectLongFeasibilityEnum.OrderBy(x => x.Name).ToListAsync();
+                var Agency = await _db.tProjectAgencyLists.OrderBy(x => x.AgencyName).ToListAsync();
+                var ImplementationMode = await _db.tProjectImplementModeEnum.OrderBy(x => x.Name).ToListAsync();
+                var EmergencyMode = await _db.tProjectEmergencyModeEnum.OrderBy(x => x.Name).ToListAsync();
                 return Ok(new
                 {
                     Programs = AvailablePrograms,
@@ -310,23 +311,23 @@ namespace WebAPI.Controllers.Projects
                 var Funding = await _db.tProjectFundingProfile.Where(x => x.ProjectId == Project.ProjectId).ToListAsync();
 
                 int CurrentYear = (int)DateTime.UtcNow.Year;
-                var Category = await _db.tProjectCategoryEnum.Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).ToListAsync();
-                var Thrust = await _db.tProjectThrustLists.ToListAsync();
-                var Origin = await _db.tProjectOriginEnum.ToListAsync();
-                var City = await _db.tProjectCityEnum.ToListAsync();
-                var LD = await _db.tProjectLegislativeDistrictEnum.ToListAsync();
-                var OperatingUnit = await _db.tProjectOperatingUnitEnum.ToListAsync();
-                var IO = await _db.tProjectImplementingOfficeEnum.ToListAsync();
-                var DEO = await _db.tProjectRODEOEnum.ToListAsync();
-                var Feasib = await _db.tProjectLongFeasibilityEnum.ToListAsync();
-                var Agency = await _db.tProjectAgencyLists.ToListAsync();
-                var ImplementationMode = await _db.tProjectImplementModeEnum.ToListAsync();
-                var EmergencyMode = await _db.tProjectEmergencyModeEnum.ToListAsync();
+                var Category = await _db.tProjectCategoryEnum.Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync();
+                var Thrust = await _db.tProjectThrustLists.OrderBy(x => x.ThrustDescription).ToListAsync();
+                var Origin = await _db.tProjectOriginEnum.OrderBy(x => x.Name).ToListAsync();
+                var City = await _db.tProjectCityEnum.OrderBy(x => x.Name).ToListAsync();
+                var LD = await _db.tProjectLegislativeDistrictEnum.OrderBy(x => x.Name).ToListAsync();
+                var OperatingUnit = await _db.tProjectOperatingUnitEnum.OrderBy(x => x.OrgName).ToListAsync();
+                var IO = await _db.tProjectImplementingOfficeEnum.OrderBy(x => x.OrgName).ToListAsync();
+                var DEO = await _db.tProjectRODEOEnum.OrderBy(x => x.DeoName).ToListAsync();
+                var Feasib = await _db.tProjectLongFeasibilityEnum.OrderBy(x => x.Name).ToListAsync();
+                var Agency = await _db.tProjectAgencyLists.OrderBy(x => x.AgencyName).ToListAsync();
+                var ImplementationMode = await _db.tProjectImplementModeEnum.OrderBy(x => x.Name).ToListAsync();
+                var EmergencyMode = await _db.tProjectEmergencyModeEnum.OrderBy(x => x.Name).ToListAsync();
 
-                var Agreement = await _db.tOptionFundingAgreement.ToListAsync();
-                var Source = await _db.tOptionFundingSource.ToListAsync();
+                var Agreement = await _db.tOptionFundingAgreement.OrderBy(x => x.Name).ToListAsync();
+                var Source = await _db.tOptionFundingSource.OrderBy(x => x.Organization == "GOP").ThenBy(x => x.Name).ToListAsync();
 
-                var ScopeOfWork = await _db.tProjectScopeOfWorkEnum.ToListAsync();
+                var ScopeOfWork = await _db.tProjectScopeOfWorkEnum.OrderBy(x => x.WorkCategory).ToListAsync();
                 var Transactions = await _db.tTransactionLog.Where(x => x.TransactionId == dto.ProjectId).ToListAsync();
                 return Ok(new
                 {

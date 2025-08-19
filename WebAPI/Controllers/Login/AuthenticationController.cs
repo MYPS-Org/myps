@@ -73,13 +73,14 @@ namespace WebAPI.Controllers.Auth
                 return ExceptionHandler(ex);
             }
         }
+        [AllowAnonymous]
         [HttpPost]
         public IActionResult Validate()
         {
             try
             {
-                bool hasUserId = string.IsNullOrEmpty(_Session.UserId);
-                if (hasUserId)
+                bool NoUserFound = string.IsNullOrEmpty(_Session.UserId);
+                if (NoUserFound)
                     return UnauthorizedUser();
                 return Ok(new { Message = "Login successful", Data = new { Authenticated = true, User = _Session } });
             }

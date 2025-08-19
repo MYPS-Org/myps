@@ -31,9 +31,9 @@ namespace WebAPI.Controllers
                     .Any(meta => meta is AllowAnonymousAttribute);
 
                 bool IsAuthenticated = (HttpContext.User.Identity != null) ? HttpContext.User.Identity.IsAuthenticated : true;
-                if (!hasAllowAnonymous || IsAuthenticated)
+                string userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+                if (!hasAllowAnonymous || IsAuthenticated || !string.IsNullOrEmpty(userId))
                 {
-                    string userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
                     var user = _db.tUsers.FirstOrDefault(x => x.UserId == userId && x.IsActive == true);
                     if(user == null)
                     {
