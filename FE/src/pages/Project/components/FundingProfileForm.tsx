@@ -3,6 +3,7 @@ import type { FundingProfile, ProjectFormPayload } from "../Model";
 import { Button } from "../../../components/tailwindui/button";
 import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from "../../../components/tailwindui/table";
+import { handleNumberFocus } from "../../../utils/GlobalFunctions";
 
 interface FundingProfileFormProps {
   initialData?: ProjectFormPayload;
@@ -21,6 +22,7 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
 }) => {
   const [errors, setErrors] = useState<{ [key: number]: string }>({});
   const [totalPercentage, setTotalPercentage] = useState(0);
+  const [totalAmount, setTotalAmount] = useState(0);
 
   // Calculate total percentage whenever fundingProfiles change
   useEffect(() => {
@@ -53,11 +55,12 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
     onEdit(index, { ...profile, Percentage: numValue });
   };
 
-  const handlePercentageFocus = (e: React.FocusEvent<HTMLInputElement>) => {
-    // Clear the field if it contains 0
-    if (e.target.value === '0') {
-      e.target.value = '';
-    }
+  const handleTotalAmount = (index: number, profile: FundingProfile, value: string) => {
+    const numValue = value === '' ? 0 : Number(value);
+
+    if (numValue < 0) return;
+
+    
   };
 
   const getTotalPercentageColor = () => {
@@ -79,6 +82,7 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
               </span>
             )}
           </div>
+          
           <Button color="blue" onClick={onAdd}>
               <PlusIcon className="w-4 h-4 mr-1" />
               Add Funding
@@ -89,7 +93,7 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
         <Table>
         <TableHead>
             <TableRow>
-            <TableHeader>Source</TableHeader>
+            <TableHeader className="max-w-sm">Source</TableHeader>
             <TableHeader>Agreement</TableHeader>
             <TableHeader>Percentage</TableHeader>
             <TableHeader>Actions</TableHeader>
@@ -99,12 +103,12 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
             {fundingProfiles.map((profile, index) => (
               
             <TableRow key={profile.Id}>
-                <TableCell className="w-1/2">
+                <TableCell className="w-1/3">
                   <select
                     name="source"
                     value={profile.Source}
                     onChange={(e) => onEdit(index, { ...profile, Source: String(e.target.value) })}
-                    className=" w-full px-2 py-1 border border-gray-300 rounded"
+                    className="w-full px-2 py-1 border border-gray-300 rounded"
                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
                   >
                     <option value="">Select Source</option>
@@ -115,7 +119,7 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
                     ))}
                   </select>
                 </TableCell>
-                <TableCell className="w-1/2">
+                <TableCell className="w-1/3">
                   <select
                     name="agreement"
                     value={profile.Agreement}
@@ -134,13 +138,12 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
                       ))}
                   </select>
                 </TableCell>
-                <TableCell>
-                  <div className="flex flex-col">
+                <TableCell className="w-1/6">
                     <input
                       type="number"
                       value={profile.Percentage || ''}
                       onChange={(e) => handlePercentageChange(index, profile, e.target.value)}
-                      onFocus={handlePercentageFocus}
+                      onFocus={handleNumberFocus}
                       className={`w-full px-2 py-1 border rounded ${errors[index] ? 'border-red-500' : 'border-gray-300'}`}
                       placeholder="0"
                       min="0"
@@ -150,7 +153,15 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
                     {errors[index] && (
                       <span className="text-red-500 text-xs mt-1">{errors[index]}</span>
                     )}
-                  </div>
+                </TableCell>
+                <TableCell className="w-1/6">
+                  <input 
+                    type="number"
+                    value={profile.TotalAmount || ''}
+                    onChange={(e) => onEdit(index, { ...profile, TotalAmount: Number(e.target.value) })}
+                    onFocus={handleNumberFocus}
+                    className="w-full px-2 py-1 border border-gray-300 rounded"
+                   />
                 </TableCell>
                 <TableCell>
                   <button

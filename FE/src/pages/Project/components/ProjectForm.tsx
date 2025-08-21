@@ -355,6 +355,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       Source: '',
       Agreement: 0,
       Percentage: 0,
+      TotalAmount: 0,
       CreatedBy: '',
       CreatedDate: new Date().toISOString().split('T')[0]
     };
@@ -592,6 +593,22 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
 
       {mode === 'edit' && (
         <>
+      {/* Funding Profile Section */}
+        <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
+          <div className="px-4 py-6 sm:p-8">
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold leading-7 text-gray-900">Funding Profiles</h3>
+            </div>
+            <FundingProfileForm
+              fundingProfiles={fundingProfiles}
+              onAdd={handleAddFundingProfile}
+              onEdit={handleEditFundingProfile}
+              onDelete={handleDeleteFundingProfile}
+              initialData={initialData ? { ...initialData, Dropdowns } : undefined}
+            />
+          </div>
+        </div>
+
       {/* Component Cost Section - Fill this first to populate Major Items */}
       <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
         <div className="px-4 py-6 sm:p-8">
@@ -644,21 +661,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
           </div>
         </div>
 
-        {/* Funding Profile Section */}
-        <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
-          <div className="px-4 py-6 sm:p-8">
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold leading-7 text-gray-900">Funding Profiles</h3>
-            </div>
-            <FundingProfileForm
-              fundingProfiles={fundingProfiles}
-              onAdd={handleAddFundingProfile}
-              onEdit={handleEditFundingProfile}
-              onDelete={handleDeleteFundingProfile}
-              initialData={initialData ? { ...initialData, Dropdowns } : undefined}
-            />
-          </div>
-        </div>
+        
       </div>
 
       {/* Activities Section */}
