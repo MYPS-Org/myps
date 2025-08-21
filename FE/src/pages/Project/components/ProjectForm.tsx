@@ -355,7 +355,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       Source: '',
       Agreement: 0,
       Percentage: 0,
-      TotalAmount: 0,
+      Amount: 0,
       CreatedBy: '',
       CreatedDate: new Date().toISOString().split('T')[0]
     };

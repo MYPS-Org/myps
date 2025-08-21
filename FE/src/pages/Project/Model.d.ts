@@ -291,7 +291,7 @@ export interface FundingProfile {
 	Source: string;
 	Agreement: number;
 	Percentage: number;
-	TotalAmount: number;
+	Amount: number;
 	CreatedBy: string;
 	CreatedDate: string;
 }

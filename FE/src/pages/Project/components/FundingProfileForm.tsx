@@ -28,6 +28,8 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
   useEffect(() => {
     const total = fundingProfiles.reduce((sum, profile) => sum + (profile.Percentage || 0), 0);
     setTotalPercentage(total);
+    const totalAmt = fundingProfiles.reduce((sum, profile) => sum + (profile.Amount || 0), 0);
+    setTotalAmount(totalAmt);
   }, [fundingProfiles]);
 
   // Validate percentage and update errors
@@ -55,14 +57,6 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
     onEdit(index, { ...profile, Percentage: numValue });
   };
 
-  const handleTotalAmount = (index: number, profile: FundingProfile, value: string) => {
-    const numValue = value === '' ? 0 : Number(value);
-
-    if (numValue < 0) return;
-
-    
-  };
-
   const getTotalPercentageColor = () => {
     if (totalPercentage === 100) return "text-green-600";
     if (totalPercentage > 100) return "text-red-600";
@@ -81,6 +75,9 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
                 ({totalPercentage < 100 ? `${(100 - totalPercentage).toFixed(1)}% remaining` : `${(totalPercentage - 100).toFixed(1)}% over`})
               </span>
             )}
+          </div>
+          <div className={`text-sm font-medium ${getTotalPercentageColor()}`}>
+            Total Amount: {totalAmount.toFixed(2)}
           </div>
           
           <Button color="blue" onClick={onAdd}>
@@ -157,8 +154,8 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
                 <TableCell className="w-1/6">
                   <input 
                     type="number"
-                    value={profile.TotalAmount || ''}
-                    onChange={(e) => onEdit(index, { ...profile, TotalAmount: Number(e.target.value) })}
+                    value={profile.Amount || ''}
+                    onChange={(e) => onEdit(index, { ...profile, Amount: Number(e.target.value) })}
                     onFocus={handleNumberFocus}
                     className="w-full px-2 py-1 border border-gray-300 rounded"
                    />
