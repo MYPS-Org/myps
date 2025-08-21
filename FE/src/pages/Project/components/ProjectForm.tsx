@@ -49,6 +49,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
   const [isProgramOpen, setIsProgramOpen] = useState<boolean>(true);
   const [isProjectOpen, setIsProjectOpen] = useState<boolean>(true);
   
+  // SetMaxAmount in ComponentCostForm
+  const [maxAmountCost, setMaxAmountCost] = useState<number>(0);
+
   // Initialize state with empty data or provided initial data
   const [programDetails, setProgramDetails] = useState<ProgramList>(
     initialData?.ProgramDetails || {
@@ -605,6 +608,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
               onEdit={handleEditFundingProfile}
               onDelete={handleDeleteFundingProfile}
               initialData={initialData ? { ...initialData, Dropdowns } : undefined}
+              onTotalAmountChange={setMaxAmountCost}
             />
           </div>
         </div>
@@ -622,6 +626,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
             onEdit={handleEditComponentCost}
             onDelete={handleDeleteComponentCost}
             initialData={initialData}
+            maxAmountCost={maxAmountCost}
           />
         </div>
       </div>

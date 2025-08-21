@@ -11,6 +11,7 @@ interface ComponentCostFormProps {
   onEdit: (index: number, updatedCost: ComponentCost) => void;
   onDelete: (index: number) => void;
   initialData?: any; // Optional initial data for dropdowns or other purposes
+  maxAmountCost?: number; // Optional prop to set max amount in ComponentCostForm
 }
 
 const ComponentCostForm: React.FC<ComponentCostFormProps> = ({ 
@@ -18,7 +19,8 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
   onAdd, 
   onEdit, 
   onDelete,
-  initialData
+  initialData,
+  maxAmountCost
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -77,7 +79,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
         </div>
 
         {/* Cost Summary Cards */}
-        <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-3 gap-4 mb-6">
             <div className="bg-blue-50 p-4 rounded-lg text-center">
                 <div className="text-sm text-gray-600">Total Cost</div>
                 <div className="text-lg font-semibold text-blue-600">₱{formatCurrency(totalCosts.totalCost)}</div>
@@ -85,6 +87,10 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
             <div className="bg-blue-50 p-4 rounded-lg text-center">
                 <div className="text-sm text-gray-600">Total Cost (2025)</div>
                 <div className="text-lg font-semibold text-blue-600">₱{formatCurrency(totalCosts.totalCost)}</div>
+            </div>
+            <div className="bg-blue-50 p-4 rounded-lg text-center">
+                <div className="text-sm text-gray-600">Max Cost</div>
+                <div className="text-lg font-semibold text-blue-600">₱{formatCurrency(maxAmountCost || 0)}</div>
             </div>
         </div>
 

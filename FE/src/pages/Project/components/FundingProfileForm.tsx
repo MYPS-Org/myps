@@ -11,6 +11,7 @@ interface FundingProfileFormProps {
   onAdd: () => void;
   onEdit: (index: number, updatedProfile: FundingProfile) => void;
   onDelete: (index: number) => void;
+  onTotalAmountChange?: (totalAmount: number) => void; // Optional callback for total amount change
 }
 
 const FundingProfileForm: React.FC<FundingProfileFormProps> = ({ 
@@ -18,7 +19,8 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
   onAdd, 
   onEdit, 
   onDelete,
-  initialData
+  initialData,
+  onTotalAmountChange = () => {}, // Default to no-op if not provided
 }) => {
   const [errors, setErrors] = useState<{ [key: number]: string }>({});
   const [totalPercentage, setTotalPercentage] = useState(0);
@@ -30,6 +32,10 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
     setTotalPercentage(total);
     const totalAmt = fundingProfiles.reduce((sum, profile) => sum + (profile.Amount || 0), 0);
     setTotalAmount(totalAmt);
+
+    if (onTotalAmountChange) {
+      onTotalAmountChange(totalAmt);
+    }
   }, [fundingProfiles]);
 
   // Validate percentage and update errors
