@@ -55,7 +55,19 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
   };
 
   const handleChange = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const newFormData = { ...prev, [field]: value };
+      
+      // Auto-generate name when Stage or YearStart changes
+      if (field === 'Stage' || field === 'YearStart') {
+        const selectedStage = Stage.find(stage => stage.Enum === (field === 'Stage' ? value : newFormData.Stage));
+        const stageName = selectedStage ? selectedStage.Name : '';
+        const yearStart = field === 'YearStart' ? value : newFormData.YearStart;
+        newFormData.Name = stageName + ' ' + yearStart;
+      }
+      
+      return newFormData;
+    });
   };
 
   const handleClose = () => {
@@ -104,8 +116,10 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
               type="text"
               value={formData.Name}
               onChange={(e) => handleChange('Name', e.target.value)}
+              disabled
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
               required
+              placeholder='Auto-generated Name'
             />
           </div>
           <div className="grid grid-cols-2 gap-5">
