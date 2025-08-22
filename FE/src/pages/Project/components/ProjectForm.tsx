@@ -649,12 +649,12 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6">
         {/* Notes Section */}
         <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
           <div className="px-4 py-6 sm:p-8">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-semibold leading-7 text-gray-900">Project Notes</h3>
+              <h3 className="text-lg font-semibold leading-7 text-gray-900">Supporting Documents</h3>
             </div>
             <NotesForm
               notes={notes}

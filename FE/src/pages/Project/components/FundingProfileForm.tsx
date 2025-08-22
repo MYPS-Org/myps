@@ -72,7 +72,7 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-semibold text-gray-900">Funding Profile</h2>
+        <h2 className="text-lg font-semibold text-gray-900"></h2>
         <div className="flex items-center gap-4">
           <div className={`text-sm font-medium ${getTotalPercentageColor()}`}>
             Total: {totalPercentage.toFixed(1)}%
@@ -96,10 +96,11 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
         <Table>
         <TableHead>
             <TableRow>
-            <TableHeader className="max-w-sm">Source</TableHeader>
-            <TableHeader>Agreement</TableHeader>
-            <TableHeader>Percentage</TableHeader>
-            <TableHeader>Actions</TableHeader>
+            <TableHeader className="w-1/3">Source</TableHeader>
+            <TableHeader className="w-1/3">Agreement</TableHeader>
+            <TableHeader className="w-1/6">Amount</TableHeader>
+            <TableHeader className="w-1/6">Percentage</TableHeader>
+            <TableHeader className="w-1/6">Actions</TableHeader>
             </TableRow>
         </TableHead>
         <TableBody>
@@ -142,6 +143,15 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
                   </select>
                 </TableCell>
                 <TableCell className="w-1/6">
+                  <input 
+                    type="number"
+                    value={profile.Amount || ''}
+                    onChange={(e) => onEdit(index, { ...profile, Amount: Number(e.target.value) })}
+                    onFocus={handleNumberFocus}
+                    className="w-full px-2 py-1 border border-gray-300 rounded"
+                   />
+                </TableCell>
+                <TableCell className="w-1/6">
                     <input
                       type="number"
                       value={profile.Percentage || ''}
@@ -156,15 +166,6 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
                     {errors[index] && (
                       <span className="text-red-500 text-xs mt-1">{errors[index]}</span>
                     )}
-                </TableCell>
-                <TableCell className="w-1/6">
-                  <input 
-                    type="number"
-                    value={profile.Amount || ''}
-                    onChange={(e) => onEdit(index, { ...profile, Amount: Number(e.target.value) })}
-                    onFocus={handleNumberFocus}
-                    className="w-full px-2 py-1 border border-gray-300 rounded"
-                   />
                 </TableCell>
                 <TableCell>
                   <button

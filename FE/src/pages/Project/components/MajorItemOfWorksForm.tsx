@@ -377,7 +377,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                 </TableCell>
                 <TableCell>
                   <input
-                    type="number"
+                    type="text"
                     value={item.StartStationLimit}
                     onChange={(e) => handleChange(index, 'StartStationLimit', Number(e.target.value))}
                     onFocus={handleNumberFocus}
@@ -387,7 +387,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                 </TableCell>
                 <TableCell>
                   <input
-                    type="number"
+                    type="text"
                     value={item.EndStationLimit}
                     onChange={(e) => handleChange(index, 'EndStationLimit', Number(e.target.value))}
                     onFocus={handleNumberFocus}
