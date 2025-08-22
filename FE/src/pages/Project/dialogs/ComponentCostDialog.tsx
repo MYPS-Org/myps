@@ -14,6 +14,7 @@ interface ComponentCostDialogProps {
   componentTypes: any[];
   componentCosts: ComponentCost[];
   ProjectId: string;
+  maxAmountCost?: number;
 }
 
 const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
@@ -24,7 +25,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   mode,
   componentTypes,
   componentCosts,
-  ProjectId
+  ProjectId,
+  maxAmountCost
 }) => {
   const [formData, setFormData] = useState({
     Id: 0,
@@ -45,6 +47,22 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     StartDate: new Date().toISOString(),
     EndDate: new Date().toISOString(),
   });
+
+  // Calculate remaining budget for validation
+  const calculateRemainingBudget = () => {
+    if (!maxAmountCost || maxAmountCost <= 0) return null;
+    
+    let currentTotalCost = componentCosts.reduce((sum, cost) => sum + (cost.Total || 0), 0);
+    
+    // If editing, subtract the original cost from current total
+    if (mode === 'edit' && editingCost) {
+      currentTotalCost -= (editingCost.Total || 0);
+    }
+    
+    return maxAmountCost - currentTotalCost;
+  };
+
+  const remainingBudget = calculateRemainingBudget();
 
   useEffect(() => {
     if (editingCost && mode === 'edit') {
@@ -109,6 +127,27 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     e.preventDefault();
     
     try {
+        // Validate if the total would exceed max amount cost
+        if (maxAmountCost && maxAmountCost > 0) {
+          let currentTotalCost = componentCosts.reduce((sum, cost) => sum + (cost.Total || 0), 0);
+          
+          // If editing, subtract the original cost from current total
+          if (mode === 'edit' && editingCost) {
+            currentTotalCost -= (editingCost.Total || 0);
+          }
+          
+          const newTotalCost = currentTotalCost + (formData.Total || 0);
+          
+          if (newTotalCost > maxAmountCost) {
+            const exceeded = newTotalCost - maxAmountCost;
+            const confirmMessage = `This cost will exceed the maximum budget by ₱${exceeded.toLocaleString('en-PH')}.\n\nTotal cost: ₱${newTotalCost.toLocaleString('en-PH')}\nMax allowed: ₱${maxAmountCost.toLocaleString('en-PH')}\n\nDo you want to proceed anyway?`;
+            
+            if (!window.confirm(confirmMessage)) {
+              return;
+            }
+          }
+        }
+        
         // Split the form data into ComponentCost and ComponentCostYear parts
         const { CostPerYear, ApprovalDate, PAPCode, StartDate, EndDate, ...componentCostData } = formData;
         
@@ -255,10 +294,27 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                             value={formData.Total}
                             onChange={(e) => handleChange('Total', Number(e.target.value))}
                             onFocus={handleNumberFocus}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+                              remainingBudget !== null && formData.Total > remainingBudget 
+                                ? 'border-red-300 focus:ring-red-500' 
+                                : 'border-gray-300 focus:ring-blue-500'
+                            }`}
                             placeholder="0"
                             min="0"
+                            max={remainingBudget || undefined}
                         />
+                        {remainingBudget !== null && (
+                          <div className="mt-1">
+                            <p className="text-xs text-gray-500">
+                              Remaining budget: ₱{remainingBudget.toLocaleString('en-PH')}
+                            </p>
+                            {formData.Total > remainingBudget && (
+                              <p className="text-xs text-red-500">
+                                Exceeds remaining budget by ₱{(formData.Total - remainingBudget).toLocaleString('en-PH')}
+                              </p>
+                            )}
+                          </div>
+                        )}
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
