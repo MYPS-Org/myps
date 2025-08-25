@@ -19,130 +19,136 @@ import EditProject from './pages/Project/Views/EditProject';
 import ProjectGroup from './pages/ProjectGroups/Views/ProjectGroup';
 import ProjectGroupDetails from './pages/ProjectGroups/Views/ProjectGroupDetails';
 import CodeTables from './pages/CodeTables/Views/CodeTables';
+import { ModalProvider } from './components/Modal/ModalContext';
+import GlobalModal from './components/Modal/Modal';
+
 // import AddProgram from './pages/Program/Views/AddProgram';
 
 function App() {
 	return (
 		<>
-			<ThemeProvider>
-				<AuthProvider>
-				<Router>
-					<Preloader />
-					<Routes>
-						<Route path="/login" element={<LoginForm />} />
-						{/* Dashboard Routes */}
-						<Route element={<AppLayout />}>
+		    <ModalProvider>
+				<ThemeProvider>
+					<AuthProvider>
+					<Router>
+						<Preloader />
+						<Routes>
+							<Route path="/login" element={<LoginForm />} />
+							{/* Dashboard Routes */}
+							<Route element={<AppLayout />}>
+								<Route 
+									path="/dashboard" 
+									element={
+										<ProtectedRoute>
+											<Dashboard />
+										</ProtectedRoute>
+									} 
+								/>
+								<Route 
+									path="/rbac" 
+									element={
+										<ProtectedRoute>
+											<Rbac />
+										</ProtectedRoute>
+									} 
+								/>
+								<Route 
+									path="/programs" 
+									element={
+										<ProtectedRoute>
+											<Programs />
+										</ProtectedRoute>
+									} 
+								/>
+								<Route 
+									path="/programs/programdetails/:id" 
+									element={
+										<ProtectedRoute>
+											<ProgramDetail />
+										</ProtectedRoute>
+									} 
+								/>
+								<Route 
+									path="/projects" 
+									element={
+										<ProtectedRoute>
+											<Project />
+										</ProtectedRoute>
+									} 
+								/>
+								<Route 
+									path="/projects/add" 
+									element={
+										<ProtectedRoute>
+											<AddProject />
+										</ProtectedRoute>
+									} 
+								/>
+								<Route 
+									path="/projects/addproject" 
+									element={
+										<ProtectedRoute>
+											<AddProject />
+										</ProtectedRoute>
+									} 
+								/>
+								<Route 
+									path="/projects/project-details/:id" 
+									element={
+										<ProtectedRoute>
+											<EditProject />
+										</ProtectedRoute>
+									} 
+								/>
+								<Route 
+									path="/project-groups" 
+									element={
+										<ProtectedRoute>
+											<ProjectGroup />
+										</ProtectedRoute>
+									} 
+								/>
+								<Route 
+									path="/project-groups/:groupId" 
+									element={
+										<ProtectedRoute>
+											<ProjectGroupDetails />
+										</ProtectedRoute>
+									} 
+								/>
+								<Route 
+									path="/settings" 
+									element={
+										<ProtectedRoute>
+											<Settings />
+										</ProtectedRoute>
+									} 
+								/>
+								<Route 
+									path="/code-tables" 
+									element={
+										<ProtectedRoute>
+											<CodeTables />
+										</ProtectedRoute>
+									} 
+								/>
+							</Route>
+							
 							<Route 
-								path="/dashboard" 
+								path="/layout" 
 								element={
 									<ProtectedRoute>
-										<Dashboard />
+										<Layout />
 									</ProtectedRoute>
 								} 
 							/>
-							<Route 
-								path="/rbac" 
-								element={
-									<ProtectedRoute>
-										<Rbac />
-									</ProtectedRoute>
-								} 
-							/>
-							<Route 
-								path="/programs" 
-								element={
-									<ProtectedRoute>
-										<Programs />
-									</ProtectedRoute>
-								} 
-							/>
-							<Route 
-								path="/programs/programdetails/:id" 
-								element={
-									<ProtectedRoute>
-										<ProgramDetail />
-									</ProtectedRoute>
-								} 
-							/>
-							<Route 
-								path="/projects" 
-								element={
-									<ProtectedRoute>
-										<Project />
-									</ProtectedRoute>
-								} 
-							/>
-							<Route 
-								path="/projects/add" 
-								element={
-									<ProtectedRoute>
-										<AddProject />
-									</ProtectedRoute>
-								} 
-							/>
-							<Route 
-								path="/projects/addproject" 
-								element={
-									<ProtectedRoute>
-										<AddProject />
-									</ProtectedRoute>
-								} 
-							/>
-							<Route 
-								path="/projects/project-details/:id" 
-								element={
-									<ProtectedRoute>
-										<EditProject />
-									</ProtectedRoute>
-								} 
-							/>
-							<Route 
-								path="/project-groups" 
-								element={
-									<ProtectedRoute>
-										<ProjectGroup />
-									</ProtectedRoute>
-								} 
-							/>
-							<Route 
-								path="/project-groups/:groupId" 
-								element={
-									<ProtectedRoute>
-										<ProjectGroupDetails />
-									</ProtectedRoute>
-								} 
-							/>
-							<Route 
-								path="/settings" 
-								element={
-									<ProtectedRoute>
-										<Settings />
-									</ProtectedRoute>
-								} 
-							/>
-							<Route 
-								path="/code-tables" 
-								element={
-									<ProtectedRoute>
-										<CodeTables />
-									</ProtectedRoute>
-								} 
-							/>
-						</Route>
-						
-						<Route 
-							path="/layout" 
-							element={
-								<ProtectedRoute>
-									<Layout />
-								</ProtectedRoute>
-							} 
-						/>
-						<Route path="/" element={<Navigate to="/dashboard" replace />} />
-					</Routes>
-				</Router>
-			</AuthProvider>
-			</ThemeProvider>
+							<Route path="/" element={<Navigate to="/dashboard" replace />} />
+						</Routes>
+					</Router>
+				</AuthProvider>
+				</ThemeProvider>
+				<GlobalModal />
+		    </ModalProvider>
 		</>
 	)
 }
