@@ -211,7 +211,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         <DialogPanel className="w-full max-w-7xl bg-white rounded-lg shadow-xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
                 <DialogTitle className="text-lg font-semibold text-gray-900">
-                    {mode === 'add' ? 'Add Cost' : 'Edit Cost'}
+                    {mode === 'add' ? 'Add Project Component Cost' : 'Edit Project Component Cost'}
                 </DialogTitle>
                 <button
                     onClick={onClose}

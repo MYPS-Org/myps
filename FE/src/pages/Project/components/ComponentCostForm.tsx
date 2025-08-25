@@ -129,7 +129,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
         </div>
 
         {/* Cost Summary Cards */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-2 gap-4 mb-6">
             <div className={`p-4 rounded-lg text-center ${getBudgetStatusColor()}`}>
                 <div className="text-sm text-gray-600">Total Cost</div>
                 <div className="text-lg font-semibold">₱{formatCurrency(totalCosts.totalCost)}</div>
@@ -149,13 +149,13 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
                   </div>
                 )}
             </div>
-            <div className="bg-blue-50 p-4 rounded-lg text-center">
+            {/* <div className="bg-blue-50 p-4 rounded-lg text-center">
                 <div className="text-sm text-gray-600">Total Cost (2025)</div>
                 <div className="text-lg font-semibold text-blue-600">₱{formatCurrency(totalCosts.totalCost)}</div>
-            </div>
+            </div> */}
             <div className="bg-green-50 p-4 rounded-lg text-center">
                 <div className="text-sm text-gray-600">Max Cost</div>
-                <div className="text-lg font-semibold text-green-600">₱{formatCurrency(maxAmountCost || 0)}</div>
+                <div className="text-lg font-semibold text-green-600">{maxAmountCost && maxAmountCost > 0 ? `₱${formatCurrency(maxAmountCost)}` : ""}</div>
                 {maxAmountCost && maxAmountCost > 0 && (
                   <div className="text-xs text-gray-500 mt-1">
                     Remaining: ₱{formatCurrency(Math.max(0, maxAmountCost - totalCosts.totalCost))}

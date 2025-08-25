@@ -259,11 +259,17 @@ export interface MajorItemOfWork {
 	Id: number;
 	ProjectId: string;
 	ComponentId: string;
-	DetailedScope: string;
 	YearOfWork: number;
 	WorkTypeId: number;
-	InfraId: string;
 	InfraType: string;
+	TargetUnitId: number;
+	TargetUnit: string;
+	CreatedBy: string;
+	workLocations: workLocation[];
+}
+export interface workLocation {
+	InfraId: string;
+	DetailedScope: string;
 	TargetUnitId: number;
 	TargetUnit: string; // Changed from number to string to match the UI usage
 	StartX: number;
@@ -273,7 +279,6 @@ export interface MajorItemOfWork {
 	TargetAmount: number;
 	StartStationLimit: number;
 	EndStationLimit: number;
-	CreatedBy: string;
 }
 export interface ProjectNote {
 	Id: number;

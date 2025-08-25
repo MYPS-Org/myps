@@ -158,6 +158,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
     // Transform backend MajorItemOfWork[] to MajorItemOfWorksWithDropdown[]
     return initialData.MajorItemOfWorks.map(item => ({
       ...item,
+      // Ensure required fields exist
+      TargetUnitId: item.TargetUnitId || 0,
+      TargetUnit: item.TargetUnit || '',
+      workLocations: item.workLocations || [], // Initialize empty workLocations if not present
       DropdownData: initialData?.Dropdowns?.ScopeOfWorks?.filter(scope => scope.InfraType === item.InfraType) || []
     }));
   });
@@ -291,21 +295,13 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       Id: 0, // Temporary ID
       ProjectId: '',
       ComponentId: '',
-      DetailedScope: '',
       YearOfWork: 0,
       WorkTypeId: 0,
-      InfraId: '',
       InfraType: '',
       TargetUnitId: 0,
       TargetUnit: '',
-      StartX: 0,
-      StartY: 0,
-      EndX: 0,
-      EndY: 0,
-      TargetAmount: 0,
-      StartStationLimit: 0,
-      EndStationLimit: 0,
       CreatedBy: '',
+      workLocations: [], // Initialize empty work locations
       DropdownData: []
     };
     setMajorItems(prev => [...prev, newItem]);
