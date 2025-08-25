@@ -289,17 +289,13 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             <select 
                                 name="EmergencyCode" 
                                 id="EmergencyCode" 
-                                value={projectDetails.EmergencyMode.toString()} 
-                                onChange={(e) => handleInputChange('EmergencyMode', (e.target.value))} 
+                                value={projectDetails.EmergencyMode ? 'true' : 'false'} 
+                                onChange={(e) => handleInputChange('EmergencyMode', e.target.value === 'true')} 
                                 className={`w-2/3 mt-1 px-3 py-2 border ${errors.EmergencyMode ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
                                 style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
                             >
-                                <option value="">Select Emergency Mode</option>
-                                {projectEnums?.EmergencyModes?.map((emergency) => (
-                                    <option key={emergency.Id} value={emergency.Enum.toString()}>
-                                        {emergency.Name}
-                                    </option>
-                                ))}
+                                <option value="false">No</option>
+                                <option value="true">Yes</option>
                             </select>
                         </div>
                     </div>
@@ -360,8 +356,86 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                         </div>
                     </div>
                 </div>
+                {/* New Model Start Here */}
+                <div className='grid grid-cols-3 gap-5'>
+                    <div className='w-full flex flex-col text-left gap-2'>
+                        <div className="flex flex-row gap-5 items-center">
+                            <label className={`w-1/3 ${errors.UACS ? 'text-red-500' : 'text-gray-600'}`}>UACS's:</label>
+                            <input 
+                            type="text" 
+                            value={projectDetails.UACS || ''}
+                            onChange={(e) => handleInputChange('UACS', e.target.value)}
+                            className={`w-2/3 mt-1 px-3 py-2 border ${errors.UACS ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
+                            style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                            />
+                        </div>
+                    </div>
+                    <div className="w-full flex flex-col text-left gap-2">
+                        <div className="flex flex-row gap-5 items-center">
+                            <label className={`w-1/3 ${errors.MYCAApprovalDate ? 'text-red-500' : 'text-gray-600'}`}>MYCAApprovalDate:</label>
+                            <input 
+                            type="date"
+                            value={projectDetails.MYCAApprovalDate ? new Date(projectDetails.MYCAApprovalDate).toISOString().split('T')[0] : ''}
+                            onChange={(e) => handleInputChange('MYCAApprovalDate', e.target.value ? new Date(e.target.value).toISOString() : null)}
+                            className={`w-2/3 mt-1 px-3 py-2 border ${errors.MYCAApprovalDate ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
+                            style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                            />
+                        </div>
+                    </div>
+
+                    <div className='w-full flex flex-col text-left gap-2'>
+                        <div className="flex flex-row gap-5 items-center">
+                            <label className={`w-1/3 ${errors.DetailedDesign ? 'text-red-500' : 'text-gray-600'}`}>AlternateId:</label>
+                            <input 
+                            type="text" 
+                            value={projectDetails.AlternateId || ''}
+                            onChange={(e) => handleInputChange('AlternateId', e.target.value)}
+                            className={`w-2/3 mt-1 px-3 py-2 border ${errors.AlternateId ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
+                            style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                            />
+                        </div>
+                    </div>
+                </div>
 
                 <div className='grid grid-cols-3 gap-5'>
+                    <div className='w-full flex flex-col text-left gap-2'>
+                        
+                    </div>
+
+                    <div className='w-full flex flex-col text-left gap-2'>
+                        <div className="flex flex-row gap-5 items-center">
+                            <label className={`w-1/3 ${errors.MYId ? 'text-red-500' : 'text-gray-600'}`}>MY Id:</label>
+                            <input 
+                            type="text" 
+                            value={projectDetails.MYId || ''}
+                            onChange={(e) => handleInputChange('MYId', e.target.value)}
+                            className={`w-2/3 mt-1 px-3 py-2 border ${errors.MYId ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
+                            style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                            />
+                        </div>
+                    </div>
+                    <div className="w-full flex flex-col text-left gap-2">
+                        <div className="flex flex-row gap-5 items-center">
+                            <label className={`w-1/3 ${errors.ExternalId ? 'text-red-500' : 'text-gray-600'}`}>External Id:</label>
+                            <input 
+                            type="text"
+                            value={projectDetails.ExternalId ? new Date(projectDetails.ExternalId).toISOString().split('T')[0] : ''}
+                            onChange={(e) => handleInputChange('ExternalId', e.target.value ? new Date(e.target.value).toISOString() : null)}
+                            className={`w-2/3 mt-1 px-3 py-2 border ${errors.ExternalId ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
+                            style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                            />
+                        </div>
+                    </div>
+
+                    
+                </div>
+
+                <div className='grid grid-cols-3 gap-5'>
+                    <div className='w-full flex flex-col text-left gap-2'>
+                        <div className="flex flex-row gap-5 items-center">
+                            
+                        </div>
+                    </div>
                     <div className='w-full flex flex-col text-left gap-2'>
                         <div className={`flex flex-row gap-5 items-center ${mode === 'add' ? 'hidden' : ''}`}>
                             <label className={`flex-1/3 ${errors.CreatedBy ? 'text-red-500' : 'text-gray-600'}`}>Created By:</label>
@@ -380,12 +454,6 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 // onChange={(e) => handleInputChange('CreatedDate', e.target.value)} 
                                 disabled
                                 className={`flex-2/3 mt-1 px-3 py-2 border ${errors.CreatedDate ? 'border-red-500' : 'border-gray-300'} rounded-md`} />
-                        </div>
-                    </div>
-
-                    <div className='w-full flex flex-col text-left gap-2'>
-                        <div className="flex flex-row gap-5 items-center">
-                            
                         </div>
                     </div>
                 </div>
