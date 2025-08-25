@@ -53,13 +53,13 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
         DetailedScope: '',
         TargetUnitId: workTypeId,
         TargetUnit: targetUnit,
-        StartX: 0,
-        StartY: 0,
-        EndX: 0,
-        EndY: 0,
-        TargetAmount: 0,
-        StartStationLimit: 0,
-        EndStationLimit: 0,
+        StartX: '',
+        StartY: '',
+        EndX: '',
+        EndY: '',
+        PhysicalTarget: '',
+        StartStationLimit: '',
+        EndStationLimit: '',
       };
       onAdd(newWorkLocation);
     } else if (editingIndex !== null) {
@@ -192,8 +192,8 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
                   <TableCell>
                     <input
                       type="number"
-                      value={location.TargetAmount}
-                      onChange={(e) => handleFieldChange(index, 'TargetAmount', Number(e.target.value))}
+                      value={location.PhysicalTarget}
+                      onChange={(e) => handleFieldChange(index, 'PhysicalTarget', Number(e.target.value))}
                       onFocus={handleNumberFocus}
                       max={maxAmount}
                       min={minAmount}

@@ -360,7 +360,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                 <div className='grid grid-cols-3 gap-5'>
                     <div className='w-full flex flex-col text-left gap-2'>
                         <div className="flex flex-row gap-5 items-center">
-                            <label className={`w-1/3 ${errors.UACS ? 'text-red-500' : 'text-gray-600'}`}>UACS's:</label>
+                            <label className={`w-1/3 ${errors.UACS ? 'text-red-500' : 'text-gray-600'}`}>UAC's PAP Code:</label>
                             <input 
                             type="text" 
                             value={projectDetails.UACS || ''}
@@ -385,7 +385,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
                     <div className='w-full flex flex-col text-left gap-2'>
                         <div className="flex flex-row gap-5 items-center">
-                            <label className={`w-1/3 ${errors.DetailedDesign ? 'text-red-500' : 'text-gray-600'}`}>AlternateId:</label>
+                            <label className={`w-1/3 ${errors.DetailedDesign ? 'text-red-500' : 'text-gray-600'}`}>Alternate ID:</label>
                             <input 
                             type="text" 
                             value={projectDetails.AlternateId || ''}
@@ -404,7 +404,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
                     <div className='w-full flex flex-col text-left gap-2'>
                         <div className="flex flex-row gap-5 items-center">
-                            <label className={`w-1/3 ${errors.MYId ? 'text-red-500' : 'text-gray-600'}`}>MY Id:</label>
+                            <label className={`w-1/3 ${errors.MYId ? 'text-red-500' : 'text-gray-600'}`}>Multi Year ID:</label>
                             <input 
                             type="text" 
                             value={projectDetails.MYId || ''}
@@ -416,7 +416,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     </div>
                     <div className="w-full flex flex-col text-left gap-2">
                         <div className="flex flex-row gap-5 items-center">
-                            <label className={`w-1/3 ${errors.ExternalId ? 'text-red-500' : 'text-gray-600'}`}>External Id:</label>
+                            <label className={`w-1/3 ${errors.ExternalId ? 'text-red-500' : 'text-gray-600'}`}>External ID:</label>
                             <input 
                             type="text"
                             value={projectDetails.ExternalId ? new Date(projectDetails.ExternalId).toISOString().split('T')[0] : ''}

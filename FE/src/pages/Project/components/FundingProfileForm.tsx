@@ -148,7 +148,7 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
                     value={profile.Amount || ''}
                     onChange={(e) => onEdit(index, { ...profile, Amount: Number(e.target.value) })}
                     onFocus={handleNumberFocus}
-                    className="w-full px-2 py-1 border border-gray-300 rounded"
+                    className="w-full px-2 py-1 border border-gray-300 rounded text-right"
                    />
                 </TableCell>
                 <TableCell className="w-1/6">
@@ -157,7 +157,7 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
                       value={profile.Percentage || ''}
                       onChange={(e) => handlePercentageChange(index, profile, e.target.value)}
                       onFocus={handleNumberFocus}
-                      className={`w-full px-2 py-1 border rounded ${errors[index] ? 'border-red-500' : 'border-gray-300'}`}
+                      className={`w-full px-2 py-1 border rounded text-right ${errors[index] ? 'border-red-500' : 'border-gray-300'}`}
                       placeholder="0"
                       min="0"
                       max="100"

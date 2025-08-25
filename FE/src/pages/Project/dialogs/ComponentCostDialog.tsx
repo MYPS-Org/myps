@@ -284,7 +284,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                 </div>
 
                 {/* Cost Years Row */}
-                <div className="grid grid-cols-5 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                             Cost
@@ -294,7 +294,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                             value={formData.Total}
                             onChange={(e) => handleChange('Total', Number(e.target.value))}
                             onFocus={handleNumberFocus}
-                            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+                            className={`w-full px-3 py-2 border rounded-md text-right focus:outline-none focus:ring-2 ${
                               remainingBudget !== null && formData.Total > remainingBudget 
                                 ? 'border-red-300 focus:ring-red-500' 
                                 : 'border-gray-300 focus:ring-blue-500'
@@ -316,7 +316,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                           </div>
                         )}
                     </div>
-                    <div>
+                    {/* <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                             Date of Approval
                         </label>
@@ -326,8 +326,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                             onChange={(e) => handleChange('ApprovalDate', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
-                    </div>
-                    <div>
+                    </div> */}
+                    {/* <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                             UACS PAP Code
                         </label>
@@ -337,7 +337,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                             onChange={(e) => handleChange('PAPCode', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
-                    </div>
+                    </div> */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                             Planned Start Date

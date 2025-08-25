@@ -276,13 +276,13 @@ export interface workLocation {
 	DetailedScope: string;
 	TargetUnitId: number;
 	TargetUnit: string; // Changed from number to string to match the UI usage
-	StartX: number;
-	StartY: number;
-	EndX: number;
-	EndY: number;
-	TargetAmount: number;
-	StartStationLimit: number;
-	EndStationLimit: number;
+	PhysicalTarget: string;
+	StartX: string;
+	StartY: string;
+	EndX: string;
+	EndY: string;
+	StartStationLimit: string;
+	EndStationLimit: string;
 }
 export interface ProjectNote {
 	Id: number;
