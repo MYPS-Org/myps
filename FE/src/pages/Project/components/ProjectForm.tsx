@@ -76,7 +76,13 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
     initialData?.ProjectDetails || {
       Id: 0,
       ProgramId: '',
+      ProgramName: '',
       ProjectId: '',
+      AlternateId: '',
+      ExternalId: '',
+      MYId: '',
+      UACS: 0,
+      MYCAApprovalDate: '',
       IslandCode: '',
       RevisionNumber: 0,
       Description: '',
@@ -90,12 +96,15 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       DEO: '',
       Region: '',
       Agency: 0,
-      AlternateId: '',
       ImplementationMode: 0,
       EmergencyMode: false,
       Feasibility: 0,
       DetailedDesign: false,
       RowAvailable: false,
+      CreatedBy: '',
+      CreatedDate: '',
+      UpdatedBy: '',
+      UpdatedDate: '',
     }
   );
 

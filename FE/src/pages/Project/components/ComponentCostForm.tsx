@@ -101,7 +101,8 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
     
     const percentage = (totalCosts.totalCost / maxAmountCost) * 100;
     
-    if (percentage >= 100) return 'exceeded';
+    if (percentage > 100) return 'exceeded';
+    if (percentage === 100) return 'reach';
     if (percentage >= 90) return 'warning';
     if (percentage >= 75) return 'caution';
     return 'normal';
@@ -112,6 +113,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
   const getBudgetStatusColor = () => {
     switch (budgetStatus) {
       case 'exceeded': return 'bg-red-50 text-red-600';
+      case 'reach': return 'bg-green-50 text-green-600';
       case 'warning': return 'bg-orange-50 text-orange-600';
       case 'caution': return 'bg-yellow-50 text-yellow-600';
       default: return 'bg-blue-50 text-blue-600';
@@ -136,6 +138,11 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
                 {budgetStatus === 'exceeded' && (
                   <div className="text-xs text-red-500 mt-1">
                     Exceeds budget by ₱{formatCurrency(totalCosts.totalCost - (maxAmountCost || 0))}
+                  </div>  
+                )}
+                {budgetStatus === 'reach' && (
+                  <div className="text-xs text-green-500 mt-1">
+                    Budget limit reached
                   </div>
                 )}
                 {budgetStatus === 'warning' && (
@@ -156,9 +163,13 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
             <div className="bg-green-50 p-4 rounded-lg text-center">
                 <div className="text-sm text-gray-600">Max Cost</div>
                 <div className="text-lg font-semibold text-green-600">{maxAmountCost && maxAmountCost > 0 ? `₱${formatCurrency(maxAmountCost)}` : ""}</div>
-                {maxAmountCost && maxAmountCost > 0 && (
+                {maxAmountCost && maxAmountCost > 0  ? (
                   <div className="text-xs text-gray-500 mt-1">
                     Remaining: ₱{formatCurrency(Math.max(0, maxAmountCost - totalCosts.totalCost))}
+                  </div>
+                ) : (
+                  <div className="text-xs text-gray-500 mt-1">
+                    No remaining budget
                   </div>
                 )}
             </div>

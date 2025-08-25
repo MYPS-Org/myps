@@ -56,8 +56,13 @@ export interface ProgramDetails {
 export interface ProjectDetails {
 	Id?: number;
 	ProgramId?: string;
-	ProgramName?: string;
+	ProgramName: string;
 	ProjectId?: string;
+	AlternateId?: string;
+	ExternalId?: string;
+	MYId?: string;
+	UACS?: number;
+	MYCAApprovalDate?: string;
 	IslandCode?: string;
 	RevisionNumber?: number;
 	Description?: string;
@@ -71,9 +76,8 @@ export interface ProjectDetails {
 	DEO?: string;
 	Region?: string;
 	Agency?: number;
-	AlternateId?: string;
 	ImplementationMode?: number;
-	EmergencyMode: boolean;
+	EmergencyMode?: boolean;
 	Feasibility?: number;
 	DetailedDesign?: boolean;
 	RowAvailable?: boolean;
