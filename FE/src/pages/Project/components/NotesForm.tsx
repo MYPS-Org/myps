@@ -50,10 +50,10 @@ const NotesForm: React.FC<NotesFormProps> = ({
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-semibold text-gray-900">Project Notes</h2>
+        <h2 className="text-lg font-semibold text-gray-900"></h2>
         <Button color="blue" onClick={() => setIsAddNoteModalOpen(true)}>
           <PlusIcon className="w-4 h-4 mr-1" />
-          Add Note
+          Add Document
         </Button>
       </div>
 

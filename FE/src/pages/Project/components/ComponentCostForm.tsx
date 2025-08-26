@@ -11,6 +11,7 @@ interface ComponentCostFormProps {
   onEdit: (index: number, updatedCost: ComponentCost) => void;
   onDelete: (index: number) => void;
   initialData?: any; // Optional initial data for dropdowns or other purposes
+  maxAmountCost?: number; // Optional prop to set max amount in ComponentCostForm
 }
 
 const ComponentCostForm: React.FC<ComponentCostFormProps> = ({ 
@@ -18,7 +19,8 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
   onAdd, 
   onEdit, 
   onDelete,
-  initialData
+  initialData,
+  maxAmountCost
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -46,6 +48,33 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
   };
 
   const handleSaveCost = (cost: ComponentCost, costYear?: ComponentCostYear) => {
+    // Validate if adding/editing would exceed max amount cost
+    if (maxAmountCost && maxAmountCost > 0) {
+      let newTotalCost = 0;
+      
+      if (modalMode === 'add') {
+        // For add mode, calculate total with the new cost added
+        newTotalCost = componentCosts.reduce((sum, existingCost) => sum + (existingCost.Total || 0), 0) + (cost.Total || 0);
+      } else if (modalMode === 'edit' && editingIndex !== null) {
+        // For edit mode, replace the existing cost with the new one
+        newTotalCost = componentCosts.reduce((sum, existingCost, index) => {
+          if (index === editingIndex) {
+            return sum + (cost.Total || 0);
+          }
+          return sum + (existingCost.Total || 0);
+        }, 0);
+      }
+
+      if (newTotalCost > maxAmountCost) {
+        const exceeded = newTotalCost - maxAmountCost;
+        const confirmMessage = `This action will exceed the maximum budget by ₱${formatCurrency(exceeded)}.\n\nTotal cost: ₱${formatCurrency(newTotalCost)}\nMax allowed: ₱${formatCurrency(maxAmountCost)}\n\nDo you want to proceed anyway?`;
+        
+        if (!window.confirm(confirmMessage)) {
+          return; // Don't save if user cancels
+        }
+      }
+    }
+
     if (modalMode === 'add') {
       onAdd(cost, costYear);
     } else if (modalMode === 'edit' && editingIndex !== null) {
@@ -65,6 +94,29 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
   };
 
   const totalCosts = calculateTotalCosts();
+  
+  // Calculate budget status for visual feedback
+  const getBudgetStatus = () => {
+    if (!maxAmountCost || maxAmountCost <= 0) return 'normal';
+    
+    const percentage = (totalCosts.totalCost / maxAmountCost) * 100;
+    
+    if (percentage >= 100) return 'exceeded';
+    if (percentage >= 90) return 'warning';
+    if (percentage >= 75) return 'caution';
+    return 'normal';
+  };
+
+  const budgetStatus = getBudgetStatus();
+  
+  const getBudgetStatusColor = () => {
+    switch (budgetStatus) {
+      case 'exceeded': return 'bg-red-50 text-red-600';
+      case 'warning': return 'bg-orange-50 text-orange-600';
+      case 'caution': return 'bg-yellow-50 text-yellow-600';
+      default: return 'bg-blue-50 text-blue-600';
+    }
+  };
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -77,16 +129,63 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
         </div>
 
         {/* Cost Summary Cards */}
-        <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className="bg-blue-50 p-4 rounded-lg text-center">
+        <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className={`p-4 rounded-lg text-center ${getBudgetStatusColor()}`}>
                 <div className="text-sm text-gray-600">Total Cost</div>
-                <div className="text-lg font-semibold text-blue-600">₱{formatCurrency(totalCosts.totalCost)}</div>
+                <div className="text-lg font-semibold">₱{formatCurrency(totalCosts.totalCost)}</div>
+                {budgetStatus === 'exceeded' && (
+                  <div className="text-xs text-red-500 mt-1">
+                    Exceeds budget by ₱{formatCurrency(totalCosts.totalCost - (maxAmountCost || 0))}
+                  </div>
+                )}
+                {budgetStatus === 'warning' && (
+                  <div className="text-xs text-orange-500 mt-1">
+                    Near budget limit
+                  </div>
+                )}
+                {budgetStatus === 'caution' && (
+                  <div className="text-xs text-yellow-500 mt-1">
+                    Approaching budget limit
+                  </div>
+                )}
             </div>
             <div className="bg-blue-50 p-4 rounded-lg text-center">
                 <div className="text-sm text-gray-600">Total Cost (2025)</div>
                 <div className="text-lg font-semibold text-blue-600">₱{formatCurrency(totalCosts.totalCost)}</div>
             </div>
+            <div className="bg-green-50 p-4 rounded-lg text-center">
+                <div className="text-sm text-gray-600">Max Cost</div>
+                <div className="text-lg font-semibold text-green-600">₱{formatCurrency(maxAmountCost || 0)}</div>
+                {maxAmountCost && maxAmountCost > 0 && (
+                  <div className="text-xs text-gray-500 mt-1">
+                    Remaining: ₱{formatCurrency(Math.max(0, maxAmountCost - totalCosts.totalCost))}
+                  </div>
+                )}
+            </div>
         </div>
+
+        {/* Budget Progress Bar */}
+        {/* {maxAmountCost && maxAmountCost > 0 && (
+          <div className="mb-6">
+            <div className="flex justify-between text-sm text-gray-600 mb-2">
+              <span>Budget Usage</span>
+              <span>{Math.min(100, Math.round((totalCosts.totalCost / maxAmountCost) * 100))}%</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-3">
+              <div 
+                className={`h-3 rounded-full transition-all duration-300 ${
+                  budgetStatus === 'exceeded' ? 'bg-red-500' :
+                  budgetStatus === 'warning' ? 'bg-orange-500' :
+                  budgetStatus === 'caution' ? 'bg-yellow-500' :
+                  'bg-blue-500'
+                }`}
+                style={{ 
+                  width: `${Math.min(100, (totalCosts.totalCost / maxAmountCost) * 100)}%` 
+                }}
+              ></div>
+            </div>
+          </div>
+        )} */}
 
         {/* Component Cost Table */}
         <Table>
@@ -155,6 +254,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
           componentTypes={initialData?.Dropdowns?.ComponentTypes}
           componentCosts={componentCosts}
           ProjectId={initialData?.ProjectDetails?.ProjectId}
+          maxAmountCost={maxAmountCost}
         />
       </div>
   );

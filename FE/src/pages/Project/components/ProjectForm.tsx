@@ -49,6 +49,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
   const [isProgramOpen, setIsProgramOpen] = useState<boolean>(true);
   const [isProjectOpen, setIsProjectOpen] = useState<boolean>(true);
   
+  // SetMaxAmount in ComponentCostForm
+  const [maxAmountCost, setMaxAmountCost] = useState<number>(0);
+
   // Initialize state with empty data or provided initial data
   const [programDetails, setProgramDetails] = useState<ProgramList>(
     initialData?.ProgramDetails || {
@@ -355,6 +358,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       Source: '',
       Agreement: 0,
       Percentage: 0,
+      Amount: 0,
       CreatedBy: '',
       CreatedDate: new Date().toISOString().split('T')[0]
     };
@@ -592,6 +596,23 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
 
       {mode === 'edit' && (
         <>
+      {/* Funding Profile Section */}
+        <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
+          <div className="px-4 py-6 sm:p-8">
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold leading-7 text-gray-900">Funding Profiles</h3>
+            </div>
+            <FundingProfileForm
+              fundingProfiles={fundingProfiles}
+              onAdd={handleAddFundingProfile}
+              onEdit={handleEditFundingProfile}
+              onDelete={handleDeleteFundingProfile}
+              initialData={initialData ? { ...initialData, Dropdowns } : undefined}
+              onTotalAmountChange={setMaxAmountCost}
+            />
+          </div>
+        </div>
+
       {/* Component Cost Section - Fill this first to populate Major Items */}
       <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
         <div className="px-4 py-6 sm:p-8">
@@ -605,6 +626,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
             onEdit={handleEditComponentCost}
             onDelete={handleDeleteComponentCost}
             initialData={initialData}
+            maxAmountCost={maxAmountCost}
           />
         </div>
       </div>
@@ -627,12 +649,12 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6">
         {/* Notes Section */}
         <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
           <div className="px-4 py-6 sm:p-8">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-semibold leading-7 text-gray-900">Project Notes</h3>
+              <h3 className="text-lg font-semibold leading-7 text-gray-900">Supporting Documents</h3>
             </div>
             <NotesForm
               notes={notes}
@@ -644,21 +666,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
           </div>
         </div>
 
-        {/* Funding Profile Section */}
-        <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
-          <div className="px-4 py-6 sm:p-8">
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold leading-7 text-gray-900">Funding Profiles</h3>
-            </div>
-            <FundingProfileForm
-              fundingProfiles={fundingProfiles}
-              onAdd={handleAddFundingProfile}
-              onEdit={handleEditFundingProfile}
-              onDelete={handleDeleteFundingProfile}
-              initialData={initialData ? { ...initialData, Dropdowns } : undefined}
-            />
-          </div>
-        </div>
+        
       </div>
 
       {/* Activities Section */}
