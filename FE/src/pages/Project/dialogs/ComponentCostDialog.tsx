@@ -109,13 +109,22 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   const [newComponentId, setNewComponentId] = useState('');
   const handleChangeComponentId = (value: string) => {
     const selectedComponent = componentTypes.find(type => type.Description === value);
+    
+    if (!selectedComponent) {
+      return;
+    }
 
-    // Count how many existing componentCosts have the same ComponentType
-    console.log('Selected component:', componentCosts);
-    const matchingCount = componentCosts.filter(item => item.ComponentType === value).length;
-
-    // Create the new ID: "DR-1", "DR-2", etc.
-    const generatedId = `${selectedComponent.Name}${matchingCount + 1}`;
+    let generatedId = selectedComponent.Name;
+    
+    // Only add number increment if the component type is "Civil Works"
+    if (value.toLowerCase() === 'civil works') {
+      // Count how many existing componentCosts have the same ComponentType
+      console.log('Selected component:', componentCosts);
+      const matchingCount = componentCosts.filter(item => item.ComponentType === value).length;
+      
+      // Create the new ID: "DR-1", "DR-2", etc.
+      generatedId = `${selectedComponent.Name}${matchingCount + 1}`;
+    }
 
     setNewComponentId(generatedId)
     // ✅ Save into formData so it's actually submitted
