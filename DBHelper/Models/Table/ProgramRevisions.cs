@@ -35,14 +35,9 @@ namespace DBHelper.Models.Table
         [Required]
         public int YearStart { get; set; }
         [Required]
-        public int YearEnd { get; set; }
-        [Required]
         [MaxLength(100)]
         public string CreatedBy { get; set; } = string.Empty;
         [Required]
-        public DateTime CreatedDate { get; set; }
-        [MaxLength(100)]
-        public string? UpdatedBy { get; set; }
-        public DateTime? UpdatedDate { get; set; }
+        public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
     }
 }

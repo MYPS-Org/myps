@@ -6,14 +6,18 @@ using System.Threading.Tasks;
 
 namespace DBHelper.Models.Views
 {
-    public class ProjectsInGroup
+    public class Projects
     {
         public int Id { get; set; }
         public string ProgramId { get; set; } = string.Empty;
         public string ProgramName { get; set; } = string.Empty;
         public string ProjectId { get; set; } = string.Empty;
         public string? AlternateId { get; set; }
-        public string IslandCode { get; set; } = string.Empty;
+        public string? IslandCode { get; set; }
+        public string? ExternalId { get; set; }
+        public string? MYId { get; set; }
+        public string? UACS { get; set; }
+        public DateTime? MYCAApprovalDate { get; set; }
         public int RevisionNumber { get; set; }
         public string Description { get; set; } = string.Empty;
         public string? Category { get; set; }
@@ -34,8 +38,8 @@ namespace DBHelper.Models.Views
         public string StageName { get; set; } = string.Empty;
         public string CreatedBy { get; set; } = string.Empty;
         public DateTime CreatedDate { get; set; }
-        public string? UpdateBy { get; set; }
-        public DateTime? UpdatedDate { get; set; }
+        public string UpdateBy { get; set; } = string.Empty;
+        public DateTime UpdatedDate { get; set; }
         public bool IsPublished { get; set; }
     }
 }

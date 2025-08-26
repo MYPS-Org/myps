@@ -6,12 +6,14 @@ using System.Threading.Tasks;
 
 namespace DBHelper.Models.Views
 {
-    public class Projects
+    public class ProjectsInGroup
     {
         public int Id { get; set; }
         public string ProgramId { get; set; } = string.Empty;
         public string ProgramName { get; set; } = string.Empty;
         public string ProjectId { get; set; } = string.Empty;
+        public string? AlternateId { get; set; }
+        public string IslandCode { get; set; } = string.Empty;
         public int RevisionNumber { get; set; }
         public string Description { get; set; } = string.Empty;
         public string? Category { get; set; }

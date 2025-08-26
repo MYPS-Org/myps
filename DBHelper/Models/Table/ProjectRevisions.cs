@@ -16,7 +16,13 @@ namespace DBHelper.Models.Table
         [MaxLength(200)]
         public string ProjectId { get; set; } = string.Empty;
         [MaxLength(200)]
-        public string AlternateId { get; set; } = string.Empty;
+        public string? AlternateId { get; set; }
+        [MaxLength(200)]
+        public string? ExternalId { get; set; }
+        public string? UACS { get; set; }
+        [MaxLength(200)]
+        public string? MYId { get; set; }
+        public DateTime? MYCAApprovalDate { get; set; }
         [Required]
         public int RevisionNumber { get; set; }
         [Required]
@@ -60,8 +66,5 @@ namespace DBHelper.Models.Table
         public string CreatedBy { get; set; } = string.Empty;
         [Required]
         public DateTime CreatedDate { get; set; }
-        [MaxLength(100)]
-        public string? UpdatedBy { get; set; }
-        public DateTime? UpdatedDate { get; set; }
     }
 }

@@ -17,7 +17,6 @@ namespace WebAPI.Controllers.Programs
     {
         public string? Name { get; set; }
         public string? YearStart { get; set; }
-        public string? YearEnd { get; set; }
         public string? GroupName { get; set; }
         public string? StageName { get; set; }
     }
@@ -28,7 +27,6 @@ namespace WebAPI.Controllers.Programs
         public EnumProgramType Type { get; set; }
         public string Name { get; set; } = string.Empty;
         public int YearStart { get; set; }
-        public int YearEnd { get; set; }
         public int UserGroup { get; set; }
         public string RegionCode { get; set; } = string.Empty;
     }
@@ -49,7 +47,6 @@ namespace WebAPI.Controllers.Programs
         public string? Type { get; set; }
         public Double? Cost { get; set; }
         public int? YearStart { get; set; }
-        public int? YearEnd { get; set; }
         public string CreatedBy { get; set; } = string.Empty;
         public DateTime CreatedDate { get; set; }
         public bool IsPublished { get; set; }
@@ -68,7 +65,6 @@ namespace WebAPI.Controllers.Programs
         public EnumProgramType Type { get; set; }
         public Double? Cost { get; set; }
         public int YearStart { get; set; }
-        public int YearEnd { get; set; }
         public string? CreatedBy { get; set; }
         public DateTime? CreatedDate { get; set; }
         public string? UpdatedBy { get; set; }

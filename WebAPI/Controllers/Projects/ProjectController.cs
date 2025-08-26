@@ -107,6 +107,7 @@ namespace WebAPI.Controllers.Projects
                 var Category = await _db.tProjectCategoryEnum.Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync();
                 var Thrust = await _db.tProjectThrustLists.OrderBy(x => x.ThrustDescription).ToListAsync();
                 var Origin = await _db.tProjectOriginEnum.OrderBy(x => x.Name).ToListAsync();
+                var Province = await _db.tProjectProvinceEnum.OrderBy(x => x.ProvinceName).ToListAsync();
                 var City = await _db.tProjectCityEnum.OrderBy(x => x.Name).ToListAsync();
                 var LD = await _db.tProjectLegislativeDistrictEnum.OrderBy(x => x.Name).ToListAsync();
                 var OperatingUnit = await _db.tProjectOperatingUnitEnum.OrderBy(x => x.OrgName).ToListAsync();
@@ -123,6 +124,7 @@ namespace WebAPI.Controllers.Projects
                     Thrusts = Thrust,
                     Origins = Origin,
                     Cities = City,
+                    Provinces = Province,
                     LDs = LD,
                     OperatingUnits = OperatingUnit,
                     IOs = IO,
@@ -223,23 +225,27 @@ namespace WebAPI.Controllers.Projects
                     return new BadRequestObjectResult(new { Message = $"Selected Emergency Mode '{dto.EmergencyMode}' is not valid!", Title = "Invalid Emergency Mode" });
                 }
                 string FirstSegment = Functions.GenerateProjec1stSegment(ProgramDetails.StageName);
-                string SecondSegment = Functions.GenerateProjec2ndSegment(ProgramDetails.YearEnd);
+                string SecondSegment = Functions.GenerateProjec2ndSegment(ProgramDetails.YearStart);
                 Random rand = new Random();
                 string ThirdSegment = rand.Next(Category.Minimum, Category.Maximum+1).ToString("D5");
-                string FourthSegment = dto.IslandCode;
+                string FourthSegment = dto.IslandCode ?? DEO.Island!;
                 string ReferenceId = $"{FirstSegment}{SecondSegment}{ThirdSegment}{FourthSegment}";
                 var SubmitProject = new DBHelper.Models.Table.Projects()
                 {
                     ProgramId = ProgramDetails.ProgramId,
                     ProjectId = ReferenceId,
-                    CreatedBy = _Session.UserId ?? "TESTING",
+                    CreatedBy = _Session.UserId,
                     CreatedDate = CurrentDate
                 };
                 await _db.tProjects.AddAsync(SubmitProject);
                 var ProjectRevision = new ProjectRevisions()
                 {
                     ProjectId = ReferenceId,
-                    AlternateId = ReferenceId,
+                    AlternateId = dto.AlternateId,
+                    ExternalId = dto.ExternalId,
+                    MYId = dto.MYId,
+                    UACS = dto.UACS,
+                    MYCAApprovalDate = dto.MYCAApprovalDate,
                     RevisionNumber = 1,
                     Description = dto.Description!,
                     Category = dto.Category,
@@ -254,8 +260,8 @@ namespace WebAPI.Controllers.Projects
                     Agency = dto.Agency,
                     ImplementationMode = dto.ImplementationMode,
                     EmergencyMode = dto.EmergencyMode,
-                    IslandCode = dto.IslandCode,
-                    CreatedBy = _Session.UserId ?? "TESTING",
+                    IslandCode = DEO.Island ?? dto.IslandCode!,
+                    CreatedBy = _Session.UserId,
                     CreatedDate = CurrentDate
                 };
                 await _db.tProjectRevisions.AddAsync(ProjectRevision);
@@ -265,7 +271,7 @@ namespace WebAPI.Controllers.Projects
                     RevisionId = ProjectRevision.Id,
                     StageId = ProgramDetails.StageId,
                     StageName = ProgramDetails.StageName,
-                    CreatedBy = _Session.UserId ?? "TESTING",
+                    CreatedBy = _Session.UserId,
                     CreatedDate = CurrentDate,
                     IsPublished = false
                 };
@@ -314,6 +320,7 @@ namespace WebAPI.Controllers.Projects
                 var Category = await _db.tProjectCategoryEnum.Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync();
                 var Thrust = await _db.tProjectThrustLists.OrderBy(x => x.ThrustDescription).ToListAsync();
                 var Origin = await _db.tProjectOriginEnum.OrderBy(x => x.Name).ToListAsync();
+                var Province = await _db.tProjectProvinceEnum.OrderBy(x => x.ProvinceName).ToListAsync();
                 var City = await _db.tProjectCityEnum.OrderBy(x => x.Name).ToListAsync();
                 var LD = await _db.tProjectLegislativeDistrictEnum.OrderBy(x => x.Name).ToListAsync();
                 var OperatingUnit = await _db.tProjectOperatingUnitEnum.OrderBy(x => x.OrgName).ToListAsync();
@@ -325,7 +332,7 @@ namespace WebAPI.Controllers.Projects
                 var EmergencyMode = await _db.tProjectEmergencyModeEnum.OrderBy(x => x.Name).ToListAsync();
 
                 var Agreement = await _db.tOptionFundingAgreement.OrderBy(x => x.Name).ToListAsync();
-                var Source = await _db.tOptionFundingSource.OrderBy(x => x.Organization == "GOP").ThenBy(x => x.Name).ToListAsync();
+                var Source = await _db.tOptionFundingSource.OrderBy(x => x.Organization == "GOP" ? 0 : 1).ThenBy(x => x.Name).ToListAsync();
 
                 var ScopeOfWork = await _db.tProjectScopeOfWorkEnum.OrderBy(x => x.WorkCategory).ToListAsync();
                 var Transactions = await _db.tTransactionLog.Where(x => x.TransactionId == dto.ProjectId).ToListAsync();
@@ -346,6 +353,7 @@ namespace WebAPI.Controllers.Projects
                         Thrusts = Thrust,
                         Origins = Origin,
                         Cities = City,
+                        Provinces = Province,
                         LDs = LD,
                         OperatingUnits = OperatingUnit,
                         IOs = IO,
@@ -742,8 +750,12 @@ namespace WebAPI.Controllers.Projects
                     var NewRevision = new ProjectRevisions()
                     {
                         ProjectId = Project.ProjectId!,
-                        AlternateId = Project.AlternateId ?? Project.ProjectId,
-                        IslandCode = Project.IslandCode,
+                        AlternateId = Project.AlternateId,
+                        ExternalId = Project.ExternalId,
+                        MYId = Project.MYId,
+                        UACS = Project.UACS,
+                        MYCAApprovalDate = Project.MYCAApprovalDate,
+                        IslandCode = Project.IslandCode!,
                         RevisionNumber = LatestRevision!.RevisionNumber! + 1,
                         Description = Project!.Description!,
                         Category = Project!.Category,
@@ -761,7 +773,7 @@ namespace WebAPI.Controllers.Projects
                         Feasibility = Project.Feasibility,
                         DetailedDesign = Project.DetailedDesign,
                         RowAvailable = Project.RowAvailable,
-                        CreatedBy = _Session.UserId ?? "TESTING",
+                        CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     };
                     await _db.tProjectRevisions.AddAsync(NewRevision);
@@ -771,7 +783,7 @@ namespace WebAPI.Controllers.Projects
                         RevisionId = NewRevision.Id,
                         StageId = Program.StageId,
                         StageName = Program.StageName,
-                        CreatedBy = _Session.UserId ?? "TESTING",
+                        CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate,
                         IsPublished = false
                     };
@@ -802,7 +814,7 @@ namespace WebAPI.Controllers.Projects
                             AffectedColumn = "Row",
                             NewValue = "",
                             OldValue = JsonConvert.SerializeObject(item),
-                            CreatedBy = _Session.UserId ?? "TESTING",
+                            CreatedBy = _Session.UserId,
                             CreatedDate = CurrentDate
                         }));
                         transactionLogs.AddRange(DeleteCostPerYear.Select(item => new TransactionLog
@@ -813,7 +825,7 @@ namespace WebAPI.Controllers.Projects
                             AffectedColumn = "Row",
                             NewValue = "",
                             OldValue = JsonConvert.SerializeObject(item),
-                            CreatedBy = _Session.UserId ?? "TESTING",
+                            CreatedBy = _Session.UserId,
                             CreatedDate = CurrentDate
                         }));
                     }
@@ -842,7 +854,7 @@ namespace WebAPI.Controllers.Projects
                             ComponentType = item.ComponentType,
                             Description = item.Description,
                             Total = item.Total,
-                            CreatedBy = _Session.UserId ?? "TESTING",
+                            CreatedBy = _Session.UserId,
                             CreatedDate = CurrentDate
                         }).ToList();
                         await _db.tProjectComponentCost.AddRangeAsync(NewCostToAdd);
@@ -901,7 +913,7 @@ namespace WebAPI.Controllers.Projects
                                         AffectedColumn = "ComponentType",
                                         NewValue = Component.Name,
                                         OldValue = ExistingItem.ComponentType,
-                                        CreatedBy = _Session.UserId ?? "TESTING",
+                                        CreatedBy = _Session.UserId,
                                         CreatedDate = CurrentDate
                                     });
                                     ExistingItem.ComponentId = item.ComponentId;
@@ -918,7 +930,7 @@ namespace WebAPI.Controllers.Projects
                                         AffectedColumn = "Description",
                                         NewValue = item.Description ?? "",
                                         OldValue = ExistingItem.Description ?? "",
-                                        CreatedBy = _Session.UserId ?? "TESTING",
+                                        CreatedBy = _Session.UserId,
                                     });
                                     ExistingItem.Description = item.Description ?? "";
                                 }
@@ -933,7 +945,7 @@ namespace WebAPI.Controllers.Projects
                                         AffectedColumn = "Total",
                                         NewValue = item.Total.ToString(),
                                         OldValue = ExistingItem.Total.ToString(),
-                                        CreatedBy = _Session.UserId ?? "TESTING",
+                                        CreatedBy = _Session.UserId,
                                         CreatedDate = CurrentDate
                                     });
                                     ExistingItem.Total = item.Total;
@@ -966,7 +978,7 @@ namespace WebAPI.Controllers.Projects
                                             AffectedColumn = "Cost",
                                             NewValue = SelectedYear.Cost.ToString(),
                                             OldValue = yearItem.Cost.ToString(),
-                                            CreatedBy = _Session.UserId ?? "TESTING",
+                                            CreatedBy = _Session.UserId,
                                             CreatedDate = CurrentDate
                                         });
                                         yearItem.Cost = SelectedYear.Cost;
@@ -982,7 +994,7 @@ namespace WebAPI.Controllers.Projects
                                             AffectedColumn = "ApprovalDate",
                                             NewValue = SelectedYear.ApprovalDate?.ToString("MM/dd/yyyy mm:ss t") ?? "",
                                             OldValue = yearItem.ApprovalDate?.ToString("MM/dd/yyyy mm:ss t") ?? "",
-                                            CreatedBy = _Session.UserId ?? "TESTING",
+                                            CreatedBy = _Session.UserId,
                                             CreatedDate = CurrentDate
                                         });
                                         yearItem.ApprovalDate = SelectedYear.ApprovalDate;
@@ -998,7 +1010,7 @@ namespace WebAPI.Controllers.Projects
                                             AffectedColumn = "PAPCode",
                                             NewValue = SelectedYear.PAPCode ?? "",
                                             OldValue = yearItem.PAPCode ?? "",
-                                            CreatedBy = _Session.UserId ?? "TESTING",
+                                            CreatedBy = _Session.UserId,
                                             CreatedDate = CurrentDate
                                         });
                                         yearItem.PAPCode = SelectedYear.PAPCode ?? "";
@@ -1014,7 +1026,7 @@ namespace WebAPI.Controllers.Projects
                                             AffectedColumn = "StartDate",
                                             NewValue = SelectedYear.StartDate.ToString("MM/dd/yyyy mm:ss t") ?? "",
                                             OldValue = yearItem.StartDate.ToString("MM/dd/yyyy mm:ss t") ?? "",
-                                            CreatedBy = _Session.UserId ?? "TESTING",
+                                            CreatedBy = _Session.UserId,
                                             CreatedDate = CurrentDate
                                         });
                                         yearItem.StartDate = SelectedYear.StartDate;
@@ -1030,7 +1042,7 @@ namespace WebAPI.Controllers.Projects
                                             AffectedColumn = "EndDate",
                                             NewValue = SelectedYear.EndDate.ToString("MM/dd/yyyy mm:ss t") ?? "",
                                             OldValue = yearItem.EndDate.ToString("MM/dd/yyyy mm:ss t") ?? "",
-                                            CreatedBy = _Session.UserId ?? "TESTING",
+                                            CreatedBy = _Session.UserId,
                                             CreatedDate = CurrentDate
                                         });
                                         yearItem.EndDate = SelectedYear.EndDate;
@@ -1042,7 +1054,7 @@ namespace WebAPI.Controllers.Projects
                                 }
                                 if (ComponentUpdate)
                                 {
-                                    ExistingItem.UpdatedBy = _Session.UserId ?? "TESTING";
+                                    ExistingItem.UpdatedBy = _Session.UserId;
                                     ExistingItem.UpdatedDate = CurrentDate;
                                     _db.tProjectComponentCost.Update(ExistingItem);
                                 }
@@ -1074,7 +1086,7 @@ namespace WebAPI.Controllers.Projects
                         ComponentType = item.ComponentType,
                         Description = item.Description,
                         Total = item.Total,
-                        CreatedBy = _Session.UserId ?? "TESTING",
+                        CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     }).ToList();
                     await _db.tProjectComponentCost.AddRangeAsync(NewCostToAdd);
@@ -1125,7 +1137,7 @@ namespace WebAPI.Controllers.Projects
                             AffectedColumn = "Row",
                             NewValue = "",
                             OldValue = JsonConvert.SerializeObject(item),
-                            CreatedBy = _Session.UserId ?? "TESTING",
+                            CreatedBy = _Session.UserId,
                             CreatedDate = CurrentDate
                         }));
                     }
@@ -1151,7 +1163,7 @@ namespace WebAPI.Controllers.Projects
                                         AffectedColumn = "ComponentId",
                                         NewValue = item.ComponentId,
                                         OldValue = ExistingItem.ComponentId,
-                                        CreatedBy = _Session.UserId ?? "TESTING",
+                                        CreatedBy = _Session.UserId,
                                         CreatedDate = CurrentDate
                                     });
                                     ExistingItem.ComponentId = item.ComponentId;
@@ -1167,7 +1179,7 @@ namespace WebAPI.Controllers.Projects
                                         AffectedColumn = "DetailedScope",
                                         NewValue = item.DetailedScope,
                                         OldValue = ExistingItem.DetailedScope,
-                                        CreatedBy = _Session.UserId ?? "TESTING",
+                                        CreatedBy = _Session.UserId,
                                         CreatedDate = CurrentDate
                                     });
                                     ExistingItem.DetailedScope = item.DetailedScope;
@@ -1183,7 +1195,7 @@ namespace WebAPI.Controllers.Projects
                                         AffectedColumn = "YearOfWork",
                                         NewValue = item.YearOfWork.ToString(),
                                         OldValue = ExistingItem.YearOfWork.ToString(),
-                                        CreatedBy = _Session.UserId ?? "TESTING",
+                                        CreatedBy = _Session.UserId,
                                         CreatedDate = CurrentDate
                                     });
                                     ExistingItem.YearOfWork = item.YearOfWork;
@@ -1204,7 +1216,7 @@ namespace WebAPI.Controllers.Projects
                                         AffectedColumn = "WorkTypeId",
                                         NewValue = WorkTypeEnum.Name,
                                         OldValue = ExistingItem.WorkTypeId.ToString(),
-                                        CreatedBy = _Session.UserId ?? "TESTING",
+                                        CreatedBy = _Session.UserId,
                                         CreatedDate = CurrentDate
                                     });
                                     ExistingItem.WorkTypeId = item.WorkTypeId;
@@ -1220,7 +1232,7 @@ namespace WebAPI.Controllers.Projects
                                         AffectedColumn = "InfraId",
                                         NewValue = item.InfraId,
                                         OldValue = ExistingItem.InfraId,
-                                        CreatedBy = _Session.UserId ?? "TESTING",
+                                        CreatedBy = _Session.UserId,
                                         CreatedDate = CurrentDate
                                     });
                                     ExistingItem.InfraId = item.InfraId;
@@ -1236,7 +1248,7 @@ namespace WebAPI.Controllers.Projects
                                         AffectedColumn = "TargetUnitId",
                                         NewValue = item.TargetUnitId.ToString(),
                                         OldValue = ExistingItem.TargetUnitId.ToString(),
-                                        CreatedBy = _Session.UserId ?? "TESTING",
+                                        CreatedBy = _Session.UserId,
                                         CreatedDate = CurrentDate
                                     });
                                     ExistingItem.TargetUnitId = item.TargetUnitId;
@@ -1252,7 +1264,7 @@ namespace WebAPI.Controllers.Projects
                                         AffectedColumn = "StartX",
                                         NewValue = item.StartX.ToString(),
                                         OldValue = ExistingItem.StartX.ToString(),
-                                        CreatedBy = _Session.UserId ?? "TESTING",
+                                        CreatedBy = _Session.UserId,
                                         CreatedDate = CurrentDate
                                     });
                                     ExistingItem.StartX = item.StartX;
@@ -1268,7 +1280,7 @@ namespace WebAPI.Controllers.Projects
                                         AffectedColumn = "StartY",
                                         NewValue = item.StartY.ToString(),
                                         OldValue = ExistingItem.StartY.ToString(),
-                                        CreatedBy = _Session.UserId ?? "TESTING",
+                                        CreatedBy = _Session.UserId,
                                         CreatedDate = CurrentDate
                                     });
                                     ExistingItem.StartY = item.StartY;
@@ -1284,7 +1296,7 @@ namespace WebAPI.Controllers.Projects
                                         AffectedColumn = "EndX",
                                         NewValue = item.EndX.ToString(),
                                         OldValue = ExistingItem.EndX.ToString(),
-                                        CreatedBy = _Session.UserId ?? "TESTING",
+                                        CreatedBy = _Session.UserId,
                                         CreatedDate = CurrentDate
                                     });
                                     ExistingItem.EndX = item.EndX;
@@ -1300,7 +1312,7 @@ namespace WebAPI.Controllers.Projects
                                         AffectedColumn = "EndY",
                                         NewValue = item.EndY.ToString(),
                                         OldValue = ExistingItem.EndY.ToString(),
-                                        CreatedBy = _Session.UserId ?? "TESTING",
+                                        CreatedBy = _Session.UserId,
                                         CreatedDate = CurrentDate
                                     });
                                     ExistingItem.EndY = item.EndY;
@@ -1316,7 +1328,7 @@ namespace WebAPI.Controllers.Projects
                                         AffectedColumn = "TargetAmount",
                                         NewValue = item.TargetAmount.ToString(),
                                         OldValue = ExistingItem.TargetAmount.ToString(),
-                                        CreatedBy = _Session.UserId ?? "TESTING",
+                                        CreatedBy = _Session.UserId,
                                         CreatedDate = CurrentDate
                                     });
                                     ExistingItem.TargetAmount = item.TargetAmount;
@@ -1332,7 +1344,7 @@ namespace WebAPI.Controllers.Projects
                                         AffectedColumn = "StartStationLimit",
                                         NewValue = item.StartStationLimit.ToString(),
                                         OldValue = ExistingItem.StartStationLimit.ToString(),
-                                        CreatedBy = _Session.UserId ?? "TESTING",
+                                        CreatedBy = _Session.UserId,
                                         CreatedDate = CurrentDate
                                     });
                                     ExistingItem.StartStationLimit = item.StartStationLimit;
@@ -1348,14 +1360,14 @@ namespace WebAPI.Controllers.Projects
                                         AffectedColumn = "EndStationLimit",
                                         NewValue = item.EndStationLimit.ToString(),
                                         OldValue = ExistingItem.EndStationLimit.ToString(),
-                                        CreatedBy = _Session.UserId ?? "TESTING",
+                                        CreatedBy = _Session.UserId,
                                         CreatedDate = CurrentDate
                                     });
                                     ExistingItem.EndStationLimit = item.EndStationLimit;
                                 }
                                 if (hasUpdate)
                                 {
-                                    ExistingItem.UpdatedBy = _Session.UserId ?? "TESTING";
+                                    ExistingItem.UpdatedBy = _Session.UserId;
                                     ExistingItem.UpdatedDate = CurrentDate;
                                     _db.tProjectMajorWorkItem.Update(ExistingItem);
                                 }
@@ -1386,7 +1398,7 @@ namespace WebAPI.Controllers.Projects
                         TargetAmount = item.TargetAmount,
                         StartStationLimit = item.StartStationLimit,
                         EndStationLimit = item.EndStationLimit,
-                        CreatedBy = _Session.UserId ?? "TESTING",
+                        CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     }));
                 }
@@ -1426,7 +1438,7 @@ namespace WebAPI.Controllers.Projects
                                         AffectedColumn = "Source",
                                         NewValue = NewSource!.Name,
                                         OldValue = CurrentSource!.Name,
-                                        CreatedBy = _Session.UserId ?? "TESTING",
+                                        CreatedBy = _Session.UserId,
                                         CreatedDate = CurrentDate
                                     });
                                     ExistingItem.Source = item.Source;
@@ -1444,7 +1456,7 @@ namespace WebAPI.Controllers.Projects
                                         AffectedColumn = "Agreement",
                                         NewValue = NewAgreement!.Name,
                                         OldValue = CurrentAgreement!.Name,
-                                        CreatedBy = _Session.UserId ?? "TESTING",
+                                        CreatedBy = _Session.UserId,
                                         CreatedDate = CurrentDate
                                     });
                                     ExistingItem.Agreement = item.Agreement;
@@ -1460,14 +1472,14 @@ namespace WebAPI.Controllers.Projects
                                         AffectedColumn = "Percentage",
                                         NewValue = item.Percentage.ToString(),
                                         OldValue = ExistingItem.Percentage.ToString(),
-                                        CreatedBy = _Session.UserId ?? "TESTING",
+                                        CreatedBy = _Session.UserId,
                                         CreatedDate = CurrentDate
                                     });
                                     ExistingItem.Percentage = item.Percentage;
                                 }
                                 if (FundingUpdate)
                                 {
-                                    ExistingItem.UpdatedBy = _Session.UserId ?? "TESTING";
+                                    ExistingItem.UpdatedBy = _Session.UserId;
                                     ExistingItem.UpdatedDate = CurrentDate;
                                     _db.tProjectFundingProfile.Update(ExistingItem);
                                 }
@@ -1485,7 +1497,7 @@ namespace WebAPI.Controllers.Projects
                         Source = x.Source,
                         Agreement = x.Agreement,
                         Percentage = x.Percentage,
-                        CreatedBy = _Session.UserId ?? "TESTING",
+                        CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
                     await _db.tProjectFundingProfile.AddRangeAsync(addFunding);
@@ -1560,7 +1572,7 @@ namespace WebAPI.Controllers.Projects
                     FileExtension = Extension,
                     FilePath = FilePath,
                     Description = dto.Description,
-                    CreatedBy = _Session.UserId ?? "TESTING",
+                    CreatedBy = _Session.UserId,
                     CreatedDate = DateTime.UtcNow
                 };
                 await _db.tProjectNotes.AddAsync(AddNotes);
@@ -1599,7 +1611,7 @@ namespace WebAPI.Controllers.Projects
                     AffectedColumn = "Row",
                     NewValue = "",
                     OldValue = JsonConvert.SerializeObject(Note),
-                    CreatedBy = _Session.UserId ?? "TESTING",
+                    CreatedBy = _Session.UserId,
                     CreatedDate = DateTime.UtcNow
                 });
                 _db.tProjectNotes.Remove(Note);

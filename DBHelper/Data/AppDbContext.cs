@@ -1,11 +1,4 @@
-﻿using DBHelper.Models;
-using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Data.SqlClient;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Microsoft.EntityFrameworkCore;
 
 namespace DBHelper.Data
 {
@@ -57,6 +50,7 @@ namespace DBHelper.Data
         public DbSet<Models.Table.InfraType> tInfraType { get; set; }
         public DbSet<Models.Table.ProjectsInGroup> tProjectsInGroup { get; set; }
         public DbSet<Models.Table.ProjectGroups> tProjectGroups { get; set; }
+        public DbSet<Models.Table.ProjectProvinceEnum> tProjectProvinceEnum { get; set; }
         #endregion
         #region Views
         public DbSet<Models.Views.Users> vUsers { get; set; }

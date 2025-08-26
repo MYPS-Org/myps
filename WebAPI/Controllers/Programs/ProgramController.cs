@@ -90,9 +90,6 @@ namespace WebAPI.Controllers.Programs
                 if (!string.IsNullOrEmpty(dto.Filters?.YearStart))
                     baseQuery = baseQuery.Where(e => e.YearStart.ToString() == dto.Filters.YearStart);
 
-                if (!string.IsNullOrEmpty(dto.Filters?.YearEnd))
-                    baseQuery = baseQuery.Where(e => e.YearEnd.ToString() == dto.Filters.YearEnd);
-
                 if (dto.Filters?.GroupName != null)
                     baseQuery = baseQuery.Where(e => e.GroupName == dto.Filters.GroupName);
 
@@ -230,7 +227,7 @@ namespace WebAPI.Controllers.Programs
                 }
                 string ReferenceId = "PR" + uid ?? string.Empty;
                 DateTime currentDate = DateTime.UtcNow;
-                string UserId = _Session.UserId ?? "TESTING";
+                string UserId = _Session.UserId;
                 var newProgram = new DBHelper.Models.Table.Programs()
                 {
                     ProgramId = ReferenceId,
@@ -249,7 +246,6 @@ namespace WebAPI.Controllers.Programs
                     Status = EnumProgramStatus.Working,
                     Type = dto.Type,
                     YearStart = dto.YearStart,
-                    YearEnd = dto.YearEnd,
                     CreatedBy = UserId,
                     CreatedDate = currentDate,
 
@@ -442,11 +438,8 @@ namespace WebAPI.Controllers.Programs
                     Type = getProgram.Type,
                     Cost = getProgram.Cost,
                     YearStart = getProgram.YearStart,
-                    YearEnd = getProgram.YearEnd,
-                    CreatedBy = getProgram.CreatedBy,
-                    CreatedDate = getProgram.CreatedDate,
-                    UpdatedBy = _Session.UserId,
-                    UpdatedDate = CurrentDate
+                    CreatedBy = _Session.UserId,
+                    CreatedDate = CurrentDate
                 };
                 if (dto.Name != NewProgramVersion.Name && !string.IsNullOrEmpty(NewProgramVersion.Name))
                 {
@@ -533,22 +526,6 @@ namespace WebAPI.Controllers.Programs
                         AffectedColumn = "YearStart",
                         NewValue = dto.YearStart.ToString(),
                         OldValue = NewProgramVersion.YearStart.ToString(),
-                        CreatedBy = _Session.UserId,
-                        CreatedDate = CurrentDate
-                    });
-                }
-                if (dto.YearEnd != NewProgramVersion.YearEnd)
-                {
-                    hasUpdated = true;
-                    NewProgramVersion.YearEnd = dto.YearEnd;
-                    transactionLogs.Add(new TransactionLog
-                    {
-                        TransactionId = dto.ProgramId,
-                        TypeOfTransaction = "Update",
-                        AffectedTable = "tProgramRevisions",
-                        AffectedColumn = "YearEnd",
-                        NewValue = dto.YearEnd.ToString(),
-                        OldValue = NewProgramVersion.YearEnd.ToString(),
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
@@ -687,11 +664,8 @@ namespace WebAPI.Controllers.Programs
                     Type = checkRevisions.Type,
                     Cost = checkRevisions.Cost,
                     YearStart = checkRevisions.YearStart,
-                    YearEnd = checkRevisions.YearEnd,
                     CreatedBy = _Session.UserId,
-                    CreatedDate = CurrentDate,
-                    UpdatedBy = _Session.UserId,
-                    UpdatedDate = CurrentDate
+                    CreatedDate = CurrentDate
                 };
                 await _db.tProgramRevisions.AddAsync(newProgramRevision);
                 await _db.SaveChangesAsync();

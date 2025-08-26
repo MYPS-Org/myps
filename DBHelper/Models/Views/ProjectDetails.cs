@@ -6,10 +6,14 @@ namespace DBHelper.Models.Views
     {
         public int? Id { get; set; }
         public string? ProgramId { get; set; }
-        public string? ProgramName { get; set; }
+        public string ProgramName { get; set; } = string.Empty;
         public string? ProjectId { get; set; }
         public string? AlternateId { get; set; }
-        public string IslandCode { get; set; } = string.Empty;
+        public string? ExternalId { get; set; }
+        public string? MYId { get; set; }
+        public string? UACS { get; set; }
+        public DateTime? MYCAApprovalDate { get; set; }
+        public string? IslandCode { get; set; }
         public int? RevisionNumber { get; set; }
         public string? Description { get; set; }
         public int Category { get; set; }
