@@ -42,27 +42,21 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
   };
 
   const handleAddWorkLocation = () => {
-    if (shouldUseInfraDialog()) {
-      setIsAddingNew(true);
-      setEditingIndex(null);
-      setInfraDialogOpen(true);
-    } else {
-      // For other types, create a new empty work location
-      const newWorkLocation: workLocation = {
-        InfraId: '',
-        DetailedScope: '',
-        TargetUnitId: workTypeId,
-        TargetUnit: targetUnit,
-        StartX: '',
-        StartY: '',
-        EndX: '',
-        EndY: '',
-        PhysicalTarget: '',
-        StartStationLimit: '',
-        EndStationLimit: '',
-      };
-      onAdd(newWorkLocation);
-    }
+    // Always create a new empty work location form directly
+    const newWorkLocation: workLocation = {
+      InfraId: '',
+      DetailedScope: '',
+      TargetUnitId: workTypeId,
+      TargetUnit: targetUnit,
+      StartX: '',
+      StartY: '',
+      EndX: '',
+      EndY: '',
+      PhysicalTarget: '',
+      StartStationLimit: '',
+      EndStationLimit: '',
+    };
+    onAdd(newWorkLocation);
   };
 
   const handleEditWorkLocation = (index: number) => {
@@ -235,7 +229,17 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
             <input
               type="number"
               value={location.PhysicalTarget}
-              onChange={(e) => handleFieldChange(index, 'PhysicalTarget', Number(e.target.value))}
+              onChange={(e) => {
+                const value = Number(e.target.value);
+                // Validate against min/max bounds
+                if (maxAmount !== undefined && value > maxAmount) {
+                  return; // Don't update if exceeds max
+                }
+                if (minAmount !== undefined && value < minAmount) {
+                  return; // Don't update if below min
+                }
+                handleFieldChange(index, 'PhysicalTarget', value);
+              }}
               onFocus={handleNumberFocus}
               max={maxAmount}
               min={minAmount}
@@ -257,10 +261,9 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
               Start Station (km)
             </label>
             <input
-              type="number"
+              type="text"
               value={location.StartStationLimit}
-              onChange={(e) => handleFieldChange(index, 'StartStationLimit', Number(e.target.value))}
-              onFocus={handleNumberFocus}
+              onChange={(e) => handleFieldChange(index, 'StartStationLimit', e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
               placeholder="Start station..."
             />
@@ -274,10 +277,9 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
               End Station (km)
             </label>
             <input
-              type="number"
+              type="text"
               value={location.EndStationLimit}
-              onChange={(e) => handleFieldChange(index, 'EndStationLimit', Number(e.target.value))}
-              onFocus={handleNumberFocus}
+              onChange={(e) => handleFieldChange(index, 'EndStationLimit', e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
               placeholder="End station..."
             />
