@@ -12,6 +12,7 @@ interface AddInfraDialogProps {
   onAdd: (infraId: string, infraName: string, infraType: string) => void;
   initialData?: InfraData;
   mode?: 'add' | 'edit';
+  infraType?: string;
 }
 
 const AddInfraDialog: React.FC<AddInfraDialogProps> = ({ 
@@ -19,10 +20,20 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
   onClose, 
   onAdd, 
   // initialData,
-  mode = 'add' 
+  mode = 'add',
+  infraType
 }) => {
 
-  const [activeTab, setActiveTab] = useState<'road' | 'bridge' | 'fcs' | 'other'>('road');
+  // Set initial active tab based on infraType
+  const getInitialTab = (): 'road' | 'bridge' => {
+    const infraTypeLower = infraType?.toLowerCase();
+    if (infraTypeLower === 'bridge' || infraTypeLower === 'bridges') {
+      return 'bridge';
+    }
+    return 'road'; // default to road for roads or any other type
+  };
+
+  const [activeTab, setActiveTab] = useState<'road' | 'bridge' /*| 'fcs' | 'other'*/>(getInitialTab());
   const [selectedInfra, setSelectedInfra] = useState<{
     id: string;
     name: string;
@@ -35,9 +46,9 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
     if (isOpen) {
       setSelectedInfra(null);
       setSearchTerm('');
-      setActiveTab('road');
+      setActiveTab(getInitialTab());
     }
-  }, [isOpen]);
+  }, [isOpen, infraType]);
 
   const handleClose = () => {
     setSelectedInfra(null);
@@ -65,6 +76,22 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
     { id: 'fcs', label: 'FCS', icon: '' },
     { id: 'other', label: 'Other Infrastructure', icon: '' },
   ];
+
+  // Filter tabs based on infraType
+  const getAvailableTabs = () => {
+    const infraTypeLower = infraType?.toLowerCase();
+    
+    if (infraTypeLower === 'road' || infraTypeLower === 'roads') {
+      return tabs.filter(tab => tab.id === 'road');
+    } else if (infraTypeLower === 'bridge' || infraTypeLower === 'bridges') {
+      return tabs.filter(tab => tab.id === 'bridge');
+    }
+    
+    // For other types or undefined infraType, show only road and bridge tabs for now
+    return tabs.filter(tab => tab.id === 'road' || tab.id === 'bridge');
+  };
+
+  const availableTabs = getAvailableTabs();
 
   const filterData = (data: any[], searchFields: string[]) => {
     if (!searchTerm) return data;
@@ -167,93 +194,93 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
     );
   };
 
-  const renderFCS = () => {
-    const data = /*initialData?.FCS ||*/ mockInfraData.FCS;
-    const filteredData = filterData(data, ['FCSId', 'FCSName', 'Location']);
+  // const renderFCS = () => {
+  //   const data = /*initialData?.FCS ||*/ mockInfraData.FCS;
+  //   const filteredData = filterData(data, ['FCSId', 'FCSName', 'Location']);
     
-    return (
-      <div className="space-y-4">
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableHeader>Select</TableHeader>
-              <TableHeader>FCS ID</TableHeader>
-              <TableHeader>FCS Name</TableHeader>
-              <TableHeader>Location</TableHeader>
-              <TableHeader>Capacity</TableHeader>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {filteredData.map((fcs) => (
-              <TableRow key={fcs.Id}>
-                <TableCell>
-                  <input
-                    type="radio"
-                    name="infraSelection"
-                    value={fcs.FCSId}
-                    checked={selectedInfra?.id === fcs.FCSId}
-                    onChange={() => handleInfraSelect(fcs.FCSId, fcs.FCSName, 'FCS')}
-                    className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300"
-                  />
-                </TableCell>
-                <TableCell className="font-medium">{fcs.FCSId}</TableCell>
-                <TableCell>{fcs.FCSName}</TableCell>
-                <TableCell>{fcs.Location}</TableCell>
-                <TableCell>{fcs.Capacity}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    );
-  };
+  //   return (
+  //     <div className="space-y-4">
+  //       <Table>
+  //         <TableHead>
+  //           <TableRow>
+  //             <TableHeader>Select</TableHeader>
+  //             <TableHeader>FCS ID</TableHeader>
+  //             <TableHeader>FCS Name</TableHeader>
+  //             <TableHeader>Location</TableHeader>
+  //             <TableHeader>Capacity</TableHeader>
+  //           </TableRow>
+  //         </TableHead>
+  //         <TableBody>
+  //           {filteredData.map((fcs) => (
+  //             <TableRow key={fcs.Id}>
+  //               <TableCell>
+  //                 <input
+  //                   type="radio"
+  //                   name="infraSelection"
+  //                   value={fcs.FCSId}
+  //                   checked={selectedInfra?.id === fcs.FCSId}
+  //                   onChange={() => handleInfraSelect(fcs.FCSId, fcs.FCSName, 'FCS')}
+  //                   className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300"
+  //                 />
+  //               </TableCell>
+  //               <TableCell className="font-medium">{fcs.FCSId}</TableCell>
+  //               <TableCell>{fcs.FCSName}</TableCell>
+  //               <TableCell>{fcs.Location}</TableCell>
+  //               <TableCell>{fcs.Capacity}</TableCell>
+  //             </TableRow>
+  //           ))}
+  //         </TableBody>
+  //       </Table>
+  //     </div>
+  //   );
+  // };
 
-  const renderOtherInfra = () => {
-    const data = /*initialData?.OtherInfra ||*/ mockInfraData.OtherInfra;
-    const filteredData = filterData(data, ['InfraId', 'InfraName', 'InfraType', 'Location']);
+  // const renderOtherInfra = () => {
+  //   const data = /*initialData?.OtherInfra ||*/ mockInfraData.OtherInfra;
+  //   const filteredData = filterData(data, ['InfraId', 'InfraName', 'InfraType', 'Location']);
     
-    return (
-      <div className="space-y-4">
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableHeader>Select</TableHeader>
-              <TableHeader>Infra ID</TableHeader>
-              <TableHeader>Infra Name</TableHeader>
-              <TableHeader>Type</TableHeader>
-              <TableHeader>Location</TableHeader>
-              <TableHeader>Description</TableHeader>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {filteredData.map((infra) => (
-              <TableRow key={infra.Id}>
-                <TableCell>
-                  <input
-                    type="radio"
-                    name="infraSelection"
-                    value={infra.InfraId}
-                    checked={selectedInfra?.id === infra.InfraId}
-                    onChange={() => handleInfraSelect(infra.InfraId, infra.InfraName, infra.InfraType)}
-                    className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300"
-                  />
-                </TableCell>
-                <TableCell className="font-medium">{infra.InfraId}</TableCell>
-                <TableCell>{infra.InfraName}</TableCell>
-                <TableCell>
-                  <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                    {infra.InfraType}
-                  </span>
-                </TableCell>
-                <TableCell>{infra.Location}</TableCell>
-                <TableCell className="max-w-xs truncate">{infra.Description}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    );
-  };
+  //   return (
+  //     <div className="space-y-4">
+  //       <Table>
+  //         <TableHead>
+  //           <TableRow>
+  //             <TableHeader>Select</TableHeader>
+  //             <TableHeader>Infra ID</TableHeader>
+  //             <TableHeader>Infra Name</TableHeader>
+  //             <TableHeader>Type</TableHeader>
+  //             <TableHeader>Location</TableHeader>
+  //             <TableHeader>Description</TableHeader>
+  //           </TableRow>
+  //         </TableHead>
+  //         <TableBody>
+  //           {filteredData.map((infra) => (
+  //             <TableRow key={infra.Id}>
+  //               <TableCell>
+  //                 <input
+  //                   type="radio"
+  //                   name="infraSelection"
+  //                   value={infra.InfraId}
+  //                   checked={selectedInfra?.id === infra.InfraId}
+  //                   onChange={() => handleInfraSelect(infra.InfraId, infra.InfraName, infra.InfraType)}
+  //                   className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300"
+  //                 />
+  //               </TableCell>
+  //               <TableCell className="font-medium">{infra.InfraId}</TableCell>
+  //               <TableCell>{infra.InfraName}</TableCell>
+  //               <TableCell>
+  //                 <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+  //                   {infra.InfraType}
+  //                 </span>
+  //               </TableCell>
+  //               <TableCell>{infra.Location}</TableCell>
+  //               <TableCell className="max-w-xs truncate">{infra.Description}</TableCell>
+  //             </TableRow>
+  //           ))}
+  //         </TableBody>
+  //       </Table>
+  //     </div>
+  //   );
+  // };
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -261,10 +288,10 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
         return renderRoadSections();
       case 'bridge':
         return renderBridges();
-      case 'fcs':
-        return renderFCS();
-      case 'other':
-        return renderOtherInfra();
+      // case 'fcs':
+      //   return renderFCS();
+      // case 'other':
+      //   return renderOtherInfra();
       default:
         return null;
     }
@@ -294,7 +321,7 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
           {/* Tab Navigation */}
           <div className="border-b border-gray-200">
             <nav className="flex space-x-8 px-6" aria-label="Tabs">
-              {tabs.map((tab) => (
+              {availableTabs.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as typeof activeTab)}
@@ -319,7 +346,7 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
               <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
                 type="text"
-                placeholder={`Search ${tabs.find(t => t.id === activeTab)?.label.toLowerCase()}...`}
+                placeholder={`Search ${availableTabs.find(t => t.id === activeTab)?.label.toLowerCase()}...`}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500"
