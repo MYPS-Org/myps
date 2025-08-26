@@ -20,6 +20,7 @@ namespace DBHelper.Models.Views
         public string? Thrust { get; set; }
         public string? Origin { get; set; }
         public string? City { get; set; }
+        public string? Province { get; set; }
         public string? LegislativeDistrict { get; set; }
         public string? OperatingUnit { get; set; }
         public string? ImplementingOffice { get; set; }

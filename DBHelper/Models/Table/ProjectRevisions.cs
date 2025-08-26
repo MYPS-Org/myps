@@ -36,6 +36,8 @@ namespace DBHelper.Models.Table
         [Required]
         public int City { get; set; }
         [Required]
+        public int Province { get; set; }
+        [Required]
         public int LegislativeDistrict { get; set; }
         [Required]
         [MaxLength(20)]
