@@ -223,6 +223,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
               <TableHeader className="min-w-[120px]">Component</TableHeader>
               <TableHeader className="min-w-[100px]">Year of Work</TableHeader>
               <TableHeader className="min-w-[140px]">Type of Work</TableHeader>
+              <TableHeader className='min-w-[100px]'> Infra Type</TableHeader>
               <TableHeader className="min-w-[100px]">Target Unit</TableHeader>
               <TableHeader className="min-w-[120px]">Work Locations</TableHeader>
               <TableHeader className="min-w-[80px]">Actions</TableHeader>
@@ -258,6 +259,9 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                     </div>
                   </TableCell>
                   <TableCell>
+                    <div className="text-sm">{item.InfraType}</div>
+                  </TableCell>
+                  <TableCell>
                     <div className="text-sm">{item.TargetUnit}</div>
                   </TableCell>
                   <TableCell>
@@ -288,7 +292,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                 {/* Expanded row for work locations */}
                 {expandedRows.has(index) && (
                   <TableRow>
-                    <TableCell colSpan={7} className="bg-gray-50 p-4">
+                    <TableCell colSpan={8} className="bg-gray-50 p-4">
                       <WorkLocationTable
                         workLocations={item.workLocations || []}
                         onAdd={(workLocation) => handleAddWorkLocation(index, workLocation)}
@@ -297,6 +301,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                         }
                         onDelete={(workLocationIndex) => handleDeleteWorkLocation(index, workLocationIndex)}
                         infraData={infraData}
+                        infraType={item.InfraType}
                         workTypeId={item.WorkTypeId}
                         targetUnit={item.TargetUnit}
                         maxAmount={getMinMaxAmounts(item.WorkTypeId).max}
