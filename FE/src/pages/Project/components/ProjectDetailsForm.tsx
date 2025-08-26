@@ -108,7 +108,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                         
                         <div className="w-full flex flex-col text-left gap-2">
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.Category ? 'text-red-500' : 'text-gray-600'}`}>Category:</label>
+                                <label className={`w-1/3 ${errors.Category ? 'text-red-500' : 'text-gray-600'}`}>*Category:</label>
                                 <select
                                     value={projectDetails.Category}
                                     onChange={(e) => handleInputChange('Category', parseInt(e.target.value))}
@@ -127,7 +127,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.Thrust ? 'text-red-500' : 'text-gray-600'}`}>Thrust:</label>
+                                <label className={`w-1/3 ${errors.Thrust ? 'text-red-500' : 'text-gray-600'}`}>*Sub-Category:</label>
                                 <select 
                                     name="Thrust" 
                                     id="Thrust" 
@@ -149,7 +149,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
                     <div className="grid grid-cols-1 gap-2">
                         <div className='w-full flex text-left gap-2'>
-                            <label className={`w-1/9 ${errors.Description ? 'text-red-500' : 'text-gray-600'}`}>Description:</label>
+                            <label className={`w-1/9 ${errors.Description ? 'text-red-500' : 'text-gray-600'}`}>*Description:</label>
                             <div className="w-8/9">
                                 <textarea
                                     value={projectDetails.Description}
@@ -194,7 +194,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.City ? 'text-red-500' : 'text-gray-600'}`}>City/Municipality:</label>
+                                <label className={`w-1/3 ${errors.City ? 'text-red-500' : 'text-gray-600'}`}>*City/Municipality:</label>
                                 <select
                                     value={projectDetails.City}
                                     onChange={(e) => handleInputChange('City', parseInt(e.target.value))}
@@ -213,7 +213,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.LegislativeDistrict ? 'text-red-500' : 'text-gray-600'}`}>Legislative District:</label>
+                                <label className={`w-1/3 ${errors.LegislativeDistrict ? 'text-red-500' : 'text-gray-600'}`}>*Legislative District:</label>
                                 <select
                                     value={projectDetails.LegislativeDistrict}
                                     onChange={(e) => handleInputChange('LegislativeDistrict', parseInt(e.target.value))}
@@ -239,6 +239,28 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     </h3>
                     
                     <div className="grid grid-cols-2 gap-5">
+
+                        <div className='w-full flex flex-col text-left gap-2'>
+                            <div className="flex flex-row gap-5 items-center">
+                                <label className={`w-1/3 ${errors.DEO ? 'text-red-500' : 'text-gray-600'}`}>*District Engineering Office:</label>
+                                <select 
+                                    name="DistrictEngOffice" 
+                                    id="DistrictEngOffice" 
+                                    value={projectDetails.DEO} 
+                                    onChange={(e) => handleInputChange('DEO', e.target.value)} 
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.DEO ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
+                                    style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                                >
+                                    <option value="">Select District Engineering Office</option>
+                                    {projectEnums?.DEOs?.map((deo) => (
+                                        <option key={deo.Id} value={deo.DeoCode}>
+                                            {deo.DeoName}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.Region ? 'text-red-500' : 'text-gray-600'}`}>Regional Office:</label>
@@ -257,33 +279,12 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 </select>
                             </div>
                         </div>
-
-                        <div className='w-full flex flex-col text-left gap-2'>
-                            <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.DEO ? 'text-red-500' : 'text-gray-600'}`}>District Engineering Office:</label>
-                                <select 
-                                    name="DistrictEngOffice" 
-                                    id="DistrictEngOffice" 
-                                    value={projectDetails.DEO} 
-                                    onChange={(e) => handleInputChange('DEO', e.target.value)} 
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.DEO ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
-                                    style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
-                                >
-                                    <option value="">Select District Engineering Office</option>
-                                    {projectEnums?.DEOs?.map((deo) => (
-                                        <option key={deo.Id} value={deo.DeoCode}>
-                                            {deo.DeoName}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-5">
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.OperatingUnit ? 'text-red-500' : 'text-gray-600'}`}>Operating Unit:</label>
+                                <label className={`w-1/3 ${errors.OperatingUnit ? 'text-red-500' : 'text-gray-600'}`}>*Operating Unit:</label>
                                 <select
                                     value={projectDetails.OperatingUnit}
                                     onChange={(e) => handleInputChange('OperatingUnit', e.target.value)}
@@ -302,7 +303,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.ImplementingOffice ? 'text-red-500' : 'text-gray-600'}`}>Implementing Office:</label>
+                                <label className={`w-1/3 ${errors.ImplementingOffice ? 'text-red-500' : 'text-gray-600'}`}>*Implementing Office:</label>
                                 <select
                                     value={projectDetails.ImplementingOffice}
                                     onChange={(e) => handleInputChange('ImplementingOffice', e.target.value)}
