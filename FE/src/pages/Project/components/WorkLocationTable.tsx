@@ -356,7 +356,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
   };
 
   return (
-    <div className="mt-4">
+    <div className="m-4">
       <div className="flex justify-between items-center mb-4">
         <div>
           <h4 className="text-lg font-semibold text-gray-800">Work Locations</h4>

@@ -291,8 +291,8 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                 
                 {/* Expanded row for work locations */}
                 {expandedRows.has(index) && (
-                  <TableRow>
-                    <TableCell colSpan={8} className="bg-gray-50 p-4">
+                  <TableRow className="bg-gray-50">
+                    <TableCell colSpan={8} className="p-4">
                       <WorkLocationTable
                         workLocations={item.workLocations || []}
                         onAdd={(workLocation) => handleAddWorkLocation(index, workLocation)}

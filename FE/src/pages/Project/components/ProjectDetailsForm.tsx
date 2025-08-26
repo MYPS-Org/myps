@@ -173,12 +173,22 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
                                 <label className="w-1/3 text-gray-600">Province:</label>
-                                <input 
-                                    type="text"
-                                    value="Cebu" // You might want to make this dynamic based on your data model
-                                    readOnly
-                                    className="w-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
-                                />
+                                <select
+                                    value={projectDetails.Province}
+                                    onChange={(e) => handleInputChange('Province', parseInt(e.target.value))}
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.Province ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
+                                    style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                                >
+                                    <option value="">Select Province</option>
+                                    <option value="1">Cavite</option>
+                                    <option value="2">Batangas</option>
+                                    <option value="3">Laguna</option>
+                                    {/* {projectEnums?.Provinces?.map((province) => (
+                                        <option key={province.Id} value={province.Enum}>
+                                            {province.Name}
+                                        </option>
+                                    ))} */}
+                                </select>
                             </div>
                         </div>
 
