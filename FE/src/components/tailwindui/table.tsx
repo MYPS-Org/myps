@@ -103,12 +103,14 @@ export function TableHeader({
   className, 
   sortable = false,
   sortDirection,
+  justify = 'between', //default
   onSort,
   children,
   ...props 
 }: { 
   sortable?: boolean;
   sortDirection?: 0 | 1 | null; // 0 = asc, 1 = desc, null = no sort
+  justify?: 'start' | 'end' | 'center' | 'between';
   onSort?: (direction: 0 | 1) => void;
 } & React.ComponentPropsWithoutRef<'th'>) {
   let { bleed, grid } = useContext(TableContext)
@@ -138,6 +140,19 @@ export function TableHeader({
     }
   }
 
+  const getJustifyClass = () => {
+    switch (justify) {
+      case 'start':
+        return 'justify-start';
+      case 'end':
+        return 'justify-end';
+      case 'center':
+        return 'justify-center';
+      default:
+        return 'justify-between';
+    }
+  }
+
   return (
     <th
       {...props}
@@ -150,9 +165,9 @@ export function TableHeader({
       )}
       onClick={handleSort}
     >
-      <div className="flex items-center justify-between">
+      <div className={clsx("flex items-center", getJustifyClass())}>
         <span>{children}</span>
-        {getSortIcon()}
+        {sortable && justify !== "center" && getSortIcon()}
       </div>
     </th>
   )
