@@ -22,17 +22,6 @@ export interface ErrorResponse {
 export interface RequestConfig extends AxiosRequestConfig {
     preloaderMessage?: string;
 }
-const { showModal } = useModal();
-  const handleDelete = async (data:any) => {
-    const result = await showModal({
-      icon: 'error',
-      Title: data.Title || 'Unknown Error occurred',
-      Message: data.Message || 'An unknown error occurred. Please try again later.',
-      button: ['Close'],
-	  type: 'alert' // optional, defaults to 'confirm' if not provided. types are 'confirm' and 'alert'
-    })
-    return result;
-  }
 class HttpClient {
     private client: AxiosInstance;
     private preloaderCallbacks: ((state: PreloaderState) => void)[] = [];
@@ -87,7 +76,7 @@ class HttpClient {
                 console.log('✅ HTTP Response:', response.status, response.config.url);
                 return response;
             },
-            (error: any) => {
+            async (error: any) => {
                 this.updatePreloader({ loading: false, progress: 0, message: '' });
 
                 console.error('❌ HTTP Error:', error.response?.status, error.config?.url, error.message);
@@ -99,7 +88,15 @@ class HttpClient {
                         Title: error.response?.data?.Title || 'Not Found',
                         Status: 404
                     };
-                    handleDelete(errorResponse);
+                    
+                    const { showModal } = useModal();
+                    await showModal({
+                        icon: 'error',
+                        Title: errorResponse.Title || 'Unknown Error occurred',
+                        Message: errorResponse.Message || 'An unknown error occurred. Please try again later.',
+                        button: ['Close'],
+                        type: 'alert' // optional, defaults to 'confirm' if not provided. types are 'confirm' and 'alert'
+                    });
                     throw errorResponse;
                 }
 
