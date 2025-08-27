@@ -38,13 +38,13 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
 
   // Debug: Monitor when majorItems prop changes
   useEffect(() => {
-    console.log('MajorItemOfWorksForm: majorItems prop changed:', majorItems);
-    console.log('Available dropDowns:', dropDowns);
-    majorItems.forEach((item, index) => {
-      console.log(`Item ${index} - WorkTypeId:`, item.WorkTypeId, 'InfraType:', item.InfraType, 'DropdownData length:', item.DropdownData?.length);
+    // console.log('MajorItemOfWorksForm: majorItems prop changed:', majorItems);
+    // console.log('Available dropDowns:', dropDowns);
+    majorItems.forEach((item/*, index*/) => {
+      // console.log(`Item ${index} - WorkTypeId:`, item.WorkTypeId, 'InfraType:', item.InfraType, 'DropdownData length:', item.DropdownData?.length);
       if (item.InfraType) {
-        const filtered = dropDowns?.filter(x => x.InfraType === item.InfraType);
-        console.log(`Filtered dropdowns for InfraType '${item.InfraType}':`, filtered);
+        /*const filtered = */dropDowns?.filter(x => x.InfraType === item.InfraType);
+        // console.log(`Filtered dropdowns for InfraType '${item.InfraType}':`, filtered);
       }
     });
   }, [majorItems, dropDowns]);
@@ -171,7 +171,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
   const handleAddWorkLocation = (majorItemIndex: number, workLocation: WorkLocation) => {
     const updatedItem = {
       ...majorItems[majorItemIndex],
-      workLocations: [...(majorItems[majorItemIndex].WorkLocations || []), workLocation]
+      WorkLocations: [...(majorItems[majorItemIndex].WorkLocations || []), workLocation]
     };
     onEdit(majorItemIndex, updatedItem);
   };
@@ -182,7 +182,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     
     const updatedItem = {
       ...majorItems[majorItemIndex],
-      workLocations: updatedWorkLocations
+      WorkLocations: updatedWorkLocations
     };
     onEdit(majorItemIndex, updatedItem);
   };
@@ -192,7 +192,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     
     const updatedItem = {
       ...majorItems[majorItemIndex],
-      workLocations: updatedWorkLocations
+      WorkLocations: updatedWorkLocations
     };
     onEdit(majorItemIndex, updatedItem);
   };

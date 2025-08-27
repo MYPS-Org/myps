@@ -166,7 +166,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       // Ensure required fields exist
       TargetUnitId: item.TargetUnitId || 0,
       TargetUnit: item.TargetUnit || '',
-      workLocations: item.WorkLocations || [], // Initialize empty workLocations if not present
+      WorkLocations: item.WorkLocations || [], // Initialize empty WorkLocations if not present
       DropdownData: initialData?.Dropdowns?.ScopeOfWorks?.filter(scope => scope.InfraType === item.InfraType) || []
     }));
   });
@@ -314,14 +314,14 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
   };
 
   const handleEditMajorItem = (index: number, updatedItem: MajorItemOfWorksWithDropdown) => {
-    console.log('ProjectForm: Editing major item at index', index);
-    console.log('ProjectForm: Updated item received:', updatedItem);
+    // console.log('ProjectForm: Editing major item at index', index);
+    // console.log('ProjectForm: Updated item received:', updatedItem);
     setMajorItems(prev => {
       const newItems = prev.map((item, i) => i === index ? updatedItem : item);
-      console.log('ProjectForm: New majorItems state:', newItems);
+      // console.log('ProjectForm: New majorItems state:', newItems);
       return newItems;
     });
-    console.log('Updated major item in staging:', updatedItem);
+    // console.log('Updated major item in staging:', updatedItem);
   };
 
   const handleDeleteMajorItem = (index: number) => {

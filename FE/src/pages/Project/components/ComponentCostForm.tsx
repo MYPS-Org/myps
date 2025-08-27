@@ -28,7 +28,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
   const formatCurrency = (amount: number) => {
     return amount.toLocaleString('en-PH');
   };
-    console.log('Rine => ', initialData)
+    // console.log('Rine => ', initialData)
   const handleOpenAddModal = () => {
     setModalMode('add');
     setEditingIndex(null);
