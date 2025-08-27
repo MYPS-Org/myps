@@ -101,10 +101,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       Feasibility: 0,
       DetailedDesign: false,
       RowAvailable: false,
-      CreatedBy: '',
-      CreatedDate: '',
-      UpdatedBy: '',
-      UpdatedDate: '',
     }
   );
 
@@ -170,7 +166,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       // Ensure required fields exist
       TargetUnitId: item.TargetUnitId || 0,
       TargetUnit: item.TargetUnit || '',
-      workLocations: item.workLocations || [], // Initialize empty workLocations if not present
+      WorkLocations: item.WorkLocations || [], // Initialize empty WorkLocations if not present
       DropdownData: initialData?.Dropdowns?.ScopeOfWorks?.filter(scope => scope.InfraType === item.InfraType) || []
     }));
   });
@@ -310,7 +306,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       TargetUnitId: 0,
       TargetUnit: '',
       CreatedBy: '',
-      workLocations: [], // Initialize empty work locations
+      WorkLocations: [], // Initialize empty work locations
       DropdownData: []
     };
     setMajorItems(prev => [...prev, newItem]);

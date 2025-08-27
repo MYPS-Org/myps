@@ -270,9 +270,9 @@ export interface MajorItemOfWork {
 	TargetUnitId: number;
 	TargetUnit: string;
 	CreatedBy: string;
-	workLocations: workLocation[];
+	WorkLocations: workLocation[];
 }
-export interface workLocation {
+export interface WorkLocation {
 	InfraId: string;
 	DetailedScope: string;
 	TargetUnitId: number;
@@ -444,6 +444,7 @@ export interface ProjectEnums {
   Thrusts: ProjectThurstEnum[];
   Origins: ProjectOriginEnum[];
   Cities: ProjectCityEnum[];
+  Provinces: ProjectProvinceEnum[];
   LDs: ProjectLegislativeDistrictEnum[];
   OperatingUnits: ProjectOperatingUnitEnum[];
   IOs: ProjectImplementingOfficeEnum[];
@@ -486,6 +487,11 @@ export interface ProjectCityEnum {
 	Enum: number;
 	Name: string;
 	Description: string;
+}
+
+export interface ProjectProvinceEnum {
+	Id: number;
+	ProvinceName: string;
 }
 
 export interface ProjectLegislativeDistrictEnum {

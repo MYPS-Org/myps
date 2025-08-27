@@ -180,14 +180,14 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
                                 >
                                     <option value="">Select Province</option>
-                                    <option value="1">Cavite</option>
+                                    {/* <option value="1">Cavite</option>
                                     <option value="2">Batangas</option>
-                                    <option value="3">Laguna</option>
-                                    {/* {projectEnums?.Provinces?.map((province) => (
-                                        <option key={province.Id} value={province.Enum}>
-                                            {province.Name}
+                                    <option value="3">Laguna</option> */}
+                                    {projectEnums?.Provinces?.map((province) => (
+                                        <option key={province.Id} value={province.Id}>
+                                            {province.ProvinceName}
                                         </option>
-                                    ))} */}
+                                    ))}
                                 </select>
                             </div>
                         </div>

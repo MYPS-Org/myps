@@ -3,12 +3,12 @@ import { Button } from '../../../components/tailwindui/button';
 import { PlusIcon, TrashIcon, PencilIcon } from '@heroicons/react/24/outline';
 import AddInfraDialog from '../dialogs/AddInfraDialog';
 import { mockInfraData } from '../dialogs/mockInfraData';
-import type { workLocation, InfraData } from '../Model';
+import type { WorkLocation, InfraData } from '../Model';
 
 interface WorkLocationTableProps {
-  workLocations: workLocation[];
-  onAdd: (workLocation: workLocation) => void;
-  onEdit: (index: number, workLocation: workLocation) => void;
+  workLocations: WorkLocation[];
+  onAdd: (workLocation: WorkLocation) => void;
+  onEdit: (index: number, workLocation: WorkLocation) => void;
   onDelete: (index: number) => void;
   infraData?: InfraData;
   workTypeId: number;
@@ -43,7 +43,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
 
   const handleAddWorkLocation = () => {
     // Always create a new empty work location form directly
-    const newWorkLocation: workLocation = {
+    const newWorkLocation: WorkLocation = {
       InfraId: '',
       DetailedScope: '',
       TargetUnitId: workTypeId,
@@ -70,7 +70,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
   const handleInfraSelect = (infraId: string, _infraName: string, _infraType: string) => {
     if (isAddingNew) {
       // Create new work location
-      const newWorkLocation: workLocation = {
+      const newWorkLocation: WorkLocation = {
         InfraId: infraId,
         DetailedScope: '',
         TargetUnitId: workTypeId,
@@ -98,7 +98,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
     setIsAddingNew(false);
   };
 
-  const handleFieldChange = (index: number, field: keyof workLocation, value: any) => {
+  const handleFieldChange = (index: number, field: keyof WorkLocation, value: any) => {
     const updatedWorkLocation = { ...workLocations[index], [field]: value };
     onEdit(index, updatedWorkLocation);
   };
@@ -149,7 +149,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
   };
 
   // Render individual form fields based on field type and infrastructure type
-  const renderFormField = (location: workLocation, index: number, fieldName: string) => {
+  const renderFormField = (location: WorkLocation, index: number, fieldName: string) => {
     switch (fieldName) {
       case 'InfraId':
         const canSelectInfra = shouldUseInfraDialog();

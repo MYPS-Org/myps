@@ -9,7 +9,7 @@ import type {
   ComponentCost, 
   InfraData, 
   ScopeOfWorkEnum,
-  workLocation
+  WorkLocation
 } from '../Model';
 
 interface MajorItemOfWorksFormProps {
@@ -111,7 +111,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
         TargetUnit: getTargetUnitName(majorItemData.WorkTypeId),
         CreatedBy: '',
         DropdownData: dropDowns?.filter(x => x.InfraType === majorItemData.InfraType) || [],
-        workLocations: [] // Initialize empty work locations array
+        WorkLocations: [] // Initialize empty work locations array
       };
       
       // Use the parent's onAdd method first, then update the last item
@@ -168,31 +168,31 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
   };
 
   // Work Location handlers
-  const handleAddWorkLocation = (majorItemIndex: number, workLocation: workLocation) => {
+  const handleAddWorkLocation = (majorItemIndex: number, workLocation: WorkLocation) => {
     const updatedItem = {
       ...majorItems[majorItemIndex],
-      workLocations: [...(majorItems[majorItemIndex].workLocations || []), workLocation]
+      workLocations: [...(majorItems[majorItemIndex].WorkLocations || []), workLocation]
     };
     onEdit(majorItemIndex, updatedItem);
   };
 
-  const handleEditWorkLocation = (majorItemIndex: number, workLocationIndex: number, workLocation: workLocation) => {
-    const updatedWorkLocations = [...(majorItems[majorItemIndex].workLocations || [])];
+  const handleEditWorkLocation = (majorItemIndex: number, workLocationIndex: number, workLocation: WorkLocation) => {
+    const updatedWorkLocations = [...(majorItems[majorItemIndex].WorkLocations || [])];
     updatedWorkLocations[workLocationIndex] = workLocation;
-    
+
     const updatedItem = {
       ...majorItems[majorItemIndex],
-      workLocations: updatedWorkLocations
+      WorkLocations: updatedWorkLocations
     };
     onEdit(majorItemIndex, updatedItem);
   };
 
-  const handleDeleteWorkLocation = (majorItemIndex: number, workLocationIndex: number) => {
-    const updatedWorkLocations = (majorItems[majorItemIndex].workLocations || []).filter((_, i) => i !== workLocationIndex);
+  const handleDeleteWorkLocation = (majorItemIndex: number, WorkLocationIndex: number) => {
+    const updatedWorkLocations = (majorItems[majorItemIndex].WorkLocations || []).filter((_, i) => i !== WorkLocationIndex);
     
     const updatedItem = {
       ...majorItems[majorItemIndex],
-      workLocations: updatedWorkLocations
+      WorkLocations: updatedWorkLocations
     };
     onEdit(majorItemIndex, updatedItem);
   };
@@ -266,7 +266,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                   </TableCell>
                   <TableCell>
                     <div className="text-sm text-gray-600">
-                      {(item.workLocations?.length || 0)} location(s)
+                      {(item.WorkLocations?.length || 0)} location(s)
                     </div>
                   </TableCell>
                   <TableCell>
@@ -294,7 +294,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                   <TableRow className="bg-gray-50">
                     <TableCell colSpan={8} className="p-4">
                       <WorkLocationTable
-                        workLocations={item.workLocations || []}
+                        workLocations={item.WorkLocations || []}
                         onAdd={(workLocation) => handleAddWorkLocation(index, workLocation)}
                         onEdit={(workLocationIndex, workLocation) => 
                           handleEditWorkLocation(index, workLocationIndex, workLocation)
