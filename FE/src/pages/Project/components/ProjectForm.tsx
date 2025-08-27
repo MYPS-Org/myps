@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formValidation, type FormValidationError } from '../../../utils/FormValidation';
 import { projectDetailsRules } from '../rules/projectDetailsRules';
+import { Toaster } from '../../../components/toaster/toaster';
 import type { 
   ProjectDetails, 
   ComponentCost, 
@@ -46,6 +47,12 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [updateSuccess, setUpdateSuccess] = useState<boolean>(false);
   const [errors, setErrors] = useState<FormValidationError<ProjectDetails>>({});
+  //toaster here
+  const [toast, setToast] = useState<{
+    open: boolean;
+    message: string;
+    type: "success" | "error" | "info" | "warning";
+  }>({ open: false, message: "", type: "success" });
 
   // toggle state for Program Details section
   const [isProgramOpen, setIsProgramOpen] = useState<boolean>(true);
@@ -301,6 +308,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
     const newItem: MajorItemOfWorksWithDropdown = {
       Id: 0, // Temporary ID
       ProjectId: '',
+      ReferenceId: '', // Temporary ReferenceId
       ComponentId: '',
       YearOfWork: 0,
       WorkTypeId: 0,
@@ -415,8 +423,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
 
   const handleUpdateProject = async () => {
     // Clear previous error/success states
-    setUpdateError(null);
-    setUpdateSuccess(false);
     
     // Validate form before updating
     const validationErrors = formValidation(projectDetails, projectDetailsRules);
@@ -458,19 +464,12 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
           ComponentId: cost.ComponentId || '',
           Description: cost.Description || '',
           Total: cost.Total || 0,
-          CreatedBy: cost.CreatedBy || 'SYSTEM',
-          CreatedDate: cost.CreatedDate || new Date().toISOString(),
-          UpdatedBy: cost.UpdatedBy || 'SYSTEM',
-          UpdatedDate: cost.UpdatedDate || new Date().toISOString()
         })),
         ComponentCostYear: componentCostsYear.map(year => ({
           Id: year.Id,
           ParentId: year.ParentId,
           CostYear: year.CostYear,
           Cost: year.Cost,
-          // Add missing required fields for ComponentCostYear
-          ApprovalDate: year.ApprovalDate || new Date().toISOString(),
-          PAPCode: year.PAPCode || '',
           StartDate: year.StartDate || new Date().toISOString(),
           EndDate: year.EndDate || new Date().toISOString()
         })),
@@ -484,34 +483,23 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       
       const response = await updateEntireProject(payload);
       if (response.Data) {
-        console.log('Project updated successfully:', response.Data);
-        setUpdateSuccess(true);
-        setUpdateError(null);
-        
-        // Clear success message after 3 seconds
-        setTimeout(() => {
-          setUpdateSuccess(false);
-        }, 3000);
-        
-        // Optional: Reload the page to show updated data
-        // window.location.reload(); // Only if absolutely necessary
+        setToast({
+        open: true,
+        message: "Project updated successfully!",
+        type: "success",
+      });
       }
     } catch (error: any) {
-      console.error('Error updating project:', error);
-      
-      // Extract meaningful error message
-      let errorMessage = 'An unexpected error occurred while updating the project.';
-      
-      if (error?.response?.data?.Message) {
-        errorMessage = error.response.data.Message;
-      } else if (error?.message) {
-        errorMessage = error.message;
-      } else if (typeof error === 'string') {
-        errorMessage = error;
-      }
-      
-      setUpdateError(errorMessage);
-      setUpdateSuccess(false);
+      let errorMessage = "An unexpected error occurred while updating the project.";
+      if (error?.response?.data?.Message) errorMessage = error.response.data.Message;
+      else if (error?.message) errorMessage = error.message;
+      else if (typeof error === "string") errorMessage = error;
+
+      setToast({
+        open: true,
+        message: errorMessage,
+        type: "error",
+      });
       
       // Don't use alert() - use proper error state instead
       console.error('Update failed with error:', errorMessage);
@@ -521,7 +509,15 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
   };
 
   return (
+    
     <div className="max-w-10xl mx-auto p-6 space-y-6">
+      <Toaster
+        open={toast.open}
+        onClose={() => setToast({ ...toast, open: false })}
+        message={toast.message}
+        type={toast.type}
+        timeOut={3000}
+      />
         <div className='flex items-center justify-between mb-6'>
             {/* Breadcrumb */}
             {/* <nav className="flex items-center text-sm text-left text-gray-500">
@@ -546,34 +542,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
                     <Button color="orange" className='cursor-pointer' onClick={handleUpdateProject} disabled={updateAllProject}>
                       {updateAllProject ? 'Updating...' : 'Update Project'}
                     </Button>
-                    
-                    {/* Success Message */}
-                    {/* {updateSuccess && (
-                      <div className="flex items-center px-3 py-2 bg-green-100 text-green-800 rounded-md text-sm">
-                        <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
-                        Project updated successfully!
-                      </div>
-                    )} */}
-                    
-                    {/* Error Message */}
-                    {/* {updateError && (
-                      <div className="flex items-start px-3 py-2 bg-red-100 text-red-800 rounded-md text-sm max-w-sm">
-                        <svg className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                        </svg>
-                        <div>
-                          <strong>Update failed:</strong> {updateError}
-                          <button 
-                            onClick={() => setUpdateError(null)}
-                            className="ml-2 text-red-600 hover:text-red-800 underline"
-                          >
-                            Dismiss
-                          </button>
-                        </div>
-                      </div>
-                    )} */}
                   </>
                 )}
             </div>

@@ -10,7 +10,7 @@ import type {
   InfraData, 
   ScopeOfWorkEnum,
   WorkLocation
-} from '../Model';
+} from '../Model.d';
 
 interface MajorItemOfWorksFormProps {
   majorItems: MajorItemOfWorksWithDropdown[];
@@ -103,6 +103,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
       const newMajorItem: MajorItemOfWorksWithDropdown = {
         Id: 0, // Temporary ID
         ProjectId: '',
+        ReferenceId: '', // Temporary ReferenceId
         ComponentId: majorItemData.ComponentId,
         YearOfWork: majorItemData.YearOfWork,
         WorkTypeId: majorItemData.WorkTypeId,

@@ -16,6 +16,7 @@ export interface ProjectFormPayload {
   ComponentCosts: ComponentCost[];
   ComponentCostPerYear: ComponentCostYear[];
   MajorItemOfWorks: MajorItemOfWorksWithDropdown[];
+  WorkLocations: WorkLocation[];
   ProjectNotes: ProjectNote[];
   FundingProfile: FundingProfile[];
   Dropdowns: Dropdowns;
@@ -236,10 +237,10 @@ export interface ComponentCost {
 	ComponentId: string;
 	Description: string;
 	Total: number;
-	CreatedBy: string;
-	CreatedDate: string;
-	UpdatedBy: string;
-	UpdatedDate: string;
+	CreatedBy?: string;
+	CreatedDate?: string;
+	UpdatedBy?: string;
+	UpdatedDate?: string;
 }
 
 // Combined interface for UI (ComponentCost with its related ComponentCostYear)
@@ -252,8 +253,6 @@ export interface ComponentCostYear {
 	ParentId: string;
 	CostYear: number;
 	Cost: number;
-	ApprovalDate?: string;
-	PAPCode: string;
 	StartDate?: string;
 	EndDate?: string;
 }
@@ -264,6 +263,7 @@ export interface MajorItemOfWork {
 	Id: number;
 	ProjectId: string;
 	ComponentId: string;
+	ReferenceId: string;
 	YearOfWork: number;
 	WorkTypeId: number;
 	InfraType: string;
@@ -273,6 +273,8 @@ export interface MajorItemOfWork {
 	WorkLocations: WorkLocation[];
 }
 export interface WorkLocation {
+	Id: number;
+	ParentId: string;
 	InfraId: string;
 	DetailedScope: string;
 	TargetUnitId: number;

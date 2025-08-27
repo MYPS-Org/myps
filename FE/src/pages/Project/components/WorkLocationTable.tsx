@@ -3,7 +3,7 @@ import { Button } from '../../../components/tailwindui/button';
 import { PlusIcon, TrashIcon, PencilIcon } from '@heroicons/react/24/outline';
 import AddInfraDialog from '../dialogs/AddInfraDialog';
 import { mockInfraData } from '../dialogs/mockInfraData';
-import type { WorkLocation, InfraData } from '../Model';
+import type { WorkLocation, InfraData } from '../Model.d';
 
 interface WorkLocationTableProps {
   workLocations: WorkLocation[];
@@ -44,6 +44,8 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
   const handleAddWorkLocation = () => {
     // Always create a new empty work location form directly
     const newWorkLocation: WorkLocation = {
+      Id: 0, // Temporary ID
+      ParentId: '',
       InfraId: '',
       DetailedScope: '',
       TargetUnitId: workTypeId,
@@ -71,6 +73,8 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
     if (isAddingNew) {
       // Create new work location
       const newWorkLocation: WorkLocation = {
+        Id: 0, // Temporary ID
+        ParentId: '',
         InfraId: infraId,
         DetailedScope: '',
         TargetUnitId: workTypeId,
