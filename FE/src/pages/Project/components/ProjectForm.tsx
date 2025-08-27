@@ -43,6 +43,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
   const [savingSection, setSavingSection] = useState<string | null>(null);
   const [projectEnums, setProjectEnums] = useState<ProjectEnums | null>(null);
   const [updateAllProject, setUpdateAllProject] = useState<boolean>(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [updateSuccess, setUpdateSuccess] = useState<boolean>(false);
   const [errors, setErrors] = useState<FormValidationError<ProjectDetails>>({});
 
   // toggle state for Program Details section
@@ -412,6 +414,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
   };
 
   const handleUpdateProject = async () => {
+    // Clear previous error/success states
+    setUpdateError(null);
+    setUpdateSuccess(false);
+    
     // Validate form before updating
     const validationErrors = formValidation(projectDetails, projectDetailsRules);
     setErrors(validationErrors);
@@ -419,6 +425,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
     // If there are validation errors, don't proceed with update
     if (Object.keys(validationErrors).length > 0) {
       console.log('Validation errors found:', validationErrors);
+      setUpdateError('Please fix the validation errors before updating.');
       return;
     }
     
@@ -476,14 +483,38 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       console.log('Update payload:', payload);
       
       const response = await updateEntireProject(payload);
-      if( response.Data) {
+      if (response.Data) {
         console.log('Project updated successfully:', response.Data);
-        // Optionally navigate or show success message
-        // navigate(`/projects/Edit/${response.Data.ProjectId}`);
+        setUpdateSuccess(true);
+        setUpdateError(null);
+        
+        // Clear success message after 3 seconds
+        setTimeout(() => {
+          setUpdateSuccess(false);
+        }, 3000);
+        
+        // Optional: Reload the page to show updated data
+        // window.location.reload(); // Only if absolutely necessary
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating project:', error);
-      alert('Error updating project. Please try again.');
+      
+      // Extract meaningful error message
+      let errorMessage = 'An unexpected error occurred while updating the project.';
+      
+      if (error?.response?.data?.Message) {
+        errorMessage = error.response.data.Message;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      setUpdateError(errorMessage);
+      setUpdateSuccess(false);
+      
+      // Don't use alert() - use proper error state instead
+      console.error('Update failed with error:', errorMessage);
     } finally {
       setUpdateAllProject(false);
     }
@@ -511,9 +542,39 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
             </div>
             <div className="flex space-x-3">
                 {mode === 'edit' && (
-                  <Button color="orange" className='cursor-pointer' onClick={handleUpdateProject} disabled={updateAllProject}>
-                    {updateAllProject ? 'Updating...' : 'Update Project'}
-                  </Button>
+                  <>
+                    <Button color="orange" className='cursor-pointer' onClick={handleUpdateProject} disabled={updateAllProject}>
+                      {updateAllProject ? 'Updating...' : 'Update Project'}
+                    </Button>
+                    
+                    {/* Success Message */}
+                    {/* {updateSuccess && (
+                      <div className="flex items-center px-3 py-2 bg-green-100 text-green-800 rounded-md text-sm">
+                        <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        Project updated successfully!
+                      </div>
+                    )} */}
+                    
+                    {/* Error Message */}
+                    {/* {updateError && (
+                      <div className="flex items-start px-3 py-2 bg-red-100 text-red-800 rounded-md text-sm max-w-sm">
+                        <svg className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                        </svg>
+                        <div>
+                          <strong>Update failed:</strong> {updateError}
+                          <button 
+                            onClick={() => setUpdateError(null)}
+                            className="ml-2 text-red-600 hover:text-red-800 underline"
+                          >
+                            Dismiss
+                          </button>
+                        </div>
+                      </div>
+                    )} */}
+                  </>
                 )}
             </div>
         </div>
