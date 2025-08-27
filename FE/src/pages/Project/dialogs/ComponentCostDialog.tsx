@@ -44,8 +44,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     // Fields for ComponentCostYear
     ApprovalDate: '',
     PAPCode: '',
-    StartDate: new Date().toISOString(),
-    EndDate: new Date().toISOString(),
+    StartDate: '',
+    EndDate: '',
   });
 
   // Calculate remaining budget for validation
@@ -72,8 +72,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         // Initialize ComponentCostYear fields from the first year if available
         ApprovalDate: editingCost.CostPerYear?.[0]?.ApprovalDate || '',
         PAPCode: editingCost.CostPerYear?.[0]?.PAPCode || '',
-        StartDate: editingCost.CostPerYear?.[0]?.StartDate || new Date().toISOString(),
-        EndDate: editingCost.CostPerYear?.[0]?.EndDate || new Date().toISOString(),
+        StartDate: editingCost.CostPerYear?.[0]?.StartDate || '',
+        EndDate: editingCost.CostPerYear?.[0]?.EndDate || '',
       });
     } else if (mode === 'add') {
       // Reset form for new entry
@@ -93,8 +93,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         // Fields for ComponentCostYear
         ApprovalDate: '',
         PAPCode: '',
-        StartDate: new Date().toISOString(),
-        EndDate: new Date().toISOString(),
+        StartDate: '',
+        EndDate: '',
       });
     }
   }, [editingCost, mode, isOpen]);

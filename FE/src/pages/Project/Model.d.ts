@@ -254,8 +254,8 @@ export interface ComponentCostYear {
 	Cost: number;
 	ApprovalDate?: string;
 	PAPCode: string;
-	StartDate: string;
-	EndDate: string;
+	StartDate?: string;
+	EndDate?: string;
 }
 export interface MajorItemOfWorksWithDropdown extends MajorItemOfWork {
 	DropdownData: ScopeOfWorkEnum[];
