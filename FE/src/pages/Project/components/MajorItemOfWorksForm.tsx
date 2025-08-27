@@ -179,20 +179,20 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
   const handleEditWorkLocation = (majorItemIndex: number, workLocationIndex: number, workLocation: WorkLocation) => {
     const updatedWorkLocations = [...(majorItems[majorItemIndex].WorkLocations || [])];
     updatedWorkLocations[workLocationIndex] = workLocation;
-
+    
     const updatedItem = {
       ...majorItems[majorItemIndex],
-      WorkLocations: updatedWorkLocations
+      workLocations: updatedWorkLocations
     };
     onEdit(majorItemIndex, updatedItem);
   };
 
-  const handleDeleteWorkLocation = (majorItemIndex: number, WorkLocationIndex: number) => {
-    const updatedWorkLocations = (majorItems[majorItemIndex].WorkLocations || []).filter((_, i) => i !== WorkLocationIndex);
+  const handleDeleteWorkLocation = (majorItemIndex: number, workLocationIndex: number) => {
+    const updatedWorkLocations = (majorItems[majorItemIndex].WorkLocations || []).filter((_, i) => i !== workLocationIndex);
     
     const updatedItem = {
       ...majorItems[majorItemIndex],
-      WorkLocations: updatedWorkLocations
+      workLocations: updatedWorkLocations
     };
     onEdit(majorItemIndex, updatedItem);
   };

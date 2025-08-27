@@ -270,7 +270,7 @@ export interface MajorItemOfWork {
 	TargetUnitId: number;
 	TargetUnit: string;
 	CreatedBy: string;
-	WorkLocations: workLocation[];
+	WorkLocations: WorkLocation[];
 }
 export interface WorkLocation {
 	InfraId: string;

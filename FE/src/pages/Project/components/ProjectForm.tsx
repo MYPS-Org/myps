@@ -166,7 +166,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       // Ensure required fields exist
       TargetUnitId: item.TargetUnitId || 0,
       TargetUnit: item.TargetUnit || '',
-      WorkLocations: item.WorkLocations || [], // Initialize empty WorkLocations if not present
+      workLocations: item.WorkLocations || [], // Initialize empty workLocations if not present
       DropdownData: initialData?.Dropdowns?.ScopeOfWorks?.filter(scope => scope.InfraType === item.InfraType) || []
     }));
   });

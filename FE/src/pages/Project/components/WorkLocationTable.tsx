@@ -468,7 +468,6 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
           onAdd={handleInfraSelect}
           initialData={infraData}
           mode="add"
-          infraType={infraType}
         />
       )}
     </div>
