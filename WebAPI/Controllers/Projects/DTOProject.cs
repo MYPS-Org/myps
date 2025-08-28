@@ -36,6 +36,7 @@ namespace WebAPI.Controllers.Projects
         public List<ProjectComponentCostDTO> ComponentCosts { get; set; } = new List<ProjectComponentCostDTO>();
         public List<ProjectComponentCostYearDTO> ComponentCostYear { get; set; } = new List<ProjectComponentCostYearDTO>();
         public List<ProjectMajorWorkItemDTO> MajorItemOfWorks { get; set; } = new List<ProjectMajorWorkItemDTO>();
+        public List<ProjectMajorWorkLocationsDTO> MajorItemLocations { get; set; } = new List<ProjectMajorWorkLocationsDTO>();
         public List<ProjectNotes> ProjectNotes { get; set; } = new List<ProjectNotes>();
         public List<FundingProfileDTO> FundingProfile { get; set; } = new List<FundingProfileDTO>();
     }
@@ -68,10 +69,6 @@ namespace WebAPI.Controllers.Projects
         public int CostYear { get; set; }
         [Required]
         public Double Cost { get; set; }
-        public DateTime? ApprovalDate { get; set; }
-        [Required]
-        [MaxLength(100)]
-        public string PAPCode { get; set; } = string.Empty;
         [Required]
         public DateTime StartDate { get; set; }
         [Required]
@@ -82,37 +79,54 @@ namespace WebAPI.Controllers.Projects
         [Required]
         public int Id { get; set; }
         [Required]
+        [MaxLength(100)]
+        public string ProjectId { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(100)]
+        public string ReferenceId { get; set; } = string.Empty;
+        [Required]
         [MaxLength(50)]
         public string ComponentId { get; set; } = string.Empty;
-        [Required]
-        [MaxLength(255)]
-        public string DetailedScope { get; set; } = string.Empty;
         [Required]
         public int YearOfWork { get; set; }
         [Required]
         public int WorkTypeId { get; set; }
         [Required]
-        [MaxLength(100)]
-        public string InfraId { get; set; } = string.Empty;
-        [Required]
         [MaxLength(50)]
         public string InfraType { get; set; } = string.Empty;
+    }
+    public class ProjectMajorWorkLocationsDTO
+    {
+        [Required]
+        public int Id { get; set; }
+        [Required]
+        [MaxLength(100)]
+        public string ParentId { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(50)]
+        public string InfraId { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(100)]
+        public string DetailedScope { get; set; } = string.Empty;
         [Required]
         public int TargetUnitId { get; set; }
         [Required]
-        public Double StartX { get; set; }
+        [MaxLength(100)]
+        public string TargetUnit { get; set; } = string.Empty;
+        [MaxLength(100)]
+        public string? StartX { get; set; }
+        [MaxLength(100)]
+        public string? StartY { get; set; }
+        [MaxLength(100)]
+        public string? EndX { get; set; }
+        [MaxLength(100)]
+        public string? EndY { get; set; }
         [Required]
-        public Double StartY { get; set; }
-        [Required]
-        public Double EndX { get; set; }
-        [Required]
-        public Double EndY { get; set; }
-        [Required]
-        public Double TargetAmount { get; set; }
-        [Required]
-        public Double StartStationLimit { get; set; }
-        [Required]
-        public Double EndStationLimit { get; set; }
+        public int PhysicalTarget { get; set; }
+        [MaxLength(100)]
+        public string? StartStationLimit { get; set; }
+        [MaxLength(100)]
+        public string? EndStationLimit { get; set; }
     }
     public class AddNotesDTO : ProjectDetailsDTO
     {

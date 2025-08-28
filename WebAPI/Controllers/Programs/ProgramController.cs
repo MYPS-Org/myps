@@ -214,18 +214,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"User Group '{dto.UserGroup}' is not valid!", Title = "Invalid User Group" });
                 }
-                var param = new Dictionary<string, object>
-                {
-                    {"@Table", "tCountSequence"}
-                };
-                string uid = Sql.NormalQuery<string>(Appsetting.ConnectionString,
-                        "EXEC pGenerateUID @Table = @Table", param)
-                    .FirstOrDefault() ?? string.Empty;
-                if(string.Empty == uid)
-                {
-                    return new BadRequestObjectResult(new { Message = "Unable to generate Reference ID for the Program!", Title = "Please contact administrator" });
-                }
-                string ReferenceId = "PR" + uid ?? string.Empty;
+                string ReferenceId = "PR" + ("tCountSequence").GenerateCode();
                 DateTime currentDate = DateTime.UtcNow;
                 string UserId = _Session.UserId;
                 var newProgram = new DBHelper.Models.Table.Programs()

@@ -1,4 +1,5 @@
-﻿using DBHelper.Models.Extra;
+﻿using DBHelper.Data;
+using DBHelper.Models.Extra;
 using Microsoft.AspNetCore.Http;
 using OfficeOpenXml;
 using SixLabors.ImageSharp;
@@ -28,6 +29,15 @@ namespace Helpers
                 { "P",  new[] { "BP", "NEP", "HGAB", "GAA" } }
             };
             return stageGroups.FirstOrDefault(g => g.Value.Contains(StageName)).Key ?? "P";
+        }
+        public static string GenerateCode(this string TableName)
+        {
+            var uidList = new List<string>();
+            var param = new Dictionary<string, object> { { "@Table", TableName } };
+            return Sql.NormalQuery<string>(
+                Appsetting.ConnectionString,
+                "EXEC pGenerateUID @Table = @Table", param
+            ).FirstOrDefault() ?? string.Empty;
         }
         public static bool IsFileCorrupted(this FileUpload File)
         {

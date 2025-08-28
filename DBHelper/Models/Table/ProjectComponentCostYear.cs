@@ -19,10 +19,6 @@ namespace DBHelper.Models.Table
         public int CostYear { get; set; }
         [Required]
         public Double Cost { get; set; }
-        public DateTime? ApprovalDate { get; set; }
-        [Required]
-        [MaxLength(100)]
-        public string PAPCode { get; set; } = string.Empty;
         [Required]
         public DateTime StartDate { get; set; }
         [Required]

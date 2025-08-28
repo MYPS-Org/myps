@@ -18,37 +18,18 @@ namespace DBHelper.Models.Table
         [MaxLength(100)]
         public string ProjectId { get; set; } = string.Empty;
         [Required]
+        [MaxLength(100)]
+        public string ReferenceId { get; set; } = string.Empty;
+        [Required]
         [MaxLength(50)]
         public string ComponentId { get; set; } = string.Empty;
-        [Required]
-        [MaxLength(255)]
-        public string DetailedScope { get; set; } = string.Empty;
         [Required]
         public int YearOfWork { get; set; }
         [Required]
         public int WorkTypeId { get; set; }
         [Required]
-        [MaxLength(100)]
-        public string InfraId { get; set; } = string.Empty;
-        [Required]
         [MaxLength(50)]
         public string InfraType { get; set; } = string.Empty;
-        [Required]
-        public int TargetUnitId { get; set; }
-        [Required]
-        public Double StartX { get; set; }
-        [Required]
-        public Double StartY { get; set; }
-        [Required]
-        public Double EndX { get; set; }
-        [Required]
-        public Double EndY { get; set; }
-        [Required]
-        public Double TargetAmount { get; set; }
-        [Required]
-        public Double StartStationLimit { get; set; }
-        [Required]
-        public Double EndStationLimit { get; set; }
         [Required]
         [MaxLength(100)]
         public string CreatedBy { get; set; } = string.Empty;

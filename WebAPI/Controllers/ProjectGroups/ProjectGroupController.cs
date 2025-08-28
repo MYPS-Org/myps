@@ -109,19 +109,8 @@ namespace WebAPI.Controllers.ProjectGroup
                 {
                     return new BadRequestObjectResult(new { Message = "Project Group Name already exists!", Title = "Duplicate Name" });
                 }
-                var param = new Dictionary<string, object>
-                {
-                    {"@Table", "tCountSequence"}
-                };
-                string UID = Sql.NormalQuery<string>(Appsetting.ConnectionString,
-                        "EXEC pGenerateUID @Table = @Table", param)
-                    .FirstOrDefault() ?? string.Empty;
-                if (string.Empty == UID)
-                {
-                    return new BadRequestObjectResult(new { Message = "Unable to generate Reference ID for the Program!", Title = "Please contact administrator" });
-                }
-                string GroupId = $"PRG-{UID}";
-                var NewGroup = new DBHelper.Models.Table.ProjectGroups
+                string GroupId = $"PRG-{("tCountSequence").GenerateCode()}";
+                var NewGroup = new ProjectGroups
                 {
                     GroupId = GroupId,
                     Name = dto.Name,

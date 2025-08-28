@@ -7,9 +7,11 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Endpoints;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.EntityFrameworkCore.Scaffolding.Metadata;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
+using System.ComponentModel.DataAnnotations;
 using System.Data.SqlClient;
 using System.IO.Pipelines;
 using System.Reflection;
@@ -252,6 +254,7 @@ namespace WebAPI.Controllers.Projects
                     Thrust = dto.Thrust,
                     Origin = dto.Origin,
                     City = dto.City,
+                    Province = dto.Province,
                     LegislativeDistrict = dto.LegislativeDistrict,
                     OperatingUnit = dto.OperatingUnit!,
                     ImplementingOffice = dto.ImplementingOffice!,
@@ -304,38 +307,40 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
                 }
-                var Program = await _db.vPrograms.FirstOrDefaultAsync(x => x.ProgramId == Project.ProgramId);
+                var Program = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == Project.ProgramId);
                 if (Program == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Program not found for this project!", Title = "Program Not Found" });
                 }
-                var ComponentType = await _db.tProjectComponentEnum.ToListAsync();
-                var ComponentCost = await _db.tProjectComponentCost.Where(x => x.ProjectId == Project.ProjectId).ToListAsync();
-                var ComponentCostYear = await _db.tProjectComponentCostYear.Where(x => ComponentCost.Select(a => a.ReferenceId).Contains(x.ParentId)).ToListAsync();
-                var MajorItemOfWork = await _db.tProjectMajorWorkItem.Where(x => x.ProjectId == Project.ProjectId).ToListAsync();
-                var Notes = await _db.tProjectNotes.Where(x => x.ProjectId == Project.ProjectId).ToListAsync();
-                var Funding = await _db.tProjectFundingProfile.Where(x => x.ProjectId == Project.ProjectId).ToListAsync();
+                var ComponentType = await _db.tProjectComponentEnum.AsNoTracking().ToListAsync();
+                var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId).ToListAsync();
+                var ComponentCostYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentCost.Select(a => a.ReferenceId).Contains(x.ParentId)).ToListAsync();
+                var MajorItemOfWork = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId).ToListAsync();
+                HashSet<string> ItemParents = MajorItemOfWork.Select(x => x.ReferenceId).ToHashSet();
+                var MajorWorkLocation = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => ItemParents.Contains(x.ParentId)).ToListAsync();
+                var Notes = await _db.tProjectNotes.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId).ToListAsync();
+                var Funding = await _db.tProjectFundingProfile.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId).ToListAsync();
 
                 int CurrentYear = (int)DateTime.UtcNow.Year;
-                var Category = await _db.tProjectCategoryEnum.Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync();
-                var Thrust = await _db.tProjectThrustLists.OrderBy(x => x.ThrustDescription).ToListAsync();
-                var Origin = await _db.tProjectOriginEnum.OrderBy(x => x.Name).ToListAsync();
-                var Province = await _db.tProjectProvinceEnum.OrderBy(x => x.ProvinceName).ToListAsync();
-                var City = await _db.tProjectCityEnum.OrderBy(x => x.Name).ToListAsync();
-                var LD = await _db.tProjectLegislativeDistrictEnum.OrderBy(x => x.Name).ToListAsync();
-                var OperatingUnit = await _db.tProjectOperatingUnitEnum.OrderBy(x => x.OrgName).ToListAsync();
-                var IO = await _db.tProjectImplementingOfficeEnum.OrderBy(x => x.OrgName).ToListAsync();
-                var DEO = await _db.tProjectRODEOEnum.OrderBy(x => x.DeoName).ToListAsync();
-                var Feasib = await _db.tProjectLongFeasibilityEnum.OrderBy(x => x.Name).ToListAsync();
-                var Agency = await _db.tProjectAgencyLists.OrderBy(x => x.AgencyName).ToListAsync();
-                var ImplementationMode = await _db.tProjectImplementModeEnum.OrderBy(x => x.Name).ToListAsync();
-                var EmergencyMode = await _db.tProjectEmergencyModeEnum.OrderBy(x => x.Name).ToListAsync();
+                var Category = await _db.tProjectCategoryEnum.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync();
+                var Thrust = await _db.tProjectThrustLists.AsNoTracking().OrderBy(x => x.ThrustDescription).ToListAsync();
+                var Origin = await _db.tProjectOriginEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var Province = await _db.tProjectProvinceEnum.AsNoTracking().OrderBy(x => x.ProvinceName).ToListAsync();
+                var City = await _db.tProjectCityEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var LD = await _db.tProjectLegislativeDistrictEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var OperatingUnit = await _db.tProjectOperatingUnitEnum.AsNoTracking().OrderBy(x => x.OrgName).ToListAsync();
+                var IO = await _db.tProjectImplementingOfficeEnum.AsNoTracking().OrderBy(x => x.OrgName).ToListAsync();
+                var DEO = await _db.tProjectRODEOEnum.AsNoTracking().OrderBy(x => x.DeoName).ToListAsync();
+                var Feasib = await _db.tProjectLongFeasibilityEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var Agency = await _db.tProjectAgencyLists.AsNoTracking().OrderBy(x => x.AgencyName).ToListAsync();
+                var ImplementationMode = await _db.tProjectImplementModeEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var EmergencyMode = await _db.tProjectEmergencyModeEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
 
-                var Agreement = await _db.tOptionFundingAgreement.OrderBy(x => x.Name).ToListAsync();
-                var Source = await _db.tOptionFundingSource.OrderBy(x => x.Organization == "GOP" ? 0 : 1).ThenBy(x => x.Name).ToListAsync();
+                var Agreement = await _db.tOptionFundingAgreement.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var Source = await _db.tOptionFundingSource.AsNoTracking().OrderBy(x => x.Organization == "GOP" ? 0 : 1).ThenBy(x => x.Name).ToListAsync();
 
-                var ScopeOfWork = await _db.tProjectScopeOfWorkEnum.OrderBy(x => x.WorkCategory).ToListAsync();
-                var Transactions = await _db.tTransactionLog.Where(x => x.TransactionId == dto.ProjectId).ToListAsync();
+                var ScopeOfWork = await _db.tProjectScopeOfWorkEnum.AsNoTracking().OrderBy(x => x.WorkCategory).ToListAsync();
+                var Transactions = await _db.tTransactionLog.AsNoTracking().Where(x => x.TransactionId == dto.ProjectId).ToListAsync();
                 return Ok(new
                 {
                     ProgramDetails = Program,
@@ -343,6 +348,7 @@ namespace WebAPI.Controllers.Projects
                     ComponentCosts = ComponentCost,
                     ComponentCostPerYear = ComponentCostYear,
                     MajorItemOfWorks = MajorItemOfWork,
+                    MajorWorkLocations = MajorWorkLocation,
                     ProjectNotes = Notes,
                     FundingProfile = Funding,
                     TransactionLogs = Transactions,
@@ -395,7 +401,7 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
                 }
-                var Program = await _db.vProgramDetails.FirstOrDefaultAsync(x => x.ProgramId == Project.ProgramId);
+                var Program = await _db.vProgramDetails.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == Project.ProgramId);
                 if (Program == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Program not found for this project!", Title = "Program Not Found" });
@@ -419,12 +425,12 @@ namespace WebAPI.Controllers.Projects
                 }
                 if (Project.Category != dto.ProjectDetails?.Category)
                 {
-                    var Category = await _db.tProjectCategoryEnum.FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.Category);
+                    var Category = await _db.tProjectCategoryEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.Category);
                     if (Category == null)
                     {
                         return new BadRequestObjectResult(new { Message = $"Selected Category '{dto.ProjectDetails!.Category}' is not valid!", Title = "Invalid Category" });
                     }
-                    var OldCategory = await _db.tProjectCategoryEnum.FirstOrDefaultAsync(x => x.Enum == Project.Category);
+                    var OldCategory = await _db.tProjectCategoryEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == Project.Category);
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
@@ -441,12 +447,12 @@ namespace WebAPI.Controllers.Projects
                 }
                 if (Project.Thrust != dto.ProjectDetails?.Thrust)
                 {
-                    var Thrust = await _db.tProjectThrustLists.FirstOrDefaultAsync(x => x.PAPKey == dto.ProjectDetails!.Thrust);
+                    var Thrust = await _db.tProjectThrustLists.AsNoTracking().FirstOrDefaultAsync(x => x.PAPKey == dto.ProjectDetails!.Thrust);
                     if (Thrust == null)
                     {
                         return new BadRequestObjectResult(new { Message = $"Selected Thrust '{dto.ProjectDetails!.Thrust}' is not valid!", Title = "Invalid Thrust" });
                     }
-                    var OldThrust = await _db.tProjectThrustLists.FirstOrDefaultAsync(x => x.PAPKey == Project.Thrust);
+                    var OldThrust = await _db.tProjectThrustLists.AsNoTracking().FirstOrDefaultAsync(x => x.PAPKey == Project.Thrust);
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
@@ -463,12 +469,12 @@ namespace WebAPI.Controllers.Projects
                 }
                 if (Project.Origin != dto.ProjectDetails?.Origin)
                 {
-                    var Origin = await _db.tProjectOriginEnum.FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.Origin);
+                    var Origin = await _db.tProjectOriginEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.Origin);
                     if (Origin == null)
                     {
                         return new BadRequestObjectResult(new { Message = $"Selected Origin '{dto.ProjectDetails!.Origin}' is not valid!", Title = "Invalid Origin" });
                     }
-                    var OldOrigin = await _db.tProjectOriginEnum.FirstOrDefaultAsync(x => x.Enum == Project.Origin);
+                    var OldOrigin = await _db.tProjectOriginEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == Project.Origin);
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
@@ -485,12 +491,12 @@ namespace WebAPI.Controllers.Projects
                 }
                 if (Project.City != dto.ProjectDetails?.City)
                 {
-                    var City = await _db.tProjectCityEnum.FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.City);
+                    var City = await _db.tProjectCityEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.City);
                     if (City == null)
                     {
                         return new BadRequestObjectResult(new { Message = $"Selected City '{dto.ProjectDetails!.City}' is not valid!", Title = "Invalid City" });
                     }
-                    var OldCity = await _db.tProjectCityEnum.FirstOrDefaultAsync(x => x.Enum == Project.City);
+                    var OldCity = await _db.tProjectCityEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == Project.City);
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
@@ -505,14 +511,36 @@ namespace WebAPI.Controllers.Projects
                     });
                     Project.City = dto.ProjectDetails!.City;
                 }
+                if (Project.Province != dto.ProjectDetails?.Province)
+                {
+                    var Province = await _db.tProjectProvinceEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dto.ProjectDetails!.Province);
+                    if (Province == null)
+                    {
+                        return new BadRequestObjectResult(new { Message = $"Selected Province '{dto.ProjectDetails!.Province}' is not valid!", Title = "Invalid Province" });
+                    }
+                    var OldProvince = await _db.tProjectProvinceEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Id == Project.Province);
+                    hasUpdated = true;
+                    transactionLogs.Add(new TransactionLog
+                    {
+                        TransactionId = Project.ProjectId!,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tProjectRevisions",
+                        AffectedColumn = "Province",
+                        NewValue = Province.ProvinceName,
+                        OldValue = OldProvince?.ProvinceName ?? "",
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    });
+                    Project.Province = dto.ProjectDetails!.Province;
+                }
                 if (Project.LegislativeDistrict != dto.ProjectDetails?.LegislativeDistrict)
                 {
-                    var LD = await _db.tProjectLegislativeDistrictEnum.FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.LegislativeDistrict);
+                    var LD = await _db.tProjectLegislativeDistrictEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.LegislativeDistrict);
                     if (LD == null)
                     {
                         return new BadRequestObjectResult(new { Message = $"Selected Legislative District '{dto.ProjectDetails!.LegislativeDistrict}' is not valid!", Title = "Invalid Legislative District" });
                     }
-                    var OldLD = await _db.tProjectLegislativeDistrictEnum.FirstOrDefaultAsync(x => x.Enum == Project.LegislativeDistrict);
+                    var OldLD = await _db.tProjectLegislativeDistrictEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == Project.LegislativeDistrict);
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
@@ -529,12 +557,12 @@ namespace WebAPI.Controllers.Projects
                 }
                 if (Project.OperatingUnit != dto.ProjectDetails?.OperatingUnit)
                 {
-                    var OperatingUnit = await _db.tProjectOperatingUnitEnum.FirstOrDefaultAsync(x => x.ParticipantId == dto.ProjectDetails!.OperatingUnit);
+                    var OperatingUnit = await _db.tProjectOperatingUnitEnum.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == dto.ProjectDetails!.OperatingUnit);
                     if (OperatingUnit == null)
                     {
                         return new BadRequestObjectResult(new { Message = $"Selected Operating Unit '{dto.ProjectDetails!.OperatingUnit}' is not valid!", Title = "Invalid Operating Unit" });
                     }
-                    var OldOperatingUnit = await _db.tProjectOperatingUnitEnum.FirstOrDefaultAsync(x => x.ParticipantId == Project.OperatingUnit);
+                    var OldOperatingUnit = await _db.tProjectOperatingUnitEnum.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == Project.OperatingUnit);
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
@@ -551,12 +579,12 @@ namespace WebAPI.Controllers.Projects
                 }
                 if (Project.ImplementingOffice != dto.ProjectDetails?.ImplementingOffice)
                 {
-                    var IO = await _db.tProjectImplementingOfficeEnum.FirstOrDefaultAsync(x => x.ParticipantId == dto.ProjectDetails!.ImplementingOffice);
+                    var IO = await _db.tProjectImplementingOfficeEnum.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == dto.ProjectDetails!.ImplementingOffice);
                     if (IO == null)
                     {
                         return new BadRequestObjectResult(new { Message = $"Selected Implementing Office '{dto.ProjectDetails!.ImplementingOffice}' is not valid!", Title = "Invalid Implementing Office" });
                     }
-                    var OldIO = await _db.tProjectImplementingOfficeEnum.FirstOrDefaultAsync(x => x.ParticipantId == Project.ImplementingOffice);
+                    var OldIO = await _db.tProjectImplementingOfficeEnum.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == Project.ImplementingOffice);
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
@@ -573,12 +601,12 @@ namespace WebAPI.Controllers.Projects
                 }
                 if (Project.DEO != dto.ProjectDetails?.DEO)
                 {
-                    var SelectedDeo = await _db.tProjectRODEOEnum.FirstOrDefaultAsync(x => x.DeoCode == dto.ProjectDetails!.DEO);
+                    var SelectedDeo = await _db.tProjectRODEOEnum.AsNoTracking().FirstOrDefaultAsync(x => x.DeoCode == dto.ProjectDetails!.DEO);
                     if (SelectedDeo == null)
                     {
                         return new BadRequestObjectResult(new { Message = $"Selected DEO '{dto.ProjectDetails!.DEO}' is not valid!", Title = "Invalid DEO" });
                     }
-                    var OldDeo = await _db.tProjectRODEOEnum.FirstOrDefaultAsync(x => x.DeoCode == Project.DEO);
+                    var OldDeo = await _db.tProjectRODEOEnum.AsNoTracking().FirstOrDefaultAsync(x => x.DeoCode == Project.DEO);
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
@@ -611,12 +639,12 @@ namespace WebAPI.Controllers.Projects
                 }
                 if (Project.Agency != dto.ProjectDetails?.Agency)
                 {
-                    var Agency = await _db.tProjectAgencyLists.FirstOrDefaultAsync(x => x.Id == dto.ProjectDetails!.Agency);
+                    var Agency = await _db.tProjectAgencyLists.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dto.ProjectDetails!.Agency);
                     if (Agency == null)
                     {
                         return new BadRequestObjectResult(new { Message = $"Selected Agency '{dto.ProjectDetails!.Agency}' is not valid!", Title = "Invalid Agency" });
                     }
-                    var OldAgency = await _db.tProjectAgencyLists.FirstOrDefaultAsync(x => x.Id == Project.Agency);
+                    var OldAgency = await _db.tProjectAgencyLists.AsNoTracking().FirstOrDefaultAsync(x => x.Id == Project.Agency);
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
@@ -633,12 +661,12 @@ namespace WebAPI.Controllers.Projects
                 }
                 if (Project.ImplementationMode != dto.ProjectDetails?.ImplementationMode)
                 {
-                    var ImplementationMode = await _db.tProjectImplementModeEnum.FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.ImplementationMode);
+                    var ImplementationMode = await _db.tProjectImplementModeEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.ImplementationMode);
                     if (ImplementationMode == null)
                     {
                         return new BadRequestObjectResult(new { Message = $"Selected Implementation Mode '{dto.ProjectDetails!.ImplementationMode}' is not valid!", Title = "Invalid Implementation Mode" });
                     }
-                    var OldImplementationMode = await _db.tProjectImplementModeEnum.FirstOrDefaultAsync(x => x.Enum == Project.ImplementationMode);
+                    var OldImplementationMode = await _db.tProjectImplementModeEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == Project.ImplementationMode);
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
@@ -655,12 +683,12 @@ namespace WebAPI.Controllers.Projects
                 }
                 if (Project.EmergencyMode != dto.ProjectDetails?.EmergencyMode)
                 {
-                    var EmergencyMode = await _db.tProjectEmergencyModeEnum.FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.EmergencyMode);
+                    var EmergencyMode = await _db.tProjectEmergencyModeEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.EmergencyMode);
                     if (EmergencyMode == null)
                     {
                         return new BadRequestObjectResult(new { Message = $"Selected Emergency Mode '{dto.ProjectDetails!.EmergencyMode}' is not valid!", Title = "Invalid Emergency Mode" });
                     }
-                    var OldEmergencyMode = await _db.tProjectEmergencyModeEnum.FirstOrDefaultAsync(x => x.Enum == Project.EmergencyMode);
+                    var OldEmergencyMode = await _db.tProjectEmergencyModeEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == Project.EmergencyMode);
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
@@ -677,12 +705,12 @@ namespace WebAPI.Controllers.Projects
                 }
                 if (Project.Feasibility != dto.ProjectDetails?.Feasibility)
                 {
-                    var Feasib = await _db.tProjectLongFeasibilityEnum.FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.Feasibility);
+                    var Feasib = await _db.tProjectLongFeasibilityEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.Feasibility);
                     if (Feasib == null)
                     {
                         return new BadRequestObjectResult(new { Message = $"Selected Feasibility '{dto.ProjectDetails!.Feasibility}' is not valid!", Title = "Invalid Feasibility" });
                     }
-                    var OldFeasibility = await _db.tProjectLongFeasibilityEnum.FirstOrDefaultAsync(x => x.Enum == Project.Feasibility);
+                    var OldFeasibility = await _db.tProjectLongFeasibilityEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == Project.Feasibility);
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
@@ -699,12 +727,12 @@ namespace WebAPI.Controllers.Projects
                 }
                 if (Project.DetailedDesign != dto.ProjectDetails?.DetailedDesign)
                 {
-                    var DetailedDesign = await _db.tProjectEmergencyModeEnum.FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.DetailedDesign);
+                    var DetailedDesign = await _db.tProjectEmergencyModeEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.DetailedDesign);
                     if (DetailedDesign == null)
                     {
                         return new BadRequestObjectResult(new { Message = $"Selected Detailed Design '{dto.ProjectDetails!.DetailedDesign}' is not valid!", Title = "Invalid Detailed Design" });
                     }
-                    var OldDetailedDesign = await _db.tProjectEmergencyModeEnum.FirstOrDefaultAsync(x => x.Enum == Project.DetailedDesign);
+                    var OldDetailedDesign = await _db.tProjectEmergencyModeEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == Project.DetailedDesign);
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
@@ -721,12 +749,12 @@ namespace WebAPI.Controllers.Projects
                 }
                 if (Project.RowAvailable != dto.ProjectDetails?.RowAvailable)
                 {
-                    var RowAvailable = await _db.tProjectEmergencyModeEnum.FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.EmergencyMode);
+                    var RowAvailable = await _db.tProjectEmergencyModeEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.EmergencyMode);
                     if (RowAvailable == null)
                     {
                         return new BadRequestObjectResult(new { Message = $"Selected Row Available '{dto.ProjectDetails!.EmergencyMode}' is not valid!", Title = "Invalid Row Available" });
                     }
-                    var OldRowAvailable = await _db.tProjectEmergencyModeEnum.FirstOrDefaultAsync(x => x.Enum == Project.RowAvailable);
+                    var OldRowAvailable = await _db.tProjectEmergencyModeEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == Project.RowAvailable);
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
@@ -743,7 +771,7 @@ namespace WebAPI.Controllers.Projects
                 }
                 if (hasUpdated)
                 {
-                    var LatestRevision = await _db.tProjectRevisions
+                    var LatestRevision = await _db.tProjectRevisions.AsNoTracking()
                         .Where(x => x.ProjectId == Project.ProjectId)
                         .OrderByDescending(x => x.RevisionNumber)
                         .FirstOrDefaultAsync();
@@ -834,22 +862,10 @@ namespace WebAPI.Controllers.Projects
                     if (NewComponentCost.Count > 0)
                     {
                         HasCostUpdate = true;
-                        var uidList = new List<string>();
-                        var param = new Dictionary<string, object> { { "@Table", "tCountSequence" } };
-
-                        foreach (var _ in NewComponentCostData)
-                        {
-                            var uid = Sql.NormalQuery<string>(
-                                Appsetting.ConnectionString,
-                                "EXEC pGenerateUID @Table = @Table", param
-                            ).FirstOrDefault() ?? string.Empty;
-
-                            uidList.Add(uid);
-                        }
                         var NewCostToAdd = NewComponentCostData.Select((item, index) => new ProjectComponentCost
                         {
                             ProjectId = Project.ProjectId!,
-                            ReferenceId = Project.ProjectId + "-" + uidList[index],
+                            ReferenceId = Project.ProjectId + "-" + ("tCountComponentCost").GenerateCode(),
                             ComponentId = item.ComponentId,
                             ComponentType = item.ComponentType,
                             Description = item.Description,
@@ -874,8 +890,6 @@ namespace WebAPI.Controllers.Projects
                                     ParentId = matchingDto.ReferenceId,
                                     CostYear = year.CostYear,
                                     Cost = year.Cost,
-                                    ApprovalDate = year.ApprovalDate,
-                                    PAPCode = year.PAPCode,
                                     StartDate = year.StartDate,
                                     EndDate = year.EndDate
                                 });
@@ -983,38 +997,6 @@ namespace WebAPI.Controllers.Projects
                                         });
                                         yearItem.Cost = SelectedYear.Cost;
                                     }
-                                    if (yearItem.ApprovalDate != SelectedYear.ApprovalDate)
-                                    {
-                                        hasYearUpdate = true;
-                                        transactionLogs.Add(new TransactionLog
-                                        {
-                                            TransactionId = Project.ProjectId!,
-                                            TypeOfTransaction = "Update",
-                                            AffectedTable = "tProjectComponentCostYear",
-                                            AffectedColumn = "ApprovalDate",
-                                            NewValue = SelectedYear.ApprovalDate?.ToString("MM/dd/yyyy mm:ss t") ?? "",
-                                            OldValue = yearItem.ApprovalDate?.ToString("MM/dd/yyyy mm:ss t") ?? "",
-                                            CreatedBy = _Session.UserId,
-                                            CreatedDate = CurrentDate
-                                        });
-                                        yearItem.ApprovalDate = SelectedYear.ApprovalDate;
-                                    }
-                                    if (yearItem.PAPCode != SelectedYear.PAPCode)
-                                    {
-                                        hasYearUpdate = true;
-                                        transactionLogs.Add(new TransactionLog
-                                        {
-                                            TransactionId = Project.ProjectId!,
-                                            TypeOfTransaction = "Update",
-                                            AffectedTable = "tProjectComponentCostYear",
-                                            AffectedColumn = "PAPCode",
-                                            NewValue = SelectedYear.PAPCode ?? "",
-                                            OldValue = yearItem.PAPCode ?? "",
-                                            CreatedBy = _Session.UserId,
-                                            CreatedDate = CurrentDate
-                                        });
-                                        yearItem.PAPCode = SelectedYear.PAPCode ?? "";
-                                    }
                                     if (yearItem.StartDate != SelectedYear.StartDate)
                                     {
                                         hasYearUpdate = true;
@@ -1066,22 +1048,10 @@ namespace WebAPI.Controllers.Projects
                 else if (dto.ComponentCosts.Count > 0)
                 {
                     HasCostUpdate = true;
-                    var uidList = new List<string>();
-                    var param = new Dictionary<string, object> { { "@Table", "tCountSequence" } };
-
-                    foreach (var _ in dto.ComponentCosts)
-                    {
-                        var uid = Sql.NormalQuery<string>(
-                            Appsetting.ConnectionString,
-                            "EXEC pGenerateUID @Table = @Table", param
-                        ).FirstOrDefault() ?? string.Empty;
-
-                        uidList.Add(uid);
-                    }
                     var NewCostToAdd = dto.ComponentCosts.Select((item, index) => new ProjectComponentCost
                     {
                         ProjectId = Project.ProjectId!,
-                        ReferenceId = Project.ProjectId + "-" + uidList[index],
+                        ReferenceId = Project.ProjectId + "-" + ("tCountComponentCost").GenerateCode(),
                         ComponentId = item.ComponentId,
                         ComponentType = item.ComponentType,
                         Description = item.Description,
@@ -1106,8 +1076,6 @@ namespace WebAPI.Controllers.Projects
                                 ParentId = matchingDto.ReferenceId,
                                 CostYear = year.CostYear,
                                 Cost = year.Cost,
-                                ApprovalDate = year.ApprovalDate,
-                                PAPCode = year.PAPCode,
                                 StartDate = year.StartDate,
                                 EndDate = year.EndDate
                             });
@@ -1146,6 +1114,8 @@ namespace WebAPI.Controllers.Projects
                     var UpdateMajorItems = dto.MajorItemOfWorks.Where(x => currentMajorItemIds.Contains(x.Id)).ToList();
                     if (UpdateMajorItems.Count > 0)
                     {
+                        var UpdatedWorkItemIds = UpdateMajorItems.Select(x => x.ReferenceId).ToHashSet();
+                        var UpdatedWorkLocations = dto.MajorItemLocations.Where(x => UpdatedWorkItemIds.Contains(x.ParentId)).ToHashSet();
                         foreach (var item in UpdateMajorItems)
                         {
                             var ExistingItem = MajorItemOfWorks.FirstOrDefault(x => x.Id == item.Id);
@@ -1168,22 +1138,6 @@ namespace WebAPI.Controllers.Projects
                                     });
                                     ExistingItem.ComponentId = item.ComponentId;
                                 }
-                                if (ExistingItem.DetailedScope != item.DetailedScope)
-                                {
-                                    hasUpdate = true;
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        TransactionId = Project.ProjectId!,
-                                        TypeOfTransaction = "Update",
-                                        AffectedTable = "tProjectMajorItemOfWorks",
-                                        AffectedColumn = "DetailedScope",
-                                        NewValue = item.DetailedScope,
-                                        OldValue = ExistingItem.DetailedScope,
-                                        CreatedBy = _Session.UserId,
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.DetailedScope = item.DetailedScope;
-                                }
                                 if (ExistingItem.YearOfWork != item.YearOfWork)
                                 {
                                     hasUpdate = true;
@@ -1200,6 +1154,7 @@ namespace WebAPI.Controllers.Projects
                                     });
                                     ExistingItem.YearOfWork = item.YearOfWork;
                                 }
+                                var WorkType = new ProjectScopeOfWorkEnum();
                                 if (ExistingItem.WorkTypeId != item.WorkTypeId)
                                 {
                                     hasUpdate = true;
@@ -1221,150 +1176,6 @@ namespace WebAPI.Controllers.Projects
                                     });
                                     ExistingItem.WorkTypeId = item.WorkTypeId;
                                 }
-                                if (ExistingItem.InfraId != item.InfraId)
-                                {
-                                    hasUpdate = true;
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        TransactionId = Project.ProjectId!,
-                                        TypeOfTransaction = "Update",
-                                        AffectedTable = "tProjectMajorItemOfWorks",
-                                        AffectedColumn = "InfraId",
-                                        NewValue = item.InfraId,
-                                        OldValue = ExistingItem.InfraId,
-                                        CreatedBy = _Session.UserId,
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.InfraId = item.InfraId;
-                                }
-                                if (ExistingItem.TargetUnitId != item.TargetUnitId)
-                                {
-                                    hasUpdate = true;
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        TransactionId = Project.ProjectId!,
-                                        TypeOfTransaction = "Update",
-                                        AffectedTable = "tProjectMajorItemOfWorks",
-                                        AffectedColumn = "TargetUnitId",
-                                        NewValue = item.TargetUnitId.ToString(),
-                                        OldValue = ExistingItem.TargetUnitId.ToString(),
-                                        CreatedBy = _Session.UserId,
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.TargetUnitId = item.TargetUnitId;
-                                }
-                                if (ExistingItem.StartX != item.StartX)
-                                {
-                                    hasUpdate = true;
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        TransactionId = Project.ProjectId!,
-                                        TypeOfTransaction = "Update",
-                                        AffectedTable = "tProjectMajorItemOfWorks",
-                                        AffectedColumn = "StartX",
-                                        NewValue = item.StartX.ToString(),
-                                        OldValue = ExistingItem.StartX.ToString(),
-                                        CreatedBy = _Session.UserId,
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.StartX = item.StartX;
-                                }
-                                if (ExistingItem.StartY != item.StartY)
-                                {
-                                    hasUpdate = true;
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        TransactionId = Project.ProjectId!,
-                                        TypeOfTransaction = "Update",
-                                        AffectedTable = "tProjectMajorItemOfWorks",
-                                        AffectedColumn = "StartY",
-                                        NewValue = item.StartY.ToString(),
-                                        OldValue = ExistingItem.StartY.ToString(),
-                                        CreatedBy = _Session.UserId,
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.StartY = item.StartY;
-                                }
-                                if (ExistingItem.EndX != item.EndX)
-                                {
-                                    hasUpdate = true;
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        TransactionId = Project.ProjectId!,
-                                        TypeOfTransaction = "Update",
-                                        AffectedTable = "tProjectMajorItemOfWorks",
-                                        AffectedColumn = "EndX",
-                                        NewValue = item.EndX.ToString(),
-                                        OldValue = ExistingItem.EndX.ToString(),
-                                        CreatedBy = _Session.UserId,
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.EndX = item.EndX;
-                                }
-                                if (ExistingItem.EndY != item.EndY)
-                                {
-                                    hasUpdate = true;
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        TransactionId = Project.ProjectId!,
-                                        TypeOfTransaction = "Update",
-                                        AffectedTable = "tProjectMajorItemOfWorks",
-                                        AffectedColumn = "EndY",
-                                        NewValue = item.EndY.ToString(),
-                                        OldValue = ExistingItem.EndY.ToString(),
-                                        CreatedBy = _Session.UserId,
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.EndY = item.EndY;
-                                }
-                                if (ExistingItem.TargetAmount != item.TargetAmount)
-                                {
-                                    hasUpdate = true;
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        TransactionId = Project.ProjectId!,
-                                        TypeOfTransaction = "Update",
-                                        AffectedTable = "tProjectMajorItemOfWorks",
-                                        AffectedColumn = "TargetAmount",
-                                        NewValue = item.TargetAmount.ToString(),
-                                        OldValue = ExistingItem.TargetAmount.ToString(),
-                                        CreatedBy = _Session.UserId,
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.TargetAmount = item.TargetAmount;
-                                }
-                                if (ExistingItem.StartStationLimit != item.StartStationLimit)
-                                {
-                                    hasUpdate = true;
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        TransactionId = Project.ProjectId!,
-                                        TypeOfTransaction = "Update",
-                                        AffectedTable = "tProjectMajorItemOfWorks",
-                                        AffectedColumn = "StartStationLimit",
-                                        NewValue = item.StartStationLimit.ToString(),
-                                        OldValue = ExistingItem.StartStationLimit.ToString(),
-                                        CreatedBy = _Session.UserId,
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.StartStationLimit = item.StartStationLimit;
-                                }
-                                if (ExistingItem.EndStationLimit != item.EndStationLimit)
-                                {
-                                    hasUpdate = true;
-                                    transactionLogs.Add(new TransactionLog
-                                    {
-                                        TransactionId = Project.ProjectId!,
-                                        TypeOfTransaction = "Update",
-                                        AffectedTable = "tProjectMajorItemOfWorks",
-                                        AffectedColumn = "EndStationLimit",
-                                        NewValue = item.EndStationLimit.ToString(),
-                                        OldValue = ExistingItem.EndStationLimit.ToString(),
-                                        CreatedBy = _Session.UserId,
-                                        CreatedDate = CurrentDate
-                                    });
-                                    ExistingItem.EndStationLimit = item.EndStationLimit;
-                                }
                                 if (hasUpdate)
                                 {
                                     ExistingItem.UpdatedBy = _Session.UserId;
@@ -1373,29 +1184,291 @@ namespace WebAPI.Controllers.Projects
                                 }
                             }
                         }
+                        #region Update Locations for Updated Major Items
+                        var CurrentLocations = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => UpdatedWorkItemIds.Contains(x.ParentId)).ToListAsync();
+                        var CurrentLocationIds = CurrentLocations.Select(x => x.Id).ToHashSet();
+                        var IncomingLocationIds = UpdatedWorkLocations.Where(x => x.Id != 0).Select(x => x.Id).ToHashSet();
+                        var DeletedLocations = CurrentLocations.Where(x => !IncomingLocationIds.Contains(x.Id)).ToList();
+                        if (DeletedLocations.Count > 0)
+                        {
+                            _db.tProjectMajorWorkLocations.RemoveRange(DeletedLocations);
+                            transactionLogs.AddRange(DeletedLocations.Select(item => new TransactionLog
+                            {
+                                TransactionId = Project.ProjectId!,
+                                TypeOfTransaction = "Delete",
+                                AffectedTable = "tProjectMajorWorkLocations",
+                                AffectedColumn = "Row",
+                                NewValue = "",
+                                OldValue = JsonConvert.SerializeObject(item),
+                                CreatedBy = _Session.UserId,
+                                CreatedDate = CurrentDate
+                            }));
+                        }
+                        var UpdateLocations = UpdatedWorkLocations.Where(x => CurrentLocationIds.Contains(x.Id)).ToList();
+                        if (UpdateLocations.Count > 0)
+                        {
+                            foreach (var loc in UpdateLocations)
+                            {
+                                var ExistingLoc = CurrentLocations.FirstOrDefault(x => x.Id == loc.Id);
+                                if (ExistingLoc != null)
+                                {
+                                    bool hasLocUpdate = false;
+                                    if (ExistingLoc.InfraId != loc.InfraId)
+                                    {
+                                        hasLocUpdate = true;
+                                        //itutuloy pa
+                                        var Infra = await _db.tInfraType.FirstOrDefaultAsync(x => x.InfraCode == loc.InfraId);
+                                        if (Infra == null)
+                                        {
+                                            return new BadRequestObjectResult(new { Message = $"Selected Infrastructure Type '{loc.InfraId}' is not valid!", Title = "Invalid Infrastructure Type" });
+                                        }
+                                        transactionLogs.Add(new TransactionLog
+                                        {
+                                            TransactionId = Project.ProjectId!,
+                                            TypeOfTransaction = "Update",
+                                            AffectedTable = "tProjectMajorWorkLocations",
+                                            AffectedColumn = "InfraId",
+                                            NewValue = Infra.InfraCode,
+                                            OldValue = ExistingLoc.InfraId.ToString(),
+                                            CreatedBy = _Session.UserId,
+                                            CreatedDate = CurrentDate
+                                        });
+                                        ExistingLoc.InfraId = loc.InfraId;
+                                    }
+                                    if (ExistingLoc.DetailedScope != loc.DetailedScope)
+                                    {
+                                        hasLocUpdate = true;
+                                        transactionLogs.Add(new TransactionLog
+                                        {
+                                            TransactionId = Project.ProjectId!,
+                                            TypeOfTransaction = "Update",
+                                            AffectedTable = "tProjectMajorWorkLocations",
+                                            AffectedColumn = "DetailedScope",
+                                            NewValue = loc.DetailedScope ?? "",
+                                            OldValue = ExistingLoc.DetailedScope ?? "",
+                                            CreatedBy = _Session.UserId,
+                                            CreatedDate = CurrentDate
+                                        });
+                                        ExistingLoc.DetailedScope = loc.DetailedScope;
+                                    }
+                                    if (ExistingLoc.TargetUnit != loc.TargetUnit)
+                                    {
+                                        hasLocUpdate = true;
+                                        transactionLogs.Add(new TransactionLog
+                                        {
+                                            TransactionId = Project.ProjectId!,
+                                            TypeOfTransaction = "Update",
+                                            AffectedTable = "tProjectMajorWorkLocations",
+                                            AffectedColumn = "TargetUnit",
+                                            NewValue = loc.TargetUnit ?? "",
+                                            OldValue = ExistingLoc.TargetUnit ?? "",
+                                            CreatedBy = _Session.UserId,
+                                            CreatedDate = CurrentDate
+                                        });
+                                        ExistingLoc.TargetUnit = loc.TargetUnit;
+                                    }
+                                    if (ExistingLoc.TargetUnitId != loc.TargetUnitId)
+                                    {
+                                        hasLocUpdate = true;
+                                        transactionLogs.Add(new TransactionLog
+                                        {
+                                            TransactionId = Project.ProjectId!,
+                                            TypeOfTransaction = "Update",
+                                            AffectedTable = "tProjectMajorWorkLocations",
+                                            AffectedColumn = "TargetUnitId",
+                                            NewValue = loc.TargetUnitId.ToString(),
+                                            OldValue = ExistingLoc.TargetUnitId.ToString(),
+                                            CreatedBy = _Session.UserId,
+                                            CreatedDate = CurrentDate
+                                        });
+                                        ExistingLoc.TargetUnitId = loc.TargetUnitId;
+                                    }
+                                    if (ExistingLoc.StartX != loc.StartX)
+                                    {
+                                        hasLocUpdate = true;
+                                        transactionLogs.Add(new TransactionLog
+                                        {
+                                            TransactionId = Project.ProjectId!,
+                                            TypeOfTransaction = "Update",
+                                            AffectedTable = "tProjectMajorWorkLocations",
+                                            AffectedColumn = "StartX",
+                                            NewValue = loc.StartX ?? "",
+                                            OldValue = ExistingLoc.StartX ?? "",
+                                            CreatedBy = _Session.UserId,
+                                            CreatedDate = CurrentDate
+                                        });
+                                        ExistingLoc.StartX = loc.StartX;
+                                    }
+                                    if (ExistingLoc.StartY != loc.StartY)
+                                    {
+                                        hasLocUpdate = true;
+                                        transactionLogs.Add(new TransactionLog
+                                        {
+                                            TransactionId = Project.ProjectId!,
+                                            TypeOfTransaction = "Update",
+                                            AffectedTable = "tProjectMajorWorkLocations",
+                                            AffectedColumn = "StartY",
+                                            NewValue = loc.StartY ?? "",
+                                            OldValue = ExistingLoc.StartY ?? "",
+                                            CreatedBy = _Session.UserId,
+                                            CreatedDate = CurrentDate
+                                        });
+                                        ExistingLoc.StartY = loc.StartY;
+                                    }
+                                    if (ExistingLoc.EndX != loc.EndX)
+                                    {
+                                        hasLocUpdate = true;
+                                        transactionLogs.Add(new TransactionLog
+                                        {
+                                            TransactionId = Project.ProjectId!,
+                                            TypeOfTransaction = "Update",
+                                            AffectedTable = "tProjectMajorWorkLocations",
+                                            AffectedColumn = "EndX",
+                                            NewValue = loc.EndX ?? "",
+                                            OldValue = ExistingLoc.EndX ?? "",
+                                            CreatedBy = _Session.UserId,
+                                            CreatedDate = CurrentDate
+                                        });
+                                        ExistingLoc.EndX = loc.EndX;
+                                    }
+                                    if (ExistingLoc.EndY != loc.EndY)
+                                    {
+                                        hasLocUpdate = true;
+                                        transactionLogs.Add(new TransactionLog
+                                        {
+                                            TransactionId = Project.ProjectId!,
+                                            TypeOfTransaction = "Update",
+                                            AffectedTable = "tProjectMajorWorkLocations",
+                                            AffectedColumn = "EndY",
+                                            NewValue = loc.EndY ?? "",
+                                            OldValue = ExistingLoc.EndY ?? "",
+                                            CreatedBy = _Session.UserId,
+                                            CreatedDate = CurrentDate
+                                        });
+                                        ExistingLoc.EndY = loc.EndY;
+                                    }
+                                    if (ExistingLoc.PhysicalTarget != loc.PhysicalTarget)
+                                    {
+                                        hasLocUpdate = true;
+                                        transactionLogs.Add(new TransactionLog
+                                        {
+                                            TransactionId = Project.ProjectId!,
+                                            TypeOfTransaction = "Update",
+                                            AffectedTable = "tProjectMajorWorkLocations",
+                                            AffectedColumn = "PhysicalTarget",
+                                            NewValue = loc.PhysicalTarget.ToString(),
+                                            OldValue = ExistingLoc.PhysicalTarget.ToString(),
+                                            CreatedBy = _Session.UserId,
+                                            CreatedDate = CurrentDate
+                                        });
+                                        ExistingLoc.PhysicalTarget = loc.PhysicalTarget;
+                                    }
+                                    if (ExistingLoc.StartStationLimit != loc.StartStationLimit)
+                                    {
+                                        hasLocUpdate = true;
+                                        transactionLogs.Add(new TransactionLog
+                                        {
+                                            TransactionId = Project.ProjectId!,
+                                            TypeOfTransaction = "Update",
+                                            AffectedTable = "tProjectMajorWorkLocations",
+                                            AffectedColumn = "StartStationLimit",
+                                            NewValue = loc.StartStationLimit ?? "",
+                                            OldValue = ExistingLoc.StartStationLimit ?? "",
+                                            CreatedBy = _Session.UserId,
+                                            CreatedDate = CurrentDate
+                                        });
+                                        ExistingLoc.StartStationLimit = loc.StartStationLimit;
+                                    }
+                                    if (ExistingLoc.EndStationLimit != loc.EndStationLimit)
+                                    {
+                                        hasLocUpdate = true;
+                                        transactionLogs.Add(new TransactionLog
+                                        {
+                                            TransactionId = Project.ProjectId!,
+                                            TypeOfTransaction = "Update",
+                                            AffectedTable = "tProjectMajorWorkLocations",
+                                            AffectedColumn = "EndStationLimit",
+                                            NewValue = loc.EndStationLimit ?? "",
+                                            OldValue = ExistingLoc.EndStationLimit ?? "",
+                                            CreatedBy = _Session.UserId,
+                                            CreatedDate = CurrentDate
+                                        });
+                                        ExistingLoc.EndStationLimit = loc.EndStationLimit;
+                                    }
+                                    if (hasLocUpdate)
+                                    {
+                                        ExistingLoc.UpdatedBy = _Session.UserId;
+                                        ExistingLoc.UpdatedDate = CurrentDate;
+                                        _db.tProjectMajorWorkLocations.Update(ExistingLoc);
+                                    }
+                                }
+                                #region New Locations for Updated Major Items
+                                var NewLocations = UpdatedWorkLocations.Where(x => x.Id == 0).Select(item => new ProjectMajorWorkLocations
+                                {
+                                    ParentId = item.ParentId,
+                                    InfraId = item.InfraId,
+                                    DetailedScope = item.DetailedScope,
+                                    TargetUnitId = item.TargetUnitId,
+                                    TargetUnit = item.TargetUnit,
+                                    StartX = item.StartX,
+                                    StartY = item.StartY,
+                                    EndX = item.EndX,
+                                    EndY = item.EndY,
+                                    PhysicalTarget = item.PhysicalTarget,
+                                    StartStationLimit = item.StartStationLimit,
+                                    EndStationLimit = item.EndStationLimit,
+                                    CreatedBy = _Session.UserId,
+                                    CreatedDate = CurrentDate
+                                }).ToList();
+                                #endregion
+                            }
+                        }
+                        #endregion
                     }
                     #endregion
-
                 }
                 #region New Major Item of Works
                 var newMajorItems = dto.MajorItemOfWorks.Where(x => x.Id == 0).ToList();
                 if (newMajorItems.Count > 0)
                 {
+                    var NewWorkItemIds = newMajorItems.Select(x => x.ReferenceId).ToHashSet();
+                    var NewWorkLocations = dto.MajorItemLocations.Where(x => NewWorkItemIds.Contains(x.ParentId)).ToHashSet();
+                    var locationLookup = NewWorkLocations
+                    .GroupBy(x => x.ParentId)
+                    .ToDictionary(g => g.Key, g => g.ToList());
+
+                    foreach (var location in newMajorItems)
+                    {
+                        string oldId = location.ReferenceId;
+                        location.ReferenceId = Project.ProjectId + "-" + ("tCountSequence").GenerateCode();
+                        if (locationLookup.TryGetValue(oldId, out var children))
+                        {
+                            children.ForEach(x => x.ParentId = location.ReferenceId);
+                        }
+                    }
                     await _db.tProjectMajorWorkItem.AddRangeAsync(newMajorItems.Select(item => new ProjectMajorWorkItem
                     {
                         ProjectId = Project.ProjectId!,
+                        ReferenceId = item.ReferenceId,
                         ComponentId = item.ComponentId,
-                        DetailedScope = item.DetailedScope,
                         YearOfWork = item.YearOfWork,
                         WorkTypeId = item.WorkTypeId,
-                        InfraId = item.InfraId,
                         InfraType = item.InfraType,
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    }));
+                    await _db.tProjectMajorWorkLocations.AddRangeAsync(NewWorkLocations.Select(item => new ProjectMajorWorkLocations
+                    {
+                        ParentId = item.ParentId,
+                        InfraId = item.InfraId,
+                        DetailedScope = item.DetailedScope,
                         TargetUnitId = item.TargetUnitId,
+                        TargetUnit = item.TargetUnit,
                         StartX = item.StartX,
                         StartY = item.StartY,
                         EndX = item.EndX,
                         EndY = item.EndY,
-                        TargetAmount = item.TargetAmount,
+                        PhysicalTarget = item.PhysicalTarget,
                         StartStationLimit = item.StartStationLimit,
                         EndStationLimit = item.EndStationLimit,
                         CreatedBy = _Session.UserId,
@@ -1486,7 +1559,6 @@ namespace WebAPI.Controllers.Projects
                             }
                         }
                     }
-
                 }
                 var NewFunding = dto.FundingProfile.Where(x => x.Id == 0).ToList();
                 if(NewFunding.Count > 0)
