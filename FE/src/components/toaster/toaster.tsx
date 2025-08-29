@@ -1,6 +1,6 @@
 import * as Headless from "@headlessui/react";
 import clsx from "clsx";
-import { CheckCircleIcon, XMarkIcon } from "@heroicons/react/16/solid";
+import { CheckCircleIcon, InformationCircleIcon, XMarkIcon, ExclamationCircleIcon, XCircleIcon } from "@heroicons/react/16/solid";
 
 const typeStyles = {
   success: {
@@ -65,10 +65,13 @@ export function Toaster({
             "flex items-center gap-3 rounded-md p-4 shadow-md transition-all",
             styles.bg,
             sizes[size],
-            className
+            className,
           )}
         >
-          <CheckCircleIcon className={clsx("size-6", styles.icon)} />
+          {type === "success" && <CheckCircleIcon className={clsx("size-6", styles.icon)} />}
+          {type === "error" && <XCircleIcon className={clsx("size-6", styles.icon)} />}
+          {type === "info" && <InformationCircleIcon className={clsx("size-6", styles.icon)} />}
+          {type === "warning" && <ExclamationCircleIcon className={clsx("size-6", styles.icon)} />}
           <p className={clsx("text-sm font-medium", styles.text)}>{message}</p>
           <button
             onClick={onClose}

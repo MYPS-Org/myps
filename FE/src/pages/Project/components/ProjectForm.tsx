@@ -15,7 +15,9 @@ import type {
   Dropdowns,
   ComponentCostYear,
   InfraData,
-  MajorItemOfWorksWithDropdown
+  MajorItemOfWorksWithDropdown,
+  MajorItemOfWork,
+  MajorItemLocations
 } from '../Model.d';
 
 import { Button } from '../../../components/tailwindui/button';
@@ -170,14 +172,22 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
     if (!initialData?.MajorItemOfWorks) return [];
     
     // Transform backend MajorItemOfWork[] to MajorItemOfWorksWithDropdown[]
-    return initialData.MajorItemOfWorks.map(item => ({
-      ...item,
-      // Ensure required fields exist
-      TargetUnitId: item.TargetUnitId || 0,
-      TargetUnit: item.TargetUnit || '',
-      WorkLocations: item.WorkLocations || [], // Initialize empty WorkLocations if not present
-      DropdownData: initialData?.Dropdowns?.ScopeOfWorks?.filter(scope => scope.InfraType === item.InfraType) || []
-    }));
+    // Combine with WorkLocations from the separate array
+    return initialData.MajorItemOfWorks.map(item => {
+      // Find WorkLocations that belong to this MajorItem via ParentId matching ReferenceId
+      const itemWorkLocations = (initialData.WorkLocations || []).filter(
+        location => location.ParentId === item.ReferenceId
+      );
+      
+      return {
+        ...item,
+        // Ensure required fields exist
+        TargetUnitId: item.TargetUnitId || 0,
+        TargetUnit: item.TargetUnit || '',
+        MajorItemLocations: itemWorkLocations, // Combine WorkLocations from separate array
+        DropdownData: initialData?.Dropdowns?.ScopeOfWorks?.filter(scope => scope.InfraType === item.InfraType) || []
+      };
+    });
   });
 
   const [notes, setNotes] = useState<ProjectNote[]>(
@@ -305,10 +315,13 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
 
   // #region Major Items of Work
   const handleAddMajorItem = () => {
+    // Generate a unique temporary ReferenceId for linking WorkLocations
+    const tempReferenceId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
     const newItem: MajorItemOfWorksWithDropdown = {
       Id: 0, // Temporary ID
       ProjectId: '',
-      ReferenceId: '', // Temporary ReferenceId
+      ReferenceId: tempReferenceId, // Use generated temp ID
       ComponentId: '',
       YearOfWork: 0,
       WorkTypeId: 0,
@@ -316,7 +329,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       TargetUnitId: 0,
       TargetUnit: '',
       CreatedBy: '',
-      WorkLocations: [], // Initialize empty work locations
+      MajorItemLocations: [], // Initialize empty work locations
       DropdownData: []
     };
     setMajorItems(prev => [...prev, newItem]);
@@ -445,6 +458,39 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       console.log('Funding Profiles:', fundingProfiles);
       
       // Prepare data for backend matching the expected payload structure
+      
+      // Transform majorItems into separate MajorItemOfWorks and WorkLocations arrays
+      const majorItemsForPayload: MajorItemOfWork[] = [];
+      const workLocationsForPayload: MajorItemLocations[] = [];
+      
+      majorItems.forEach(item => {
+        // Create MajorItemOfWork without WorkLocations and DropdownData (UI-only)
+        const majorItemPayload: MajorItemOfWork = {
+          Id: item.Id,
+          ProjectId: initialData?.ProjectDetails.ProjectId || '',
+          ComponentId: item.ComponentId,
+          ReferenceId: item.ReferenceId,
+          YearOfWork: item.YearOfWork,
+          WorkTypeId: item.WorkTypeId,
+          InfraType: item.InfraType,
+          TargetUnitId: item.TargetUnitId,
+          TargetUnit: item.TargetUnit,
+          CreatedBy: item.CreatedBy
+        };
+        majorItemsForPayload.push(majorItemPayload);
+        
+        // Add MajorItemLocations with ParentId referencing the MajorItem's ReferenceId
+        if (item.MajorItemLocations && item.MajorItemLocations.length > 0) {
+          item.MajorItemLocations.forEach(location => {
+            const workLocationPayload: MajorItemLocations = {
+              ...location,
+              ParentId: item.ReferenceId // Link to MajorItem via ReferenceId
+            };
+            workLocationsForPayload.push(workLocationPayload);
+          });
+        }
+      });
+      
       const payload = {
         ProjectDetails: {
           ...projectDetails,
@@ -473,7 +519,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
           StartDate: year.StartDate || new Date().toISOString(),
           EndDate: year.EndDate || new Date().toISOString()
         })),
-        MajorItemOfWorks: majorItems,
+        MajorItemOfWorks: majorItemsForPayload,
+        MajorItemLocations: workLocationsForPayload,
         // ProjectNotes: notes, // Include ProjectNotes as it's in the expected payload
         FundingProfile: fundingProfiles,
       };
@@ -483,11 +530,46 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       
       const response = await updateEntireProject(payload);
       if (response.Data) {
+        // Update local state with the response data from backend
+        const responseData = response.Data as {
+          ProjectDetails: ProjectDetails;
+          ComponentCosts: ComponentCost[];
+          ComponentCostYear: ComponentCostYear[];
+          MajorItemOfWorks: MajorItemOfWork[];
+          MajorItemLocations: MajorItemLocations[];
+          FundingProfile: FundingProfile[];
+        };
+
+        // Update project details
+        setProjectDetails(responseData.ProjectDetails);
+        
+        // Update component costs
+        setComponentCosts(responseData.ComponentCosts);
+        setComponentCostsYear(responseData.ComponentCostYear);
+        
+        // Transform and update major items (combine MajorItemOfWorks with WorkLocations)
+        const updatedMajorItems: MajorItemOfWorksWithDropdown[] = responseData.MajorItemOfWorks.map(item => {
+          // Find MajorItemLocations that belong to this MajorItem via ParentId matching ReferenceId
+          const itemWorkLocations = (responseData.MajorItemLocations || []).filter(
+            location => location.ParentId === item.ReferenceId
+          );
+          
+          return {
+            ...item,
+            MajorItemLocations: itemWorkLocations,
+            DropdownData: Dropdowns?.ScopeOfWorks?.filter(scope => scope.InfraType === item.InfraType) || []
+          };
+        });
+        setMajorItems(updatedMajorItems);
+        
+        // Update funding profiles
+        setFundingProfiles(responseData.FundingProfile);
+
         setToast({
-        open: true,
-        message: "Project updated successfully!",
-        type: "success",
-      });
+          open: true,
+          message: "Project updated successfully!",
+          type: "success",
+        });
       }
     } catch (error: any) {
       let errorMessage = "An unexpected error occurred while updating the project.";
@@ -669,6 +751,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
           </div>
           <MajorItemOfWorksForm
             majorItems={majorItems}
+            projectId={initialData?.ProjectDetails.ProjectId || ''}
             componentCosts={componentCosts}
             infraData={infraData}
             onAdd={handleAddMajorItem}

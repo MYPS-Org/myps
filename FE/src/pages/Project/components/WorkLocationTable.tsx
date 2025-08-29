@@ -3,12 +3,12 @@ import { Button } from '../../../components/tailwindui/button';
 import { PlusIcon, TrashIcon, PencilIcon } from '@heroicons/react/24/outline';
 import AddInfraDialog from '../dialogs/AddInfraDialog';
 import { mockInfraData } from '../dialogs/mockInfraData';
-import type { WorkLocation, InfraData } from '../Model.d';
+import type { MajorItemLocations, InfraData } from '../Model.d';
 
 interface WorkLocationTableProps {
-  workLocations: WorkLocation[];
-  onAdd: (workLocation: WorkLocation) => void;
-  onEdit: (index: number, workLocation: WorkLocation) => void;
+  workLocations: MajorItemLocations[];
+  onAdd: (workLocation: MajorItemLocations) => void;
+  onEdit: (index: number, workLocation: MajorItemLocations) => void;
   onDelete: (index: number) => void;
   infraData?: InfraData;
   workTypeId: number;
@@ -16,6 +16,7 @@ interface WorkLocationTableProps {
   infraType: string;
   maxAmount?: number;
   minAmount?: number;
+  parentId: string; // Add parentId prop
 }
 
 const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
@@ -28,7 +29,8 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
   targetUnit,
   infraType,
   maxAmount,
-  minAmount
+  minAmount,
+  parentId
 }) => {
   const [infraDialogOpen, setInfraDialogOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -43,9 +45,9 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
 
   const handleAddWorkLocation = () => {
     // Always create a new empty work location form directly
-    const newWorkLocation: WorkLocation = {
+    const newWorkLocation: MajorItemLocations = {
       Id: 0, // Temporary ID
-      ParentId: '',
+      ParentId: parentId, // Use the parentId from props (MajorItem's ReferenceId)
       InfraId: '',
       DetailedScope: '',
       TargetUnitId: workTypeId,
@@ -72,9 +74,9 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
   const handleInfraSelect = (infraId: string, _infraName: string, _infraType: string) => {
     if (isAddingNew) {
       // Create new work location
-      const newWorkLocation: WorkLocation = {
+      const newWorkLocation: MajorItemLocations = {
         Id: 0, // Temporary ID
-        ParentId: '',
+        ParentId: parentId, // Use the parentId from props (MajorItem's ReferenceId)
         InfraId: infraId,
         DetailedScope: '',
         TargetUnitId: workTypeId,
@@ -102,7 +104,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
     setIsAddingNew(false);
   };
 
-  const handleFieldChange = (index: number, field: keyof WorkLocation, value: any) => {
+  const handleFieldChange = (index: number, field: keyof MajorItemLocations, value: any) => {
     const updatedWorkLocation = { ...workLocations[index], [field]: value };
     onEdit(index, updatedWorkLocation);
   };
@@ -153,7 +155,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
   };
 
   // Render individual form fields based on field type and infrastructure type
-  const renderFormField = (location: WorkLocation, index: number, fieldName: string) => {
+  const renderFormField = (location: MajorItemLocations, index: number, fieldName: string) => {
     switch (fieldName) {
       case 'InfraId':
         const canSelectInfra = shouldUseInfraDialog();

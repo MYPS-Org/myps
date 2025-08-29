@@ -1,23 +1,25 @@
 "use-client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, use } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import type { ProjectLists, ProjectPagination } from '../Model.d'; // Adjust the import path as necessary
 import { fetchProject } from '../Service'; // Adjust the import path as necessary
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '../../../components/tailwindui/table'; // Adjust the import path as necessary
-
 import { Button } from '../../../components/tailwindui/button'; // Adjust the import path as necessary
 import {
     PlusIcon, 
     MagnifyingGlassIcon,
     XMarkIcon
 } from '@heroicons/react/24/outline'; // Adjust the import path as necessary
+import { useToast } from '../../../components/toaster/ToasterContext'; // Adjust the import path as necessary
 
 const Project: React.FC = () => {
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(false);
     const [searchInput, setSearchInput] = useState<string>(''); // Separate state for search input
     // const [projects, setProjects] = useState<ProjectLists>(); // Initialize with an empty array of ProjectDetails
+    //toaster here
+    const { showToast } = useToast();
 
     const [ProjectFilters, setProjectFilters] = useState<ProjectPagination>({
         filters: {
@@ -49,9 +51,13 @@ const Project: React.FC = () => {
             const response = await fetchProject(filtersToUse);
             setProjectData(response.Data);
         } catch (error) {
-            console.error('Error fetching projects:', error);
+            showToast({
+                type: 'error',
+                message: 'Failed to fetch projects.'
+            });
+            // console.error('Error fetching projects:', error);
             // You might want to show a toast or alert here
-            alert('Failed to fetch projects: ' + (error instanceof Error ? error.message : 'Unknown error'));
+            // alert('Failed to fetch projects: ' + (error instanceof Error ? error.message : 'Unknown error'));
         } finally {
             setIsLoading(false);
         }

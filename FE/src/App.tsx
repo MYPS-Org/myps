@@ -21,13 +21,14 @@ import ProjectGroupDetails from './pages/ProjectGroups/Views/ProjectGroupDetails
 import CodeTables from './pages/CodeTables/Views/CodeTables';
 import { ModalProvider } from './components/Modal/ModalContext';
 import GlobalModal from './components/Modal/Modal';
+import { ToasterProvider } from './components/toaster/ToasterContext';
 
 // import AddProgram from './pages/Program/Views/AddProgram';
-
 function App() {
 	return (
 		<>
 		    <ModalProvider>
+				<ToasterProvider>
 				<ThemeProvider>
 					<AuthProvider>
 					<Router>
@@ -148,6 +149,7 @@ function App() {
 				</AuthProvider>
 				</ThemeProvider>
 				<GlobalModal />
+				</ToasterProvider>
 		    </ModalProvider>
 		</>
 	)

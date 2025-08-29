@@ -1,4 +1,4 @@
-// import type { ProgramList } from "../Program/Model";
+import type { ProgramList } from "../Program/Model";
 
 export interface ProjectPagination extends PaginationParams {
   filters?: ProjectFilter;
@@ -15,7 +15,7 @@ export interface ProjectFormPayload {
   ProjectDetails: ProjectDetails;
   ComponentCosts: ComponentCost[];
   ComponentCostPerYear: ComponentCostYear[];
-  MajorItemOfWorks: MajorItemOfWorksWithDropdown[];
+  MajorItemOfWorks: MajorItemOfWork[];
   WorkLocations: WorkLocation[];
   ProjectNotes: ProjectNote[];
   FundingProfile: FundingProfile[];
@@ -258,6 +258,7 @@ export interface ComponentCostYear {
 }
 export interface MajorItemOfWorksWithDropdown extends MajorItemOfWork {
 	DropdownData: ScopeOfWorkEnum[];
+	MajorItemLocations: MajorItemLocations[]; // Keep for UI functionality
 }
 export interface MajorItemOfWork {
 	Id: number;
@@ -270,9 +271,8 @@ export interface MajorItemOfWork {
 	TargetUnitId: number;
 	TargetUnit: string;
 	CreatedBy: string;
-	WorkLocations: WorkLocation[];
 }
-export interface WorkLocation {
+export interface MajorItemLocations {
 	Id: number;
 	ParentId: string;
 	InfraId: string;

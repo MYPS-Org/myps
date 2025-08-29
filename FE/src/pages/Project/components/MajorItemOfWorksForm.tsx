@@ -9,11 +9,12 @@ import type {
   ComponentCost, 
   InfraData, 
   ScopeOfWorkEnum,
-  WorkLocation
+  MajorItemLocations
 } from '../Model.d';
 
 interface MajorItemOfWorksFormProps {
   majorItems: MajorItemOfWorksWithDropdown[];
+  projectId: string;
   componentCosts: ComponentCost[];
   infraData?: InfraData;
   onAdd: () => void;
@@ -24,6 +25,7 @@ interface MajorItemOfWorksFormProps {
 
 const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
   majorItems,
+  projectId,
   componentCosts,
   infraData,
   onAdd,
@@ -99,11 +101,14 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     InfraType: string;
   }) => {
     if (isAddingNewMajorItem) {
+      // Generate a unique temporary ReferenceId for linking WorkLocations
+      const tempReferenceId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
       // Create new major item
       const newMajorItem: MajorItemOfWorksWithDropdown = {
         Id: 0, // Temporary ID
-        ProjectId: '',
-        ReferenceId: '', // Temporary ReferenceId
+        ProjectId: projectId,
+        ReferenceId: tempReferenceId, // Use generated temp ID
         ComponentId: majorItemData.ComponentId,
         YearOfWork: majorItemData.YearOfWork,
         WorkTypeId: majorItemData.WorkTypeId,
@@ -112,7 +117,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
         TargetUnit: getTargetUnitName(majorItemData.WorkTypeId),
         CreatedBy: '',
         DropdownData: dropDowns?.filter(x => x.InfraType === majorItemData.InfraType) || [],
-        WorkLocations: [] // Initialize empty work locations array
+        MajorItemLocations: [] // Initialize empty work locations array
       };
       
       // Use the parent's onAdd method first, then update the last item
@@ -169,31 +174,31 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
   };
 
   // Work Location handlers
-  const handleAddWorkLocation = (majorItemIndex: number, workLocation: WorkLocation) => {
+  const handleAddWorkLocation = (majorItemIndex: number, workLocation: MajorItemLocations) => {
     const updatedItem = {
       ...majorItems[majorItemIndex],
-      WorkLocations: [...(majorItems[majorItemIndex].WorkLocations || []), workLocation]
+      MajorItemLocations: [...(majorItems[majorItemIndex].MajorItemLocations || []), workLocation]
     };
     onEdit(majorItemIndex, updatedItem);
   };
 
-  const handleEditWorkLocation = (majorItemIndex: number, workLocationIndex: number, workLocation: WorkLocation) => {
-    const updatedWorkLocations = [...(majorItems[majorItemIndex].WorkLocations || [])];
+  const handleEditWorkLocation = (majorItemIndex: number, workLocationIndex: number, workLocation: MajorItemLocations) => {
+    const updatedWorkLocations = [...(majorItems[majorItemIndex].MajorItemLocations || [])];
     updatedWorkLocations[workLocationIndex] = workLocation;
     
     const updatedItem = {
       ...majorItems[majorItemIndex],
-      WorkLocations: updatedWorkLocations
+      MajorItemLocations: updatedWorkLocations
     };
     onEdit(majorItemIndex, updatedItem);
   };
 
   const handleDeleteWorkLocation = (majorItemIndex: number, workLocationIndex: number) => {
-    const updatedWorkLocations = (majorItems[majorItemIndex].WorkLocations || []).filter((_, i) => i !== workLocationIndex);
+    const updatedWorkLocations = (majorItems[majorItemIndex].MajorItemLocations || []).filter((_, i) => i !== workLocationIndex);
     
     const updatedItem = {
       ...majorItems[majorItemIndex],
-      WorkLocations: updatedWorkLocations
+      MajorItemLocations: updatedWorkLocations
     };
     onEdit(majorItemIndex, updatedItem);
   };
@@ -267,7 +272,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                   </TableCell>
                   <TableCell>
                     <div className="text-sm text-gray-600">
-                      {(item.WorkLocations?.length || 0)} location(s)
+                      {(item.MajorItemLocations?.length || 0)} location(s)
                     </div>
                   </TableCell>
                   <TableCell>
@@ -295,7 +300,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                   <TableRow className="bg-gray-50">
                     <TableCell colSpan={8} className="p-4">
                       <WorkLocationTable
-                        workLocations={item.WorkLocations || []}
+                        workLocations={item.MajorItemLocations || []}
                         onAdd={(workLocation) => handleAddWorkLocation(index, workLocation)}
                         onEdit={(workLocationIndex, workLocation) => 
                           handleEditWorkLocation(index, workLocationIndex, workLocation)
@@ -307,6 +312,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                         targetUnit={item.TargetUnit}
                         maxAmount={getMinMaxAmounts(item.WorkTypeId).max}
                         minAmount={getMinMaxAmounts(item.WorkTypeId).min}
+                        parentId={item.ReferenceId}
                       />
                     </TableCell>
                   </TableRow>
