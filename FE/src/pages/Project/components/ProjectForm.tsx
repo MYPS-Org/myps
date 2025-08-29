@@ -115,6 +115,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
     }
   );
 
+  const [majorItemsLocation, setMajorItemsLocation] = useState<MajorItemLocations[]>(
+    initialData?.MajorItemLocations || []
+  );
+
   useEffect(() => {
     // Load project enums
     const loadProjectEnums = async () => {
@@ -172,10 +176,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
     if (!initialData?.MajorItemOfWorks) return [];
     
     // Transform backend MajorItemOfWork[] to MajorItemOfWorksWithDropdown[]
-    // Combine with WorkLocations from the separate array
+    // Combine with MajorItemLocations from the separate array
     return initialData.MajorItemOfWorks.map(item => {
-      // Find WorkLocations that belong to this MajorItem via ParentId matching ReferenceId
-      const itemWorkLocations = (initialData.WorkLocations || []).filter(
+      // Find MajorItemLocations that belong to this MajorItem via ParentId matching ReferenceId
+      const itemWorkLocations = (initialData.MajorItemLocations || []).filter(
         location => location.ParentId === item.ReferenceId
       );
       

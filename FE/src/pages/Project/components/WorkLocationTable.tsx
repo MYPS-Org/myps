@@ -3,15 +3,17 @@ import { Button } from '../../../components/tailwindui/button';
 import { PlusIcon, TrashIcon, PencilIcon } from '@heroicons/react/24/outline';
 import AddInfraDialog from '../dialogs/AddInfraDialog';
 import { mockInfraData } from '../dialogs/mockInfraData';
-import type { MajorItemLocations, InfraData } from '../Model.d';
+import type { MajorItemLocations, InfraData, ScopeOfWorkEnum, MajorItemOfWork } from '../Model.d';
 
 interface WorkLocationTableProps {
+  majorItemOfWorks: MajorItemOfWork;
   workLocations: MajorItemLocations[];
   onAdd: (workLocation: MajorItemLocations) => void;
   onEdit: (index: number, workLocation: MajorItemLocations) => void;
   onDelete: (index: number) => void;
   infraData?: InfraData;
   workTypeId: number;
+  dropDowns?: ScopeOfWorkEnum[];
   targetUnit: string;
   infraType: string;
   maxAmount?: number;
@@ -27,11 +29,12 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
   infraData,
   workTypeId,
   targetUnit,
-  infraType,
+  majorItemOfWorks,
   maxAmount,
   minAmount,
   parentId
 }) => {
+  const infraType = majorItemOfWorks.InfraType || '';
   const [infraDialogOpen, setInfraDialogOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [isAddingNew, setIsAddingNew] = useState(false);
@@ -215,7 +218,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
             </label>
             <input
               type="text"
-              value={targetUnit}
+              value={location.TargetUnit || targetUnit}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-50 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
               placeholder="Target unit"
               readOnly
@@ -473,6 +476,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
           }}
           onAdd={handleInfraSelect}
           initialData={infraData}
+          infraType={infraType}
           mode="add"
         />
       )}

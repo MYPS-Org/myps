@@ -268,7 +268,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                     <div className="text-sm">{item.InfraType}</div>
                   </TableCell>
                   <TableCell>
-                    <div className="text-sm">{item.TargetUnit}</div>
+                    <div className="text-sm">{getTargetUnitName(item.WorkTypeId)}</div>
                   </TableCell>
                   <TableCell>
                     <div className="text-sm text-gray-600">
@@ -300,6 +300,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                   <TableRow className="bg-gray-50">
                     <TableCell colSpan={8} className="p-4">
                       <WorkLocationTable
+                        majorItemOfWorks={item}
                         workLocations={item.MajorItemLocations || []}
                         onAdd={(workLocation) => handleAddWorkLocation(index, workLocation)}
                         onEdit={(workLocationIndex, workLocation) => 

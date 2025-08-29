@@ -16,7 +16,7 @@ export interface ProjectFormPayload {
   ComponentCosts: ComponentCost[];
   ComponentCostPerYear: ComponentCostYear[];
   MajorItemOfWorks: MajorItemOfWork[];
-  WorkLocations: WorkLocation[];
+  MajorItemLocations: MajorItemLocations[];
   ProjectNotes: ProjectNote[];
   FundingProfile: FundingProfile[];
   Dropdowns: Dropdowns;
