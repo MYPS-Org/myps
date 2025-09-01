@@ -51,6 +51,12 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     });
   }, [majorItems, dropDowns]);
 
+  // Debug: Monitor when componentCosts prop changes
+  useEffect(() => {
+    console.log('MajorItemOfWorksForm: componentCosts prop changed:', componentCosts);
+    console.log('ComponentCosts count:', componentCosts?.length || 0);
+  }, [componentCosts]);
+
   // Update dropdown data for items that have InfraType but no DropdownData (from backend)
   useEffect(() => {
     if (majorItems.length > 0 && dropDowns?.length) {
@@ -159,8 +165,11 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
   };
 
   const getComponentDescription = (componentId: string): string => {
+    console.log('Looking for component with ID:', componentId, 'in componentCosts:', componentCosts);
     const component = componentCosts?.find(cost => cost.ComponentId === componentId);
-    return component?.ComponentId || '';
+    console.log('Found component:', component);
+    // Return the description or the componentId as fallback
+    return component?.Description || component?.ComponentId || componentId || 'Unknown Component';
   };
 
   const toggleRowExpansion = (index: number) => {

@@ -115,7 +115,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
     }
   );
 
-  const [majorItemsLocation, setMajorItemsLocation] = useState<MajorItemLocations[]>(
+  const [majorItemsLocation] = useState<MajorItemLocations[]>(
     initialData?.MajorItemLocations || []
   );
 
@@ -166,11 +166,20 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
     initialData?.ComponentCostPerYear || []
   );
 
-  // Combine componentCosts and componentCostsYear for UI
-  const componentCostsWithYears = (componentCosts || [] ).map(cost => ({
-    ...cost,
-    CostPerYear: componentCostsYear.filter(year => year.ParentId === cost.ReferenceId)
-  }));
+  // Combine componentCosts and componentCostsYear for UI - using useMemo to ensure proper recalculation
+  const componentCostsWithYears = React.useMemo(() => {
+    console.log('Recalculating componentCostsWithYears:', { componentCosts, componentCostsYear });
+    return (componentCosts || []).map(cost => ({
+      ...cost,
+      CostPerYear: (componentCostsYear || []).filter(year => year.ParentId === cost.ReferenceId)
+    }));
+  }, [componentCosts, componentCostsYear]);
+
+  // Debug effect to monitor componentCosts state changes
+  useEffect(() => {
+    console.log('ComponentCosts state changed:', componentCosts);
+    console.log('ComponentCostsWithYears recalculated:', componentCostsWithYears);
+  }, [componentCosts, componentCostsWithYears]);
 
   const [majorItems, setMajorItems] = useState<MajorItemOfWorksWithDropdown[]>(() => {
     if (!initialData?.MajorItemOfWorks) return [];
@@ -193,6 +202,11 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       };
     });
   });
+
+  // Debug effect to monitor majorItems state changes  
+  useEffect(() => {
+    console.log('MajorItems state changed:', majorItems);
+  }, [majorItems]);
 
   const [notes, setNotes] = useState<ProjectNote[]>(
     initialData?.ProjectNotes || []
@@ -265,11 +279,20 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
 
   // #region Component Costs
   const handleAddComponentCost = (newCost: ComponentCost, newCostYear?: ComponentCostYear) => {
+    console.log('=== ADDING COMPONENT COST ===');
+    console.log('New cost:', newCost);
+    console.log('New cost year:', newCostYear);
+    console.log('Current componentCosts before add:', componentCosts);
+    
     // Generate a temporary ID for new cost (will be replaced when saved)
     const tempId = Date.now().toString(); // Simple temp ID
     const costWithId = { ...newCost, ReferenceId: tempId };
     
-    setComponentCosts(prev => [...prev, costWithId]);
+    setComponentCosts(prev => {
+      const updated = [...prev, costWithId];
+      console.log('Updated componentCosts:', updated);
+      return updated;
+    });
     
     // If ComponentCostYear data is provided, add it to the componentCostsYear array
     if (newCostYear) {
@@ -278,7 +301,11 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
         ParentId: tempId, // Link to the component cost
         Id: Date.now() + 1 // Ensure unique ID
       };
-      setComponentCostsYear(prev => [...prev, costYearWithParentId]);
+      setComponentCostsYear(prev => {
+        const updated = [...prev, costYearWithParentId];
+        console.log('Updated componentCostsYear:', updated);
+        return updated;
+      });
       console.log('Added component cost year to staging:', costYearWithParentId);
     }
     
@@ -286,16 +313,37 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
   };
 
   const handleEditComponentCost = (index: number, updatedCost: ComponentCost) => {
-    setComponentCosts(prev => prev.map((cost, i) => i === index ? updatedCost : cost));
+    console.log('=== EDITING COMPONENT COST ===');
+    console.log('Index:', index);
+    console.log('Updated cost:', updatedCost);
+    console.log('Current componentCosts before edit:', componentCosts);
+    
+    setComponentCosts(prev => {
+      const updated = prev.map((cost, i) => i === index ? updatedCost : cost);
+      console.log('Updated componentCosts after edit:', updated);
+      return updated;
+    });
     console.log('Updated component cost in staging:', updatedCost);
   };
 
   const handleDeleteComponentCost = (index: number) => {
+    console.log('=== DELETING COMPONENT COST ===');
+    console.log('Index:', index);
+    console.log('Current componentCosts before delete:', componentCosts);
+    
     const costToDelete = componentCosts[index];
     if (costToDelete) {
-      setComponentCosts(prev => prev.filter((_, i) => i !== index));
+      setComponentCosts(prev => {
+        const updated = prev.filter((_, i) => i !== index);
+        console.log('Updated componentCosts after delete:', updated);
+        return updated;
+      });
       // Also remove related ComponentCostYear entries
-      setComponentCostsYear(prev => prev.filter(year => year.ParentId !== costToDelete.ReferenceId));
+      setComponentCostsYear(prev => {
+        const updated = prev.filter(year => year.ParentId !== costToDelete.ReferenceId);
+        console.log('Updated componentCostsYear after delete:', updated);
+        return updated;
+      });
       console.log('Deleted component cost from staging:', costToDelete);
     }
   };
@@ -520,6 +568,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
           ComponentId: cost.ComponentId || '',
           Description: cost.Description || '',
           Total: cost.Total || 0,
+          CreatedBy: cost.CreatedBy || 'SYSTEM',
+          CreatedDate: cost.CreatedDate || new Date().toISOString(),
+          UpdatedBy: 'SYSTEM',
+          UpdatedDate: new Date().toISOString(),
         })),
         ComponentCostYear: componentCostsYear.map(year => ({
           Id: year.Id,
@@ -538,49 +590,22 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       console.log('=== SENDING TO BACKEND (MATCHING EXPECTED PAYLOAD) ===');
       console.log('Update payload:', payload);
       
-      const response = await updateEntireProject(payload);
-      if (response.Data) {
-        // Update local state with the response data from backend
-        const responseData = response.Data as {
-          ProjectDetails: ProjectDetails;
-          ComponentCosts: ComponentCost[];
-          ComponentCostYear: ComponentCostYear[];
-          MajorItemOfWorks: MajorItemOfWork[];
-          MajorItemLocations: MajorItemLocations[];
-          FundingProfile: FundingProfile[];
-        };
+      await updateEntireProject(payload);
+      
+      // Backend only returns success message, not the updated data
+      // So we keep the current state as is after successful update
+      console.log('=== PROJECT UPDATE SUCCESSFUL ===');
+      console.log('Keeping current state after successful update');
+      console.log('Current Component Costs:', componentCosts);
+      console.log('Current Component Cost Years:', componentCostsYear);
+      console.log('Current Major Items:', majorItems);
+      console.log('Current Funding Profiles:', fundingProfiles);
 
-        // Update project details
-        setProjectDetails(responseData.ProjectDetails);
-        
-        // Update component costs
-        setComponentCosts(responseData.ComponentCosts);
-        setComponentCostsYear(responseData.ComponentCostYear);
-        
-        // Transform and update major items (combine MajorItemOfWorks with WorkLocations)
-        const updatedMajorItems: MajorItemOfWorksWithDropdown[] = responseData.MajorItemOfWorks.map(item => {
-          // Find MajorItemLocations that belong to this MajorItem via ParentId matching ReferenceId
-          const itemWorkLocations = (responseData.MajorItemLocations || []).filter(
-            location => location.ParentId === item.ReferenceId
-          );
-          
-          return {
-            ...item,
-            MajorItemLocations: itemWorkLocations,
-            DropdownData: Dropdowns?.ScopeOfWorks?.filter(scope => scope.InfraType === item.InfraType) || []
-          };
-        });
-        setMajorItems(updatedMajorItems);
-        
-        // Update funding profiles
-        setFundingProfiles(responseData.FundingProfile);
-
-        setToast({
-          open: true,
-          message: "Project updated successfully!",
-          type: "success",
-        });
-      }
+      setToast({
+        open: true,
+        message: "Project updated successfully!",
+        type: "success",
+      });
     } catch (error: any) {
       let errorMessage = "An unexpected error occurred while updating the project.";
       if (error?.response?.data?.Message) errorMessage = error.response.data.Message;
