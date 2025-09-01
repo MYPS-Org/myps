@@ -25,7 +25,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
     const handleBoxClick = (boxValue: string) => {
         if (mode === 'edit') return; // Prevent clicking in edit mode
         
-        const newValue = projectDetails.IslandCode === boxValue ? null : boxValue;
+        const newValue = projectDetails?.IslandCode === boxValue ? null : boxValue;
         handleInputChange('IslandCode', newValue);
     };
 
@@ -38,7 +38,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     <label key={index} className={`flex-row items-center ${mode === 'edit' ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} mr-4`}>
                         <input className='mr-1'
                             type="checkbox" 
-                            checked={projectDetails.IslandCode === item.value}
+                            checked={projectDetails?.IslandCode === item.value}
                             disabled={ mode === 'edit'}
                             onChange={() => handleBoxClick(item.value)} />
                         {item.label}
@@ -57,7 +57,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             <label className="flex-1/3 text-gray-600">Project ID:</label>
                             <input
                                 type="text"
-                                value={projectDetails.ProjectId}
+                                value={projectDetails?.ProjectId}
                                 onChange={(e) => handleInputChange('ProjectId', (e.target.value))}
                                 className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
                                 readOnly
@@ -70,7 +70,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <label className={`w-1/3 ${errors.MYId ? 'text-red-500' : 'text-gray-600'}`}>Multi Year ID:</label>
                                 <input 
                                     type="text" 
-                                    value={projectDetails.MYId || ''}
+                                    value={projectDetails?.MYId || ''}
                                     onChange={(e) => handleInputChange('MYId', e.target.value)}
                                     className={`w-2/3 mt-1 px-3 py-2 border ${errors.MYId ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
                                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
@@ -83,7 +83,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <label className={`w-1/3 ${errors.AlternateId ? 'text-red-500' : 'text-gray-600'}`}>Alternate ID:</label>
                                 <input 
                                     type="text" 
-                                    value={projectDetails.AlternateId || ''}
+                                    value={projectDetails?.AlternateId || ''}
                                     onChange={(e) => handleInputChange('AlternateId', e.target.value)}
                                     className={`w-2/3 mt-1 px-3 py-2 border ${errors.AlternateId ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
                                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
@@ -98,7 +98,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <label className={`w-1/3 ${errors.ExternalId ? 'text-red-500' : 'text-gray-600'}`}>External ID:</label>
                                 <input 
                                     type="text"
-                                    value={projectDetails.ExternalId || ''}
+                                    value={projectDetails?.ExternalId || ''}
                                     onChange={(e) => handleInputChange('ExternalId', e.target.value)}
                                     className={`w-2/3 mt-1 px-3 py-2 border ${errors.ExternalId ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
                                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
@@ -110,7 +110,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.Category ? 'text-red-500' : 'text-gray-600'}`}>*Category:</label>
                                 <select
-                                    value={projectDetails.Category}
+                                    value={projectDetails?.Category}
                                     onChange={(e) => handleInputChange('Category', parseInt(e.target.value))}
                                     className={`w-2/3 mt-1 px-3 py-2 border ${errors.Category ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
                                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
@@ -131,7 +131,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <select 
                                     name="Thrust" 
                                     id="Thrust" 
-                                    value={projectDetails.Thrust} 
+                                    value={projectDetails?.Thrust} 
                                     onChange={(e) => handleInputChange('Thrust', parseInt(e.target.value))} 
                                     className={`w-2/3 mt-1 px-3 py-2 border ${errors.Thrust ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
                                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
@@ -152,7 +152,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             <label className={`w-1/9 ${errors.Description ? 'text-red-500' : 'text-gray-600'}`}>*Description:</label>
                             <div className="w-8/9">
                                 <textarea
-                                    value={projectDetails.Description}
+                                    value={projectDetails?.Description}
                                     onChange={(e) => handleInputChange('Description', e.target.value)}
                                     className={`w-full mt-1 px-3 py-2 border ${errors.Description ? 'border-red-500' : 'border-gray-300'} rounded-md`}
                                     placeholder="Enter project description"
@@ -174,7 +174,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             <div className="flex flex-row gap-5 items-center">
                                 <label className="w-1/3 text-gray-600">Province:</label>
                                 <select
-                                    value={projectDetails.Province}
+                                    value={projectDetails?.Province}
                                     onChange={(e) => handleInputChange('Province', parseInt(e.target.value))}
                                     className={`w-2/3 mt-1 px-3 py-2 border ${errors.Province ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
                                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
@@ -196,7 +196,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.City ? 'text-red-500' : 'text-gray-600'}`}>*City/Municipality:</label>
                                 <select
-                                    value={projectDetails.City}
+                                    value={projectDetails?.City}
                                     onChange={(e) => handleInputChange('City', parseInt(e.target.value))}
                                     className={`w-2/3 mt-1 px-3 py-2 border ${errors.City ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
                                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
@@ -215,7 +215,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.LegislativeDistrict ? 'text-red-500' : 'text-gray-600'}`}>*Legislative District:</label>
                                 <select
-                                    value={projectDetails.LegislativeDistrict}
+                                    value={projectDetails?.LegislativeDistrict}
                                     onChange={(e) => handleInputChange('LegislativeDistrict', parseInt(e.target.value))}
                                     className={`w-2/3 mt-1 px-3 py-2 border ${errors.LegislativeDistrict ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
                                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
@@ -246,7 +246,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <select 
                                     name="DistrictEngOffice" 
                                     id="DistrictEngOffice" 
-                                    value={projectDetails.DEO} 
+                                    value={projectDetails?.DEO} 
                                     onChange={(e) => handleInputChange('DEO', e.target.value)} 
                                     className={`w-2/3 mt-1 px-3 py-2 border ${errors.DEO ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
                                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
@@ -265,13 +265,13 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.Region ? 'text-red-500' : 'text-gray-600'}`}>Regional Office:</label>
                                 <select
-                                    value={projectDetails.Region}
+                                    value={projectDetails?.Region}
                                     onChange={(e) => handleInputChange('Region', e.target.value)}
                                     className={`w-2/3 mt-1 px-3 py-2 border ${errors.Region ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
                                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
                                 >
                                     <option value="">Select Regional Office</option>
-                                    {projectEnums?.DEOs?.filter(x => x.DeoCode === projectDetails.DEO).map((region) => (
+                                    {projectEnums?.DEOs?.filter(x => x.DeoCode === projectDetails?.DEO).map((region) => (
                                         <option key={region.Id} value={region.ROCode}>
                                             {region.ROName}
                                         </option>
@@ -286,7 +286,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.OperatingUnit ? 'text-red-500' : 'text-gray-600'}`}>*Operating Unit:</label>
                                 <select
-                                    value={projectDetails.OperatingUnit}
+                                    value={projectDetails?.OperatingUnit}
                                     onChange={(e) => handleInputChange('OperatingUnit', e.target.value)}
                                     className={`w-2/3 mt-1 px-3 py-2 border ${errors.OperatingUnit ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
                                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
@@ -305,13 +305,13 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.ImplementingOffice ? 'text-red-500' : 'text-gray-600'}`}>*Implementing Office:</label>
                                 <select
-                                    value={projectDetails.ImplementingOffice}
+                                    value={projectDetails?.ImplementingOffice}
                                     onChange={(e) => handleInputChange('ImplementingOffice', e.target.value)}
                                     className={`w-2/3 mt-1 px-3 py-2 border ${errors.ImplementingOffice ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
                                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
                                 >
                                     <option value="">Select Implementing Office</option>
-                                    {projectEnums?.IOs?.filter(x => projectDetails.OperatingUnit != "" && (x.ParticipantId === projectDetails.OperatingUnit || x.ParticipantId === "OI10")).map((office) => (
+                                    {projectEnums?.IOs?.filter(x => projectDetails?.OperatingUnit != "" && (x.ParticipantId === projectDetails?.OperatingUnit || x.ParticipantId === "OI10")).map((office) => (
                                         <option key={office.Id} value={office.ParticipantId}>
                                             {office.OrgName}
                                         </option>
@@ -335,7 +335,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <select 
                                     name="Origin" 
                                     id="Origin" 
-                                    value={projectDetails.Origin} 
+                                    value={projectDetails?.Origin} 
                                     onChange={(e) => handleInputChange('Origin', parseInt(e.target.value))} 
                                     className={`w-2/3 mt-1 px-3 py-2 border ${errors.Origin ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
                                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
@@ -354,7 +354,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.Agency ? 'text-red-500' : 'text-gray-600'}`}>Originating Agency:</label>
                                 <select
-                                    value={projectDetails.Agency}
+                                    value={projectDetails?.Agency}
                                     onChange={(e) => handleInputChange('Agency', parseInt(e.target.value))}
                                     className={`w-2/3 mt-1 px-3 py-2 border ${errors.Agency ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
                                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
@@ -374,7 +374,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <label className={`w-1/3 ${errors.UACS ? 'text-red-500' : 'text-gray-600'}`}>OA Project Code (UACS):</label>
                                 <input 
                                     type="text" 
-                                    value={projectDetails.UACS || ''}
+                                    value={projectDetails?.UACS || ''}
                                     onChange={(e) => handleInputChange('UACS', e.target.value)}
                                     className={`w-2/3 mt-1 px-3 py-2 border ${errors.UACS ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
                                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
@@ -395,7 +395,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.ImplementationMode ? 'text-red-500' : 'text-gray-600'}`}>Implementation Mode:</label>
                                 <select
-                                    value={projectDetails.ImplementationMode}
+                                    value={projectDetails?.ImplementationMode}
                                     onChange={(e) => handleInputChange('ImplementationMode', parseInt(e.target.value))}
                                     className={`w-2/3 mt-1 px-3 py-2 border ${errors.ImplementationMode ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
                                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
@@ -416,7 +416,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <select 
                                     name="EmergencyCode" 
                                     id="EmergencyCode" 
-                                    value={projectDetails.EmergencyMode ? 'true' : 'false'} 
+                                    value={projectDetails?.EmergencyMode ? 'true' : 'false'} 
                                     onChange={(e) => handleInputChange('EmergencyMode', e.target.value === 'true')} 
                                     className={`w-2/3 mt-1 px-3 py-2 border ${errors.EmergencyMode ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
                                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
@@ -431,7 +431,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.Feasibility ? 'text-red-500' : 'text-gray-600'}`}>Feasibility Study:</label>
                                 <select 
-                                    value={projectDetails.Feasibility || ''} 
+                                    value={projectDetails?.Feasibility || ''} 
                                     onChange={(e) => handleInputChange('Feasibility', e.target.value ? parseInt(e.target.value) : undefined)}
                                     className={`w-2/3 mt-1 px-3 py-2 border ${errors.Feasibility ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
                                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
@@ -452,7 +452,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.DetailedDesign ? 'text-red-500' : 'text-gray-600'}`}>Detailed Design:</label>
                                 <select 
-                                    value={projectDetails.DetailedDesign ? 'true' : 'false'} 
+                                    value={projectDetails?.DetailedDesign ? 'true' : 'false'} 
                                     onChange={(e) => handleInputChange('DetailedDesign', e.target.value === 'true')}
                                     className={`w-2/3 mt-1 px-3 py-2 border ${errors.DetailedDesign ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
                                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
@@ -467,7 +467,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`flex-1/3 ${errors.RowAvailable ? 'text-red-500' : 'text-gray-600'}`}>ROW Available:</label>
                                 <select 
-                                    value={projectDetails.RowAvailable ? 'true' : 'false'} 
+                                    value={projectDetails?.RowAvailable ? 'true' : 'false'} 
                                     onChange={(e) => handleInputChange('RowAvailable', e.target.value === 'true')}
                                     className={`flex-2/3 mt-1 px-3 py-2 border ${errors.RowAvailable ? 'border-red-500' : 'border-gray-300'} rounded-md`}
                                 >
@@ -482,7 +482,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <label className={`w-1/3 ${errors.MYCAApprovalDate ? 'text-red-500' : 'text-gray-600'}`}>MYCA Approval Date:</label>
                                 <input 
                                     type="date"
-                                    value={projectDetails.MYCAApprovalDate ? new Date(projectDetails.MYCAApprovalDate).toISOString().split('T')[0] : ''}
+                                    value={projectDetails?.MYCAApprovalDate ? new Date(projectDetails?.MYCAApprovalDate).toISOString().split('T')[0] : ''}
                                     onChange={(e) => handleInputChange('MYCAApprovalDate', e.target.value ? new Date(e.target.value).toISOString() : null)}
                                     className={`w-2/3 mt-1 px-3 py-2 border ${errors.MYCAApprovalDate ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
                                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
@@ -505,7 +505,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     <label className={`flex-1/3 ${errors.CreatedBy ? 'text-red-500' : 'text-gray-600'}`}>Created By:</label>
                                     <input 
                                         type="text" 
-                                        value={projectDetails.CreatedBy} 
+                                        value={projectDetails?.CreatedBy} 
                                         onChange={(e) => handleInputChange('CreatedBy', e.target.value)} 
                                         className={`flex-2/3 mt-1 px-3 py-2 border ${errors.CreatedBy ? 'border-red-500' : 'border-gray-300'} rounded-md bg-gray-100`}
                                         disabled 
@@ -518,7 +518,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     <label className={`flex-1/3 ${errors.CreatedDate ? 'text-red-500' : 'text-gray-600'}`}>Created Date:</label>
                                     <input 
                                         type="text" 
-                                        value={projectDetails.CreatedDate ? projectDetails.CreatedDate.StringToDate() : projectDetails.CreatedDate} 
+                                        value={projectDetails?.CreatedDate ? projectDetails?.CreatedDate.StringToDate() : projectDetails?.CreatedDate} 
                                         disabled
                                         className={`flex-2/3 mt-1 px-3 py-2 border ${errors.CreatedDate ? 'border-red-500' : 'border-gray-300'} rounded-md bg-gray-100`} 
                                     />

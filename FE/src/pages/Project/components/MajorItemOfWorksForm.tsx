@@ -159,7 +159,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
   };
 
   const getComponentDescription = (componentId: string): string => {
-    const component = componentCosts.find(cost => cost.ComponentId === componentId);
+    const component = componentCosts?.find(cost => cost.ComponentId === componentId);
     return component?.ComponentId || '';
   };
 

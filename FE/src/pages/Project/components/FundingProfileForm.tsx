@@ -106,7 +106,7 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
         <TableBody>
             {fundingProfiles.map((profile, index) => (
               
-            <TableRow key={profile.Id}>
+            <TableRow key={profile.Id === 0 ? `new-${index}` : profile.Id}>
                 <TableCell className="w-1/3">
                   <select
                     name="source"

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formValidation, type FormValidationError } from '../../../utils/FormValidation';
 import { projectDetailsRules } from '../rules/projectDetailsRules';
-import { Toaster } from '../../../components/toaster/toaster';
+// import { Toaster } from '../../../components/toaster/toaster';
 import type { 
   ProjectDetails, 
   ComponentCost, 
@@ -167,7 +167,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
   );
 
   // Combine componentCosts and componentCostsYear for UI
-  const componentCostsWithYears = componentCosts.map(cost => ({
+  const componentCostsWithYears = (componentCosts || [] ).map(cost => ({
     ...cost,
     CostPerYear: componentCostsYear.filter(year => year.ParentId === cost.ReferenceId)
   }));
@@ -395,8 +395,14 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
   };
 
   const handleEditFundingProfile = (index: number, updatedProfile: FundingProfile) => {
-    setFundingProfiles(prev => prev.map((profile, i) => i === index ? updatedProfile : profile));
-    console.log('Updated funding profile in staging:', updatedProfile);
+    // Force Id to 0 for all funding profiles to treat as new records
+    const profileWithResetId = { ...updatedProfile, Id: 0 };
+    
+    setFundingProfiles(prev => 
+      prev.map((profile, i) => i === index ? profileWithResetId : profile)
+    );
+    
+    console.log('Updated funding profile in staging:', profileWithResetId);
   };
 
   const handleDeleteFundingProfile = (index: number) => {
@@ -588,7 +594,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       });
       
       // Don't use alert() - use proper error state instead
-      console.error('Update failed with error:', errorMessage);
+      // console.error('Update failed with error:', errorMessage);
     } finally {
       setUpdateAllProject(false);
     }
@@ -597,13 +603,13 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
   return (
     
     <div className="max-w-10xl mx-auto p-6 space-y-6">
-      <Toaster
+      {/* <Toaster
         open={toast.open}
         onClose={() => setToast({ ...toast, open: false })}
         message={toast.message}
         type={toast.type}
         timeOut={3000}
-      />
+      /> */}
         <div className='flex items-center justify-between mb-6'>
             {/* Breadcrumb */}
             {/* <nav className="flex items-center text-sm text-left text-gray-500">
@@ -636,7 +642,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       {/* Map Section */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
         <div className="h-64 bg-blue-100 rounded-lg flex items-center justify-center">
-          <div className="text-gray-500 text-lg">Map View - {projectDetails.ProjectId || 'New Project'}</div>
+          <div className="text-gray-500 text-lg">Map View - {initialData?.ProjectDetails?.ProjectId || 'New Project'}</div>
         </div>
       </div>
 
