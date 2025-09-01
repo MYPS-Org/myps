@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formValidation, type FormValidationError } from '../../../utils/FormValidation';
 import { projectDetailsRules } from '../rules/projectDetailsRules';
-// import { Toaster } from '../../../components/toaster/toaster';
 import type { 
   ProjectDetails, 
   ComponentCost, 
@@ -33,6 +32,7 @@ import ActivitySection from './ActivitySection';
 import { addProjectDetails, getProjectEnums, updateEntireProject } from '../Service';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import type { ProgramList } from '../../Program/Model';
+import { useToast } from '../../../components/toaster/ToasterContext';
 
 interface ProjectFormProps {
   initialData?: ProjectFormPayload;
@@ -46,15 +46,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
   const [savingSection, setSavingSection] = useState<string | null>(null);
   const [projectEnums, setProjectEnums] = useState<ProjectEnums | null>(null);
   const [updateAllProject, setUpdateAllProject] = useState<boolean>(false);
-  const [updateError, setUpdateError] = useState<string | null>(null);
-  const [updateSuccess, setUpdateSuccess] = useState<boolean>(false);
   const [errors, setErrors] = useState<FormValidationError<ProjectDetails>>({});
   //toaster here
-  const [toast, setToast] = useState<{
-    open: boolean;
-    message: string;
-    type: "success" | "error" | "info" | "warning";
-  }>({ open: false, message: "", type: "success" });
+  const { showToast } = useToast();
 
   // toggle state for Program Details section
   const [isProgramOpen, setIsProgramOpen] = useState<boolean>(true);
@@ -487,6 +481,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       }
     } catch (error) {
       console.error('Error adding project details:', error);
+      showToast({
+          type: 'error',
+          message: 'Failed to add project details.'
+      });
     } finally {
       setSavingSection(null);
     }
@@ -502,7 +500,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
     // If there are validation errors, don't proceed with update
     if (Object.keys(validationErrors).length > 0) {
       console.log('Validation errors found:', validationErrors);
-      setUpdateError('Please fix the validation errors before updating.');
       return;
     }
     
@@ -591,7 +588,12 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       console.log('Update payload:', payload);
       
       await updateEntireProject(payload);
-      
+
+      showToast({
+          type: 'success',
+          message: 'Project updated successfully.'
+      });
+
       // Backend only returns success message, not the updated data
       // So we keep the current state as is after successful update
       console.log('=== PROJECT UPDATE SUCCESSFUL ===');
@@ -601,21 +603,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       console.log('Current Major Items:', majorItems);
       console.log('Current Funding Profiles:', fundingProfiles);
 
-      setToast({
-        open: true,
-        message: "Project updated successfully!",
-        type: "success",
-      });
-    } catch (error: any) {
-      let errorMessage = "An unexpected error occurred while updating the project.";
-      if (error?.response?.data?.Message) errorMessage = error.response.data.Message;
-      else if (error?.message) errorMessage = error.message;
-      else if (typeof error === "string") errorMessage = error;
-
-      setToast({
-        open: true,
-        message: errorMessage,
-        type: "error",
+    } catch (error) {
+      showToast({
+          type: 'error',
+          message: 'Failed to fetch projects.'
       });
       
       // Don't use alert() - use proper error state instead
@@ -628,13 +619,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
   return (
     
     <div className="max-w-10xl mx-auto p-6 space-y-6">
-      {/* <Toaster
-        open={toast.open}
-        onClose={() => setToast({ ...toast, open: false })}
-        message={toast.message}
-        type={toast.type}
-        timeOut={3000}
-      /> */}
         <div className='flex items-center justify-between mb-6'>
             {/* Breadcrumb */}
             {/* <nav className="flex items-center text-sm text-left text-gray-500">
