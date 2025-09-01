@@ -169,7 +169,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     const component = componentCosts?.find(cost => cost.ComponentId === componentId);
     console.log('Found component:', component);
     // Return the description or the componentId as fallback
-    return component?.Description || component?.ComponentId || componentId || 'Unknown Component';
+    return component?.ComponentId || component?.ComponentId || componentId || 'Unknown Component';
   };
 
   const toggleRowExpansion = (index: number) => {

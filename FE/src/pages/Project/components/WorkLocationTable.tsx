@@ -153,7 +153,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
       return ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget'];
     } else {
       // Others - use coordinates
-      return ['InfraId', 'StartX', 'StartY', 'EndX', 'EndY'];
+      return ['InfraId','DetailedScope', 'TargetUnit','PhysicalTarget','StartX', 'StartY', 'EndX', 'EndY'];
     }
   };
 
