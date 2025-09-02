@@ -21,6 +21,8 @@ const ProgramDetail: React.FC = () => {
         Name: '',
         StageId: 0,
         StageName: '',
+        IsSkipped: false,
+        SkipReason: '',
         UserGroup: 0,
         RegionCode: '',
         Status: 0,
@@ -49,6 +51,8 @@ const ProgramDetail: React.FC = () => {
         Name: '',
         StageId: 0,
         StageName: '',
+        IsSkipped: false,
+        SkipReason: '',
         UserGroup: 0,
         RegionCode: '',
         Status: 0,
@@ -197,6 +201,13 @@ const ProgramDetail: React.FC = () => {
           {/* Left Column - Form Fields */}
           
           <div className="space-y-6">
+            {programEnums.Details.IsSkipped && (
+              <div className='content-center bg-red-100 p-4 border border-red-200 rounded-lg'>
+                {programEnums?.Details.IsSkipped && (
+                  <p className="text-sm text-red-500 text-wrap">This program was skipped Budget Proposal Stage.</p>
+                )}
+              </div>
+            )}
             <div className="grid grid-cols-1 gap-4">
               <div>
                 <label className="block text-left text-sm font-medium text-gray-700 mb-1">Name</label>
@@ -317,13 +328,13 @@ const ProgramDetail: React.FC = () => {
 
             <div className="pt-4 flex justify-end gap-4">
               {programEnums?.Details.StageId >= 4 && programEnums?.Details.StageId <= 11 && (
-                <Button color="blue" className="w-auto" onClick={handleProceed}>
+                <Button color="blue" className="w-auto items-center text-nowrap" onClick={handleProceed}>
                   Proceed to {nextStageName}
                 </Button>
               )}
               <Button 
                 color="green" 
-                className="w-24" 
+                className="w-24 items-center" 
                 onClick={handleUpdate}
                 disabled={preventUpdate() || isLoading}
               >

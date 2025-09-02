@@ -9,6 +9,8 @@ export interface ProgramModel {
 	YearStart: number;
 	YearEnd: number;
 	UserGroup: number;
+	IsSkipped: boolean;
+	SkipReason: string;
 }
 export interface ProgramEnums {
 	Id: number;
@@ -44,6 +46,8 @@ export interface ProgramDetails {
 	Name: string;
 	StageId: number;
 	StageName: string;
+	IsSkipped: boolean;
+	SkipReason: string;
 	UserGroup: number;
 	RegionCode: string;
 	Status: number;

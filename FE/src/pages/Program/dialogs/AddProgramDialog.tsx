@@ -29,6 +29,7 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
   const Stage = programEnums?.Stages || [];
   const Type = programEnums?.Types || [];
   const Group = programEnums?.Groups || [];
+  const [skipped, setSkipped] = useState(false);
 
   const [formData, setFormData] = useState({
     Id: 0,
@@ -39,6 +40,8 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
     Name: '',
     YearStart: new Date().getFullYear() + 1,
     YearEnd: new Date().getFullYear(),
+    SkipReason: '',
+    IsSkipped: false,
   });
 
 
@@ -64,8 +67,18 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
         const stageName = selectedStage ? selectedStage.Name : '';
         const yearStart = field === 'YearStart' ? value : newFormData.YearStart;
         newFormData.Name = stageName + ' ' + yearStart;
+
+        // Auto-skip logic for stages 5-11
+        if (field === 'Stage' && selectedStage && selectedStage.Enum >= 5 && selectedStage.Enum <= 11) {
+          newFormData.IsSkipped = true;
+          setSkipped(true);
+        } else if (field === 'Stage') {
+          newFormData.IsSkipped = false;
+          setSkipped(false);
+          newFormData.SkipReason = ''; // Clear reason when not skipping
+        }
       }
-      
+
       return newFormData;
     });
   };
@@ -85,6 +98,8 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
       Name: '',
       YearStart: new Date().getFullYear(),
       YearEnd: new Date().getFullYear() + 6,
+      SkipReason: '',
+      IsSkipped: false,
     });
   };
 
@@ -116,7 +131,7 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
               type="text"
               value={formData.Name}
               onChange={(e) => handleChange('Name', e.target.value)}
-              disabled
+              // disabled
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
               required
               placeholder='Auto-generated Name'
@@ -150,16 +165,6 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
                 ))}
               </select>
             </div>
-            {/* <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">End Year</label>
-              <input
-                type="number"
-                value={formData.YearEnd}
-                onChange={(e) => handleChange('YearEnd', Number(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
-                required
-              />
-            </div> */}
           </div>
           <div className="mb-4 grid grid-cols-2 gap-5">
             <div>
@@ -197,9 +202,26 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
               </select>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-5 mb-8">
-            
-          </div>
+          {skipped && (
+            <div className="grid grid-cols-2 gap-5 mb-8 bg-red-100 p-3 border border-red-200 rounded-lg">
+                <div className="content-center">
+                  <p className="text-sm text-red-600">
+                    Note: Skipping this step may affect your program's setup.
+                  </p>
+                </div>
+                <div className="content-center">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Reason</label>
+                  <input
+                    type="text"
+                    value={formData.SkipReason}
+                    onChange={(e) => handleChange('SkipReason', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
+                    required
+                    placeholder='Reason'
+                  />
+                </div>
+            </div>
+          )}
             
 
           <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
