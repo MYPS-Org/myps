@@ -29,7 +29,10 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
   // Calculate total percentage whenever fundingProfiles change
   useEffect(() => {
     const total = fundingProfiles.reduce((sum, profile) => sum + (profile.Percentage || 0), 0);
-    setTotalPercentage(total);
+    // Round to 2 decimal places to handle floating point precision issues
+    const roundedTotal = Math.round(total * 100) / 100;
+    setTotalPercentage(roundedTotal);
+    
     const totalAmt = fundingProfiles.reduce((sum, profile) => sum + (profile.Amount || 0), 0);
     setTotalAmount(totalAmt);
 
@@ -64,7 +67,8 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
   };
 
   const getTotalPercentageColor = () => {
-    if (totalPercentage === 100) return "text-green-600";
+    // Use Math.abs to check if the difference is within a small tolerance (0.01)
+    if (Math.abs(totalPercentage - 100) < 0.01) return "text-green-600";
     if (totalPercentage > 100) return "text-red-600";
     return "text-yellow-600";
   };
@@ -161,7 +165,7 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
                       placeholder="0"
                       min="0"
                       max="100"
-                      step="0.1"
+                      step="0.01"
                     />
                     {/* {errors[index] && (
                       <span className="text-red-500 text-xs mt-1">{errors[index]}</span>
@@ -181,12 +185,12 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
         </Table>
         
         {/* Validation Summary */}
-        {(totalPercentage !== 100 || Object.keys(errors).length > 0) && (
+        {(Math.abs(totalPercentage - 100) >= 0.01 || Object.keys(errors).length > 0) && (
           <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
             <h4 className="text-sm font-medium text-yellow-800 mb-2">Validation Issues:</h4>
             <ul className="text-sm text-yellow-700 space-y-1">
-              {totalPercentage !== 100 && (
-                <li>• Total percentage must equal 100% (currently {totalPercentage.toFixed(1)}%)</li>
+              {Math.abs(totalPercentage - 100) >= 0.01 && (
+                <li>• Total percentage must equal 100% (currently {totalPercentage.toFixed(2)}%)</li>
               )}
               {Object.keys(errors).length > 0 && (
                 <li>• Fix individual field errors shown above</li>

@@ -535,8 +535,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     const businessValidationErrors: string[] = [];
 
     // Check funding percentage validation
-    if (totalPercentage !== 100) {
-      businessValidationErrors.push(`Total funding percentage must equal 100%. Current total: ${totalPercentage.toFixed(1)}%`);
+    const roundedTotal = Math.round(totalPercentage * 100) / 100;
+    if (roundedTotal !== 100) {
+      businessValidationErrors.push(`Total funding percentage must equal 100%. Current total: ${roundedTotal.toFixed(1)}%`);
     }
 
     // Check component cost validation
