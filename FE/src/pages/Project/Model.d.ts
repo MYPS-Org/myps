@@ -81,8 +81,11 @@ export interface ProjectDetails {
 	ImplementationMode?: number;
 	EmergencyMode?: boolean;
 	Feasibility?: number;
+	FeasibilityDate?: string;
 	DetailedDesign?: boolean;
+	DetailedDesignDate?: string;
 	RowAvailable?: boolean;
+	RegionWide?: number;
 	CreatedBy?: string;
 	CreatedDate?: string;
 	UpdatedBy?: string;
@@ -455,6 +458,7 @@ export interface ProjectEnums {
   ImplementationModes: ProjectImplementModeEnum[];
   EmergencyModes: ProjectEmergencyModeEnum[];
   Feasibility: ProjectLongFeasibilityEnum[];
+  RegionWide: ProjectCategoryEnum[];
 }
 
 export interface ProjectCategoryEnum {

@@ -427,6 +427,22 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             </div>
                         </div>
 
+                        <div className='w-full flex flex-col text-left gap-2'>
+                            <div className="flex flex-row gap-5 items-center">
+                                <label className={`flex-1/3 ${errors.RowAvailable ? 'text-red-500' : 'text-gray-600'}`}>ROW Available:</label>
+                                <select 
+                                    value={projectDetails?.RowAvailable ? 'true' : 'false'} 
+                                    onChange={(e) => handleInputChange('RowAvailable', e.target.value === 'true')}
+                                    className={`flex-2/3 mt-1 px-3 py-2 border ${errors.RowAvailable ? 'border-red-500' : 'border-gray-300'} rounded-md`}
+                                >
+                                    <option value="false">No</option>
+                                    <option value="true">Yes</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className='grid grid-cols-3 gap-5'>
                         <div className="w-full flex flex-col text-left gap-2">
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.Feasibility ? 'text-red-500' : 'text-gray-600'}`}>Feasibility Study:</label>
@@ -442,6 +458,38 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                             {feasibility.Name}
                                         </option>
                                     ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="w-full flex flex-col text-left gap-2">
+                            <div className="flex flex-row gap-5 items-center">
+                                <label className={`w-1/3 ${errors.FeasibilityDate ? 'text-red-500' : 'text-gray-600'}`}>Feasibility Date:</label>
+                                <input 
+                                    type="date"
+                                    value={projectDetails?.FeasibilityDate ? new Date(projectDetails?.FeasibilityDate).toISOString().split('T')[0] : ''}
+                                    onChange={(e) => handleInputChange('FeasibilityDate', e.target.value ? new Date(e.target.value).toISOString() : null)}
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.FeasibilityDate ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
+                                    style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                                />
+                            </div>
+                        </div>
+
+                        <div className='w-full flex flex-col text-left gap-2'>
+                            <div className="flex flex-row gap-5 items-center">
+                                <label className={`w-1/3 ${errors.RegionWide ? 'text-red-500' : 'text-gray-600'}`}>Region Wide:</label>
+                                <select 
+                                    value={projectDetails?.RegionWide} 
+                                    onChange={(e) => handleInputChange('RegionWide', e.target.value === 'true')}
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.RegionWide ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
+                                    style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                                >
+                                 <option value="">Select Region Wide</option>
+                                    {projectEnums?.RegionWide?.map((region) => (
+                                        <option key={region.Id} value={region.Enum}>
+                                            {region.Name}
+                                        </option>
+                                    ))} 
                                 </select>
                             </div>
                         </div>
@@ -463,17 +511,16 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             </div>
                         </div>
 
-                        <div className='w-full flex flex-col text-left gap-2'>
+                        <div className="w-full flex flex-col text-left gap-2">
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`flex-1/3 ${errors.RowAvailable ? 'text-red-500' : 'text-gray-600'}`}>ROW Available:</label>
-                                <select 
-                                    value={projectDetails?.RowAvailable ? 'true' : 'false'} 
-                                    onChange={(e) => handleInputChange('RowAvailable', e.target.value === 'true')}
-                                    className={`flex-2/3 mt-1 px-3 py-2 border ${errors.RowAvailable ? 'border-red-500' : 'border-gray-300'} rounded-md`}
-                                >
-                                    <option value="false">No</option>
-                                    <option value="true">Yes</option>
-                                </select>
+                                <label className={`w-1/3 ${errors.DetailedDesignDate ? 'text-red-500' : 'text-gray-600'}`}>Detailed Design Date:</label>
+                                <input 
+                                    type="date"
+                                    value={projectDetails?.DetailedDesignDate ? new Date(projectDetails?.DetailedDesignDate).toISOString().split('T')[0] : ''}
+                                    onChange={(e) => handleInputChange('DetailedDesignDate', e.target.value ? new Date(e.target.value).toISOString() : null)}
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.DetailedDesignDate ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
+                                    style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                                />
                             </div>
                         </div>
 
