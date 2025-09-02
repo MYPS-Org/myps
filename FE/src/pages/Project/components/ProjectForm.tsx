@@ -531,26 +531,33 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       return;
     }
 
+    // Collect all business validation errors
+    const businessValidationErrors: string[] = [];
+
+    // Check funding percentage validation
     if (totalPercentage !== 100) {
-      showToast({
-        type: 'error',
-        message: `Total funding percentage must equal 100%. Current total: ${totalPercentage.toFixed(1)}%`
-      });
-      return;
+      businessValidationErrors.push(`Total funding percentage must equal 100%. Current total: ${totalPercentage.toFixed(1)}%`);
     }
 
-    // Validate component cost against max amount cost
+    // Check component cost validation
     if (maxAmountCost && maxAmountCost > 0) {
       const totalComponentCost = componentCosts.reduce((sum, cost) => sum + (cost.Total || 0), 0);
       
       if (totalComponentCost > maxAmountCost) {
         const exceeded = totalComponentCost - maxAmountCost;
+        businessValidationErrors.push(`Total component cost (₱${totalComponentCost.toLocaleString('en-PH')}) exceeds the maximum budget (₱${maxAmountCost.toLocaleString('en-PH')}) by ₱${exceeded.toLocaleString('en-PH')}`);
+      }
+    }
+
+    // If there are any business validation errors, show each one separately and return
+    if (businessValidationErrors.length > 0) {
+      businessValidationErrors.forEach(errorMessage => {
         showToast({
           type: 'error',
-          message: `Total component cost (₱${totalComponentCost.toLocaleString('en-PH')}) exceeds the maximum budget (₱${maxAmountCost.toLocaleString('en-PH')}) by ₱${exceeded.toLocaleString('en-PH')}.`
+          message: errorMessage
         });
-        return;
-      }
+      });
+      return;
     }
     
     setUpdateAllProject(true);
