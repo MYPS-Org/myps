@@ -3,7 +3,7 @@ import type { FundingProfile, ProjectFormPayload } from "../Model";
 import { Button } from "../../../components/tailwindui/button";
 import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from "../../../components/tailwindui/table";
-import { handleNumberFocus } from "../../../utils/GlobalFunctions";
+import { handleNumberFocus, formatCurrency } from "../../../utils/GlobalFunctions";
 
 interface FundingProfileFormProps {
   initialData?: ProjectFormPayload;
@@ -83,7 +83,7 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
             )}
           </div>
           <div className={`text-sm font-medium ${getTotalPercentageColor()}`}>
-            Total Amount: {totalAmount.toFixed(2)}
+            Total Amount: ₱ {formatCurrency(totalAmount)}
           </div>
           
           <Button color="blue" onClick={onAdd}>
@@ -163,9 +163,9 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
                       max="100"
                       step="0.1"
                     />
-                    {errors[index] && (
+                    {/* {errors[index] && (
                       <span className="text-red-500 text-xs mt-1">{errors[index]}</span>
-                    )}
+                    )} */}
                 </TableCell>
                 <TableCell>
                   <button

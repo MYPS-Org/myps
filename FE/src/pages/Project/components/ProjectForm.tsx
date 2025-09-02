@@ -229,6 +229,15 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     initialData?.FundingProfile || []
   );
 
+  // Calculate total percentage for funding profile validation
+  const [totalPercentage, setTotalPercentage] = useState(0);
+
+  // Calculate total percentage whenever fundingProfiles change
+  useEffect(() => {
+    const total = fundingProfiles.reduce((sum, profile) => sum + (profile.Percentage || 0), 0);
+    setTotalPercentage(total);
+  }, [fundingProfiles]);
+
   const [Dropdowns] = useState<Dropdowns>(
     initialData?.Dropdowns || {
     Categories: [],
@@ -521,6 +530,28 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       console.log('Validation errors found:', validationErrors);
       return;
     }
+
+    if (totalPercentage !== 100) {
+      showToast({
+        type: 'error',
+        message: `Total funding percentage must equal 100%. Current total: ${totalPercentage.toFixed(1)}%`
+      });
+      return;
+    }
+
+    // Validate component cost against max amount cost
+    if (maxAmountCost && maxAmountCost > 0) {
+      const totalComponentCost = componentCosts.reduce((sum, cost) => sum + (cost.Total || 0), 0);
+      
+      if (totalComponentCost > maxAmountCost) {
+        const exceeded = totalComponentCost - maxAmountCost;
+        showToast({
+          type: 'error',
+          message: `Total component cost (₱${totalComponentCost.toLocaleString('en-PH')}) exceeds the maximum budget (₱${maxAmountCost.toLocaleString('en-PH')}) by ₱${exceeded.toLocaleString('en-PH')}.`
+        });
+        return;
+      }
+    }
     
     setUpdateAllProject(true);
     
@@ -605,6 +636,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
       console.log('=== SENDING TO BACKEND (MATCHING EXPECTED PAYLOAD) ===');
       console.log('Update payload:', payload);
+
       
       await updateEntireProject(payload);
 

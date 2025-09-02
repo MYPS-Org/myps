@@ -15,3 +15,7 @@ export const handleNumberFocus = (e: React.FocusEvent<HTMLInputElement>) => {
     e.target.value = '';
   }
 };
+
+export const formatCurrency = (amount: number) => {
+  return amount.toLocaleString('en-PH');
+};
