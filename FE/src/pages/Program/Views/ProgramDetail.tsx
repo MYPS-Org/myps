@@ -106,7 +106,7 @@ const ProgramDetail: React.FC = () => {
   };
 
   const handleAddProject = () => {
-        navigate('/projects/addproject');
+        navigate(`/projects/addproject?programId=${programEnums?.Details.ProgramId}`);
     };
 
   // const handleBack = () => {

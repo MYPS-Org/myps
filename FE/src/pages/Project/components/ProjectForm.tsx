@@ -37,9 +37,10 @@ import { useToast } from '../../../components/toaster/ToasterContext';
 interface ProjectFormProps {
   initialData?: ProjectFormPayload;
   mode?: 'add' | 'edit';
+  initialProgramId?: string;
 }
 
-const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) => {
+const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', initialProgramId }) => {
 
   const navigate = useNavigate();
 
@@ -109,9 +110,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
     }
   );
 
-  const [majorItemsLocation] = useState<MajorItemLocations[]>(
-    initialData?.MajorItemLocations || []
-  );
+  // const [majorItemsLocation] = useState<MajorItemLocations[]>(
+  //   initialData?.MajorItemLocations || []
+  // );
 
   useEffect(() => {
     // Load project enums
@@ -151,6 +152,24 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       setProgramDetails(initialData.ProgramDetails);
     }
   }, [mode, initialData]);
+
+  // Separate useEffect to handle initialProgramId
+  useEffect(() => {
+    if (initialProgramId && projectEnums?.Programs) {
+      const selectedProgram = projectEnums.Programs.find(
+        program => program.ProgramId === initialProgramId
+      );
+      if (selectedProgram) {
+        setProgramDetails(selectedProgram);
+        // Also update project details with the program ID
+        setProjectDetails(prev => ({
+          ...prev,
+          ProgramId: selectedProgram.ProgramId,
+          ProgramName: selectedProgram.Name
+        }));
+      }
+    }
+  }, [initialProgramId, projectEnums?.Programs]);
 
   const [componentCosts, setComponentCosts] = useState<ComponentCost[]>(
     initialData?.ComponentCosts || []

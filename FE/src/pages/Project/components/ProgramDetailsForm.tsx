@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { ProjectEnums } from "../Model";
 import type { ProgramList } from "../../Program/Model";
 
@@ -21,6 +21,13 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
 }) => {
   const [searchFormData, setSearchFormData] = useState('');
   const [isLoading] = useState(false);
+
+  // Update searchFormData when programDetails changes
+  useEffect(() => {
+    if (programDetails?.ProgramId) {
+      setSearchFormData(programDetails.ProgramId);
+    }
+  }, [programDetails?.ProgramId]);
 
   const setProgram = (value: string) => {
     console.log('Selected program value:', value);
