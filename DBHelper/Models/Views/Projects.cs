@@ -34,8 +34,11 @@ namespace DBHelper.Models.Views
         public string? ImplementationMode { get; set; }
         public string? EmergencyMode { get; set; }
         public string? Feasibility { get; set; }
+        public DateTime? FeasibilityDate { get; set; }
         public string? DetailedDesign { get; set; }
+        public DateTime? DetailedDesignDate { get; set; }
         public string? RowAvailable { get; set; }
+        public int RegionWide { get; set; }
         public string StageName { get; set; } = string.Empty;
         public string CreatedBy { get; set; } = string.Empty;
         public DateTime CreatedDate { get; set; }

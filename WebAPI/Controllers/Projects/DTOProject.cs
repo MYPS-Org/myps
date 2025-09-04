@@ -152,6 +152,8 @@ namespace WebAPI.Controllers.Projects
         [Required]
         public int Agreement { get; set; }
         [Required]
+        public Double Amount { get; set; }
+        [Required]
         public Double Percentage { get; set; }
     }
 }

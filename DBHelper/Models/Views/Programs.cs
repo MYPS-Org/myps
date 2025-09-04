@@ -13,6 +13,8 @@ namespace DBHelper.Models.Views
         public string ProgramId { get; set; } = string.Empty;
         public int RevisionId { get; set; }
         public string StageName { get; set; } = string.Empty;
+        public bool IsSkipped { get; set; }
+        public string? SkipReason { get; set; }
         public string? Name { get; set; }
         public string? GroupName { get; set; }
         public string? RegionCode { get; set; }

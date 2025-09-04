@@ -61,8 +61,12 @@ namespace DBHelper.Models.Table
         [Required]
         public bool EmergencyMode { get; set; }
         public int? Feasibility { get; set; }
+        public DateTime? FeasibilityDate { get; set; }
         public bool? DetailedDesign { get; set; }
+        public DateTime? DetailedDesignDate { get; set; }
         public bool? RowAvailable { get; set; }
+        [Required]
+        public int RegionWide { get; set; } = 0;
         [Required]
         [MaxLength(100)]
         public string CreatedBy { get; set; } = string.Empty;

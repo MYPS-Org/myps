@@ -152,17 +152,17 @@ namespace WebAPI.Controllers.Programs
         {
             try
             {
-                int[] initialStageInts = new[]
-                {
-                    (int)EnumProgramStage.RBP,
-                    (int)EnumProgramStage.BP
-                };
+                //int[] initialStageInts = new[]
+                //{
+                //    (int)EnumProgramStage.RBP,
+                //    (int)EnumProgramStage.BP
+                //};
                 //int[] initialStatus = new[]
                 //{
                 //    (int)EnumProgramStatus.Working
                 //};
 
-                var Stage = await _db.tProgramStageEnum.AsNoTracking().Where(x => initialStageInts.Contains(x.Enum)).ToListAsync();
+                var Stage = await _db.tProgramStageEnum.AsNoTracking().ToListAsync();
                 var Type = await _db.tProgramTypeEnum.AsNoTracking().ToListAsync();
                 //var Status = await _db.tProgramStatusEnum.AsNoTracking().Where(x => initialStatus.Contains(x.Enum)).ToListAsync();
                 var Group = await _db.tGroups.ToListAsync();
@@ -214,6 +214,10 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"User Group '{dto.UserGroup}' is not valid!", Title = "Invalid User Group" });
                 }
+                if(dto.IsSkipped == true && string.IsNullOrEmpty(dto.SkipReason))
+                {
+                    return new BadRequestObjectResult(new { Message = $"Please provide a reason for skipping stage of this program.", Title = "Skip Reason Required" });
+                } 
                 string ReferenceId = "PR" + ("tCountSequence").GenerateCode();
                 DateTime currentDate = DateTime.UtcNow;
                 string UserId = _Session.UserId;
@@ -222,7 +226,9 @@ namespace WebAPI.Controllers.Programs
                     ProgramId = ReferenceId,
                     CreatedBy = UserId,
                     CreatedDate = currentDate,
-                    IsDeleted= false
+                    IsDeleted= false,
+                    IsSkipped = dto.IsSkipped,
+                    SkipReason = dto.SkipReason
                 };
                 await _db.tPrograms.AddAsync(newProgram);
                 var newRevisions = new ProgramRevisions()

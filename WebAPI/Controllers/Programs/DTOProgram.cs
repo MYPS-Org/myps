@@ -2,6 +2,7 @@
 using DBHelper.Models.Table;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -29,6 +30,9 @@ namespace WebAPI.Controllers.Programs
         public int YearStart { get; set; }
         public int UserGroup { get; set; }
         public string RegionCode { get; set; } = string.Empty;
+        public bool IsSkipped { get; set; } = false;
+        [MaxLength(250)]
+        public string? SkipReason { get; set; }
     }
     public class ProgramDetailsDTO
     {

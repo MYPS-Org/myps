@@ -30,8 +30,11 @@ namespace DBHelper.Models.Views
         public int ImplementationMode { get; set; }
         public bool EmergencyMode { get; set; }
         public int? Feasibility { get; set; }
+        public DateTime? FeasibilityDate { get; set; }
         public bool? DetailedDesign { get; set; }
+        public DateTime? DetailedDesignDate { get; set; }
         public bool? RowAvailable { get; set; }
+        public int RegionWide { get; set; } = 0;
         public string? CreatedBy { get; set; }
         public DateTime? CreatedDate { get; set; }
         public string? UpdatedBy { get; set; }
