@@ -88,7 +88,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       ExternalId: '',
       MYId: '',
       UACS: 0,
-      MYCAApprovalDate: '',
+      // MYCAApprovalDate: '',
       IslandCode: '',
       RevisionNumber: 0,
       Description: '',
@@ -677,7 +677,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
   return (
     
-    <div className="max-w-10xl mx-auto p-6 space-y-6">
+    <div className="overflow-auto max-w-10xl mx-auto p-6 space-y-6">
         <div className='flex items-center justify-between mb-6'>
             {/* Breadcrumb */}
             {/* <nav className="flex items-center text-sm text-left text-gray-500">

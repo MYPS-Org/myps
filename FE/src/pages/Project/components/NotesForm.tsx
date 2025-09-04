@@ -60,27 +60,27 @@ const NotesForm: React.FC<NotesFormProps> = ({
       <Table>
         <TableHead>
           <TableRow>
-            <TableHeader>Description</TableHeader>
+            <TableHeader className="w-lg">File</TableHeader>
             <TableHeader>Date</TableHeader>
-            <TableHeader>File</TableHeader>
+            <TableHeader>Description</TableHeader>
             <TableHeader>Actions</TableHeader>
           </TableRow>
         </TableHead>
         <TableBody>
           {notes.map((note, index) => (
             <TableRow key={`${note.Id}-${index}-${note.CreatedDate}`}>
-              <TableCell>
-                
-                  <span title={note.Description} className="text-xs text-gray-500 mt-1">{note.Description}</span>
+              <TableCell className="w-lg">
+                {note.FileName && (
+                  <span className="text-xs text-gray-500 mt-1 cursor-pointer !underline" onClick={() => window.open(`/${note.FilePath}`, '_blank')}>{note.FileName}</span>
+                )}
               </TableCell>
               <TableCell>
                 <span className="text-xs text-gray-500 mt-1">{note.CreatedDate ? new Date(note.CreatedDate).toLocaleDateString() : '-'}</span>
                 
               </TableCell>
               <TableCell>
-                {note.FileName && (
-                  <span className="text-xs text-gray-500 mt-1 cursor-pointer !underline" onClick={() => window.open(`/${note.FilePath}`, '_blank')}>{note.FileName}</span>
-                )}
+                
+                  <span title={note.Description} className="text-xs text-gray-500 mt-1">{note.Description}</span>
               </TableCell>
               <TableCell>
                 <button

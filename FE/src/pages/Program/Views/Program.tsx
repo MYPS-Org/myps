@@ -155,10 +155,11 @@ const Program: React.FC = () => {
         }
     };
 
-    const handleViewDetails = async (programId?: string) => {
+    const handleViewDetails = async (programId: string, stageName: string) => {
         try {
-            if (programId) {
-                navigate(`/programs/programdetails/${programId}`);
+            if (programId && stageName) {
+                const programWithStage = programId + '-' + stageName;
+                navigate(`/programs/programdetails/${programWithStage}`);
             }
         } catch (error) {
             console.error('Error navigating to program details:', error);
@@ -319,8 +320,8 @@ const Program: React.FC = () => {
                     <TableHead>
                     <TableRow>
                         <TableHeader>Name</TableHeader>
-                        <TableHeader>Status</TableHeader>
-                        <TableHeader>Program Stage</TableHeader>
+                        {/* <TableHeader>Status</TableHeader> */}
+                        {/* <TableHeader>Program Stage</TableHeader> */}
                         <TableHeader>Program Type</TableHeader>
                         <TableHeader>Start Year</TableHeader>
                         {/* <TableHeader>End Year</TableHeader> */}
@@ -349,12 +350,12 @@ const Program: React.FC = () => {
                                 <TableCell>
                                     {getStatusBadge(program.Status || '')}
                                 </TableCell>
-                                <TableCell>
+                                {/* <TableCell>
                                     {program.StageName}
                                 </TableCell>
                                 <TableCell>
                                     {program.Type}
-                                </TableCell>
+                                </TableCell> */}
                                 <TableCell>
                                     {program.YearStart}
                                 </TableCell>
@@ -365,7 +366,7 @@ const Program: React.FC = () => {
                                     <div className="flex items-center space-x-1">
                                         <Button 
                                             color="orange"
-                                            onClick={() => handleViewDetails(program.ProgramId)}
+                                            onClick={() => handleViewDetails(program.ProgramId, program.StageName)}
                                             className="text-xs px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded"
                                         >
                                             View
@@ -406,7 +407,7 @@ const Program: React.FC = () => {
                                                     <TableBody>
                                                         {stageLists[program.ProgramId || '']?.Stages?.map((stage) => (
                                                             <TableRow key={stage.Id}>
-                                                                <TableCell className="font-medium text-sm text-center">{stage.Name}</TableCell>
+                                                                <TableCell className="font-medium text-sm text-center">{stage.StageName}</TableCell>
                                                                 {/* <TableCell>
                                                                     {getStatusBadge(getStatusString(stage.Status || 0))}
                                                                 </TableCell> */}
@@ -420,7 +421,7 @@ const Program: React.FC = () => {
                                                                     <Button
                                                                         color="blue"
                                                                         className="text-xs px-3 py-1.5 text-center"
-                                                                        onClick={() => handleViewDetails(stage.ProgramId)}
+                                                                        onClick={() => handleViewDetails(stage.ProgramId, stage.StageName)}
                                                                     >
                                                                         View Details
                                                                     </Button>

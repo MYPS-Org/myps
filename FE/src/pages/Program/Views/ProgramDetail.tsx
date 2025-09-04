@@ -10,7 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 
 // Mock projects data for the table
 const ProgramDetail: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { program } = useParams<{ program: string }>();
+  const id = program?.split('-');
   const navigate = useNavigate();
   const [nextStageName, setNextStageName] = useState<string | null>(null);
   const [programEnums, setProgramEnums] = useState<ProgramDetailsEnums>({
@@ -79,7 +80,7 @@ const ProgramDetail: React.FC = () => {
     const loadProgramDetail = async () => {
       try {
         if (id) {
-          await fetchProgramDetail(id);
+          await fetchProgramDetail(id[0], id[1]);
         }
       } catch (error) {
         console.error('Error fetching program details:', error);
@@ -91,7 +92,7 @@ const ProgramDetail: React.FC = () => {
 
 
 
-  const fetchProgramDetail = async (programId: string) => {
+  const fetchProgramDetail = async (programId: string, stageName?: string) => {
     setIsLoading(true);
     try {
       const response = await fetchProgramById(programId);
@@ -132,7 +133,7 @@ const ProgramDetail: React.FC = () => {
     try {
       await editProgram(programEnums?.Details);
       console.log('Update program details');
-      await fetchProgramDetail(programEnums?.Details.ProgramId);
+      await fetchProgramDetail(programEnums?.Details.ProgramId, programEnums?.Details.StageName);
     } catch (error) {
       console.error('Error updating program details:', error);
     } finally {
@@ -164,6 +165,7 @@ const ProgramDetail: React.FC = () => {
       const nextStageId = programEnums?.Details.StageId + 1;
       console.log('Proceeding to next stage:', nextStageId);
       await nextStage({ ProgramId: programEnums?.Details.ProgramId, Stage: nextStageId });
+      await fetchProgramDetail(programEnums?.Details.ProgramId);
     } catch (error) {
       console.error('Error proceeding with program details:', error);
     } finally {
@@ -201,13 +203,13 @@ const ProgramDetail: React.FC = () => {
           {/* Left Column - Form Fields */}
           
           <div className="space-y-6">
-            {programEnums.Details.IsSkipped && (
+            {/* {programEnums.Details.IsSkipped && (
               <div className='content-center bg-red-100 p-4 border border-red-200 rounded-lg'>
                 {programEnums?.Details.IsSkipped && (
                   <p className="text-sm text-red-500 text-wrap">This program was skipped Budget Proposal Stage.</p>
                 )}
               </div>
-            )}
+            )} */}
             <div className="grid grid-cols-1 gap-4">
               <div>
                 <label className="block text-left text-sm font-medium text-gray-700 mb-1">Name</label>

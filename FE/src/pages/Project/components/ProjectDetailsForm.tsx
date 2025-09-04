@@ -29,6 +29,12 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
         handleInputChange('IslandCode', newValue);
     };
 
+    const regionWideData = [
+        { id: 1, enum: 1, name: "Region Wide" },
+        { id: 2, enum: 2, name: "Non-Region Wide" },
+        { id: 3, enum: 3, name: "Region Wide AIP ignores DEO" },
+    ];
+
 
 
     return (
@@ -480,16 +486,21 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <label className={`w-1/3 ${errors.RegionWide ? 'text-red-500' : 'text-gray-600'}`}>Region Wide:</label>
                                 <select 
                                     value={projectDetails?.RegionWide} 
-                                    onChange={(e) => handleInputChange('RegionWide', e.target.value === 'true')}
+                                    onChange={(e) => handleInputChange('RegionWide', e.target.value ? parseInt(e.target.value) : undefined)}
                                     className={`w-2/3 mt-1 px-3 py-2 border ${errors.RegionWide ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
                                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
                                 >
-                                 <option value="">Select Region Wide</option>
-                                    {projectEnums?.RegionWide?.map((region) => (
+                                 <option value={0}>Select Region Wide</option>
+                                    {/* {projectEnums?.RegionWide?.map((region) => (
                                         <option key={region.Id} value={region.Enum}>
                                             {region.Name}
                                         </option>
-                                    ))} 
+                                    ))}  */}
+                                    {regionWideData.map((region) => (
+                                        <option key={region.id} value={region.enum}>
+                                            {region.name}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
                         </div>

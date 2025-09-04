@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Dialog, DialogTitle, DialogPanel } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
-import { XMarkIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, DocumentArrowUpIcon, DocumentIcon } from '@heroicons/react/24/outline';
 import type { AddNotes, ProjectNote } from '../Model.d';
 import { addNote } from '../Service';
 
@@ -52,6 +52,13 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({ isOpen, onClose, projectI
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Check if file is PDF
+      if (file.type !== 'application/pdf') {
+        alert('Please select a PDF file only.');
+        e.target.value = ''; // Clear the input
+        return;
+      }
+
       const reader = new FileReader();
       reader.onloadend = () => {
         setFormData(prev => ({
@@ -139,12 +146,37 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({ isOpen, onClose, projectI
               className="w-full border rounded p-2"
               required
             />
-            <div className="w-full px-2 py-1 border border-gray-300 rounded">
-              <input
-                type="file"
-                onChange={e => handleFileChange(e)}
-                className="w-full"
-              />
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Upload PDF File
+              </label>
+              <div className="relative">
+                <div className="flex items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    {formData.File?.Name ? (
+                      <>
+                        <DocumentIcon className="w-8 h-8 mb-2 text-green-500" />
+                        <p className="text-sm text-gray-700 font-medium">{formData.File.Name}</p>
+                        <p className="text-xs text-gray-500">PDF file selected</p>
+                      </>
+                    ) : (
+                      <>
+                        <DocumentArrowUpIcon className="w-8 h-8 mb-2 text-gray-400" />
+                        <p className="mb-2 text-sm text-gray-500">
+                          <span className="font-semibold">Click to upload</span> or drag and drop
+                        </p>
+                        <p className="text-xs text-gray-500">PDF files only</p>
+                      </>
+                    )}
+                  </div>
+                  <input
+                    type="file"
+                    accept=".pdf,application/pdf"
+                    onChange={e => handleFileChange(e)}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="flex justify-end space-x-2">

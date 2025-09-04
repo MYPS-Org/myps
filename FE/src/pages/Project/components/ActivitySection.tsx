@@ -17,14 +17,14 @@ const ActivitySection: React.FC<ActivitySectionProps> = ({ activities, transacti
     switch (type.toLowerCase()) {
       case 'create':
       case 'insert':
-        return '➕';
+        return '';
       case 'update':
       case 'modify':
-        return '✏️';
+        return '';
       case 'delete':
-        return '🗑️';
+        return '';
       default:
-        return '📝';
+        return '';
     }
   };
 
