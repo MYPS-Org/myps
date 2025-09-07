@@ -16,6 +16,17 @@ export const handleNumberFocus = (e: React.FocusEvent<HTMLInputElement>) => {
   }
 };
 
-export const formatCurrency = (amount: number) => {
-  return amount.toLocaleString('en-PH');
+Number.prototype.FormatToCurrency = function (): string {
+  return this.toLocaleString('en-PH', {
+    style: 'currency',
+    currency: 'PHP',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
+
+Number.parseNumberInput = (value: string, fallback: number | null = null): number | null => {
+  if (value === "") return fallback;
+  const num = Number(value);
+  return isNaN(num) ? fallback : num;
 };

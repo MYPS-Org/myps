@@ -158,7 +158,7 @@ const Program: React.FC = () => {
     const handleViewDetails = async (programId: string, stageName: string) => {
         try {
             if (programId && stageName) {
-                const programWithStage = programId + '-' + stageName;
+                const programWithStage = programId + ':' + stageName;
                 navigate(`/programs/programdetails/${programWithStage}`);
             }
         } catch (error) {
@@ -348,7 +348,7 @@ const Program: React.FC = () => {
                                     </div>
                                 </TableCell>
                                 <TableCell>
-                                    {getStatusBadge(program.Status || '')}
+                                    {getStatusBadge(program.Type || '')}
                                 </TableCell>
                                 {/* <TableCell>
                                     {program.StageName}
@@ -411,7 +411,7 @@ const Program: React.FC = () => {
                                                                 {/* <TableCell>
                                                                     {getStatusBadge(getStatusString(stage.Status || 0))}
                                                                 </TableCell> */}
-                                                                <TableCell className="text-sm text-gray-600 text-center">{stage.Type}</TableCell>
+                                                                <TableCell className="text-sm text-gray-600 text-center">{stage.TypeName}</TableCell>
                                                                 <TableCell className="text-sm text-gray-600 text-center">{stage.YearStart}</TableCell>
                                                                 {/* <TableCell className="text-sm text-gray-600">{stage.YearEnd}</TableCell> */}
                                                                 <TableCell className="text-sm font-medium text-center">

@@ -10,6 +10,7 @@ export interface ProgramModel {
 	YearEnd: number;
 	UserGroup: number;
 	IsSkipped: boolean;
+	AllowAutoName: boolean;
 	SkipReason: string;
 }
 export interface ProgramEnums {
@@ -62,12 +63,36 @@ export interface ProgramDetails {
 }
 
 export interface StageList {
-	Stages: ProgramDetails[];
+	Stages: ProgramDetailsWithStages[];
+}
+
+export interface ProgramDetailsWithStages {
+	Id: number;
+	ProgramId: string;
+	RevisionNumber: number;
+	Name: string;
+	StageId: number;
+	StageName: string;
+	IsSkipped: boolean;
+	SkipReason: string;
+	UserGroup: number;
+	RegionCode: string;
+	Status: number;
+	Type: number;
+	TypeName: string;
+	Cost?: number;
+	YearStart: number;
+	YearEnd: number;
+	CreatedBy: string;
+	CreatedDate: string;
+	UpdatedBy?: string;
+	UpdatedDate?: string;
 }
 
 export interface ProgramDetailsEnums{
   Details: ProgramDetails;
   Projects: ProjectLists[];
+  IsActive: boolean;
   Dropdowns: {
     Stages: ProgramEnums[];
     Statuses: ProgramEnums[];

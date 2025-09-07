@@ -32,9 +32,9 @@ export const fetchProgram = async (data: ProgramPagination) => {
     }
 };
 
-export const fetchProgramById = async (programId: string) => {
+export const fetchProgramById = async (programId: string, StageName: string) => {
     try {
-        const request = await httpClient.post< ProgramDetailsEnums >(`/Program/ProgramDetails`, { ProgramId: programId }, {
+        const request = await httpClient.post< ProgramDetailsEnums >(`/Program/ProgramDetails`, { ProgramId: programId, StageName: StageName }, {
             preloaderMessage: 'Loading program details...'
         });
         return request;

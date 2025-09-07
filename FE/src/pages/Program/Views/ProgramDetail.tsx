@@ -1,17 +1,18 @@
 "use-client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
 import type { ProgramDetailsEnums } from '../Model.d'; // Adjust the import path as necessary
 import { Button } from '../../../components/tailwindui/button';
 import { editProgram, fetchProgramById, nextStage } from '../Service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
+// import { formatCurrency } from '../../../utils/GlobalFunctions';
 // import { Badge } from '../../../components/tailwindui/badge';
 
 // Mock projects data for the table
 const ProgramDetail: React.FC = () => {
   const { program } = useParams<{ program: string }>();
-  const id = program?.split('-');
+  const id = useMemo(() => program?.split(':'), [program]);
   const navigate = useNavigate();
   const [nextStageName, setNextStageName] = useState<string | null>(null);
   const [programEnums, setProgramEnums] = useState<ProgramDetailsEnums>({
@@ -36,6 +37,7 @@ const ProgramDetail: React.FC = () => {
         UpdatedBy: '',
         UpdatedDate: '',
     },
+    IsActive: false,
     Projects: [],
     Dropdowns: {
       Statuses: [],
@@ -66,6 +68,7 @@ const ProgramDetail: React.FC = () => {
         UpdatedBy: '',
         UpdatedDate: '',
     },
+    IsActive: false,
     Projects: [],
     Dropdowns: {
       Statuses: [],
@@ -78,24 +81,24 @@ const ProgramDetail: React.FC = () => {
 
   useEffect(() => {
     const loadProgramDetail = async () => {
-      try {
-        if (id) {
+      if (id && id.length === 2) {
+        try {
           await fetchProgramDetail(id[0], id[1]);
+        } catch (error) {
+          console.error('Error fetching program details:', error);
         }
-      } catch (error) {
-        console.error('Error fetching program details:', error);
+      } else {
+        console.error('Invalid program ID:', id);
       }
     };
 
     loadProgramDetail();
   }, [id]);
 
-
-
-  const fetchProgramDetail = async (programId: string, stageName?: string) => {
+  const fetchProgramDetail = async (programId: string, stageName: string) => {
     setIsLoading(true);
     try {
-      const response = await fetchProgramById(programId);
+      const response = await fetchProgramById(programId, stageName);
       setProgramEnums(response.Data);
       setDefaultProgramEnums(response.Data); // Store the original data for comparison
 
@@ -109,6 +112,17 @@ const ProgramDetail: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  const handleViewDetails = async (programId: string, stageName: string) => {
+      try {
+          if (programId && stageName) {
+              const programWithStage = programId + ':' + stageName;
+              navigate(`/programs/programdetails/${programWithStage}`);
+          }
+      } catch (error) {
+          console.error('Error navigating to program details:', error);
+      }
+    };
 
   const handleAddProject = () => {
         navigate(`/projects/addproject?programId=${programEnums?.Details.ProgramId}`);
@@ -165,7 +179,10 @@ const ProgramDetail: React.FC = () => {
       const nextStageId = programEnums?.Details.StageId + 1;
       console.log('Proceeding to next stage:', nextStageId);
       await nextStage({ ProgramId: programEnums?.Details.ProgramId, Stage: nextStageId });
-      await fetchProgramDetail(programEnums?.Details.ProgramId);
+      const nextStageName = programEnums?.Dropdowns.Stages.find(stage => stage.Id === nextStageId);
+      if (nextStageName) {
+        handleViewDetails(programEnums?.Details.ProgramId, nextStageName.Name);
+      }
     } catch (error) {
       console.error('Error proceeding with program details:', error);
     } finally {
@@ -218,6 +235,7 @@ const ProgramDetail: React.FC = () => {
                   onChange={(e) => handleChange('Name', e.target.value)}
                   value={programEnums?.Details.Name}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
+                  disabled
                 />
               </div>
             </div>
@@ -232,7 +250,7 @@ const ProgramDetail: React.FC = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
                 />
               </div>
-              <div>
+              {/* <div>
                 <label className="block text-left text-sm font-medium text-gray-700 mb-1">End Year</label>
                 <input
                   type="number"
@@ -240,17 +258,17 @@ const ProgramDetail: React.FC = () => {
                   value={programEnums?.Details.YearEnd}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
                 />
-              </div>
+              </div> */}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-left text-sm font-medium text-gray-700 mb-1">Cost</label>
                 <input
-                  type="number"
-                  value={programEnums?.Details.Cost}
+                  type="text" // Changed to "text" to allow formatted currency strings
+                  value={programEnums?.Details.Cost?.FormatToCurrency()}
                   readOnly
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
+                  className="w-full text-left px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
                 />
               </div>
               <div>
@@ -329,19 +347,21 @@ const ProgramDetail: React.FC = () => {
             </div>
 
             <div className="pt-4 flex justify-end gap-4">
-              {programEnums?.Details.StageId >= 4 && programEnums?.Details.StageId <= 11 && (
+              {programEnums.IsActive && programEnums?.Details.StageId >= 4 && programEnums?.Details.StageId >= 11 && (
                 <Button color="blue" className="w-auto items-center text-nowrap" onClick={handleProceed}>
                   Proceed to {nextStageName}
                 </Button>
               )}
-              <Button 
-                color="green" 
-                className="w-24 items-center" 
-                onClick={handleUpdate}
-                disabled={preventUpdate() || isLoading}
-              >
-                Update
-              </Button>
+              {programEnums.IsActive && (
+                <Button 
+                  color="green" 
+                  className="w-24 items-center" 
+                  onClick={handleUpdate}
+                  disabled={preventUpdate() || isLoading}
+                >
+                  Update
+                </Button>
+              )}
             </div>
           </div>
 
@@ -364,9 +384,11 @@ const ProgramDetail: React.FC = () => {
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
           <h2 className="text-xl font-semibold text-gray-900">Projects</h2>
-          <Button color="blue" onClick={handleAddProject}>
-            Add Project
-          </Button>
+          {programEnums.IsActive && (
+            <Button color="blue" onClick={handleAddProject}>
+              Add Project
+            </Button>
+          )}
         </div>
         
         <div className="w-full overflow-x-auto">

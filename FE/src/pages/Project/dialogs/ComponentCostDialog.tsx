@@ -42,8 +42,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     UpdatedDate: new Date().toISOString(),
     CostPerYear: [] as ComponentCostYear[],
     // Fields for ComponentCostYear
-    ApprovalDate: '',
-    PAPCode: '',
+    // ApprovalDate: '',
+    // PAPCode: '',
     StartDate: '',
     EndDate: '',
   });
@@ -67,11 +67,20 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   useEffect(() => {
     if (editingCost && mode === 'edit') {
       setFormData({
-        ...editingCost,
+        Id: editingCost.Id ?? 0,
+        ProjectId: editingCost.ProjectId ?? ProjectId,
+        ReferenceId: editingCost.ReferenceId ?? '',
+        ComponentType: editingCost.ComponentType ?? '',
+        ComponentId: editingCost.ComponentId ?? '',
+        Description: editingCost.Description ?? '',
+        Total: editingCost.Total ?? 0,
+        CreatedBy: editingCost.CreatedBy ?? '',
+        CreatedDate: editingCost.CreatedDate ?? new Date().toISOString(),
+        UpdatedBy: editingCost.UpdatedBy ?? '',
+        UpdatedDate: editingCost.UpdatedDate ?? new Date().toISOString(),
         CostPerYear: editingCost.CostPerYear || [],
-        // Initialize ComponentCostYear fields from the first year if available
-        ApprovalDate: editingCost.CostPerYear?.[0]?.ApprovalDate || '',
-        PAPCode: editingCost.CostPerYear?.[0]?.PAPCode || '',
+        // ApprovalDate: editingCost.CostPerYear?.[0]?.ApprovalDate || '',
+        // PAPCode: editingCost.CostPerYear?.[0]?.PAPCode || '',
         StartDate: editingCost.CostPerYear?.[0]?.StartDate || '',
         EndDate: editingCost.CostPerYear?.[0]?.EndDate || '',
       });
@@ -91,8 +100,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         UpdatedDate: new Date().toISOString(),
         CostPerYear: [] as ComponentCostYear[],
         // Fields for ComponentCostYear
-        ApprovalDate: '',
-        PAPCode: '',
+        // ApprovalDate: '',
+        // PAPCode: '',
         StartDate: '',
         EndDate: '',
       });
@@ -158,7 +167,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         }
         
         // Split the form data into ComponentCost and ComponentCostYear parts
-        const { CostPerYear, ApprovalDate, PAPCode, StartDate, EndDate, ...componentCostData } = formData;
+        const { CostPerYear, StartDate, EndDate, ...componentCostData } = formData;
         
         // Create ComponentCostYear object if we have the required fields
         const componentCostYear: ComponentCostYear = {
@@ -166,8 +175,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
           ParentId: componentCostData.ReferenceId, // Will be linked after ComponentCost is saved
           CostYear: new Date().getFullYear(), // Default to current year
           Cost: componentCostData.Total, // Use the same cost value
-          ApprovalDate: ApprovalDate || undefined,
-          PAPCode: PAPCode || '',
+          // ApprovalDate: ApprovalDate || undefined,
+          // PAPCode: PAPCode || '',
           StartDate: StartDate || new Date().toISOString(),
           EndDate: EndDate || new Date().toISOString()
         };
@@ -198,8 +207,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
             UpdatedDate: new Date().toISOString(),
             CostPerYear: [] as ComponentCostYear[],
             // Fields for ComponentCostYear
-            ApprovalDate: '',
-            PAPCode: '',
+            // ApprovalDate: '',
+            // PAPCode: '',
             StartDate: new Date().toISOString(),
             EndDate: new Date().toISOString(),
         });
@@ -301,7 +310,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                         <input
                             type="number"
                             value={formData.Total}
-                            onChange={(e) => handleChange('Total', Number(e.target.value))}
+                            onChange={(e) => handleChange('Total', Number.parseNumberInput(e.target.value) || 0)}
                             onFocus={handleNumberFocus}
                             className={`w-full px-3 py-2 border rounded-md text-right focus:outline-none focus:ring-2 ${
                               remainingBudget !== null && formData.Total > remainingBudget 

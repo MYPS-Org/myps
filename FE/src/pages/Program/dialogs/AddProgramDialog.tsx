@@ -42,6 +42,7 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
     YearEnd: new Date().getFullYear(),
     SkipReason: '',
     IsSkipped: false,
+    AllowAutoName: true,
   });
 
 
@@ -50,8 +51,9 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
     try {
       const response = await addProgram(formData);
       onSubmit(formData); // Call the onSubmit prop with the form data
+      const StageName = Stage.find(stage => stage.Enum === formData.Stage)?.Name || '';
+      navigate(`programdetails/${response.Data.Id}:${StageName}`); // Navigate to the program details page
       handleReset(); // Reset the form data
-      navigate(`programdetails/${response.Data.Id}`); // Navigate to the program details page
     } catch (error) {
       console.error('Error submitting program:', error);
     }
@@ -100,6 +102,7 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
       YearEnd: new Date().getFullYear() + 6,
       SkipReason: '',
       IsSkipped: false,
+      AllowAutoName: true,
     });
   };
 
@@ -125,17 +128,36 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Form fields go here */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Program Name</label>
-            <input
-              type="text"
-              value={formData.Name}
-              onChange={(e) => handleChange('Name', e.target.value)}
-              // disabled
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
-              required
-              placeholder='Auto-generated Name'
-            />
+          <div className="">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Program Name</label>
+            <div className="flex flex-row items-center space-x-3">
+              <input
+                type="text"
+                value={formData.Name}
+                onChange={(e) => handleChange('Name', e.target.value)}
+                disabled={formData.AllowAutoName} // Disable input if auto-name is enabled
+                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 ${
+                  formData.AllowAutoName
+                    ? 'bg-gray-100 border-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-white border-gray-300 focus:ring-blue-500 focus:border-blue-500 text-gray-900'
+                }`}
+                required
+                placeholder="Auto-generated Name"
+              />
+              <div className="flex items-center space-x-3">
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.AllowAutoName}
+                    onChange={(e) => handleChange('AllowAutoName', e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:bg-blue-600 transition-colors"></div>
+                  <div className="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full border border-gray-300 peer-checked:translate-x-5 transform transition-transform"></div>
+                </label>
+                <span className="text-sm text-gray-700">Auto Name</span>
+              </div>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-5">
             <div className="mb-4">

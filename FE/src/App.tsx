@@ -62,7 +62,7 @@ function App() {
 									} 
 								/>
 								<Route 
-									path="/programs/programdetails/:id" 
+									path="/programs/programdetails/:program" 
 									element={
 										<ProtectedRoute>
 											<ProgramDetail />

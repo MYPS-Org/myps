@@ -3,7 +3,7 @@ import type { FundingProfile, ProjectFormPayload } from "../Model";
 import { Button } from "../../../components/tailwindui/button";
 import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from "../../../components/tailwindui/table";
-import { handleNumberFocus, formatCurrency } from "../../../utils/GlobalFunctions";
+import { handleNumberFocus } from "../../../utils/GlobalFunctions";
 
 interface FundingProfileFormProps {
   initialData?: ProjectFormPayload;
@@ -87,7 +87,7 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
             )}
           </div>
           <div className={`text-sm font-medium ${getTotalPercentageColor()}`}>
-            Total Amount: ₱ {formatCurrency(totalAmount)}
+            Total Amount: {totalAmount.FormatToCurrency()}
           </div>
           
           <Button color="blue" onClick={onAdd}>
@@ -149,8 +149,8 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
                 <TableCell className="w-1/6">
                   <input 
                     type="number"
-                    value={profile.Amount || ''}
-                    onChange={(e) => onEdit(index, { ...profile, Amount: Number(e.target.value) })}
+                    value={profile.Amount != null ? profile.Amount.toFixed(2) : ''}
+                    onChange={(e) => onEdit(index, { ...profile, Amount: Number.parseNumberInput(e.target.value) ?? 0 })}
                     onFocus={handleNumberFocus}
                     className="w-full px-2 py-1 border border-gray-300 rounded text-right"
                    />
