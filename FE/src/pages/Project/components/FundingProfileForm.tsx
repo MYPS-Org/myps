@@ -26,20 +26,42 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
   const [totalPercentage, setTotalPercentage] = useState(0);
   const [totalAmount, setTotalAmount] = useState(0);
 
-  // Calculate total percentage whenever fundingProfiles change
+  // Calculate total percentage and amount, then auto-update percentages
   useEffect(() => {
-    const total = fundingProfiles.reduce((sum, profile) => sum + (profile.Percentage || 0), 0);
-    // Round to 2 decimal places to handle floating point precision issues
-    const roundedTotal = Math.round(total * 100) / 100;
-    setTotalPercentage(roundedTotal);
-    
     const totalAmt = fundingProfiles.reduce((sum, profile) => sum + (profile.Amount || 0), 0);
     setTotalAmount(totalAmt);
+
+    // Create updated profiles with recalculated percentages
+    fundingProfiles.forEach((profile, index) => {
+      if (totalAmt > 0) {
+        const calculatedPercentage = ((profile.Amount || 0) / totalAmt) * 100;
+        const roundedPercentage = Math.round(calculatedPercentage * 100) / 100; // Round to 2 decimal places
+        
+        // Only update if the percentage has changed to avoid infinite loops
+        if (profile.Percentage !== roundedPercentage) {
+          // Update the profile with new percentage
+          onEdit(index, { ...profile, Percentage: roundedPercentage });
+        }
+      } else {
+        // If total amount is 0, set percentage to 0
+        if (profile.Percentage !== 0) {
+          onEdit(index, { ...profile, Percentage: 0 });
+        }
+      }
+    });
+
+    // Calculate total percentage for display using the current state
+    // We need to use a setTimeout to ensure state updates are processed first
+    setTimeout(() => {
+      const total = fundingProfiles.reduce((sum, profile) => sum + (profile.Percentage || 0), 0);
+      const roundedTotal = Math.round(total * 100) / 100;
+      setTotalPercentage(roundedTotal);
+    }, 0);
 
     if (onTotalAmountChange) {
       onTotalAmountChange(totalAmt);
     }
-  }, [fundingProfiles]);
+  }, [fundingProfiles]); // Trigger when array length or amounts change
 
   // Validate percentage and update errors
   const validatePercentage = (index: number, value: number) => {
@@ -54,6 +76,18 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
     }
     
     setErrors(newErrors);
+  };
+
+  const handleAmountChange = (index: number, profile: FundingProfile, value: string) => {
+    const numValue = Number.parseNumberInput(value) || 0;
+    onEdit(index, { ...profile, Amount: numValue });
+  };
+
+  // Helper function to format amount for display
+  const formatAmountForDisplay = (amount: number | null | undefined): string => {
+    if (amount == null || amount === 0) return '';
+    // If it's a whole number, show without decimals, otherwise show with 2 decimals
+    return amount % 1 === 0 ? amount.toString() : amount.toFixed(2);
   };
 
   const handlePercentageChange = (index: number, profile: FundingProfile, value: string) => {
@@ -149,8 +183,8 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
                 <TableCell className="w-1/6">
                   <input 
                     type="number"
-                    value={profile.Amount != null ? profile.Amount.toFixed(2) : ''}
-                    onChange={(e) => onEdit(index, { ...profile, Amount: Number.parseNumberInput(e.target.value) ?? 0 })}
+                    value={formatAmountForDisplay(profile.Amount)}
+                    onChange={(e) => handleAmountChange(index, profile, e.target.value)}
                     onFocus={handleNumberFocus}
                     className="w-full px-2 py-1 border border-gray-300 rounded text-right"
                    />
@@ -158,14 +192,16 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
                 <TableCell className="w-1/6">
                     <input
                       type="number"
-                      value={profile.Percentage || ''}
+                      value={profile.Percentage?.toFixed(2) || ''}
                       onChange={(e) => handlePercentageChange(index, profile, e.target.value)}
                       onFocus={handleNumberFocus}
-                      className={`w-full px-2 py-1 border rounded text-right ${errors[index] ? 'border-red-500' : 'border-gray-300'}`}
+                      className={`w-full px-2 py-1 border rounded text-right bg-gray-100 ${errors[index] ? 'border-red-500' : 'border-gray-300'}`}
                       placeholder="0"
                       min="0"
                       max="100"
                       step="0.01"
+                      readOnly
+                      title="Percentage is automatically calculated based on amount"
                     />
                     {/* {errors[index] && (
                       <span className="text-red-500 text-xs mt-1">{errors[index]}</span>

@@ -87,7 +87,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       AlternateId: '',
       ExternalId: '',
       MYId: '',
-      UACS: 0,
+      UACS: '',
       // MYCAApprovalDate: '',
       IslandCode: '',
       RevisionNumber: 0,

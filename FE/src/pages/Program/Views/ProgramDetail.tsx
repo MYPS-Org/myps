@@ -250,6 +250,20 @@ const ProgramDetail: React.FC = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
                 />
               </div>
+              <div>
+                <label className="block text-left text-sm font-medium text-gray-700 mb-1">Program Type</label>
+                <select 
+                  value={programEnums?.Details.Type}
+                  onChange={(e) => handleChange('Type', Number(e.target.value))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
+                >
+                  {programEnums?.Dropdowns.Types.map((type) => (
+                    <option key={type.Id} value={type.Id}>
+                      {type.Name}
+                    </option>
+                  ))}
+                </select>
+              </div>
               {/* <div>
                 <label className="block text-left text-sm font-medium text-gray-700 mb-1">End Year</label>
                 <input
@@ -306,23 +320,6 @@ const ProgramDetail: React.FC = () => {
                 </select> */}
               </div>
               <div>
-                <label className="block text-left text-sm font-medium text-gray-700 mb-1">Program Type</label>
-                <select 
-                  value={programEnums?.Details.Type}
-                  onChange={(e) => handleChange('Type', Number(e.target.value))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
-                >
-                  {programEnums?.Dropdowns.Types.map((type) => (
-                    <option key={type.Id} value={type.Id}>
-                      {type.Name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
                 <label className="block text-left text-sm font-medium text-gray-700 mb-1">User Group</label>
                 <select 
                   value={programEnums?.Details.UserGroup}
@@ -334,6 +331,18 @@ const ProgramDetail: React.FC = () => {
                     </option>
                   ))}
                 </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-left text-sm font-medium text-gray-700 mb-1">Created Date:</label>
+                <input
+                  // value={programEnums?.Details.User}
+                  value={programEnums?.Details.CreatedDate.StringToDate()}
+                  readOnly
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
+                />
               </div>
               <div>
                 <label className="block text-left text-sm font-medium text-gray-700 mb-1">Created By:</label>
@@ -347,7 +356,7 @@ const ProgramDetail: React.FC = () => {
             </div>
 
             <div className="pt-4 flex justify-end gap-4">
-              {programEnums.IsActive && programEnums?.Details.StageId >= 4 && programEnums?.Details.StageId >= 11 && (
+              {programEnums.IsActive && programEnums.Details.StageId >= 4 && programEnums.Details.StageId <= 11 && (
                 <Button color="blue" className="w-auto items-center text-nowrap" onClick={handleProceed}>
                   Proceed to {nextStageName}
                 </Button>
@@ -424,12 +433,6 @@ const ProgramDetail: React.FC = () => {
                 </TableHeader>
                 <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   DEO
-                </TableHeader>
-                <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Region
-                </TableHeader>
-                <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Agency
                 </TableHeader>
                 <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Created By

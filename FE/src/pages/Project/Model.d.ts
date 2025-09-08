@@ -62,7 +62,7 @@ export interface ProjectDetails {
 	AlternateId?: string;
 	ExternalId?: string;
 	MYId?: string;
-	UACS?: number;
+	UACS?: string;
 	MYCAApprovalDate?: string;
 	IslandCode?: string;
 	RevisionNumber?: number;
