@@ -2,19 +2,26 @@ import React, { useEffect, useState } from 'react';
 import { Dialog, DialogTitle, DialogPanel } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon, DocumentArrowUpIcon, DocumentIcon } from '@heroicons/react/24/outline';
-import type { AddNotes, ProjectNote } from '../Model.d';
-import { addNote } from '../Service';
+import type { AddNotes, ProjectSupportingDocs, DropdownSupportingDocs } from '../Model.d';
+import { addDoc } from '../Service';
 
 interface AddNoteDialogProps {
   isOpen: boolean;
   onClose: () => void;
   projectId: string;
-  onAddNote: (note: ProjectNote) => void;
+  onAddNote: (note: ProjectSupportingDocs) => void;
+  dropDownOptions: DropdownSupportingDocs[];
 }
 
-const AddNoteDialog: React.FC<AddNoteDialogProps> = ({ isOpen, onClose, projectId, onAddNote }) => {
+const AddNoteDialog: React.FC<AddNoteDialogProps> = ({ 
+  isOpen, 
+  onClose, 
+  projectId, 
+  onAddNote, 
+  dropDownOptions = [] }) => {
   const [formData, setFormData] = useState<AddNotes>({
     ProjectId: projectId,
+    DocumentType: '',
     Description: '',
     File: {
       Name: '',
@@ -31,6 +38,7 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({ isOpen, onClose, projectI
     if (isOpen) {
       setFormData({
         ProjectId: projectId,
+        DocumentType: '',
         Description: '',
         File: {
           Name: '',
@@ -80,14 +88,15 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({ isOpen, onClose, projectI
     setIsLoading(true);
 
     try {
-        console.log('Submitting note with data:', formData);
-        const response = await addNote(formData);
-        console.log('Add note response:', response);
-        
-        if (response.Data.Message === 'Notes added successfully!') {
-            const newNote: ProjectNote = {
+        console.log('Submitting Document with data:', formData);
+        const response = await addDoc(formData);
+        console.log('Add document response:', response);
+
+        if (response.Data.Message === 'Documents added successfully!') {
+            const newDoc: ProjectSupportingDocs = {
             Id: 0, // Will be set by server
             ProjectId: projectId,
+            DocumentType: formData.DocumentType,
             Description: formData.Description,
             FileName: formData.File?.Name || '',
             FileExtension: formData.File?.Extension || '',
@@ -96,11 +105,12 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({ isOpen, onClose, projectI
             CreatedDate: new Date().toISOString().split('T')[0], // Format as YYYY-MM-DD
             };
 
-            console.log('Creating new note object:', newNote);
+            console.log('Creating new document object:', newDoc);
 
             // Reset form data
             setFormData({
               ProjectId: projectId,
+              DocumentType: '',
               Description: '',
               File: {
                 Name: '',
@@ -111,8 +121,8 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({ isOpen, onClose, projectI
             });
             
             // Call parent handlers
-            console.log('Calling onAddNote with:', newNote);
-            onAddNote(newNote);
+            console.log('Calling onAddNote with:', newDoc);
+            onAddNote(newDoc);
             console.log('Calling onClose');
             onClose();
         } else {
@@ -132,13 +142,24 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({ isOpen, onClose, projectI
         <DialogPanel className="w-full max-w-7xl bg-white rounded-lg shadow-xl">
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <DialogTitle className="text-lg font-semibold text-gray-900">
-              Add Note
+              Add Documents
             </DialogTitle>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
               <XMarkIcon className="h-6 w-6" />
             </button>
           </div>
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            <select 
+              value={formData.DocumentType} 
+              onChange={e => handleChange('DocumentType', e.target.value)} 
+              className="w-full border rounded p-2">
+                <option value="" disabled>Select Document Type</option>
+                {dropDownOptions?.map((option: DropdownSupportingDocs) => (
+                  <option key={option.Id} value={option.Code + ':' + option.Name}>
+                    {option.Name}
+                  </option>
+                ))}
+            </select>
             <textarea
               value={formData.Description}
               onChange={e => handleChange('Description', e.target.value)}

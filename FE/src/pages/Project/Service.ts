@@ -1,5 +1,5 @@
 import { httpClient, type ApiResponse } from "../../services/httpClient";
-import type { ProjectLists, ProgramDetails, ComponentCost, ComponentCostYear, ProjectDetails, MajorItemOfWork, MajorItemLocations, FundingProfile, ProjectNote, ProjectEnums, ProjectFormPayload, ProjectPagination, AddNotes, InfraData } from "./Model.d";
+import type { ProjectLists, ProgramDetails, ComponentCost, ComponentCostYear, ProjectDetails, MajorItemOfWork, MajorItemLocations, FundingProfile, ProjectNote, ProjectEnums, ProjectFormPayload, ProjectPagination, AddNotes, InfraData, ProjectSupportingDocs } from "./Model.d";
 
 // #region INITIALIZE Project Lists
 export const fetchProject = async (data: ProjectPagination) => {
@@ -237,14 +237,36 @@ export const addNote = async (formData: AddNotes) => {
     throw error;
   }
 };
+export const addDoc = async (formData: AddNotes) => {
+  try {
+    const response = await httpClient.post<ApiResponse>(`/Project/UploadSupportingDocs/`, formData, {
+      preloaderMessage: 'Adding document...',
+    });
+    return response;
+  } catch (error) {
+    console.error('Error adding document:', error);
+    throw error;
+  }
+};
 export const deleteNote = async (notes: ProjectNote[]) => {
     try {
-        const response = await httpClient.post<ProjectNote[]>(`/Program/DeleteNote/`, notes, {
+        const response = await httpClient.post<ProjectNote[]>(`/Project/DeleteNote/`, notes, {
             preloaderMessage: 'Deleting note...'
         });
         return response;
     } catch (ErrorResponse) {
         console.error('Error deleting note:', ErrorResponse);
+        throw ErrorResponse;
+    }
+}
+export const deleteDoc = async (docs: ProjectSupportingDocs) => {
+    try {
+        const response = await httpClient.post<ProjectSupportingDocs>(`/Project/DeleteSupportingDocs/`, docs, {
+            preloaderMessage: 'Deleting document...'
+        });
+        return response;
+    } catch (ErrorResponse) {
+        console.error('Error deleting document:', ErrorResponse);
         throw ErrorResponse;
     }
 }

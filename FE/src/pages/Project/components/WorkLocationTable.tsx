@@ -58,6 +58,8 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
       DetailedScope: '',
       TargetUnitId: workTypeId,
       TargetUnit: targetUnit,
+      To: 0,
+      From: 0,
       StartX: '',
       StartY: '',
       EndX: '',
@@ -87,6 +89,8 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
         DetailedScope: '',
         TargetUnitId: workTypeId,
         TargetUnit: targetUnit,
+        To: 0,
+        From: 0,
         StartX: '',
         StartY: '',
         EndX: '',
@@ -151,7 +155,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
     const infraTypeLower = infraType?.toLowerCase();
     
     if (infraTypeLower === 'road' || infraTypeLower === 'roads') {
-      return ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget', 'StartStationLimit', 'EndStationLimit'];
+      return ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget', 'StartStationLimit', 'EndStationLimit', 'To', 'From'];
     } else if (infraTypeLower === 'bridge' || infraTypeLower === 'bridges') {
       return ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget'];
     } else {
@@ -317,6 +321,40 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
             />
           </div>
         );
+      
+      case 'To': 
+        return (
+          <div key={fieldName} className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">
+              To (km)
+            </label>
+            <input
+              type="number"
+              value={location.To}
+              onFocus={handleNumberFocus}
+              onChange={(e) => handleFieldChange(index, 'To', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-right"
+              placeholder="To..."
+            />
+          </div>
+        );
+
+      case 'From':
+        return (
+          <div key={fieldName} className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">
+              From (km)
+            </label>
+            <input
+              type="number"
+              value={location.From}
+              onFocus={handleNumberFocus}
+              onChange={(e) => handleFieldChange(index, 'From', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-right"
+              placeholder="From..."
+            />
+          </div>
+        );
 
       case 'StartX':
         return (
@@ -391,22 +429,15 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
     <div className="m-4">
       <div className="flex justify-between items-center mb-4">
         <div>
-          <h4 className="text-lg font-semibold text-gray-800">Work Locations</h4>
+          <h4 className="text-lg font-semibold text-gray-800">Work Target</h4>
           <p className="text-sm text-gray-600 mt-1">
-            Configure work locations for {infraType || 'this project'}
+            Configure work targets for {infraType || 'this project'}
           </p>
         </div>
-        <Button
-          color="blue"
-          onClick={handleAddWorkLocation}
-          className="flex items-center px-4 py-2 text-sm"
-        >
-          <PlusIcon className="w-4 h-4 mr-2" />
-          Add Location
-        </Button>
       </div>
 
       {workLocations.length > 0 ? (
+        
         <div className="space-y-6">
           {workLocations.map((location, index) => {
             const fields = getFieldsForInfraType();
@@ -463,27 +494,31 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
               </div>
             );
           })}
+          <div className='flex justify-center'>
+          <Button
+              color="blue"
+              onClick={handleAddWorkLocation}
+              className="flex items-center px-4 py-2 text-sm"
+            >
+            <PlusIcon className="w-4 h-4 mr-2" />
+            Add Target
+          </Button>
+          </div>
         </div>
+        
+        
       ) : (
-        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center bg-gray-50">
+        <div onClick={handleAddWorkLocation} className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center bg-gray-50 cursor-pointer">
           <div className="max-w-sm mx-auto">
             <div className="mb-4">
               <div className="mx-auto w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
                 <PlusIcon className="w-6 h-6 text-gray-400" />
               </div>
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No work locations</h3>
-            <p className="text-sm text-gray-500 mb-4">
-              Get started by adding your first work location. The form will adapt based on your infrastructure type ({infraType || 'Not specified'}).
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No work Target</h3>
+            <p className="text-sm text-gray-500 mb-4 text-wrap">
+              Get started by adding your first work target. The form will adapt based on your infrastructure type ({infraType || 'Not specified'}).
             </p>
-            <Button
-              color="blue"
-              onClick={handleAddWorkLocation}
-              className="flex items-center mx-auto px-4 py-2"
-            >
-              <PlusIcon className="w-4 h-4 mr-2" />
-              Add First Location
-            </Button>
           </div>
         </div>
       )}

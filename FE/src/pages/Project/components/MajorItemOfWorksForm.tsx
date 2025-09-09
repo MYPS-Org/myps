@@ -240,7 +240,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
               <TableHeader className="min-w-[140px]">Type of Work</TableHeader>
               <TableHeader className='min-w-[100px]'> Infra Type</TableHeader>
               <TableHeader className="min-w-[100px]">Target Unit</TableHeader>
-              <TableHeader className="min-w-[120px]">Work Locations</TableHeader>
+              <TableHeader className="min-w-[120px]">Work Target</TableHeader>
               <TableHeader className="min-w-[80px]">Actions</TableHeader>
             </TableRow>
           </TableHead>
@@ -281,7 +281,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                   </TableCell>
                   <TableCell>
                     <div className="text-sm text-gray-600">
-                      {(item.MajorItemLocations?.length || 0)} location(s)
+                      {(item.MajorItemLocations?.length || 0)} Target(s)
                     </div>
                   </TableCell>
                   <TableCell>

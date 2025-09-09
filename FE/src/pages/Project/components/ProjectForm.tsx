@@ -5,7 +5,7 @@ import { projectDetailsRules } from '../rules/projectDetailsRules';
 import type { 
   ProjectDetails, 
   ComponentCost, 
-  ProjectNote, 
+  ProjectNote,
   FundingProfile, 
   Activity, 
   TransactionLog,
@@ -16,7 +16,8 @@ import type {
   InfraData,
   MajorItemOfWorksWithDropdown,
   MajorItemOfWork,
-  MajorItemLocations
+  MajorItemLocations,
+  ProjectSupportingDocs
 } from '../Model.d';
 
 import { Button } from '../../../components/tailwindui/button';
@@ -221,8 +222,11 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     console.log('MajorItems state changed:', majorItems);
   }, [majorItems]);
 
-  const [notes, setNotes] = useState<ProjectNote[]>(
-    initialData?.ProjectNotes || []
+  // const [notes, setNotes] = useState<ProjectNote[]>(
+  //   initialData?.ProjectNotes || []
+  // );
+  const [docs, setDocs] = useState<ProjectSupportingDocs[]>(
+    initialData?.Docs || []
   );
 
   const [fundingProfiles, setFundingProfiles] = useState<FundingProfile[]>(
@@ -255,7 +259,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     EmergencyModes: [],
     Agreements: [],
     Sources: [],
-    ScopeOfWorks: []
+    ScopeOfWorks: [],
+    SupportingDocs: []
   });
 
   const [infraData] = useState<InfraData>({
@@ -428,23 +433,23 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   };
 // #endregion
 
-// #region Notes
-  const handleAddNote = (newNote: ProjectNote) => {
-    console.log('ProjectForm: Adding note:', newNote);
-    console.log('ProjectForm: Current notes before:', notes);
-    setNotes(prev => {
-      const newNotes = [...prev, newNote];
-      console.log('ProjectForm: New notes after adding:', newNotes);
-      return newNotes;
+// #region Docs
+  const handleAddDoc = (newDoc: ProjectSupportingDocs) => {
+    console.log('ProjectForm: Adding doc:', newDoc);
+    console.log('ProjectForm: Current docs before:', docs);
+    setDocs(prev => {
+      const newDocs = [...prev, newDoc];
+      console.log('ProjectForm: New docs after adding:', newDocs);
+      return newDocs;
     });
   };
 
-  const handleEditNote = (index: number, updatedNote: ProjectNote) => {
-    setNotes(prev => prev.map((note, i) => i === index ? updatedNote : note));
+  const handleEditDoc = (index: number, updatedDoc: ProjectSupportingDocs) => {
+    setDocs(prev => prev.map((doc, i) => i === index ? updatedDoc : doc));
   };
 
-  const handleDeleteNote = (index: number) => {
-    setNotes(prev => prev.filter((_, i) => i !== index));
+  const handleDeleteDoc = (doc: ProjectSupportingDocs) => {
+    setDocs(prev => prev.filter(selected => selected.Id !== doc.Id));
   };
 // #endregion
 
@@ -848,11 +853,12 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
               <h3 className="text-lg font-semibold leading-7 text-gray-900">Supporting Documents</h3>
             </div>
             <NotesForm
-              notes={notes}
-              onAdd={handleAddNote}
-              onEdit={handleEditNote}
-              onDelete={handleDeleteNote}
+              docs={docs}
+              onAdd={handleAddDoc}
+              onEdit={handleEditDoc}
+              onDelete={handleDeleteDoc}
               initialData={initialData}
+              dropDownOptions={initialData?.Dropdowns?.SupportingDocs}
             />
           </div>
         </div>

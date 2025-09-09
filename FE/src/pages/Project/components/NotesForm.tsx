@@ -1,50 +1,55 @@
 import React, { useState } from "react";
-import type { ProjectNote } from "../Model";
+import type { ProjectSupportingDocs } from "../Model.d";
 import { Button } from "../../../components/tailwindui/button";
 import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from "../../../components/tailwindui/table";
+import { deleteDoc } from "../Service";
 import AddNoteDialog from "../dialogs/AddNoteDialog";
+import { useToast } from "../../../components/toaster/ToasterContext";
 
 interface NotesFormProps {
-  notes: ProjectNote[];
-  onAdd: (newNote: ProjectNote) => void;
-  onEdit: (index: number, updatedNote: ProjectNote) => void;
-  onDelete: (index: number) => void;
+  docs: ProjectSupportingDocs[];
+  onAdd: (newNote: ProjectSupportingDocs) => void;
+  onEdit: (index: number, updatedNote: ProjectSupportingDocs) => void;
+  onDelete: (doc: ProjectSupportingDocs) => void;
   onFileChange?: (index: number, file: File) => void; // Optional if upload handled externally
   initialData?: any; // Optional initial data for dropdowns or other purposes
+  dropDownOptions: any;
 }
 
 const NotesForm: React.FC<NotesFormProps> = ({
-  notes,
+  docs,
   onAdd,
   // onEdit,
   onDelete,
   // onFileChange,
-  initialData
+  initialData,
+  dropDownOptions
 }) => {
+  const { showToast } = useToast();
   const [isAddNoteModalOpen, setIsAddNoteModalOpen] = useState(false);
 
-  // const handleFileChange = (index: number, file: File) => {
-  //   const fileName = file.name;
-  //   const fileExtension = fileName.split('.').pop() || '';
-
-  //   const updatedNote: ProjectNote = {
-  //     ...notes[index],
-  //     FileName: fileName,
-  //     FileExtension: fileExtension,
-  //     FilePath: URL.createObjectURL(file), // preview only, not actual path
-  //   };
-
-  //   onEdit(index, updatedNote);
-  //   if (onFileChange) onFileChange(index, file); // optional actual upload
-  // };
-
-  // Add this function to handle adding a new note
-  const handleAddNote = (newNote: ProjectNote) => {
-    console.log('Adding new note to table:', newNote);
-    console.log('Current notes before adding:', notes);
-    onAdd(newNote);
+  const handleAddNote = (docs: ProjectSupportingDocs) => {
+    console.log('Adding new document to table:', docs);
+    console.log('Current documents before adding:', docs);
+    onAdd(docs);
     setIsAddNoteModalOpen(false);
+  };
+
+  const handleDeleteDoc = async (doc: ProjectSupportingDocs) => {
+    console.log('Deleting document:', doc);
+    try {
+      const deletedDoc = await deleteDoc(doc); // Pass as array
+      if (deletedDoc) {
+        onDelete(doc);
+      }
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      showToast({
+          type: 'error',
+          message: 'Failed to delete document.'
+      });
+    }
   };
 
   return (
@@ -61,30 +66,32 @@ const NotesForm: React.FC<NotesFormProps> = ({
         <TableHead>
           <TableRow>
             <TableHeader className="w-lg">File</TableHeader>
-            <TableHeader>Date</TableHeader>
+            <TableHeader>Document Type</TableHeader>
             <TableHeader>Description</TableHeader>
+            <TableHeader>Date</TableHeader>
             <TableHeader>Actions</TableHeader>
           </TableRow>
         </TableHead>
         <TableBody>
-          {notes.map((note, index) => (
-            <TableRow key={`${note.Id}-${index}-${note.CreatedDate}`}>
+          {docs.map((doc, index) => (
+            <TableRow key={`${doc.Id}-${index}-${doc.CreatedDate}`}>
               <TableCell className="w-lg">
-                {note.FileName && (
-                  <span className="text-xs text-gray-500 mt-1 cursor-pointer !underline" onClick={() => window.open(`/${note.FilePath}`, '_blank')}>{note.FileName}</span>
+                {doc.FileName && (
+                  <span className="text-xs text-gray-500 mt-1 cursor-pointer !underline" onClick={() => window.open(`/${doc.FilePath}`, '_blank')}>{doc.FileName}</span>
                 )}
               </TableCell>
               <TableCell>
-                <span className="text-xs text-gray-500 mt-1">{note.CreatedDate ? new Date(note.CreatedDate).toLocaleDateString() : '-'}</span>
-                
+                <span className="text-xs text-gray-500 mt-1">{doc.DocumentType}</span>
               </TableCell>
               <TableCell>
-                
-                  <span title={note.Description} className="text-xs text-gray-500 mt-1">{note.Description}</span>
+                  <span title={doc.Description} className="text-xs text-gray-500 mt-1">{doc.Description}</span>
+              </TableCell>
+              <TableCell>
+                <span className="text-xs text-gray-500 mt-1">{doc.CreatedDate ? new Date(doc.CreatedDate).toLocaleDateString() : '-'}</span>
               </TableCell>
               <TableCell>
                 <button
-                  onClick={() => onDelete(index)}
+                  onClick={() => handleDeleteDoc(doc)}
                   className="text-red-600 hover:text-red-800 cursor-pointer"
                 >
                   <TrashIcon className="w-4 h-4" />
@@ -101,6 +108,7 @@ const NotesForm: React.FC<NotesFormProps> = ({
         onClose={() => setIsAddNoteModalOpen(false)}
         projectId={initialData?.ProjectDetails?.ProjectId || ''}
         onAddNote={handleAddNote}
+        dropDownOptions={dropDownOptions}
       />
     </div>
   );

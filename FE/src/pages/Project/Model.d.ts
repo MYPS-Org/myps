@@ -18,6 +18,7 @@ export interface ProjectFormPayload {
   MajorItemOfWorks: MajorItemOfWork[];
   MajorItemLocations: MajorItemLocations[];
   ProjectNotes: ProjectNote[];
+  Docs: Docs[];
   FundingProfile: FundingProfile[];
   Dropdowns: Dropdowns;
   Activities: Activity[];
@@ -146,6 +147,7 @@ export interface ProjectById {
   ComponentCostPerYear: ProjectComponentCostYear[],
   MajorItemOfWorks: ProjectMajorItemOfWorks[],
   ProjectNotes: Notes,
+  Docs: Docs,
   FundingProfile: Funding,
   Dropdowns: Dropdowns
 }
@@ -214,6 +216,7 @@ export interface InfraData {
 
 // #region Notes
 export interface AddNotes {
+	DocumentType: string;
 	ProjectId: string,
 	Description: string,
 	File: FileEntity
@@ -283,6 +286,8 @@ export interface MajorItemLocations {
 	TargetUnitId: number;
 	TargetUnit: string; // Changed from number to string to match the UI usage
 	PhysicalTarget: string;
+	To: number;
+	From: number;
 	StartX: string;
 	StartY: string;
 	EndX: string;
@@ -299,6 +304,17 @@ export interface ProjectNote {
 	Description: string;
 	CreatedBy: string;
 	CreatedDate: string;
+}
+export interface ProjectSupportingDocs {
+	Id: number;
+	DocumentType: string;
+	ProjectId: string;
+	FileName: string;
+	FileExtension: string;
+	FilePath: string;
+	Description: string;
+	CreatedBy: string;
+	CreatedDate?: string;
 }
 export interface FundingProfile {
 	Id: number;
@@ -331,6 +347,15 @@ export interface Dropdowns {
 	Sources: SourceEnum[];
 	// Major Item of Works
 	ScopeOfWorks: ScopeOfWorkEnum[];
+	SupportingDocs: DropdownSupportingDocs[];
+}
+export interface DropdownSupportingDocs {
+	Id: number;
+	Code: string;
+	Name: string;
+	CreatedBy: string;
+	CreatedDate: string;
+	ValidUntil: number;
 }
 export interface ComponentTypeEnum {
 	Description: string;
