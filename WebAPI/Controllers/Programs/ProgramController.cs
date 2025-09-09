@@ -199,11 +199,6 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Program Stage '{dto.Stage}' is not valid!", Title = "Invalid Stage" });
                 }
-                var checkStatusType = await _db.tProgramStatusEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == (int)dto.Status);
-                if(checkStatusType == null)
-                {
-                    return new BadRequestObjectResult(new { Message = $"Program Status '{dto.Status}' is not valid!", Title = "Invalid Status" });
-                }
                 var checkType = await _db.tProgramTypeEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == (int)dto.Type);
                 if (checkType == null)
                 {
@@ -228,21 +223,22 @@ namespace WebAPI.Controllers.Programs
                     CreatedDate = currentDate,
                     IsDeleted= false,
                     IsSkipped = dto.IsSkipped,
-                    SkipReason = dto.SkipReason
+                    SkipReason = dto.IsSkipped ? dto.SkipReason : null
                 };
                 await _db.tPrograms.AddAsync(newProgram);
                 var newRevisions = new ProgramRevisions()
                 {
                     ProgramId = ReferenceId,
                     RevisionNumber = 1,
-                    Name = dto.Name,
+                    AllowAutoName = dto.AllowAutoName,
+                    Name = dto.AllowAutoName ? $"{dto.Stage.ToString()} {dto.YearStart}" : dto.Name,
                     UserGroup = dto.UserGroup,
                     RegionCode = dto.RegionCode,
                     Status = EnumProgramStatus.Working,
                     Type = dto.Type,
                     YearStart = dto.YearStart,
                     CreatedBy = UserId,
-                    CreatedDate = currentDate,
+                    CreatedDate = currentDate
 
                 };
                 await _db.tProgramRevisions.AddAsync(newRevisions);
@@ -262,6 +258,7 @@ namespace WebAPI.Controllers.Programs
                 return Ok(new
                 {
                     Id = ReferenceId,
+                    Stage = dto.Stage.ToString(),
                     Message = "Program added successfully",
                     Title = "Add Complete"
                 });
@@ -289,8 +286,12 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Programs table. Please contact administrator!", Title = "Program not found" });
                 }
-                var program = await _db.vProgramDetails.AsNoTracking().FirstOrDefaultAsync(x => x.Id == CurrentProgramVersion.RevisionId && x.ProgramId == dto.ProgramId);
-                var ProjectLists = await _db.vProjects.AsNoTracking().Where(x => x.ProgramId == dto.ProgramId).ToListAsync();
+                var program = await _db.vProgramDetails.AsNoTracking().OrderByDescending(x => x.Id).FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId && x.StageName == dto.StageName);
+                if (program == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' with Stage {dto.StageName} does not exist in the Programs table. Please contact administrator!", Title = "Program not found" });
+                }
+                var ProjectLists = await _db.vProjects.AsNoTracking().Where(x => x.ProgramId == dto.ProgramId && x.StageName == dto.StageName).ToListAsync();
                 var AvailableStages = await _db.tProgramStageEnum.AsNoTracking().ToListAsync();
                 var AvailableTypes = await _db.tProgramTypeEnum.AsNoTracking().ToListAsync();
                 var AvailableStatuses = await _db.tProgramStatusEnum.AsNoTracking().ToListAsync();
@@ -299,6 +300,7 @@ namespace WebAPI.Controllers.Programs
                 var Security = await _db.tProjectImplementingOfficeEnum.AsNoTracking().Where(x => includes.Contains(x.OrgType)).ToListAsync();
                 var response = new
                 {
+                    IsActive = (CurrentProgramVersion.StageName == program.StageName) ? true : false,
                     Details = program,
                     Projects = ProjectLists,
                     Dropdowns = new
@@ -587,7 +589,7 @@ namespace WebAPI.Controllers.Programs
                 if (checkProjects.Count > 0)
                 {
                     HashSet<string> projectIds = checkProjects.Select(p => p.ProjectId!).ToHashSet();
-                    var ProjectRevisions = await _db.tProjectRevisions.AsNoTracking().Where(x => projectIds.Contains(x.AlternateId)).ToListAsync();
+                    var ProjectRevisions = await _db.tProjectRevisions.AsNoTracking().Where(x => projectIds.Contains(x.ProjectId)).ToListAsync();
                     List<ProjectRevisions> NewRevisions = new List<ProjectRevisions>();
                     if (ProjectRevisions.Count > 0)
                     {
@@ -597,8 +599,13 @@ namespace WebAPI.Controllers.Programs
                             string NewProjectId = Regex.Replace(project.ProjectId, @"\b(BP|MY|P)\b", FirstSegment);
                             var newRevision = new ProjectRevisions()
                             {
+                                ReferenceId = project.ReferenceId,
                                 ProjectId = NewProjectId,
                                 AlternateId = project.AlternateId,
+                                ExternalId = project.ExternalId,
+                                MYId = project.MYId,
+                                UACS = project.UACS,
+                                MYCAApprovalDate = project.MYCAApprovalDate,
                                 RevisionNumber = project.RevisionNumber + 1,
                                 Description = project.Description,
                                 Category = project.Category,
@@ -615,8 +622,11 @@ namespace WebAPI.Controllers.Programs
                                 ImplementationMode = project.ImplementationMode,
                                 EmergencyMode = project.EmergencyMode,
                                 Feasibility = project.Feasibility,
+                                FeasibilityDate = project.FeasibilityDate,
                                 DetailedDesign = project.DetailedDesign,
+                                DetailedDesignDate = project.DetailedDesignDate,
                                 RowAvailable = project.RowAvailable,
+                                RegionWide = project.RegionWide,
                                 CreatedBy = _Session.UserId,
                                 CreatedDate = CurrentDate
                             };
@@ -626,8 +636,9 @@ namespace WebAPI.Controllers.Programs
                         await _db.SaveChangesAsync();
                         var newStages = NewRevisions.Select(pr => new ProjectStages
                         {
+                            ProgramId = dto.ProgramId,
                             RevisionId = pr.Id,
-                            StageId = dto.Stage,
+                            StageId = dto.Stage.UpdateStage(),
                             StageName = checkStageType.Name,
                             CreatedBy = _Session.UserId,
                             CreatedDate = CurrentDate,
@@ -652,7 +663,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     ProgramId = dto.ProgramId,
                     RevisionNumber = checkRevisions.RevisionNumber + 1,
-                    Name = checkRevisions.Name,
+                    Name = checkRevisions.AllowAutoName ?  $"{checkStageType.Name} {checkRevisions.YearStart}" : checkRevisions.Name,
                     UserGroup = checkRevisions.UserGroup,
                     RegionCode = checkRevisions.RegionCode,
                     Status = checkRevisions.Status,

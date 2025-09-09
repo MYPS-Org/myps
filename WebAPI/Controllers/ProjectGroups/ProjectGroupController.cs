@@ -252,9 +252,9 @@ namespace WebAPI.Controllers.ProjectGroup
                 }
                 var CheckProjects = await _db.tProjects
                     .AsNoTracking()
-                    .Where(x => dto.ProjectId.Contains(x.ProjectId))
+                    .Where(x => dto.ProjectId.Contains(x.ReferenceId))
                     .ToListAsync();
-                var CheckMissingProjects = dto.ProjectId.Except(CheckProjects.Select(x => x.ProjectId)).ToList();
+                var CheckMissingProjects = dto.ProjectId.Except(CheckProjects.Select(x => x.ReferenceId)).ToList();
                 if (CheckMissingProjects.Count > 0)
                 {
                     return new BadRequestObjectResult(new { Message = $"Projects {string.Join(", ", CheckMissingProjects)} not found!", Title = "Not Found" });
@@ -268,7 +268,7 @@ namespace WebAPI.Controllers.ProjectGroup
                     return new DBHelper.Models.Table.ProjectsInGroup
                     {
                         GroupId = dto.GroupId,
-                        ProjectId = x.ProjectId,
+                        ProjectId = x.ReferenceId,
                         CreatedBy = _Session.UserId ?? "TEST",
                         CreatedDate = DateTime.UtcNow
                     };
@@ -299,7 +299,7 @@ namespace WebAPI.Controllers.ProjectGroup
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found in group!", Title = "Not Found" });
                 }
-                var CheckProjects = await _db.tProjects.AsNoTracking().FirstOrDefaultAsync(x => dto.ProjectId == x.ProjectId);
+                var CheckProjects = await _db.tProjects.AsNoTracking().FirstOrDefaultAsync(x => dto.ProjectId == x.ReferenceId);
                 if (CheckProjects == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found! Please contact administrator", Title = "Not Found" });

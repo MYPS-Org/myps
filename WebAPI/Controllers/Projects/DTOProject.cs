@@ -38,6 +38,7 @@ namespace WebAPI.Controllers.Projects
         public List<ProjectMajorWorkItemDTO> MajorItemOfWorks { get; set; } = new List<ProjectMajorWorkItemDTO>();
         public List<ProjectMajorWorkLocationsDTO> MajorItemLocations { get; set; } = new List<ProjectMajorWorkLocationsDTO>();
         public List<ProjectNotes> ProjectNotes { get; set; } = new List<ProjectNotes>();
+        public List<ProjectSupportingDocs> Docs { get; set; } = new List<ProjectSupportingDocs>();
         public List<FundingProfileDTO> FundingProfile { get; set; } = new List<FundingProfileDTO>();
     }
     public class ProjectComponentCostDTO
@@ -135,6 +136,22 @@ namespace WebAPI.Controllers.Projects
         public string Description { get; set; } = string.Empty;
         [Required]
         public FileUpload File { get; set; } = new FileUpload();
+    }
+    public class AddSupportingDocsDTO : ProjectDetailsDTO
+    {
+        [Required]
+        [MaxLength(200)]
+        public string Description { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(200)]
+        public string DocumentType { get; set; } = string.Empty;
+        [Required]
+        public FileUpload File { get; set; } = new FileUpload();
+    }
+    public class DeleteSupportingDocsDTO
+    {
+        [Required]
+        public int Id { get; set; }
     }
     public class DeleteNotesDTO
     {

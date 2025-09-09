@@ -15,6 +15,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Data.SqlClient;
 using System.IO.Pipelines;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using System.Xml;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 namespace WebAPI.Controllers.Projects
@@ -230,18 +231,19 @@ namespace WebAPI.Controllers.Projects
                 string SecondSegment = Functions.GenerateProjec2ndSegment(ProgramDetails.YearStart);
                 Random rand = new Random();
                 string ThirdSegment = rand.Next(Category.Minimum, Category.Maximum+1).ToString("D5");
-                string FourthSegment = dto.IslandCode ?? DEO.Island!;
+                string FourthSegment = string.IsNullOrEmpty(dto.IslandCode) ? dto.IslandCode! : DEO.Island!;
                 string ReferenceId = $"{FirstSegment}{SecondSegment}{ThirdSegment}{FourthSegment}";
                 var SubmitProject = new DBHelper.Models.Table.Projects()
                 {
                     ProgramId = ProgramDetails.ProgramId,
-                    ProjectId = ReferenceId,
+                    ReferenceId = ReferenceId,
                     CreatedBy = _Session.UserId,
                     CreatedDate = CurrentDate
                 };
                 await _db.tProjects.AddAsync(SubmitProject);
                 var ProjectRevision = new ProjectRevisions()
                 {
+                    ReferenceId = ReferenceId,
                     ProjectId = ReferenceId,
                     AlternateId = dto.AlternateId,
                     ExternalId = dto.ExternalId,
@@ -277,6 +279,7 @@ namespace WebAPI.Controllers.Projects
                 await _db.SaveChangesAsync();
                 var ProjectStage = new ProjectStages()
                 {
+                    ProgramId = ProgramDetails.ProgramId,
                     RevisionId = ProjectRevision.Id,
                     StageId = ProgramDetails.StageId,
                     StageName = ProgramDetails.StageName,
@@ -308,7 +311,7 @@ namespace WebAPI.Controllers.Projects
         {
             try
             {
-                var Project = await _db.vProjectDetails.AsNoTracking().Where(x => x.ProjectId == dto.ProjectId).OrderByDescending(x => x.RevisionNumber).FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId);
+                var Project = await _db.vProjectDetails.AsNoTracking().Where(x => x.ReferenceId == dto.ProjectId).OrderByDescending(x => x.RevisionNumber).FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId);
                 if(Project == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
@@ -318,16 +321,23 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = "Program not found for this project!", Title = "Program Not Found" });
                 }
+                int CurrentYear = (int)DateTime.UtcNow.Year;
+
+                var SupportingDoc = await _db.tDropdownSupportingDocs.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync();
+
                 var ComponentType = await _db.tProjectComponentEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId).ToListAsync();
                 var ComponentCostYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentCost.Select(a => a.ReferenceId).Contains(x.ParentId)).ToListAsync();
+
                 var MajorItemOfWork = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId).ToListAsync();
                 HashSet<string> ItemParents = MajorItemOfWork.Select(x => x.ReferenceId).ToHashSet();
                 var MajorWorkLocation = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => ItemParents.Contains(x.ParentId)).ToListAsync();
+
+                var Doc = await _db.tProjectSupportingDocs.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId).ToListAsync();
+
                 var Notes = await _db.tProjectNotes.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId).ToListAsync();
                 var Funding = await _db.tProjectFundingProfile.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId).ToListAsync();
 
-                int CurrentYear = (int)DateTime.UtcNow.Year;
                 var Category = await _db.tProjectCategoryEnum.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync();
                 var Thrust = await _db.tProjectThrustLists.AsNoTracking().OrderBy(x => x.ThrustDescription).ToListAsync();
                 var Origin = await _db.tProjectOriginEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
@@ -356,6 +366,7 @@ namespace WebAPI.Controllers.Projects
                     MajorItemOfWorks = MajorItemOfWork,
                     MajorItemLocations = MajorWorkLocation,
                     ProjectNotes = Notes,
+                    Docs = Doc,
                     FundingProfile = Funding,
                     TransactionLogs = Transactions,
                     Dropdowns = new
@@ -374,6 +385,9 @@ namespace WebAPI.Controllers.Projects
                         Agencies = Agency,
                         ImplementationModes = ImplementationMode,
                         EmergencyModes = EmergencyMode,
+
+                        //SupportingDocs
+                        SupportingDocs = SupportingDoc,
 
                         //Component Cost
                         ComponentTypes = ComponentType,
@@ -407,7 +421,7 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
                 }
-                var Program = await _db.vProgramDetails.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == Project.ProgramId);
+                var Program = await _db.vProgramDetails.AsNoTracking().OrderByDescending(x => x.RevisionNumber).FirstOrDefaultAsync(x => x.ProgramId == Project.ProgramId);
                 if (Program == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Program not found for this project!", Title = "Program Not Found" });
@@ -821,7 +835,7 @@ namespace WebAPI.Controllers.Projects
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
-                    Project.RowAvailable = dto.ProjectDetails!.RowAvailable;
+                    Project.RegionWide = dto.ProjectDetails!.RegionWide;
                 }
                 if (hasUpdated)
                 {
@@ -862,6 +876,7 @@ namespace WebAPI.Controllers.Projects
                     await _db.SaveChangesAsync();
                     var newStage = new ProjectStages()
                     {
+                        ProgramId = Program.ProgramId!,
                         RevisionId = NewRevision.Id,
                         StageId = Program.StageId,
                         StageName = Program.StageName,
@@ -999,6 +1014,7 @@ namespace WebAPI.Controllers.Projects
                                         NewValue = item.Description ?? "",
                                         OldValue = ExistingItem.Description ?? "",
                                         CreatedBy = _Session.UserId,
+                                        CreatedDate = CurrentDate
                                     });
                                     ExistingItem.Description = item.Description ?? "";
                                 }
@@ -1621,7 +1637,7 @@ namespace WebAPI.Controllers.Projects
                                         TypeOfTransaction = "Update",
                                         AffectedTable = "tProjectFundingProfile",
                                         AffectedColumn = "Amount",
-                                        NewValue = item.Percentage.ToString(),
+                                        NewValue = item.Amount.ToString(),
                                         OldValue = ExistingItem.Amount.ToString(),
                                         CreatedBy = _Session.UserId,
                                         CreatedDate = CurrentDate
@@ -1670,17 +1686,25 @@ namespace WebAPI.Controllers.Projects
                     await _db.tProjectFundingProfile.AddRangeAsync(addFunding);
                 }
                 #endregion
-                await _db.tTransactionLog.AddRangeAsync(transactionLogs);
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
                 if (HasCostUpdate)
                 {
                     var param = new Dictionary<string, object> { { "@ProgramId", dto.ProjectDetails!.ProgramId! } };
-                    Sql.NormalQuery<Double>(
+                    List<Double> Totals = Sql.NormalQuery<Double>(
                             Appsetting.ConnectionString,
                             "EXEC pUpdateProgramCost @ProgramId = @ProgramId", param
                         );
+                    Double TotalCosts = Totals.Sum();
+                    var CurrentVersion = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == Program.Id);
+                    if(CurrentVersion == null)
+                    {
+                        return new BadRequestObjectResult(new { Message = "Program not found for this project!", Title = "Program Not Found" });
+                    }
+                    CurrentVersion.Cost = TotalCosts;
+                    _db.tProgramRevisions.Update(CurrentVersion);
                 }
+                await _db.tTransactionLog.AddRangeAsync(transactionLogs);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
                 return Ok(new
                 {
                     Message = $"Project {dto.ProjectDetails!.ProjectId} updated successfully!",
@@ -1738,7 +1762,7 @@ namespace WebAPI.Controllers.Projects
                     FileName = FileName,
                     FileExtension = Extension,
                     FilePath = FilePath,
-                    Description = dto.Description,
+                    Description = Regex.Replace(dto.Description, @"\s+", " "),
                     CreatedBy = _Session.UserId,
                     CreatedDate = DateTime.UtcNow
                 };
@@ -1753,7 +1777,6 @@ namespace WebAPI.Controllers.Projects
                 return ExceptionHandler(ex);
             }
         }
-        
         [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> DeleteNotes([FromBody] DeleteNotesDTO dto)
@@ -1762,7 +1785,7 @@ namespace WebAPI.Controllers.Projects
             try
             {
                 var Note = await _db.tProjectNotes.FirstOrDefaultAsync(x => x.Id == dto.Id);
-                if(Note == null)
+                if (Note == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Project note not found!", Title = "Project Not Found" });
                 }
@@ -1785,6 +1808,107 @@ namespace WebAPI.Controllers.Projects
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
                 return Ok(new { Message = "Notes deleted successfully!", Tile = "Delete Success." });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> UploadSupportingDocs([FromBody] AddSupportingDocsDTO dto)
+        {
+            var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var Project = await _db.vProjectDetails.FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId);
+                if(Project == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
+                }
+                if (dto.File == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "No file uploaded!", Title = "File Upload Error" });
+                }
+                if (dto.File.IsFileCorrupted())
+                {
+                    return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted!", Title = "File Corrupted" });
+                }
+                var type = dto.DocumentType.Split(":");
+                string docType = type[0];
+                string DocName = type[1].Replace("/", " or ");
+                string Extension = Path.GetExtension(dto.File.Name);
+                string FileName = $"{DocName}.{Extension}";
+                string PathDir = Path.Combine(Appsetting.Resources.SupportingDocs, Project.ProjectId!);
+                if (!Directory.Exists(PathDir))
+                {
+                    Directory.CreateDirectory(PathDir);
+                }
+                string FilePath = $"{PathDir}/{FileName}";
+
+                string base64Data = dto.File.DataUrl.Contains(",")
+                    ? dto.File.DataUrl.Split(',')[1]
+                    : dto.File.DataUrl;
+                byte[] fileBytes = Convert.FromBase64String(base64Data);
+                if (fileBytes.Length == 0)
+                {
+                    return new BadRequestObjectResult(new { Message = "Uploaded file is empty!", Title = "File Empty" });
+                }
+                await System.IO.File.WriteAllBytesAsync(Path.Combine(Appsetting.RootPath, FilePath), fileBytes);
+                var AddSupporting = new ProjectSupportingDocs()
+                {
+                    DocumentType = docType,
+                    ProjectId = dto.ProjectId,
+                    FileName = FileName,
+                    FileExtension = Extension,
+                    FilePath = FilePath,
+                    Description = Regex.Replace(dto.Description, @"\s+", " "),
+                    CreatedBy = _Session.UserId,
+                    CreatedDate = DateTime.UtcNow
+                };
+                await _db.tProjectSupportingDocs.AddAsync(AddSupporting);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return Ok(new { Message = "Notes added successfully!", Tile = "Add Success." });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> DeleteSupportingDocs([FromBody] DeleteSupportingDocsDTO dto)
+        {
+            var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var Note = await _db.tProjectSupportingDocs.FirstOrDefaultAsync(x => x.Id == dto.Id);
+                if(Note == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Supporting Doc not found!", Title = "Project Not Found" });
+                }
+                if (System.IO.File.Exists(Note.FilePath))
+                {
+                    System.IO.File.Delete(Note.FilePath);
+                }
+                await _db.tTransactionLog.AddAsync(new TransactionLog
+                {
+                    TransactionId = Note.ProjectId!,
+                    TypeOfTransaction = "Delete",
+                    AffectedTable = "tProjectSupportingDocs",
+                    AffectedColumn = "Row",
+                    NewValue = "",
+                    OldValue = JsonConvert.SerializeObject(Note),
+                    CreatedBy = _Session.UserId,
+                    CreatedDate = DateTime.UtcNow
+                });
+                _db.tProjectSupportingDocs.Remove(Note);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return Ok(new { Message = "Supporting Document deleted successfully!", Tile = "Delete Success." });
             }
             catch (Exception ex)
             {

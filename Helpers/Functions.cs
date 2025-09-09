@@ -1,4 +1,5 @@
 ﻿using DBHelper.Data;
+using DBHelper.Models.Enums;
 using DBHelper.Models.Extra;
 using Microsoft.AspNetCore.Http;
 using OfficeOpenXml;
@@ -14,6 +15,16 @@ namespace Helpers
 {
     public static class Functions
     {
+        public static EnumProgramStage UpdateStage(this EnumProgramStage Current)
+        {
+            if (Current == EnumProgramStage.BP) return EnumProgramStage.NEP;
+            else if (Current == EnumProgramStage.NEP) return EnumProgramStage.NEPE;
+            else if (Current == EnumProgramStage.NEPE) return EnumProgramStage.HGAB;
+            else if (Current == EnumProgramStage.HGAB) return EnumProgramStage.HGABI;
+            else if (Current == EnumProgramStage.HGABI) return EnumProgramStage.GAA;
+            else if (Current == EnumProgramStage.GAA) return EnumProgramStage.GAAR;
+            return Current;
+        }
         public static string GenerateProjec2ndSegment(int endYear)
         {
             int startYear = 2016;
@@ -24,9 +35,9 @@ namespace Helpers
         {
             var stageGroups = new Dictionary<string, string[]>
             {
-                { "BP", new[] { "RBP", "UPMO", "UBP" } },
+                { "BP", new[] { "BP", "RBP", "UPMO", "UBP" } },
                 { "MY", new[] { "RDIP", "UDIP", "PIP" } },
-                { "P",  new[] { "BP", "NEP", "HGAB", "GAA" } }
+                { "P",  new[] { "NEP", "HGAB", "GAA" } }
             };
             return stageGroups.FirstOrDefault(g => g.Value.Contains(StageName)).Key ?? "P";
         }

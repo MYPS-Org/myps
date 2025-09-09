@@ -21,6 +21,7 @@ namespace Helpers
         public string Main { get; set; } = string.Empty;
         public string Projects { get; set; } = string.Empty;
         public string ProjectNotes { get; set; } = string.Empty;
+        public string SupportingDocs { get; set; } = string.Empty;
     }
     public static class Appsetting
     {
@@ -42,6 +43,7 @@ namespace Helpers
             Resources = config.GetSection("Resources").Get<ResourcesFolder>()!;
             Resources.Projects = Path.Combine(Resources.Main, Resources.Projects);
             Resources.ProjectNotes = Path.Combine(Resources.Projects, Resources.ProjectNotes);
+            Resources.SupportingDocs = Path.Combine(Resources.Projects, Resources.SupportingDocs);
         }
     }
 }

@@ -14,6 +14,9 @@ namespace DBHelper.Models.Table
         public int Id { get; set; }
         [Required]
         [MaxLength(200)]
+        public string ReferenceId { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(200)]
         public string ProjectId { get; set; } = string.Empty;
         [MaxLength(200)]
         public string? AlternateId { get; set; }

@@ -43,6 +43,7 @@ namespace DBHelper.Data
         public DbSet<Models.Table.ProjectMajorWorkItem> tProjectMajorWorkItem { get; set; }
         public DbSet<Models.Table.ProjectMajorWorkLocations> tProjectMajorWorkLocations { get; set; }
         public DbSet<Models.Table.ProjectNotes> tProjectNotes { get; set; }
+        public DbSet<Models.Table.ProjectSupportingDocs> tProjectSupportingDocs { get; set; }
         public DbSet<Models.Table.ProjectFundingProfile> tProjectFundingProfile { get; set; }
         public DbSet<Models.Table.ProjectFundingAgreementLists> tProjectFundingAgreementLists { get; set; }
         public DbSet<Models.Table.ProjectFundingSource> tProjectFundingSource { get; set; }
@@ -52,6 +53,7 @@ namespace DBHelper.Data
         public DbSet<Models.Table.ProjectsInGroup> tProjectsInGroup { get; set; }
         public DbSet<Models.Table.ProjectGroups> tProjectGroups { get; set; }
         public DbSet<Models.Table.ProjectProvinceEnum> tProjectProvinceEnum { get; set; }
+        public DbSet<Models.Table.DropdownSupportingDocs> tDropdownSupportingDocs { get; set; }
         #endregion
         #region Views
         public DbSet<Models.Views.Users> vUsers { get; set; }

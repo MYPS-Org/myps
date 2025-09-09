@@ -23,11 +23,19 @@ namespace WebAPI.Controllers.Programs
     }
     public class AddProgramDTO
     {
+        [Required]
         public EnumProgramStage Stage { get; set; }
+        [Required]
         public EnumProgramStatus Status { get; set; }
+        [Required]
         public EnumProgramType Type { get; set; }
+        [Required]
         public string Name { get; set; } = string.Empty;
+        [Required]
+        public bool AllowAutoName { get; set; } = true;
+        [Required]
         public int YearStart { get; set; }
+        [Required]
         public int UserGroup { get; set; }
         public string RegionCode { get; set; } = string.Empty;
         public bool IsSkipped { get; set; } = false;
@@ -36,7 +44,9 @@ namespace WebAPI.Controllers.Programs
     }
     public class ProgramDetailsDTO
     {
+        [Required]
         public string ProgramId { get; set; } = string.Empty;
+        public string StageName { get; set; } = string.Empty;
     }
     public class DeleteProgramDTO
     {
