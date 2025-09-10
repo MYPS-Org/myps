@@ -43,7 +43,8 @@ const ProgramDetail: React.FC = () => {
       Statuses: [],
       Stages: [],
       Types: [],
-      Groups: []
+      Groups: [],
+      DataSecurity: []
     }
   });
   const [defaultProgramEnums, setDefaultProgramEnums] = useState<ProgramDetailsEnums>({
@@ -74,7 +75,8 @@ const ProgramDetail: React.FC = () => {
       Statuses: [],
       Stages: [],
       Types: [],
-      Groups: []
+      Groups: [],
+      DataSecurity: []
     }
   });
   const [isLoading, setIsLoading] = useState(true);

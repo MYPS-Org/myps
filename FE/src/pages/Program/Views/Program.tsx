@@ -38,6 +38,7 @@ const Program: React.FC = () => {
         Stages: ProgramEnums[];
         Types: ProgramEnums[];
         Groups: ProgramEnums[];
+        DataSecurity: ProgramEnums[];
     } | null>(null);
 
     const [isAddProgramOpen, setIsAddProgramOpen] = useState(false);

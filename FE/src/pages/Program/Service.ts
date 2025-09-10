@@ -6,7 +6,7 @@ import type { ProgramModel, ProgramEnums, ProgramPagination, ProgramList, Progra
 
 export const fetchProgramEnums = async () => {
     try {
-        const response = await httpClient.post< { Stages: ProgramEnums[]; Types: ProgramEnums[]; Groups: ProgramEnums[] } >(
+        const response = await httpClient.post< { Stages: ProgramEnums[]; Types: ProgramEnums[]; Groups: ProgramEnums[], DataSecurity: ProgramEnums[] } >(
             '/Program/InitAddProgram',
             null,
             {
