@@ -158,6 +158,8 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
       return ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget', 'StartStationLimit', 'EndStationLimit', 'To', 'From'];
     } else if (infraTypeLower === 'bridge' || infraTypeLower === 'bridges') {
       return ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget'];
+    } else if (infraTypeLower === 'consultancy' || infraTypeLower === 'non-infra') {
+      return ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget'];
     } else {
       // Others - use coordinates
       return ['InfraId','DetailedScope', 'TargetUnit','PhysicalTarget','StartX', 'StartY', 'EndX', 'EndY'];
@@ -482,6 +484,12 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
                   <div className="mt-4 p-3 bg-green-50 rounded-md">
                     <div className="text-sm text-green-700">
                       <strong>Bridge Infrastructure:</strong> Length and target units are automatically determined based on the selected bridge.
+                    </div>
+                  </div>
+                ) : (infraType?.toLowerCase() === 'consultancy' || infraType?.toLowerCase() === 'non-infra') ? (
+                  <div className="mt-4 p-3 bg-orange-50 rounded-md">
+                    <div className="text-sm text-orange-500">
+                      <strong>Consultancy Infrastructure:</strong> No Geo-Location available for this infrastructure.
                     </div>
                   </div>
                 ) : (
