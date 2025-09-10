@@ -65,17 +65,17 @@ const NotesForm: React.FC<NotesFormProps> = ({
       <Table>
         <TableHead>
           <TableRow>
-            <TableHeader className="w-lg">File</TableHeader>
-            <TableHeader>Document Type</TableHeader>
-            <TableHeader>Description</TableHeader>
-            <TableHeader>Date</TableHeader>
-            <TableHeader>Actions</TableHeader>
+            <TableHeader justify="center" className="w-lg">File</TableHeader>
+            <TableHeader justify="center">Document Type</TableHeader>
+            <TableHeader justify="center">Description</TableHeader>
+            <TableHeader justify="center">Date</TableHeader>
+            <TableHeader justify="center">Actions</TableHeader>
           </TableRow>
         </TableHead>
         <TableBody>
           {docs.map((doc, index) => (
             <TableRow key={`${doc.Id}-${index}-${doc.CreatedDate}`}>
-              <TableCell className="w-lg">
+              <TableCell className="w-lg text-center">
                 {doc.FileName && (
                   <span className="text-xs text-gray-500 mt-1 cursor-pointer !underline" onClick={() => window.open(`/${doc.FilePath}`, '_blank')}>{doc.FileName}</span>
                 )}

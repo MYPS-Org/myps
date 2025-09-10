@@ -108,6 +108,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       Feasibility: 0,
       DetailedDesign: false,
       RowAvailable: false,
+      Tier: 1,
     }
   );
 

@@ -87,6 +87,7 @@ export interface ProjectDetails {
 	DetailedDesignDate?: string;
 	RowAvailable?: boolean;
 	RegionWide?: number;
+	Tier: number;
 	CreatedBy?: string;
 	CreatedDate?: string;
 	UpdatedBy?: string;

@@ -58,7 +58,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     <h3 className="text-lg text-left font-semibold text-gray-800 pt-2 pb-2">
                         General Information:
                     </h3>
-                    <div className="grid grid-cols-5 gap-5">
+                    <div className="grid grid-cols-3 gap-5">
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
                                 <label className="flex-1/3 text-gray-600">Project ID:</label>
@@ -98,6 +98,9 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 />
                             </div>
                         </div>
+                    </div>
+
+                    <div className='grid grid-cols-3 gap-5'>
 
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
@@ -123,6 +126,22 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 />
                             </div>
                         </div>
+
+                        <div className='w-full flex flex-col text-left gap-2'>
+                            <div className='flex flex-row gap-5 items-center'>
+                                <label className={`w-1/3 ${errors.Tier ? 'text-red-500' : 'text-gray-600'}`}>Tier</label>
+                                <select
+                                    value={projectDetails?.Tier}
+                                    onChange={(e) => handleInputChange('Tier', parseInt(e.target.value))}
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.Tier ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
+                                    style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                                >
+                                    <option value={1}>Tier I</option>
+                                    <option value={2}>Tier II</option>
+                                </select>
+                            </div>
+                        </div>
+
                     </div>
 
                     <div className="grid grid-cols-2 gap-5 border-t-2 pt-4 border-gray-200">
