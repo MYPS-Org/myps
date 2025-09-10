@@ -585,7 +585,10 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Program Stage '{dto.Stage}' is not valid!", Title = "Invalid Stage" });
                 }
-                var checkProjects = await _db.vProjectDetails.AsNoTracking().Where(x => x.ProgramId == dto.ProgramId).ToListAsync();
+                var checkProjects = await _db.vProjectDetails
+                .FromSqlInterpolated($"SELECT * FROM fProjectsPerStage({dto.ProgramId}) fp WHERE fp.StageId = {checkStage.StageId}")
+                .AsNoTracking()
+                .ToListAsync();
                 if (checkProjects.Count > 0)
                 {
                     HashSet<string> projectIds = checkProjects.Select(p => p.ProjectId!).ToHashSet();
@@ -596,7 +599,7 @@ namespace WebAPI.Controllers.Programs
                         foreach (var project in ProjectRevisions)
                         {
                             string FirstSegment = Functions.GenerateProjec1stSegment(checkStageType.Name);
-                            string NewProjectId = Regex.Replace(project.ProjectId, @"\b(BP|MY|P)\b", FirstSegment);
+                            string NewProjectId = project.ProjectId.Replace("BP", FirstSegment);
                             var newRevision = new ProjectRevisions()
                             {
                                 ReferenceId = project.ReferenceId,
@@ -638,7 +641,7 @@ namespace WebAPI.Controllers.Programs
                         {
                             ProgramId = dto.ProgramId,
                             RevisionId = pr.Id,
-                            StageId = dto.Stage.UpdateStage(),
+                            StageId = checkStage.StageId.UpdateStage(),
                             StageName = checkStageType.Name,
                             CreatedBy = _Session.UserId,
                             CreatedDate = CurrentDate,

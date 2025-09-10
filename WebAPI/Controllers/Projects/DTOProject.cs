@@ -29,6 +29,8 @@ namespace WebAPI.Controllers.Projects
     {
         [Required]
         public string ProjectId { get; set; } = string.Empty;
+        [Required]
+        public string StageName { get; set; } = string.Empty;
     }
     public class UpdateProjectDetailsDTO
     {
@@ -128,6 +130,8 @@ namespace WebAPI.Controllers.Projects
         public string? StartStationLimit { get; set; }
         [MaxLength(100)]
         public string? EndStationLimit { get; set; }
+        public Double? From { get; set; }
+        public Double? To { get; set; }
     }
     public class AddNotesDTO : ProjectDetailsDTO
     {

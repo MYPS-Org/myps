@@ -71,6 +71,8 @@ namespace DBHelper.Models.Table
         [Required]
         public int RegionWide { get; set; } = 0;
         [Required]
+        public int Tier { get; set; } = 1;
+        [Required]
         [MaxLength(100)]
         public string CreatedBy { get; set; } = string.Empty;
         [Required]

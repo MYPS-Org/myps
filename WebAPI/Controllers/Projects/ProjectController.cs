@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.EntityFrameworkCore.Scaffolding.Metadata;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
+using OfficeOpenXml.Drawing.Controls;
 using System.ComponentModel.DataAnnotations;
 using System.Data.SqlClient;
 using System.IO.Pipelines;
@@ -272,6 +273,7 @@ namespace WebAPI.Controllers.Projects
                     DetailedDesignDate = dto.DetailedDesignDate,
                     RowAvailable = dto.RowAvailable,
                     RegionWide = dto.RegionWide,
+                    Tier = dto.Tier,
                     CreatedBy = _Session.UserId,
                     CreatedDate = CurrentDate
                 };
@@ -311,7 +313,11 @@ namespace WebAPI.Controllers.Projects
         {
             try
             {
-                var Project = await _db.vProjectDetails.AsNoTracking().Where(x => x.ReferenceId == dto.ProjectId).OrderByDescending(x => x.RevisionNumber).FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId);
+                var Project = await _db.vProjectDetails
+                .FromSqlInterpolated($"SELECT * FROM fProjectsPerStage({dto.ProjectId}) fp WHERE fp.StageName = {dto.StageName} AND fp.ProjectId = {dto.ProjectId}")
+                .AsNoTracking()
+                .FirstOrDefaultAsync();
+                //var Project = await _db.vProjectDetails.AsNoTracking().Where(x => x.ReferenceId == dto.ProjectId).OrderByDescending(x => x.RevisionNumber).FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId);
                 if(Project == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
@@ -416,7 +422,12 @@ namespace WebAPI.Controllers.Projects
                 bool hasUpdated = false;
                 DateTime CurrentDate = DateTime.UtcNow;
                 List<TransactionLog> transactionLogs = new List<TransactionLog>();
-                var Project = await _db.vProjectDetails.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectDetails.ProjectId);
+
+                var Project = await _db.vProjectDetails
+                .FromSqlInterpolated($"SELECT * FROM fProjectsPerStage({dto.ProjectDetails.ProjectId}) fp WHERE fp.ProjectId = {dto.ProjectDetails.ProjectId}")
+                .AsNoTracking()
+                .FirstOrDefaultAsync();
+                //var Project = await _db.vProjectDetails.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectDetails.ProjectId);
                 if (Project == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
@@ -836,6 +847,22 @@ namespace WebAPI.Controllers.Projects
                         CreatedDate = CurrentDate
                     });
                     Project.RegionWide = dto.ProjectDetails!.RegionWide;
+                }
+                if (Project.Tier != dto.ProjectDetails?.Tier)
+                {
+                    hasUpdated = true;
+                    transactionLogs.Add(new TransactionLog
+                    {
+                        TransactionId = Project.ProjectId!,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tProjectRevisions",
+                        AffectedColumn = "RowAvailable",
+                        NewValue = dto.ProjectDetails?.Tier.ToString(),
+                        OldValue = Project.Tier.ToString() ?? "",
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    });
+                    Project.Tier = dto.ProjectDetails!.Tier;
                 }
                 if (hasUpdated)
                 {
@@ -1466,6 +1493,38 @@ namespace WebAPI.Controllers.Projects
                                         });
                                         ExistingLoc.EndStationLimit = loc.EndStationLimit;
                                     }
+                                    if (ExistingLoc.From != loc.From)
+                                    {
+                                        hasLocUpdate = true;
+                                        transactionLogs.Add(new TransactionLog
+                                        {
+                                            TransactionId = Project.ProjectId!,
+                                            TypeOfTransaction = "Update",
+                                            AffectedTable = "tProjectMajorWorkLocations",
+                                            AffectedColumn = "From",
+                                            NewValue = loc.From.ToString() ?? "",
+                                            OldValue = ExistingLoc.From.ToString() ?? "",
+                                            CreatedBy = _Session.UserId,
+                                            CreatedDate = CurrentDate
+                                        });
+                                        ExistingLoc.From = loc.From;
+                                    }
+                                    if (ExistingLoc.To != loc.To)
+                                    {
+                                        hasLocUpdate = true;
+                                        transactionLogs.Add(new TransactionLog
+                                        {
+                                            TransactionId = Project.ProjectId!,
+                                            TypeOfTransaction = "Update",
+                                            AffectedTable = "tProjectMajorWorkLocations",
+                                            AffectedColumn = "To",
+                                            NewValue = loc.To.ToString() ?? "",
+                                            OldValue = ExistingLoc.To.ToString() ?? "",
+                                            CreatedBy = _Session.UserId,
+                                            CreatedDate = CurrentDate
+                                        });
+                                        ExistingLoc.To = loc.To;
+                                    }
                                     if (hasLocUpdate)
                                     {
                                         ExistingLoc.UpdatedBy = _Session.UserId;
@@ -1488,6 +1547,8 @@ namespace WebAPI.Controllers.Projects
                                     PhysicalTarget = item.PhysicalTarget,
                                     StartStationLimit = item.StartStationLimit,
                                     EndStationLimit = item.EndStationLimit,
+                                    From = item.From,
+                                    To = item.To,
                                     CreatedBy = _Session.UserId,
                                     CreatedDate = CurrentDate
                                 }).ToList();
@@ -1513,6 +1574,8 @@ namespace WebAPI.Controllers.Projects
                                 PhysicalTarget = item.PhysicalTarget,
                                 StartStationLimit = item.StartStationLimit,
                                 EndStationLimit = item.EndStationLimit,
+                                From = item.From,
+                                To = item.To,
                                 CreatedBy = _Session.UserId,
                                 CreatedDate = CurrentDate
                             }));
@@ -1565,6 +1628,8 @@ namespace WebAPI.Controllers.Projects
                         PhysicalTarget = item.PhysicalTarget,
                         StartStationLimit = item.StartStationLimit,
                         EndStationLimit = item.EndStationLimit,
+                        From = item.From,
+                        To = item.To,
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     }));
@@ -1725,7 +1790,11 @@ namespace WebAPI.Controllers.Projects
             var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                var Project = await _db.vProjectDetails.FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId);
+                var Project = await _db.vProjectDetails
+                .FromSqlInterpolated($"SELECT * FROM fProjectsPerStage({dto.ProjectId}) fp WHERE fp.ProjectId = {dto.ProjectId}")
+                .AsNoTracking()
+                .FirstOrDefaultAsync();
+                //var Project = await _db.vProjectDetails.FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId);
                 if(Project == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
@@ -1822,7 +1891,11 @@ namespace WebAPI.Controllers.Projects
             var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                var Project = await _db.vProjectDetails.FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId);
+                var Project = await _db.vProjectDetails
+                .FromSqlInterpolated($"SELECT * FROM fProjectsPerStage({dto.ProjectId}) fp WHERE fp.ProjectId = {dto.ProjectId}")
+                .AsNoTracking()
+                .FirstOrDefaultAsync();
+                //var Project = await _db.vProjectDetails.FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId);
                 if(Project == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });

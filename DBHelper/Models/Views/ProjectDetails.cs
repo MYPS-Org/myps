@@ -7,6 +7,8 @@ namespace DBHelper.Models.Views
         public int? Id { get; set; }
         public string? ProgramId { get; set; }
         public string ProgramName { get; set; } = string.Empty;
+        public EnumProgramStage StageId { get; set; }
+        public string StageName { get; set; } = string.Empty;
         public string ReferenceId { get; set; } = string.Empty;
         public string? ProjectId { get; set; }
         public string? AlternateId { get; set; }
@@ -36,6 +38,7 @@ namespace DBHelper.Models.Views
         public DateTime? DetailedDesignDate { get; set; }
         public bool? RowAvailable { get; set; }
         public int RegionWide { get; set; } = 0;
+        public int Tier { get; set; } = 0;
         public string? CreatedBy { get; set; }
         public DateTime? CreatedDate { get; set; }
         public string? UpdatedBy { get; set; }
