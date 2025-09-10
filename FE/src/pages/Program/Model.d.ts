@@ -19,6 +19,9 @@ export interface ProgramEnums {
 	GroupName?: string;
 	Name: string;
 	Description: string;
+	ParticipantId?: string;
+	OrgName?: string;
+	OrgType?: string;
 }
 
 export interface ParentProgram {

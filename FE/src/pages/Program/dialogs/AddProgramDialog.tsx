@@ -16,6 +16,7 @@ interface AddProgramDialogProps {
     Stages: ProgramEnums[];
     Types: ProgramEnums[];
     Groups: ProgramEnums[];
+    DataSecurity: ProgramEnums[];
   };
 }
 
