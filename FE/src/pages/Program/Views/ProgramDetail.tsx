@@ -6,6 +6,7 @@ import type { ProgramDetailsEnums } from '../Model.d'; // Adjust the import path
 import { Button } from '../../../components/tailwindui/button';
 import { editProgram, fetchProgramById, nextStage } from '../Service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
+import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 // import { formatCurrency } from '../../../utils/GlobalFunctions';
 // import { Badge } from '../../../components/tailwindui/badge';
 
@@ -30,6 +31,7 @@ const ProgramDetail: React.FC = () => {
         Status: 0,
         Type: 0,
         Cost: 0,
+        DataSecurityGroup: [],
         YearStart: 0,
         YearEnd: 0,
         CreatedBy: '',
@@ -62,6 +64,7 @@ const ProgramDetail: React.FC = () => {
         Status: 0,
         Type: 0,
         Cost: 0,
+        DataSecurityGroup: [],
         YearStart: 0,
         YearEnd: 0,
         CreatedBy: '',
@@ -80,6 +83,20 @@ const ProgramDetail: React.FC = () => {
     }
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isDataSecurityExpanded, setIsDataSecurityExpanded] = useState(false);
+  
+  // Group data security by OrgType
+  const groupedDataSecurity = useMemo(() => {
+    return (programEnums?.Dropdowns.DataSecurity || []).reduce((acc, item) => {
+      const orgType = item.OrgType || 'Other';
+      if (!acc[orgType]) {
+        acc[orgType] = [];
+      }
+      acc[orgType].push(item);
+      return acc;
+    }, {} as {[key: string]: typeof programEnums.Dropdowns.DataSecurity});
+  }, [programEnums?.Dropdowns.DataSecurity]);
 
   useEffect(() => {
     const loadProgramDetail = async () => {
@@ -144,6 +161,63 @@ const ProgramDetail: React.FC = () => {
     }));
   };
 
+  const handleDataSecurityToggle = (dataSecurityId: number) => {
+    setProgramEnums(prev => ({
+      ...prev,
+      Details: {
+        ...prev.Details,
+        DataSecurityGroup: (prev.Details.DataSecurityGroup || []).includes(dataSecurityId)
+          ? (prev.Details.DataSecurityGroup || []).filter(id => id !== dataSecurityId)
+          : [...(prev.Details.DataSecurityGroup || []), dataSecurityId]
+      }
+    }));
+  };
+
+  // Helper function to check if all items in a group are selected
+  const isGroupSelected = (orgType: string): boolean => {
+    const groupItems = groupedDataSecurity[orgType] || [];
+    const currentDataSecurityGroup = programEnums?.Details.DataSecurityGroup || [];
+    return groupItems.length > 0 && groupItems.every(item => 
+      currentDataSecurityGroup.includes(item.Id)
+    );
+  };
+
+  // Helper function to check if some items in a group are selected
+  const isGroupPartiallySelected = (orgType: string): boolean => {
+    const groupItems = groupedDataSecurity[orgType] || [];
+    const currentDataSecurityGroup = programEnums?.Details.DataSecurityGroup || [];
+    return groupItems.some(item => 
+      currentDataSecurityGroup.includes(item.Id)
+    ) && !isGroupSelected(orgType);
+  };
+
+  // Helper function to toggle all items in a group
+  const handleGroupToggle = (orgType: string) => {
+    const groupItems = groupedDataSecurity[orgType] || [];
+    const groupItemIds = groupItems.map(item => item.Id);
+    const currentDataSecurityGroup = programEnums?.Details.DataSecurityGroup || [];
+    
+    if (isGroupSelected(orgType)) {
+      // Remove all group items
+      setProgramEnums(prev => ({
+        ...prev,
+        Details: {
+          ...prev.Details,
+          DataSecurityGroup: currentDataSecurityGroup.filter(id => !groupItemIds.includes(id))
+        }
+      }));
+    } else {
+      // Add all group items
+      setProgramEnums(prev => ({
+        ...prev,
+        Details: {
+          ...prev.Details,
+          DataSecurityGroup: [...new Set([...currentDataSecurityGroup, ...groupItemIds])]
+        }
+      }));
+    }
+  };
+
   const handleUpdate = async () => {
     setIsLoading(true);
     try {
@@ -164,6 +238,12 @@ const ProgramDetail: React.FC = () => {
     
     if (!currentDetails || !defaultDetails) return true;
     
+    // Helper function to compare arrays
+    const arraysEqual = (arr1: number[] = [], arr2: number[] = []) => {
+      if (arr1.length !== arr2.length) return false;
+      return arr1.sort().every((val, index) => val === arr2.sort()[index]);
+    };
+    
     // Check if any editable field has changed
     return (
       currentDetails.Name === defaultDetails.Name &&
@@ -171,7 +251,8 @@ const ProgramDetail: React.FC = () => {
       currentDetails.YearEnd === defaultDetails.YearEnd &&
       currentDetails.Status === defaultDetails.Status &&
       currentDetails.Type === defaultDetails.Type &&
-      currentDetails.UserGroup === defaultDetails.UserGroup
+      currentDetails.UserGroup === defaultDetails.UserGroup &&
+      arraysEqual(currentDetails.DataSecurityGroup, defaultDetails.DataSecurityGroup)
     );
   };
 
@@ -333,6 +414,146 @@ const ProgramDetail: React.FC = () => {
                     </option>
                   ))}
                 </select>
+              </div>
+            </div>
+
+            {/* Data Security Multiple Select */}
+            <div className="mb-6 border border-gray-200 rounded-lg">
+              <div className="flex items-center justify-between p-3 bg-gray-50 border-b border-gray-200 rounded-t-lg">
+                <button
+                  type="button"
+                  onClick={() => setIsDataSecurityExpanded(!isDataSecurityExpanded)}
+                  className="flex items-center text-sm font-medium text-gray-700 hover:text-gray-900 focus:outline-none transition-colors duration-200"
+                >
+                  {isDataSecurityExpanded ? (
+                    <ChevronDownIcon className="w-4 h-4 mr-2 text-gray-500 transition-transform duration-200" />
+                  ) : (
+                    <ChevronRightIcon className="w-4 h-4 mr-2 text-gray-500 transition-transform duration-200" />
+                  )}
+                  Data Security Access
+                  <span className={`ml-2 text-xs font-normal ${
+                    (programEnums?.Details.DataSecurityGroup || []).length > 0 
+                      ? 'text-blue-600 bg-blue-100 px-2 py-1 rounded-full' 
+                      : 'text-gray-500'
+                  }`}>
+                    {(programEnums?.Details.DataSecurityGroup || []).length > 0 
+                      ? `${(programEnums?.Details.DataSecurityGroup || []).length} selected`
+                      : 'None selected'
+                    }
+                  </span>
+                </button>
+                {isDataSecurityExpanded && (
+                  <div className="flex space-x-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const allDataSecurityIds = programEnums?.Dropdowns.DataSecurity.map(item => item.Id) || [];
+                        handleChange('DataSecurityGroup', allDataSecurityIds);
+                      }}
+                      className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                    >
+                      Select All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleChange('DataSecurityGroup', [])}
+                      className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className={`transition-all duration-300 ease-in-out overflow-hidden ${
+                isDataSecurityExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+              }`}>
+                <div className="p-4">
+                  <div className="mb-4">
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Search organizations..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
+                  />
+                </div>
+
+                  <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-md p-3">
+                {Object.keys(groupedDataSecurity).map((orgType) => {
+                  const groupItems = groupedDataSecurity[orgType].filter(item =>
+                    item.OrgName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    item.ParticipantId?.toLowerCase().includes(searchTerm.toLowerCase())
+                  );
+                  
+                  if (groupItems.length === 0) return null;
+                  
+                  return (
+                    <div key={orgType} className="mb-6">
+                      <div className="flex items-center space-x-2 mb-3 pb-2 border-b border-gray-200">
+                        <input
+                          type="checkbox"
+                          checked={isGroupSelected(orgType)}
+                          ref={(input) => {
+                            if (input) input.indeterminate = isGroupPartiallySelected(orgType);
+                          }}
+                          onChange={() => handleGroupToggle(orgType)}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <h4 className="font-semibold text-gray-800">
+                          {orgType === 'C' ? 'Central Office' : 
+                           orgType === 'R' ? 'Regional Offices' : 
+                           orgType === 'B' ? 'Bureaus' :
+                           orgType === 'PMO' ? 'Project Management Offices' : 
+                           orgType}
+                        </h4>
+                        <span className="text-xs text-gray-500">
+                          ({groupItems.length} organizations)
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 gap-2 ml-6">
+                        {groupItems.map((item) => (
+                          <label key={item.Id} className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              checked={(programEnums?.Details.DataSecurityGroup || []).includes(item.Id)}
+                              onChange={() => handleDataSecurityToggle(item.Id)}
+                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            />
+                            <div className="flex flex-col">
+                              <span className="text-sm text-gray-700 font-medium">
+                                {item.OrgName}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {item.ParticipantId}
+                              </span>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+                {(programEnums?.Dropdowns.DataSecurity || []).length === 0 && (
+                  <div className="text-center py-4 text-gray-500">
+                    No data security options available
+                  </div>
+                )}
+                {Object.keys(groupedDataSecurity).every(orgType => 
+                  groupedDataSecurity[orgType].filter(item =>
+                    item.OrgName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    item.ParticipantId?.toLowerCase().includes(searchTerm.toLowerCase())
+                  ).length === 0
+                ) && searchTerm && (
+                  <div className="text-center py-4 text-gray-500">
+                    No organizations found matching "{searchTerm}"
+                  </div>
+                )}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Selected: {(programEnums?.Details.DataSecurityGroup || []).length} organizations
+                  </p>
+                </div>
               </div>
             </div>
 
