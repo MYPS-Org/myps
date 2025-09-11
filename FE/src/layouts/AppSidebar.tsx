@@ -106,7 +106,7 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 			</SidebarItem> */}
 			<SidebarItem href="/mult-year" current={currentPath === '/mult-year'}>
 				<CalendarDateRangeIcon />
-				<SidebarLabel className="text-gray-500">Mult-Year</SidebarLabel>
+				<SidebarLabel className="text-gray-500">Multi-Year</SidebarLabel>
 			</SidebarItem>
 			<SidebarDropdown
 				label="Settings"

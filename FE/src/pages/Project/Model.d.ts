@@ -581,4 +581,36 @@ export interface ProjectLongFeasibilityEnum {
 	Name: string;
 	Description: string;
 }
+
+// #region Project Revisions
+export interface ProjectStages {
+	Id: number;
+	ProjectId: string;
+	AlternateId: string;
+	RevisionNumber: number;
+	StageName: string;
+	Description: string;
+	Category: string;
+	Thrust: string;
+	Origin: string;
+	City: string;
+	LegislativeDistrict: string;
+	OperatingUnit: string;
+	ImplementingOffice: string;
+	DEO: string;
+	Region: string;
+	Agency: string;
+	CreatedBy: string;
+	CreatedDate: string;
+}
+
+export interface ProjectRevisionList {
+	Stages: ProjectStages[];
+	Dropdowns: {
+		CategoryEnum: CategoryEnum[];
+		ThrustEnum: ProjectThurstEnum[];
+	};
+}
+// #endregion Project Revisions
+
 // #endregion Enums

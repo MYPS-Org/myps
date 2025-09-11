@@ -1,5 +1,5 @@
 import { httpClient, type ApiResponse } from "../../services/httpClient";
-import type { ProjectLists, ProgramDetails, ComponentCost, ComponentCostYear, ProjectDetails, MajorItemOfWork, MajorItemLocations, FundingProfile, ProjectNote, ProjectEnums, ProjectFormPayload, ProjectPagination, AddNotes, InfraData, ProjectSupportingDocs } from "./Model.d";
+import type { ProjectLists, ProgramDetails, ComponentCost, ComponentCostYear, ProjectDetails, MajorItemOfWork, MajorItemLocations, FundingProfile, ProjectNote, ProjectEnums, ProjectFormPayload, ProjectPagination, AddNotes, InfraData, ProjectSupportingDocs, ProjectRevisionList } from "./Model.d";
 
 // #region INITIALIZE Project Lists
 export const fetchProject = async (data: ProjectPagination) => {
@@ -64,9 +64,9 @@ export const addProjectDetails = async (projectDetails: ProjectDetails) => {
         throw ErrorResponse;
     }
 };
-export const getProjectDetails = async ({ProjectId}: {ProjectId: string}) => {
+export const getProjectDetails = async ({ProjectId, StageName}: {ProjectId: string, StageName: string}) => {
     try {
-        const response = await httpClient.post<ProjectFormPayload>(`/Project/ProjectDetails/`, {ProjectId}, {
+        const response = await httpClient.post<ProjectFormPayload>(`/Project/ProjectDetails/`, {ProjectId, StageName}, {
             preloaderMessage: 'Loading project details...'
         });
         return response;
@@ -282,6 +282,31 @@ export const getInfrastructureData = async () => {
     } catch (ErrorResponse) {
         console.error('Error fetching infrastructure data:', ErrorResponse);
         throw ErrorResponse;
+    }
+};
+// #endregion
+
+// #region Project Stages
+export const fetchProjectStagesByProjectId = async (projectId: string) => {
+    try {
+        const response = await httpClient.post<ProjectRevisionList>(`/Project/ShowProjectStages`, {ProjectId: projectId}, {
+            preloaderMessage: 'Loading project revisions...'
+        });
+        return response;
+    } catch (ErrorResponse) {
+        console.error('Error fetching project revisions:', ErrorResponse);
+        // If API fails, return empty revisions for graceful degradation
+        return {
+            Data: {
+                Stages: [],
+                Dropdowns: {
+                    CategoryEnum: [],
+                    ThrustEnum: []
+                }
+            },
+            Status: 200,
+            Message: "No revisions found"
+        } as ApiResponse<ProjectRevisionList>;
     }
 };
 // #endregion
