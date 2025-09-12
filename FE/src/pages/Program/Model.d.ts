@@ -12,7 +12,7 @@ export interface ProgramModel {
 	IsSkipped: boolean;
 	AllowAutoName: boolean;
 	SkipReason: string;
-	DataSecurityGroup?: number[];
+	DataSecurityGroup?: string[];
 }
 export interface ProgramEnums {
 	Id: number;
@@ -58,7 +58,7 @@ export interface ProgramDetails {
 	Status: number;
 	Type: number;
 	Cost?: number;
-	DataSecurityGroup?: number[];
+	DataSecurityGroup?: string[];
 	YearStart: number;
 	YearEnd: number;
 	CreatedBy: string;

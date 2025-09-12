@@ -7,6 +7,7 @@ import { Button } from '../../../components/tailwindui/button';
 import { editProgram, fetchProgramById, nextStage } from '../Service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { useToast } from '../../../components/toaster/ToasterContext';
 // import { formatCurrency } from '../../../utils/GlobalFunctions';
 // import { Badge } from '../../../components/tailwindui/badge';
 
@@ -16,6 +17,7 @@ const ProgramDetail: React.FC = () => {
   const id = useMemo(() => program?.split(':'), [program]);
   const navigate = useNavigate();
   const [nextStageName, setNextStageName] = useState<string | null>(null);
+  const { showToast } = useToast();
   const [programEnums, setProgramEnums] = useState<ProgramDetailsEnums>({
     Details: {
       	Id: 0,
@@ -144,8 +146,8 @@ const ProgramDetail: React.FC = () => {
     };
 
   const handleAddProject = () => {
-        navigate(`/projects/addproject?programId=${programEnums?.Details.ProgramId}`);
-    };
+      navigate(`/projects/addproject?programId=${programEnums?.Details.ProgramId}`);
+  };
 
   // const handleBack = () => {
   //   navigate('/programs');
@@ -161,7 +163,7 @@ const ProgramDetail: React.FC = () => {
     }));
   };
 
-  const handleDataSecurityToggle = (dataSecurityId: number) => {
+  const handleDataSecurityToggle = (dataSecurityId: string) => {
     setProgramEnums(prev => ({
       ...prev,
       Details: {
@@ -178,7 +180,7 @@ const ProgramDetail: React.FC = () => {
     const groupItems = groupedDataSecurity[orgType] || [];
     const currentDataSecurityGroup = programEnums?.Details.DataSecurityGroup || [];
     return groupItems.length > 0 && groupItems.every(item => 
-      currentDataSecurityGroup.includes(item.Id)
+      currentDataSecurityGroup.includes(item.ParticipantId ?? '')
     );
   };
 
@@ -187,14 +189,14 @@ const ProgramDetail: React.FC = () => {
     const groupItems = groupedDataSecurity[orgType] || [];
     const currentDataSecurityGroup = programEnums?.Details.DataSecurityGroup || [];
     return groupItems.some(item => 
-      currentDataSecurityGroup.includes(item.Id)
+      currentDataSecurityGroup.includes(item.ParticipantId ?? '')
     ) && !isGroupSelected(orgType);
   };
 
   // Helper function to toggle all items in a group
   const handleGroupToggle = (orgType: string) => {
     const groupItems = groupedDataSecurity[orgType] || [];
-    const groupItemIds = groupItems.map(item => item.Id);
+    const groupItemIds = groupItems.map(item => item.ParticipantId ?? '');
     const currentDataSecurityGroup = programEnums?.Details.DataSecurityGroup || [];
     
     if (isGroupSelected(orgType)) {
@@ -221,11 +223,20 @@ const ProgramDetail: React.FC = () => {
   const handleUpdate = async () => {
     setIsLoading(true);
     try {
-      await editProgram(programEnums?.Details);
+      const response = await editProgram(programEnums?.Details);
+      if (response) {
+        showToast({
+          type: 'success',
+          message: 'Program details updated successfully.',
+        });
+      }
       console.log('Update program details');
       await fetchProgramDetail(programEnums?.Details.ProgramId, programEnums?.Details.StageName);
     } catch (error) {
-      console.error('Error updating program details:', error);
+      showToast({
+        type: 'error',
+        message: 'Failed to update program details. Please try again.',
+      });
     } finally {
       setIsLoading(false);
     }
@@ -239,7 +250,7 @@ const ProgramDetail: React.FC = () => {
     if (!currentDetails || !defaultDetails) return true;
     
     // Helper function to compare arrays
-    const arraysEqual = (arr1: number[] = [], arr2: number[] = []) => {
+    const arraysEqual = (arr1: string[] = [], arr2: string[] = []) => {
       if (arr1.length !== arr2.length) return false;
       return arr1.sort().every((val, index) => val === arr2.sort()[index]);
     };
@@ -273,6 +284,15 @@ const ProgramDetail: React.FC = () => {
     }
   };
 
+  const handleViewProject = (projectId: string, stageName: string) => {
+    try {
+      if (projectId && stageName) {
+        navigate(`/projects/project-details/${projectId}:${stageName}`);
+      }
+    } catch (error) {
+      console.error('Error navigating to project details:', error);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -516,8 +536,8 @@ const ProgramDetail: React.FC = () => {
                           <label key={item.Id} className="flex items-center space-x-2">
                             <input
                               type="checkbox"
-                              checked={(programEnums?.Details.DataSecurityGroup || []).includes(item.Id)}
-                              onChange={() => handleDataSecurityToggle(item.Id)}
+                              checked={(programEnums?.Details.DataSecurityGroup || []).includes(item.ParticipantId ?? '')}
+                              onChange={() => handleDataSecurityToggle(item.ParticipantId ?? '')}
                               className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                             />
                             <div className="flex flex-col">
@@ -658,17 +678,17 @@ const ProgramDetail: React.FC = () => {
               {programEnums.Projects.map((project) => (
                 <TableRow key={project.Id} className="hover:bg-gray-50">
                   <TableCell className="px-6 py-4 whitespace-nowrap">
-                    <button className="text-blue-600 hover:text-blue-800 font-medium">
+                    <button onClick={() => handleViewProject(project.ProjectId, project.StageName)} className="text-blue-600 hover:text-blue-800 font-medium cursor-pointer">
                       {project.ProjectId}
                     </button>
                   </TableCell>
-                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-45">
                     {project.Category}
                   </TableCell>
-                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-45">
                     {project.Thrust}
                   </TableCell>
-                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-64">
                     {project.Description}
                   </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">

@@ -6,6 +6,7 @@ import type { ProgramEnums, ProgramModel } from '../Model';
 import { addProgram } from '../Service'; // Adjust the import path as necessary
 import XMarkIcon from '@heroicons/react/24/outline/XMarkIcon';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '../../../components/toaster/ToasterContext';
 
 interface AddProgramDialogProps {
   isOpen: boolean;
@@ -33,6 +34,7 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
   const DataSecurity = programEnums?.DataSecurity || [];
   const [skipped, setSkipped] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const { showToast } = useToast();
   
   // Group data security by OrgType
   const groupedDataSecurity = DataSecurity.reduce((acc, item) => {
@@ -56,7 +58,7 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
     SkipReason: '',
     IsSkipped: false,
     AllowAutoName: true,
-    DataSecurityGroup: [] as number[], // Array to store selected data security IDs
+    DataSecurityGroup: [] as string[], // Array to store selected data security IDs
   });
 
 
@@ -66,10 +68,19 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
       const response = await addProgram(formData);
       onSubmit(formData); // Call the onSubmit prop with the form data
       const StageName = Stage.find(stage => stage.Enum === formData.Stage)?.Name || '';
-      navigate(`programdetails/${response.Data.Id}:${StageName}`); // Navigate to the program details page
+      if (response && response.Data && response.Data.Id) {
+        showToast({
+          type: 'success',
+          message: 'Program added successfully!',
+        });
+        navigate(`programdetails/${response.Data.Id}:${StageName}`); // Navigate to the program details page
+      }
       handleReset(); // Reset the form data
     } catch (error) {
-      console.error('Error submitting program:', error);
+      showToast({
+        type: 'error',
+        message: 'Failed to add program. Please try again.',
+      });
     }
   };
 
@@ -99,7 +110,7 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
     });
   };
 
-  const handleDataSecurityToggle = (dataSecurityId: number) => {
+  const handleDataSecurityToggle = (dataSecurityId: string) => {
     setFormData(prev => ({
       ...prev,
       DataSecurityGroup: prev.DataSecurityGroup.includes(dataSecurityId)
@@ -112,7 +123,7 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
   const isGroupSelected = (orgType: string): boolean => {
     const groupItems = groupedDataSecurity[orgType] || [];
     return groupItems.length > 0 && groupItems.every(item => 
-      formData.DataSecurityGroup.includes(item.Id)
+      formData.DataSecurityGroup.includes(item.ParticipantId ?? '')
     );
   };
 
@@ -120,14 +131,14 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
   const isGroupPartiallySelected = (orgType: string): boolean => {
     const groupItems = groupedDataSecurity[orgType] || [];
     return groupItems.some(item => 
-      formData.DataSecurityGroup.includes(item.Id)
+      formData.DataSecurityGroup.includes(item.ParticipantId ?? '')
     ) && !isGroupSelected(orgType);
   };
 
   // Helper function to toggle all items in a group
   const handleGroupToggle = (orgType: string) => {
     const groupItems = groupedDataSecurity[orgType] || [];
-    const groupItemIds = groupItems.map(item => item.Id);
+    const groupItemIds = groupItems.map(item => item.ParticipantId ?? '');
     
     if (isGroupSelected(orgType)) {
       // Remove all group items
@@ -379,8 +390,8 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
                         <label key={item.Id} className="flex items-center space-x-2">
                           <input
                             type="checkbox"
-                            checked={formData.DataSecurityGroup.includes(item.Id)}
-                            onChange={() => handleDataSecurityToggle(item.Id)}
+                            checked={formData.DataSecurityGroup.includes(item.ParticipantId ?? '')}
+                            onChange={() => handleDataSecurityToggle(item.ParticipantId ?? '')}
                             className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                           />
                           <div className="flex flex-col">
