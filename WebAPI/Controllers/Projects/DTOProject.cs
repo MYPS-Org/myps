@@ -22,6 +22,11 @@ namespace WebAPI.Controllers.Projects
         public string? ProgramId { get; set; }
         public string? ProjectId { get; set; }
     }
+    public class ShowProjectStagesDTO
+    {
+        [Required]
+        public string ProjectId { get; set; } = string.Empty;
+    }
     public class AddProjectDTO : ProjectDetails
     {
     }

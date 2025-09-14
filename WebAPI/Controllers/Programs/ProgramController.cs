@@ -184,6 +184,24 @@ namespace WebAPI.Controllers.Programs
         }
         [AllowAnonymous]
         [HttpPost]
+        public async Task<IActionResult> Tisting()
+        {
+            try
+            {
+                string[] DataSecurityGroup = new string[] { "walaraw", "OI10", "OI2311", "OI234", "OI235", "OI237" };
+                string[] includes = { "C", "R", "PMO", "PMOC", "B" };
+                var checkSecurityGroup = await _db.tProjectImplementingOfficeEnum.AsNoTracking().Where(x => includes.Contains(x.OrgType)).Select(x => x.ParticipantId).ToListAsync();
+                var CheckItems = DataSecurityGroup.Where(x => !checkSecurityGroup.Contains(x));
+                var CheckItems2 = checkSecurityGroup.Where(x => DataSecurityGroup.Contains(x));
+                return Ok(string.Join(", ", CheckItems2));
+            }
+            catch
+            {
+                return BadRequest();    
+            }
+        }
+        [AllowAnonymous]
+        [HttpPost]
         public async Task<IActionResult> AddProgram([FromBody] AddProgramDTO dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -204,10 +222,12 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Program Type '{dto.Type}' is not valid!", Title = "Invalid Type" });
                 }
-                var checkUserGroup = await _db.tGroups.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dto.UserGroup);
-                if (checkUserGroup == null)
+                string[] includes = { "C", "R", "PMO", "PMOC", "B" };
+                var GetSecurityGroup = await _db.tProjectImplementingOfficeEnum.AsNoTracking().Where(x => includes.Contains(x.OrgType)).Select(x => x.ParticipantId).ToListAsync();
+                var CheckItems = dto.DataSecurityGroup.Where(x => !GetSecurityGroup.Contains(x));
+                if (CheckItems.Count() > 0)
                 {
-                    return new BadRequestObjectResult(new { Message = $"User Group '{dto.UserGroup}' is not valid!", Title = "Invalid User Group" });
+                    return new BadRequestObjectResult(new { Message = $"Security Group '{string.Join(", ", CheckItems)}' is not valid!", Title = "Invalid Security Group" });
                 }
                 if(dto.IsSkipped == true && string.IsNullOrEmpty(dto.SkipReason))
                 {
@@ -232,8 +252,8 @@ namespace WebAPI.Controllers.Programs
                     RevisionNumber = 1,
                     AllowAutoName = dto.AllowAutoName,
                     Name = dto.AllowAutoName ? $"{dto.Stage.ToString()} {dto.YearStart}" : dto.Name,
+                    DataSecurityGroup = dto.DataSecurityGroup,
                     UserGroup = dto.UserGroup,
-                    RegionCode = dto.RegionCode,
                     Status = EnumProgramStatus.Working,
                     Type = dto.Type,
                     YearStart = dto.YearStart,
@@ -291,7 +311,28 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' with Stage {dto.StageName} does not exist in the Programs table. Please contact administrator!", Title = "Program not found" });
                 }
-                var ProjectLists = await _db.vProjects.AsNoTracking().Where(x => x.ProgramId == dto.ProgramId && x.StageName == dto.StageName).ToListAsync();
+                //var ProjectLists = await _db.vProjects.AsNoTracking().Where(x => x.ProgramId == dto.ProgramId && x.StageName == dto.StageName).ToListAsync();
+                var ProjectLists = await _db.vProjectDetails
+                .FromSqlInterpolated($"SELECT * FROM fProjectsPerStage({dto.ProgramId}) fp WHERE fp.StageName = {dto.StageName}")
+                .AsNoTracking().Select(x => new ProjectPerStage()
+                {
+                    Id = x.Id,
+                    ProgramId = x.ProgramId,
+                    ProgramName = x.ProgramName,
+                    StageId = x.StageId,
+                    StageName = x.StageName,
+                    ReferenceId = x.ReferenceId,
+                    ProjectId = x.ProjectId,
+                    Description = x.Description,
+                    Thrust = _db.tProjectThrustLists.FirstOrDefault(a => a.PAPKey == x.Thrust)!.ThrustDescription ?? x.Thrust.ToString(),
+                    Category = _db.tProjectCategoryEnum.FirstOrDefault(a => a.Enum == x.Category)!.Name ?? x.Category.ToString(),
+                    City = _db.tProjectCityEnum.FirstOrDefault(a => a.Enum == x.City)!.Name ?? x.City.ToString(),
+                    LegislativeDistrict = _db.tProjectLegislativeDistrictEnum.FirstOrDefault(a => a.Enum == x.LegislativeDistrict)!.Name ?? x.LegislativeDistrict.ToString(),
+                    Cost = _db.tProjectComponentCost.Where(a => a.ReferenceId == x.ReferenceId).Sum(a => a.Total),
+                    CreatedBy = x.CreatedBy,
+                    CreatedDate = x.CreatedDate,
+
+                }).ToListAsync();
                 var AvailableStages = await _db.tProgramStageEnum.AsNoTracking().ToListAsync();
                 var AvailableTypes = await _db.tProgramTypeEnum.AsNoTracking().ToListAsync();
                 var AvailableStatuses = await _db.tProgramStatusEnum.AsNoTracking().ToListAsync();
@@ -385,7 +426,6 @@ namespace WebAPI.Controllers.Programs
             {
                 bool hasUpdated = false;
                 var referenceId = dto.ProgramId;
-                var expectedRevision = dto.RevisionNumber;
 
                 var currentVersion = await _db.vPrograms.FirstOrDefaultAsync(x => x.ProgramId == referenceId);
                 if (currentVersion == null)
@@ -398,7 +438,7 @@ namespace WebAPI.Controllers.Programs
                 }
 
                 var getProgram = await _db.vProgramDetails
-                    .FirstOrDefaultAsync(x => x.RevisionNumber == currentVersion.RevisionId && x.ProgramId == referenceId);
+                    .FirstOrDefaultAsync(x => x.ProgramId == referenceId && x.StageId == dto.StageId);
 
                 if (getProgram == null)
                 {
@@ -409,12 +449,10 @@ namespace WebAPI.Controllers.Programs
                     });
                 }
 
-                if (currentVersion.RevisionId != expectedRevision)
+                if (currentVersion.RevisionId != dto.Id)
                 {
-
                     var updatedBy = getProgram?.UpdatedBy ?? "Unknown";
                     var updatedDate = getProgram?.UpdatedDate?.ToString("MM-dd-yyyy HH:mm:ss") ?? "Unknown";
-
                     return new BadRequestObjectResult(new
                     {
                         Title = "Outdated Revision",
@@ -429,8 +467,8 @@ namespace WebAPI.Controllers.Programs
                     ProgramId = getProgram.ProgramId,
                     RevisionNumber = getProgram.RevisionNumber + 1, // Increment the revision number
                     Name = getProgram.Name,
+                    DataSecurityGroup = getProgram.DataSecurityGroup,
                     UserGroup = getProgram.UserGroup,
-                    RegionCode = getProgram.RegionCode,
                     Status = getProgram.Status,
                     Type = getProgram.Type,
                     Cost = getProgram.Cost,
@@ -454,24 +492,30 @@ namespace WebAPI.Controllers.Programs
                         CreatedDate = CurrentDate
                     });
                 }
-                var Groups = await _db.tGroups.FirstOrDefaultAsync(x => x.Id == dto.UserGroup);
-                if (Groups == null) { return new BadRequestObjectResult(new { Message = $"The selected User Group is invalid. Please ensure the User Group field has a valid value selected.", Title = "Update Failed" }); }
-                if (dto.UserGroup != NewProgramVersion.UserGroup)
+                string[] includes = { "C", "R", "PMO", "PMOC", "B" };
+                var GetSecurityGroup = await _db.tProjectImplementingOfficeEnum.AsNoTracking().Where(x => includes.Contains(x.OrgType)).ToListAsync();
+                var CheckItems = dto.DataSecurityGroup.Where(x => !GetSecurityGroup.Select(x => x.ParticipantId).Contains(x));
+                if (CheckItems.Count() > 0)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Security Group '{string.Join(", ", CheckItems)}' is not valid!", Title = "Invalid Security Group" });
+                }
+                if (dto.DataSecurityGroup != NewProgramVersion.DataSecurityGroup)
                 {
                     hasUpdated = true;
-                    var Current = await _db.tGroups.FirstOrDefaultAsync(x => x.Id == NewProgramVersion.UserGroup);
-                    NewProgramVersion.UserGroup = dto.UserGroup;
+                    string CurrentSecurityGroup = string.Join(", ", GetSecurityGroup.Select(x => x.OrgName).Where(sg => NewProgramVersion.DataSecurityGroup.Contains(sg)));
+                    string OdSecurityGroup = string.Join(", ", GetSecurityGroup.Select(x => x.OrgName).Where(sg => dto.DataSecurityGroup.Contains(sg)));
                     transactionLogs.Add(new TransactionLog
                     {
                         TransactionId = dto.ProgramId,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProgramRevisions",    
-                        AffectedColumn = "UserGroup",
-                        NewValue = Groups.GroupName!,
-                        OldValue = Current!.GroupName!,
+                        AffectedColumn = "DataSecurityGroup",
+                        NewValue = CurrentSecurityGroup!,
+                        OldValue = OdSecurityGroup!,
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
+                    NewProgramVersion.DataSecurityGroup = dto.DataSecurityGroup;
                 }
                 var Status = await _db.tProgramStatusEnum.FirstOrDefaultAsync(x => x.Enum == (int)dto.Status);
                 if (Status == null) { return new BadRequestObjectResult(new { Message = $"The selected Status is invalid. Please ensure the Status field has a valid value selected.", Title = "Update Failed" }); }
@@ -667,8 +711,8 @@ namespace WebAPI.Controllers.Programs
                     ProgramId = dto.ProgramId,
                     RevisionNumber = checkRevisions.RevisionNumber + 1,
                     Name = checkRevisions.AllowAutoName ?  $"{checkStageType.Name} {checkRevisions.YearStart}" : checkRevisions.Name,
+                    DataSecurityGroup = checkRevisions.DataSecurityGroup,
                     UserGroup = checkRevisions.UserGroup,
-                    RegionCode = checkRevisions.RegionCode,
                     Status = checkRevisions.Status,
                     Type = checkRevisions.Type,
                     Cost = checkRevisions.Cost,

@@ -36,8 +36,8 @@ namespace WebAPI.Controllers.Programs
         [Required]
         public int YearStart { get; set; }
         [Required]
+        public string[] DataSecurityGroup { get; set; } = new string[] { };
         public int UserGroup { get; set; }
-        public string RegionCode { get; set; } = string.Empty;
         public bool IsSkipped { get; set; } = false;
         [MaxLength(250)]
         public string? SkipReason { get; set; }
@@ -56,7 +56,7 @@ namespace WebAPI.Controllers.Programs
         public string StageName { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public string? GroupName { get; set; }
-        public string? RegionCode { get; set; }
+        public string[] DataSecurityGroup { get; set; } = new string[] { };
         public string? Status { get; set; }
         public string? Type { get; set; }
         public Double? Cost { get; set; }
@@ -73,8 +73,8 @@ namespace WebAPI.Controllers.Programs
         public string Name { get; set; } = string.Empty;
         public EnumProgramStage StageId { get; set; }
         public string StageName { get; set; } = string.Empty;
+        public string[] DataSecurityGroup { get; set; } = new string[] { };
         public int UserGroup { get; set; }
-        public string RegionCode { get; set; } = string.Empty;
         public EnumProgramStatus Status { get; set; }
         public EnumProgramType Type { get; set; }
         public Double? Cost { get; set; }

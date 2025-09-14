@@ -25,10 +25,9 @@ namespace DBHelper.Models.Table
         [Required]
         public bool AllowAutoName { get; set; } = true;
         [Required]
-        public int UserGroup { get; set; }
+        public string[] DataSecurityGroup { get; set; } = new string[] { };
         [Required]
-        [MaxLength(10)]
-        public string RegionCode { get; set; } = string.Empty;
+        public int UserGroup { get; set; }
         [Required]
         public EnumProgramStatus Status { get; set; }
         [Required]

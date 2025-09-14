@@ -16,9 +16,14 @@ using System.ComponentModel.DataAnnotations;
 using System.Data.SqlClient;
 using System.IO.Pipelines;
 using System.Reflection;
+using System.Security.Cryptography.X509Certificates;
+using System.Security.Cryptography.Xml;
 using System.Text.RegularExpressions;
 using System.Xml;
+using System.Xml.Linq;
+using WebAPI.Controllers.Programs;
 using static System.Runtime.InteropServices.JavaScript.JSType;
+using static WebAPI.Controllers.Projects.ShowProjectFilterDTO;
 namespace WebAPI.Controllers.Projects
 {
     [ApiController]
@@ -94,6 +99,43 @@ namespace WebAPI.Controllers.Projects
                 };
 
                 return Ok(response); // Remove the extra wrapper
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> ShowProjectStages([FromBody] ShowProjectStagesDTO dto)
+        {
+            try
+            {
+                var Stage = await _db.vProjectDetails
+                .FromSqlInterpolated($"SELECT * FROM fProjectsPerStage({dto.ProjectId}) fp WHERE fp.ReferenceId = {dto.ProjectId}")
+                .AsNoTracking().Select(x => new ProjectPerStage()
+                {
+                    Id = x.Id,
+                    ProgramId = x.ProgramId,
+                    ProgramName = x.ProgramName,
+                    StageId = x.StageId,
+                    StageName = x.StageName,
+                    ReferenceId = x.ReferenceId,
+                    ProjectId = x.ProjectId,
+                    Description = x.Description,
+                    Thrust = _db.tProjectThrustLists.FirstOrDefault(a => a.PAPKey == x.Thrust)!.ThrustDescription ?? x.Thrust.ToString(),
+                    Category = _db.tProjectCategoryEnum.FirstOrDefault(a => a.Enum == x.Category)!.Name ?? x.Category.ToString(),
+                    City = _db.tProjectCityEnum.FirstOrDefault(a => a.Enum == x.City)!.Name ?? x.City.ToString(),
+                    LegislativeDistrict = _db.tProjectLegislativeDistrictEnum.FirstOrDefault(a => a.Enum == x.LegislativeDistrict)!.Name ?? x.LegislativeDistrict.ToString(),
+                    Cost = _db.tProjectComponentCost.Where(a => a.ReferenceId == x.ReferenceId).Sum(a => a.Total),
+                    CreatedBy = x.CreatedBy,
+                    CreatedDate = x.CreatedDate,
+
+                }).ToListAsync();
+                 return Ok(new
+                {
+                    Stages = Stage
+                });
             }
             catch (Exception ex)
             {
@@ -322,7 +364,7 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
                 }
-                var Program = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == Project.ProgramId);
+                var Program = await _db.vProgramDetails.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == Project.ProgramId && x.StageName == dto.StageName);
                 if (Program == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Program not found for this project!", Title = "Program Not Found" });

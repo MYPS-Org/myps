@@ -18,7 +18,8 @@ namespace DBHelper.Models.Views
         public bool AllowAutoName { get; set; }
         public string? Name { get; set; }
         public string? GroupName { get; set; }
-        public string? RegionCode { get; set; }
+        public string[] DataSecurityGroup { get; set; } = new string[] { };
+        public int UserGroup { get; set; }
         public string? Status { get; set; }
         public string? Type { get; set; }
         public Double? Cost { get; set; }
