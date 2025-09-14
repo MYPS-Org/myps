@@ -10,6 +10,7 @@ import {
 } from '@heroicons/react/16/solid';
 import { bridgesAtom, selectedItemAtom, type Bridge } from "../state/rbiaAtoms";
 import FutureBridgeDialog from "../Dialogs/FutureBridgeDialog";
+import DeleteBridgeDialog from "../Dialogs/DeleteBridgeDialog";
 
 // Simple Badge component
 const Badge: React.FC<{ children: React.ReactNode; className?: string; color?: string }> = ({ 
@@ -51,14 +52,16 @@ const FutureBridgeList: React.FC = () => {
   const [bridges, setBridges] = useAtom(bridgesAtom);
   const [, setSelectedItem] = useAtom(selectedItemAtom);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [bridgeToDelete, setBridgeToDelete] = useState<Bridge | null>(null);
   const [sortField, setSortField] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   
   // Filter state (can be expanded later)
   const [filters, setFilters] = useState({
-    name: '',
     roadId: '',
-    sectionRoadId: ''
+    sectionRoadId: '',
+    name: ''
   });
 
   const handleCreate = () => {
@@ -71,8 +74,15 @@ const FutureBridgeList: React.FC = () => {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = (sectionRoadId: string) => {
-    setBridges(bridges.filter((bridge) => bridge.sectionRoadId !== sectionRoadId));
+  const handleDelete = (bridge: Bridge) => {
+    setBridgeToDelete(bridge);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = (bridgeKey: string) => {
+    setBridges(bridges.filter((bridge) => `${bridge.RoadId}-${bridge.SectionRoadId}-${bridge.Name}` !== bridgeKey));
+    setIsDeleteDialogOpen(false);
+    setBridgeToDelete(null);
   };
 
   const handleSort = (field: string) => {
@@ -86,13 +96,13 @@ const FutureBridgeList: React.FC = () => {
 
   const handleClear = () => {
     setFilters({
-      name: '',
       roadId: '',
-      sectionRoadId: ''
+      sectionRoadId: '',
+      name: ''
     });
   };
 
-  const hasActiveFilters = filters.name || filters.roadId || filters.sectionRoadId;
+  const hasActiveFilters = filters.roadId || filters.sectionRoadId || filters.name;
 
   const SortableHeader: React.FC<{ field: string; children: React.ReactNode }> = ({ field, children }) => (
     <th 
@@ -150,12 +160,12 @@ const FutureBridgeList: React.FC = () => {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <SortableHeader field="name">Bridge Name</SortableHeader>
-              <SortableHeader field="roadId">Road ID</SortableHeader>
-              <SortableHeader field="sectionRoadId">Section Road ID</SortableHeader>
-              <SortableHeader field="from">From (km)</SortableHeader>
-              <SortableHeader field="length">Length (m)</SortableHeader>
-              <SortableHeader field="carriageWay">Carriage Way</SortableHeader>
+              <SortableHeader field="RoadId">Road ID</SortableHeader>
+              <SortableHeader field="Name">Bridge Name</SortableHeader>
+              <SortableHeader field="SectionRoadId">Section Road ID</SortableHeader>
+              <SortableHeader field="From">From (km)</SortableHeader>
+              <SortableHeader field="Length">Length (km)</SortableHeader>
+              <SortableHeader field="CarriageWay">Carriage Way</SortableHeader>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Actions
               </th>
@@ -164,32 +174,36 @@ const FutureBridgeList: React.FC = () => {
           <tbody className="bg-white divide-y divide-gray-200">
             {bridges.map((bridge, index) => (
               <tr 
-                key={`${bridge.sectionRoadId}-${bridge.name}`} 
+                key={`${bridge.RoadId}-${bridge.SectionRoadId}-${bridge.Name}`} 
                 className={`hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
               >
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="font-medium text-gray-900">
-                    {bridge.name}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
                   <Badge color="blue" className="text-xs">
-                    {bridge.roadId}
+                    {bridge.RoadId}
                   </Badge>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-gray-900 font-medium">
+                  {bridge.Name}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <Badge color="green" className="text-xs">
-                    {bridge.sectionRoadId}
+                  <Badge color="purple" className="text-xs">
+                    {bridge.SectionRoadId}
                   </Badge>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-gray-900 font-medium">
-                  {bridge.from} km
+                <td className="px-6 py-4 whitespace-nowrap text-gray-900">
+                  {bridge.From} km
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-gray-900 font-medium">
-                  {bridge.length} m
+                <td className="px-6 py-4 whitespace-nowrap text-gray-900">
+                  {bridge.Length} km
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-gray-900 font-medium">
-                  {bridge.carriageWay}
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <Badge 
+                    color={bridge.CarriageWay === 2 ? "blue" : 
+                           bridge.CarriageWay === 1 ? "yellow" : "gray"}
+                    className="text-xs"
+                  >
+                    {bridge.CarriageWay} Way{bridge.CarriageWay > 1 ? 's' : ''}
+                  </Badge>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex space-x-2">
@@ -200,7 +214,7 @@ const FutureBridgeList: React.FC = () => {
                       <PencilIcon className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => handleDelete(bridge.sectionRoadId)}
+                      onClick={() => handleDelete(bridge)}
                       className="p-2 bg-red-500 hover:bg-red-600 text-white rounded-md transition-colors duration-200"
                     >
                       <TrashIcon className="w-4 h-4" />
@@ -224,11 +238,22 @@ const FutureBridgeList: React.FC = () => {
 
       {bridges.length === 0 && (
         <div className="px-6 py-8">
-          <p className="text-gray-500 text-center">No bridges created yet.</p>
+          <p className="text-gray-500 text-center">No future bridges created yet.</p>
         </div>
       )}
 
       {isDialogOpen && <FutureBridgeDialog onClose={() => setIsDialogOpen(false)} />}
+      {isDeleteDialogOpen && bridgeToDelete && (
+        <DeleteBridgeDialog 
+          isOpen={isDeleteDialogOpen}
+          onClose={() => {
+            setIsDeleteDialogOpen(false);
+            setBridgeToDelete(null);
+          }}
+          onSubmit={handleConfirmDelete}
+          bridge={bridgeToDelete}
+        />
+      )}
     </div>
   );
 };

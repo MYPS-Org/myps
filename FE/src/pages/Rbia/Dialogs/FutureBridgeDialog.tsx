@@ -1,82 +1,249 @@
 import React, { useState, useEffect } from "react";
 import { useAtom } from "jotai";
-import { bridgesAtom, selectedItemAtom, type Bridge } from "../state/rbiaAtoms";
+import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
+import { XMarkIcon } from '@heroicons/react/16/solid';
+import { Button } from '../../../components/tailwindui/button';
+import { bridgesAtom, selectedItemAtom, roadSectionsAtom, roadsAtom, type Bridge } from "../state/rbiaAtoms";
 
-const FutureBridgeDialog: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+interface FutureBridgeDialogProps {
+  onClose: () => void;
+}
+
+const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose }) => {
   const [bridges, setBridges] = useAtom(bridgesAtom);
   const [selectedItem] = useAtom(selectedItemAtom);
+  const [roadSections] = useAtom(roadSectionsAtom);
+  const [roads] = useAtom(roadsAtom);
   const [formData, setFormData] = useState<Bridge>({
-    roadId: "",
-    sectionRoadId: "",
-    name: "",
-    from: 0,
-    length: 0,
-    carriageWay: 0,
+    RoadId: "",
+    SectionRoadId: "",
+    Name: "",
+    From: 0,
+    Length: 0,
+    CarriageWay: 0,
   });
 
   useEffect(() => {
-    if (selectedItem && 'carriageWay' in selectedItem) {
+    if (selectedItem && 'CarriageWay' in selectedItem) {
       setFormData(selectedItem as Bridge); // Populate form with selected item for editing
     }
   }, [selectedItem]);
 
-  const handleSubmit = () => {
-    if (selectedItem) {
-      // Edit existing bridge
-      setBridges(
-        bridges.map((bridge: Bridge) =>
-          bridge.sectionRoadId === (selectedItem as Bridge).sectionRoadId ? formData : bridge
-        )
-      );
-    } else {
-      // Create new bridge
-      setBridges([...bridges, formData]);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.RoadId || !formData.SectionRoadId || !formData.Name || 
+        formData.From < 0 || formData.Length <= 0 || formData.CarriageWay <= 0) {
+      alert("Please fill in all required fields with valid values");
+      return;
     }
+
+    try {
+      if (selectedItem) {
+        // Edit existing bridge
+        setBridges(
+          bridges.map((bridge: Bridge) =>
+            bridge.SectionRoadId === (selectedItem as Bridge).SectionRoadId && 
+            bridge.Name === (selectedItem as Bridge).Name ? formData : bridge
+          )
+        );
+      } else {
+        // Create new bridge
+        setBridges([...bridges, formData]);
+      }
+      handleClose();
+    } catch (error) {
+      console.error("Error saving bridge:", error);
+      alert("Failed to save bridge. Please try again.");
+    }
+  };
+
+  const handleChange = (field: string, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleClose = () => {
+    handleReset();
     onClose();
   };
 
+  const handleReset = () => {
+    setFormData({
+      RoadId: "",
+      SectionRoadId: "",
+      Name: "",
+      From: 0,
+      Length: 0,
+      CarriageWay: 0,
+    });
+  };
+
+  // Filter road sections based on selected road ID
+  const filteredRoadSections = roadSections.filter(section => 
+    formData.RoadId ? section.RoadId === formData.RoadId : true
+  );
+
   return (
-    <div className="dialog">
-      <h2>{selectedItem ? "Edit Future Bridge" : "Create Future Bridge"}</h2>
-      <input
-        type="text"
-        placeholder="Road ID"
-        value={formData.roadId}
-        onChange={(e) => setFormData({ ...formData, roadId: e.target.value })}
-      />
-      <input
-        type="text"
-        placeholder="Section Road ID"
-        value={formData.sectionRoadId}
-        onChange={(e) => setFormData({ ...formData, sectionRoadId: e.target.value })}
-      />
-      <input
-        type="text"
-        placeholder="Name"
-        value={formData.name}
-        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-      />
-      <input
-        type="number"
-        placeholder="From"
-        value={formData.from}
-        onChange={(e) => setFormData({ ...formData, from: Number(e.target.value) })}
-      />
-      <input
-        type="number"
-        placeholder="Length"
-        value={formData.length}
-        onChange={(e) => setFormData({ ...formData, length: Number(e.target.value) })}
-      />
-      <input
-        type="number"
-        placeholder="Carriage Way"
-        value={formData.carriageWay}
-        onChange={(e) => setFormData({ ...formData, carriageWay: Number(e.target.value) })}
-      />
-      <button onClick={handleSubmit}>Save</button>
-      <button onClick={onClose}>Cancel</button>
-    </div>
+    <Dialog open={true} onClose={onClose} className="fixed z-10 inset-0 overflow-y-auto">
+      {/* Backdrop */}
+      <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+      
+      {/* Full-screen container */}
+      <div className="fixed inset-0 flex items-center justify-center p-4">
+        <DialogPanel className="w-full max-w-2xl bg-white rounded-lg shadow-xl p-6">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+            <DialogTitle className="text-lg font-semibold text-gray-900">
+              {selectedItem ? "Edit Future Bridge" : "Add New Future Bridge"}
+            </DialogTitle>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <XMarkIcon className="h-6 w-6" />
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            {/* Road ID */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Road ID <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={formData.RoadId}
+                onChange={(e) => {
+                  handleChange('RoadId', e.target.value);
+                  // Reset section road ID when road changes
+                  handleChange('SectionRoadId', '');
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                required
+              >
+                <option value="">Select Road</option>
+                {roads.map((road) => (
+                  <option key={road.RoadId} value={road.RoadId}>
+                    {road.RoadId} - {road.Name} (Class {road.Classification})
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Select the road where this bridge will be located
+              </p>
+            </div>
+
+            {/* Section Road ID */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Section Road ID <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={formData.SectionRoadId}
+                onChange={(e) => handleChange('SectionRoadId', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                required
+              >
+                <option value="">Select Road Section</option>
+                {filteredRoadSections.map((section) => (
+                  <option key={section.SectionRoadId} value={section.SectionRoadId}>
+                    {section.SectionRoadId} - {section.Length}km (District {section.EngineeringDistrict})
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Select the road section where this bridge will be located
+              </p>
+            </div>
+
+            {/* Bridge Name */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Bridge Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.Name}
+                onChange={(e) => handleChange('Name', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
+                required
+                placeholder="Enter bridge name"
+              />
+            </div>
+
+            {/* From Chainage */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                From Chainage (km) <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.From}
+                onChange={(e) => handleChange('From', Number(e.target.value))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
+                required
+                placeholder="Enter starting chainage in kilometers"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Starting point of the bridge along the road section
+              </p>
+            </div>
+
+            {/* Bridge Length */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Bridge Length (m) <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                step="0.1"
+                min="0.1"
+                value={formData.Length}
+                onChange={(e) => handleChange('Length', Number(e.target.value))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
+                required
+                placeholder="Enter bridge length in meters"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Total length of the bridge structure
+              </p>
+            </div>
+
+            {/* Carriage Way */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Number of Carriage Ways <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="10"
+                value={formData.CarriageWay}
+                onChange={(e) => handleChange('CarriageWay', Number(e.target.value))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
+                required
+                placeholder="Enter number of carriage ways"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Number of carriage ways (typically 1-4, maximum 10)
+              </p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+              <Button type="button" onClick={handleClose} color='zinc'>
+                Cancel
+              </Button>
+              <Button type="submit" color='orange'>
+                {selectedItem ? "Update Bridge" : "Create Bridge"}
+              </Button>
+            </div>
+          </form>
+        </DialogPanel>
+      </div>
+    </Dialog>
   );
 };
 

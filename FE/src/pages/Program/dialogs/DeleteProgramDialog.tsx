@@ -77,16 +77,16 @@ const DeleteProgramDialog: React.FC<DeleteProgramDialogProps> = ({ isOpen, onClo
                     Warning: This action cannot be undone
                   </h3>
                   <p className="text-sm text-red-700 dark:text-red-300 mt-1">
-                    Deleting this group will permanently remove it from the system and may affect users assigned to this group.
+                    Deleting this Program will permanently remove it from the system and may affect users assigned to this Program.
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Group Information */}
+            {/* Program Information */}
             <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 space-y-3">
-              <h4 className="font-medium text-gray-900 dark:text-white">Group to be deleted:</h4>
-              
+              <h4 className="font-medium text-gray-900 dark:text-white">Program to be deleted:</h4>
+
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600 dark:text-gray-400">Name:</span>

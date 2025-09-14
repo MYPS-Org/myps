@@ -1,39 +1,24 @@
 import { atom } from "jotai";
 
-// Type definitions for RBIA entities
-export interface Road {
-  roadId: string;
-  name: string;
-  classification: number;
-}
+// Import the types from Model.d.ts
+import type { FutureRoad, FutureRoadSection, FutureBridge } from "../Model";
 
-export interface RoadSection {
-  roadId: string;
-  sectionRoadId: string;
-  length: number;
-  engineeringDistrict: number;
-}
-
-export interface Bridge {
-  roadId: string;
-  sectionRoadId: string;
-  name: string;
-  from: number;
-  length: number;
-  carriageWay: number;
-}
+// Type aliases for compatibility
+export type Road = FutureRoad;
+export type RoadSection = FutureRoadSection;
+export type Bridge = FutureBridge;
 
 // Atom for Future Roads
-export const roadsAtom = atom<Road[]>([]);
+export const roadsAtom = atom<FutureRoad[]>([]);
 
 // Atom for Future Road Sections
-export const roadSectionsAtom = atom<RoadSection[]>([]);
+export const roadSectionsAtom = atom<FutureRoadSection[]>([]);
 
 // Atom for Future Bridges
-export const bridgesAtom = atom<Bridge[]>([]);
+export const bridgesAtom = atom<FutureBridge[]>([]);
 
 // Atom for the currently selected item (used for editing or deleting)
-export const selectedItemAtom = atom<Road | RoadSection | Bridge | null>(null);
+export const selectedItemAtom = atom<FutureRoad | FutureRoadSection | FutureBridge | null>(null);
 
 // Atom for dialog state management
 export const dialogStateAtom = atom({

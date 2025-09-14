@@ -1,22 +1,21 @@
-// RBIA Model Definitions
 export interface FutureRoad {
-  roadId: string;
-  name: string;
-  classification: number;
+  RoadId: string;
+  Name: string;
+  Classification: number;
 }
 
 export interface FutureRoadSection {
-  roadId: string;
-  sectionRoadId: string;
-  length: number;
-  engineeringDistrict: number;
+  RoadId: string;
+  SectionRoadId: string;
+  Length: number;
+  EngineeringDistrict: number;
 }
 
 export interface FutureBridge {
-  roadId: string;
-  sectionRoadId: string;
-  name: string;
-  from: number;
-  length: number;
-  carriageWay: number;
+  RoadId: string;
+  SectionRoadId: string;
+  Name: string;
+  From: number;
+  Length: number;
+  CarriageWay: number;
 }

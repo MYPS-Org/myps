@@ -10,6 +10,7 @@ import {
 } from '@heroicons/react/16/solid';
 import { roadsAtom, selectedItemAtom, type Road } from "../state/rbiaAtoms";
 import FutureRoadDialog from "../Dialogs/FutureRoadDialog";
+import DeleteRoadDialog from "../Dialogs/DeleteRoadDialog";
 
 // Simple Badge component
 const Badge: React.FC<{ children: React.ReactNode; className?: string; color?: string }> = ({ 
@@ -51,6 +52,8 @@ const FutureRoadList: React.FC = () => {
   const [roads, setRoads] = useAtom(roadsAtom);
   const [, setSelectedItem] = useAtom(selectedItemAtom);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [roadToDelete, setRoadToDelete] = useState<Road | null>(null);
   const [sortField, setSortField] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   
@@ -71,8 +74,15 @@ const FutureRoadList: React.FC = () => {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = (roadId: string) => {
-    setRoads(roads.filter((road) => road.roadId !== roadId));
+  const handleDelete = (road: Road) => {
+    setRoadToDelete(road);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = (roadId: string) => {
+    setRoads(roads.filter((road) => road.RoadId !== roadId));
+    setIsDeleteDialogOpen(false);
+    setRoadToDelete(null);
   };
 
   const handleSort = (field: string) => {
@@ -150,9 +160,9 @@ const FutureRoadList: React.FC = () => {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <SortableHeader field="roadId">Road ID</SortableHeader>
-              <SortableHeader field="name">Road Name</SortableHeader>
-              <SortableHeader field="classification">Classification</SortableHeader>
+              <SortableHeader field="RoadId">Road ID</SortableHeader>
+              <SortableHeader field="Name">Road Name</SortableHeader>
+              <SortableHeader field="Classification">Classification</SortableHeader>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Actions
               </th>
@@ -161,22 +171,22 @@ const FutureRoadList: React.FC = () => {
           <tbody className="bg-white divide-y divide-gray-200">
             {roads.map((road, index) => (
               <tr 
-                key={road.roadId} 
+                key={road.RoadId} 
                 className={`hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
               >
                 <td className="px-6 py-4 whitespace-nowrap">
                   <Badge color="blue" className="text-xs">
-                    {road.roadId}
+                    {road.RoadId}
                   </Badge>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="font-medium text-gray-900">
-                    {road.name}
+                    {road.Name}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <Badge color="green" className="text-xs">
-                    Class {road.classification}
+                    Class {road.Classification}
                   </Badge>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -188,7 +198,7 @@ const FutureRoadList: React.FC = () => {
                       <PencilIcon className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => handleDelete(road.roadId)}
+                      onClick={() => handleDelete(road)}
                       className="p-2 bg-red-500 hover:bg-red-600 text-white rounded-md transition-colors duration-200"
                     >
                       <TrashIcon className="w-4 h-4" />
@@ -217,6 +227,17 @@ const FutureRoadList: React.FC = () => {
       )}
 
       {isDialogOpen && <FutureRoadDialog onClose={() => setIsDialogOpen(false)} />}
+      {isDeleteDialogOpen && roadToDelete && (
+        <DeleteRoadDialog 
+          isOpen={isDeleteDialogOpen}
+          onClose={() => {
+            setIsDeleteDialogOpen(false);
+            setRoadToDelete(null);
+          }}
+          onSubmit={handleConfirmDelete}
+          road={roadToDelete}
+        />
+      )}
     </div>
   );
 };

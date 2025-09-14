@@ -10,6 +10,7 @@ import {
 } from '@heroicons/react/16/solid';
 import { roadSectionsAtom, selectedItemAtom, type RoadSection } from "../state/rbiaAtoms";
 import FutureRoadSectionDialog from "../Dialogs/FutureRoadSectionDialog";
+import DeleteRoadSectionDialog from "../Dialogs/DeleteRoadSectionDialog";
 
 // Simple Badge component
 const Badge: React.FC<{ children: React.ReactNode; className?: string; color?: string }> = ({ 
@@ -51,6 +52,8 @@ const RoadSectionList: React.FC = () => {
   const [roadSections, setRoadSections] = useAtom(roadSectionsAtom);
   const [, setSelectedItem] = useAtom(selectedItemAtom);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [roadSectionToDelete, setRoadSectionToDelete] = useState<RoadSection | null>(null);
   const [sortField, setSortField] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   
@@ -71,8 +74,15 @@ const RoadSectionList: React.FC = () => {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = (sectionRoadId: string) => {
-    setRoadSections(roadSections.filter((section) => section.sectionRoadId !== sectionRoadId));
+  const handleDelete = (section: RoadSection) => {
+    setRoadSectionToDelete(section);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = (sectionRoadId: string) => {
+    setRoadSections(roadSections.filter((section) => section.SectionRoadId !== sectionRoadId));
+    setIsDeleteDialogOpen(false);
+    setRoadSectionToDelete(null);
   };
 
   const handleSort = (field: string) => {
@@ -150,10 +160,10 @@ const RoadSectionList: React.FC = () => {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <SortableHeader field="sectionRoadId">Section Road ID</SortableHeader>
-              <SortableHeader field="roadId">Road ID</SortableHeader>
-              <SortableHeader field="length">Length (km)</SortableHeader>
-              <SortableHeader field="engineeringDistrict">Engineering District</SortableHeader>
+              <SortableHeader field="SectionRoadId">Section Road ID</SortableHeader>
+              <SortableHeader field="RoadId">Road ID</SortableHeader>
+              <SortableHeader field="Length">Length (km)</SortableHeader>
+              <SortableHeader field="EngineeringDistrict">Engineering District</SortableHeader>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Actions
               </th>
@@ -162,25 +172,25 @@ const RoadSectionList: React.FC = () => {
           <tbody className="bg-white divide-y divide-gray-200">
             {roadSections.map((section, index) => (
               <tr 
-                key={section.sectionRoadId} 
+                key={section.SectionRoadId} 
                 className={`hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
               >
                 <td className="px-6 py-4 whitespace-nowrap">
                   <Badge color="purple" className="text-xs">
-                    {section.sectionRoadId}
+                    {section.SectionRoadId}
                   </Badge>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <Badge color="blue" className="text-xs">
-                    {section.roadId}
+                    {section.RoadId}
                   </Badge>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-gray-900 font-medium">
-                  {section.length} km
+                  {section.Length} km
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <Badge color="orange" className="text-xs">
-                    District {section.engineeringDistrict}
+                    District {section.EngineeringDistrict}
                   </Badge>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -192,7 +202,7 @@ const RoadSectionList: React.FC = () => {
                       <PencilIcon className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => handleDelete(section.sectionRoadId)}
+                      onClick={() => handleDelete(section)}
                       className="p-2 bg-red-500 hover:bg-red-600 text-white rounded-md transition-colors duration-200"
                     >
                       <TrashIcon className="w-4 h-4" />
@@ -221,6 +231,17 @@ const RoadSectionList: React.FC = () => {
       )}
 
       {isDialogOpen && <FutureRoadSectionDialog onClose={() => setIsDialogOpen(false)} />}
+      {isDeleteDialogOpen && roadSectionToDelete && (
+        <DeleteRoadSectionDialog 
+          isOpen={isDeleteDialogOpen}
+          onClose={() => {
+            setIsDeleteDialogOpen(false);
+            setRoadSectionToDelete(null);
+          }}
+          onSubmit={handleConfirmDelete}
+          roadSection={roadSectionToDelete}
+        />
+      )}
     </div>
   );
 };
