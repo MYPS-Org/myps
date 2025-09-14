@@ -120,8 +120,11 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 				<SidebarDropdownItem href="/settings/security" current={currentPath === '/settings/security'}>
 					<SidebarLabel>Security</SidebarLabel>
 				</SidebarDropdownItem>
-				<SidebarDropdownItem href="/rbac" current={currentPath === '/rbac'}>
+				<SidebarDropdownItem href="/user-management" current={currentPath === '/user-management'}>
 					<SidebarLabel>User Management</SidebarLabel>
+				</SidebarDropdownItem>
+				<SidebarDropdownItem href="/infrastructure-management" current={currentPath === '/infrastructure-management'}>
+					<SidebarLabel>Infra Management</SidebarLabel>
 				</SidebarDropdownItem>
 			</SidebarDropdown>
 			</SidebarSection>

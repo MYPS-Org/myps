@@ -22,6 +22,7 @@ import CodeTables from './pages/CodeTables/Views/CodeTables';
 import { ModalProvider } from './components/Modal/ModalContext';
 import GlobalModal from './components/Modal/Modal';
 import { ToasterProvider } from './components/toaster/ToasterContext';
+import Rbia from './pages/Rbia/Views/Rbia';
 
 // import AddProgram from './pages/Program/Views/AddProgram';
 function App() {
@@ -46,10 +47,18 @@ function App() {
 									} 
 								/>
 								<Route 
-									path="/rbac" 
+									path="/user-management" 
 									element={
 										<ProtectedRoute>
 											<Rbac />
+										</ProtectedRoute>
+									} 
+								/>
+								<Route 
+									path="/infrastructure-management" 
+									element={
+										<ProtectedRoute>
+											<Rbia />
 										</ProtectedRoute>
 									} 
 								/>
