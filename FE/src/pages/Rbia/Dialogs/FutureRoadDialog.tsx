@@ -37,7 +37,7 @@ const FutureRoadDialog: React.FC<FutureRoadDialogProps> = ({ onClose }) => {
       return;
     }
 
-    if (!formData.RoadId || !formData.Name || formData.Classification ) {
+    if (!formData.RoadId || !formData.Name ) {
       alert("Please fill in all required fields");
       return;
     }

@@ -18,13 +18,14 @@ export interface FutureRoads {
 	UpdatedDate: string;
 }
 export interface RoadPagination extends PaginationParams {
-  filters?: RoadSectionFilter;
+  filters?: RoadFilter;
   sortField?: string; // Remove the = 'Id' default value - this is invalid in TypeScript interfaces
   sortDirection?: 0 | 1;
 }
 export interface RoadFilter {
   RoadId?: string;
   Name?: string;
+  Classification?: string;
 }
 export interface FutureRoadSections {
 	Id: number;
