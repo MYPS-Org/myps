@@ -28,6 +28,16 @@ export interface FutureRoadSections {
 	UpdatedBy: string;
 	UpdatedDate: string;
 }
+export interface RoadSectionPagination extends PaginationParams {
+  filters?: RoadSectionFilter;
+  sortField?: string; // Remove the = 'Id' default value - this is invalid in TypeScript interfaces
+  sortDirection?: 0 | 1;
+}
+export interface RoadSectionFilter {
+  RoadId?: string;
+  RoadSectionId?: string;
+  DEO?: string;
+}
 export interface FutureBridge {
 	Id: number;
 	RoadSectionId: string;
