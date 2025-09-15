@@ -80,7 +80,7 @@ const FutureBridgeList: React.FC = () => {
   };
 
   const handleConfirmDelete = (bridgeKey: string) => {
-    setBridges(bridges.filter((bridge) => `${bridge.RoadId}-${bridge.SectionRoadId}-${bridge.Name}` !== bridgeKey));
+    setBridges(bridges.filter((bridge) => `${bridge.RoadSectionId}-${bridge.Name}` !== bridgeKey));
     setIsDeleteDialogOpen(false);
     setBridgeToDelete(null);
   };
@@ -174,20 +174,15 @@ const FutureBridgeList: React.FC = () => {
           <tbody className="bg-white divide-y divide-gray-200">
             {bridges.map((bridge, index) => (
               <tr 
-                key={`${bridge.RoadId}-${bridge.SectionRoadId}-${bridge.Name}`} 
+                key={`${bridge.RoadSectionId}-${bridge.Name}`} 
                 className={`hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
               >
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <Badge color="blue" className="text-xs">
-                    {bridge.RoadId}
-                  </Badge>
-                </td>
                 <td className="px-6 py-4 whitespace-nowrap text-gray-900 font-medium">
                   {bridge.Name}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <Badge color="purple" className="text-xs">
-                    {bridge.SectionRoadId}
+                    {bridge.RoadSectionId}
                   </Badge>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-gray-900">
@@ -198,13 +193,12 @@ const FutureBridgeList: React.FC = () => {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <Badge 
-                    color={bridge.CarriageWay === 2 ? "blue" : 
-                           bridge.CarriageWay === 1 ? "yellow" : "gray"}
+                    color="blue"
                     className="text-xs"
                   >
-                    {bridge.CarriageWay} Way{bridge.CarriageWay > 1 ? 's' : ''}
+                    {bridge.CarriageWay} Way{bridge.CarriageWay}
                   </Badge>
-                </td>
+                </td>``
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex space-x-2">
                     <button

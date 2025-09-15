@@ -20,6 +20,7 @@ export interface FutureRoads {
 export interface FutureRoadSections {
 	Id: number;
 	RoadId: string;
+  RoadSectionId: string;
 	RoadLength: string;
 	DEO: string;
 	CreatedBy: string;

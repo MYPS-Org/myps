@@ -1,10 +1,10 @@
 import { httpClient } from '../../services/httpClient';
 
-import type { FutureRoad, FutureRoadSection, FutureBridge } from './Model.d';
+import type { FutureRoads, FutureRoadSections, FutureBridge } from './Model.d';
 
 export const fetchRbiaData = async () => {
     try {
-        const response = await httpClient.post<FutureRoad[]>('/rbia');
+        const response = await httpClient.post<FutureRoads[]>('/rbia');
         return response;
     } catch (error) {
         console.error('Error fetching RBIA data:', error);
@@ -12,9 +12,9 @@ export const fetchRbiaData = async () => {
     }
 }
 
-export const addFutureRoad = async (road: FutureRoad) => {
+export const addFutureRoad = async (road: FutureRoads) => {
     try {
-        const response = await httpClient.post<FutureRoad>('/rbia/addFutureRoad', road, );
+        const response = await httpClient.post<FutureRoads>('/rbia/addFutureRoad', road, );
         return response;
     } catch (error) {
         console.error('Error adding future road:', error);
@@ -22,9 +22,9 @@ export const addFutureRoad = async (road: FutureRoad) => {
     }
 }
 
-export const editFutureRoad = async (road: FutureRoad) => {
+export const editFutureRoad = async (road: FutureRoads) => {
     try {
-        const response = await httpClient.post<FutureRoad>('/rbia/editFutureRoad', road, );
+        const response = await httpClient.post<FutureRoads>('/rbia/editFutureRoad', road, );
         return response;
     } catch (error) {
         console.error('Error editing future road:', error);
@@ -42,9 +42,9 @@ export const deleteFutureRoad = async (roadId: string) => {
     }
 }
 
-export const addFutureRoadSection = async (section: FutureRoadSection) => {
+export const addFutureRoadSection = async (section: FutureRoadSections) => {
     try {
-        const response = await httpClient.post<FutureRoadSection>('/rbia/addFutureRoadSection', section, );
+        const response = await httpClient.post<FutureRoadSections>('/rbia/addFutureRoadSection', section, );
         return response;
     } catch (error) {
         console.error('Error adding future road section:', error);
@@ -52,9 +52,9 @@ export const addFutureRoadSection = async (section: FutureRoadSection) => {
     }
 }
 
-export const editFutureRoadSection = async (section: FutureRoadSection) => {
+export const editFutureRoadSection = async (section: FutureRoadSections) => {
     try {
-        const response = await httpClient.post<FutureRoadSection>('/rbia/editFutureRoadSection', section, );
+        const response = await httpClient.post<FutureRoadSections>('/rbia/editFutureRoadSection', section, );
         return response;
     } catch (error) {
         console.error('Error editing future road section:', error);

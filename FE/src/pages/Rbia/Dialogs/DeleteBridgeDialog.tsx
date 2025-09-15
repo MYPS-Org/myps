@@ -22,15 +22,15 @@ const DeleteBridgeDialog: React.FC<DeleteBridgeDialogProps> = ({ isOpen, onClose
       return;
     }
 
-    if (!bridge.SectionRoadId || !bridge.Name) {
+    if (!bridge.RoadSectionId || !bridge.Name) {
       console.error('Bridge identification is incomplete');
       return;
     }
 
     setIsDeleting(true);
     try {
-      // Use a combination of SectionRoadId and Name as unique identifier
-      const bridgeKey = `${bridge.SectionRoadId}-${bridge.Name}`;
+      // Use a combination of RoadSectionId and Name as unique identifier
+      const bridgeKey = `${bridge.RoadSectionId}-${bridge.Name}`;
       onSubmit(bridgeKey); // Call the onSubmit prop with the bridge key
       handleClose();
     } catch (error) {
@@ -93,12 +93,8 @@ const DeleteBridgeDialog: React.FC<DeleteBridgeDialogProps> = ({ isOpen, onClose
                   <span className="text-sm font-medium text-gray-900 dark:text-white">{bridge.Name}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Road ID:</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">{bridge.RoadId}</span>
-                </div>
-                <div className="flex justify-between">
                   <span className="text-sm text-gray-600 dark:text-gray-400">Section Road ID:</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">{bridge.SectionRoadId}</span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">{bridge.RoadSectionId}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600 dark:text-gray-400">From Chainage:</span>

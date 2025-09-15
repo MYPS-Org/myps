@@ -79,8 +79,8 @@ const RoadSectionList: React.FC = () => {
     setIsDeleteDialogOpen(true);
   };
 
-  const handleConfirmDelete = (sectionRoadId: string) => {
-    setRoadSections(roadSections.filter((section) => section.SectionRoadId !== sectionRoadId));
+  const handleConfirmDelete = (roadSectionId: string) => {
+    setRoadSections(roadSections.filter((section) => section.RoadSectionId !== roadSectionId));
     setIsDeleteDialogOpen(false);
     setRoadSectionToDelete(null);
   };
@@ -172,12 +172,12 @@ const RoadSectionList: React.FC = () => {
           <tbody className="bg-white divide-y divide-gray-200">
             {roadSections.map((section, index) => (
               <tr 
-                key={section.SectionRoadId} 
+                key={section.RoadSectionId} 
                 className={`hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
               >
                 <td className="px-6 py-4 whitespace-nowrap">
                   <Badge color="purple" className="text-xs">
-                    {section.SectionRoadId}
+                    {section.RoadSectionId}
                   </Badge>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -186,11 +186,11 @@ const RoadSectionList: React.FC = () => {
                   </Badge>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-gray-900 font-medium">
-                  {section.Length} km
+                  {section.RoadLength} km
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <Badge color="orange" className="text-xs">
-                    District {section.EngineeringDistrict}
+                    District {section.DEO}
                   </Badge>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">

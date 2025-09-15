@@ -22,14 +22,14 @@ const DeleteRoadSectionDialog: React.FC<DeleteRoadSectionDialogProps> = ({ isOpe
       return;
     }
 
-    if (!roadSection.SectionRoadId) {
+    if (!roadSection.RoadSectionId) {
       console.error('Section Road ID is undefined');
       return;
     }
 
     setIsDeleting(true);
     try {
-      onSubmit(roadSection.SectionRoadId); // Call the onSubmit prop with the section road ID
+      onSubmit(roadSection.RoadSectionId); // Call the onSubmit prop with the section road ID
       handleClose();
     } catch (error) {
       console.error('Error deleting road section:', error);
@@ -88,7 +88,7 @@ const DeleteRoadSectionDialog: React.FC<DeleteRoadSectionDialogProps> = ({ isOpe
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600 dark:text-gray-400">Section Road ID:</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">{roadSection.SectionRoadId}</span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">{roadSection.RoadSectionId}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600 dark:text-gray-400">Parent Road ID:</span>
@@ -96,11 +96,11 @@ const DeleteRoadSectionDialog: React.FC<DeleteRoadSectionDialogProps> = ({ isOpe
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600 dark:text-gray-400">Length:</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">{roadSection.Length} km</span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">{roadSection.RoadLength} km</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600 dark:text-gray-400">Engineering District:</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">District {roadSection.EngineeringDistrict}</span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">District {roadSection.DEO}</span>
                 </div>
               </div>
             </div>

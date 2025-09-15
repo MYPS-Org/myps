@@ -13,9 +13,14 @@ const FutureRoadDialog: React.FC<FutureRoadDialogProps> = ({ onClose }) => {
   const [roads, setRoads] = useAtom(roadsAtom);
   const [selectedItem] = useAtom(selectedItemAtom);
   const [formData, setFormData] = useState<Road>({
+    Id: 0,
     RoadId: "",
     Name: "",
-    Classification: 0,
+    Classification: "",
+    CreatedBy: '',
+    CreatedDate: '',
+    UpdatedBy: '',
+    UpdatedDate: ''
   });
 
   useEffect(() => {
@@ -32,7 +37,7 @@ const FutureRoadDialog: React.FC<FutureRoadDialogProps> = ({ onClose }) => {
       return;
     }
 
-    if (!formData.RoadId || !formData.Name || formData.Classification === 0) {
+    if (!formData.RoadId || !formData.Name || formData.Classification ) {
       alert("Please fill in all required fields");
       return;
     }
@@ -70,9 +75,14 @@ const FutureRoadDialog: React.FC<FutureRoadDialogProps> = ({ onClose }) => {
 
   const handleReset = () => {
     setFormData({
+      Id: 0,
       RoadId: "",
       Name: "",
-      Classification: 0,
+      Classification: "",
+      CreatedBy: '',
+      CreatedDate: '',
+      UpdatedBy: '',
+      UpdatedDate: ''
     });
   };
 

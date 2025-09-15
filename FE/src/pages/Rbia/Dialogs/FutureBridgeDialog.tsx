@@ -15,12 +15,17 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose }) => {
   const [roadSections] = useAtom(roadSectionsAtom);
   const [roads] = useAtom(roadsAtom);
   const [formData, setFormData] = useState<Bridge>({
-    RoadId: "",
-    SectionRoadId: "",
+    Id: 0,
+    RoadSectionId: "",
+    BridgeId: "",
     Name: "",
-    From: 0,
-    Length: 0,
-    CarriageWay: 0,
+    From: "",
+    Length: "",
+    CarriageWay: "",
+    CreatedBy: '',
+    CreatedDate: '',
+    UpdatedBy: '',
+    UpdatedDate: ''
   });
 
   useEffect(() => {
@@ -31,8 +36,8 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.RoadId || !formData.SectionRoadId || !formData.Name || 
-        formData.From < 0 || formData.Length <= 0 || formData.CarriageWay <= 0) {
+    if (!formData.RoadSectionId || !formData.Name || 
+        formData.From || formData.Length || formData.CarriageWay ) {
       alert("Please fill in all required fields with valid values");
       return;
     }
@@ -42,7 +47,7 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose }) => {
         // Edit existing bridge
         setBridges(
           bridges.map((bridge: Bridge) =>
-            bridge.SectionRoadId === (selectedItem as Bridge).SectionRoadId && 
+            bridge.RoadSectionId === (selectedItem as Bridge).RoadSectionId && 
             bridge.Name === (selectedItem as Bridge).Name ? formData : bridge
           )
         );
@@ -71,19 +76,20 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose }) => {
 
   const handleReset = () => {
     setFormData({
-      RoadId: "",
-      SectionRoadId: "",
+      Id: 0,
+      RoadSectionId: "",
+      BridgeId: "",
       Name: "",
-      From: 0,
-      Length: 0,
-      CarriageWay: 0,
+      From: "",
+      Length: "",
+      CarriageWay: "",
+      CreatedBy: '',
+      CreatedDate: '',
+      UpdatedBy: '',
+      UpdatedDate: ''
     });
   };
 
-  // Filter road sections based on selected road ID
-  const filteredRoadSections = roadSections.filter(section => 
-    formData.RoadId ? section.RoadId === formData.RoadId : true
-  );
 
   return (
     <Dialog open={true} onClose={onClose} className="fixed z-10 inset-0 overflow-y-auto">
@@ -106,32 +112,6 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose }) => {
           </div>
 
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
-            {/* Road ID */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Road ID <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={formData.RoadId}
-                onChange={(e) => {
-                  handleChange('RoadId', e.target.value);
-                  // Reset section road ID when road changes
-                  handleChange('SectionRoadId', '');
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
-                required
-              >
-                <option value="">Select Road</option>
-                {roads.map((road) => (
-                  <option key={road.RoadId} value={road.RoadId}>
-                    {road.RoadId} - {road.Name} (Class {road.Classification})
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-gray-500 mt-1">
-                Select the road where this bridge will be located
-              </p>
-            </div>
 
             {/* Section Road ID */}
             <div>
@@ -139,15 +119,15 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose }) => {
                 Section Road ID <span className="text-red-500">*</span>
               </label>
               <select
-                value={formData.SectionRoadId}
-                onChange={(e) => handleChange('SectionRoadId', e.target.value)}
+                value={formData.RoadSectionId}
+                onChange={(e) => handleChange('RoadSectionId', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                 required
               >
                 <option value="">Select Road Section</option>
-                {filteredRoadSections.map((section) => (
-                  <option key={section.SectionRoadId} value={section.SectionRoadId}>
-                    {section.SectionRoadId} - {section.Length}km (District {section.EngineeringDistrict})
+                {roadSections.map((section) => (
+                  <option key={section.RoadSectionId} value={section.RoadSectionId}>
+                    {section.RoadSectionId} - {section.RoadLength}km (District {section.DEO})
                   </option>
                 ))}
               </select>

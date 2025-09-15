@@ -1,24 +1,24 @@
 import { atom } from "jotai";
 
 // Import the types from Model.d.ts
-import type { FutureRoad, FutureRoadSection, FutureBridge } from "../Model";
+import type { FutureRoads, FutureRoadSections, FutureBridge } from "../Model.d";
 
 // Type aliases for compatibility
-export type Road = FutureRoad;
-export type RoadSection = FutureRoadSection;
+export type Road = FutureRoads;
+export type RoadSection = FutureRoadSections;
 export type Bridge = FutureBridge;
 
 // Atom for Future Roads
-export const roadsAtom = atom<FutureRoad[]>([]);
+export const roadsAtom = atom<FutureRoads[]>([]);
 
 // Atom for Future Road Sections
-export const roadSectionsAtom = atom<FutureRoadSection[]>([]);
+export const roadSectionsAtom = atom<FutureRoadSections[]>([]);
 
 // Atom for Future Bridges
 export const bridgesAtom = atom<FutureBridge[]>([]);
 
 // Atom for the currently selected item (used for editing or deleting)
-export const selectedItemAtom = atom<FutureRoad | FutureRoadSection | FutureBridge | null>(null);
+export const selectedItemAtom = atom<FutureRoads | FutureRoadSections | FutureBridge | null>(null);
 
 // Atom for dialog state management
 export const dialogStateAtom = atom({

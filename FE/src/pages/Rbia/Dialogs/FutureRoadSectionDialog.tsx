@@ -14,27 +14,32 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
   const [selectedItem] = useAtom(selectedItemAtom);
   const [roads] = useAtom(roadsAtom);
   const [formData, setFormData] = useState<RoadSection>({
+    Id: 0,
     RoadId: "",
-    SectionRoadId: "",
-    Length: 0,
-    EngineeringDistrict: 0,
+    RoadSectionId: "",
+    RoadLength: '',
+    DEO: '',
+    CreatedBy: '',
+    CreatedDate: '',
+    UpdatedBy: '',
+    UpdatedDate: ''    
   });
 
   useEffect(() => {
-    if (selectedItem && 'SectionRoadId' in selectedItem) {
+    if (selectedItem && 'RoadSectionId' in selectedItem) {
       setFormData(selectedItem as RoadSection); // Populate form with selected item for editing
     }
   }, [selectedItem]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.SectionRoadId.startsWith("FS")) {
+
+    if (!formData.RoadSectionId.startsWith("FS")) {
       alert("Section Road ID must start with 'FS'");
       return;
     }
 
-    if (!formData.RoadId || !formData.SectionRoadId || formData.Length <= 0 || formData.EngineeringDistrict === 0) {
+    if (!formData.RoadId || !formData.RoadSectionId || formData.RoadLength || formData.DEO ) {
       alert("Please fill in all required fields with valid values");
       return;
     }
@@ -44,7 +49,7 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
         // Edit existing road section
         setFutureRoadSections(
           futureRoadSections.map((section: RoadSection) =>
-            section.SectionRoadId === (selectedItem as RoadSection).SectionRoadId ? formData : section
+            section.RoadSectionId === (selectedItem as RoadSection).RoadSectionId ? formData : section
           )
         );
       } else {
@@ -72,10 +77,15 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
 
   const handleReset = () => {
     setFormData({
+      Id: 0,
       RoadId: "",
-      SectionRoadId: "",
-      Length: 0,
-      EngineeringDistrict: 0,
+      RoadSectionId: "",
+      RoadLength: "",
+      DEO: "",
+      CreatedBy: '',
+      CreatedDate: '',
+      UpdatedBy: '',
+      UpdatedDate: ''
     });
   };
 
@@ -130,8 +140,8 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
               </label>
               <input
                 type="text"
-                value={formData.SectionRoadId}
-                onChange={(e) => handleChange('SectionRoadId', e.target.value)}
+                value={formData.RoadSectionId}
+                onChange={(e) => handleChange('RoadSectionId', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
                 required
                 placeholder="Enter Section Road ID (must start with 'FR')"
@@ -150,8 +160,8 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
                 type="number"
                 step="0.1"
                 min="0.1"
-                value={formData.Length}
-                onChange={(e) => handleChange('Length', Number(e.target.value))}
+                value={formData.RoadLength}
+                onChange={(e) => handleChange('RoadLength', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
                 required
                 placeholder="Enter section length in kilometers"
@@ -167,8 +177,8 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
                 Engineering District <span className="text-red-500">*</span>
               </label>
               <select
-                value={formData.EngineeringDistrict}
-                onChange={(e) => handleChange('EngineeringDistrict', Number(e.target.value))}
+                value={formData.DEO}
+                onChange={(e) => handleChange('DEO', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                 required
               >
