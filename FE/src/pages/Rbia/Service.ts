@@ -1,10 +1,10 @@
 import { httpClient } from '../../services/httpClient';
 
-import type { FutureRoads, FutureRoadSections, FutureBridge } from './Model.d';
+import type { FutureRoads, FutureRoadSections, FutureBridge, FutureRoadsClassification } from './Model.d';
 
-export const fetchRbiaData = async () => {
+export const fetchRoadData = async () => {
     try {
-        const response = await httpClient.post<FutureRoads[]>('/rbia');
+        const response = await httpClient.post<FutureRoadsClassification[]>('/futureinfra/initfilterFutureRoads');
         return response;
     } catch (error) {
         console.error('Error fetching RBIA data:', error);
