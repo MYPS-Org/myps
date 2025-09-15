@@ -41,3 +41,15 @@ export interface FutureBridge {
 	UpdatedBy: string;
 	UpdatedDate: string;
 }
+
+export interface RoadFilter {
+  Name?: string;
+  RoadId?: string;
+  Classification?: string;
+}
+
+export interface RoadPagination extends PaginationParams {
+  filters?: RoadFilter;
+  sortField?: string;
+  sortDirection?: 0 | 1;
+}

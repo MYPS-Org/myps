@@ -1,16 +1,35 @@
 import { httpClient } from '../../services/httpClient';
 
-import type { FutureRoads, FutureRoadSections, FutureBridge, FutureRoadsClassification } from './Model.d';
+import type { FutureRoads, FutureRoadSections, FutureBridge, FutureRoadsClassification, RoadPagination } from './Model.d';
 
-export const fetchRoadData = async () => {
+// Define local interface for pagination response
+interface PaginationResponse<T> {
+    lists: T[];
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+}
+
+export const fetchRoadInitData = async () => {
     try {
-        const response = await httpClient.post<FutureRoadsClassification[]>('/futureinfra/initfilterFutureRoads');
+        const response = await httpClient.post<FutureRoadsClassification[]>('/futureInfra/initfilterFutureRoads');
         return response;
     } catch (error) {
         console.error('Error fetching RBIA data:', error);
         throw error;
     }
 }
+
+export const fetchRoads = async ( data: RoadPagination) => {
+    try {
+        const response = await httpClient.post<PaginationResponse<FutureRoads>>('/futureInfra/ShowFutureRoads', data);
+        return response;
+    } catch (error) {
+        console.error('Error fetching future roads:', error);
+        throw error;
+    }
+};
 
 export const addFutureRoad = async (road: FutureRoads) => {
     try {

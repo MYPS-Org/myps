@@ -155,7 +155,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
     const infraTypeLower = infraType?.toLowerCase();
     
     if (infraTypeLower === 'road' || infraTypeLower === 'roads') {
-      return ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget', 'StartStationLimit', 'EndStationLimit', 'To', 'From'];
+      return ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget', 'StartStationLimit', 'EndStationLimit', 'From','To'];
     } else if (infraTypeLower === 'bridge' || infraTypeLower === 'bridges') {
       return ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget'];
     } else if (infraTypeLower === 'consultancy' || infraTypeLower === 'non-infra') {

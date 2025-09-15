@@ -22,6 +22,7 @@ interface AddMajorItemDialogProps {
     WorkTypeId: number;
     InfraType: string;
   };
+  existingMajorItems?: Array<{ ComponentId: string }>;
 }
 
 const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
@@ -31,7 +32,8 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
   componentCosts,
   dropDowns = [],
   mode,
-  initialData
+  initialData,
+  existingMajorItems = []
 }) => {
   const [formData, setFormData] = useState({
     ComponentId: '',
@@ -98,6 +100,12 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
       return;
     }
     
+    // Check if there are available components for add mode
+    if (mode === 'add' && availableComponentCosts.length === 0) {
+      alert('No components available. Please add more components first.');
+      return;
+    }
+    
     if (!formData.InfraType) {
       alert('Please select an infrastructure type');
       return;
@@ -119,6 +127,16 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
 
   // Get unique infrastructure types from dropdowns
   const infraTypes = [...new Set(dropDowns?.map(scope => scope.InfraType) || [])];
+
+  // Filter out already selected ComponentIds (but allow the current one when editing)
+  const availableComponentCosts = componentCosts.filter(cost => {
+    // When editing, allow the current ComponentId to remain in the list
+    if (mode === 'edit' && initialData && cost.ComponentId === initialData.ComponentId) {
+      return true;
+    }
+    // For add mode or other components in edit mode, filter out already selected ones
+    return !existingMajorItems.some(item => item.ComponentId === cost.ComponentId);
+  });
 
   return (
     <Dialog open={isOpen} onClose={handleClose} className="relative z-50">
@@ -148,12 +166,17 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
                 required
               >
                 <option value="">Select Component</option>
-                {componentCosts.map((cost) => (
+                {availableComponentCosts.map((cost) => (
                   <option key={cost.Id} value={cost.ComponentId}>
                     {cost.ComponentId}
                   </option>
                 ))}
               </select>
+              {mode === 'add' && availableComponentCosts.length === 0 && (
+                <p className="text-sm text-gray-500 mt-1">
+                  All components have been selected. Please add more components first.
+                </p>
+              )}
             </div>
 
             {/* Year of Work */}
@@ -220,7 +243,11 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
               <Button outline onClick={handleClose}>
                 Cancel
               </Button>
-              <Button type="submit" color="orange">
+              <Button 
+                type="submit" 
+                color="orange"
+                disabled={mode === 'add' && availableComponentCosts.length === 0}
+              >
                 {mode === 'add' ? 'Add Item' : 'Update Item'}
               </Button>
             </div>

@@ -1,16 +1,10 @@
 "use-client";
 import React, { useState } from 'react';
-import { useAtom } from 'jotai';
 import { 
   RectangleStackIcon, 
   BuildingOffice2Icon, 
   ArrowsPointingOutIcon 
 } from '@heroicons/react/16/solid';
-import { 
-    roadsCountAtom, 
-    roadSectionsCountAtom, 
-    bridgesCountAtom 
-} from '../state/rbiaAtoms';
 import RoadList from "../components/Road";
 import RoadSectionList from "../components/RoadSection";
 import BridgeList from "../components/Bridge";
@@ -25,10 +19,11 @@ const Badge: React.FC<{ children: React.ReactNode; className?: string }> = ({ ch
 const Rbia: React.FC = () => {
     const [selectedTab, setSelectedTab] = useState<'roads' | 'roadSections' | 'bridges'>('roads');
 
-    // Get counts from Jotai atoms
-    const [roadsCount] = useAtom(roadsCountAtom);
-    const [roadSectionsCount] = useAtom(roadSectionsCountAtom);
-    const [bridgesCount] = useAtom(bridgesCountAtom);
+    // For now, we'll show static counts until we implement proper data fetching for all tabs
+    // TODO: Replace with actual API calls when roadSections and bridges components are updated
+    const roadsCount = 0; // Will be updated by the Road component
+    const roadSectionsCount = 0; // Placeholder
+    const bridgesCount = 0; // Placeholder
 
     // Function to handle tab switching
     const getTableData = async (tabName: 'roads' | 'roadSections' | 'bridges') => {
@@ -36,7 +31,7 @@ const Rbia: React.FC = () => {
         setSelectedTab(tabName);
         
         // TODO: Add data fetching logic here if needed
-        // For now, the components will handle their own data through Jotai atoms
+        // The individual components will handle their own data through API calls
     };
 
     // Render Tab Button component
