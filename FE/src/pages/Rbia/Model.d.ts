@@ -51,3 +51,13 @@ export interface FutureBridge {
 	UpdatedBy: string;
 	UpdatedDate: string;
 }
+export interface BridgePagination extends PaginationParams {
+  filters?: BridgeFilter;
+  sortField?: string; // Remove the = 'Id' default value - this is invalid in TypeScript interfaces
+  sortDirection?: 0 | 1;
+}
+export interface BridgeFilter {
+  RoadSectionId?: string;
+  BridgeId?: string;
+  Name?: string;
+}

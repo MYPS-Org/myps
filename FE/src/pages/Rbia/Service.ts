@@ -1,6 +1,7 @@
 import { httpClient } from '../../services/httpClient';
+import type { RODEOEnum } from '../Project/Model';
 
-import type { FutureRoads, FutureRoadSections, FutureBridge, FutureRoadsClassification, RoadSectionPagination } from './Model.d';
+import type { FutureRoads, FutureRoadSections, FutureBridge, FutureRoadsClassification, RoadSectionPagination, BridgePagination } from './Model.d';
 
 export const fetchRoadData = async () => {
     try {
@@ -93,16 +94,16 @@ export const deleteFutureRoadSection = async (sectionRoadId: string) => {
 
 export const fetchBridgeInitData = async () => {
     try {
-        const response = await httpClient.post<FutureRoadsClassification[]>('/futureinfra/InitFilterFutureRoadSections');
+        const response = await httpClient.post<{DEOs: RODEOEnum[]}>('/futureinfra/InitFilterFutureBridge');
         return response;
     } catch (error) {
         console.error('Error fetching RBIA data:', error);
         throw error;
     }
 }
-export const fetchBridgeData = async (data: RoadSectionPagination) => {
+export const fetchBridgeData = async (data: BridgePagination) => {
     try {
-        const response = await httpClient.post<PaginationResponse<FutureRoads>>('/futureinfra/InitFilterFutureRoadSections',data);
+        const response = await httpClient.post<PaginationResponse<FutureBridge>>('/futureinfra/ShowFutureBridge',data);
         return response;
     } catch (error) {
         console.error('Error fetching RBIA data:', error);
