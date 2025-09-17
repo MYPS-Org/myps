@@ -31,6 +31,9 @@ namespace DBHelper.Models.Table
         [Required]
         public Double Total { get; set; }
         [Required]
+        [MaxLength(10)]
+        public string StageName { get; set; } = string.Empty;
+        [Required]
         [MaxLength(100)]
         public string CreatedBy { get; set; } = string.Empty;
         [Required]

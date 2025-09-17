@@ -1,4 +1,5 @@
-﻿using DBHelper.Data;
+﻿using Confluent.Kafka;
+using DBHelper.Data;
 using DBHelper.Models.Table;
 using Helpers;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -78,6 +79,20 @@ namespace Main
 
                 }
             }
+            return services;
+        }
+        public static IServiceCollection AddSocketMicroService(this IServiceCollection services)
+        {
+            services.AddSingleton<IProducer<Null, string>>(sp =>
+            {
+                var config = new ProducerConfig
+                {
+                    BootstrapServers = Appsetting.KafkaConfigs.KafkaServer,
+                    Acks = Acks.All
+                };
+                return new ProducerBuilder<Null, string>(config).Build();
+            });
+            //services.AddHostedService<OrderWorker>();
             return services;
         }
         #endregion

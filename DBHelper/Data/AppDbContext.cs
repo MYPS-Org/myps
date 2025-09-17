@@ -54,6 +54,10 @@ namespace DBHelper.Data
         public DbSet<Models.Table.ProjectGroups> tProjectGroups { get; set; }
         public DbSet<Models.Table.ProjectProvinceEnum> tProjectProvinceEnum { get; set; }
         public DbSet<Models.Table.DropdownSupportingDocs> tDropdownSupportingDocs { get; set; }
+        public DbSet<Models.Table.FutureRoads> tFutureRoads { get; set; }
+        public DbSet<Models.Table.FutureRoadsClassification> tFutureRoadsClassification { get; set; }
+        public DbSet<Models.Table.FutureRoadSections> tFutureRoadSections { get; set; }
+        public DbSet<Models.Table.FutureBridge> tFutureBridge { get; set; }
         #endregion
         #region Views
         public DbSet<Models.Views.Users> vUsers { get; set; }

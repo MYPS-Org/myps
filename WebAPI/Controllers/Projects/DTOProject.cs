@@ -157,17 +157,17 @@ namespace WebAPI.Controllers.Projects
         [Required]
         public FileUpload File { get; set; } = new FileUpload();
     }
-    public class DeleteSupportingDocsDTO
+    public class DeleteSupportingDocsDTO : ProjectDetailsDTO
     {
         [Required]
         public int Id { get; set; }
     }
-    public class DeleteNotesDTO
+    public class DeleteNotesDTO : ProjectDetailsDTO
     {
         [Required]
         public int Id { get; set; }
     }
-    public class FundingProfileDTO
+    public class FundingProfileDTO : ProjectDetailsDTO
     {
         public int Id { get; set; }
         [Required]

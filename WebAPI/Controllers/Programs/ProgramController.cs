@@ -615,7 +615,7 @@ namespace WebAPI.Controllers.Programs
                     return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Programs table. Please contact administrator!", Title = "Program not found" });
                 }
                 var checkRevisions = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
-                if(checkRevisions == null)
+                if (checkRevisions == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Revisions table. Please contact administrator!", Title = "Program not found" });
                 }
@@ -625,7 +625,7 @@ namespace WebAPI.Controllers.Programs
                     return new BadRequestObjectResult(new { Message = $"Program ID Revision '{checkRevisions.Id}' does not exist in the Stages table. Please contact administrator!", Title = "Program Stage not found" });
                 }
                 var checkStageType = await _db.tProgramStageEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == (int)dto.Stage);
-                if(checkStageType == null)
+                if (checkStageType == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program Stage '{dto.Stage}' is not valid!", Title = "Invalid Stage" });
                 }
@@ -637,48 +637,153 @@ namespace WebAPI.Controllers.Programs
                 {
                     HashSet<string> projectIds = checkProjects.Select(p => p.ProjectId!).ToHashSet();
                     var ProjectRevisions = await _db.tProjectRevisions.AsNoTracking().Where(x => projectIds.Contains(x.ProjectId)).ToListAsync();
-                    List<ProjectRevisions> NewRevisions = new List<ProjectRevisions>();
+
+                    var FundingProfiles = await _db.tProjectFundingProfile.AsNoTracking().Where(x => projectIds.Contains(x.ProjectId) && x.StageName == checkStage.StageName).ToListAsync();
+
+                    var Components = await _db.tProjectComponentCost.AsNoTracking().Where(x => projectIds.Contains(x.ProjectId) && x.StageName == checkStage.StageName).ToListAsync();
+                    HashSet<string> ComponentsRefs = Components.Select(pr => pr.ReferenceId).ToHashSet();
+                    var ComponentsPerYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentsRefs.Contains(x.ParentId)).ToListAsync();
+
+                    var MajorItems = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => projectIds.Contains(x.ProjectId) && x.StageName == checkStage.StageName).ToListAsync();
+                    HashSet<string> MajorItemsRefs = MajorItems.Select(pr => pr.ReferenceId).ToHashSet();
+                    var MajorLocations = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => MajorItemsRefs.Contains(x.ParentId)).ToListAsync();
+
                     if (ProjectRevisions.Count > 0)
                     {
-                        foreach (var project in ProjectRevisions)
+                        List<ProjectRevisions> NewRevisions = new List<ProjectRevisions>();
+                        string FirstSegment = checkStageType.Name.GenerateProjec1stSegment();
+                        NewRevisions.AddRange(ProjectRevisions.Select(project => new ProjectRevisions()
                         {
-                            string FirstSegment = Functions.GenerateProjec1stSegment(checkStageType.Name);
-                            string NewProjectId = project.ProjectId.Replace("BP", FirstSegment);
-                            var newRevision = new ProjectRevisions()
+                            ReferenceId = project.ReferenceId,
+                            ProjectId = project.ProjectId.Replace("BP", FirstSegment),
+                            AlternateId = project.AlternateId,
+                            ExternalId = project.ExternalId,
+                            MYId = project.MYId,
+                            UACS = project.UACS,
+                            MYCAApprovalDate = project.MYCAApprovalDate,
+                            RevisionNumber = project.RevisionNumber + 1,
+                            Description = project.Description,
+                            Category = project.Category,
+                            Thrust = project.Thrust,
+                            Origin = project.Origin,
+                            City = project.City,
+                            LegislativeDistrict = project.LegislativeDistrict,
+                            OperatingUnit = project.OperatingUnit,
+                            ImplementingOffice = project.ImplementingOffice,
+                            DEO = project.DEO,
+                            Region = project.Region,
+                            Agency = project.Agency,
+                            IslandCode = project.IslandCode,
+                            ImplementationMode = project.ImplementationMode,
+                            EmergencyMode = project.EmergencyMode,
+                            Feasibility = project.Feasibility,
+                            FeasibilityDate = project.FeasibilityDate,
+                            DetailedDesign = project.DetailedDesign,
+                            DetailedDesignDate = project.DetailedDesignDate,
+                            RowAvailable = project.RowAvailable,
+                            RegionWide = project.RegionWide,
+                            CreatedBy = _Session.UserId,
+                            CreatedDate = CurrentDate
+                        }));
+                        if(Components.Count() > 0)
+                        {
+                            List<ProjectComponentCost> NewComponent = new List<ProjectComponentCost>();
+                            List<ProjectComponentCostYear> NewComponentPerYear = new List<ProjectComponentCostYear>();
+                            NewComponent.AddRange(Components.Select(x => new ProjectComponentCost()
                             {
-                                ReferenceId = project.ReferenceId,
-                                ProjectId = NewProjectId,
-                                AlternateId = project.AlternateId,
-                                ExternalId = project.ExternalId,
-                                MYId = project.MYId,
-                                UACS = project.UACS,
-                                MYCAApprovalDate = project.MYCAApprovalDate,
-                                RevisionNumber = project.RevisionNumber + 1,
-                                Description = project.Description,
-                                Category = project.Category,
-                                Thrust = project.Thrust,
-                                Origin = project.Origin,
-                                City = project.City,
-                                LegislativeDistrict = project.LegislativeDistrict,
-                                OperatingUnit = project.OperatingUnit,
-                                ImplementingOffice = project.ImplementingOffice,
-                                DEO = project.DEO,
-                                Region = project.Region,
-                                Agency = project.Agency,
-                                IslandCode = project.IslandCode,
-                                ImplementationMode = project.ImplementationMode,
-                                EmergencyMode = project.EmergencyMode,
-                                Feasibility = project.Feasibility,
-                                FeasibilityDate = project.FeasibilityDate,
-                                DetailedDesign = project.DetailedDesign,
-                                DetailedDesignDate = project.DetailedDesignDate,
-                                RowAvailable = project.RowAvailable,
-                                RegionWide = project.RegionWide,
-                                CreatedBy = _Session.UserId,
-                                CreatedDate = CurrentDate
-                            };
-                            NewRevisions.Add(newRevision);
+                                ProjectId = x.ProjectId.Replace("BP", FirstSegment),
+                                ReferenceId = x.ReferenceId.UpdateReferenceId(FirstSegment),
+                                ComponentType = x.ComponentType,
+                                ComponentId = x.ComponentId,
+                                Description = x.Description,
+                                Total = x.Total,
+                                StageName = checkStageType.Name,
+                                CreatedBy = x.CreatedBy,
+                                CreatedDate = x.CreatedDate
+                            })) ;
+                            NewComponentPerYear.AddRange(ComponentsPerYear.Select(x => new ProjectComponentCostYear()
+                            {
+                                ParentId = x.ParentId.UpdateReferenceId(FirstSegment),
+                                CostYear = x.CostYear,
+                                Cost = x.Cost,
+                                StartDate = x.StartDate,
+                                EndDate = x.EndDate
+                            }));
                         }
+                        if(MajorItems.Count() > 0)
+                        {
+                            List<ProjectMajorWorkItem> NewMajorItems = new List<ProjectMajorWorkItem>();
+                            List<ProjectMajorWorkLocations> NewMajorLocations = new List<ProjectMajorWorkLocations>();
+                            NewMajorItems.AddRange(MajorItems.Select(x => new ProjectMajorWorkItem()
+                            {
+                                ProjectId = x.ProjectId.Replace("BP", FirstSegment),
+                                ReferenceId = x.ReferenceId.UpdateReferenceId(FirstSegment),
+                                ComponentId = x.ComponentId,
+                                YearOfWork = x.YearOfWork,
+                                WorkTypeId = x.WorkTypeId,
+                                InfraType = x.InfraType,
+                                StageName = checkStageType.Name,
+                                CreatedBy = x.CreatedBy,
+                                CreatedDate = x.CreatedDate
+                            })) ;
+                            NewMajorLocations.AddRange(MajorLocations.Select(x => new ProjectMajorWorkLocations()
+                            {
+                                ParentId = x.ParentId.UpdateReferenceId(FirstSegment),
+                                InfraId = x.InfraId,
+                                DetailedScope = x.DetailedScope,
+                                TargetUnitId = x.TargetUnitId,
+                                TargetUnit = x.TargetUnit,
+                                StartX = x.StartX,
+                                StartY = x.StartY,
+                                EndX = x.EndX,
+                                EndY = x.EndY,
+                                PhysicalTarget = x.PhysicalTarget,
+                                StartStationLimit = x.StartStationLimit,
+                                EndStationLimit = x.EndStationLimit,
+                                From = x.From,
+                                To = x.To,
+                                CreatedBy = x.CreatedBy,
+                                CreatedDate = x.CreatedDate
+                            }));
+                        }
+                        //foreach (var project in ProjectRevisions)
+                        //{
+                        //    string NewProjectId = project.ProjectId.Replace("BP", FirstSegment);
+                        //    var newRevision = new ProjectRevisions()
+                        //    {
+                        //        ReferenceId = project.ReferenceId,
+                        //        ProjectId = NewProjectId,
+                        //        AlternateId = project.AlternateId,
+                        //        ExternalId = project.ExternalId,
+                        //        MYId = project.MYId,
+                        //        UACS = project.UACS,
+                        //        MYCAApprovalDate = project.MYCAApprovalDate,
+                        //        RevisionNumber = project.RevisionNumber + 1,
+                        //        Description = project.Description,
+                        //        Category = project.Category,
+                        //        Thrust = project.Thrust,
+                        //        Origin = project.Origin,
+                        //        City = project.City,
+                        //        LegislativeDistrict = project.LegislativeDistrict,
+                        //        OperatingUnit = project.OperatingUnit,
+                        //        ImplementingOffice = project.ImplementingOffice,
+                        //        DEO = project.DEO,
+                        //        Region = project.Region,
+                        //        Agency = project.Agency,
+                        //        IslandCode = project.IslandCode,
+                        //        ImplementationMode = project.ImplementationMode,
+                        //        EmergencyMode = project.EmergencyMode,
+                        //        Feasibility = project.Feasibility,
+                        //        FeasibilityDate = project.FeasibilityDate,
+                        //        DetailedDesign = project.DetailedDesign,
+                        //        DetailedDesignDate = project.DetailedDesignDate,
+                        //        RowAvailable = project.RowAvailable,
+                        //        RegionWide = project.RegionWide,
+                        //        CreatedBy = _Session.UserId,
+                        //        CreatedDate = CurrentDate
+                        //    };
+                        //    NewRevisions.Add(newRevision);
+                        //}
                         await _db.tProjectRevisions.AddRangeAsync(NewRevisions);
                         await _db.SaveChangesAsync();
                         var newStages = NewRevisions.Select(pr => new ProjectStages
@@ -692,53 +797,58 @@ namespace WebAPI.Controllers.Programs
                             IsPublished = false
                         });
                         await _db.tProjectStages.AddRangeAsync(newStages);
+                        var transactionLog = new TransactionLog()
+                        {
+                            TransactionId = dto.ProgramId,
+                            TypeOfTransaction = "Update",
+                            AffectedTable = "tProgramStages",
+                            AffectedColumn = "StageName",
+                            NewValue = checkStageType.Name,
+                            OldValue = checkStage.StageName,
+                            CreatedBy = _Session.UserId,
+                            CreatedDate = CurrentDate
+                        };
+                        await _db.tTransactionLog.AddAsync(transactionLog);
+                        var newProgramRevision = new ProgramRevisions()
+                        {
+                            ProgramId = dto.ProgramId,
+                            RevisionNumber = checkRevisions.RevisionNumber + 1,
+                            Name = checkRevisions.AllowAutoName ? $"{checkStageType.Name} {checkRevisions.YearStart}" : checkRevisions.Name,
+                            DataSecurityGroup = checkRevisions.DataSecurityGroup,
+                            UserGroup = checkRevisions.UserGroup,
+                            Status = checkRevisions.Status,
+                            Type = checkRevisions.Type,
+                            Cost = checkRevisions.Cost,
+                            YearStart = checkRevisions.YearStart,
+                            CreatedBy = _Session.UserId,
+                            CreatedDate = CurrentDate
+                        };
+                        await _db.tProgramRevisions.AddAsync(newProgramRevision);
+                        await _db.SaveChangesAsync();
+                        var newStage = new ProgramStages()
+                        {
+                            ProgramId = dto.ProgramId,
+                            RevisionId = newProgramRevision.Id,
+                            StageId = dto.Stage,
+                            StageName = checkStageType.Name,
+                            CreatedBy = _Session.UserId,
+                            CreatedDate = CurrentDate,
+                            IsPublished = false,
+                        };
+                        await _db.tProgramStages.AddAsync(newStage);
+                        await _db.SaveChangesAsync();
+                        await transaction.CommitAsync();
+                        return Ok(new
+                        {
+                            Message = "Program updated successfully",
+                            Title = "Update Stage Complete"
+                        });
                     }
                 }
-                var transactionLog = new TransactionLog()
-                {
-                    TransactionId = dto.ProgramId,
-                    TypeOfTransaction = "Update",
-                    AffectedTable = "tProgramStages",
-                    AffectedColumn = "StageName",
-                    NewValue = checkStageType.Name,
-                    OldValue = checkStage.StageName,
-                    CreatedBy = _Session.UserId,
-                    CreatedDate = CurrentDate
-                };
-                await _db.tTransactionLog.AddAsync(transactionLog);
-                var newProgramRevision = new ProgramRevisions()
-                {
-                    ProgramId = dto.ProgramId,
-                    RevisionNumber = checkRevisions.RevisionNumber + 1,
-                    Name = checkRevisions.AllowAutoName ?  $"{checkStageType.Name} {checkRevisions.YearStart}" : checkRevisions.Name,
-                    DataSecurityGroup = checkRevisions.DataSecurityGroup,
-                    UserGroup = checkRevisions.UserGroup,
-                    Status = checkRevisions.Status,
-                    Type = checkRevisions.Type,
-                    Cost = checkRevisions.Cost,
-                    YearStart = checkRevisions.YearStart,
-                    CreatedBy = _Session.UserId,
-                    CreatedDate = CurrentDate
-                };
-                await _db.tProgramRevisions.AddAsync(newProgramRevision);
-                await _db.SaveChangesAsync();
-                var newStage = new ProgramStages()
-                {
-                    ProgramId = dto.ProgramId,
-                    RevisionId = newProgramRevision.Id,
-                    StageId = dto.Stage,
-                    StageName = checkStageType.Name,
-                    CreatedBy = _Session.UserId,
-                    CreatedDate = CurrentDate,
-                    IsPublished = false,
-                };
-                await _db.tProgramStages.AddAsync(newStage);
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
                 return Ok(new
                 {
-                    Message = "Program updated successfully",
-                    Title = "Update Stage Complete"
+                    Message = $"Program {dto.ProgramId} does not exist!",
+                    Title = "Invalid Program ID"
                 });
             }
             catch (Exception ex)

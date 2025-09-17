@@ -15,6 +15,17 @@ namespace Helpers
 {
     public static class Functions
     {
+        public static string UpdateReferenceId(this string Current, string StageName)
+        {
+            var parts = Current.Split('-');
+            string NewStage = StageName.GenerateProjec1stSegment();
+            string ReferenceId = parts[0].Replace("BP", NewStage);
+            return $"{ReferenceId}-{parts[1]}-{StageName}";
+        }
+        public static string GenerateReferenceId(this string ReferenceId, string StageName)
+        {
+            return ReferenceId + "-" + ("tCountComponentCost").GenerateCode() + "-" + StageName;
+        }
         public static EnumProgramStage UpdateStage(this EnumProgramStage Current)
         {
             if (Current == EnumProgramStage.BP) return EnumProgramStage.NEP;
@@ -25,13 +36,7 @@ namespace Helpers
             else if (Current == EnumProgramStage.GAA) return EnumProgramStage.GAAR;
             return Current;
         }
-        public static string GenerateProjec2ndSegment(int endYear)
-        {
-            int startYear = 2016;
-            int count = endYear - startYear;
-            return count.ToString("D3");
-        }
-        public static string GenerateProjec1stSegment(string StageName)
+        public static string GenerateProjec1stSegment(this string StageName)
         {
             var stageGroups = new Dictionary<string, string[]>
             {
@@ -40,6 +45,12 @@ namespace Helpers
                 { "P",  new[] { "NEP", "HGAB", "GAA" } }
             };
             return stageGroups.FirstOrDefault(g => g.Value.Contains(StageName)).Key ?? "P";
+        }
+        public static string GenerateProjec2ndSegment(this int endYear)
+        {
+            int startYear = 2016;
+            int count = endYear - startYear;
+            return count.ToString("D3");
         }
         public static string GenerateCode(this string TableName)
         {

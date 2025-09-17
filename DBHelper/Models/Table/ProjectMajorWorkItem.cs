@@ -31,6 +31,9 @@ namespace DBHelper.Models.Table
         [MaxLength(50)]
         public string InfraType { get; set; } = string.Empty;
         [Required]
+        [MaxLength(10)]
+        public string StageName { get; set; } = string.Empty;
+        [Required]
         [MaxLength(100)]
         public string CreatedBy { get; set; } = string.Empty;
         public DateTime? CreatedDate { get; set; }

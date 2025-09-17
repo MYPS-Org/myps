@@ -23,6 +23,10 @@ namespace Helpers
         public string ProjectNotes { get; set; } = string.Empty;
         public string SupportingDocs { get; set; } = string.Empty;
     }
+    public class KafkaConfig
+    {
+        public string KafkaServer { get; set; } = string.Empty;
+    }
     public static class Appsetting
     {
         public static string ConnectionString { get; set; } = string.Empty;
@@ -34,6 +38,7 @@ namespace Helpers
         public static string WebRootPath { get; set; } = string.Empty;
         public static string RootPath { get; set; } = string.Empty;
         public static ResourcesFolder Resources { get; set; } = new ResourcesFolder();
+        public static KafkaConfig KafkaConfigs { get; set; } = new KafkaConfig();
         public static void PrepareAppsettings(IConfiguration config)
         {
             /* PREPARE DATABASE CONNECTIONS */
@@ -44,6 +49,7 @@ namespace Helpers
             Resources.Projects = Path.Combine(Resources.Main, Resources.Projects);
             Resources.ProjectNotes = Path.Combine(Resources.Projects, Resources.ProjectNotes);
             Resources.SupportingDocs = Path.Combine(Resources.Projects, Resources.SupportingDocs);
+            KafkaConfigs = config.GetSection("Kafka").Get<KafkaConfig>()!;
         }
     }
 }

@@ -1,5 +1,6 @@
 ﻿namespace DBHelper.Models.Enums
 {
+    #region Programs
     public enum EnumProgramStage
     {
         RDIP = 1,
@@ -29,4 +30,5 @@
         Working = 3,
         Approved = 4
     }
+    #endregion
 }
