@@ -64,10 +64,10 @@ export const fetchRoadSectionInitData = async () => {
 }
 export const fetchRoadSectionData = async (data: RoadSectionPagination) => {
     try {
-        const response = await httpClient.post<PaginationResponse<FutureRoads>>('/futureinfra/InitFilterFutureRoadSections',data);
+        const response = await httpClient.post<PaginationResponse<FutureRoadSections>>('/futureinfra/ShowFutureRoadSections', data);
         return response;
     } catch (error) {
-        console.error('Error fetching RBIA data:', error);
+        console.error('Error fetching road section data:', error);
         throw error;
     }
 }

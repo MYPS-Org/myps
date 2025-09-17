@@ -10,19 +10,9 @@ import {
   MagnifyingGlassIcon
 } from '@heroicons/react/16/solid';
 import { selectedItemAtom, type Road } from "../state/rbiaAtoms";
-import { fetchRoads, fetchRoadInitData } from "../Service";
-import type { FutureRoads, RoadPagination, FutureRoadsClassification } from "../Model.d";
+import { useRoadData } from "../hooks/useRoadData";
 import FutureRoadDialog from "../Dialogs/FutureRoadDialog";
 import DeleteRoadDialog from "../Dialogs/DeleteRoadDialog";
-
-// Define local interface for pagination response
-interface PaginationResponse<T> {
-    lists: T[];
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-}
 
 // Simple Badge component
 const Badge: React.FC<{ children: React.ReactNode; className?: string; color?: string }> = ({ 
@@ -64,58 +54,31 @@ const Button: React.FC<{
 
 const FutureRoadList: React.FC = () => {
   const [, setSelectedItem] = useAtom(selectedItemAtom);
-  const [isLoading, setIsLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [roadToDelete, setRoadToDelete] = useState<Road | null>(null);
   const [sortField, setSortField] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [searchInput, setSearchInput] = useState<string>('');
-  const [roadClassifications, setRoadClassifications] = useState<FutureRoadsClassification[]>([]);
-  
-  // Pagination state similar to Program.tsx
-  const [roadData, setRoadData] = useState<PaginationResponse<FutureRoads>>({
-    total: 0,
-    page: 1,
-    limit: 10,
-    totalPages: 0,
-    lists: []
-  });
 
-  const [roadFilters, setRoadFilters] = useState<RoadPagination>({
-    filters: {
-      Name: '',
-      RoadId: '',
-      Classification: ''
-    },
-    sortField: '',
-    sortDirection: 1,
-    page: 1,
-    limit: 20
-  });
+  // Use the custom hook for road data management
+  const {
+    roadData,
+    roadFilters,
+    isLoading,
+    searchInput,
+    hasActiveFilters,
+    initializeData,
+    handleSearchInputChange,
+    handleSearchSubmit,
+    handleClearSearch,
+    handlePagination,
+    removeRoadFromState
+  } = useRoadData();
 
   // Initialize data on component mount
   useEffect(() => {
-    const initializeData = async () => {
-      setIsLoading(true);
-      try {
-        // Fetch initial data and classifications
-        const [roadsResponse, classificationsResponse] = await Promise.all([
-          fetchRoads(roadFilters),
-          fetchRoadInitData()
-        ]);
-        
-        setRoadData(roadsResponse.Data);
-        setRoadClassifications(classificationsResponse.Data);
-      } catch (error) {
-        console.error('Error initializing road data:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
     initializeData();
-  }, []);
+  }, [initializeData]);
 
   const handleCreate = () => {
     setSelectedItem(null);
@@ -133,11 +96,7 @@ const FutureRoadList: React.FC = () => {
   };
 
   const handleConfirmDelete = (roadId: string) => {
-    setRoadData(prev => ({
-      ...prev,
-      lists: prev.lists.filter((road) => road.RoadId !== roadId),
-      total: prev.total - 1
-    }));
+    removeRoadFromState(roadId);
     setIsDeleteDialogOpen(false);
     setRoadToDelete(null);
   };
@@ -151,75 +110,9 @@ const FutureRoadList: React.FC = () => {
     }
   };
 
-  const handleSearchChange = (value: string) => {
-    setSearchInput(value);
-  };
-
-  const handleSearchSubmit = async () => {
-    const updatedFilters = {
-      ...roadFilters,
-      filters: {
-        ...roadFilters.filters,
-        Name: searchInput
-      },
-      page: 1
-    };
-    
-    setRoadFilters(updatedFilters);
-
-    try {
-      setIsLoading(true);
-      const response = await fetchRoads(updatedFilters);
-      setRoadData(response.Data);
-    } catch (error) {
-      console.error('Error filtering roads:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleClearSearch = async () => {
-    setSearchInput('');
-    const updatedFilters = {
-      ...roadFilters,
-      filters: {
-        Name: '',
-        RoadId: '',
-        Classification: ''
-      },
-      page: 1
-    };
-    
-    setRoadFilters(updatedFilters);
-
-    try {
-      setIsLoading(true);
-      const response = await fetchRoads(updatedFilters);
-      setRoadData(response.Data);
-    } catch (error) {
-      console.error('Error clearing search:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const Paginate = async (page: number) => {
-    try {
-      setIsLoading(true);
-      const response = await fetchRoads({
-        ...roadFilters,
-        page: page
-      });
-      setRoadData(response.Data);
-      setRoadFilters(prev => ({ ...prev, page }));
-    } catch (error) {
-      console.error('Error fetching roads:', error);
-    } finally {
-      setIsLoading(false);
-    }
+    await handlePagination(page);
   };
-
-  const hasActiveFilters = roadFilters.filters?.Name || roadFilters.filters?.RoadId || roadFilters.filters?.Classification;
 
   const SortableHeader: React.FC<{ field: string; children: React.ReactNode }> = ({ field, children }) => (
     <th 
@@ -250,7 +143,7 @@ const FutureRoadList: React.FC = () => {
                   type="text"
                   placeholder="Search roads..."
                   value={searchInput}
-                  onChange={(e) => handleSearchChange(e.target.value)}
+                  onChange={(e) => handleSearchInputChange(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSearchSubmit()}
                   className="pl-8 pr-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                 />
@@ -401,7 +294,7 @@ const FutureRoadList: React.FC = () => {
       )}
 
       {/* Footer info */}
-      {/* <div className='mb-3.5 px-6 py-4 border-t border-gray-200'>
+      <div className='mb-3.5 px-6 py-4 border-t border-gray-200'>
         {roadData.lists.length > 0 ? (
           <p className="text-sm text-gray-500">
             Showing {roadData.limit * (roadData.page - 1) + 1} to {Math.min(roadData.limit * roadData.page, roadData.total)} of {roadData.total} roads
@@ -411,7 +304,7 @@ const FutureRoadList: React.FC = () => {
             No roads found
           </p>
         )}
-      </div> */}
+      </div>
 
       {isDialogOpen && <FutureRoadDialog onClose={() => setIsDialogOpen(false)} />}
       {isDeleteDialogOpen && roadToDelete && (
