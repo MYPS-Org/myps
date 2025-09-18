@@ -1,4 +1,5 @@
-﻿using DBHelper.Data;
+﻿using Confluent.Kafka;
+using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Table;
 using DBHelper.Models.Views;
@@ -11,26 +12,15 @@ using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.EntityFrameworkCore.Scaffolding.Metadata;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
-using OfficeOpenXml.Drawing.Controls;
-using System.ComponentModel.DataAnnotations;
-using System.Data.SqlClient;
-using System.IO.Pipelines;
 using System.Reflection;
-using System.Security.Cryptography.X509Certificates;
-using System.Security.Cryptography.Xml;
 using System.Text.RegularExpressions;
-using System.Xml;
-using System.Xml.Linq;
-using WebAPI.Controllers.Programs;
-using static System.Runtime.InteropServices.JavaScript.JSType;
-using static WebAPI.Controllers.Projects.ShowProjectFilterDTO;
 namespace WebAPI.Controllers.Projects
 {
     [ApiController]
     [Route("api/[controller]/[action]")]
     public class ProjectController : CoreController
     {
-        public ProjectController(AppDbContext db) : base(db) { }
+        public ProjectController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
         #region Project Lists
         [AllowAnonymous]
         [HttpPost]

@@ -1,4 +1,5 @@
-﻿using DBHelper.Data;
+﻿using Confluent.Kafka;
+using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Table;
 using Helpers;
@@ -13,7 +14,7 @@ namespace WebAPI.Controllers.ProjectGroup
     [Route("api/[controller]/[action]")]
     public class ProjectGroupController : CoreController
     {
-        public ProjectGroupController(AppDbContext db) : base(db) { }
+        public ProjectGroupController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
         #region Project Lists
         [AllowAnonymous]
         [HttpPost]

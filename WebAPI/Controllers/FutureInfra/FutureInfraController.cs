@@ -1,4 +1,5 @@
-﻿using DBHelper.Data;
+﻿using Confluent.Kafka;
+using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Table;
 using DBHelper.Models.Views;
@@ -19,7 +20,7 @@ namespace WebAPI.Controllers.Programs
     [Route("api/[controller]/[action]")]
     public class FutureInfraController : CoreController
     {
-        public FutureInfraController(AppDbContext db) : base(db) { }
+        public FutureInfraController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
         #region Future Roads
         [AllowAnonymous]
         [HttpPost]

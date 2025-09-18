@@ -1,4 +1,5 @@
-﻿using DBHelper.Data;
+﻿using Confluent.Kafka;
+using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Table;
 using DBHelper.Models.Views;
@@ -6,20 +7,14 @@ using Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Data.SqlClient;
 using System.Reflection;
-using System.Text.RegularExpressions;
-using System.Xml;
-using static Eaf.Domain.Uow.EafDataFilters;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 namespace WebAPI.Controllers.Programs
 {
     [ApiController]
     [Route("api/[controller]/[action]")]
     public class ProgramController : CoreController
     {
-        public ProgramController(AppDbContext db) : base(db) { }
+        public ProgramController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
         #region Program Lists
         [AllowAnonymous]
         [HttpPost]

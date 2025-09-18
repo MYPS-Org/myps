@@ -1,14 +1,15 @@
-﻿using DBHelper.Data;
+﻿using Confluent.Kafka;
+using DBHelper.Data;
 using DBHelper.Models.Dtos;
 using DBHelper.Models.Enums;
+using DBHelper.Models.Extra;
 using DBHelper.Models.Table;
 using DBHelper.Models.Views;
+using Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Helpers;
 using System.Text;
-using DBHelper.Models.Extra;
 
 namespace WebAPI.Controllers.MockUps
 {
@@ -16,7 +17,7 @@ namespace WebAPI.Controllers.MockUps
     [Route("api/[controller]/[action]")]
     public class PISController : CoreController
     {
-        public PISController(AppDbContext db) : base(db) { }
+        public PISController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
 
         [HttpPost]
         [AllowAnonymous]

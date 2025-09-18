@@ -1,4 +1,5 @@
-﻿using DBHelper.Data;
+﻿using Confluent.Kafka;
+using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Table;
 using Helpers;
@@ -13,6 +14,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
+using static Confluent.Kafka.ConfigPropertyNames;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace WebAPI.Controllers
@@ -22,9 +24,11 @@ namespace WebAPI.Controllers
     {
         public AppDbContext _db;
         public Users _Session = new Users();
-        public CoreController(AppDbContext db)
+        private readonly IProducer<Null, string> _producer;
+        public CoreController(AppDbContext db, IProducer<Null, string> producer)
         {
             _db = db;
+            _producer = producer;
         }
         public override void OnActionExecuting(ActionExecutingContext context)
         {

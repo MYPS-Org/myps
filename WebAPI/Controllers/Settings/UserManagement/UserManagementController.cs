@@ -1,4 +1,5 @@
-﻿using DBHelper.Data;
+﻿using Confluent.Kafka;
+using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Table;
 using DBHelper.Models.Views;
@@ -17,7 +18,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
     [AllowAnonymous]
     public class UserManagementController : CoreController
     {
-        public UserManagementController(AppDbContext db) : base(db) { }
+        public UserManagementController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
 
         [AllowAnonymous]
         [HttpPost]
