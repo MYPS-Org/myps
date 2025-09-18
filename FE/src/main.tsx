@@ -3,6 +3,12 @@ import ReactDOM from 'react-dom/client'
 import './utils'
 import App from './App.tsx'
 import './index.css'
+import { signalRService } from './services/signalrService'
+
+// Initialize SignalR connection
+signalRService.startConnection(`${import.meta.env.VITE_API_BASE_URL}/notificationHub`)
+  .then(() => console.log('SignalR initialized'))
+  .catch(console.error);
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
