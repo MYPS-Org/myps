@@ -306,7 +306,7 @@ export const fetchProjectStagesByProjectId = async (projectId: string) => {
             },
             Status: 200,
             Message: "No revisions found"
-        } as ApiResponse<ProjectRevisionList>;
+        }
     }
 };
 // #endregion

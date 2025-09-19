@@ -602,6 +602,7 @@ export interface ProjectStages {
 	Agency: string;
 	CreatedBy: string;
 	CreatedDate: string;
+	UpdatedBy?: string;
 }
 
 export interface ProjectRevisionList {

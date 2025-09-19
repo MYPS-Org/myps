@@ -13,6 +13,7 @@ import { selectedItemAtom, type Bridge } from "../state/rbiaAtoms";
 import { useBridgeData } from "../hooks/useBridgeData";
 import FutureBridgeDialog from "../Dialogs/FutureBridgeDialog";
 import DeleteBridgeDialog from "../Dialogs/DeleteBridgeDialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../components/tailwindui/table";
 // Simple Badge component
 const Badge: React.FC<{ children: React.ReactNode; className?: string; color?: string }> = ({ 
   children, 
@@ -185,61 +186,59 @@ const FutureBridgeList: React.FC = () => {
       
       {/* Table */}
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <SortableHeader field="RoadId">Road ID</SortableHeader>
-              <SortableHeader field="Name">Bridge Name</SortableHeader>
-              <SortableHeader field="SectionRoadId">Section Road ID</SortableHeader>
-              <SortableHeader field="From">From (km)</SortableHeader>
-              <SortableHeader field="Length">Length (km)</SortableHeader>
-              <SortableHeader field="CarriageWay">Carriage Way</SortableHeader>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+        <Table className="min-w-full divide-y divide-gray-200">
+          <TableHead className="bg-gray-50">
+            <TableRow>
+              <TableHeader justify="center">Road ID</TableHeader>
+              <TableHeader justify="center">Bridge Name</TableHeader>
+              <TableHeader justify="center">Section Road ID</TableHeader>
+              <TableHeader justify="center">From (km)</TableHeader>
+              <TableHeader justify="center">Length (km)</TableHeader>
+              <TableHeader justify="center">Carriage Way</TableHeader>
+              <TableHeader justify="center">Actions</TableHeader>
+            </TableRow>
+          </TableHead>
+          <TableBody className="bg-white divide-y divide-gray-200">
             {isLoading ? (
-              <tr>
-                <td colSpan={7} className="px-6 py-4 text-center text-gray-500">
+              <TableRow>
+                <TableCell colSpan={7} className="px-6 py-4 text-center text-gray-500">
                   Loading bridges...
-                </td>
-              </tr>
-            ) : bridgeData.lists.length > 0 ? (
+                </TableCell>
+              </TableRow>
+            ) : bridgeData.lists.length > 0 && (
               bridgeData.lists.map((bridge, index) => (
-                <tr 
+                <TableRow 
                   key={`${bridge.RoadSectionId}-${bridge.BridgeId}`} 
                   className={`hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
                 >
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <TableCell className="text-row px-6 py-4 whitespace-nowrap">
                     <Badge color="blue" className="text-xs">
                       {bridge.RoadSectionId}
                     </Badge>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-900 font-medium">
+                  </TableCell>
+                  <TableCell className="text-row px-6 py-4 whitespace-nowrap text-gray-900 font-medium">
                     {bridge.Name}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  </TableCell>
+                  <TableCell className="text-row px-6 py-4 whitespace-nowrap">
                     <Badge color="purple" className="text-xs">
                       {bridge.BridgeId}
                     </Badge>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-900">
+                  </TableCell>
+                  <TableCell className="text-row px-6 py-4 whitespace-nowrap text-gray-900">
                     {bridge.From} km
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-900">
+                  </TableCell>
+                  <TableCell className="text-row px-6 py-4 whitespace-nowrap text-gray-900">
                     {bridge.Length} km
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <Badge 
+                  </TableCell>
+                  <TableCell className="text-row px-6 py-4 whitespace-nowrap">
+                    <Badge
                       color="blue"
                       className="text-xs"
                     >
                       {bridge.CarriageWay} Way
                     </Badge>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  </TableCell>
+                  <TableCell className="text-row px-6 py-4 whitespace-nowrap">
                     <div className="flex space-x-2">
                       <button
                         onClick={() => handleEdit(bridge)}
@@ -256,18 +255,12 @@ const FutureBridgeList: React.FC = () => {
                         <TrashIcon className="w-4 h-4" />
                       </button>
                     </div>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))
-            ) : (
-              <tr>
-                <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
-                  No bridges found.
-                </td>
-              </tr>
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
 
       {/* Pagination */}
@@ -331,6 +324,7 @@ const FutureBridgeList: React.FC = () => {
           bridge={bridgeToDelete}
         />
       )}
+      {}
     </div>
   );
 };

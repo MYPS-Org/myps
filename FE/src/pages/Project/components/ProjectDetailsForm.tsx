@@ -144,7 +144,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
                     </div>
 
-                    <div className="grid grid-cols-2 gap-5 border-t-2 pt-4 border-gray-200">
+                    <div className="grid grid-cols-3 gap-5 border-t-2 pt-4 border-gray-200">
                         <div className="w-full flex flex-col text-left gap-2">
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.Category ? 'text-red-500' : 'text-gray-600'}`}>*Category:</label>
@@ -184,12 +184,25 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 </select>
                             </div>
                         </div>
+
+                        <div className="w-full flex flex-col text-left gap-2">
+                            <div className="flex flex-row gap-5 items-center">
+                                <label className={`w-1/3 ${errors.MYCAApprovalDate ? 'text-red-500' : 'text-gray-600'}`}>MYCA Approval Date:</label>
+                                <input 
+                                    type="date"
+                                    value={projectDetails?.MYCAApprovalDate ? new Date(projectDetails?.MYCAApprovalDate).toISOString().split('T')[0] : ''}
+                                    onChange={(e) => handleInputChange('MYCAApprovalDate', e.target.value ? new Date(e.target.value).toISOString() : null)}
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.MYCAApprovalDate ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
+                                    style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                                />
+                            </div>
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-1 gap-2">
                         <div className='w-full flex text-left gap-2'>
-                            <label className={`w-1/6 ${errors.Description ? 'text-red-500' : 'text-gray-600'}`}>*Description:</label>
-                            <div className="w-5/6">
+                            <label className={`w-1/9 ${errors.Description ? 'text-red-500' : 'text-gray-600'}`}>*Description:</label>
+                            <div className="w-8/9">
                                 <textarea
                                     value={projectDetails?.Description}
                                     onChange={(e) => handleInputChange('Description', e.target.value)}
@@ -439,7 +452,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                 {/* Implementation Readiness and Modality Section */}
                 <div className="space-y-4">
                     <h3 className="text-lg text-left font-semibold text-gray-800 border-t-2 py-2 border-blue-500">
-                        Implementation Readiness
+                        Implementation Readiness and Modality
                     </h3>
                     
                     <div className="grid grid-cols-3 gap-5">
@@ -497,12 +510,9 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                 
                 {/* Modality */}
                 <div className='space-y-4'>
-                    <h3 className="text-lg text-left font-semibold text-gray-800 border-t-2 py-2 border-blue-500">
-                        Modality
-                    </h3>
-                    
+                    <h3 className="text-lg text-left font-semibold text-gray-800 border-t-2 py-2 border-gray-200"></h3>
 
-                    <div className='grid grid-cols-3 gap-5'>
+                    <div className='grid grid-cols-2 gap-5'>
                         <div className="w-full flex flex-col text-left gap-2">
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.Feasibility ? 'text-red-500' : 'text-gray-600'}`}>Feasibility Study:</label>
@@ -530,26 +540,14 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     value={projectDetails?.FeasibilityDate ? new Date(projectDetails?.FeasibilityDate).toISOString().split('T')[0] : ''}
                                     onChange={(e) => handleInputChange('FeasibilityDate', e.target.value ? new Date(e.target.value).toISOString() : null)}
                                     className={`w-2/3 mt-1 px-3 py-2 border ${errors.FeasibilityDate ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
-                                    style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
-                                />
-                            </div>
-                        </div>
-
-                        <div className="w-full flex flex-col text-left gap-2">
-                            <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.MYCAApprovalDate ? 'text-red-500' : 'text-gray-600'}`}>MYCA Approval Date:</label>
-                                <input 
-                                    type="date"
-                                    value={projectDetails?.MYCAApprovalDate ? new Date(projectDetails?.MYCAApprovalDate).toISOString().split('T')[0] : ''}
-                                    onChange={(e) => handleInputChange('MYCAApprovalDate', e.target.value ? new Date(e.target.value).toISOString() : null)}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.MYCAApprovalDate ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
+                                    disabled={!(projectDetails?.Feasibility === 1)}
                                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
                                 />
                             </div>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-5">
+                    <div className="grid grid-cols-2 gap-5">
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.DetailedDesign ? 'text-red-500' : 'text-gray-600'}`}>Detailed Design:</label>
@@ -574,6 +572,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     onChange={(e) => handleInputChange('DetailedDesignDate', e.target.value ? new Date(e.target.value).toISOString() : null)}
                                     className={`w-2/3 mt-1 px-3 py-2 border ${errors.DetailedDesignDate ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
                                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                                    disabled={!(projectDetails?.DetailedDesign)}
                                 />
                             </div>
                         </div>

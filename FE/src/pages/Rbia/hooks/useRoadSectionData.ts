@@ -8,9 +8,10 @@ import {
   updateRoadSectionDataAtom,
   updateRoadSectionFiltersAtom,
   clearRoadSectionFiltersAtom,
-  hasActiveRoadSectionFiltersAtom 
+  hasActiveRoadSectionFiltersAtom, 
+  deoListAtom
 } from '../state/rbiaAtoms';
-import { fetchRoadSectionData } from '../Service';
+import { fetchRoadSectionData, fetchRoadSectionInitData } from '../Service';
 import type { RoadSectionPagination } from '../Model.d';
 
 export const useRoadSectionData = () => {
@@ -18,6 +19,7 @@ export const useRoadSectionData = () => {
   const [roadSectionFilters] = useAtom(roadSectionFiltersAtom);
   const [isLoading, setIsLoading] = useAtom(roadSectionLoadingAtom);
   const [searchInput, setSearchInput] = useAtom(roadSectionSearchInputAtom);
+  const [initRoadSections, setInitRoadSections] = useAtom(deoListAtom);
   const [hasActiveFilters] = useAtom(hasActiveRoadSectionFiltersAtom);
   const [, updateRoadSectionData] = useAtom(updateRoadSectionDataAtom);
   const [, updateRoadSectionFilters] = useAtom(updateRoadSectionFiltersAtom);
@@ -27,8 +29,12 @@ export const useRoadSectionData = () => {
   const initializeData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await fetchRoadSectionData(roadSectionFilters);
-      updateRoadSectionData(response.Data);
+      const [responseRoadSection, responseInitData] = await Promise.all([
+        fetchRoadSectionData(roadSectionFilters),
+        fetchRoadSectionInitData()
+      ]);
+      updateRoadSectionData(responseRoadSection.Data);
+      setInitRoadSections(responseInitData.Data.DEOs);
     } catch (error) {
       console.error('Error initializing road section data:', error);
       throw error;
@@ -167,6 +173,7 @@ export const useRoadSectionData = () => {
     // State
     roadSectionData,
     roadSectionFilters,
+    initRoadSections,
     isLoading,
     searchInput,
     hasActiveFilters,

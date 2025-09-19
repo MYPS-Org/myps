@@ -13,6 +13,8 @@ import { selectedItemAtom, type RoadSection } from "../state/rbiaAtoms";
 import { useRoadSectionData } from "../hooks/useRoadSectionData";
 import FutureRoadSectionDialog from "../Dialogs/FutureRoadSectionDialog";
 import DeleteRoadSectionDialog from "../Dialogs/DeleteRoadSectionDialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../components/tailwindui/table";
+import FutureBridgeDialog from "../Dialogs/FutureBridgeDialog";
 
 // Simple Badge component
 const Badge: React.FC<{ children: React.ReactNode; className?: string; color?: string }> = ({ 
@@ -56,6 +58,8 @@ const RoadSectionList: React.FC = () => {
   const [, setSelectedItem] = useAtom(selectedItemAtom);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isBridgeDialogOpen, setIsBridgeDialogOpen] = useState(false);
+  const [sectionToAddBridge, setSectionToAddBridge] = useState<RoadSection | null>(null);
   const [roadSectionToDelete, setRoadSectionToDelete] = useState<RoadSection | null>(null);
   const [sortField, setSortField] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -66,6 +70,7 @@ const RoadSectionList: React.FC = () => {
     isLoading,
     searchInput,
     hasActiveFilters,
+    roadSectionFilters,
     initializeData,
     handleSearchInputChange,
     handleSearchSubmit,
@@ -92,6 +97,11 @@ const RoadSectionList: React.FC = () => {
   const handleDelete = (section: RoadSection) => {
     setRoadSectionToDelete(section);
     setIsDeleteDialogOpen(true);
+  };
+
+  const handleAddBridge = (section: RoadSection) => {
+    setSectionToAddBridge(section);
+    setIsBridgeDialogOpen(true);
   };
 
   const handleConfirmDelete = (roadSectionId: string) => {
@@ -167,7 +177,7 @@ const RoadSectionList: React.FC = () => {
               <AdjustmentsVerticalIcon className="w-4 h-4 mr-1" />
               Filter
               {(() => {
-                const activeFilters = Object.values(roadSectionData.lists || {}).filter(Boolean).length;
+                const activeFilters = Object.values(roadSectionFilters.filters || {}).filter(Boolean).length;
                 return activeFilters > 0 && (
                   <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
                     {activeFilters}
@@ -176,61 +186,59 @@ const RoadSectionList: React.FC = () => {
               })()}
             </Button>
             
-            <Button color="blue" className="flex items-center" onClick={handleCreate} disabled={isLoading}>
+            {/* <Button color="blue" className="flex items-center" onClick={handleCreate} disabled={isLoading}>
               <PlusIcon className="w-4 h-4 mr-1" />
               Add Road Section
-            </Button>
+            </Button> */}
           </div>
         </div>
       </div>
       
       {/* Table */}
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <SortableHeader field="SectionRoadId">Section Road ID</SortableHeader>
-              <SortableHeader field="RoadId">Road ID</SortableHeader>
-              <SortableHeader field="Length">Length (km)</SortableHeader>
-              <SortableHeader field="EngineeringDistrict">Engineering District</SortableHeader>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+        <Table className="min-w-full divide-y divide-gray-200">
+          <TableHead className="bg-gray-50">
+            <TableRow>
+              <TableHeader justify="center">Section Road ID</TableHeader>
+              <TableHeader justify="center">Road ID</TableHeader>
+              <TableHeader justify="center">Length (km)</TableHeader>
+              <TableHeader justify="center">Engineering District</TableHeader>
+              <TableHeader justify="center">Actions</TableHeader>
+            </TableRow>
+          </TableHead>
+          <TableBody className="bg-white divide-y divide-gray-200">
             {isLoading ? (
-              <tr>
-                <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
+              <TableRow>
+                <TableCell colSpan={5} className="px-6 py-4 text-center text-gray-500">
                   Loading road sections...
-                </td>
-              </tr>
-            ) : roadSectionData.lists.length > 0 ? (
+                </TableCell>
+              </TableRow>
+            ) : roadSectionData.lists.length > 0 && (
               roadSectionData.lists.map((section, index) => (
-                <tr 
+                <TableRow 
                   key={section.RoadSectionId} 
                   className={`hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
                 >
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <TableCell className="text-center px-6 py-4 whitespace-nowrap">
                     <Badge color="purple" className="text-xs">
                       {section.RoadSectionId}
                     </Badge>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  </TableCell>
+                  <TableCell className="text-center px-6 py-4 whitespace-nowrap">
                     <Badge color="blue" className="text-xs">
                       {section.RoadId}
                     </Badge>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-900 font-medium">
+                  </TableCell>
+                  <TableCell className="text-center px-6 py-4 whitespace-nowrap">
                     {section.RoadLength} km
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  </TableCell>
+                  <TableCell className="text-center px-6 py-4 whitespace-nowrap">
                     <Badge color="orange" className="text-xs">
                       District {section.DEO}
                     </Badge>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex space-x-2">
+                  </TableCell>
+                  <TableCell className="text-center px-6 py-4 whitespace-nowrap">
+                    <div className="flex justify-center space-x-2">
                       <button
                         onClick={() => handleEdit(section)}
                         className="p-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-md transition-colors duration-200"
@@ -245,19 +253,21 @@ const RoadSectionList: React.FC = () => {
                       >
                         <TrashIcon className="w-4 h-4" />
                       </button>
+                      <button
+                        onClick={() => { handleAddBridge(section) }}
+                        className="p-2 flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors duration-200"
+                        disabled={isLoading}
+                      >
+                        <PlusIcon className="w-4 h-4 text-white-500" /> Add Bridge
+                      </button>
                     </div>
-                  </td>
-                </tr>
+
+                  </TableCell>
+                </TableRow>
               ))
-            ) : (
-              <tr>
-                <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
-                  No road sections found.
-                </td>
-              </tr>
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
 
       {/* Pagination */}
@@ -308,6 +318,17 @@ const RoadSectionList: React.FC = () => {
           </p>
         )}
       </div>
+
+      {isDialogOpen && <FutureBridgeDialog onClose={() => setIsDialogOpen(false)} />}
+      {isBridgeDialogOpen && sectionToAddBridge && (
+        <FutureBridgeDialog 
+          onClose={() => {
+            setIsBridgeDialogOpen(false);
+            setSectionToAddBridge(null);
+          }}
+          roadSection={sectionToAddBridge}
+        />
+      )}
 
       {isDialogOpen && <FutureRoadSectionDialog onClose={() => setIsDialogOpen(false)} />}
       {isDeleteDialogOpen && roadSectionToDelete && (

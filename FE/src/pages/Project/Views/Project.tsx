@@ -238,12 +238,12 @@ const Project: React.FC = () => {
                         <TableHead>
                             <TableRow>
                                 <TableHeader>Project ID</TableHeader>
-                                <TableHeader justify='center'>Program Name</TableHeader>
-                                <TableHeader justify='center'>Category</TableHeader>
+                                <TableHeader>Program Name</TableHeader>
+                                <TableHeader>Category</TableHeader>
                                 {/* <TableHeader>Total Project Cost (PHP)</TableHeader> */}
-                                <TableHeader justify='center'>Created By</TableHeader>
-                                <TableHeader justify='center'>Created Date</TableHeader>
-                                <TableHeader justify='center'>Actions</TableHeader>
+                                <TableHeader>Updated By</TableHeader>
+                                <TableHeader>Created Date</TableHeader>
+                                <TableHeader>Actions</TableHeader>
                             </TableRow>
                         </TableHead>
                         <TableBody>
@@ -267,10 +267,7 @@ const Project: React.FC = () => {
                                         </TableCell>
                                         <TableCell>{project.ProgramName}</TableCell>
                                         <TableCell>{project.Category}</TableCell>
-                                        {/* <TableCell className="text-right">
-                                            {formatCurrency(project.TotalProjectCost)}
-                                        </TableCell> */}
-                                        <TableCell>{project.CreatedBy}</TableCell>
+                                        <TableCell>{project.UpdateBy}</TableCell>
                                         <TableCell>{project.CreatedDate.StringToDate()}</TableCell>
                                         <TableCell>
                                             <div className="flex items-center space-x-1">
@@ -303,6 +300,7 @@ const Project: React.FC = () => {
                                                             <TableHead>
                                                                 <TableRow>
                                                                     <TableHeader justify="center" className="text-xs">Project ID</TableHeader>
+                                                                    <TableHeader justify="center" className="text-xs">Stage Name</TableHeader>
                                                                     <TableHeader justify="center" className="text-xs">Description</TableHeader>
                                                                     <TableHeader justify="center" className="text-xs">Category</TableHeader>
                                                                     <TableHeader justify="center" className="text-xs">SubProgram</TableHeader>
@@ -315,10 +313,11 @@ const Project: React.FC = () => {
                                                                 {revisionLists[project.ProjectId || '']?.Stages?.map((stage) => (
                                                                     <TableRow key={stage.Id}>
                                                                         <TableCell className="font-medium text-sm text-center truncate max-w-32">{stage.ProjectId}</TableCell>
+                                                                        <TableCell className="font-medium text-sm text-center truncate max-w-32">{stage.StageName}</TableCell>
                                                                         <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.Description}</TableCell>
                                                                         <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.Category}</TableCell>
                                                                         <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.Thrust}</TableCell>
-                                                                        <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.CreatedBy}</TableCell>
+                                                                        <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.UpdatedBy}</TableCell>
                                                                         <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.CreatedDate.StringToDate()}</TableCell>
                                                                         <TableCell className='text-center'>
                                                                             <Button

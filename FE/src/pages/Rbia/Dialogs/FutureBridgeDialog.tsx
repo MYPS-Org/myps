@@ -3,20 +3,21 @@ import { useAtom } from "jotai";
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/16/solid';
 import { Button } from '../../../components/tailwindui/button';
-import { bridgesAtom, selectedItemAtom, roadSectionsAtom, roadsAtom, type Bridge } from "../state/rbiaAtoms";
+import { bridgesAtom, selectedItemAtom, roadSectionsAtom, type Bridge, type RoadSection } from "../state/rbiaAtoms";
+import { addFutureBridge } from "../Service";
 
 interface FutureBridgeDialogProps {
   onClose: () => void;
+  roadSection?: RoadSection; // Pass the road section to pre-fill RoadSectionId
 }
 
-const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose }) => {
+const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSection }) => {
   const [bridges, setBridges] = useAtom(bridgesAtom);
   const [selectedItem] = useAtom(selectedItemAtom);
   const [roadSections] = useAtom(roadSectionsAtom);
-  const [roads] = useAtom(roadsAtom);
   const [formData, setFormData] = useState<Bridge>({
     Id: 0,
-    RoadSectionId: "",
+    RoadSectionId: roadSection?.RoadId || '', // Pre-fill with road section ID if provided
     BridgeId: "",
     Name: "",
     From: "",
@@ -37,23 +38,23 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.RoadSectionId || !formData.Name || 
-        formData.From || formData.Length || formData.CarriageWay ) {
+        !formData.From || !formData.Length || !formData.CarriageWay ) {
       alert("Please fill in all required fields with valid values");
       return;
     }
 
     try {
-      if (selectedItem) {
-        // Edit existing bridge
-        setBridges(
-          bridges.map((bridge: Bridge) =>
-            bridge.RoadSectionId === (selectedItem as Bridge).RoadSectionId && 
-            bridge.Name === (selectedItem as Bridge).Name ? formData : bridge
-          )
-        );
-      } else {
-        // Create new bridge
-        setBridges([...bridges, formData]);
+      const payload = {
+        RoadSectionId: formData.RoadSectionId,
+        BridgeId: formData.BridgeId,
+        Name: formData.Name,
+        From: formData.From,
+        Length: formData.Length,
+        CarriageWay: formData.CarriageWay
+      }
+      const response = await addFutureBridge(payload); // Call the service to add the future bridge
+      if (response) {
+        console.log("Bridge added successfully:", response);
       }
       handleClose();
     } catch (error) {
@@ -118,25 +119,57 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose }) => {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Section Road ID <span className="text-red-500">*</span>
               </label>
-              <select
-                value={formData.RoadSectionId}
-                onChange={(e) => handleChange('RoadSectionId', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
-                required
-              >
-                <option value="">Select Road Section</option>
-                {roadSections.map((section) => (
-                  <option key={section.RoadSectionId} value={section.RoadSectionId}>
-                    {section.RoadSectionId} - {section.RoadLength}km (District {section.DEO})
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-gray-500 mt-1">
-                Select the road section where this bridge will be located
-              </p>
+              {roadSection ? (
+                <>
+                  <input
+                    type="text"
+                    value={roadSection.RoadSectionId}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-100 text-gray-900"
+                    readOnly
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    This is the ID of the road section where the bridge will be located.
+                  </p>
+                </>
+              ) : (
+              <>
+                <select
+                  value={formData.RoadSectionId}
+                  onChange={(e) => handleChange('RoadSectionId', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                  required
+                >
+                  <option value="">Select Road Section</option>
+                  {roadSections.map((section) => (
+                    <option key={section.RoadSectionId} value={section.RoadSectionId}>
+                      {section.RoadSectionId} - {section.RoadLength}km (District {section.DEO})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Select the road section where this bridge will be located
+                </p>
+                </>
+              )}
             </div>
 
             {/* Bridge Name */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Bridge ID <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.BridgeId}
+                onChange={(e) => handleChange('BridgeId', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
+                required
+                placeholder="Enter Bridge ID (must start with 'FB')"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Section Road ID must start with 'FS' (e.g., S001-001, FS001-002)
+              </p>
+            </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Bridge Name <span className="text-red-500">*</span>
@@ -157,11 +190,9 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose }) => {
                 From Chainage (km) <span className="text-red-500">*</span>
               </label>
               <input
-                type="number"
-                step="0.01"
-                min="0"
+                type="text"
                 value={formData.From}
-                onChange={(e) => handleChange('From', Number(e.target.value))}
+                onChange={(e) => handleChange('From', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
                 required
                 placeholder="Enter starting chainage in kilometers"
@@ -177,11 +208,9 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose }) => {
                 Bridge Length (m) <span className="text-red-500">*</span>
               </label>
               <input
-                type="number"
-                step="0.1"
-                min="0.1"
+                type="text"
                 value={formData.Length}
-                onChange={(e) => handleChange('Length', Number(e.target.value))}
+                onChange={(e) => handleChange('Length', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
                 required
                 placeholder="Enter bridge length in meters"
@@ -197,11 +226,9 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose }) => {
                 Number of Carriage Ways <span className="text-red-500">*</span>
               </label>
               <input
-                type="number"
-                min="1"
-                max="10"
+                type="text"
                 value={formData.CarriageWay}
-                onChange={(e) => handleChange('CarriageWay', Number(e.target.value))}
+                onChange={(e) => handleChange('CarriageWay', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
                 required
                 placeholder="Enter number of carriage ways"

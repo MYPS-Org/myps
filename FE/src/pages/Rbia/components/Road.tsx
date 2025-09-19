@@ -12,7 +12,9 @@ import {
 import { selectedItemAtom, type Road } from "../state/rbiaAtoms";
 import { useRoadData } from "../hooks/useRoadData";
 import FutureRoadDialog from "../Dialogs/FutureRoadDialog";
+import FutureRoadSectionDialog from "../Dialogs/FutureRoadSectionDialog";
 import DeleteRoadDialog from "../Dialogs/DeleteRoadDialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../components/tailwindui/table";
 
 // Simple Badge component
 const Badge: React.FC<{ children: React.ReactNode; className?: string; color?: string }> = ({ 
@@ -56,6 +58,8 @@ const FutureRoadList: React.FC = () => {
   const [, setSelectedItem] = useAtom(selectedItemAtom);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isSectionDialogOpen, setIsSectionDialogOpen] = useState(false);
+  const [roadToAddSection, setRoadToAddSection] = useState<Road | null>(null);
   const [roadToDelete, setRoadToDelete] = useState<Road | null>(null);
   const [sortField, setSortField] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -93,6 +97,11 @@ const FutureRoadList: React.FC = () => {
   const handleDelete = (road: Road) => {
     setRoadToDelete(road);
     setIsDeleteDialogOpen(true);
+  };
+
+  const handleAddSection = (road: Road) => {
+    setRoadToAddSection(road);
+    setIsSectionDialogOpen(true);
   };
 
   const handleConfirmDelete = (roadId: string) => {
@@ -187,47 +196,45 @@ const FutureRoadList: React.FC = () => {
       
       {/* Table */}
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <SortableHeader field="RoadId">Road ID</SortableHeader>
-              <SortableHeader field="Name">Road Name</SortableHeader>
-              <SortableHeader field="Classification">Classification</SortableHeader>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+        <Table className="min-w-full divide-y divide-gray-200">
+          <TableHead className="bg-gray-50">
+            <TableRow>
+              <TableHeader justify="center">Road ID</TableHeader>
+              <TableHeader justify="center">Road Name</TableHeader>
+              <TableHeader justify="center">Classification</TableHeader>
+              <TableHeader justify="center">Actions</TableHeader>
+            </TableRow>
+          </TableHead>
+          <TableBody className="bg-white divide-y divide-gray-200">
             {isLoading ? (
-              <tr>
-                <td colSpan={4} className="px-6 py-4 text-center text-gray-500">
+              <TableRow>
+                <TableCell colSpan={4} className="px-6 py-4 text-center text-gray-500">
                   Loading roads...
-                </td>
-              </tr>
-            ) : roadData.lists.length > 0 ? (
+                </TableCell>
+              </TableRow>
+            ) : roadData.lists.length > 0 && (
               roadData.lists.map((road, index) => (
-                <tr 
+                <TableRow 
                   key={road.RoadId} 
                   className={`hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
                 >
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <TableCell className="text-center px-6 py-4 whitespace-nowrap">
                     <Badge color="blue" className="text-xs">
                       {road.RoadId}
                     </Badge>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  </TableCell>
+                  <TableCell className="text-center px-6 py-4 whitespace-nowrap">
                     <div className="font-medium text-gray-900">
                       {road.Name}
                     </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  </TableCell>
+                  <TableCell className="text-center px-6 py-4 whitespace-nowrap">
                     <Badge color="green" className="text-xs">
                       Class {road.Classification}
                     </Badge>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex space-x-2">
+                  </TableCell>
+                  <TableCell className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex justify-center  space-x-2">
                       <button
                         onClick={() => handleEdit(road)}
                         className="p-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-md transition-colors duration-200"
@@ -242,19 +249,20 @@ const FutureRoadList: React.FC = () => {
                       >
                         <TrashIcon className="w-4 h-4" />
                       </button>
+                      <button
+                        onClick={() => handleAddSection(road)}
+                        className="flex items-center gap-2 p-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors duration-200"
+                        disabled={isLoading}
+                      >
+                        <PlusIcon className="w-4 h-4" /> Add Section
+                      </button>
                     </div>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))
-            ) : (
-              <tr>
-                <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
-                  No roads found.
-                </td>
-              </tr>
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
 
       {/* Pagination */}
@@ -307,6 +315,15 @@ const FutureRoadList: React.FC = () => {
       </div>
 
       {isDialogOpen && <FutureRoadDialog onClose={() => setIsDialogOpen(false)} />}
+      {isSectionDialogOpen && roadToAddSection && (
+        <FutureRoadSectionDialog 
+          onClose={() => {
+            setIsSectionDialogOpen(false);
+            setRoadToAddSection(null);
+          }}
+          road={roadToAddSection}
+        />
+      )}
       {isDeleteDialogOpen && roadToDelete && (
         <DeleteRoadDialog 
           isOpen={isDeleteDialogOpen}

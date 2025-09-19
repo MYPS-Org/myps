@@ -10,6 +10,7 @@ import type {
   BridgePagination,
   FutureRoadsClassification
 } from "../Model.d";
+import type { RODEOEnum } from "../../Project/Model";
 
 // Type aliases for compatibility
 export type Road = FutureRoads;
@@ -65,6 +66,9 @@ export const roadFiltersAtom = atom<RoadPagination>({
 
 // Road Classifications Atom
 export const roadClassificationsAtom = atom<FutureRoadsClassification[]>([]);
+
+// DEO List Atom (for Road Sections and Bridges)
+export const deoListAtom = atom<RODEOEnum[]>([]);
 
 // Loading State Atoms
 export const roadLoadingAtom = atom<boolean>(false);
