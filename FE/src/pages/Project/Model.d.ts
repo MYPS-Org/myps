@@ -217,6 +217,7 @@ export interface InfraData {
 
 // #region Notes
 export interface AddNotes {
+	StageName: string;
 	DocumentType: string;
 	ProjectId: string,
 	Description: string,

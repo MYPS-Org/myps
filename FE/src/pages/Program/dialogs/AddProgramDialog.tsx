@@ -53,11 +53,11 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
     Type: 0,
     UserGroup: 0,
     Name: '',
+    AddedName: '',
     YearStart: new Date().getFullYear() + 1,
     YearEnd: new Date().getFullYear(),
     SkipReason: '',
     IsSkipped: false,
-    AllowAutoName: true,
     DataSecurityGroup: [] as string[], // Array to store selected data security IDs
   });
 
@@ -65,7 +65,13 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await addProgram(formData);
+      const payload = {
+        ...formData, 
+        Name: formData.AddedName 
+          ? `${formData.Name} ${formData.AddedName}` 
+          : formData.Name
+      }
+      const response = await addProgram(payload);
       onSubmit(formData); // Call the onSubmit prop with the form data
       const StageName = Stage.find(stage => stage.Enum === formData.Stage)?.Name || '';
       if (response && response.Data && response.Data.Id) {
@@ -93,8 +99,7 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
         const selectedStage = Stage.find(stage => stage.Enum === (field === 'Stage' ? value : newFormData.Stage));
         const stageName = selectedStage ? selectedStage.Name : '';
         const yearStart = field === 'YearStart' ? value : newFormData.YearStart;
-        newFormData.Name = stageName + ' ' + yearStart;
-
+        newFormData.Name = stageName + ' ' + yearStart + ' -';
         // Auto-skip logic for stages 5-11
         if (field === 'Stage' && selectedStage && selectedStage.Enum >= 5 && selectedStage.Enum <= 11) {
           newFormData.IsSkipped = true;
@@ -168,11 +173,11 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
       Type: 0,
       UserGroup: 0,
       Name: '',
+      AddedName: '',
       YearStart: new Date().getFullYear(),
       YearEnd: new Date().getFullYear() + 6,
       SkipReason: '',
       IsSkipped: false,
-      AllowAutoName: true,
       DataSecurityGroup: [],
     });
   };
@@ -199,34 +204,34 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Form fields go here */}
-          <div className="">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Program Name</label>
-            <div className="flex flex-row items-center space-x-3">
-              <input
-                type="text"
-                value={formData.Name}
-                onChange={(e) => handleChange('Name', e.target.value)}
-                disabled={formData.AllowAutoName} // Disable input if auto-name is enabled
-                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 ${
-                  formData.AllowAutoName
-                    ? 'bg-gray-100 border-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-white border-gray-300 focus:ring-blue-500 focus:border-blue-500 text-gray-900'
-                }`}
-                required
-                placeholder="Auto-generated Name"
-              />
-              <div className="flex items-center space-x-3">
-                <label className="relative inline-flex items-center cursor-pointer">
+          <div className="w-full">
+            <div className='flex flex-row mb-4'>
+              <div className='w-1/3'>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Program Name</label>
+                <div className="items-center space-x-3">
                   <input
-                    type="checkbox"
-                    checked={formData.AllowAutoName}
-                    onChange={(e) => handleChange('AllowAutoName', e.target.checked)}
-                    className="sr-only peer"
+                    type="text"
+                    value={formData.Name}
+                    onChange={(e) => handleChange('Name', e.target.value)}
+                    className='w-full px-3 py-2 border rounded-l-md shadow-sm focus:outline-none focus:ring-2 bg-gray-200'
+                    required
+                    disabled
+                    placeholder="Auto-generated Name"
                   />
-                  <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:bg-blue-600 transition-colors"></div>
-                  <div className="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full border border-gray-300 peer-checked:translate-x-5 transform transition-transform"></div>
-                </label>
-                <span className="text-sm text-gray-700">Auto Name</span>
+                </div>
+              </div>
+              <div className='w-2/3'>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Sub Name</label>
+                <div className="items-center space-x-3">
+                  <input
+                    type="text"
+                    value={formData.AddedName}
+                    onChange={(e) => handleChange('AddedName', e.target.value)}
+                    className='w-full px-3 py-2 border-y border-r rounded-r-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
+                    required
+                    placeholder="Add Sub Name Not required"
+                  />
+                </div>
               </div>
             </div>
           </div>

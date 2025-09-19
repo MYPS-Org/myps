@@ -4,10 +4,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 
 import type { ProgramDetailsEnums } from '../Model.d'; // Adjust the import path as necessary
 import { Button } from '../../../components/tailwindui/button';
-import { editProgram, fetchProgramById, nextStage } from '../Service';
+import { editProgram, fetchProgramById } from '../Service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { useToast } from '../../../components/toaster/ToasterContext';
+import NextStageDialog from '../dialogs/NextStageDialog';
 // import { formatCurrency } from '../../../utils/GlobalFunctions';
 // import { Badge } from '../../../components/tailwindui/badge';
 
@@ -87,6 +88,7 @@ const ProgramDetail: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isDataSecurityExpanded, setIsDataSecurityExpanded] = useState(false);
+  const [isNextStageDialogOpen, setIsNextStageDialogOpen] = useState(false);
   
   // Group data security by OrgType
   const groupedDataSecurity = useMemo(() => {
@@ -268,20 +270,26 @@ const ProgramDetail: React.FC = () => {
   };
 
   const handleProceed = async () => {
-    setIsLoading(true);
+    setIsNextStageDialogOpen(true);
+  };
+
+  const handleNextStageSubmit = async (data: { ProgramId: string; Stage: number; Name?: string }) => {
     try {
-      const nextStageId = programEnums?.Details.StageId + 1;
-      console.log('Proceeding to next stage:', nextStageId);
-      await nextStage({ ProgramId: programEnums?.Details.ProgramId, Stage: nextStageId });
-      const nextStageName = programEnums?.Dropdowns.Stages.find(stage => stage.Id === nextStageId);
+      const nextStageName = programEnums?.Dropdowns.Stages.find(stage => stage.Id === data.Stage);
       if (nextStageName) {
-        handleViewDetails(programEnums?.Details.ProgramId, nextStageName.Name);
+        handleViewDetails(data.ProgramId, nextStageName.Name);
       }
     } catch (error) {
-      console.error('Error proceeding with program details:', error);
-    } finally {
-      setIsLoading(false);
+      console.error('Error handling next stage submission:', error);
+      showToast({
+        type: 'error',
+        message: 'Failed to proceed to next stage. Please try again.',
+      });
     }
+  };
+
+  const handleCloseNextStageDialog = () => {
+    setIsNextStageDialogOpen(false);
   };
 
   const handleViewProject = (projectId: string, stageName: string) => {
@@ -709,6 +717,17 @@ const ProgramDetail: React.FC = () => {
           </Table>
         </div>
       </div>
+
+      {/* Next Stage Dialog */}
+      {isNextStageDialogOpen && (
+        <NextStageDialog
+          isOpen={isNextStageDialogOpen}
+          onClose={handleCloseNextStageDialog}
+          onSubmit={handleNextStageSubmit}
+          program={programEnums?.Details}
+          stages={programEnums?.Dropdowns.Stages || []}
+        />
+      )}
     </div>
   );
 }

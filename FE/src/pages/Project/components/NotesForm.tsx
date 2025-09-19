@@ -109,6 +109,7 @@ const NotesForm: React.FC<NotesFormProps> = ({
         projectId={initialData?.ProjectDetails?.ProjectId || ''}
         onAddNote={handleAddNote}
         dropDownOptions={dropDownOptions}
+        stageName={initialData?.ProjectDetails?.StageName || ''}
       />
     </div>
   );

@@ -80,7 +80,7 @@ export const deleteProgram = async (program: ProgramList) => {
     }
 };
 
-export const nextStage = async (data: { ProgramId: string; Stage: number }) => {
+export const nextStage = async (data: { ProgramId: string; Stage: number, Name: string }) => {
     try {
         const request = await httpClient.post<ProgramDetails>('/Program/updateProgramStage', data, {
             preloaderMessage: 'Proceeding to next stage...'

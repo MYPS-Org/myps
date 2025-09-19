@@ -6,11 +6,11 @@ export interface ProgramModel {
 	Status: number;
 	Type: number;
 	Name: string;
+	AddedName?: string;
 	YearStart: number;
 	YearEnd: number;
 	UserGroup: number;
 	IsSkipped: boolean;
-	AllowAutoName: boolean;
 	SkipReason: string;
 	DataSecurityGroup?: string[];
 }
