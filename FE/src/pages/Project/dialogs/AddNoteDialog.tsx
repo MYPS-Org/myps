@@ -96,7 +96,7 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({
         const response = await addDoc(formData);
         console.log('Add document response:', response);
 
-        if (response.Data.Message === 'Documents added successfully!') {
+        if (response) {
             const newDoc: ProjectSupportingDocs = {
             Id: 0, // Will be set by server
             ProjectId: projectId,
@@ -133,6 +133,7 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({
         } else {
             console.log('Unexpected response:', response);
         }
+
     } catch (error) {
         console.error('Error adding note:', error);
     } finally {
