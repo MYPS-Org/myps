@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import NextStageDialog from '../dialogs/NextStageDialog';
+import MetroManilaMap from '../../../components/map/MetroManilaMap';
 // import { formatCurrency } from '../../../utils/GlobalFunctions';
 // import { Badge } from '../../../components/tailwindui/badge';
 
@@ -220,6 +221,17 @@ const ProgramDetail: React.FC = () => {
         }
       }));
     }
+  };
+
+  // Get program location for map display
+  const getProgramLocation = () => {
+    // You can map region codes or program data to coordinates later
+    // For now, return a sample location in Metro Manila
+    return {
+      lat: 14.6091,
+      lng: 121.0223,
+      name: programEnums?.Details.Name || "Program Location"
+    };
   };
 
   const handleUpdate = async () => {
@@ -626,15 +638,19 @@ const ProgramDetail: React.FC = () => {
           </div>
 
           {/* Right Column - Map */}
-          <div className="col-span-2 bg-gray-100 rounded-lg flex items-center justify-center border">
-            <div className="text-center text-gray-500">
-              <div className="w-16 h-16 mx-auto mb-4 bg-gray-300 rounded-lg flex items-center justify-center">
-                <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                </svg>
+          <div className="col-span-2">
+            <div className="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-xl">
+              <div className="px-4 py-4 border-b border-gray-200">
+                <h3 className="text-lg font-semibold leading-7 text-gray-900">
+                  Program Location - Metro Manila
+                </h3>
               </div>
-              <p className="text-sm">Map View</p>
-              <p className="text-xs text-gray-400">Interactive map would be loaded here</p>
+              <div className="p-4">
+                <MetroManilaMap 
+                  projectLocation={getProgramLocation()}
+                  height="400px"
+                />
+              </div>
             </div>
           </div>
         </div>
