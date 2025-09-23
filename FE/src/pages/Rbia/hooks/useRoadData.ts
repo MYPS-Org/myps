@@ -31,16 +31,17 @@ export const useRoadData = () => {
   const initializeData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [roadsResponse, classificationsResponse, sectionResponse] = await Promise.all([
-        fetchRoads(roadFilters),
+      const [classificationsResponse, sectionResponse, roadsResponse] = await Promise.all([
         fetchRoadInitData(),
-        fetchRoadSectionInitData()
+        fetchRoadSectionInitData(),
+        fetchRoads(roadFilters)
       ]);
       
       updateRoadData(roadsResponse.Data);
       // Extract Classifications array from the response
       setRoadClassifications(classificationsResponse.Data.Classifications);
       setInitRoadSections(sectionResponse.Data.DEOs);
+      console.log('Fetched road classifications:', classificationsResponse.Data.Classifications);
     } catch (error) {
       console.error('Error initializing road data:', error);
       throw error;

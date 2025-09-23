@@ -57,6 +57,7 @@ const Button: React.FC<{
 const RoadSectionList: React.FC = () => {
   const [, setSelectedItem] = useAtom(selectedItemAtom);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isRoadSectionDialogOpen, setIsRoadSectionDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isBridgeDialogOpen, setIsBridgeDialogOpen] = useState(false);
   const [sectionToAddBridge, setSectionToAddBridge] = useState<RoadSection | null>(null);
@@ -84,14 +85,14 @@ const RoadSectionList: React.FC = () => {
     initializeData();
   }, [initializeData]);
 
-  const handleCreate = () => {
-    setSelectedItem(null);
-    setIsDialogOpen(true);
-  };
+  // const handleCreate = () => {
+  //   setSelectedItem(null);
+  //   setIsDialogOpen(true);
+  // };
 
   const handleEdit = (section: RoadSection) => {
     setSelectedItem(section);
-    setIsDialogOpen(true);
+    setIsRoadSectionDialogOpen(true);
   };
 
   const handleDelete = (section: RoadSection) => {
@@ -330,7 +331,7 @@ const RoadSectionList: React.FC = () => {
         />
       )}
 
-      {isDialogOpen && <FutureRoadSectionDialog onClose={() => setIsDialogOpen(false)} />}
+      {isRoadSectionDialogOpen && <FutureRoadSectionDialog onClose={() => setIsRoadSectionDialogOpen(false)} />}
       {isDeleteDialogOpen && roadSectionToDelete && (
         <DeleteRoadSectionDialog 
           isOpen={isDeleteDialogOpen}

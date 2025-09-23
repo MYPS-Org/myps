@@ -239,6 +239,7 @@ export interface ComponentCostFormType
 // #region fetch data interfaces
 export interface ComponentCost {
 	Id: number;
+	StageName?: string;
 	ProjectId: string;
 	ReferenceId: string;
 	ComponentType: string;
@@ -271,6 +272,7 @@ export interface MajorItemOfWorksWithDropdown extends MajorItemOfWork {
 export interface MajorItemOfWork {
 	Id: number;
 	ProjectId: string;
+	StageName?: string;
 	ComponentId: string;
 	ReferenceId: string;
 	YearOfWork: number;
@@ -283,6 +285,7 @@ export interface MajorItemOfWork {
 export interface MajorItemLocations {
 	Id: number;
 	ParentId: string;
+	StageName: string;
 	InfraId: string;
 	DetailedScope: string;
 	TargetUnitId: number;
@@ -321,6 +324,7 @@ export interface ProjectSupportingDocs {
 export interface FundingProfile {
 	Id: number;
 	ProjectId: string;
+	StageName?: string;
 	Source: string;
 	Agreement: number;
 	Percentage: number;

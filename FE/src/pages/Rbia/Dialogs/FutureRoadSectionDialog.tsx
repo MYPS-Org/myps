@@ -4,7 +4,7 @@ import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/16/solid';
 import { Button } from '../../../components/tailwindui/button';
 import { selectedItemAtom, roadsAtom, type RoadSection, type Road, deoListAtom } from "../state/rbiaAtoms";
-import { addFutureRoadSection } from "../Service";
+import { addFutureRoadSection, editFutureRoadSection } from "../Service";
 
 interface FutureRoadSectionDialogProps {
   onClose: () => void;
@@ -42,11 +42,6 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
       return;
     }
 
-    // if (!formData.RoadId || !formData.RoadSectionId || formData.RoadLength || formData.DEO ) {
-    //   alert("Please fill in all required fields with valid values");
-    //   return;
-    // }
-
     try {
       const payload = {
         RoadId: formData.RoadId,
@@ -54,11 +49,21 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
         RoadLength: formData.RoadLength,
         DEO: formData.DEO
       };
-      const response = await addFutureRoadSection(payload); // Call the service to add the future road section
-      if (response) {
-        console.log("Road section added successfully:", response);
+      const updatePayload = {...formData, Id: formData.Id};
+
+      if (selectedItem) {
+        const response = await editFutureRoadSection(updatePayload); // Call the service to add the future road section
+        if (response) {
+          console.log("Road section added successfully:", response);
+        }
+        handleClose();
+      } else {
+        const response = await addFutureRoadSection(payload); // Call the service to add the future road section
+        if (response) {
+          console.log("Road section added successfully:", response);
+        }
+        handleClose();
       }
-      handleClose();
     } catch (error) {
       console.error("Error saving road section:", error);
       alert("Failed to save road section. Please try again.");

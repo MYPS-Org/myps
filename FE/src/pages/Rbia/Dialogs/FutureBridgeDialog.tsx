@@ -4,7 +4,7 @@ import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/16/solid';
 import { Button } from '../../../components/tailwindui/button';
 import { bridgesAtom, selectedItemAtom, roadSectionsAtom, type Bridge, type RoadSection } from "../state/rbiaAtoms";
-import { addFutureBridge } from "../Service";
+import { addFutureBridge, editFutureBridge } from "../Service";
 
 interface FutureBridgeDialogProps {
   onClose: () => void;
@@ -52,9 +52,19 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
         Length: formData.Length,
         CarriageWay: formData.CarriageWay
       }
-      const response = await addFutureBridge(payload); // Call the service to add the future bridge
-      if (response) {
-        console.log("Bridge added successfully:", response);
+
+      const updatePayload = {...formData, Id: formData.Id};
+      if (selectedItem) {
+        const response = await editFutureBridge(updatePayload); // Call the service to add the future bridge
+        if (response) {
+          console.log("Bridge updated successfully:", response);
+        }
+      }
+      else {
+        const response = await addFutureBridge(payload); // Call the service to add the future bridge
+        if (response) {
+          console.log("Bridge added successfully:", response);
+        }
       }
       handleClose();
     } catch (error) {

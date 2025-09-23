@@ -55,7 +55,7 @@ export const getProjectEnums = async () => {
 // #region Project Details
 export const addProjectDetails = async (projectDetails: ProjectDetails) => {
     try {
-        const response = await httpClient.post<{ProjectId: string, Title: string, Message: string}>(`/Project/addproject/`, projectDetails, {
+        const response = await httpClient.post<{ProjectId: string, StageName: string, Title: string, Message: string}>(`/Project/addproject/`, projectDetails, {
             preloaderMessage: 'Adding project details...'
         });
         return response;

@@ -84,7 +84,7 @@ export const addFutureRoadSection = async (section: RoadSectionFilter) => {
 
 export const editFutureRoadSection = async (section: FutureRoadSections) => {
     try {
-        const response = await httpClient.post<FutureRoadSections>('/futureinfra/editFutureRoadSection', section, );
+        const response = await httpClient.post<FutureRoadSections>('/futureinfra/editFutureRoadSections', section, );
         return response;
     } catch (error) {
         console.error('Error editing future road section:', error);

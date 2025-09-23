@@ -79,10 +79,10 @@ const FutureBridgeList: React.FC = () => {
     initializeData();
   }, [initializeData]);
 
-  const handleCreate = () => {
-    setSelectedItem(null);
-    setIsDialogOpen(true);
-  };
+  // const handleCreate = () => {
+  //   setSelectedItem(null);
+  //   setIsDialogOpen(true);
+  // };
 
   const handleEdit = (bridge: Bridge) => {
     setSelectedItem(bridge);
@@ -176,10 +176,10 @@ const FutureBridgeList: React.FC = () => {
               })()}
             </Button>
             
-            <Button color="blue" className="flex items-center" onClick={handleCreate} disabled={isLoading}>
+            {/* <Button color="blue" className="flex items-center" onClick={handleCreate} disabled={isLoading}>
               <PlusIcon className="w-4 h-4 mr-1" />
               Add Bridge
-            </Button>
+            </Button> */}
           </div>
         </div>
       </div>

@@ -472,6 +472,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     const newProfile: FundingProfile = {
       Id: 0, // Temporary ID
       ProjectId: projectDetails.ProjectId || '',
+      StageName: initialData?.ProgramDetails?.StageName || '',
       Source: '',
       Agreement: 0,
       Percentage: 0,
@@ -523,8 +524,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         EmergencyMode: projectDetails.EmergencyMode ? true : false,
       });
       
-      if (response.Data.ProjectId) {
-        navigate(`/projects/project-details/${response.Data.ProjectId}`);
+      if (response.Data.ProjectId && response.Data.StageName) {
+        navigate(`/projects/project-details/${response.Data.ProjectId}:${response.Data.StageName}`);
       }
     } catch (error) {
       console.error('Error adding project details:', error);
@@ -600,6 +601,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         const majorItemPayload: MajorItemOfWork = {
           Id: item.Id,
           ProjectId: initialData?.ProjectDetails.ProjectId || '',
+          StageName: initialData?.ProgramDetails.StageName || '',
           ComponentId: item.ComponentId,
           ReferenceId: item.ReferenceId,
           YearOfWork: item.YearOfWork,
@@ -637,6 +639,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         ComponentCosts: componentCosts.map(cost => ({
           Id: cost.Id,
           ProjectId: cost.ProjectId || projectDetails.ProjectId || '',
+          StageName: initialData?.ProgramDetails?.StageName || '',
           ReferenceId: cost.ReferenceId || '',
           ComponentType: cost.ComponentType || '',
           ComponentId: cost.ComponentId || '',

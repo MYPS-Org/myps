@@ -4,7 +4,7 @@ import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/16/solid';
 import { Button } from '../../../components/tailwindui/button';
 import { roadsAtom, selectedItemAtom, type Road } from "../state/rbiaAtoms";
-import { addFutureRoad } from "../Service";
+import { addFutureRoad, editFutureRoad } from "../Service";
 import { useRoadData } from "../hooks";
 
 interface FutureRoadDialogProps {
@@ -57,11 +57,21 @@ const FutureRoadDialog: React.FC<FutureRoadDialogProps> = ({ onClose }) => {
         Classification: formData.Classification
       };
 
-      const response = await addFutureRoad(roadPayload); // Call the service to add the future road
-      if (response) {
-        setRoads([...roads, formData]);
+      const updatePayload = {...formData, Id: formData.Id};
+
+      if (selectedItem) {
+        const response = await editFutureRoad(updatePayload); // Call the service to add the future road
+        if (response) {
+          setRoads([...roads, formData]);
+        }
+        handleClose();
+      }else {
+        const response = await addFutureRoad(roadPayload); // Call the service to add the future road
+        if (response) {
+          setRoads([...roads, formData]);
+        }
+        handleClose();
       }
-      handleClose();
     } catch (error) {
       console.error("Error saving road:", error);
       alert("Failed to save road. Please try again.");

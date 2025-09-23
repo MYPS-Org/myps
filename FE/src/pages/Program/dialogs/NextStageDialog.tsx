@@ -179,7 +179,7 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
                                 />
                             </div>
 
-                            <div>
+                            {/* <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Year
                                 </label>
@@ -190,7 +190,7 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
                                     required
                                 />
-                            </div>
+                            </div> */}
                             
                             <div className="w-full">
                                         <div className='flex flex-row mb-4'>
