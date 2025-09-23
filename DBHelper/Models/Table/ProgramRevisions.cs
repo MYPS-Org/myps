@@ -23,8 +23,6 @@ namespace DBHelper.Models.Table
         [MaxLength(100)]
         public string Name { get; set; } = string.Empty;
         [Required]
-        public bool AllowAutoName { get; set; } = true;
-        [Required]
         public string[] DataSecurityGroup { get; set; } = new string[] { };
         [Required]
         public int UserGroup { get; set; }

@@ -32,8 +32,6 @@ namespace WebAPI.Controllers.Programs
         [Required]
         public string Name { get; set; } = string.Empty;
         [Required]
-        public bool AllowAutoName { get; set; } = true;
-        [Required]
         public int YearStart { get; set; }
         [Required]
         public string[] DataSecurityGroup { get; set; } = new string[] { };
@@ -88,5 +86,6 @@ namespace WebAPI.Controllers.Programs
     {
         public string ProgramId { get; set; } = string.Empty;
         public EnumProgramStage Stage { get; set; }
+        public string ProgramName { get; set; } = string.Empty;
     }
 }

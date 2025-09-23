@@ -15,7 +15,6 @@ namespace DBHelper.Models.Views
         public string StageName { get; set; } = string.Empty;
         public bool IsSkipped { get; set; }
         public string? SkipReason { get; set; }
-        public bool AllowAutoName { get; set; }
         public string? Name { get; set; }
         public string? GroupName { get; set; }
         public string[] DataSecurityGroup { get; set; } = new string[] { };

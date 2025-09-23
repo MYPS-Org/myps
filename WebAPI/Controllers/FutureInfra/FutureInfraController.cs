@@ -119,6 +119,102 @@ namespace WebAPI.Controllers.Programs
         }
         [AllowAnonymous]
         [HttpPost]
+        public async Task<IActionResult> EditFutureRoads([FromBody] EditFutureRoadsDTO dto)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var checkRoad = await _db.tFutureRoads.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dto.Id);
+                if (checkRoad == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Road does not exists in the System", Title = "Invalid Road" });
+                }
+                var checkRoadId = await _db.tFutureRoads.AsNoTracking().FirstOrDefaultAsync(x => x.Id != dto.Id && x.RoadId == dto.RoadId);
+                if (checkRoadId != null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Road ID {dto.RoadId} already exist in the system. Please use other Road ID", Title = "Invalid Road ID" });
+                }
+                var checkRoadName = await _db.tFutureRoads.AsNoTracking().FirstOrDefaultAsync(x => x.Id != dto.Id && x.Name == dto.Name);
+                if (checkRoadName != null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Road name {dto.Name} already exist in the system. Please use other name", Title = "Invalid Road Name" });
+                }
+                var checkClassification = await _db.tFutureRoadsClassification.AsNoTracking().FirstOrDefaultAsync(x => x.Classification == dto.Classification);
+                if(checkClassification == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Classification '{dto.Classification}' is not valid!", Title = "Invalid Classification" });
+                }
+                DateTime currentDate = DateTime.UtcNow;
+                string UserId = _Session.UserId;
+                List<TransactionLog> Transactions = new List<TransactionLog>();
+                if(checkRoad.RoadId != dto.RoadId)
+                {
+                    Transactions.Add(new TransactionLog
+                    {
+                        TransactionId = checkRoad.RoadId,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tFutureRoads",
+                        AffectedColumn = "RoadId",
+                        OldValue = checkRoad.RoadId,
+                        NewValue = dto.RoadId,
+                        CreatedBy = UserId,
+                        CreatedDate = currentDate
+                    });
+                    checkRoad.RoadId = dto.RoadId;
+                }
+                if (checkRoad.Name != dto.Name)
+                {
+                    Transactions.Add(new TransactionLog
+                    {
+                        TransactionId = checkRoad.RoadId,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tFutureRoads",
+                        AffectedColumn = "Name",
+                        OldValue = checkRoad.Name,
+                        NewValue = dto.Name,
+                        CreatedBy = UserId,
+                        CreatedDate = currentDate
+                    });
+                    checkRoad.Name = dto.Name;
+                }
+                if (checkRoad.Classification != dto.Classification)
+                {
+                    Transactions.Add(new TransactionLog
+                    {
+                        TransactionId = checkRoad.RoadId,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tFutureRoads",
+                        AffectedColumn = "Classification",
+                        OldValue = checkRoad.Classification,
+                        NewValue = dto.Classification,
+                        CreatedBy = UserId,
+                        CreatedDate = currentDate
+                    });
+                    checkRoad.Classification = dto.Classification;
+                }
+                if (Transactions.Count > 0)
+                {
+                    await _db.tTransactionLog.AddRangeAsync(Transactions);
+                    checkRoad.UpdatedBy = UserId;
+                    checkRoad.UpdatedDate = currentDate;
+                    _db.tFutureRoads.Update(checkRoad);
+                    await _db.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                }
+                return Ok(new
+                {
+                    Message = "Future Road added successfully",
+                    Title = "Add Complete"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
+        [AllowAnonymous]
+        [HttpPost]
         public async Task<IActionResult> AddFutureRoads([FromBody] AddFutureRoadsDTO dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -296,6 +392,132 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> EditFutureRoadSections([FromBody] EditFutureRoadSectionsDTO dto)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var checkRoad = await _db.tFutureRoadSections.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dto.Id);
+                if (checkRoad == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Road does not exists in the System", Title = "Invalid Road" });
+                }
+                var checkRoadSectionId = await _db.tFutureRoadSections.AsNoTracking().FirstOrDefaultAsync(x => x.Id != dto.Id && x.RoadSectionId == dto.RoadSectionId);
+                if (checkRoadSectionId != null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Road Section ID {dto.RoadSectionId} already exist in the system. Please use other Road ID", Title = "Invalid Road Section ID" });
+                }
+                var checkRoadId = await _db.tFutureRoads.AsNoTracking().FirstOrDefaultAsync(x => x.RoadId == dto.RoadId);
+                if (checkRoadId == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Road ID {dto.RoadId} does exist in the system.", Title = "Invalid Road ID" });
+                }
+                var checkDEO = await _db.tProjectRODEOEnum.AsNoTracking().FirstOrDefaultAsync(x => x.DeoCode == dto.DEO);
+                if (checkDEO == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"DEO {dto.RoadId} does exist in the system.", Title = "Invalid DEO" });
+                }
+                DateTime currentDate = DateTime.UtcNow;
+                string UserId = _Session.UserId;
+                List<TransactionLog> Transactions = new List<TransactionLog>();
+                if (checkRoad.RoadId != dto.RoadId)
+                {
+                    Transactions.Add(new TransactionLog
+                    {
+                        TransactionId = checkRoad.RoadId,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tFutureRoads",
+                        AffectedColumn = "RoadId",
+                        OldValue = checkRoad.RoadId,
+                        NewValue = dto.RoadId,
+                        CreatedBy = UserId,
+                        CreatedDate = currentDate
+                    });
+                    checkRoad.RoadId = dto.RoadId;
+                }
+                if (checkRoad.RoadSectionId != dto.RoadSectionId)
+                {
+                    Transactions.Add(new TransactionLog
+                    {
+                        TransactionId = checkRoad.RoadId,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tFutureRoads",
+                        AffectedColumn = "RoadSectionId",
+                        OldValue = checkRoad.RoadSectionId,
+                        NewValue = dto.RoadSectionId,
+                        CreatedBy = UserId,
+                        CreatedDate = currentDate
+                    });
+                    checkRoad.RoadSectionId = dto.RoadSectionId;
+                }
+                if (checkRoad.RoadLength != dto.RoadLength)
+                {
+                    Transactions.Add(new TransactionLog
+                    {
+                        TransactionId = checkRoad.RoadId,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tFutureRoads",
+                        AffectedColumn = "RoadLength",
+                        OldValue = checkRoad.RoadLength,
+                        NewValue = dto.RoadLength,
+                        CreatedBy = UserId,
+                        CreatedDate = currentDate
+                    });
+                    checkRoad.RoadLength = dto.RoadLength;
+                }
+                if (checkRoad.RoadLength != dto.RoadLength)
+                {
+                    Transactions.Add(new TransactionLog
+                    {
+                        TransactionId = checkRoad.RoadId,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tFutureRoads",
+                        AffectedColumn = "RoadLength",
+                        OldValue = checkRoad.RoadLength,
+                        NewValue = dto.RoadLength,
+                        CreatedBy = UserId,
+                        CreatedDate = currentDate
+                    });
+                    checkRoad.RoadLength = dto.RoadLength;
+                }
+                if (checkRoad.DEO != dto.DEO)
+                {
+                    Transactions.Add(new TransactionLog
+                    {
+                        TransactionId = checkRoad.RoadId,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tFutureRoads",
+                        AffectedColumn = "DEO",
+                        OldValue = checkRoad.DEO,
+                        NewValue = dto.DEO,
+                        CreatedBy = UserId,
+                        CreatedDate = currentDate
+                    });
+                    checkRoad.DEO = dto.DEO;
+                }
+                if (Transactions.Count > 0)
+                {
+                    await _db.tTransactionLog.AddRangeAsync(Transactions);
+                    checkRoad.UpdatedBy = UserId;
+                    checkRoad.UpdatedDate = currentDate;
+                    _db.tFutureRoadSections.Update(checkRoad);
+                    await _db.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                }
+                return Ok(new
+                {
+                    Message = "Future Road added successfully",
+                    Title = "Add Complete"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
         #endregion
         #region Future Bridge
         [AllowAnonymous]
@@ -431,6 +653,147 @@ namespace WebAPI.Controllers.Programs
                 return Ok(new
                 {
                     Message = "Future Bridge added successfully",
+                    Title = "Add Complete"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> EditFutureBridge([FromBody] EditFutureBridgeDTO dto)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var checkBridge = await _db.tFutureBridge.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dto.Id);
+                if (checkBridge == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Road does not exists in the System", Title = "Invalid Road" });
+                }
+                var checkRoadSectionId = await _db.tFutureRoadSections.AsNoTracking().FirstOrDefaultAsync(x =>x.RoadSectionId == dto.RoadSectionId);
+                if (checkRoadSectionId == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Road Section ID {dto.RoadSectionId} does not exist in the system. Please use other Road ID", Title = "Invalid Road Section ID" });
+                }
+                var checkBridgeId = await _db.tFutureBridge.AsNoTracking().FirstOrDefaultAsync(x => x.Id != dto.Id && x.BridgeId == dto.BridgeId);
+                if (checkBridgeId == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Bridge ID {dto.BridgeId} does not exist in the system.", Title = "Invalid Bridge ID" });
+                }
+                var checkName = await _db.tFutureBridge.AsNoTracking().FirstOrDefaultAsync(x => x.Id != dto.Id && x.Name == dto.Name);
+                if (checkName != null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Bridge Name {dto.Name} already exist in the system.", Title = "Invalid Bridge Name" });
+                }
+                DateTime currentDate = DateTime.UtcNow;
+                string UserId = _Session.UserId;
+                List<TransactionLog> Transactions = new List<TransactionLog>();
+                if (checkBridge.RoadSectionId != dto.RoadSectionId)
+                {
+                    Transactions.Add(new TransactionLog
+                    {
+                        TransactionId = checkBridge.RoadSectionId,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tFutureBridge",
+                        AffectedColumn = "RoadSectionId",
+                        OldValue = checkBridge.RoadSectionId,
+                        NewValue = dto.RoadSectionId,
+                        CreatedBy = UserId,
+                        CreatedDate = currentDate
+                    });
+                    checkBridge.RoadSectionId = dto.RoadSectionId;
+                }
+                if (checkBridge.BridgeId != dto.BridgeId)
+                {
+                    Transactions.Add(new TransactionLog
+                    {
+                        TransactionId = checkBridge.BridgeId,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tFutureBridge",
+                        AffectedColumn = "BridgeId",
+                        OldValue = checkBridge.BridgeId,
+                        NewValue = dto.BridgeId,
+                        CreatedBy = UserId,
+                        CreatedDate = currentDate
+                    });
+                    checkBridge.BridgeId = dto.BridgeId;
+                }
+                if (checkBridge.Name != dto.Name)
+                {
+                    Transactions.Add(new TransactionLog
+                    {
+                        TransactionId = checkBridge.Name,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tFutureBridge",
+                        AffectedColumn = "Name",
+                        OldValue = checkBridge.Name,
+                        NewValue = dto.Name,
+                        CreatedBy = UserId,
+                        CreatedDate = currentDate
+                    });
+                    checkBridge.Name = dto.Name;
+                }
+                if (checkBridge.From != dto.From)
+                {
+                    Transactions.Add(new TransactionLog
+                    {
+                        TransactionId = checkBridge.From,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tFutureBridge",
+                        AffectedColumn = "From",
+                        OldValue = checkBridge.From,
+                        NewValue = dto.From,
+                        CreatedBy = UserId,
+                        CreatedDate = currentDate
+                    });
+                    checkBridge.From = dto.From;
+                }
+                if (checkBridge.Length != dto.Length)
+                {
+                    Transactions.Add(new TransactionLog
+                    {
+                        TransactionId = checkBridge.Length,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tFutureBridge",
+                        AffectedColumn = "Length",
+                        OldValue = checkBridge.Length,
+                        NewValue = dto.Length,
+                        CreatedBy = UserId,
+                        CreatedDate = currentDate
+                    });
+                    checkBridge.Length = dto.Length;
+                }
+                if (checkBridge.CarriageWay != dto.CarriageWay)
+                {
+                    Transactions.Add(new TransactionLog
+                    {
+                        TransactionId = checkBridge.CarriageWay,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tFutureBridge",
+                        AffectedColumn = "CarriageWay",
+                        OldValue = checkBridge.CarriageWay,
+                        NewValue = dto.CarriageWay,
+                        CreatedBy = UserId,
+                        CreatedDate = currentDate
+                    });
+                    checkBridge.CarriageWay = dto.CarriageWay;
+                }
+                if (Transactions.Count > 0)
+                {
+                    await _db.tTransactionLog.AddRangeAsync(Transactions);
+                    checkBridge.UpdatedBy = UserId;
+                    checkBridge.UpdatedDate = currentDate;
+                    _db.tFutureBridge.Update(checkBridge);
+                    await _db.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                }
+                return Ok(new
+                {
+                    Message = "Future Road added successfully",
                     Title = "Add Complete"
                 });
             }

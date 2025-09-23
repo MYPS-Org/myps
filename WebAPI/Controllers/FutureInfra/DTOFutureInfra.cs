@@ -33,6 +33,20 @@ namespace WebAPI.Controllers.Programs
         [MaxLength(10)]
         public string Classification { get; set; } = string.Empty;
     }
+    public class EditFutureRoadsDTO
+    {
+        [Required]
+        public int Id { get; set; }
+        [Required]
+        [MaxLength(100)]
+        public string RoadId { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(200)]
+        public string Name { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(10)]
+        public string Classification { get; set; } = string.Empty;
+    }
     #endregion
     #region Road Sections
     public class ShowFutureRoadSectionsDTO : EnumPagination
@@ -61,6 +75,23 @@ namespace WebAPI.Controllers.Programs
         [MaxLength(100)]
         public string DEO { get; set; } = string.Empty;
     }
+    public class EditFutureRoadSectionsDTO
+    {
+        [Required]
+        public int Id { get; set; }
+        [Required]
+        [MaxLength(100)]
+        public string RoadId { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(100)]
+        public string RoadSectionId { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(200)]
+        public string RoadLength { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(100)]
+        public string DEO { get; set; } = string.Empty;
+    }
     #endregion
     #region Bridges
     public class ShowFutureBridgeDTO : EnumPagination
@@ -76,6 +107,29 @@ namespace WebAPI.Controllers.Programs
     }
     public class AddFutureBridgeDTO
     {
+        [Required]
+        [MaxLength(100)]
+        public string RoadSectionId { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(100)]
+        public string BridgeId { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(200)]
+        public string Name { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(100)]
+        public string From { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(100)]
+        public string Length { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(100)]
+        public string CarriageWay { get; set; } = string.Empty;
+    }
+    public class EditFutureBridgeDTO
+    {
+        [Required]
+        public int Id { get; set; }
         [Required]
         [MaxLength(100)]
         public string RoadSectionId { get; set; } = string.Empty;

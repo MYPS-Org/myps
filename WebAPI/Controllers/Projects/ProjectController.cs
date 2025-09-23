@@ -264,7 +264,7 @@ namespace WebAPI.Controllers.Projects
                 string SecondSegment = ProgramDetails.YearStart.GenerateProjec2ndSegment();
                 Random rand = new Random();
                 string ThirdSegment = rand.Next(Category.Minimum, Category.Maximum+1).ToString("D5");
-                string FourthSegment = string.IsNullOrEmpty(dto.IslandCode) ? dto.IslandCode : DEO.Island;
+                string FourthSegment = !string.IsNullOrEmpty(dto.IslandCode) ? dto.IslandCode : DEO.Island;
                 string ReferenceId = $"{FirstSegment}{SecondSegment}{ThirdSegment}{FourthSegment}";
                 var SubmitProject = new DBHelper.Models.Table.Projects()
                 {
@@ -327,6 +327,7 @@ namespace WebAPI.Controllers.Projects
                 return Ok(new
                 {
                     ProjectId = ReferenceId,
+                    StageName = ProgramDetails.StageName,
                     Message = "Project added successfully",
                     Title = "Add Complete"
                 });
