@@ -134,7 +134,7 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
     }, [nextStageId, program.YearStart, program.Name]);
 
     return (
-        <Dialog open={isOpen} onClose={onClose} className="fixed z-10 inset-0 overflow-y-auto">
+        <Dialog open={isOpen} onClose={onClose} className="fixed z-[9999] inset-0 overflow-y-auto">
             {/* Backdrop */}
             <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
             
