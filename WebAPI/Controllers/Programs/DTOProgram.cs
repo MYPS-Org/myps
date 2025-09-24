@@ -86,6 +86,6 @@ namespace WebAPI.Controllers.Programs
     {
         public string ProgramId { get; set; } = string.Empty;
         public EnumProgramStage Stage { get; set; }
-        public string ProgramName { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
     }
 }

@@ -993,6 +993,7 @@ namespace WebAPI.Controllers.Projects
                         HasCostUpdate = true;
                         var NewCostToAdd = NewComponentCostData.Select((item, index) => new ProjectComponentCost
                         {
+                            StageName = Project.StageName!,
                             ProjectId = Project.ProjectId!,
                             ReferenceId = Project.ProjectId!.GenerateReferenceId(Project.StageName),
                             ComponentId = item.ComponentId,
@@ -1638,6 +1639,7 @@ namespace WebAPI.Controllers.Projects
                     }
                     await _db.tProjectMajorWorkItem.AddRangeAsync(newMajorItems.Select(item => new ProjectMajorWorkItem
                     {
+                        StageName = Project.StageName,
                         ProjectId = Project.ProjectId!,
                         ReferenceId = item.ReferenceId,
                         ComponentId = item.ComponentId,
@@ -1773,6 +1775,7 @@ namespace WebAPI.Controllers.Projects
                 {
                     var addFunding = dto.FundingProfile.Select(x => new ProjectFundingProfile
                     {
+                        StageName = Project.StageName,
                         ProjectId = dto.ProjectDetails!.ProjectId!,
                         Source = x.Source,
                         Agreement = x.Agreement,

@@ -815,7 +815,7 @@ namespace WebAPI.Controllers.Programs
                         {
                             ProgramId = dto.ProgramId,
                             RevisionNumber = checkRevisions.RevisionNumber + 1,
-                            Name = dto.ProgramName,
+                            Name = dto.Name,
                             DataSecurityGroup = checkRevisions.DataSecurityGroup,
                             UserGroup = checkRevisions.UserGroup,
                             Status = checkRevisions.Status,

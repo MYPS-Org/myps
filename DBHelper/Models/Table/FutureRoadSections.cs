@@ -28,10 +28,8 @@ namespace DBHelper.Models.Table
         public string CreatedBy { get; set; } = string.Empty;
         [Required]
         public DateTime CreatedDate { get; set; }
-        [Required]
         [MaxLength(200)]
-        public string UpdatedBy { get; set; } = string.Empty;
-        [Required]
-        public DateTime UpdatedDate { get; set; }
+        public string? UpdatedBy { get; set; }
+        public DateTime? UpdatedDate { get; set; }
     }
 }

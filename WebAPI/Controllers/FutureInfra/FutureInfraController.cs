@@ -225,6 +225,11 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Future Road name '{dto.Name}' already exists in the System!", Title = "Road Already Exists" });
                 }
+                var checkRoadID = await _db.tFutureRoads.AsNoTracking().FirstOrDefaultAsync(x => x.RoadId == dto.RoadId);
+                if (checkRoadID != null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Future Road ID '{dto.Name}' already exists in the System!", Title = "Road ID Already Exists" });
+                }
                 var checkClassification = await _db.tFutureRoadsClassification.AsNoTracking().FirstOrDefaultAsync(x => x.Classification == dto.Classification);
                 if(checkClassification == null)
                 {
@@ -625,7 +630,7 @@ namespace WebAPI.Controllers.Programs
             try
             {
                 var checkBridgeName = await _db.tFutureBridge.AsNoTracking().FirstOrDefaultAsync(x => x.Name == dto.Name);
-                if (checkBridgeName == null)
+                if (checkBridgeName != null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Bridge name '{dto.Name}' already exists in the System!", Title = "Bridge Already Exists" });
                 }
