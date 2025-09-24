@@ -3,7 +3,7 @@ import { useAtom } from "jotai";
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/16/solid';
 import { Button } from '../../../components/tailwindui/button';
-import { bridgesAtom, selectedItemAtom, roadSectionsAtom, type Bridge, type RoadSection } from "../state/rbiaAtoms";
+import { selectedItemAtom, roadSectionsAtom, type Bridge, type RoadSection } from "../state/rbiaAtoms";
 import { addFutureBridge, editFutureBridge } from "../Service";
 
 interface FutureBridgeDialogProps {
@@ -12,12 +12,12 @@ interface FutureBridgeDialogProps {
 }
 
 const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSection }) => {
-  const [bridges, setBridges] = useAtom(bridgesAtom);
+  // const [bridges, setBridges] = useAtom(bridgesAtom);
   const [selectedItem] = useAtom(selectedItemAtom);
   const [roadSections] = useAtom(roadSectionsAtom);
   const [formData, setFormData] = useState<Bridge>({
     Id: 0,
-    RoadSectionId: roadSection?.RoadId || '', // Pre-fill with road section ID if provided
+    RoadSectionId: roadSection?.RoadSectionId || '', // Pre-fill with road section ID if provided
     BridgeId: "",
     Name: "",
     From: "",

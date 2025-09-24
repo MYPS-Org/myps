@@ -211,26 +211,26 @@ const FutureBridgeList: React.FC = () => {
                   key={`${bridge.RoadSectionId}-${bridge.BridgeId}`} 
                   className={`hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
                 >
-                  <TableCell className="text-row px-6 py-4 whitespace-nowrap">
+                  <TableCell className="text-center text-row px-6 py-4 whitespace-nowrap">
                     <Badge color="blue" className="text-xs">
                       {bridge.RoadSectionId}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-row px-6 py-4 whitespace-nowrap text-gray-900 font-medium">
+                  <TableCell className="text-center text-row px-6 py-4 whitespace-nowrap text-gray-900 font-medium">
                     {bridge.Name}
                   </TableCell>
-                  <TableCell className="text-row px-6 py-4 whitespace-nowrap">
+                  <TableCell className="text-center text-row px-6 py-4 whitespace-nowrap">
                     <Badge color="purple" className="text-xs">
                       {bridge.BridgeId}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-row px-6 py-4 whitespace-nowrap text-gray-900">
+                  <TableCell className="text-center text-row px-6 py-4 whitespace-nowrap text-gray-900">
                     {bridge.From} km
                   </TableCell>
-                  <TableCell className="text-row px-6 py-4 whitespace-nowrap text-gray-900">
+                  <TableCell className="text-center text-row px-6 py-4 whitespace-nowrap text-gray-900">
                     {bridge.Length} km
                   </TableCell>
-                  <TableCell className="text-row px-6 py-4 whitespace-nowrap">
+                  <TableCell className="text-center text-row px-6 py-4 whitespace-nowrap">
                     <Badge
                       color="blue"
                       className="text-xs"
