@@ -5,7 +5,7 @@ import { projectDetailsRules } from '../rules/projectDetailsRules';
 import type { 
   ProjectDetails, 
   ComponentCost, 
-  ProjectNote,
+  // ProjectNote,
   FundingProfile, 
   Activity, 
   TransactionLog,
