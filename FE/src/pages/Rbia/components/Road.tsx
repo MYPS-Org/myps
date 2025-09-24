@@ -5,8 +5,6 @@ import {
   PencilIcon,
   TrashIcon,
   AdjustmentsVerticalIcon,
-  ChevronUpIcon,
-  ChevronDownIcon,
   MagnifyingGlassIcon
 } from '@heroicons/react/16/solid';
 import { selectedItemAtom, type Road } from "../state/rbiaAtoms";
@@ -110,34 +108,21 @@ const FutureRoadList: React.FC = () => {
     setRoadToDelete(null);
   };
 
-  const handleSort = (field: string) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
+  // Updated handler for onSort that accepts direction parameter
+  const handleSortWithDirection = (field: string) => (direction: 0 | 1) => {
+    setSortField(field);
+    setSortDirection(direction === 0 ? 'asc' : 'desc');
   };
 
   const Paginate = async (page: number) => {
     await handlePagination(page);
   };
 
-  const SortableHeader: React.FC<{ field: string; children: React.ReactNode }> = ({ field, children }) => (
-    <th 
-      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-      onClick={() => handleSort(field)}
-    >
-      <div className="flex items-center space-x-1">
-        <span>{children}</span>
-        {sortField === field && (
-          sortDirection === 'asc' ? 
-          <ChevronUpIcon className="w-4 h-4" /> : 
-          <ChevronDownIcon className="w-4 h-4" />
-        )}
-      </div>
-    </th>
-  );
+  // Helper function to convert sort direction to numeric value
+  const getSortDirection = (field: string): 0 | 1 | undefined => {
+    if (sortField !== field) return undefined;
+    return sortDirection === 'asc' ? 0 : 1;
+  };
 
   return (
     <div className="overflow-hidden">
@@ -199,9 +184,30 @@ const FutureRoadList: React.FC = () => {
         <Table className="min-w-full divide-y divide-gray-200">
           <TableHead className="bg-gray-50">
             <TableRow>
-              <TableHeader justify="center">Road ID</TableHeader>
-              <TableHeader justify="center">Road Name</TableHeader>
-              <TableHeader justify="center">Classification</TableHeader>
+              <TableHeader 
+                justify="center" 
+                sortable 
+                sortDirection={getSortDirection("RoadId")}
+                onSort={handleSortWithDirection("RoadId")}
+              >
+                Road ID
+              </TableHeader>
+              <TableHeader 
+                justify="center" 
+                sortable 
+                sortDirection={getSortDirection("Name")}
+                onSort={handleSortWithDirection("Name")}
+              >
+                Road Name
+              </TableHeader>
+              <TableHeader 
+                justify="center" 
+                sortable 
+                sortDirection={getSortDirection("Classification")}
+                onSort={handleSortWithDirection("Classification")}
+              >
+                Classification
+              </TableHeader>
               <TableHeader justify="center">Actions</TableHeader>
             </TableRow>
           </TableHead>

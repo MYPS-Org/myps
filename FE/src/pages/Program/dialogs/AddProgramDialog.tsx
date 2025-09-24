@@ -68,8 +68,8 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
       const payload = {
         ...formData, 
         Name: formData.AddedName 
-          ? `${formData.Name} ${formData.AddedName}` 
-          : formData.Name
+          ? `${formData.Name} - ${formData.AddedName}` 
+          : formData.Name 
       }
       const response = await addProgram(payload);
       onSubmit(formData); // Call the onSubmit prop with the form data
@@ -99,7 +99,7 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
         const selectedStage = Stage.find(stage => stage.Enum === (field === 'Stage' ? value : newFormData.Stage));
         const stageName = selectedStage ? selectedStage.Name : '';
         const yearStart = field === 'YearStart' ? value : newFormData.YearStart;
-        newFormData.Name = stageName + ' ' + yearStart + ' -';
+        newFormData.Name = stageName + ' ' + yearStart;
         // Auto-skip logic for stages 5-11
         if (field === 'Stage' && selectedStage && selectedStage.Enum >= 5 && selectedStage.Enum <= 11) {
           newFormData.IsSkipped = true;
@@ -228,7 +228,6 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
                     value={formData.AddedName}
                     onChange={(e) => handleChange('AddedName', e.target.value)}
                     className='w-full px-3 py-2 border-y border-r rounded-r-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
-                    required
                     placeholder="Add Sub Name Not required"
                   />
                 </div>

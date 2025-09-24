@@ -31,7 +31,7 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
         // Look for pattern like "StageName YYYY -" or "StageName YYYY - additional text"
         const dashIndex = currentName.indexOf(' -');
         if (dashIndex !== -1) {
-            const baseName = currentName.substring(0, dashIndex + 2); // Include " -"
+            const baseName = currentName.substring(0, dashIndex); // Don't include " -"
             const additionalName = currentName.substring(dashIndex + 2).trim(); // Get text after " -"
             return {
                 baseName: baseName,
@@ -62,7 +62,7 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
     // Auto-generate suggested name based on next stage and year
     const generateSuggestedName = () => {
         if (nextStage && formData.YearStart) {
-            return `${nextStage.Name} ${formData.YearStart} -`;
+            return `${nextStage.Name} ${formData.YearStart}`;
         }
         return parsedName.baseName;
     };
@@ -88,7 +88,9 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
             const payload = {
                 ProgramId: formData.ProgramId,
                 Stage: formData.Stage,
-                Name: formData.AddedName ? `${formData.Name} ${formData.AddedName}` : formData.Name
+                Name: formData.AddedName && formData.AddedName.trim() 
+                    ? `${formData.Name} - ${formData.AddedName}` 
+                    : formData.Name
             };
 
             await proceedToNextStage({ ProgramId: payload.ProgramId, Stage: payload.Stage, Name: payload.Name });
@@ -222,13 +224,13 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
                                             <p className="text-xs text-gray-500 mt-1">This was parsed from current name: "{parsedName.additionalName || 'None'}"</p>
                                         </div>
                                         </div>
-                            </div>                            {formData.AddedName && (
+                            </div>                            {formData.AddedName && formData.AddedName.trim() && (
                                 <div className="bg-blue-50 p-3 rounded-md border border-blue-200">
                                     <label className="block text-sm font-medium text-blue-700 mb-1">
                                         Final Program Name Preview:
                                     </label>
                                     <p className="text-blue-900 font-medium">
-                                        {formData.Name} {formData.AddedName}
+                                        {formData.Name} - {formData.AddedName}
                                     </p>
                                 </div>
                             )}

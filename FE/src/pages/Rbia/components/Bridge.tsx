@@ -1,12 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useAtom } from "jotai";
 import { 
-  PlusIcon,
   PencilIcon,
   TrashIcon,
   AdjustmentsVerticalIcon,
-  ChevronUpIcon,
-  ChevronDownIcon,
   MagnifyingGlassIcon
 } from '@heroicons/react/16/solid';
 import { selectedItemAtom, type Bridge } from "../state/rbiaAtoms";
@@ -79,11 +76,6 @@ const FutureBridgeList: React.FC = () => {
     initializeData();
   }, [initializeData]);
 
-  // const handleCreate = () => {
-  //   setSelectedItem(null);
-  //   setIsDialogOpen(true);
-  // };
-
   const handleEdit = (bridge: Bridge) => {
     setSelectedItem(bridge);
     setIsDialogOpen(true);
@@ -100,34 +92,21 @@ const FutureBridgeList: React.FC = () => {
     setBridgeToDelete(null);
   };
 
-  const handleSort = (field: string) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
+  // Updated handler for onSort that accepts direction parameter
+  const handleSortWithDirection = (field: string) => (direction: 0 | 1) => {
+    setSortField(field);
+    setSortDirection(direction === 0 ? 'asc' : 'desc');
   };
 
   const Paginate = async (page: number) => {
     await handlePagination(page);
   };
 
-  const SortableHeader: React.FC<{ field: string; children: React.ReactNode }> = ({ field, children }) => (
-    <th 
-      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-      onClick={() => handleSort(field)}
-    >
-      <div className="flex items-center space-x-1">
-        <span>{children}</span>
-        {sortField === field && (
-          sortDirection === 'asc' ? 
-          <ChevronUpIcon className="w-4 h-4" /> : 
-          <ChevronDownIcon className="w-4 h-4" />
-        )}
-      </div>
-    </th>
-  );
+  // Helper function to convert sort direction to numeric value
+  const getSortDirection = (field: string): 0 | 1 | undefined => {
+    if (sortField !== field) return undefined;
+    return sortDirection === 'asc' ? 0 : 1;
+  };
 
   return (
     <div className="overflow-hidden">
@@ -189,12 +168,54 @@ const FutureBridgeList: React.FC = () => {
         <Table className="min-w-full divide-y divide-gray-200">
           <TableHead className="bg-gray-50">
             <TableRow>
-              <TableHeader justify="center">Road ID</TableHeader>
-              <TableHeader justify="center">Bridge Name</TableHeader>
-              <TableHeader justify="center">Section Road ID</TableHeader>
-              <TableHeader justify="center">From (km)</TableHeader>
-              <TableHeader justify="center">Length (km)</TableHeader>
-              <TableHeader justify="center">Carriage Way</TableHeader>
+              <TableHeader 
+                justify="center" 
+                sortable 
+                sortDirection={getSortDirection("RoadSectionId")}
+                onSort={handleSortWithDirection("RoadSectionId")}
+              >
+                Road ID
+              </TableHeader>
+              <TableHeader 
+                justify="center" 
+                sortable 
+                sortDirection={getSortDirection("Name")}
+                onSort={handleSortWithDirection("Name")}
+              >
+                Bridge Name
+              </TableHeader>
+              <TableHeader 
+                justify="center" 
+                sortable 
+                sortDirection={getSortDirection("BridgeId")}
+                onSort={handleSortWithDirection("BridgeId")}
+              >
+                Section Road ID
+              </TableHeader>
+              <TableHeader 
+                justify="center" 
+                sortable 
+                sortDirection={getSortDirection("From")}
+                onSort={handleSortWithDirection("From")}
+              >
+                From (km)
+              </TableHeader>
+              <TableHeader 
+                justify="center" 
+                sortable 
+                sortDirection={getSortDirection("Length")}
+                onSort={handleSortWithDirection("Length")}
+              >
+                Length (km)
+              </TableHeader>
+              <TableHeader 
+                justify="center" 
+                sortable 
+                sortDirection={getSortDirection("CarriageWay")}
+                onSort={handleSortWithDirection("CarriageWay")}
+              >
+                Carriage Way
+              </TableHeader>
               <TableHeader justify="center">Actions</TableHeader>
             </TableRow>
           </TableHead>
@@ -239,7 +260,7 @@ const FutureBridgeList: React.FC = () => {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-row px-6 py-4 whitespace-nowrap">
-                    <div className="flex space-x-2">
+                    <div className="flex justify-center space-x-2">
                       <button
                         onClick={() => handleEdit(bridge)}
                         className="p-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-md transition-colors duration-200"
@@ -324,7 +345,6 @@ const FutureBridgeList: React.FC = () => {
           bridge={bridgeToDelete}
         />
       )}
-      {}
     </div>
   );
 };
