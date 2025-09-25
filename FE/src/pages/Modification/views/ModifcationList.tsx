@@ -5,18 +5,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Button } from '../../../components/tailwindui/button';
 import { PlusIcon, TrashIcon, XMarkIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/20/solid';
 import { Pagination, PaginationList, PaginationPage, PaginationPrevious, PaginationNext } from '../../../components/tailwindui/pagination';
+import ReviseProjectDialog from '../dialogs/RevisedProjectDialog';
 
 
 const ModificationList: React.FC = () => {
 
     const [ isLoading, setIsLoading ] = useState<boolean>(false);
-    const [ isAddProgramOpen, setIsAddProgramOpen ] = useState<boolean>(false);
+    const [ isReviseDialogOpen, setIsReviseDialogOpen ] = useState<boolean>(false);
     const [ isDeleteProgramOpen, setIsDeleteProgramOpen ] = useState<boolean>(false);
 
     const [ searchInput, setSearchInput ] = useState<string>('');
 
     const handleOpenDialog = () => {
-        setIsAddProgramOpen(true);
+        setIsReviseDialogOpen(true);
     } 
 
     const handleSearchChange = (value: string) => {
@@ -180,20 +181,11 @@ const ModificationList: React.FC = () => {
                 </div>
             </div>
 
-            {/* Add Program Dialog */}
-            {/* <AddProgramDialog
-                isOpen={isAddProgramOpen}
-                onClose={() => setIsAddProgramOpen(false)}
-                programEnums={programEnums || undefined}
-                onSubmit={(newProgram: any) => {
-                    // Handle the new program submission
-                    setProgramData(prev => ({
-                        ...prev,
-                        lists: [...prev.lists, newProgram],
-                        total: prev.total + 1
-                    }));
-                }}
-            /> */}
+            {/* Add Revise Dialog */}
+            <ReviseProjectDialog
+                isOpen={isReviseDialogOpen}
+                onClose={() => setIsReviseDialogOpen(false)}
+            />
             {/* Delete Program Dialog */}
             {/* {selectedProgram && (
                 <DeleteProgramDialog

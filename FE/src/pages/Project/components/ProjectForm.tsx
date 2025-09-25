@@ -86,6 +86,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       Id: 0,
       ProgramId: '',
       ProgramName: '',
+      StageName: '',
       ProjectId: '',
       AlternateId: '',
       ExternalId: '',
@@ -169,7 +170,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         setProjectDetails(prev => ({
           ...prev,
           ProgramId: selectedProgram.ProgramId,
-          ProgramName: selectedProgram.Name
+          ProgramName: selectedProgram.Name,
+          StageName: selectedProgram.StageName || ''
         }));
       }
     }
@@ -661,15 +663,15 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         MajorItemOfWorks: majorItemsForPayload,
         MajorItemLocations: workLocationsForPayload,
         // ProjectNotes: notes, // Include ProjectNotes as it's in the expected payload
-        FundingProfile: {
-          ...fundingProfiles, StageName: initialData?.ProgramDetails?.StageName || ''
-        },
+        FundingProfile: fundingProfiles.map(profile => ({
+          ...profile, StageName: initialData?.ProgramDetails?.StageName || '',
+        }))
       };
 
       console.log('=== SENDING TO BACKEND (MATCHING EXPECTED PAYLOAD) ===');
       console.log('Update payload:', payload);
 
-      // await updateEntireProject(payload);
+      await updateEntireProject(payload);
 
       showToast({
           type: 'success',

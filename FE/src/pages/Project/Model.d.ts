@@ -60,6 +60,7 @@ export interface ProjectDetails {
 	ProgramId?: string;
 	ProgramName: string;
 	ProjectId?: string;
+	StageName?: string;
 	AlternateId?: string;
 	ExternalId?: string;
 	MYId?: string;

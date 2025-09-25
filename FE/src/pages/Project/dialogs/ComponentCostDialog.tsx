@@ -3,7 +3,7 @@ import { Dialog, DialogTitle, DialogPanel } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import type { ComponentCost, ComponentCostYear, ComponentCostWithYears } from '../Model';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { handleCurrencyBlur, handleCurrencyChange, handleNumberFocus } from '../../../utils/GlobalFunctions';
+import { handleCurrencyBlur, handleCurrencyChange } from '../../../utils/GlobalFunctions';
 
 interface ComponentCostDialogProps {
   isOpen: boolean;
