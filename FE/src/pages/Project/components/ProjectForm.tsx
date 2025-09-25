@@ -661,14 +661,15 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         MajorItemOfWorks: majorItemsForPayload,
         MajorItemLocations: workLocationsForPayload,
         // ProjectNotes: notes, // Include ProjectNotes as it's in the expected payload
-        FundingProfile: fundingProfiles,
+        FundingProfile: {
+          ...fundingProfiles, StageName: initialData?.ProgramDetails?.StageName || ''
+        },
       };
 
       console.log('=== SENDING TO BACKEND (MATCHING EXPECTED PAYLOAD) ===');
       console.log('Update payload:', payload);
 
-      
-      await updateEntireProject(payload);
+      // await updateEntireProject(payload);
 
       showToast({
           type: 'success',

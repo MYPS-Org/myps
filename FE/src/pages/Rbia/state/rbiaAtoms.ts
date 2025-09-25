@@ -18,29 +18,13 @@ export type RoadSection = FutureRoadSections;
 export type Bridge = FutureBridge;
 
 // Define interfaces for paginated data
-interface PaginatedRoadData {
-  lists: FutureRoads[];
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
+interface PaginatedRoadData extends PaginationResponse<FutureRoads> {}
 
-interface PaginatedRoadSectionData {
-  lists: FutureRoadSections[];
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
+interface PaginatedRoadSectionData extends PaginationResponse<FutureRoadSections> {}
 
-interface PaginatedBridgeData {
-  lists: FutureBridge[];
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
+interface PaginatedBridgeData extends PaginationResponse<FutureBridge> {}
+
+// === ROAD ATOMS ===
 
 // Road Data State Atoms
 export const roadDataAtom = atom<PaginatedRoadData>({

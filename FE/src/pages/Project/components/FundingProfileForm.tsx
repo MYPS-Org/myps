@@ -3,7 +3,7 @@ import type { FundingProfile, ProjectFormPayload } from "../Model";
 import { Button } from "../../../components/tailwindui/button";
 import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from "../../../components/tailwindui/table";
-import { handleNumberFocus } from "../../../utils/GlobalFunctions";
+import { handleCurrencyBlur, handleCurrencyChange, handleCurrencyFocus, handleNumberFocus } from "../../../utils/GlobalFunctions";
 
 interface FundingProfileFormProps {
   initialData?: ProjectFormPayload;
@@ -25,6 +25,7 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
   const [errors, setErrors] = useState<{ [key: number]: string }>({});
   const [totalPercentage, setTotalPercentage] = useState(0);
   const [totalAmount, setTotalAmount] = useState(0);
+  const [displayValues, setDisplayValues] = useState<{ [key: number]: string }>({});
 
   // Calculate total percentage and amount, then auto-update percentages
   useEffect(() => {
@@ -63,6 +64,19 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
     }
   }, [fundingProfiles]); // Trigger when array length or amounts change
 
+  useEffect(() => {
+    const newDisplayValues: { [key: number]: string } = {};
+
+    fundingProfiles.forEach((profile, index) => {
+      if (profile.Amount != null && profile.Amount > 0) {
+        newDisplayValues[index] = profile.Amount.FormatToCurrency();
+      } else {
+        newDisplayValues[index] = '';
+      }
+    });
+    setDisplayValues(newDisplayValues);
+  }, [fundingProfiles]);
+
   // Validate percentage and update errors
   const validatePercentage = (index: number, value: number) => {
     const newErrors = { ...errors };
@@ -74,20 +88,22 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
     } else {
       delete newErrors[index];
     }
-    
     setErrors(newErrors);
   };
 
+  // Handle amount Changing in UI
   const handleAmountChange = (index: number, profile: FundingProfile, value: string) => {
-    const numValue = Number.parseNumberInput(value) || 0;
-    onEdit(index, { ...profile, Amount: numValue });
-  };
+    const updateAmount = (field: string, numValue: number) => {
+      onEdit(index, { ...profile, [field]: numValue });
+    };
 
-  // Helper function to format amount for display
-  const formatAmountForDisplay = (amount: number | null | undefined): string => {
-    if (amount == null || amount === 0) return '';
-    // If it's a whole number, show without decimals, otherwise show with 2 decimals
-    return amount % 1 === 0 ? amount.toString() : amount.toFixed(2);
+    // Create a setter for display values
+    const setDisplayValue = (displayValue: string) => {
+      setDisplayValues(prev => ({ ...prev, [index]: displayValue }));
+    };
+
+    // Use the global function to handle formatting and updating
+    handleCurrencyChange(value, setDisplayValue, updateAmount, "Amount");
   };
 
   const handlePercentageChange = (index: number, profile: FundingProfile, value: string) => {
@@ -182,11 +198,13 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
                 </TableCell>
                 <TableCell className="w-1/6">
                   <input 
-                    type="number"
-                    value={formatAmountForDisplay(profile.Amount)}
+                    type="text"
+                    value={displayValues[index] || ''}
                     onChange={(e) => handleAmountChange(index, profile, e.target.value)}
-                    onFocus={handleNumberFocus}
+                    onFocus={handleCurrencyFocus}
+                    onBlur={(e) => handleCurrencyBlur(e, (value) => onEdit(index, { ...profile, Amount: value }))}
                     className="w-full px-2 py-1 border border-gray-300 rounded text-right"
+                    placeholder="₱0.00"
                    />
                 </TableCell>
                 <TableCell className="w-1/6">

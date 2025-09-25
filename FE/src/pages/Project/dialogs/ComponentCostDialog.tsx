@@ -3,7 +3,7 @@ import { Dialog, DialogTitle, DialogPanel } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import type { ComponentCost, ComponentCostYear, ComponentCostWithYears } from '../Model';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { handleNumberFocus } from '../../../utils/GlobalFunctions';
+import { handleCurrencyBlur, handleCurrencyChange, handleNumberFocus } from '../../../utils/GlobalFunctions';
 
 interface ComponentCostDialogProps {
   isOpen: boolean;
@@ -47,6 +47,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     StartDate: '',
     EndDate: '',
   });
+
+  const [displayValue, setDisplayValue] = useState('');
 
   // Calculate remaining budget for validation
   const calculateRemainingBudget = () => {
@@ -108,11 +110,28 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     }
   }, [editingCost, mode, isOpen]);
 
+  useEffect(() => {
+    if (formData.Total > 0) {
+      setDisplayValue(formData.Total.FormatToCurrency());
+    } else {
+      setDisplayValue('');
+    }
+  }, [formData.Total]);
+
   const handleChange = (field: string, value: string | number) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
+  };
+  
+  const handleCurrencyFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    // Show raw number on focus for easier editing
+    if (formData.Total > 0) {
+      e.target.value = formData.Total.toString();
+    } else {
+      e.target.value = '';
+    }
   };
 
   const [newComponentId, setNewComponentId] = useState('');
@@ -308,18 +327,18 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                             Cost
                         </label>
                         <input
-                            type="number"
-                            value={formData.Total}
-                            onChange={(e) => handleChange('Total', Number.parseNumberInput(e.target.value) || 0)}
-                            onFocus={handleNumberFocus}
+                            type="text"
+                            value={displayValue}
+                            onChange={(e) => handleCurrencyChange(e.target.value, setDisplayValue, handleChange, 'Total')}
+                            onFocus={handleCurrencyFocus}
+                            onBlur={(e) => handleCurrencyBlur(e, (value) => handleChange('Total', value))}
                             className={`w-full px-3 py-2 border rounded-md text-right focus:outline-none focus:ring-2 ${
                               remainingBudget !== null && formData.Total > remainingBudget 
                                 ? 'border-red-300 focus:ring-red-500' 
                                 : 'border-gray-300 focus:ring-blue-500'
                             }`}
-                            placeholder="0"
+                            placeholder="₱0.00"
                             min="0"
-                            max={remainingBudget || undefined}
                         />
                         {remainingBudget !== null && (
                           <div className="mt-1">
