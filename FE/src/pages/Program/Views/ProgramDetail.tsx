@@ -660,11 +660,21 @@ const ProgramDetail: React.FC = () => {
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
           <h2 className="text-xl font-semibold text-gray-900">Projects</h2>
-          {programEnums.IsActive && (
-            <Button color="blue" onClick={handleAddProject}>
-              Add Project
+          <div className="flex mr-4 gap-4">
+            {programEnums.IsActive && (
+              <div className="flex gap-4">
+                <Button color="blue" onClick={handleAddProject}>
+                  Add Project
+                </Button>
+                <Button color="green" /*onClick={handleImportProjects}*/>
+                  Import Projects
+                </Button>
+              </div>
+            )}
+            <Button color="emerald" /*onClick={handleExportProjects}*/>
+              Export Projects
             </Button>
-          )}
+          </div>
         </div>
         
         <div className="w-full overflow-x-auto">
