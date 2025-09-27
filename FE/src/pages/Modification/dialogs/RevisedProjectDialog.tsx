@@ -1,8 +1,10 @@
 import { useEffect } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
+import { Button } from '../../../components/tailwindui/button';
 import { useDropDownData } from "../hooks/useDropDown";
-import ExclamationTriangleIcon from '@heroicons/react/24/outline/ExclamationTriangleIcon';
 import XMarkIcon from '@heroicons/react/24/outline/XMarkIcon';
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '../../../components/tailwindui/table';
+import type { color } from 'framer-motion';
 
 interface ReviseProjectDialogProps {
     isOpen: boolean;
@@ -26,35 +28,129 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({ isOpen, onClo
 
     return (
         <Dialog open={isOpen} onClose={onClose} className="fixed z-10 inset-0 overflow-y-auto">
-            {/* Background overlay */}
+            {/* Backdrop */}
             <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+            {/* Full-screen container */}
             <div className="fixed inset-0 flex items-center justify-center p-4">
-                <DialogPanel className="w-full max-w-2xl bg-white rounded-lg shadow-xl p-6">
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-                        <DialogTitle className="text-lg font-semibold text-red-600 dark:text-red-400 flex items-center">
-                            Modify Project
-                        </DialogTitle>
-                        <button
-                            onClick={onClose}
-                            className="text-gray-400 hover:text-gray-600"
-                        >
-                            <XMarkIcon className="h-6 w-6" />
-                        </button>
-                    </div>
-                    <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                        <div className='flex'>
-                            <label className='block text-sm font-medium text-gray-700 mb-2'>
-                                Revision Type
+
+            <DialogPanel className="w-full max-w-4xl bg-white rounded-lg shadow-xl p-6">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                    <DialogTitle className="text-lg font-semibold text-gray-900">
+                        Modify Project
+                    </DialogTitle>
+                    <button
+                    onClick={onClose}
+                    className="text-gray-400 hover:text-gray-600 "
+                    >
+                    <XMarkIcon className="h-6 w-6" />
+                    </button>
+                </div>
+                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                    {/* Revision Details */}
+                    <div className='space-y-2'>
+                        <div className='flex justify-between gap-5 items-center'>
+                            <label className='w-1/3 block text-sm font-medium text-gray-700'>
+                                Revision Type :
                             </label>
-                            <select className='ml-4 border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500'>
-                                {modCategories.map((category) => (
+                            <select className='w-2/3 border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500'>
+                                {modCategories.filter((category) => !category.Obsolete).map((category) => (
                                     <option key={category.Id} value={category.CodeGroup}>
                                         {category.CodeDescription}
                                     </option>
                                 ))}
                             </select>
                         </div>
-                    </form>
+                        <div className='flex justify-between gap-5 items-center'>
+                            <label className='w-1/3 block text-sm font-medium text-gray-700'>
+                                Date of Approval :
+                            </label>
+                            <input 
+                                type="date" 
+                                className='w-2/3 border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500'
+                            />
+                        </div>
+                        <div className='flex justify-between gap-5 items-center'>
+                            <label className='w-1/3 block text-sm font-medium text-gray-700'>
+                                Approval Document :
+                            </label>
+                            <input 
+                                type="file" 
+                                className='w-2/3 border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500'
+                            />
+                        </div>
+                        <div className='flex justify-between gap-5 items-center'>
+                            <label className='w-1/3 block text-sm font-medium text-gray-700'>
+                                Revision Category :
+                            </label>
+                            <select className='w-2/3 border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500'>
+                                {modCategories.filter((category) => category.Obsolete).map((category) => (
+                                    <option key={category.Id} value={category.CodeGroup}>
+                                        {category.CodeDescription}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className='flex justify-between gap-5 items-center'>
+                            <label className='w-1/3 block text-sm font-medium text-gray-700'>
+                                Reasons :
+                            </label>
+                            <select className='w-2/3 border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500'>
+                                {modReasons.map((reason) => (
+                                    <option key={reason.Id} value={reason.CodeGroup}>
+                                        {reason.CodeDescription}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                    {/* Component */}
+                    <div className='pt-4 border border-gray-100 rounded-2xl px-4'>
+                        <Table>
+                            <TableHead>
+                                <TableRow>
+                                    <TableHeader>Select</TableHeader>
+                                    <TableHeader>Comp ID</TableHeader>
+                                    <TableHeader>PCMA Status</TableHeader>
+                                    <TableHeader>Construction Status</TableHeader>
+                                    <TableHeader>Permitted</TableHeader>
+                                    <TableHeader>Implementation Mode</TableHeader>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                <TableRow>
+                                    <TableCell>
+                                        <input type="checkbox" className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" />
+                                    </TableCell>
+                                    <TableCell>
+                                        CW-1
+                                    </TableCell>
+                                    <TableCell>
+                                        On-Going
+                                    </TableCell>
+                                    <TableCell>
+                                        Packaged
+                                    </TableCell>
+                                    <TableCell>
+                                        No
+                                    </TableCell>
+                                    <TableCell>
+                                        By Contract
+                                    </TableCell>
+                                </TableRow>
+                            </TableBody>
+                        </Table>
+                    </div>
+                    <div className='pt-4 border border-gray-100 rounded-2xl px-4 flex justify-end gap-5'>
+                        <Button
+                            onSubmit={handleSubmit}
+                            color="blue"
+                        >Submit
+                        </Button>
+                        <Button
+                            onClick={onClose}
+                        >Cancel</Button>
+                    </div>
+                </form>
             </DialogPanel>
             </div>
         </Dialog>

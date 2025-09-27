@@ -89,6 +89,7 @@ export interface ProjectDetails {
 	RowAvailable?: boolean;
 	RegionWide?: number;
 	Tier: number;
+	isActive?: boolean;
 	CreatedBy?: string;
 	CreatedDate?: string;
 	UpdatedBy?: string;

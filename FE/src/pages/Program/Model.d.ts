@@ -127,6 +127,7 @@ export interface ProgramList {
 	RevisionId: number;
 	ProgramId: string;
 	StageName: string;
+	StageId?: number;
 	Name: string;
 	GroupName?: string;
 	RegionCode: string;
