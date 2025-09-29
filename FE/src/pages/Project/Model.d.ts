@@ -11,6 +11,7 @@ export interface ProjectFilter {
 }
 
 export interface ProjectFormPayload {
+  IsActive: boolean;
   ProgramDetails: ProgramList;
   ProjectDetails: ProjectDetails;
   ComponentCosts: ComponentCost[];
@@ -89,7 +90,6 @@ export interface ProjectDetails {
 	RowAvailable?: boolean;
 	RegionWide?: number;
 	Tier: number;
-	isActive?: boolean;
 	CreatedBy?: string;
 	CreatedDate?: string;
 	UpdatedBy?: string;

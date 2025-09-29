@@ -3,20 +3,31 @@ import React, { useState, useEffect } from 'react';
 import MagnifyingGlassIcon from '@heroicons/react/24/outline/MagnifyingGlassIcon';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
 import { Button } from '../../../components/tailwindui/button';
-import { PlusIcon, TrashIcon, XMarkIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/20/solid';
-import { Pagination, PaginationList, PaginationPage, PaginationPrevious, PaginationNext } from '../../../components/tailwindui/pagination';
+import { PlusIcon, XMarkIcon } from '@heroicons/react/20/solid';
 import ReviseProjectDialog from '../dialogs/RevisedProjectDialog';
+import { getModificationProjects, searchProjects, type ModificationProject } from '../mockData/projectData';
+import AddProjectDialog from '../dialogs/AddProjectDialog';
 
 
 const ModificationList: React.FC = () => {
 
-    const [ isLoading, setIsLoading ] = useState<boolean>(false);
+    const [ isLoading ] = useState<boolean>(false);
     const [ isReviseDialogOpen, setIsReviseDialogOpen ] = useState<boolean>(false);
-    const [ isDeleteProgramOpen, setIsDeleteProgramOpen ] = useState<boolean>(false);
+    const [ selectedProject, setSelectedProject ] = useState<ModificationProject | null>(null);
+    const [ projects, setProjects ] = useState<ModificationProject[]>([]);
+    const [ filteredProjects, setFilteredProjects ] = useState<ModificationProject[]>([]);
+    const [ isAddNewDialogOpen, setIsAddNewDialogOpen ] = useState<boolean>(false);
 
     const [ searchInput, setSearchInput ] = useState<string>('');
 
-    const handleOpenDialog = () => {
+    useEffect(() => {
+        const projectData = getModificationProjects();
+        setProjects(projectData);
+        setFilteredProjects(projectData);
+    }, []);
+
+    const handleOpenDialog = (project: ModificationProject) => {
+        setSelectedProject(project);
         setIsReviseDialogOpen(true);
     } 
 
@@ -25,8 +36,22 @@ const ModificationList: React.FC = () => {
     }
 
     const handleSearchSubmit = () => {
-        console.log('Search submitted with term:', searchInput);
-        // Implement search logic here
+        if (searchInput.trim()) {
+            const results = searchProjects(searchInput);
+            setFilteredProjects(results);
+        } else {
+            setFilteredProjects(projects);
+        }
+    }
+
+    const handleClearSearch = () => {
+        setSearchInput('');
+        setFilteredProjects(projects);
+    }
+
+    const handleAddProject = () => {
+        setIsAddNewDialogOpen(true);
+        console.log("Add Project Clicked");
     }
 
     return (
@@ -72,7 +97,7 @@ const ModificationList: React.FC = () => {
                                         <MagnifyingGlassIcon className="w-4 h-4 mr-1" />
                                         Search
                                     </Button>
-                                    {/* {(searchInput || ProgramFilters.filters?.Name) && (
+                                    {searchInput && (
                                         <Button 
                                             color="red" 
                                             onClick={handleClearSearch}
@@ -82,9 +107,9 @@ const ModificationList: React.FC = () => {
                                             <XMarkIcon className="w-4 h-4 mr-1" />
                                             Clear
                                         </Button>
-                                    )} */}
+                                    )}
                                 </div>
-                                <Button color="blue" onClick={handleOpenDialog} disabled={isLoading} className="text-xs px-3 py-1.5">
+                                <Button color="blue" onClick={() => handleAddProject()} disabled={isLoading} className="text-xs px-3 py-1.5">
                                     <PlusIcon className="w-4 h-4 mr-1" />
                                     {isLoading ? 'Loading...' : 'Add Project'}
                                 </Button>
@@ -103,14 +128,41 @@ const ModificationList: React.FC = () => {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        <TableRow>
-                            <TableCell></TableCell>
-                            <TableCell></TableCell>
-                            <TableCell></TableCell>
-                            <TableCell></TableCell>
-                            <TableCell></TableCell>
-                            <TableCell></TableCell>
-                        </TableRow>
+                        {filteredProjects.length === 0 ? (
+                            <TableRow>
+                                <TableCell colSpan={6} className="text-center text-gray-500 py-8">
+                                    No projects found
+                                </TableCell>
+                            </TableRow>
+                        ) : (
+                            filteredProjects.map((project) => (
+                                <TableRow key={project.id}>
+                                    <TableCell className="font-medium">{project.programName}</TableCell>
+                                    <TableCell>{project.projectId}</TableCell>
+                                    <TableCell>{project.description}</TableCell>
+                                    <TableCell>{new Date(project.date).toLocaleDateString()}</TableCell>
+                                    <TableCell>
+                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                            project.status === 'Active' ? 'bg-green-100 text-green-800' :
+                                            project.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
+                                            'bg-gray-100 text-gray-800'
+                                        }`}>
+                                            {project.revisionType}
+                                        </span>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Button 
+                                            onClick={() => handleOpenDialog(project)} 
+                                            disabled={isLoading} 
+                                            color="blue" 
+                                            className="text-xs px-3 py-1.5"
+                                        >
+                                            Modify
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        )}
                     </TableBody>
                 </Table>
                 {/* <Pagination className="my-6">
@@ -181,11 +233,17 @@ const ModificationList: React.FC = () => {
                 </div>
             </div>
 
-            {/* Add Revise Dialog */}
-            <ReviseProjectDialog
-                isOpen={isReviseDialogOpen}
-                onClose={() => setIsReviseDialogOpen(false)}
-            />
+            {/* Modify Dialog */}
+            {selectedProject && (
+                <ReviseProjectDialog
+                    isOpen={isReviseDialogOpen}
+                    onClose={() => {
+                        setIsReviseDialogOpen(false);
+                        setSelectedProject(null);
+                    }}
+                    project={selectedProject}
+                />
+            )}
             {/* Delete Program Dialog */}
             {/* {selectedProgram && (
                 <DeleteProgramDialog
@@ -201,6 +259,13 @@ const ModificationList: React.FC = () => {
                     }}
             />
             )} */}
+            {/* Add Revise Dialog */}
+            {isAddNewDialogOpen && (
+                <AddProjectDialog
+                    isOpen={isAddNewDialogOpen}
+                    onClose={() => setIsAddNewDialogOpen(false)}
+                />
+            )}
         </div>
     );
 };
