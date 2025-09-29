@@ -5,24 +5,14 @@ import {
   PencilIcon,
   TrashIcon,
   AdjustmentsVerticalIcon,
-  ChevronUpIcon,
-  ChevronDownIcon,
   MagnifyingGlassIcon
 } from '@heroicons/react/16/solid';
 import { selectedItemAtom, type Road } from "../state/rbiaAtoms";
-import { fetchRoads, fetchRoadInitData } from "../Service";
-import type { FutureRoads, RoadPagination, FutureRoadsClassification } from "../Model.d";
+import { useRoadData } from "../hooks/useRoadData";
 import FutureRoadDialog from "../Dialogs/FutureRoadDialog";
+import FutureRoadSectionDialog from "../Dialogs/FutureRoadSectionDialog";
 import DeleteRoadDialog from "../Dialogs/DeleteRoadDialog";
-
-// Define local interface for pagination response
-interface PaginationResponse<T> {
-    lists: T[];
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-}
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../components/tailwindui/table";
 
 // Simple Badge component
 const Badge: React.FC<{ children: React.ReactNode; className?: string; color?: string }> = ({ 
@@ -64,58 +54,33 @@ const Button: React.FC<{
 
 const FutureRoadList: React.FC = () => {
   const [, setSelectedItem] = useAtom(selectedItemAtom);
-  const [isLoading, setIsLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isSectionDialogOpen, setIsSectionDialogOpen] = useState(false);
+  const [roadToAddSection, setRoadToAddSection] = useState<Road | null>(null);
   const [roadToDelete, setRoadToDelete] = useState<Road | null>(null);
   const [sortField, setSortField] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [searchInput, setSearchInput] = useState<string>('');
-  const [roadClassifications, setRoadClassifications] = useState<FutureRoadsClassification[]>([]);
-  
-  // Pagination state similar to Program.tsx
-  const [roadData, setRoadData] = useState<PaginationResponse<FutureRoads>>({
-    total: 0,
-    page: 1,
-    limit: 10,
-    totalPages: 0,
-    lists: []
-  });
 
-  const [roadFilters, setRoadFilters] = useState<RoadPagination>({
-    filters: {
-      Name: '',
-      RoadId: '',
-      Classification: ''
-    },
-    sortField: '',
-    sortDirection: 1,
-    page: 1,
-    limit: 20
-  });
+  // Use the custom hook for road data management
+  const {
+    roadData,
+    roadFilters,
+    isLoading,
+    searchInput,
+    hasActiveFilters,
+    initializeData,
+    handleSearchInputChange,
+    handleSearchSubmit,
+    handleClearSearch,
+    handlePagination,
+    removeRoadFromState
+  } = useRoadData();
 
   // Initialize data on component mount
   useEffect(() => {
-    const initializeData = async () => {
-      setIsLoading(true);
-      try {
-        // Fetch initial data and classifications
-        const [roadsResponse, classificationsResponse] = await Promise.all([
-          fetchRoads(roadFilters),
-          fetchRoadInitData()
-        ]);
-        
-        setRoadData(roadsResponse.Data);
-        setRoadClassifications(classificationsResponse.Data);
-      } catch (error) {
-        console.error('Error initializing road data:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
     initializeData();
-  }, []);
+  }, [initializeData]);
 
   const handleCreate = () => {
     setSelectedItem(null);
@@ -132,110 +97,32 @@ const FutureRoadList: React.FC = () => {
     setIsDeleteDialogOpen(true);
   };
 
+  const handleAddSection = (road: Road) => {
+    setRoadToAddSection(road);
+    setIsSectionDialogOpen(true);
+  };
+
   const handleConfirmDelete = (roadId: string) => {
-    setRoadData(prev => ({
-      ...prev,
-      lists: prev.lists.filter((road) => road.RoadId !== roadId),
-      total: prev.total - 1
-    }));
+    removeRoadFromState(roadId);
     setIsDeleteDialogOpen(false);
     setRoadToDelete(null);
   };
 
-  const handleSort = (field: string) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
-
-  const handleSearchChange = (value: string) => {
-    setSearchInput(value);
-  };
-
-  const handleSearchSubmit = async () => {
-    const updatedFilters = {
-      ...roadFilters,
-      filters: {
-        ...roadFilters.filters,
-        Name: searchInput
-      },
-      page: 1
-    };
-    
-    setRoadFilters(updatedFilters);
-
-    try {
-      setIsLoading(true);
-      const response = await fetchRoads(updatedFilters);
-      setRoadData(response.Data);
-    } catch (error) {
-      console.error('Error filtering roads:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleClearSearch = async () => {
-    setSearchInput('');
-    const updatedFilters = {
-      ...roadFilters,
-      filters: {
-        Name: '',
-        RoadId: '',
-        Classification: ''
-      },
-      page: 1
-    };
-    
-    setRoadFilters(updatedFilters);
-
-    try {
-      setIsLoading(true);
-      const response = await fetchRoads(updatedFilters);
-      setRoadData(response.Data);
-    } catch (error) {
-      console.error('Error clearing search:', error);
-    } finally {
-      setIsLoading(false);
-    }
+  // Updated handler for onSort that accepts direction parameter
+  const handleSortWithDirection = (field: string) => (direction: 0 | 1) => {
+    setSortField(field);
+    setSortDirection(direction === 0 ? 'asc' : 'desc');
   };
 
   const Paginate = async (page: number) => {
-    try {
-      setIsLoading(true);
-      const response = await fetchRoads({
-        ...roadFilters,
-        page: page
-      });
-      setRoadData(response.Data);
-      setRoadFilters(prev => ({ ...prev, page }));
-    } catch (error) {
-      console.error('Error fetching roads:', error);
-    } finally {
-      setIsLoading(false);
-    }
+    await handlePagination(page);
   };
 
-  const hasActiveFilters = roadFilters.filters?.Name || roadFilters.filters?.RoadId || roadFilters.filters?.Classification;
-
-  const SortableHeader: React.FC<{ field: string; children: React.ReactNode }> = ({ field, children }) => (
-    <th 
-      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-      onClick={() => handleSort(field)}
-    >
-      <div className="flex items-center space-x-1">
-        <span>{children}</span>
-        {sortField === field && (
-          sortDirection === 'asc' ? 
-          <ChevronUpIcon className="w-4 h-4" /> : 
-          <ChevronDownIcon className="w-4 h-4" />
-        )}
-      </div>
-    </th>
-  );
+  // Helper function to convert sort direction to numeric value
+  const getSortDirection = (field: string): 0 | 1 | undefined => {
+    if (sortField !== field) return undefined;
+    return sortDirection === 'asc' ? 0 : 1;
+  };
 
   return (
     <div className="overflow-hidden">
@@ -250,7 +137,7 @@ const FutureRoadList: React.FC = () => {
                   type="text"
                   placeholder="Search roads..."
                   value={searchInput}
-                  onChange={(e) => handleSearchChange(e.target.value)}
+                  onChange={(e) => handleSearchInputChange(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSearchSubmit()}
                   className="pl-8 pr-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                 />
@@ -294,47 +181,66 @@ const FutureRoadList: React.FC = () => {
       
       {/* Table */}
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <SortableHeader field="RoadId">Road ID</SortableHeader>
-              <SortableHeader field="Name">Road Name</SortableHeader>
-              <SortableHeader field="Classification">Classification</SortableHeader>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+        <Table className="min-w-full divide-y divide-gray-200">
+          <TableHead className="bg-gray-50">
+            <TableRow>
+              <TableHeader 
+                justify="center" 
+                sortable 
+                sortDirection={getSortDirection("RoadId")}
+                onSort={handleSortWithDirection("RoadId")}
+              >
+                Road ID
+              </TableHeader>
+              <TableHeader 
+                justify="center" 
+                sortable 
+                sortDirection={getSortDirection("Name")}
+                onSort={handleSortWithDirection("Name")}
+              >
+                Road Name
+              </TableHeader>
+              <TableHeader 
+                justify="center" 
+                sortable 
+                sortDirection={getSortDirection("Classification")}
+                onSort={handleSortWithDirection("Classification")}
+              >
+                Classification
+              </TableHeader>
+              <TableHeader justify="center">Actions</TableHeader>
+            </TableRow>
+          </TableHead>
+          <TableBody className="bg-white divide-y divide-gray-200">
             {isLoading ? (
-              <tr>
-                <td colSpan={4} className="px-6 py-4 text-center text-gray-500">
+              <TableRow>
+                <TableCell colSpan={4} className="px-6 py-4 text-center text-gray-500">
                   Loading roads...
-                </td>
-              </tr>
-            ) : roadData.lists.length > 0 ? (
+                </TableCell>
+              </TableRow>
+            ) : roadData.lists.length > 0 && (
               roadData.lists.map((road, index) => (
-                <tr 
+                <TableRow 
                   key={road.RoadId} 
                   className={`hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
                 >
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <TableCell className="text-center px-6 py-4 whitespace-nowrap">
                     <Badge color="blue" className="text-xs">
                       {road.RoadId}
                     </Badge>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  </TableCell>
+                  <TableCell className="text-center px-6 py-4 whitespace-nowrap">
                     <div className="font-medium text-gray-900">
                       {road.Name}
                     </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  </TableCell>
+                  <TableCell className="text-center px-6 py-4 whitespace-nowrap">
                     <Badge color="green" className="text-xs">
                       Class {road.Classification}
                     </Badge>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex space-x-2">
+                  </TableCell>
+                  <TableCell className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex justify-center  space-x-2">
                       <button
                         onClick={() => handleEdit(road)}
                         className="p-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-md transition-colors duration-200"
@@ -349,19 +255,20 @@ const FutureRoadList: React.FC = () => {
                       >
                         <TrashIcon className="w-4 h-4" />
                       </button>
+                      <button
+                        onClick={() => handleAddSection(road)}
+                        className="flex items-center gap-2 p-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors duration-200"
+                        disabled={isLoading}
+                      >
+                        <PlusIcon className="w-4 h-4" /> Add Section
+                      </button>
                     </div>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))
-            ) : (
-              <tr>
-                <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
-                  No roads found.
-                </td>
-              </tr>
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
 
       {/* Pagination */}
@@ -401,7 +308,7 @@ const FutureRoadList: React.FC = () => {
       )}
 
       {/* Footer info */}
-      {/* <div className='mb-3.5 px-6 py-4 border-t border-gray-200'>
+      <div className='mb-3.5 px-6 py-4 border-t border-gray-200'>
         {roadData.lists.length > 0 ? (
           <p className="text-sm text-gray-500">
             Showing {roadData.limit * (roadData.page - 1) + 1} to {Math.min(roadData.limit * roadData.page, roadData.total)} of {roadData.total} roads
@@ -411,9 +318,18 @@ const FutureRoadList: React.FC = () => {
             No roads found
           </p>
         )}
-      </div> */}
+      </div>
 
       {isDialogOpen && <FutureRoadDialog onClose={() => setIsDialogOpen(false)} />}
+      {isSectionDialogOpen && roadToAddSection && (
+        <FutureRoadSectionDialog 
+          onClose={() => {
+            setIsSectionDialogOpen(false);
+            setRoadToAddSection(null);
+          }}
+          road={roadToAddSection}
+        />
+      )}
       {isDeleteDialogOpen && roadToDelete && (
         <DeleteRoadDialog 
           isOpen={isDeleteDialogOpen}

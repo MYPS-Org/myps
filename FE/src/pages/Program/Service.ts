@@ -80,7 +80,7 @@ export const deleteProgram = async (program: ProgramList) => {
     }
 };
 
-export const nextStage = async (data: { ProgramId: string; Stage: number }) => {
+export const nextStage = async (data: { ProgramId: string; Stage: number, Name: string }) => {
     try {
         const request = await httpClient.post<ProgramDetails>('/Program/updateProgramStage', data, {
             preloaderMessage: 'Proceeding to next stage...'
@@ -100,6 +100,16 @@ export const fetchStagesByProgramId = async (programId: string) => {
         return request;
     } catch (error) {
         console.error('Error fetching program stages:', error);
+        throw error;
+    }
+}
+
+export const dowloadTemplate = async () => {
+    try {
+        const response = await httpClient.post<{link: string}>('/Program/DownloadProgramTemplate', null, {});
+        return response;
+    } catch (error) {
+        console.error('Error downloading template:', error);
         throw error;
     }
 }

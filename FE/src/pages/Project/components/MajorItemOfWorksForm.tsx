@@ -9,14 +9,16 @@ import type {
   ComponentCost, 
   InfraData, 
   ScopeOfWorkEnum,
-  MajorItemLocations
+  MajorItemLocations,
 } from '../Model.d';
+import type { ProgramList } from '../../Program/Model';
 
 interface MajorItemOfWorksFormProps {
   majorItems: MajorItemOfWorksWithDropdown[];
   projectId: string;
   componentCosts: ComponentCost[];
   infraData?: InfraData;
+  programDetails?: ProgramList;
   onAdd: () => void;
   onEdit: (index: number, updatedItem: MajorItemOfWorksWithDropdown) => void;
   onDelete: (index: number) => void;
@@ -28,9 +30,11 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
   projectId,
   componentCosts,
   infraData,
+  programDetails,
   onAdd,
   onEdit,
   onDelete,
+  
   dropDowns
 }) => {
   const [majorItemDialogOpen, setMajorItemDialogOpen] = useState(false);
@@ -316,6 +320,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                           handleEditWorkLocation(index, workLocationIndex, workLocation)
                         }
                         onDelete={(workLocationIndex) => handleDeleteWorkLocation(index, workLocationIndex)}
+                        programDetails={programDetails}
                         infraData={infraData}
                         infraType={item.InfraType}
                         workTypeId={item.WorkTypeId}

@@ -11,15 +11,18 @@ interface AddNoteDialogProps {
   projectId: string;
   onAddNote: (note: ProjectSupportingDocs) => void;
   dropDownOptions: DropdownSupportingDocs[];
+  stageName: string;
 }
 
 const AddNoteDialog: React.FC<AddNoteDialogProps> = ({ 
   isOpen, 
   onClose, 
   projectId, 
-  onAddNote, 
+  onAddNote,
+  stageName,
   dropDownOptions = [] }) => {
   const [formData, setFormData] = useState<AddNotes>({
+    StageName: stageName || '',
     ProjectId: projectId,
     DocumentType: '',
     Description: '',
@@ -37,6 +40,7 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({
   useEffect(() => {
     if (isOpen) {
       setFormData({
+        StageName: stageName || '',
         ProjectId: projectId,
         DocumentType: '',
         Description: '',
@@ -92,7 +96,7 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({
         const response = await addDoc(formData);
         console.log('Add document response:', response);
 
-        if (response.Data.Message === 'Documents added successfully!') {
+        if (response) {
             const newDoc: ProjectSupportingDocs = {
             Id: 0, // Will be set by server
             ProjectId: projectId,
@@ -109,6 +113,7 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({
 
             // Reset form data
             setFormData({
+              StageName: '',
               ProjectId: projectId,
               DocumentType: '',
               Description: '',
@@ -128,6 +133,7 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({
         } else {
             console.log('Unexpected response:', response);
         }
+
     } catch (error) {
         console.error('Error adding note:', error);
     } finally {

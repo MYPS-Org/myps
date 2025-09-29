@@ -23,6 +23,7 @@ import { ModalProvider } from './components/Modal/ModalContext';
 import GlobalModal from './components/Modal/Modal';
 import { ToasterProvider } from './components/toaster/ToasterContext';
 import Rbia from './pages/Rbia/Views/Rbia';
+import ModificationList from './pages/Modification/views/ModifcationList';
 
 // import AddProgram from './pages/Program/Views/AddProgram';
 function App() {
@@ -107,6 +108,14 @@ function App() {
 									element={
 										<ProtectedRoute>
 											<EditProject />
+										</ProtectedRoute>
+									} 
+								/>
+								<Route 
+									path="/modification" 
+									element={
+										<ProtectedRoute>
+											<ModificationList />
 										</ProtectedRoute>
 									} 
 								/>

@@ -32,8 +32,20 @@ const NotesForm: React.FC<NotesFormProps> = ({
   const handleAddNote = (docs: ProjectSupportingDocs) => {
     console.log('Adding new document to table:', docs);
     console.log('Current documents before adding:', docs);
-    onAdd(docs);
-    setIsAddNoteModalOpen(false);
+    try {
+      onAdd(docs);
+      setIsAddNoteModalOpen(false);
+      showToast({
+        type: 'success',
+        message: 'Document added successfully!'
+      });
+    } catch (error) {
+      console.error('Error adding document:', error);
+      showToast({
+        type: 'error',
+        message: 'Failed to add document.'
+      });
+    }
   };
 
   const handleDeleteDoc = async (doc: ProjectSupportingDocs) => {
@@ -42,6 +54,10 @@ const NotesForm: React.FC<NotesFormProps> = ({
       const deletedDoc = await deleteDoc(doc); // Pass as array
       if (deletedDoc) {
         onDelete(doc);
+        showToast({
+          type: 'success',
+          message: 'Document deleted successfully!'
+        });
       }
     } catch (error) {
       console.error('Error deleting document:', error);
@@ -80,16 +96,16 @@ const NotesForm: React.FC<NotesFormProps> = ({
                   <span className="text-xs text-gray-500 mt-1 cursor-pointer !underline" onClick={() => window.open(`/${doc.FilePath}`, '_blank')}>{doc.FileName}</span>
                 )}
               </TableCell>
-              <TableCell>
+              <TableCell className="text-center">
                 <span className="text-xs text-gray-500 mt-1">{doc.DocumentType}</span>
               </TableCell>
-              <TableCell>
+              <TableCell className="text-center">
                   <span title={doc.Description} className="text-xs text-gray-500 mt-1">{doc.Description}</span>
               </TableCell>
-              <TableCell>
+              <TableCell className="text-center">
                 <span className="text-xs text-gray-500 mt-1">{doc.CreatedDate ? new Date(doc.CreatedDate).toLocaleDateString() : '-'}</span>
               </TableCell>
-              <TableCell>
+              <TableCell className="flex justify-center space-x-2">
                 <button
                   onClick={() => handleDeleteDoc(doc)}
                   className="text-red-600 hover:text-red-800 cursor-pointer"
@@ -109,6 +125,7 @@ const NotesForm: React.FC<NotesFormProps> = ({
         projectId={initialData?.ProjectDetails?.ProjectId || ''}
         onAddNote={handleAddNote}
         dropDownOptions={dropDownOptions}
+        stageName={initialData?.ProjectDetails?.StageName || ''}
       />
     </div>
   );

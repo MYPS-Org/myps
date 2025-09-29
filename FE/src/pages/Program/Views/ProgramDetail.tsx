@@ -4,10 +4,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 
 import type { ProgramDetailsEnums } from '../Model.d'; // Adjust the import path as necessary
 import { Button } from '../../../components/tailwindui/button';
-import { editProgram, fetchProgramById, nextStage } from '../Service';
+import { editProgram, fetchProgramById } from '../Service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
-import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { ChevronDownIcon, ChevronRightIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
 import { useToast } from '../../../components/toaster/ToasterContext';
+import NextStageDialog from '../dialogs/NextStageDialog';
+import MetroManilaMap from '../../../components/map/MetroManilaMap';
 // import { formatCurrency } from '../../../utils/GlobalFunctions';
 // import { Badge } from '../../../components/tailwindui/badge';
 
@@ -87,6 +89,8 @@ const ProgramDetail: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isDataSecurityExpanded, setIsDataSecurityExpanded] = useState(false);
+  const [isNextStageDialogOpen, setIsNextStageDialogOpen] = useState(false);
+  const [isActionDropdownOpen, setIsActionDropdownOpen] = useState(false);
   
   // Group data security by OrgType
   const groupedDataSecurity = useMemo(() => {
@@ -220,6 +224,17 @@ const ProgramDetail: React.FC = () => {
     }
   };
 
+  // Get program location for map display
+  const getProgramLocation = () => {
+    // You can map region codes or program data to coordinates later
+    // For now, return a sample location in Metro Manila
+    return {
+      lat: 14.6091,
+      lng: 121.0223,
+      name: programEnums?.Details.Name || "Program Location"
+    };
+  };
+
   const handleUpdate = async () => {
     setIsLoading(true);
     try {
@@ -268,20 +283,26 @@ const ProgramDetail: React.FC = () => {
   };
 
   const handleProceed = async () => {
-    setIsLoading(true);
+    setIsNextStageDialogOpen(true);
+  };
+
+  const handleNextStageSubmit = async (data: { ProgramId: string; Stage: number; Name?: string }) => {
     try {
-      const nextStageId = programEnums?.Details.StageId + 1;
-      console.log('Proceeding to next stage:', nextStageId);
-      await nextStage({ ProgramId: programEnums?.Details.ProgramId, Stage: nextStageId });
-      const nextStageName = programEnums?.Dropdowns.Stages.find(stage => stage.Id === nextStageId);
+      const nextStageName = programEnums?.Dropdowns.Stages.find(stage => stage.Id === data.Stage);
       if (nextStageName) {
-        handleViewDetails(programEnums?.Details.ProgramId, nextStageName.Name);
+        handleViewDetails(data.ProgramId, nextStageName.Name);
       }
     } catch (error) {
-      console.error('Error proceeding with program details:', error);
-    } finally {
-      setIsLoading(false);
+      console.error('Error handling next stage submission:', error);
+      showToast({
+        type: 'error',
+        message: 'Failed to proceed to next stage. Please try again.',
+      });
     }
+  };
+
+  const handleCloseNextStageDialog = () => {
+    setIsNextStageDialogOpen(false);
   };
 
   const handleViewProject = (projectId: string, stageName: string) => {
@@ -292,6 +313,24 @@ const ProgramDetail: React.FC = () => {
     } catch (error) {
       console.error('Error navigating to project details:', error);
     }
+  };
+
+  const handleDownloadTemplate = () => {
+    // TODO: Implement download template functionality
+    console.log('Download Template clicked');
+    setIsActionDropdownOpen(false);
+  };
+
+  const handleImportProjects = () => {
+    // TODO: Implement import projects functionality
+    console.log('Import Projects clicked');
+    setIsActionDropdownOpen(false);
+  };
+
+  const handleExportProjects = () => {
+    // TODO: Implement export projects functionality
+    console.log('Export Projects clicked');
+    setIsActionDropdownOpen(false);
   };
 
   if (isLoading) {
@@ -467,7 +506,7 @@ const ProgramDetail: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => {
-                        const allDataSecurityIds = programEnums?.Dropdowns.DataSecurity.map(item => item.Id) || [];
+                        const allDataSecurityIds = programEnums?.Dropdowns.DataSecurity.map(item => item.ParticipantId ?? '') || [];
                         handleChange('DataSecurityGroup', allDataSecurityIds);
                       }}
                       className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
@@ -618,15 +657,19 @@ const ProgramDetail: React.FC = () => {
           </div>
 
           {/* Right Column - Map */}
-          <div className="col-span-2 bg-gray-100 rounded-lg flex items-center justify-center border">
-            <div className="text-center text-gray-500">
-              <div className="w-16 h-16 mx-auto mb-4 bg-gray-300 rounded-lg flex items-center justify-center">
-                <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                </svg>
+          <div className="col-span-2">
+            <div className="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-xl">
+              <div className="px-4 py-4 border-b border-gray-200">
+                <h3 className="text-lg font-semibold leading-7 text-gray-900">
+                  Program Location - Metro Manila
+                </h3>
               </div>
-              <p className="text-sm">Map View</p>
-              <p className="text-xs text-gray-400">Interactive map would be loaded here</p>
+              <div className="p-4">
+                <MetroManilaMap 
+                  projectLocation={getProgramLocation()}
+                  height="400px"
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -636,19 +679,78 @@ const ProgramDetail: React.FC = () => {
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
           <h2 className="text-xl font-semibold text-gray-900">Projects</h2>
-          {programEnums.IsActive && (
-            <Button color="blue" onClick={handleAddProject}>
-              Add Project
-            </Button>
-          )}
+          <div className="flex items-center gap-4">
+            {programEnums.IsActive && (
+              <Button color="blue" onClick={handleAddProject}>
+                Add Project
+              </Button>
+            )}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsActionDropdownOpen(!isActionDropdownOpen)}
+                className="inline-flex items-center gap-x-1.5 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+              >
+                <Cog6ToothIcon className="-ml-0.5 h-5 w-5 text-gray-400" aria-hidden="true" />
+                Actions
+                <ChevronDownIcon className="-mr-1 h-5 w-5 text-gray-400" aria-hidden="true" />
+              </button>
+
+              {isActionDropdownOpen && (
+                <>
+                  {/* Backdrop */}
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setIsActionDropdownOpen(false)}
+                  />
+                  
+                  {/* Dropdown Menu */}
+                  <div className="absolute right-0 z-20 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                    <div className="py-1">
+                      <button
+                        onClick={handleDownloadTemplate}
+                        className="group flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-blue-500 hover:text-white"
+                      >
+                        <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-white" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                        </svg>
+                        Download Template
+                      </button>
+                      <button
+                        onClick={handleImportProjects}
+                        className="group flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-blue-500 hover:text-white"
+                      >
+                        <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-white" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                        </svg>
+                        Import Projects
+                      </button>
+                      <button
+                        onClick={handleExportProjects}
+                        className="group flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-blue-500 hover:text-white"
+                      >
+                        <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-white" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 8.25H7.5a2.25 2.25 0 00-2.25 2.25v9a2.25 2.25 0 002.25 2.25h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25H15M9 12l3 3m0 0l3-3m-3 3V2.25" />
+                        </svg>
+                        Export Projects
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </div>
         
         <div className="w-full overflow-x-auto">
-          <Table>
+          <Table className="min-w-full px-5">
             <TableHead>
               <TableRow>
                 <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Project ID
+                </TableHeader>
+                <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Description
                 </TableHeader>
                 <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Category
@@ -657,18 +759,15 @@ const ProgramDetail: React.FC = () => {
                   SubProgram
                 </TableHeader>
                 <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Description
-                </TableHeader>
-                <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   City
                 </TableHeader>
                 <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Legislative District
                 </TableHeader>
-                <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                {/* <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Total Project Cost
-                </TableHeader>
-                <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                </TableHeader> */}
+                <TableHeader className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Created Date
                 </TableHeader>
               </TableRow>
@@ -682,14 +781,14 @@ const ProgramDetail: React.FC = () => {
                       {project.ProjectId}
                     </button>
                   </TableCell>
-                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-45">
-                    {project.Category}
-                  </TableCell>
-                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-45">
-                    {project.Thrust}
-                  </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-64">
                     {project.Description}
+                  </TableCell>
+                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-60">
+                    {project.Category}
+                  </TableCell>
+                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-60">
+                    {project.Thrust}
                   </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {project.City}
@@ -697,10 +796,7 @@ const ProgramDetail: React.FC = () => {
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {project.LegislativeDistrict}
                   </TableCell>
-                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {project.Region}
-                  </TableCell>
-                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-20">
                     {project.CreatedDate.StringToDate()}
                   </TableCell>
                 </TableRow>
@@ -709,6 +805,17 @@ const ProgramDetail: React.FC = () => {
           </Table>
         </div>
       </div>
+
+      {/* Next Stage Dialog */}
+      {isNextStageDialogOpen && (
+        <NextStageDialog
+          isOpen={isNextStageDialogOpen}
+          onClose={handleCloseNextStageDialog}
+          onSubmit={handleNextStageSubmit}
+          program={programEnums?.Details}
+          stages={programEnums?.Dropdowns.Stages || []}
+        />
+      )}
     </div>
   );
 }

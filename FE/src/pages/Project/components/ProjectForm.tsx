@@ -5,7 +5,7 @@ import { projectDetailsRules } from '../rules/projectDetailsRules';
 import type { 
   ProjectDetails, 
   ComponentCost, 
-  ProjectNote,
+  // ProjectNote,
   FundingProfile, 
   Activity, 
   TransactionLog,
@@ -21,6 +21,7 @@ import type {
 } from '../Model.d';
 
 import { Button } from '../../../components/tailwindui/button';
+import MetroManilaMap from '../../../components/map/MetroManilaMap';
 
 //Sub-components
 import ProgramDetailsForm from './ProgramDetailsForm';
@@ -55,6 +56,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   // toggle state for Program Details section
   const [isProgramOpen, setIsProgramOpen] = useState<boolean>(true);
   const [isProjectOpen, setIsProjectOpen] = useState<boolean>(true);
+  const [isMapOpen, setIsMapOpen] = useState<boolean>(true);
   
   // SetMaxAmount in ComponentCostForm
   const [maxAmountCost, setMaxAmountCost] = useState<number>(0);
@@ -84,6 +86,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       Id: 0,
       ProgramId: '',
       ProgramName: '',
+      StageName: '',
       ProjectId: '',
       AlternateId: '',
       ExternalId: '',
@@ -167,7 +170,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         setProjectDetails(prev => ({
           ...prev,
           ProgramId: selectedProgram.ProgramId,
-          ProgramName: selectedProgram.Name
+          ProgramName: selectedProgram.Name,
+          StageName: selectedProgram.StageName || ''
         }));
       }
     }
@@ -278,6 +282,17 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const [transactionLogs] = useState<TransactionLog[]>(
     initialData?.TransactionLogs || []
   );
+
+  // Sample project location (you can update this based on your project data)
+  const getProjectLocation = () => {
+    // You can map city codes or project data to coordinates later
+    // For now, return a sample location in Metro Manila
+    return {
+      lat: 14.6091,
+      lng: 121.0223,
+      name: projectDetails.Description || "Project Location"
+    };
+  };
 
   // const handleGoBack = () => {
   //   navigate('/projects');
@@ -459,6 +474,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     const newProfile: FundingProfile = {
       Id: 0, // Temporary ID
       ProjectId: projectDetails.ProjectId || '',
+      StageName: initialData?.ProgramDetails?.StageName || '',
       Source: '',
       Agreement: 0,
       Percentage: 0,
@@ -510,8 +526,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         EmergencyMode: projectDetails.EmergencyMode ? true : false,
       });
       
-      if (response.Data.ProjectId) {
-        navigate(`/projects/project-details/${response.Data.ProjectId}`);
+      if (response.Data.ProjectId && response.Data.StageName) {
+        navigate(`/projects/project-details/${response.Data.ProjectId}:${response.Data.StageName}`);
       }
     } catch (error) {
       console.error('Error adding project details:', error);
@@ -587,6 +603,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         const majorItemPayload: MajorItemOfWork = {
           Id: item.Id,
           ProjectId: initialData?.ProjectDetails.ProjectId || '',
+          StageName: initialData?.ProgramDetails.StageName || '',
           ComponentId: item.ComponentId,
           ReferenceId: item.ReferenceId,
           YearOfWork: item.YearOfWork,
@@ -624,6 +641,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         ComponentCosts: componentCosts.map(cost => ({
           Id: cost.Id,
           ProjectId: cost.ProjectId || projectDetails.ProjectId || '',
+          StageName: initialData?.ProgramDetails?.StageName || '',
           ReferenceId: cost.ReferenceId || '',
           ComponentType: cost.ComponentType || '',
           ComponentId: cost.ComponentId || '',
@@ -645,13 +663,14 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         MajorItemOfWorks: majorItemsForPayload,
         MajorItemLocations: workLocationsForPayload,
         // ProjectNotes: notes, // Include ProjectNotes as it's in the expected payload
-        FundingProfile: fundingProfiles,
+        FundingProfile: fundingProfiles.map(profile => ({
+          ...profile, StageName: initialData?.ProgramDetails?.StageName || '',
+        }))
       };
 
       console.log('=== SENDING TO BACKEND (MATCHING EXPECTED PAYLOAD) ===');
       console.log('Update payload:', payload);
 
-      
       await updateEntireProject(payload);
 
       showToast({
@@ -703,21 +722,44 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
               
             </div>
             <div className="flex space-x-3">
-                {mode === 'edit' && (
+                {mode === 'edit' && initialData?.IsActive === true && (
                   <>
                     <Button color="orange" className='cursor-pointer' onClick={handleUpdateProject} disabled={updateAllProject}>
                       {updateAllProject ? 'Updating...' : 'Update Project'}
                     </Button>
                   </>
                 )}
+                {mode === 'edit' && initialData?.ProgramDetails?.StageId === 10 && (
+                  <Button color="yellow" className='cursor-pointer' /*onClick={modify}*/ disabled={updateAllProject}>
+                    {updateAllProject ? 'Modifying...' : 'Modify Project'}
+                  </Button>
+                )}
             </div>
         </div>
 
       {/* Map Section */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-        <div className="h-64 bg-blue-100 rounded-lg flex items-center justify-center">
-          <div className="text-gray-500 text-lg">Map View - {initialData?.ProjectDetails?.ProjectId || 'New Project'}</div>
+      <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
+        <div
+          className="flex justify-between items-center px-4 py-4 cursor-pointer border-b"
+          onClick={() => setIsMapOpen(!isMapOpen)}
+        >
+          <h3 className="text-lg font-semibold leading-7 text-gray-900">
+            Project Location - Metro Manila
+          </h3>
+          {isMapOpen ? (
+            <ChevronDownIcon className="h-5 w-5 text-gray-500" />
+          ) : (
+            <ChevronRightIcon className="h-5 w-5 text-gray-500" />
+          )}
         </div>
+        {isMapOpen && (
+          <div className="p-4">
+            <MetroManilaMap 
+              projectLocation={getProjectLocation()}
+              height="400px"
+            />
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-6">
@@ -842,6 +884,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             onEdit={handleEditMajorItem}
             onDelete={handleDeleteMajorItem}
             dropDowns={initialData?.Dropdowns?.ScopeOfWorks}
+            programDetails={initialData?.ProgramDetails}
           />
         </div>
       </div>

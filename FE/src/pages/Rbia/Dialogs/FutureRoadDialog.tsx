@@ -4,6 +4,8 @@ import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/16/solid';
 import { Button } from '../../../components/tailwindui/button';
 import { roadsAtom, selectedItemAtom, type Road } from "../state/rbiaAtoms";
+import { addFutureRoad, editFutureRoad } from "../Service";
+import { useRoadData } from "../hooks";
 
 interface FutureRoadDialogProps {
   onClose: () => void;
@@ -12,6 +14,8 @@ interface FutureRoadDialogProps {
 const FutureRoadDialog: React.FC<FutureRoadDialogProps> = ({ onClose }) => {
   const [roads, setRoads] = useAtom(roadsAtom);
   const [selectedItem] = useAtom(selectedItemAtom);
+  // Hook
+  const { roadClassifications } = useRoadData();
   const [formData, setFormData] = useState<Road>({
     Id: 0,
     RoadId: "",
@@ -22,6 +26,9 @@ const FutureRoadDialog: React.FC<FutureRoadDialogProps> = ({ onClose }) => {
     UpdatedBy: '',
     UpdatedDate: ''
   });
+
+  // Debug log to see what we're getting
+  console.log('roadClassifications in dialog:', roadClassifications);
 
   useEffect(() => {
     if (selectedItem && 'RoadId' in selectedItem && 'Classification' in selectedItem) {
@@ -37,24 +44,34 @@ const FutureRoadDialog: React.FC<FutureRoadDialogProps> = ({ onClose }) => {
       return;
     }
 
-    if (!formData.RoadId || !formData.Name ) {
+    if (!formData.RoadId || !formData.Name || !formData.Classification) {
       alert("Please fill in all required fields");
       return;
     }
 
     try {
+      // Create payload with only the required fields for the API
+      const roadPayload = {
+        RoadId: formData.RoadId,
+        Name: formData.Name,
+        Classification: formData.Classification
+      };
+
+      const updatePayload = {...formData, Id: formData.Id};
+
       if (selectedItem) {
-        // Edit existing road
-        setRoads(
-          roads.map((road: Road) =>
-            road.RoadId === (selectedItem as Road).RoadId ? formData : road
-          )
-        );
-      } else {
-        // Create new road
-        setRoads([...roads, formData]);
+        const response = await editFutureRoad(updatePayload); // Call the service to add the future road
+        if (response) {
+          setRoads([...roads, formData]);
+        }
+        handleClose();
+      }else {
+        const response = await addFutureRoad(roadPayload); // Call the service to add the future road
+        if (response) {
+          setRoads([...roads, formData]);
+        }
+        handleClose();
       }
-      handleClose();
     } catch (error) {
       console.error("Error saving road:", error);
       alert("Failed to save road. Please try again.");
@@ -147,15 +164,20 @@ const FutureRoadDialog: React.FC<FutureRoadDialogProps> = ({ onClose }) => {
               </label>
               <select
                 value={formData.Classification}
-                onChange={(e) => handleChange('Classification', Number(e.target.value))}
+                onChange={(e) => handleChange('Classification', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                 required
               >
-                <option value={0}>Select Classification</option>
-                <option value={1}>Primary Road (Classification 1)</option>
-                <option value={2}>Secondary Road (Classification 2)</option>
-                <option value={3}>Tertiary Road (Classification 3)</option>
-                <option value={4}>Local Road (Classification 4)</option>
+                <option value="">Select classification...</option>
+                {Array.isArray(roadClassifications) && roadClassifications.length > 0 ? (
+                  roadClassifications.map((classification) => (
+                    <option key={classification.Id} value={classification.Classification}>
+                      {classification.Classification}
+                    </option>
+                  ))
+                ) : (
+                  <option value="" disabled>Loading classifications...</option>
+                )}
               </select>
             </div>
 

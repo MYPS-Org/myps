@@ -3,19 +3,22 @@ import { useAtom } from "jotai";
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/16/solid';
 import { Button } from '../../../components/tailwindui/button';
-import { roadSectionsAtom, selectedItemAtom, roadsAtom, type RoadSection } from "../state/rbiaAtoms";
+import { selectedItemAtom, roadsAtom, type RoadSection, type Road, deoListAtom } from "../state/rbiaAtoms";
+import { addFutureRoadSection, editFutureRoadSection } from "../Service";
 
 interface FutureRoadSectionDialogProps {
   onClose: () => void;
+  road?: Road; // Optional road prop to pre-fill RoadId
 }
 
-const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClose }) => {
-  const [futureRoadSections, setFutureRoadSections] = useAtom(roadSectionsAtom);
+const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClose, road }) => {
+  // const [futureRoadSections, setFutureRoadSections] = useAtom(roadSectionsAtom);
   const [selectedItem] = useAtom(selectedItemAtom);
   const [roads] = useAtom(roadsAtom);
+  const [initRoadSections] = useAtom(deoListAtom);
   const [formData, setFormData] = useState<RoadSection>({
     Id: 0,
-    RoadId: "",
+    RoadId: road?.RoadId || "", // Pre-fill with road ID if provided
     RoadSectionId: "",
     RoadLength: '',
     DEO: '',
@@ -39,24 +42,28 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
       return;
     }
 
-    if (!formData.RoadId || !formData.RoadSectionId || formData.RoadLength || formData.DEO ) {
-      alert("Please fill in all required fields with valid values");
-      return;
-    }
-
     try {
+      const payload = {
+        RoadId: formData.RoadId,
+        RoadSectionId: formData.RoadSectionId,
+        RoadLength: formData.RoadLength,
+        DEO: formData.DEO
+      };
+      const updatePayload = {...formData, Id: formData.Id};
+
       if (selectedItem) {
-        // Edit existing road section
-        setFutureRoadSections(
-          futureRoadSections.map((section: RoadSection) =>
-            section.RoadSectionId === (selectedItem as RoadSection).RoadSectionId ? formData : section
-          )
-        );
+        const response = await editFutureRoadSection(updatePayload); // Call the service to add the future road section
+        if (response) {
+          console.log("Road section added successfully:", response);
+        }
+        handleClose();
       } else {
-        // Create new road section
-        setFutureRoadSections([...futureRoadSections, formData]);
+        const response = await addFutureRoadSection(payload); // Call the service to add the future road section
+        if (response) {
+          console.log("Road section added successfully:", response);
+        }
+        handleClose();
       }
-      handleClose();
     } catch (error) {
       console.error("Error saving road section:", error);
       alert("Failed to save road section. Please try again.");
@@ -78,7 +85,7 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
   const handleReset = () => {
     setFormData({
       Id: 0,
-      RoadId: "",
+      RoadId: road?.RoadId || "", // Preserve road ID if passed
       RoadSectionId: "",
       RoadLength: "",
       DEO: "",
@@ -99,7 +106,8 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
         <DialogPanel className="w-full max-w-2xl bg-white rounded-lg shadow-xl p-6">
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <DialogTitle className="text-lg font-semibold text-gray-900">
-              {selectedItem ? "Edit Future Road Section" : "Add New Future Road Section"}
+              {road ? `Add Road Section for ${road.RoadId} - ${road.Name}` : 
+               selectedItem ? "Edit Future Road Section" : "Add New Future Road Section"}
             </DialogTitle>
             <button
               onClick={onClose}
@@ -115,22 +123,38 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Parent Road ID <span className="text-red-500">*</span>
               </label>
-              <select
-                value={formData.RoadId}
-                onChange={(e) => handleChange('RoadId', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
-                required
-              >
-                <option value="">Select Parent Road</option>
-                {roads.map((road) => (
-                  <option key={road.RoadId} value={road.RoadId}>
-                    {road.RoadId} - {road.Name}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-gray-500 mt-1">
-                Select the parent road for this section
-              </p>
+              {road ? (
+                <>
+                  <input
+                    type="text"
+                    value={`${formData.RoadId} - ${road.Name}`}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-900"
+                    readOnly
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Road is automatically set from the selected road
+                  </p>
+                </>
+              ) : (
+                <>
+                  <select
+                    value={formData.RoadId}
+                    onChange={(e) => handleChange('RoadId', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                    required
+                  >
+                    <option value="">Select Parent Road</option>
+                    {roads.map((road) => (
+                      <option key={road.RoadId} value={road.RoadId}>
+                        {road.RoadId} - {road.Name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Select the parent road for this section
+                  </p>
+                </>
+              )}
             </div>
 
             {/* Section Road ID */}
@@ -144,10 +168,10 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
                 onChange={(e) => handleChange('RoadSectionId', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
                 required
-                placeholder="Enter Section Road ID (must start with 'FR')"
+                placeholder="Enter Section Road ID (must start with 'FS')"
               />
               <p className="text-xs text-gray-500 mt-1">
-                Section Road ID must start with 'FR' (e.g., FR001-001, FR001-002)
+                Section Road ID must start with 'FS' (e.g., S001-001, FS001-002)
               </p>
             </div>
 
@@ -183,11 +207,11 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
                 required
               >
                 <option value={0}>Select Engineering District</option>
-                <option value={1}>District 1 - Northern Region</option>
-                <option value={2}>District 2 - Central Region</option>
-                <option value={3}>District 3 - Southern Region</option>
-                <option value={4}>District 4 - Eastern Region</option>
-                <option value={5}>District 5 - Western Region</option>
+                {Array.isArray(initRoadSections) && initRoadSections.map((deo) => (
+                  <option key={deo.Id} value={deo.DeoCode}>
+                    {deo.DeoName}
+                  </option>
+                ))}
               </select>
             </div>
 

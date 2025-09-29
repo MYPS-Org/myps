@@ -1,11 +1,11 @@
 import { httpClient } from '../../services/httpClient';
 import type { RODEOEnum } from '../Project/Model';
 
-import type { FutureRoads, FutureRoadSections, FutureBridge, FutureRoadsClassification, BridgePagination, RoadSectionPagination, RoadPagination } from './Model.d';
+import type { FutureRoads, FutureRoadSections, FutureBridge, FutureRoadsClassification, BridgePagination, RoadSectionPagination, RoadPagination, RoadFilter, RoadSectionFilter, BridgeFilter } from './Model.d';
 
 export const fetchRoadInitData = async () => {
     try {
-        const response = await httpClient.post<FutureRoadsClassification[]>('/futureInfra/initfilterFutureRoads');
+        const response = await httpClient.post<{ Classifications: FutureRoadsClassification[] }>('/futureInfra/initfilterFutureRoads');
         return response;
     } catch (error) {
         console.error('Error fetching RBIA data:', error);
@@ -23,9 +23,9 @@ export const fetchRoads = async ( data: RoadPagination) => {
     }
 };
 
-export const addFutureRoad = async (road: FutureRoads) => {
+export const addFutureRoad = async (road: RoadFilter) => {
     try {
-        const response = await httpClient.post<FutureRoads>('/rbia/addFutureRoad', road, );
+        const response = await httpClient.post<RoadFilter>('/futureInfra/addFutureRoads', road, );
         return response;
     } catch (error) {
         console.error('Error adding future road:', error);
@@ -35,7 +35,7 @@ export const addFutureRoad = async (road: FutureRoads) => {
 
 export const editFutureRoad = async (road: FutureRoads) => {
     try {
-        const response = await httpClient.post<FutureRoads>('/rbia/editFutureRoad', road, );
+        const response = await httpClient.post<FutureRoads>('/futureInfra/editFutureRoads', road, );
         return response;
     } catch (error) {
         console.error('Error editing future road:', error);
@@ -55,7 +55,7 @@ export const deleteFutureRoad = async (roadId: string) => {
 
 export const fetchRoadSectionInitData = async () => {
     try {
-        const response = await httpClient.post<FutureRoadsClassification[]>('/futureinfra/InitFilterFutureRoadSections');
+        const response = await httpClient.post<{ DEOs: RODEOEnum[] }>('/futureinfra/InitFilterFutureRoadSections');
         return response;
     } catch (error) {
         console.error('Error fetching RBIA data:', error);
@@ -64,15 +64,15 @@ export const fetchRoadSectionInitData = async () => {
 }
 export const fetchRoadSectionData = async (data: RoadSectionPagination) => {
     try {
-        const response = await httpClient.post<PaginationResponse<FutureRoads>>('/futureinfra/InitFilterFutureRoadSections',data);
+        const response = await httpClient.post<PaginationResponse<FutureRoadSections>>('/futureinfra/ShowFutureRoadSections', data);
         return response;
     } catch (error) {
-        console.error('Error fetching RBIA data:', error);
+        console.error('Error fetching road section data:', error);
         throw error;
     }
 }
 
-export const addFutureRoadSection = async (section: FutureRoadSections) => {
+export const addFutureRoadSection = async (section: RoadSectionFilter) => {
     try {
         const response = await httpClient.post('/futureinfra/addFutureRoadSections', section, );
         return response;
@@ -84,7 +84,7 @@ export const addFutureRoadSection = async (section: FutureRoadSections) => {
 
 export const editFutureRoadSection = async (section: FutureRoadSections) => {
     try {
-        const response = await httpClient.post<FutureRoadSections>('/futureinfra/editFutureRoadSection', section, );
+        const response = await httpClient.post<FutureRoadSections>('/futureinfra/editFutureRoadSections', section, );
         return response;
     } catch (error) {
         console.error('Error editing future road section:', error);
@@ -121,12 +121,12 @@ export const fetchBridgeData = async (data: BridgePagination) => {
     }
 }
 
-export const addBridgeSection = async (section: FutureRoadSections) => {
+export const addFutureBridge = async (bridge: BridgeFilter) => {
     try {
-        const response = await httpClient.post('/futureinfra/addFutureRoadSections', section, );
+        const response = await httpClient.post('/futureinfra/addFutureBridge', bridge);
         return response;
     } catch (error) {
-        console.error('Error adding future road section:', error);
+        console.error('Error adding future bridge:', error);
         throw error;
     }
 }
