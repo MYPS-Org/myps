@@ -506,7 +506,7 @@ const ProgramDetail: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => {
-                        const allDataSecurityIds = programEnums?.Dropdowns.DataSecurity.map(item => item.Id) || [];
+                        const allDataSecurityIds = programEnums?.Dropdowns.DataSecurity.map(item => item.ParticipantId ?? '') || [];
                         handleChange('DataSecurityGroup', allDataSecurityIds);
                       }}
                       className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
@@ -743,11 +743,14 @@ const ProgramDetail: React.FC = () => {
         </div>
         
         <div className="w-full overflow-x-auto">
-          <Table>
+          <Table className="min-w-full px-5">
             <TableHead>
               <TableRow>
                 <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Project ID
+                </TableHeader>
+                <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Description
                 </TableHeader>
                 <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Category
@@ -756,18 +759,15 @@ const ProgramDetail: React.FC = () => {
                   SubProgram
                 </TableHeader>
                 <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Description
-                </TableHeader>
-                <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   City
                 </TableHeader>
                 <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Legislative District
                 </TableHeader>
-                <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                {/* <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Total Project Cost
-                </TableHeader>
-                <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                </TableHeader> */}
+                <TableHeader className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Created Date
                 </TableHeader>
               </TableRow>
@@ -781,14 +781,14 @@ const ProgramDetail: React.FC = () => {
                       {project.ProjectId}
                     </button>
                   </TableCell>
-                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-45">
-                    {project.Category}
-                  </TableCell>
-                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-45">
-                    {project.Thrust}
-                  </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-64">
                     {project.Description}
+                  </TableCell>
+                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-60">
+                    {project.Category}
+                  </TableCell>
+                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-60">
+                    {project.Thrust}
                   </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {project.City}
@@ -796,10 +796,7 @@ const ProgramDetail: React.FC = () => {
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {project.LegislativeDistrict}
                   </TableCell>
-                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {project.Region}
-                  </TableCell>
-                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-20">
                     {project.CreatedDate.StringToDate()}
                   </TableCell>
                 </TableRow>
