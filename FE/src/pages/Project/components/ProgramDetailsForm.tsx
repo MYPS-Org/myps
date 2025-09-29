@@ -103,7 +103,7 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
               <label className="flex-1/3 text-gray-600">Program Type:</label>
               <input
                   type="text"
-                  value={programDetails.Type || ''}
+                  value={programDetails.TypeName || ''}
                   disabled={mode === 'edit'}
                   className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
                   readOnly
@@ -132,7 +132,7 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
               />
           </div>
 
-          <div className='flex flex-row text-left gap-5 items-center'>
+          {/* <div className='flex flex-row text-left gap-5 items-center'>
               <label className="flex-1/3 text-gray-600">User Group:</label>
               <input
                   type="text"
@@ -141,9 +141,9 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
                   className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
                   readOnly
               />
-          </div>
+          </div> */}
 
-          <div className='flex flex-row text-left gap-5 items-center'>
+          {/* <div className='flex flex-row text-left gap-5 items-center'>
               <label className="flex-1/3 text-gray-600">Data Security:</label>
               <input
                   type="text"
@@ -152,7 +152,7 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
                   className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
                   readOnly
               />
-          </div>
+          </div> */}
       </div>
     </div>
   );

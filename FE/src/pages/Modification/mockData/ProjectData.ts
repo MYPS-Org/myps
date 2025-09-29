@@ -22,8 +22,8 @@ export interface ProjectComponent {
 export const mockModificationProjects: ModificationProject[] = [
     {
         id: "MOD-001",
-        programName: "Infrastructure Development Program",
-        projectId: "PROJ-2024-001",
+        programName: "GAA 2027 - South province building project",
+        projectId: "P01155611LZ",
         description: "Highway expansion and improvement project for Region IV-A",
         date: "2024-03-15",
         revisionType: "Major Modification",
@@ -57,8 +57,8 @@ export const mockModificationProjects: ModificationProject[] = [
     },
     {
         id: "MOD-002",
-        programName: "Water Supply Enhancement Program",
-        projectId: "PROJ-2024-002",
+        programName: "GAA 2024 - Water Supply Enhancement Program",
+        projectId: "P01185765MN",
         description: "Water distribution system upgrade for Metro Manila",
         date: "2024-04-22",
         revisionType: "Minor Modification",
@@ -84,8 +84,8 @@ export const mockModificationProjects: ModificationProject[] = [
     },
     {
         id: "MOD-003",
-        programName: "School Building Program",
-        projectId: "PROJ-2024-003",
+        programName: "GAA 2025 - North Luzon Infrastructure Program-NEP",
+        projectId: "P00916771LZ",
         description: "Construction of new elementary school buildings in rural areas",
         date: "2024-05-10",
         revisionType: "Budget Revision",
@@ -93,7 +93,7 @@ export const mockModificationProjects: ModificationProject[] = [
         components: [
             {
                 id: "COMP-006",
-                compId: "SB-1",
+                compId: "CW-1",
                 pcmaStatus: "Completed",
                 constructionStatus: "Completed",
                 permitted: true,
@@ -101,7 +101,7 @@ export const mockModificationProjects: ModificationProject[] = [
             },
             {
                 id: "COMP-007",
-                compId: "SB-2",
+                compId: "CW-2",
                 pcmaStatus: "On-Going",
                 constructionStatus: "On-Going",
                 permitted: true,
@@ -111,8 +111,8 @@ export const mockModificationProjects: ModificationProject[] = [
     },
     {
         id: "MOD-004",
-        programName: "Bridge Rehabilitation Program",
-        projectId: "PROJ-2024-004",
+        programName: "GAA 2023 - Bridge Rehabilitation Program",
+        projectId: "P01125235VS",
         description: "Structural assessment and rehabilitation of existing bridges",
         date: "2024-06-18",
         revisionType: "Technical Modification",
@@ -120,7 +120,7 @@ export const mockModificationProjects: ModificationProject[] = [
         components: [
             {
                 id: "COMP-008",
-                compId: "BR-1",
+                compId: "CW-1",
                 pcmaStatus: "Pending",
                 constructionStatus: "Design Phase",
                 permitted: false,
@@ -130,8 +130,8 @@ export const mockModificationProjects: ModificationProject[] = [
     },
     {
         id: "MOD-005",
-        programName: "Road Maintenance Program",
-        projectId: "PROJ-2024-005",
+        programName: "GAA 2019 - Road Maintenance Program",
+        projectId: "BP00992154LZ",
         description: "Preventive maintenance and repair of national roads",
         date: "2024-07-25",
         revisionType: "Schedule Modification",
@@ -139,7 +139,7 @@ export const mockModificationProjects: ModificationProject[] = [
         components: [
             {
                 id: "COMP-009",
-                compId: "RM-1",
+                compId: "CW-1",
                 pcmaStatus: "On-Going",
                 constructionStatus: "Procurement",
                 permitted: true,
@@ -147,7 +147,7 @@ export const mockModificationProjects: ModificationProject[] = [
             },
             {
                 id: "COMP-010",
-                compId: "RM-2",
+                compId: "CW-2",
                 pcmaStatus: "Completed",
                 constructionStatus: "On-Going",
                 permitted: true,

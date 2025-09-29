@@ -126,6 +126,7 @@ export interface ProgramList {
 	Id: number;
 	RevisionId: number;
 	ProgramId: string;
+	TypeName?: string;
 	StageName: string;
 	StageId?: number;
 	Name: string;

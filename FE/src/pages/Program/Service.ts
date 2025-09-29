@@ -103,3 +103,13 @@ export const fetchStagesByProgramId = async (programId: string) => {
         throw error;
     }
 }
+
+export const dowloadTemplate = async () => {
+    try {
+        const response = await httpClient.post<{link: string}>('/Program/DownloadProgramTemplate', null, {});
+        return response;
+    } catch (error) {
+        console.error('Error downloading template:', error);
+        throw error;
+    }
+}

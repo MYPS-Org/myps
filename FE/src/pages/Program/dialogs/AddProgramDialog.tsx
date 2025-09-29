@@ -330,8 +330,8 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    const allDataSecurityIds = DataSecurity.map(item => item.Id);
-                    setFormData(prev => ({ ...prev, DataSecurityIds: allDataSecurityIds }));
+                    const allDataSecurityIds = DataSecurity.map(item => item.ParticipantId ?? '');
+                    setFormData(prev => ({ ...prev, DataSecurityGroup: allDataSecurityIds }));
                   }}
                   className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
                 >
@@ -339,7 +339,7 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, DataSecurityIds: [] }))}
+                  onClick={() => setFormData(prev => ({ ...prev, DataSecurityGroup: [] }))}
                   className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
                 >
                   Clear All
