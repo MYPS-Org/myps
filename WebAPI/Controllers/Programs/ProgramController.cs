@@ -856,10 +856,10 @@ namespace WebAPI.Controllers.Programs
                         });
                     }
                 }
-                return Ok(new
+                return new BadRequestObjectResult(new
                 {
-                    Message = $"Program {dto.ProgramId} does not exist!",
-                    Title = "Invalid Program ID"
+                    Message = "No projects are linked to this program.",
+                    Title = "Project Link Missing"
                 });
             }
             catch (Exception ex)

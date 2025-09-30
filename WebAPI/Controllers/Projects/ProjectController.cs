@@ -186,12 +186,17 @@ namespace WebAPI.Controllers.Projects
             try
             {
                 DateTime CurrentDate = DateTime.UtcNow;
-                var ProgramDetails = await _db.vProgramDetails.FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
-                if (ProgramDetails == null)
+                var Program = await _db.vPrograms.FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
+                if (Program == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Selected Program not found!", Title = "Program Not Found" });
                 }
-                if(ProgramDetails.IsPublished == true)
+                var ProgramDetails = await _db.vProgramDetails.FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId && x.StageName == Program.StageName);
+                if(ProgramDetails == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Selected Program details not found!", Title = "Program Details Not Found" });
+                }
+                if (ProgramDetails.IsPublished == true)
                 {
                     return new BadRequestObjectResult(new { Message = "Selected Program is already published!", Title = "Program Already Published" });
                 }
@@ -355,13 +360,18 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
                 }
+                var CurrentProgramVersion = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == Project.ProgramId);
+                if (CurrentProgramVersion == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"No program is associated with the Project ID {dto.ProjectId}. Please contact administrator!", Title = "Program Not Associated" });
+                }
                 var Program = await _db.vProgramDetails.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == Project.ProgramId && x.StageName == dto.StageName);
                 if (Program == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Program not found for this project!", Title = "Program Not Found" });
                 }
                 int CurrentYear = (int)DateTime.UtcNow.Year;
-
+                var Doc = await _db.tProjectSupportingDocs.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
                 var SupportingDoc = await _db.tDropdownSupportingDocs.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync();
 
                 var ComponentType = await _db.tProjectComponentEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
@@ -372,10 +382,9 @@ namespace WebAPI.Controllers.Projects
                 HashSet<string> ItemParents = MajorItemOfWork.Select(x => x.ReferenceId).ToHashSet();
                 var MajorWorkLocation = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => ItemParents.Contains(x.ParentId)).ToListAsync();
 
-                var Doc = await _db.tProjectSupportingDocs.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
 
-                var Notes = await _db.tProjectNotes.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId).ToListAsync();
-                var Funding = await _db.tProjectFundingProfile.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId).ToListAsync();
+                var Notes = await _db.tProjectNotes.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
+                var Funding = await _db.tProjectFundingProfile.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
 
                 var Category = await _db.tProjectCategoryEnum.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync();
                 var Thrust = await _db.tProjectThrustLists.AsNoTracking().OrderBy(x => x.ThrustDescription).ToListAsync();
@@ -398,6 +407,7 @@ namespace WebAPI.Controllers.Projects
                 var Transactions = await _db.tTransactionLog.AsNoTracking().Where(x => x.TransactionId == dto.ProjectId).ToListAsync();
                 return Ok(new
                 {
+                    IsActive = (CurrentProgramVersion.StageName == Project.StageName) ? true : false,
                     ProgramDetails = Program,
                     ProjectDetails = Project,
                     ComponentCosts = ComponentCost,
@@ -405,6 +415,7 @@ namespace WebAPI.Controllers.Projects
                     MajorItemOfWorks = MajorItemOfWork,
                     MajorItemLocations = MajorWorkLocation,
                     ProjectNotes = Notes,
+
                     Docs = Doc,
                     FundingProfile = Funding,
                     TransactionLogs = Transactions,
@@ -949,10 +960,10 @@ namespace WebAPI.Controllers.Projects
                 #endregion
                 #region Update Component Cost
                 var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId).ToListAsync();
+                var NewComponentCostData = dto.ComponentCosts.Where(x => x.Id == 0);
                 if (ComponentCost.Count > 0)
                 {
                     HashSet<string> CurrentComponentCost = new HashSet<string>(ComponentCost.Select(x => x.ReferenceId));
-                    var NewComponentCostData = dto.ComponentCosts.Where(x => !CurrentComponentCost.Contains(x.ReferenceId)).ToList();
                     HashSet<string> NewComponentCost = new HashSet<string>(NewComponentCostData.Select(x => x.ReferenceId));
                     #region Delete Component Cost and Year
                     var DeletedComponentCost = CurrentComponentCost.Except(dto.ComponentCosts.Select(x => x.ReferenceId)).ToList();
@@ -988,47 +999,47 @@ namespace WebAPI.Controllers.Projects
                     }
                     #endregion
                     #region New Component Cost and Year
-                    if (NewComponentCost.Count > 0)
-                    {
-                        HasCostUpdate = true;
-                        var NewCostToAdd = NewComponentCostData.Select((item, index) => new ProjectComponentCost
-                        {
-                            StageName = Project.StageName!,
-                            ProjectId = Project.ProjectId!,
-                            ReferenceId = Project.ProjectId!.GenerateReferenceId(Project.StageName),
-                            ComponentId = item.ComponentId,
-                            ComponentType = item.ComponentType,
-                            Description = item.Description,
-                            Total = item.Total,
-                            CreatedBy = _Session.UserId,
-                            CreatedDate = CurrentDate
-                        }).ToList();
-                        await _db.tProjectComponentCost.AddRangeAsync(NewCostToAdd);
+                    //if (NewComponentCost.Count > 0)
+                    //{
+                    //    HasCostUpdate = true;
+                    //    var NewCostToAdd = NewComponentCostData.Select((item, index) => new ProjectComponentCost
+                    //    {
+                    //        StageName = Project.StageName!,
+                    //        ProjectId = Project.ProjectId!,
+                    //        ReferenceId = Project.ProjectId!.GenerateReferenceId(Project.StageName),
+                    //        ComponentId = item.ComponentId,
+                    //        ComponentType = item.ComponentType,
+                    //        Description = item.Description,
+                    //        Total = item.Total,
+                    //        CreatedBy = _Session.UserId,
+                    //        CreatedDate = CurrentDate
+                    //    }).ToList();
+                    //    await _db.tProjectComponentCost.AddRangeAsync(NewCostToAdd);
 
-                        var relatedYears = new List<ProjectComponentCostYear>();
-                        foreach (var parent in NewCostToAdd)
-                        {
-                            var matchingDto = NewCostToAdd.FirstOrDefault(dto =>
-                                dto.ComponentId == parent.ComponentId &&
-                                dto.ComponentType == parent.ComponentType &&
-                                dto.Total == parent.Total);
+                    //    var relatedYears = new List<ProjectComponentCostYear>();
+                    //    foreach (var parent in NewCostToAdd)
+                    //    {
+                    //        var matchingDto = NewCostToAdd.FirstOrDefault(dto =>
+                    //            dto.ComponentId == parent.ComponentId &&
+                    //            dto.ComponentType == parent.ComponentType &&
+                    //            dto.Total == parent.Total);
 
-                            if (matchingDto != null)
-                            {
-                                var matchingYears = dto.ComponentCostYear.Select(year => new ProjectComponentCostYear
-                                {
-                                    ParentId = matchingDto.ReferenceId,
-                                    CostYear = year.CostYear,
-                                    Cost = year.Cost,
-                                    StartDate = year.StartDate,
-                                    EndDate = year.EndDate
-                                });
+                    //        if (matchingDto != null)
+                    //        {
+                    //            var matchingYears = dto.ComponentCostYear.Select(year => new ProjectComponentCostYear
+                    //            {
+                    //                ParentId = matchingDto.ReferenceId,
+                    //                CostYear = year.CostYear,
+                    //                Cost = year.Cost,
+                    //                StartDate = year.StartDate,
+                    //                EndDate = year.EndDate
+                    //            });
 
-                                relatedYears.AddRange(matchingYears);
-                            }
-                        }
-                        await _db.tProjectComponentCostYear.AddRangeAsync(relatedYears);
-                    }
+                    //            relatedYears.AddRange(matchingYears);
+                    //        }
+                    //    }
+                    //    await _db.tProjectComponentCostYear.AddRangeAsync(relatedYears);
+                    //}
                     #endregion
                     #region Update Component Cost and Year
                     var UpdateComponentCost = dto.ComponentCosts.Where(x => CurrentComponentCost.Contains(x.ReferenceId)).ToList();
@@ -1176,45 +1187,46 @@ namespace WebAPI.Controllers.Projects
                     }
                     #endregion
                 }
-                else if (dto.ComponentCosts.Count > 0)
+                if (NewComponentCostData.Count() > 0)
                 {
                     HasCostUpdate = true;
-                    var NewCostToAdd = dto.ComponentCosts.Select((item, index) => new ProjectComponentCost
+                    var NewCostIds = NewComponentCostData.Select(x => x.ReferenceId).ToHashSet<string>();
+                    var NewCostYears = dto.ComponentCostYear.Where(x => NewCostIds.Contains(x.ParentId)).ToHashSet();
+                    var CostLookup = NewCostYears
+                    .GroupBy(x => x.ParentId)
+                    .ToDictionary(g => g.Key, g => g.ToList());
+
+                    foreach (var location in NewComponentCostData)
                     {
+                        string oldId = location.ReferenceId;
+                        location.ReferenceId = Project.ProjectId + "-" + ("tCountComponentCost").GenerateCode();
+                        if (CostLookup.TryGetValue(oldId, out var children))
+                        {
+                            children.ForEach(x => x.ParentId = location.ReferenceId);
+                        }
+                    }
+                    var SaveNewComponent = NewComponentCostData.Select((item, index) => new ProjectComponentCost
+                    {
+                        StageName = Project.StageName,
                         ProjectId = Project.ProjectId!,
-                        ReferenceId = Project.ProjectId + "-" + ("tCountComponentCost").GenerateCode(),
+                        ReferenceId = item.ReferenceId,
                         ComponentId = item.ComponentId,
                         ComponentType = item.ComponentType,
                         Description = item.Description,
                         Total = item.Total,
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
-                    }).ToList();
-                    await _db.tProjectComponentCost.AddRangeAsync(NewCostToAdd);
-
-                    var relatedYears = new List<ProjectComponentCostYear>();
-                    foreach (var parent in NewCostToAdd)
+                    });
+                    await _db.tProjectComponentCost.AddRangeAsync(SaveNewComponent);
+                    var SaveNewComponentYear = NewCostYears.Select(year => new ProjectComponentCostYear
                     {
-                        var matchingDto = NewCostToAdd.FirstOrDefault(dto =>
-                            dto.ComponentId == parent.ComponentId &&
-                            dto.ComponentType == parent.ComponentType &&
-                            dto.Total == parent.Total);
-
-                        if (matchingDto != null)
-                        {
-                            var matchingYears = dto.ComponentCostYear.Select(year => new ProjectComponentCostYear
-                            {
-                                ParentId = matchingDto.ReferenceId,
-                                CostYear = year.CostYear,
-                                Cost = year.Cost,
-                                StartDate = year.StartDate,
-                                EndDate = year.EndDate
-                            });
-
-                            relatedYears.AddRange(matchingYears);
-                        }
-                    }
-                    await _db.tProjectComponentCostYear.AddRangeAsync(relatedYears);
+                        ParentId = year.ParentId,
+                        CostYear = year.CostYear,
+                        Cost = year.Cost,
+                        StartDate = year.StartDate,
+                        EndDate = year.EndDate
+                    });
+                    await _db.tProjectComponentCostYear.AddRangeAsync(SaveNewComponentYear);
                 }
                 #endregion
                 #region Update Major Item of Works
@@ -1787,25 +1799,25 @@ namespace WebAPI.Controllers.Projects
                     await _db.tProjectFundingProfile.AddRangeAsync(addFunding);
                 }
                 #endregion
-                if (HasCostUpdate)
-                {
-                    var param = new Dictionary<string, object> { { "@ProgramId", dto.ProjectDetails!.ProgramId! } };
-                    List<Double> Totals = Sql.NormalQuery<Double>(
-                            Appsetting.ConnectionString,
-                            "EXEC pUpdateProgramCost @ProgramId = @ProgramId", param
-                        );
-                    Double TotalCosts = Totals.Sum();
-                    var CurrentVersion = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == Program.Id);
-                    if(CurrentVersion == null)
-                    {
-                        return new BadRequestObjectResult(new { Message = "Program not found for this project!", Title = "Program Not Found" });
-                    }
-                    CurrentVersion.Cost = TotalCosts;
-                    _db.tProgramRevisions.Update(CurrentVersion);
-                }
                 await _db.tTransactionLog.AddRangeAsync(transactionLogs);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
+                if (HasCostUpdate)
+                {
+                    var param = new Dictionary<string, object> { { "@ProgramId", dto.ProjectDetails!.ProgramId! } };
+                    double? Totals = Sql.NormalQuery<double?>(
+                        Appsetting.ConnectionString,
+                        "EXEC pUpdateProgramCost @ProgramId = @ProgramId", param
+                    ).FirstOrDefault();
+                    var CurrentVersion = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == Program.Id);
+                    if (CurrentVersion == null)
+                    {
+                        return new BadRequestObjectResult(new { Message = "Program not found for this project!", Title = "Program Not Found" });
+                    }
+                    CurrentVersion.Cost = Totals ?? 0;
+                    _db.tProgramRevisions.Update(CurrentVersion);
+                    await _db.SaveChangesAsync();
+                }
                 return Ok(new
                 {
                     Message = $"Project {dto.ProjectDetails!.ProjectId} updated successfully!",
@@ -1975,6 +1987,7 @@ namespace WebAPI.Controllers.Projects
                 await System.IO.File.WriteAllBytesAsync(Path.Combine(Appsetting.RootPath, FilePath), fileBytes);
                 var AddSupporting = new ProjectSupportingDocs()
                 {
+                    StageName = dto.StageName,
                     DocumentType = docType,
                     ProjectId = dto.ProjectId,
                     FileName = FileName,
@@ -1987,7 +2000,7 @@ namespace WebAPI.Controllers.Projects
                 await _db.tProjectSupportingDocs.AddAsync(AddSupporting);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
-                return Ok(new { Message = "Notes added successfully!", Tile = "Add Success." });
+                return Ok(new { Message = "Supporting Docs added successfully!", Tile = "Add Success." });
             }
             catch (Exception ex)
             {

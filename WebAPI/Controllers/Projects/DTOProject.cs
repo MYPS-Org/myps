@@ -52,6 +52,7 @@ namespace WebAPI.Controllers.Projects
     {
         [Required]
         public long Id { get; set; }
+        [Required]
         public string ProjectId { get; set; } = string.Empty;
         [Required]
         [MaxLength(200)]
@@ -167,11 +168,10 @@ namespace WebAPI.Controllers.Projects
         [Required]
         public int Id { get; set; }
     }
-    public class FundingProfileDTO : ProjectDetailsDTO
+    public class FundingProfileDTO
     {
         public int Id { get; set; }
         [Required]
-        [MaxLength(100)]
         public string ProjectId { get; set; } = string.Empty;
         [Required]
         public string Source { get; set; } = string.Empty;
