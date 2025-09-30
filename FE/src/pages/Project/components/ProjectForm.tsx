@@ -700,6 +700,15 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     }
   };
 
+  const handleModifyProject = (projectId: string, stageName: string) => {
+    // navigate(`/projects/modify-project/${projectId}:${stageName}`);
+    if (!projectId || !stageName) {
+      alert('Project ID or Stage Name is missing. Cannot modify project.');
+      return;
+    }
+    alert('Modify Project feature is coming soon! ' + projectId + ':' + stageName); 
+  }
+
   return (
     
     <div className="overflow-hidden max-w-10xl mx-auto p-6 space-y-6">
@@ -722,7 +731,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
               
             </div>
             <div className="flex space-x-3">
-                {mode === 'edit' && initialData?.IsActive === true && (
+                {mode === 'edit' && initialData?.IsActive === true && initialData?.ProgramDetails?.StageId !== 10 && (
                   <>
                     <Button color="orange" className='cursor-pointer' onClick={handleUpdateProject} disabled={updateAllProject}>
                       {updateAllProject ? 'Updating...' : 'Update Project'}
@@ -730,7 +739,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                   </>
                 )}
                 {mode === 'edit' && initialData?.ProgramDetails?.StageId === 10 && (
-                  <Button color="yellow" className='cursor-pointer' /*onClick={modify}*/ disabled={updateAllProject}>
+                  <Button color="yellow" className='cursor-pointer' onClick={() => handleModifyProject(initialData?.ProjectDetails?.ProjectId ?? '', initialData?.ProgramDetails?.StageName ?? '')} disabled={updateAllProject}>
                     {updateAllProject ? 'Modifying...' : 'Modify Project'}
                   </Button>
                 )}

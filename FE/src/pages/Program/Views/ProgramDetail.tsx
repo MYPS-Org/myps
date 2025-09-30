@@ -301,6 +301,10 @@ const ProgramDetail: React.FC = () => {
     }
   };
 
+  const handlePublishToPCMA = () => {
+    console.log('Publish to PCMA clicked');
+  };
+
   const handleCloseNextStageDialog = () => {
     setIsNextStageDialogOpen(false);
   };
@@ -313,6 +317,10 @@ const ProgramDetail: React.FC = () => {
     } catch (error) {
       console.error('Error navigating to project details:', error);
     }
+  };
+
+  const handleModifyProject = (projectId: string, stageName: string) => {
+    alert('Modify Project clicked'+ ' ' + projectId + ' at stage ' + stageName);
   };
 
   const handleDownloadTemplate = () => {
@@ -638,7 +646,7 @@ const ProgramDetail: React.FC = () => {
             </div>
 
             <div className="pt-4 flex justify-end gap-4">
-              {programEnums.IsActive && programEnums.Details.StageId >= 4 && programEnums.Details.StageId <= 11 && (
+              {programEnums.IsActive && programEnums.Details.StageId >= 4 && programEnums.Details.StageId <= 9 && (
                 <Button color="blue" className="w-auto items-center text-nowrap" onClick={handleProceed}>
                   Proceed to {nextStageName}
                 </Button>
@@ -680,7 +688,12 @@ const ProgramDetail: React.FC = () => {
         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
           <h2 className="text-xl font-semibold text-gray-900">Projects</h2>
           <div className="flex items-center gap-4">
-            {programEnums.IsActive && (
+            {programEnums.IsActive && programEnums.Details.StageId === 9 && (
+              <Button color="yellow" onClick={handlePublishToPCMA}>
+                Publish to PCMA
+              </Button>
+            )}
+            {programEnums.IsActive && programEnums?.Details?.StageId < 9 && (
               <Button color="blue" onClick={handleAddProject}>
                 Add Project
               </Button>
@@ -770,6 +783,9 @@ const ProgramDetail: React.FC = () => {
                 <TableHeader className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Created Date
                 </TableHeader>
+                <TableHeader className='px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                  Actions
+                </TableHeader>
               </TableRow>
             </TableHead>
             
@@ -798,6 +814,11 @@ const ProgramDetail: React.FC = () => {
                   </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-20">
                     {project.CreatedDate.StringToDate()}
+                  </TableCell>
+                  <TableCell className='px-6 py-4 whitespace-nowrap text-sm font-medium text-center'>
+                    <Button className="w-24 items-center" onClick={() => handleModifyProject(project.ProjectId, project.StageName)}>
+                      Modify
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
