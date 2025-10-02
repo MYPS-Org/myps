@@ -4,7 +4,7 @@ import { Button } from '../../../components/tailwindui/button';
 import { useDropDownData } from "../hooks/useDropDown";
 import XMarkIcon from '@heroicons/react/24/outline/XMarkIcon';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '../../../components/tailwindui/table';
-import type { ModificationProject, ProjectComponent } from '../mockData/projectData';
+import type { ModificationProject, ProjectComponent } from '../mockData/ProjectData';
 
 interface ReviseProjectDialogProps {
     isOpen: boolean;
@@ -164,7 +164,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({ isOpen, onClo
                                 <TableRow>
                                     <TableHeader>Select</TableHeader>
                                     <TableHeader>Comp ID</TableHeader>
-                                    <TableHeader>PCMA Status</TableHeader>
+                                    {/* <TableHeader>PCMA Status</TableHeader> */}
                                     <TableHeader>Construction Status</TableHeader>
                                     <TableHeader>Permitted</TableHeader>
                                     <TableHeader>Implementation Mode</TableHeader>
@@ -184,7 +184,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({ isOpen, onClo
                                         <TableCell>
                                             {component.compId}
                                         </TableCell>
-                                        <TableCell>
+                                        {/* <TableCell>
                                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                                                 component.pcmaStatus === 'Completed' ? 'bg-green-100 text-green-800' :
                                                 component.pcmaStatus === 'On-Going' ? 'bg-blue-100 text-blue-800' :
@@ -192,7 +192,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({ isOpen, onClo
                                             }`}>
                                                 {component.pcmaStatus}
                                             </span>
-                                        </TableCell>
+                                        </TableCell> */}
                                         <TableCell>
                                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                                                 component.constructionStatus === 'Completed' ? 'bg-green-100 text-green-800' :
@@ -220,7 +220,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({ isOpen, onClo
                     </div>
                     <div className='pt-4 border border-gray-100 rounded-2xl px-4 flex justify-end gap-5'>
                         <Button
-                            onSubmit={handleSubmit}
+                            type="submit"
                             color="blue"
                         >Submit
                         </Button>
