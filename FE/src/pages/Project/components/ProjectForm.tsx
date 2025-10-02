@@ -832,7 +832,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                     disabled={savingSection === 'projectDetails'}
                     className="text-sm"
                   >
-                    {savingSection === 'projectDetails' ? 'Saving...' : 'Save Section'}
+                    {savingSection === 'projectDetails' ? 'Saving...' : 'Save Project'}
                   </Button>
                 )}
               </div>

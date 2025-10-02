@@ -66,7 +66,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     type="text"
                                     value={projectDetails?.ProjectId}
                                     onChange={(e) => handleInputChange('ProjectId', (e.target.value))}
-                                    className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
+                                    className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 bg-gray-100 rounded-md truncate'
                                     readOnly
                                     placeholder="Auto-generated Project ID"
                                 />
@@ -300,8 +300,9 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     id="DistrictEngOffice" 
                                     value={projectDetails?.DEO} 
                                     onChange={(e) => handleInputChange('DEO', e.target.value)} 
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.DEO ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.DEO ? 'border-red-500' : 'border-gray-300'} ${mode === 'edit' ? 'bg-gray-100 cursor-not-allowed' : ''}  rounded-md truncate`}
                                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                                    disabled={mode === 'edit'}
                                 >
                                     <option value="">Select District Engineering Office</option>
                                     {projectEnums?.DEOs?.map((deo) => (
@@ -319,8 +320,9 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <select
                                     value={projectDetails?.Region}
                                     onChange={(e) => handleInputChange('Region', e.target.value)}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.Region ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.Region ? 'border-red-500' : 'border-gray-300'} ${mode === 'edit' ? 'bg-gray-100 cursor-not-allowed' : ''} rounded-md truncate`}
                                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                                    disabled={mode === 'edit'}
                                 >
                                     <option value="">Select Regional Office</option>
                                     {projectEnums?.DEOs?.filter(x => x.DeoCode === projectDetails?.DEO).map((region) => (
@@ -539,7 +541,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     type="date"
                                     value={projectDetails?.FeasibilityDate ? new Date(projectDetails?.FeasibilityDate).toISOString().split('T')[0] : ''}
                                     onChange={(e) => handleInputChange('FeasibilityDate', e.target.value ? new Date(e.target.value).toISOString() : null)}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.FeasibilityDate ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.FeasibilityDate ? 'border-red-500' : 'border-gray-300'} ${!(projectDetails?.Feasibility === 1) ? 'bg-gray-100 cursor-not-allowed' : ''} rounded-md truncate`}
                                     disabled={!(projectDetails?.Feasibility === 1)}
                                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
                                 />
@@ -570,7 +572,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     type="date"
                                     value={projectDetails?.DetailedDesignDate ? new Date(projectDetails?.DetailedDesignDate).toISOString().split('T')[0] : ''}
                                     onChange={(e) => handleInputChange('DetailedDesignDate', e.target.value ? new Date(e.target.value).toISOString() : null)}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.DetailedDesignDate ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.DetailedDesignDate ? 'border-red-500' : 'border-gray-300'} ${!(projectDetails?.DetailedDesign) ? 'bg-gray-100 cursor-not-allowed' : ''} rounded-md truncate`}
                                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
                                     disabled={!(projectDetails?.DetailedDesign)}
                                 />

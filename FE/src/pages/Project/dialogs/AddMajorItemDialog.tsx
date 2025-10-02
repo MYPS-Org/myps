@@ -3,6 +3,7 @@ import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import type { ComponentCost, ScopeOfWorkEnum } from '../Model.d';
+import type { ProgramList } from '../../Program/Model';
 
 interface AddMajorItemDialogProps {
   isOpen: boolean;
@@ -14,6 +15,7 @@ interface AddMajorItemDialogProps {
     InfraType: string;
   }) => void;
   componentCosts: ComponentCost[];
+  programDetails?: ProgramList;
   dropDowns?: ScopeOfWorkEnum[];
   mode: 'add' | 'edit';
   initialData?: {
@@ -30,6 +32,7 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
   onClose,
   onAdd,
   componentCosts,
+  programDetails,
   dropDowns = [],
   mode,
   initialData,
@@ -37,7 +40,7 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
 }) => {
   const [formData, setFormData] = useState({
     ComponentId: '',
-    YearOfWork: new Date().getFullYear(),
+    YearOfWork: programDetails?.YearStart || new Date().getFullYear(),
     WorkTypeId: 0,
     InfraType: ''
   });
@@ -51,7 +54,7 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
     } else {
       setFormData({
         ComponentId: '',
-        YearOfWork: new Date().getFullYear(),
+        YearOfWork: programDetails ? programDetails.YearStart : new Date().getFullYear(),
         WorkTypeId: 0,
         InfraType: ''
       });
@@ -187,9 +190,9 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
               <input
                 type="number"
                 value={formData.YearOfWork}
-                onChange={(e) => handleInputChange('YearOfWork', parseInt(e.target.value) || new Date().getFullYear())}
+                onChange={(e) => handleInputChange('YearOfWork', parseInt(e.target.value))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 text-sm"
-                min="1900"
+                min={programDetails?.YearStart}
                 max="2100"
                 required
               />

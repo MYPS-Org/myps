@@ -357,6 +357,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
           InfraType: majorItems[editingMajorItemIndex].InfraType,
         } : undefined}
         existingMajorItems={majorItems.map(item => ({ ComponentId: item.ComponentId }))}
+        programDetails={programDetails}
       />
     </div>
   );

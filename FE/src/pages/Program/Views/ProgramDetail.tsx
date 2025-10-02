@@ -441,7 +441,8 @@ const ProgramDetail: React.FC = () => {
                   <select 
                     value={programEnums?.Details.Status}
                     onChange={(e) => handleChange('Status', Number(e.target.value))}
-                    className='w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900'
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900 ${!programEnums?.IsActive ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    disabled={!programEnums?.IsActive}
                   >
                     {programEnums?.Dropdowns.Statuses.map((status) => (
                       <option key={status.Id} value={status.Id}>
@@ -591,9 +592,9 @@ const ProgramDetail: React.FC = () => {
                               <span className="text-sm text-gray-700 font-medium">
                                 {item.OrgName}
                               </span>
-                              <span className="text-xs text-gray-500">
+                              {/* <span className="text-xs text-gray-500">
                                 {item.ParticipantId}
-                              </span>
+                              </span> */}
                             </div>
                           </label>
                         ))}
@@ -783,9 +784,11 @@ const ProgramDetail: React.FC = () => {
                 <TableHeader className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Created Date
                 </TableHeader>
+                { programEnums?.IsActive && programEnums?.Details?.StageId === 10 && (
                 <TableHeader className='px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider'>
                   Actions
                 </TableHeader>
+                )}
               </TableRow>
             </TableHead>
             
@@ -815,11 +818,13 @@ const ProgramDetail: React.FC = () => {
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-20">
                     {project.CreatedDate.StringToDate()}
                   </TableCell>
+                  { programEnums?.IsActive && programEnums?.Details?.StageId === 10 && (
                   <TableCell className='px-6 py-4 whitespace-nowrap text-sm font-medium text-center'>
                     <Button className="w-24 items-center" onClick={() => handleModifyProject(project.ProjectId, project.StageName)}>
                       Modify
                     </Button>
                   </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>
