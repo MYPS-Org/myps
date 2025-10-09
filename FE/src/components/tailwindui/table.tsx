@@ -5,6 +5,35 @@ import type React from 'react'
 import { createContext, useContext, useState } from 'react'
 import { Link } from './link'
 
+// Types for NavPills
+type NavPillOption = {
+  value: string
+  label: string
+  count?: number
+  disabled?: boolean
+}
+
+type NavPillsProps = {
+  options: NavPillOption[]
+  selectedValue?: string
+  onChange?: (value: string) => void
+  label?: string
+  className?: string
+  size?: 'sm' | 'md' | 'lg'
+  variant?: 'default' | 'pills' | 'underline'
+}
+
+type MultiSelectNavPillsProps = {
+  options: NavPillOption[]
+  selectedValues?: string[]
+  onChange?: (values: string[]) => void
+  label?: string
+  className?: string
+  size?: 'sm' | 'md' | 'lg'
+  variant?: 'default' | 'pills' | 'underline'
+  showClearAll?: boolean
+}
+
 // Sorting icons
 function ChevronUpIcon({ className }: { className?: string }) {
   return (
@@ -27,6 +56,202 @@ function ChevronUpDownIcon({ className }: { className?: string }) {
     <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 15 12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" />
     </svg>
+  )
+}
+
+// NavPills Component for filtering
+export function NavPills({
+  options,
+  selectedValue,
+  onChange,
+  label,
+  className,
+  size = 'md',
+  variant = 'pills'
+}: NavPillsProps) {
+  const sizeClasses = {
+    sm: 'px-2.5 py-1.5 text-xs',
+    md: 'px-3 py-2 text-sm',
+    lg: 'px-4 py-2.5 text-base'
+  }
+
+  const getVariantClasses = (isSelected: boolean, isDisabled: boolean) => {
+    if (isDisabled) {
+      return 'cursor-not-allowed opacity-50 text-zinc-400 bg-zinc-100'
+    }
+
+    switch (variant) {
+      case 'pills':
+        return isSelected
+          ? 'bg-blue-100 text-blue-700 border-blue-200'
+          : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 hover:text-zinc-900 border-zinc-200'
+      
+      case 'underline':
+        return isSelected
+          ? 'text-blue-600 border-b-2 border-blue-600 bg-transparent'
+          : 'text-zinc-600 hover:text-zinc-900 bg-transparent border-b-2 border-transparent hover:border-zinc-300'
+      
+      default: // 'default'
+        return isSelected
+          ? 'bg-blue-600 text-white'
+          : 'bg-white text-zinc-700 hover:bg-zinc-50 border border-zinc-300'
+    }
+  }
+
+  return (
+    <div className={clsx('space-y-2', className)}>
+      {label && (
+        <label className="text-sm font-medium text-gray-700">
+          {label}
+        </label>
+      )}
+      <div className="flex flex-wrap gap-2">
+        {options.map((option) => {
+        const isSelected = selectedValue === option.value
+        const isDisabled = option.disabled || false
+
+        return (
+          <button
+            key={option.value}
+            onClick={() => !isDisabled && onChange?.(option.value)}
+            disabled={isDisabled}
+            className={clsx(
+              'inline-flex items-center justify-center font-medium rounded-md transition-colors duration-200 focus:outline-none',
+              sizeClasses[size],
+              getVariantClasses(isSelected, isDisabled),
+              variant !== 'underline' && 'border'
+            )}
+          >
+            <span>{option.label}</span>
+            {option.count !== undefined && (
+              <span className={clsx(
+                'ml-1.5 rounded-full px-1.5 py-0.5 text-xs font-medium',
+                isSelected 
+                  ? variant === 'pills' 
+                    ? 'bg-blue-200 text-blue-800' 
+                    : 'bg-blue-500 text-white'
+                  : 'bg-zinc-200 text-zinc-600'
+              )}>
+                {option.count}
+              </span>
+            )}
+          </button>
+        )
+      })}
+      </div>
+    </div>
+  )
+}
+
+// Multi-Select NavPills Component for filtering with multiple selections
+export function MultiSelectNavPills({
+  options,
+  selectedValues = [],
+  onChange,
+  label,
+  className,
+  size = 'md',
+  variant = 'pills',
+  showClearAll = true
+}: MultiSelectNavPillsProps) {
+  const sizeClasses = {
+    sm: 'px-2.5 py-1.5 text-xs',
+    md: 'px-3 py-2 text-sm',
+    lg: 'px-4 py-2.5 text-base'
+  }
+
+  const handleToggle = (value: string) => {
+    if (!onChange) return
+    
+    const newValues = selectedValues.includes(value)
+      ? selectedValues.filter(v => v !== value)
+      : [...selectedValues, value]
+    
+    onChange(newValues)
+  }
+
+  const handleClearAll = () => {
+    if (!onChange) return
+    onChange([])
+  }
+
+  const getVariantClasses = (isSelected: boolean, isDisabled: boolean) => {
+    if (isDisabled) {
+      return 'cursor-not-allowed opacity-50 text-zinc-400 bg-zinc-100'
+    }
+
+    switch (variant) {
+      case 'pills':
+        return isSelected
+          ? 'bg-blue-100 text-blue-700 border-blue-200'
+          : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 hover:text-zinc-900 border-zinc-200'
+      
+      case 'underline':
+        return isSelected
+          ? 'text-blue-600 border-b-2 border-blue-600 bg-transparent'
+          : 'text-zinc-600 hover:text-zinc-900 bg-transparent border-b-2 border-transparent hover:border-zinc-300'
+      
+      default: // 'default'
+        return isSelected
+          ? 'bg-blue-600 text-white'
+          : 'bg-white text-zinc-700 hover:bg-zinc-50 border border-zinc-300'
+    }
+  }
+
+  return (
+    <div className={clsx('space-y-2', className)}>
+      <div className="flex flex-wrap items-center gap-2 m-4">
+      {label && (
+        <label className="text-md font-medium text-blue-500">
+          {label} :
+        </label>
+      )}
+        {options.map((option) => {
+        const isSelected = selectedValues.includes(option.value)
+        const isDisabled = option.disabled || false
+
+        return (
+          <button
+            key={option.value}
+            onClick={() => !isDisabled && handleToggle(option.value)}
+            disabled={isDisabled}
+            className={clsx(
+              'inline-flex items-center justify-center font-medium rounded-md transition-colors duration-200',
+              sizeClasses[size],
+              getVariantClasses(isSelected, isDisabled),
+              variant !== 'underline' && 'border'
+            )}
+          >
+            <span>{option.label}</span>
+            {option.count !== undefined && (
+              <span className={clsx(
+                'ml-1.5 rounded-full px-1.5 py-0.5 text-xs font-medium',
+                isSelected 
+                  ? variant === 'pills' 
+                    ? 'bg-blue-200 text-blue-800' 
+                    : 'bg-blue-500 text-white'
+                  : 'bg-zinc-200 text-zinc-600'
+              )}>
+                {option.count}
+              </span>
+            )}
+          </button>
+        )
+      })}
+      {showClearAll && selectedValues.length > 0 && (
+        <button
+          onClick={handleClearAll}
+          className={clsx(
+            'inline-flex items-center justify-center font-medium rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2',
+            sizeClasses[size],
+            'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100'
+          )}
+        >
+          <span>Clear All</span>
+        </button>
+      )}
+      </div>
+    </div>
   )
 }
 
@@ -203,5 +428,84 @@ export function TableCell({ className, children, ...props }: React.ComponentProp
       )}
       {children}
     </td>
+  )
+}
+
+// Convenience component that combines NavPills with Table
+export function FilterableTable({
+  filterOptions,
+  selectedFilter,
+  onFilterChange,
+  filterClassName,
+  filterSize = 'md',
+  filterVariant = 'pills',
+  label,
+  children,
+  ...tableProps
+}: {
+  filterOptions: NavPillOption[]
+  selectedFilter?: string
+  onFilterChange?: (value: string) => void
+  filterClassName?: string
+  filterSize?: 'sm' | 'md' | 'lg'
+  filterVariant?: 'default' | 'pills' | 'underline'
+  label?: string
+} & React.ComponentPropsWithoutRef<typeof Table>) {
+  return (
+    <div className="space-y-4">
+      <NavPills
+        options={filterOptions}
+        selectedValue={selectedFilter}
+        onChange={onFilterChange}
+        label={label}
+        className={filterClassName}
+        size={filterSize}
+        variant={filterVariant}
+      />
+      <Table {...tableProps}>
+        {children}
+      </Table>
+    </div>
+  )
+}
+
+// Multi-Select Filterable Table component that combines MultiSelectNavPills with Table
+export function MultiSelectFilterableTable({
+  filterOptions,
+  selectedFilters,
+  onFilterChange,
+  filterClassName,
+  filterSize = 'md',
+  filterVariant = 'pills',
+  showClearAll = true,
+  children,
+  label,
+  ...tableProps
+}: {
+  filterOptions: NavPillOption[]
+  selectedFilters?: string[]
+  onFilterChange?: (values: string[]) => void
+  filterClassName?: string
+  filterSize?: 'sm' | 'md' | 'lg'
+  filterVariant?: 'default' | 'pills' | 'underline'
+  showClearAll?: boolean
+  label?: string
+} & React.ComponentPropsWithoutRef<typeof Table>) {
+  return (
+    <div className="space-y-4">
+      <MultiSelectNavPills
+        options={filterOptions}
+        selectedValues={selectedFilters}
+        onChange={onFilterChange}
+        label={label}
+        className={filterClassName}
+        size={filterSize}
+        variant={filterVariant}
+        showClearAll={showClearAll}
+      />
+      <Table {...tableProps}>
+        {children}
+      </Table>
+    </div>
   )
 }

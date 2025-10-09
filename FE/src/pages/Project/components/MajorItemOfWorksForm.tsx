@@ -328,6 +328,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                         maxAmount={getMinMaxAmounts(item.WorkTypeId).max}
                         minAmount={getMinMaxAmounts(item.WorkTypeId).min}
                         parentId={item.ReferenceId}
+                        dropDowns={dropDowns}
                       />
                     </TableCell>
                   </TableRow>

@@ -11,6 +11,7 @@ export interface ProjectFilter {
 }
 
 export interface ProjectFormPayload {
+  IsModify?: boolean;
   IsActive: boolean;
   ProgramDetails: ProgramList;
   ProjectDetails: ProjectDetails;

@@ -24,6 +24,7 @@ import GlobalModal from './components/Modal/Modal';
 import { ToasterProvider } from './components/toaster/ToasterContext';
 import Rbia from './pages/Rbia/Views/Rbia';
 import ModificationList from './pages/Modification/views/ModifcationList';
+import MultiYear from './pages/MultiYear/views/MultiYear';
 
 // import AddProgram from './pages/Program/Views/AddProgram';
 function App() {
@@ -134,6 +135,14 @@ function App() {
 											<ProjectGroupDetails />
 										</ProtectedRoute>
 									} 
+								/>
+								<Route 
+									path="/multi-year"
+									element={
+										<ProtectedRoute>
+											<MultiYear />
+										</ProtectedRoute>
+									}
 								/>
 								<Route 
 									path="/settings" 
