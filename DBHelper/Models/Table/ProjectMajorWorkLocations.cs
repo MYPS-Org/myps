@@ -36,7 +36,7 @@ namespace DBHelper.Models.Table
         [MaxLength(100)]
         public string? EndY { get; set; }
         [Required]
-        public int PhysicalTarget { get; set; }
+        public Double? PhysicalTarget { get; set; }
         [MaxLength(100)]
         public string? StartStationLimit { get; set; }
         [MaxLength(100)]

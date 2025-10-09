@@ -118,8 +118,7 @@ namespace WebAPI.Controllers.Projects
         [MaxLength(100)]
         public string DetailedScope { get; set; } = string.Empty;
         [Required]
-        public int TargetUnitId { get; set; }
-        [Required]
+        public int TargetUnitId { get; set; }               
         [MaxLength(100)]
         public string TargetUnit { get; set; } = string.Empty;
         [MaxLength(100)]
@@ -131,7 +130,7 @@ namespace WebAPI.Controllers.Projects
         [MaxLength(100)]
         public string? EndY { get; set; }
         [Required]
-        public int PhysicalTarget { get; set; }
+        public Double? PhysicalTarget { get; set; }
         [MaxLength(100)]
         public string? StartStationLimit { get; set; }
         [MaxLength(100)]
