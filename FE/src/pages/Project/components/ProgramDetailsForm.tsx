@@ -78,7 +78,12 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
                   >
                     <option value="">Select Program</option>
-                    {projectEnums?.Programs?.map((program) => (
+                    {/* {projectEnums?.Programs?.map((program) => (
+                      <option key={program.Id} value={program.ProgramId}>
+                        {program.Name}
+                      </option>
+                    ))} */}
+                    {projectEnums?.Programs?.filter((program ) => (program.StageName !== 'GAA-R')).map((program) => (
                       <option key={program.Id} value={program.ProgramId}>
                         {program.Name}
                       </option>

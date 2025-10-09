@@ -1,9 +1,13 @@
 import { atom } from "jotai";
-import type { ProgramDetails, ProgramList, ProgramPagination } from "../Model.d";
+import type { ProgramDetails, ProgramList, ProgramPagination, ProjectDetails } from "../Model.d";
+
+// #region PROGRAMS - Multi Year Atoms
 
 export const multiYearDetailsAtom = atom<ProgramDetails>();
 
 export const multiYearAtom = atom<ProgramList[]>([]);
+
+// Paginate
 
 interface PaginatedProgramData extends PaginationResponse<ProgramList> {}
 
@@ -37,5 +41,35 @@ export const updateMultiYearAtom = atom(
     set(multiYearListAtom, newData);
     // Also update legacy atom for backwards compatibility
     set(multiYearAtom, newData.lists);
+  }
+);
+// #endregion
+
+//  Project - Multi Year Atoms
+
+export const projectMultiYearAtom = atom<ProjectDetails[]>([]);
+
+// Paginate
+
+interface PaginatedProjectData extends PaginationResponse<ProjectDetails> {}
+
+export const projectMultiYearListAtom = atom<PaginatedProjectData>({
+    lists: [],
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 0
+});
+
+// loading state
+export const projectMultiYearLoadingAtom = atom<boolean>(false);
+
+// Write-only atom for updating Project data
+export const updateProjectMultiYearAtom = atom(
+  null,
+  (_get, set, newData: PaginatedProjectData) => {
+    set(projectMultiYearListAtom, newData);
+    // Also update legacy atom for backwards compatibility
+    set(projectMultiYearAtom, newData.lists);
   }
 );

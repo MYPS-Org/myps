@@ -731,7 +731,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
               
             </div>
             <div className="flex space-x-3">
-                {mode === 'edit' && initialData?.IsActive === true && initialData?.ProgramDetails?.StageId !== 9 && (
+                {mode === 'edit' && initialData?.IsActive === true && initialData?.ProgramDetails?.StageId !== 10 && (
                   <>
                     <Button color="orange" className='cursor-pointer' onClick={handleUpdateProject} disabled={updateAllProject}>
                       {updateAllProject ? 'Updating...' : 'Update Project'}

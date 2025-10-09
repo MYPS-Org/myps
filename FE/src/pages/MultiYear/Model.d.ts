@@ -1,5 +1,5 @@
-import type { extend } from "leaflet";
 
+// #region Program Interfaces
 export interface ProgramDetails {
 	Id: number;
 	ProgramId: string;
@@ -48,3 +48,63 @@ export interface ProgramList {
     Status: string;
     Cost?: number;
 }
+// #endregion
+
+// #region Project Interface
+export interface ProjectList {
+    Id: number;
+    ProjectId: string;
+    Name: string;
+    Description: string;
+    StageName: string;
+    ProgramName: string;
+    RegionCode: string;
+    Status: string;
+    Type: string;
+    Cost?: number;
+    YearStart: number;
+    YearEnd: number;
+    CreatedBy: string;
+    CreatedDate: string;
+    IsActive: boolean;
+    IsModify: boolean;
+}
+
+export interface ProjectPagination extends PaginationParams {
+    filter?: ProjectFilter;
+    sortfield?: string;
+    sortDirection?: 0 | 1;
+}
+
+export interface ProjectFilter {
+    ProgramId?: string;
+    StageName?: string;
+    YearStart?: number;
+    YearEnd?: number;
+    Status?: string;
+    Type?: string;
+    Name?: string;
+}
+
+export interface ProjectDetails {
+    Id: number;
+    ProjectId: string;
+    RevisionId: number;
+    Name: string;
+    Description: string;
+    StageId: number;
+    StageName: string;
+    ProgramId: string;
+    ProgramDetails: ProgramList;
+    RegionCode: string;
+    Status: string;
+    Type: string;
+    Cost?: number;
+    YearStart: number;
+    YearEnd: number;
+    CreatedBy: string;
+    CreatedDate: string;
+    IsActive: boolean;
+    IsModify: boolean;
+}
+// #endregion
