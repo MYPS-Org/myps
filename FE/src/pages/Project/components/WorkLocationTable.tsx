@@ -79,7 +79,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
       StartY: '',
       EndX: '',
       EndY: '',
-      PhysicalTarget: '',
+      PhysicalTarget: null,
       StartStationLimit: '',
       EndStationLimit: '',
     };
@@ -111,7 +111,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
         StartY: '',
         EndX: '',
         EndY: '',
-        PhysicalTarget: '',
+        PhysicalTarget: null,
         StartStationLimit: '',
         EndStationLimit: '',
       };
@@ -282,7 +282,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
             </label>
             <input
               type="number"
-              value={location.PhysicalTarget}
+              value={location.PhysicalTarget !== null && location.PhysicalTarget !== undefined ? location.PhysicalTarget : ''}
               onChange={(e) => {
                 const value = Number(e.target.value);
                 // Validate against min/max bounds

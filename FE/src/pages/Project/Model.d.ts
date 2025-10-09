@@ -293,7 +293,7 @@ export interface MajorItemLocations {
 	DetailedScope: string;
 	TargetUnitId: number;
 	TargetUnit: string; // Changed from number to string to match the UI usage
-	PhysicalTarget: string;
+	PhysicalTarget?: number | null;
 	To: number;
 	From: number;
 	StartX: string;
