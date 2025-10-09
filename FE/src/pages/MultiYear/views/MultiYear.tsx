@@ -6,11 +6,15 @@ import { TableHeader, TableRow, TableCell, TableHead, TableBody, MultiSelectFilt
 import { MagnifyingGlassIcon, PlusIcon } from '@heroicons/react/20/solid'
 import { Button } from '../../../components/tailwindui/button';
 import { useProgramList } from '../hooks/useProgramList';
+import { useAtom } from 'jotai';
+import { selectedProgramAtom } from '../state/multiYearState';
+import { useNavigate } from 'react-router-dom';
 
 const MultiYear: React.FC = () => {
     const [selectedPrograms, setSelectedPrograms] = React.useState<string[]>([]);
     const [searchInput, setSearchInput] = useState('');
-    
+    const navigate = useNavigate();
+
     // Use the custom hook for program data management
     const { 
         programData, 
@@ -18,6 +22,9 @@ const MultiYear: React.FC = () => {
         initializeData,
         Paginate
     } = useProgramList();
+
+    // Selected program state for navigation
+    const [, setSelectedProgram] = useAtom(selectedProgramAtom);
 
     // Initialize data when component mounts
     useEffect(() => {
@@ -82,6 +89,13 @@ const MultiYear: React.FC = () => {
     const handleSearchSubmit = () => {
         // Implement search logic here (e.g., filter programs by name)
         console.log('Searching for:', searchInput);
+    };
+
+    const handleProgramClick = (program: any) => {
+        setSelectedProgram(program);
+        // Navigate to the projects page with program ID as parameter
+        navigate(`/multiyear/${program.ProgramId}`);
+        console.log('Selected program:', program.Name);
     };
 
     return (
@@ -199,9 +213,13 @@ const MultiYear: React.FC = () => {
                                 currentPagePrograms.map(program => (
                                     <TableRow key={program.Id}>
                                         <TableCell className="min-w-[200px]">
-                                            <div className="font-medium text-gray-900 truncate pr-4" title={program.Name}>
+                                            <button
+                                                onClick={() => handleProgramClick(program)}
+                                                className="font-medium text-blue-600 hover:text-blue-800 truncate pr-4 text-left underline"
+                                                title={program.Name}
+                                            >
                                                 {program.Name}
-                                            </div>
+                                            </button>
                                         </TableCell>
                                         <TableCell>
                                             <div className="text-gray-900 truncate pr-4" title={program.StageName}>

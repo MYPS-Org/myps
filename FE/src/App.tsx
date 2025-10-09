@@ -25,6 +25,7 @@ import { ToasterProvider } from './components/toaster/ToasterContext';
 import Rbia from './pages/Rbia/Views/Rbia';
 import ModificationList from './pages/Modification/views/ModifcationList';
 import MultiYear from './pages/MultiYear/views/MultiYear';
+import MultiYearProject from './pages/MultiYear/views/MultiYearProject';
 
 // import AddProgram from './pages/Program/Views/AddProgram';
 function App() {
@@ -137,10 +138,18 @@ function App() {
 									} 
 								/>
 								<Route 
-									path="/multi-year"
+									path="/multiyear"
 									element={
 										<ProtectedRoute>
 											<MultiYear />
+										</ProtectedRoute>
+									}
+								/>
+								<Route 
+									path="/multiyear/:programId"
+									element={
+										<ProtectedRoute>
+											<MultiYearProject />
 										</ProtectedRoute>
 									}
 								/>

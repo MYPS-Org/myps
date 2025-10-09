@@ -54,6 +54,7 @@ export interface ProgramList {
 export interface ProjectList {
     Id: number;
     ProjectId: string;
+    ProgramId: string;
     Name: string;
     Description: string;
     StageName: string;

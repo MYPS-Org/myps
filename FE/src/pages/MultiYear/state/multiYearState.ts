@@ -1,5 +1,5 @@
 import { atom } from "jotai";
-import type { ProgramDetails, ProgramList, ProgramPagination, ProjectDetails } from "../Model.d";
+import type { ProgramDetails, ProgramList, ProgramPagination, ProjectList } from "../Model.d";
 
 // #region PROGRAMS - Multi Year Atoms
 
@@ -43,15 +43,18 @@ export const updateMultiYearAtom = atom(
     set(multiYearAtom, newData.lists);
   }
 );
+
+// Selected program for navigation to project list
+export const selectedProgramAtom = atom<ProgramList | null>(null);
 // #endregion
 
 //  Project - Multi Year Atoms
 
-export const projectMultiYearAtom = atom<ProjectDetails[]>([]);
+export const projectMultiYearAtom = atom<ProjectList[]>([]);
 
 // Paginate
 
-interface PaginatedProjectData extends PaginationResponse<ProjectDetails> {}
+interface PaginatedProjectData extends PaginationResponse<ProjectList> {}
 
 export const projectMultiYearListAtom = atom<PaginatedProjectData>({
     lists: [],
