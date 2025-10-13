@@ -56,11 +56,11 @@ const MultiYear: React.FC = () => {
     const getStatusBadge = (status: string) => {
         const baseClasses = "px-2 py-1 rounded-full text-xs font-medium";
         switch (status) {
-            case 'active':
+            case 'Active':
                 return `${baseClasses} bg-green-100 text-green-800`;
-            case 'pending':
+            case 'Pending':
                 return `${baseClasses} bg-yellow-100 text-yellow-800`;
-            case 'inactive':
+            case 'Inactive':
                 return `${baseClasses} bg-red-100 text-red-800`;
             default:
                 return `${baseClasses} bg-gray-100 text-gray-800`;

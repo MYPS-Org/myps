@@ -57,7 +57,7 @@ export const Programs = [
 export const ProgramPaginated = {
     lists: Programs,
     page: 1,
-    limit: 20,
-    total: 53,
-    totalPages: 3
+    limit: 10,
+    total: Programs.length,
+    totalPages: Math.ceil(Programs.length / 10)
 };

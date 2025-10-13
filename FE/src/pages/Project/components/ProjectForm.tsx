@@ -49,6 +49,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const [savingSection, setSavingSection] = useState<string | null>(null);
   const [projectEnums, setProjectEnums] = useState<ProjectEnums | null>(null);
   const [updateAllProject, setUpdateAllProject] = useState<boolean>(false);
+  const [updateUnlockProject, setUpdateUnlockProject] = useState<boolean>(false);
+  const [updateModifyProject, setUpdateModifyProject] = useState<boolean>(false);
   const [errors, setErrors] = useState<FormValidationError<ProjectDetails>>({});
   //toaster here
   const { showToast } = useToast();
@@ -709,6 +711,15 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     alert('Modify Project feature is coming soon! ' + projectId + ':' + stageName); 
   }
 
+  const handleLock = (projectId: string, stageName: string) => {
+    // navigate(`/projects/modify-project/${projectId}:${stageName}`);
+    if (!projectId || !stageName) {
+      alert('Project ID or Stage Name is missing. Cannot lock project.');
+      return;
+    }
+    alert('Lock Project feature is coming soon! ' + projectId + ':' + stageName);
+  }
+
   return (
     
     <div className="overflow-hidden max-w-10xl mx-auto p-6 space-y-6">
@@ -731,6 +742,13 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
               
             </div>
             <div className="flex space-x-3">
+                {mode === 'edit' && initialData?.IsActive === true && initialData?.IsUnlock === true && initialData?.ProgramDetails?.StageId !== 10 && (
+                  <>
+                    <Button color="red" className='cursor-pointer' onClick={() => handleLock(initialData?.ProjectDetails?.ProjectId ?? '', initialData?.ProgramDetails?.StageName ?? '')} disabled={updateAllProject}>
+                      {updateUnlockProject ? 'Unlocking...' : 'UnLock Project'}
+                    </Button>
+                  </>
+                )}
                 {mode === 'edit' && initialData?.IsActive === true && initialData?.ProgramDetails?.StageId !== 10 && (
                   <>
                     <Button color="orange" className='cursor-pointer' onClick={handleUpdateProject} disabled={updateAllProject}>
@@ -747,7 +765,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                 )}
                 {mode === 'edit' && initialData?.ProgramDetails?.StageId === 9 && (
                   <Button color="yellow" className='cursor-pointer' onClick={() => handleModifyProject(initialData?.ProjectDetails?.ProjectId ?? '', initialData?.ProgramDetails?.StageName ?? '')} disabled={updateAllProject}>
-                    {updateAllProject ? 'Modifying...' : 'Modify Project'}
+                    {updateAllProject ? 'Revisioning...' : 'Revise Project'}
                   </Button>
                 )}
             </div>

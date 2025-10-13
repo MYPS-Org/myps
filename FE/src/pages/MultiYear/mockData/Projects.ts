@@ -54,7 +54,7 @@ export const Projects: ProjectList[] = [
 export const ProjectsPaginated = {
     lists: Projects,
     page: 1,
-    limit: 20,
+    limit: 10,
     total: Projects.length,
-    totalPages: Math.ceil(Projects.length / 20)
+    totalPages: Math.ceil(Projects.length / 10)
 }; 

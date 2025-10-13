@@ -13,6 +13,7 @@ export interface ProjectFilter {
 export interface ProjectFormPayload {
   IsModify?: boolean;
   IsActive: boolean;
+  IsUnlock?: boolean;
   ProgramDetails: ProgramList;
   ProjectDetails: ProjectDetails;
   ComponentCosts: ComponentCost[];
