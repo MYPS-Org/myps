@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Button } from "../../../components/tailwindui/button";
 import { MagnifyingGlassIcon, PlusIcon } from "@heroicons/react/20/solid";
 import { useEffect, useState } from "react";
-import { getModificationProjects, type ModificationProject } from "../mockData/projectData";
+import { getModificationProjects, type ModificationProject } from "../mockData/ProjectData";
 
 interface AddProjectDialogProps {
     isOpen: boolean;

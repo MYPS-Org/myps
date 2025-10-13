@@ -8,6 +8,7 @@ import { PlusIcon, XMarkIcon } from '@heroicons/react/20/solid';
 import ReviseProjectDialog from '../dialogs/RevisedProjectDialog';
 import { getModificationProjects, searchProjects, type ModificationProject } from '../mockData/ProjectData';
 import AddProjectDialog from '../dialogs/AddProjectDialog';
+import AdjustProjectDialog from '../dialogs/AdjustProjectDialog';
 
 interface RevisionState {
     projectId?: string;
@@ -32,6 +33,7 @@ const ModificationList: React.FC = () => {
     const [ projects, setProjects ] = useState<ModificationProject[]>([]);
     const [ filteredProjects, setFilteredProjects ] = useState<ModificationProject[]>([]);
     const [ isAddNewDialogOpen, setIsAddNewDialogOpen ] = useState<boolean>(false);
+    const [ isAdjustDialogOpen, setIsAdjustDialogOpen ] = useState<boolean>(false);
 
     const [ searchInput, setSearchInput ] = useState<string>('');
 
@@ -40,6 +42,12 @@ const ModificationList: React.FC = () => {
         setProjects(projectData);
         setFilteredProjects(projectData);
     }, []);
+
+    useEffect(() => {
+        if (state && state.revisionTypeId === 6) {
+            setIsAdjustDialogOpen(true);
+        }
+    }, [state]);
 
     const handleOpenDialog = (project: ModificationProject) => {
         setSelectedProject(project);
@@ -257,6 +265,17 @@ const ModificationList: React.FC = () => {
                         setSelectedProject(null);
                     }}
                     project={selectedProject}
+                />
+            )}
+            {/* Adjust Project Dialog */}
+            {state && state.revisionTypeId === 6 && (
+                <AdjustProjectDialog
+                    isOpen={isAdjustDialogOpen}
+                    onClose={() => setIsAdjustDialogOpen(false)}
+                    revisionTypeId={state?.revisionTypeId || 0}
+                    revisionTypeDescription={state?.revisionTypeDescription || ''}
+                    projectId={state?.projectId || ''}
+                    stageName={state?.stageName || ''}
                 />
             )}
             {/* Delete Program Dialog */}
