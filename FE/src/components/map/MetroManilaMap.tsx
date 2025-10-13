@@ -41,7 +41,7 @@ const MetroManilaMap: React.FC<MetroManilaMapProps> = ({
       <MapContainer
         center={metroManilaCenter}
         zoom={11}
-        style={{ height: '100%', width: '100%' }}
+        style={{ height: '100%', width: '100%', zIndex: 1 }}
         scrollWheelZoom={true}
       >
         <TileLayer

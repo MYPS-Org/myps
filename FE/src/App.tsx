@@ -114,7 +114,7 @@ function App() {
 									} 
 								/>
 								<Route 
-									path="/modification" 
+									path="/revision" 
 									element={
 										<ProtectedRoute>
 											<ModificationList />

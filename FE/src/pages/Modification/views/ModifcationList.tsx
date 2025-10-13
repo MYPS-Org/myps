@@ -1,15 +1,30 @@
 "use-client";
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import MagnifyingGlassIcon from '@heroicons/react/24/outline/MagnifyingGlassIcon';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
 import { Button } from '../../../components/tailwindui/button';
 import { PlusIcon, XMarkIcon } from '@heroicons/react/20/solid';
 import ReviseProjectDialog from '../dialogs/RevisedProjectDialog';
-import { getModificationProjects, searchProjects, type ModificationProject } from '../mockData/projectData';
+import { getModificationProjects, searchProjects, type ModificationProject } from '../mockData/ProjectData';
 import AddProjectDialog from '../dialogs/AddProjectDialog';
 
+interface RevisionState {
+    projectId?: string;
+    stageName?: string;
+    revisionTypeId?: number;
+    revisionTypeDescription?: string;
+}
 
 const ModificationList: React.FC = () => {
+    const location = useLocation();
+    const state = location.state as RevisionState;
+    const { projectId, stageName, revisionTypeId, revisionTypeDescription } = state || {};
+
+    useEffect(() => {
+        if(!state) return;
+        console.log('Received state:', state);
+    }, [projectId, stageName, revisionTypeId, revisionTypeDescription]);
 
     const [ isLoading ] = useState<boolean>(false);
     const [ isReviseDialogOpen, setIsReviseDialogOpen ] = useState<boolean>(false);
