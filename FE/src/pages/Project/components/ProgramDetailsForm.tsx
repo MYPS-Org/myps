@@ -78,11 +78,6 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
                   >
                     <option value="">Select Program</option>
-                    {/* {projectEnums?.Programs?.map((program) => (
-                      <option key={program.Id} value={program.ProgramId}>
-                        {program.Name}
-                      </option>
-                    ))} */}
                     {projectEnums?.Programs?.filter((program ) => (program.StageName !== 'GAA-R')).map((program) => (
                       <option key={program.Id} value={program.ProgramId}>
                         {program.Name}
@@ -110,8 +105,8 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
                   type="text"
                   value={programDetails.TypeName || ''}
                   disabled={mode === 'edit'}
-                  className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
                   readOnly
+                  className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-700'
               />
           </div>
 
@@ -121,8 +116,8 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
                   type="number"
                   value={programDetails.YearStart || ''}
                   disabled={mode === 'edit'}
-                  className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
                   readOnly
+                  className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-700'
               />
           </div>
 
@@ -132,8 +127,8 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
                   type="text"
                   value={programDetails.StageName || ''}
                   disabled={mode === 'edit'}
-                  className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
                   readOnly
+                  className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-700'
               />
           </div>
 

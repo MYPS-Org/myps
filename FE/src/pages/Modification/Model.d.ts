@@ -23,3 +23,13 @@ export interface ModificationReason {
     Sequence: number;
     Obsolete?: boolean;
 }
+
+export interface ModificationModel {
+    Id: number;
+    ProjectId: number;
+    ProjectName: string;
+    ModificationType: number;
+    Reason: number;
+    ProjectDescription: string;
+    OperatingUnit: number;
+}

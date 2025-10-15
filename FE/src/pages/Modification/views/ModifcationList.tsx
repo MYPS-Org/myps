@@ -8,7 +8,7 @@ import { PlusIcon, XMarkIcon } from '@heroicons/react/20/solid';
 import ReviseProjectDialog from '../dialogs/RevisedProjectDialog';
 import { getModificationProjects, searchProjects, type ModificationProject } from '../mockData/ProjectData';
 import AddProjectDialog from '../dialogs/AddProjectDialog';
-import AdjustProjectDialog from '../dialogs/AdjustProjectDialog';
+import AdjustProjectDialog from '../dialogs/ModifiyProjectDialog';
 
 interface RevisionState {
     projectId?: string;
