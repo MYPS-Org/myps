@@ -56,6 +56,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const [errors, setErrors] = useState<FormValidationError<ProjectDetails>>({});
   //toaster here
   const { showToast } = useToast();
+  // DisableFields if status === approved
+  const isDisabled = Number(initialData?.ProgramDetails?.Status) === 4;
 
   // toggle state for Program Details section
   const [isProgramOpen, setIsProgramOpen] = useState<boolean>(true);
@@ -710,7 +712,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       alert('Project ID, Stage Name, Revision Type ID or Revision Type Description is missing. Cannot revise project.');
       return;
     }
-    navigate(`/revision`, { state: { projectId, stageName, revisionTypeId, revisionTypeDescription } });
+    navigate(`/revision/${projectId}`, { state: { stageName, revisionTypeId, revisionTypeDescription } });
 
     // alert('Modify Project feature is coming soon! ' + projectId + ':' + stageName); 
   }
@@ -890,6 +892,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                   initialData={initialData}
                   mode={mode}
                   errors={errors}
+                  disabled={isDisabled}
                 />
               </div>
               <div className="flex justify-end px-4 pb-6 sm:px-8">

@@ -9,6 +9,7 @@ interface ProjectDetailsFormProps {
     projectEnums?: ProjectEnums;
     initialData?: any;
     errors?: FormValidationError<ProjectDetails>;
+    disabled?: boolean;
 }
 
 const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({ 
@@ -16,9 +17,11 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
     onChange, 
     projectEnums,
     mode = '',
-    errors = {}
+    errors = {},
+    disabled = false
 }) => {
     const handleInputChange = (field: keyof ProjectDetails, value: any) => {
+        if (disabled) return; // Prevent changes if disabled
         onChange(field, value);
     };
 
@@ -82,6 +85,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     onChange={(e) => handleInputChange('MYId', e.target.value)}
                                     className={`w-2/3 mt-1 px-3 py-2 border ${errors.MYId ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
                                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                                    disabled={disabled}
                                 />
                             </div>
                         </div>

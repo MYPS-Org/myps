@@ -26,6 +26,7 @@ import Rbia from './pages/Rbia/Views/Rbia';
 import ModificationList from './pages/Modification/views/ModifcationList';
 import MultiYear from './pages/MultiYear/views/MultiYear';
 import MultiYearProject from './pages/MultiYear/views/MultiYearProject';
+import ModifyProject from './pages/Modification/views/ModifyProject';
 
 // import AddProgram from './pages/Program/Views/AddProgram';
 function App() {
@@ -118,6 +119,14 @@ function App() {
 									element={
 										<ProtectedRoute>
 											<ModificationList />
+										</ProtectedRoute>
+									} 
+								/>
+								<Route 
+									path="/revision/:projectId" 
+									element={
+										<ProtectedRoute>
+											<ModifyProject />
 										</ProtectedRoute>
 									} 
 								/>
