@@ -774,7 +774,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                     {reviseProject ? 'Revisioning...' : 'Revise Project'}
                   </Button>
                 )} */}
-                {mode === 'edit' && initialData?.ProgramDetails?.StageId === 9 && (
+                {mode === 'edit' && initialData?.ProgramDetails?.StageId === 10 && (
                   <Menu as="div" className="relative inline-block text-left">
                     <MenuButton
                       as={Button}

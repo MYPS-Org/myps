@@ -5,7 +5,7 @@ import { MagnifyingGlassIcon } from '@heroicons/react/16/solid';
 import { useDropDownData } from '../hooks/useDropDown';
 import { Button } from '../../../components/tailwindui/button';
 import { useParams, useLocation } from 'react-router-dom';
-import { getModificationCase } from '../components/modificationCases';
+import { getModificationCase } from '../components/ModificationCases';
 
 interface RevisionState {
     projectId?: string;
@@ -22,7 +22,6 @@ const ModifyProject: React.FC = () => {
 
     const [searchInput, setSearchInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-
 
     const {
         initializeData,
@@ -89,7 +88,8 @@ const ModifyProject: React.FC = () => {
                                         </div>
                                     </div>
                                 </div>
-                                <div className='p-6 space-y-4'>
+                                <div className='p-6 space-y-4 bg-white rounded-lg mt-6'>
+                                    {revisionTypeDescription === 'Modification' && (
                                     <div className='flex justify-between gap-5 items-center'>
                                         <label className='w-1/3 block text-sm font-medium text-gray-700'>
                                             Reasons :
@@ -99,6 +99,7 @@ const ModifyProject: React.FC = () => {
                                             onChange={(e) => handleChange('reason', e.target.value)}
                                             className='w-2/3 border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500'>
                                             
+                                            <option value="">-- Select Reason --</option>
                                             {modReasons.map((reason) => (
                                                 <option key={reason.Id} value={reason.CodeDescription}>
                                                     {reason.CodeDescription}
@@ -106,6 +107,7 @@ const ModifyProject: React.FC = () => {
                                             ))}
                                         </select>
                                     </div>
+                                    ) }
                                     <div className='flex justify-between gap-5 items-center'>
                                         <label className='w-1/3 block text-sm font-medium text-gray-700'>
                                             Date of Approval :

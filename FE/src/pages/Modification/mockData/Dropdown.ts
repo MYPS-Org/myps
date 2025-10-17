@@ -16,7 +16,9 @@ export const categoryData = [
     { Id: 15, CodeGroup: 0, CodeDescription: 'Mode of Implementation', Sequence: 15, Obsolete: false },
     { Id: 16, CodeGroup: 0, CodeDescription: 'Multi-Year Costing Changes', Sequence: 16, Obsolete: false },
     { Id: 17, CodeGroup: 0, CodeDescription: 'Expired Funding', Sequence: 17, Obsolete: false },
-    { Id: 18, CodeGroup: 0, CodeDescription: 'Change of Creditor', Sequence: 18, Obsolete: false }
+    { Id: 18, CodeGroup: 0, CodeDescription: 'Change of Creditor', Sequence: 18, Obsolete: false },
+    { Id: 19, CodeGroup: 0, CodeDescription: 'Modification', Sequence: 19, Obsolete: false }
+    
 ];
 
 export const reasonData = [
