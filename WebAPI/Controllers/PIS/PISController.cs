@@ -6,6 +6,7 @@ using DBHelper.Models.Extra;
 using DBHelper.Models.Table;
 using DBHelper.Models.Views;
 using Helpers;
+using Helpers.API;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -36,7 +37,7 @@ namespace WebAPI.Controllers.MockUps
                         }
                     );
                 }
-                var request = new GetEmployeeRequest(dto.EmployeeId);
+                var request = new PIS(dto.EmployeeId);
                 var employee = await APIRequest.XML(request);
                 if (string.IsNullOrEmpty(employee.EmployeeId))
                 {
@@ -80,12 +81,12 @@ namespace WebAPI.Controllers.MockUps
                     return new BadRequestObjectResult(
                         new
                         {
-                            Message = $"Employee: '{dto.EmployeeId}' already exists",
-                            Title = "User Exists"
+                            Message = $"Employee: '{dto.EmployeeId}' does not exist",
+                            Title = "User Not Found"
                         }
                     );
                 }
-                var request = new GetEmployeeRequest(dto.EmployeeId);
+                var request = new PIS(dto.EmployeeId);
                 var employee = await APIRequest.XML(request);
                 if (string.IsNullOrEmpty(employee.EmployeeId))
                 {
