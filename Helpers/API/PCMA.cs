@@ -9,9 +9,9 @@ namespace Helpers.API
 {
     public class PCMA : XMLRequest<PCMAResponse>
     {
-        private readonly PublishPCMAParent _pcmaData;
+        private readonly PublishPCMA _pcmaData;
         
-        public PCMA(PublishPCMAParent pcmaData) : base((string)null) 
+        public PCMA(PublishPCMA pcmaData) : base((string)null) 
         {
             _pcmaData = pcmaData;
         }
@@ -20,16 +20,9 @@ namespace Helpers.API
 
         protected override string GetSoapBody()
         {
-            var projectsXml = new StringBuilder();
-            foreach (var project in _pcmaData.Projects)
-            {
-                projectsXml.AppendLine($@"
-                        <Project_ID>{project.ProjectId}</Project_ID>");
-            }
-
             return $@"<copyMYPSData xmlns=""http://tempuri.org/"">
                         <Program_ID>{_pcmaData.ProgramId}</Program_ID>
-                            {projectsXml}
+                        <Project_ID>string</Project_ID>
                         <Projects{_pcmaData.MYPSUserName}</Projects>
                     </copyMYPSData>";
         }
