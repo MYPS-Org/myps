@@ -94,7 +94,7 @@ const MultiYear: React.FC = () => {
     const handleProgramClick = (program: any) => {
         setSelectedProgram(program);
         // Navigate to the projects page with program ID as parameter
-        navigate(`/multiyear/${program.ProgramId}`);
+        navigate(`/multiyear/programs/${program.ProgramId}`);
         console.log('Selected program:', program.Name);
     };
 

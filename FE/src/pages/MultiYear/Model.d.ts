@@ -29,6 +29,30 @@ export interface ProgramPagination extends PaginationParams {
     sortDirection?: 0 | 1;
 }
 
+export interface ProgramDetailsEnums{
+  Details: ProgramDetails;
+  Projects: ProjectLists[];
+  IsActive: boolean;
+  Dropdowns: {
+    Stages: ProgramEnums[];
+    Statuses: ProgramEnums[];
+    Types: ProgramEnums[];
+    Groups: ProgramEnums[];
+    DataSecurity: ProgramEnums[];
+  };
+}
+
+export interface ProgramEnums {
+	Id: number;
+	Enum: number;
+	GroupName?: string;
+	Name: string;
+	Description: string;
+	ParticipantId?: string;
+	OrgName?: string;
+	OrgType?: string;
+}
+
 export interface ProgramFilter {
     StageName?: string;
     YearStart?: number;

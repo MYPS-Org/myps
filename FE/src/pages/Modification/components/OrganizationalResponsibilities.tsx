@@ -11,13 +11,14 @@ const OrganizationalResponsibilities: React.FC = () => {
         RegionWide: undefined
     });
 
+
     const handleInputChange = (field: string, value: any) => {
         setOrgResponsibilities((prev: any) => ({
         ...prev,
         [field]: value
         }));
     }
-
+    
     return (
         <div className="space-y-4">
             <h3 className="text-lg text-left font-semibold text-gray-800 border-t-2 py-2 border-blue-500">

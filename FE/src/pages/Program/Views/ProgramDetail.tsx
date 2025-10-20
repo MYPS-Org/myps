@@ -355,14 +355,6 @@ const ProgramDetail: React.FC = () => {
 
   return (
     <div className="w-full text-left mx-auto p-6 space-y-6">
-      {/* Breadcrumb */}
-      {/* <nav className="text-sm text-gray-500 mb-4">
-        <span>Program Management</span>
-        <span className="mx-2">&gt;</span>
-        <span>Programs</span>
-        <span className="mx-2">&gt;</span>
-        <span className="text-gray-900">Program Details</span>
-      </nav> */}
 
       {/* Main Program Details Section */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-x-auto">
@@ -370,13 +362,6 @@ const ProgramDetail: React.FC = () => {
           {/* Left Column - Form Fields */}
           
           <div className="space-y-6">
-            {/* {programEnums.Details.IsSkipped && (
-              <div className='content-center bg-red-100 p-4 border border-red-200 rounded-lg'>
-                {programEnums?.Details.IsSkipped && (
-                  <p className="text-sm text-red-500 text-wrap">This program was skipped Budget Proposal Stage.</p>
-                )}
-              </div>
-            )} */}
             <div className="grid grid-cols-1 gap-4">
               <div>
                 <label className="block text-left text-sm font-medium text-gray-700 mb-1">Name</label>

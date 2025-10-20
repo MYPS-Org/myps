@@ -108,10 +108,19 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 				<Square2StackIcon />
 				<SidebarLabel className="text-gray-500">Program Stages</SidebarLabel>
 			</SidebarItem> */}
-			<SidebarItem href="/multiyear" current={currentPath === '/multIyear'}>
-				<CalendarDateRangeIcon />
-				<SidebarLabel className="text-gray-500">Multi-Year</SidebarLabel>
-			</SidebarItem>
+			<SidebarDropdown
+				label="Multi-Year Management"
+				defaultOpen={false}
+				className="text-gray-500"
+				>
+				<Cog6ToothIcon />
+				<SidebarDropdownItem href="/multiyear/programs" current={currentPath === '/multiyear/programs'}>
+					<SidebarLabel>Programs</SidebarLabel>
+				</SidebarDropdownItem>
+				<SidebarDropdownItem href="/multiyear/projects" current={currentPath === '/multiyear/projects'}>
+					<SidebarLabel>Projects</SidebarLabel>
+				</SidebarDropdownItem>
+			</SidebarDropdown>
 			<SidebarDropdown
 				label="Settings"
 				defaultOpen={false}
