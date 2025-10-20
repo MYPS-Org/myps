@@ -447,7 +447,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
     <div className="m-4">
       <div className="flex justify-between items-center mb-4">
         <div>
-          <h4 className="text-lg font-semibold text-gray-800">Work Target</h4>
+          <h4 className="text-lg font-semibold text-gray-800">Work Locations</h4>
           <p className="text-sm text-gray-600 mt-1">
             Configure work targets for {infraType || 'this project'}
           </p>

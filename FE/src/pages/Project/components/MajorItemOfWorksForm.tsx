@@ -243,6 +243,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
               <TableHeader className="min-w-[100px]">Year of Work</TableHeader>
               <TableHeader className="min-w-[140px]">Type of Work</TableHeader>
               <TableHeader className='min-w-[100px]'> Infra Type</TableHeader>
+              {/* <TableHeader className='min-w-[100px]'> Unit Cost</TableHeader> */}
               <TableHeader className="min-w-[100px]">Target Unit</TableHeader>
               <TableHeader className="min-w-[120px]">Work Target</TableHeader>
               <TableHeader className="min-w-[80px]">Actions</TableHeader>
@@ -280,6 +281,9 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                   <TableCell>
                     <div className="text-sm">{item.InfraType}</div>
                   </TableCell>
+                  {/* <TableCell>
+                    Unit cost here
+                  </TableCell> */}
                   <TableCell>
                     <div className="text-sm">{getTargetUnitName(item.WorkTypeId)}</div>
                   </TableCell>

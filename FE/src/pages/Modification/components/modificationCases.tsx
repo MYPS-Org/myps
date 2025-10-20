@@ -3,6 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Button } from '../../../components/tailwindui/button';
 import { ChevronRightIcon } from '@heroicons/react/24/outline';
 import MajorItemWorkLocationTable from './MajorItemWorkLocationTable';
+import LocationDetails from './LocationDetails';
 
 interface ModificationCaseProps {
     fieldName: string;
@@ -161,6 +162,8 @@ export const OverlappingSectionsCase: React.FC<ModificationCaseProps> = ({ field
 
     return (
         <div className="space-y-6">
+            <LocationDetails>
+            </LocationDetails>
             {/* Current Work Locations Section */}
             <MajorItemWorkLocationTable
                 majorItems={mockMajorItems}
@@ -650,7 +653,28 @@ export const DecreaseInTarget: React.FC<ModificationCaseProps> = ({ fieldName: _
     );
 };
 
-// Change Location
+// Barangay does not exist case
+export const NoSuchBarangayExists: React.FC<ModificationCaseProps> = ({ fieldName: _fieldName, index: _index, modification: _modification }) => {
+    return (
+        <div>
+            <LocationDetails>
+
+            </LocationDetails>
+        </div>
+    )
+};
+
+// City/Municipality does not exist case
+export const NoSuchCityMunicipality: React.FC<ModificationCaseProps> = ({ fieldName: _fieldName, index: _index, modification: _modification }) => {
+    return (
+        <div>
+            <LocationDetails>
+            </LocationDetails>
+        </div>
+    )
+};
+
+
 
 // Default unsupported case
 export const UnsupportedCase: React.FC<ModificationCaseProps> = ({ fieldName: _fieldName, index: _index, modification: _modification }) => {
@@ -665,6 +689,8 @@ export const ModificationCases: Record<string, React.FC<ModificationCaseProps>> 
     'Change in work station limits, due to increase or decrease of budget': ChangeInWorkStationLimitsCase,
     'Increase in Target': IncreaseInTarget,
     'Decrease in Target due to additional scope (e.g. ROW)': DecreaseInTarget,
+    'No such Barangay exists': NoSuchBarangayExists,
+    'No such City/Municipality': NoSuchCityMunicipality,
 };
 
 // Helper function to get the appropriate case component

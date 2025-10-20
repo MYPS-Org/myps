@@ -207,7 +207,7 @@ const RoadSectionList: React.FC = () => {
                 sortDirection={getSortDirection("RoadLength")}
                 onSort={handleSortWithDirection("RoadLength")}
               >
-                Length (km)
+                Length (m)
               </TableHeader>
               <TableHeader 
                 justify="center" 
@@ -244,7 +244,7 @@ const RoadSectionList: React.FC = () => {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-center px-6 py-4 whitespace-nowrap">
-                    {section.RoadLength} km
+                    {section.RoadLength} m
                   </TableCell>
                   <TableCell className="text-center px-6 py-4 whitespace-nowrap">
                     <Badge color="orange" className="text-xs">

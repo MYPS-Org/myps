@@ -198,7 +198,7 @@ const FutureBridgeList: React.FC = () => {
                 sortDirection={getSortDirection("From")}
                 onSort={handleSortWithDirection("From")}
               >
-                From (km)
+                From (m)
               </TableHeader>
               <TableHeader 
                 justify="center" 
@@ -206,7 +206,7 @@ const FutureBridgeList: React.FC = () => {
                 sortDirection={getSortDirection("Length")}
                 onSort={handleSortWithDirection("Length")}
               >
-                Length (km)
+                Length (m)
               </TableHeader>
               <TableHeader 
                 justify="center" 
@@ -246,10 +246,10 @@ const FutureBridgeList: React.FC = () => {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-center text-row px-6 py-4 whitespace-nowrap text-gray-900">
-                    {bridge.From} km
+                    {bridge.From} m
                   </TableCell>
                   <TableCell className="text-center text-row px-6 py-4 whitespace-nowrap text-gray-900">
-                    {bridge.Length} km
+                    {bridge.Length} m
                   </TableCell>
                   <TableCell className="text-center text-row px-6 py-4 whitespace-nowrap">
                     <Badge
