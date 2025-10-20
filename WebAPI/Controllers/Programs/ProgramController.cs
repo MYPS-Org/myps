@@ -763,6 +763,7 @@ namespace WebAPI.Controllers.Programs
                             Category = project.Category,
                             Thrust = project.Thrust,
                             Origin = project.Origin,
+                            Province = project.Province,
                             City = project.City,
                             LegislativeDistrict = project.LegislativeDistrict,
                             OperatingUnit = project.OperatingUnit,
