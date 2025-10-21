@@ -1,5 +1,6 @@
 ﻿using Confluent.Kafka;
 using DBHelper.Data;
+using DBHelper.Models.API;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Table;
 using DBHelper.Models.Views;
@@ -8,6 +9,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Reflection;
+using Helpers.API;
+
 namespace WebAPI.Controllers.Programs
 {
     [ApiController]
@@ -101,10 +104,10 @@ namespace WebAPI.Controllers.Programs
                         : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField));
 
                 // Apply pagination and execute query
-                 List<DBHelper.Models.Views.Programs> permissionLists = await sortedQuery
-                    .Skip((dto.page - 1) * dto.limit)
-                    .Take(dto.limit)
-                    .ToListAsync();
+                List<DBHelper.Models.Views.Programs> permissionLists = await sortedQuery
+                   .Skip((dto.page - 1) * dto.limit)
+                   .Take(dto.limit)
+                   .ToListAsync();
 
                 var totalPages = (int)Math.Ceiling((double)totalRecords / dto.limit);
 
@@ -192,7 +195,7 @@ namespace WebAPI.Controllers.Programs
             }
             catch
             {
-                return BadRequest();    
+                return BadRequest();
             }
         }
         [AllowAnonymous]
@@ -208,7 +211,7 @@ namespace WebAPI.Controllers.Programs
                     return new BadRequestObjectResult(new { Message = $"Program name '{dto.Name}' already exists in the System!", Title = "Program Already Exists" });
                 }
                 var checkStageType = await _db.tProgramStageEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == (int)dto.Stage);
-                if(checkStageType == null)
+                if (checkStageType == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program Stage '{dto.Stage}' is not valid!", Title = "Invalid Stage" });
                 }
@@ -224,10 +227,10 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Security Group '{string.Join(", ", CheckItems)}' is not valid!", Title = "Invalid Security Group" });
                 }
-                if(dto.IsSkipped == true && string.IsNullOrEmpty(dto.SkipReason))
+                if (dto.IsSkipped == true && string.IsNullOrEmpty(dto.SkipReason))
                 {
                     return new BadRequestObjectResult(new { Message = $"Please provide a reason for skipping stage of this program.", Title = "Skip Reason Required" });
-                } 
+                }
                 string ReferenceId = "PR" + ("tCountSequence").GenerateCode();
                 DateTime currentDate = DateTime.UtcNow;
                 string UserId = _Session.UserId;
@@ -236,7 +239,7 @@ namespace WebAPI.Controllers.Programs
                     ProgramId = ReferenceId,
                     CreatedBy = UserId,
                     CreatedDate = currentDate,
-                    IsDeleted= false,
+                    IsDeleted = false,
                     IsSkipped = dto.IsSkipped,
                     SkipReason = dto.IsSkipped ? dto.SkipReason : null
                 };
@@ -371,7 +374,8 @@ namespace WebAPI.Controllers.Programs
                     return new BadRequestObjectResult(new { Message = $"Program {dto.ProgramId} does not exist in the ", Title = "Delete Failed" });
                 }
                 var ProgramStage = await _db.tProgramStages.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionId == dto.RevisionId);
-                if(ProgramStage == null) {
+                if (ProgramStage == null)
+                {
                     return new BadRequestObjectResult(new { Message = $"Program Stage with Revision ID '{dto.RevisionId}' does not exist in the Program Stages table. Please contact administrator!", Title = "Stage not found" });
                 }
                 int[] AllowedStages =
@@ -502,7 +506,7 @@ namespace WebAPI.Controllers.Programs
                     {
                         TransactionId = dto.ProgramId,
                         TypeOfTransaction = "Update",
-                        AffectedTable = "tProgramRevisions",    
+                        AffectedTable = "tProgramRevisions",
                         AffectedColumn = "DataSecurityGroup",
                         NewValue = CurrentSecurityGroup!,
                         OldValue = OdSecurityGroup!,
@@ -565,7 +569,7 @@ namespace WebAPI.Controllers.Programs
                         CreatedDate = CurrentDate
                     });
                 }
-                if(hasUpdated)
+                if (hasUpdated)
                 {
                     await _db.tProgramRevisions.AddAsync(NewProgramVersion);
                     await _db.SaveChangesAsync();
@@ -870,5 +874,24 @@ namespace WebAPI.Controllers.Programs
             }
         }
         #endregion
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> test([FromBody] ProgramDetailsDTO dto)
+        {
+            try
+            {
+                    var pcmaData = new PublishPCMA
+                    {
+                        ProgramId = dto.ProgramId,
+                        MYPSUserName = "testuser"
+                    };
+                    var request = new PCMA(pcmaData);
+                return Ok(new { });
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
     }
 }

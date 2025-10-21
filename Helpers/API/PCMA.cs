@@ -35,7 +35,7 @@ namespace Helpers.API
             {
                 // Parse the SOAP response
                 var doc = XDocument.Parse(xml);
-                var ns = "https://www.dpwh.gov.ph/";
+                var ns = "http://tempuri.org/";
 
                 var result = doc.Descendants(XName.Get("PublishPCMAResult", ns)).FirstOrDefault();
                 
