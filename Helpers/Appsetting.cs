@@ -16,6 +16,12 @@ namespace Helpers
         public string userName { get; set; } = string.Empty;
         public string password { get; set; } = string.Empty;
     }
+    public class MYPSToPCMA
+    {
+        public string Host { get; set; } = string.Empty;
+        public string userName { get; set; } = string.Empty;
+        public string password { get; set; } = string.Empty;
+    }
     public class ResourcesFolder
     {
         public string Main { get; set; } = string.Empty;
@@ -35,6 +41,7 @@ namespace Helpers
         public static string AppName { get; } = "MYPS";
         public static LDAPConfig LDAP { get; set; } = new LDAPConfig();
         public static PISConfig PIS { get; set; } = new PISConfig();
+        public static MYPSToPCMA PCMA { get; set; } = new MYPSToPCMA();
         public static string WebRootPath { get; set; } = string.Empty;
         public static string RootPath { get; set; } = string.Empty;
         public static ResourcesFolder Resources { get; set; } = new ResourcesFolder();
@@ -45,6 +52,7 @@ namespace Helpers
             ConnectionString = config.GetConnectionString("DbConnection")!;
             LDAP = config.GetSection("LDAP").Get<LDAPConfig>()!;
             PIS = config.GetSection("PIS").Get<PISConfig>()!;
+            PCMA = config.GetSection("MYPSToPCMA").Get<MYPSToPCMA>()!;
             Resources = config.GetSection("Resources").Get<ResourcesFolder>()!;
             Resources.Projects = Path.Combine(Resources.Main, Resources.Projects);
             Resources.ProjectNotes = Path.Combine(Resources.Projects, Resources.ProjectNotes);
