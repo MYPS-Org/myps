@@ -880,13 +880,14 @@ namespace WebAPI.Controllers.Programs
         {
             try
             {
-                    var pcmaData = new PublishPCMA
-                    {
-                        ProgramId = dto.ProgramId,
-                        MYPSUserName = "testuser"
-                    };
-                    var request = new PCMA(pcmaData);
-                return Ok(new { });
+                var pcmaData = new PublishPCMA
+                {
+                    ProgramId = dto.ProgramId,
+                    MYPSUserName = "testuser"
+                };
+                var request = new PCMA(pcmaData);
+                var employee = await APIRequest.XML(request);
+                return Ok(new { EMP = employee });
             }
             catch (Exception ex)
             {

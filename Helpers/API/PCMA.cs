@@ -16,14 +16,14 @@ namespace Helpers.API
             _pcmaData = pcmaData;
         }
 
-        internal override string RequestUri => Appsetting.PIS.Host;
+        internal override string RequestUri => Appsetting.PCMA.Host;
 
         protected override string GetSoapBody()
         {
             return $@"<copyMYPSData xmlns=""http://tempuri.org/"">
                         <Program_ID>{_pcmaData.ProgramId}</Program_ID>
                         <Project_ID>string</Project_ID>
-                        <Projects{_pcmaData.MYPSUserName}</Projects>
+                        <Projects>{_pcmaData.MYPSUserName}</Projects>
                     </copyMYPSData>";
         }
 
