@@ -874,24 +874,5 @@ namespace WebAPI.Controllers.Programs
             }
         }
         #endregion
-        [AllowAnonymous]
-        [HttpPost]
-        public async Task<IActionResult> test([FromBody] ProgramDetailsDTO dto)
-        {
-            try
-            {
-                    var pcmaData = new PublishPCMA
-                    {
-                        ProgramId = dto.ProgramId,
-                        MYPSUserName = "testuser"
-                    };
-                    var request = new PCMA(pcmaData);
-                return Ok(new { });
-            }
-            catch (Exception ex)
-            {
-                return ExceptionHandler(ex);
-            }
-        }
     }
 }
