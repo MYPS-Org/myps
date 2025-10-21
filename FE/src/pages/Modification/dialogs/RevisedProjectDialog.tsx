@@ -4,12 +4,12 @@ import { Button } from '../../../components/tailwindui/button';
 import { useDropDownData } from "../hooks/useDropDown";
 import XMarkIcon from '@heroicons/react/24/outline/XMarkIcon';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '../../../components/tailwindui/table';
-import type { ModificationProject, ProjectComponent } from '../mockData/ProjectData';
+import type { ProjectDetails } from '../../Project/Model';
 
 interface ReviseProjectDialogProps {
     isOpen: boolean;
     onClose: () => void;
-    project: ModificationProject;
+    project: ProjectDetails;
 }
 
 const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({ isOpen, onClose, project }) => {
@@ -19,7 +19,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({ isOpen, onClo
         modReasons
     } = useDropDownData();
 
-    const [selectedComponents, setSelectedComponents] = useState<ProjectComponent[]>([]);
+    const [pcmaStatus, setPcmaStatus] = useState<any[]>([]);
 
     useEffect(() => {
         initializeData();
@@ -27,12 +27,30 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({ isOpen, onClo
 
     useEffect(() => {
         if (project) {
-            setSelectedComponents(project.components.map(comp => ({ ...comp, selected: false })));
+            // Initialize mock components - you can replace this with actual component data
+            setPcmaStatus([
+                {
+                    id: '1',
+                    compId: 'CW-1',
+                    constructionStatus: 'Not yet started',
+                    permitted: true,
+                    implementationMode: 'Contract',
+                    selected: false
+                },
+                {
+                    id: '2',
+                    compId: 'CW-2',
+                    constructionStatus: 'Not yet started',
+                    permitted: true,
+                    implementationMode: 'Administration',
+                    selected: false
+                }
+            ]);
         }
     }, [project]);
 
     const handleComponentToggle = (componentId: string) => {
-        setSelectedComponents(prev => 
+        setPcmaStatus(prev => 
             prev.map(comp => 
                 comp.id === componentId 
                     ? { ...comp, selected: !comp.selected }
@@ -43,7 +61,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({ isOpen, onClo
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        const selectedComps = selectedComponents.filter(comp => comp.selected);
+        const selectedComps = pcmaStatus.filter(comp => comp.selected);
         console.log('Submit revised project:', {
             project: project,
             selectedComponents: selectedComps
@@ -66,7 +84,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({ isOpen, onClo
                             Modify Project
                         </DialogTitle>
                         <p className="text-sm text-gray-600 mt-1">
-                            {project.programName} - {project.projectId}
+                            {project.ProjectId}
                         </p>
                     </div>
                     <button
@@ -83,15 +101,15 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({ isOpen, onClo
                         <div className="grid grid-cols-2 gap-4 text-sm">
                             <div>
                                 <span className="font-medium text-gray-700">Project ID:</span>
-                                <p className="text-gray-600">{project.projectId}</p>
+                                <p className="text-gray-600">{project.ProjectId}</p>
                             </div>
                             <div>
                                 <span className="font-medium text-gray-700">Current Revision:</span>
-                                <p className="text-gray-600">{project.revisionType}</p>
+                                <p className="text-gray-600">Modification</p>
                             </div>
                             <div className="col-span-2">
                                 <span className="font-medium text-gray-700">Description:</span>
-                                <p className="text-gray-600">{project.description}</p>
+                                <p className="text-gray-600">{project.Description}</p>
                             </div>
                         </div>
                     </div>
@@ -100,26 +118,10 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({ isOpen, onClo
                     <div className='space-y-2'>
                         <div className='flex justify-between gap-5 items-center'>
                             <label className='w-1/3 block text-sm font-medium text-gray-700'>
-                                Revision Type :
-                            </label>
-                            <select 
-                                className='w-2/3 border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500'
-                                defaultValue={project.revisionType}
-                            >
-                                {modCategories.filter((category) => !category.Obsolete).map((category) => (
-                                    <option key={category.Id} value={category.CodeGroup}>
-                                        {category.CodeDescription}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className='flex justify-between gap-5 items-center'>
-                            <label className='w-1/3 block text-sm font-medium text-gray-700'>
                                 Date of Approval :
                             </label>
                             <input 
                                 type="date" 
-                                defaultValue={project.date}
                                 className='w-2/3 border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500'
                             />
                         </div>
@@ -131,18 +133,6 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({ isOpen, onClo
                                 type="file" 
                                 className='w-2/3 border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500'
                             />
-                        </div>
-                        <div className='flex justify-between gap-5 items-center'>
-                            <label className='w-1/3 block text-sm font-medium text-gray-700'>
-                                Revision Category :
-                            </label>
-                            <select className='w-2/3 border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500'>
-                                {modCategories.filter((category) => category.Obsolete).map((category) => (
-                                    <option key={category.Id} value={category.CodeGroup}>
-                                        {category.CodeDescription}
-                                    </option>
-                                ))}
-                            </select>
                         </div>
                         <div className='flex justify-between gap-5 items-center'>
                             <label className='w-1/3 block text-sm font-medium text-gray-700'>
@@ -171,7 +161,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({ isOpen, onClo
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {selectedComponents.map((component) => (
+                                {pcmaStatus.map((component) => (
                                     <TableRow key={component.id}>
                                         <TableCell>
                                             <input 

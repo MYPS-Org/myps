@@ -257,7 +257,7 @@ const ModificationList: React.FC = () => {
             </div>
 
             {/* Modify Dialog */}
-            {selectedProject && (
+            {/* {selectedProject && (
                 <ReviseProjectDialog
                     isOpen={isReviseDialogOpen}
                     onClose={() => {
@@ -266,7 +266,7 @@ const ModificationList: React.FC = () => {
                     }}
                     project={selectedProject}
                 />
-            )}
+            )} */}
             {/* Adjust Project Dialog */}
             {state && state.revisionTypeId === 6 && (
                 <AdjustProjectDialog

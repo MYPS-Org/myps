@@ -27,6 +27,7 @@ import ModificationList from './pages/Modification/views/ModifcationList';
 import MultiYear from './pages/MultiYear/views/MultiYear';
 import MultiYearProject from './pages/MultiYear/views/MultiYearDetails';
 import ModifyProject from './pages/Modification/views/ModifyProject';
+import ModificationDetails from './pages/Modification/views/ModificationDetails';
 
 // import AddProgram from './pages/Program/Views/AddProgram';
 function App() {
@@ -121,6 +122,12 @@ function App() {
 											<ModificationList />
 										</ProtectedRoute>
 									} 
+								/>
+								<Route 
+									path="/revision/modification-details/:project" 
+									element={<ProtectedRoute>
+										<ModificationDetails />
+										</ProtectedRoute>}
 								/>
 								<Route 
 									path="/revision/:projectId" 

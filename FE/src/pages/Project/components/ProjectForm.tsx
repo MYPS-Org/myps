@@ -712,7 +712,12 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       alert('Project ID, Stage Name, Revision Type ID or Revision Type Description is missing. Cannot revise project.');
       return;
     }
-    navigate(`/revision/${projectId}`, { state: { stageName, revisionTypeId, revisionTypeDescription } });
+    if (revisionTypeId === 19 ){
+      navigate(`/revision/modification-details/${projectId}:${stageName}`, { state: { stageName, revisionTypeId, revisionTypeDescription } });
+    } else {
+      navigate(`/revision/${projectId}`, { state: { stageName, revisionTypeId, revisionTypeDescription } });
+    }
+    
 
     // alert('Modify Project feature is coming soon! ' + projectId + ':' + stageName); 
   }
