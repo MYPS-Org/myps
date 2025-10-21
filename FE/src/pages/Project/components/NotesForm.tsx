@@ -6,6 +6,7 @@ import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from ".
 import { deleteDoc } from "../Service";
 import AddNoteDialog from "../dialogs/AddNoteDialog";
 import { useToast } from "../../../components/toaster/ToasterContext";
+import { getDisabledClass } from "../../../utils/GlobalFunctions";
 
 interface NotesFormProps {
   docs: ProjectSupportingDocs[];
@@ -15,6 +16,7 @@ interface NotesFormProps {
   onFileChange?: (index: number, file: File) => void; // Optional if upload handled externally
   initialData?: any; // Optional initial data for dropdowns or other purposes
   dropDownOptions: any;
+  disabled?: boolean;
 }
 
 const NotesForm: React.FC<NotesFormProps> = ({
@@ -24,12 +26,14 @@ const NotesForm: React.FC<NotesFormProps> = ({
   onDelete,
   // onFileChange,
   initialData,
-  dropDownOptions
+  dropDownOptions,
+  disabled = false
 }) => {
   const { showToast } = useToast();
   const [isAddNoteModalOpen, setIsAddNoteModalOpen] = useState(false);
 
   const handleAddNote = (docs: ProjectSupportingDocs) => {
+    if (disabled) return;
     console.log('Adding new document to table:', docs);
     console.log('Current documents before adding:', docs);
     try {
@@ -72,7 +76,7 @@ const NotesForm: React.FC<NotesFormProps> = ({
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-semibold text-gray-900"></h2>
-        <Button color="blue" onClick={() => setIsAddNoteModalOpen(true)}>
+        <Button color="blue" onClick={() => setIsAddNoteModalOpen(true)} disabled={disabled}>
           <PlusIcon className="w-4 h-4 mr-1" />
           Add Document
         </Button>
@@ -108,7 +112,8 @@ const NotesForm: React.FC<NotesFormProps> = ({
               <TableCell className="flex justify-center space-x-2">
                 <button
                   onClick={() => handleDeleteDoc(doc)}
-                  className="text-red-600 hover:text-red-800 cursor-pointer"
+                  className={`text-red-600 hover:text-red-800 cursor-pointer ${getDisabledClass(disabled)}`}
+                  disabled={disabled}
                 >
                   <TrashIcon className="w-4 h-4" />
                 </button>

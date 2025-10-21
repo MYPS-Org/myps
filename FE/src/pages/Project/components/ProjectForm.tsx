@@ -57,7 +57,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   //toaster here
   const { showToast } = useToast();
   // DisableFields if status === approved
-  const isDisabled = Number(initialData?.ProgramDetails?.Status) === 4;
+  const isDisabled = Number(initialData?.ProgramDetails?.Status) === 1;
 
   // toggle state for Program Details section
   const [isProgramOpen, setIsProgramOpen] = useState<boolean>(true);
@@ -927,6 +927,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
               onDelete={handleDeleteFundingProfile}
               initialData={initialData ? { ...initialData, Dropdowns } : undefined}
               onTotalAmountChange={setMaxAmountCost}
+              disabled={isDisabled}
             />
           </div>
         </div>
@@ -945,6 +946,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             onDelete={handleDeleteComponentCost}
             initialData={initialData}
             maxAmountCost={maxAmountCost}
+            disabled={isDisabled}
           />
         </div>
       </div>
@@ -965,6 +967,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             onDelete={handleDeleteMajorItem}
             dropDowns={initialData?.Dropdowns?.ScopeOfWorks}
             programDetails={initialData?.ProgramDetails}
+            disabled={isDisabled}
           />
         </div>
       </div>
@@ -983,6 +986,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
               onDelete={handleDeleteDoc}
               initialData={initialData}
               dropDownOptions={initialData?.Dropdowns?.SupportingDocs}
+              disabled={isDisabled}
             />
           </div>
         </div>

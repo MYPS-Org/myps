@@ -3,7 +3,7 @@ import type { FundingProfile, ProjectFormPayload } from "../Model";
 import { Button } from "../../../components/tailwindui/button";
 import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from "../../../components/tailwindui/table";
-import { handleCurrencyBlur, handleCurrencyChange, handleCurrencyFocus, handleNumberFocus } from "../../../utils/GlobalFunctions";
+import { getDisabledClass, handleCurrencyBlur, handleCurrencyChange, handleCurrencyFocus, handleNumberFocus } from "../../../utils/GlobalFunctions";
 
 interface FundingProfileFormProps {
   initialData?: ProjectFormPayload;
@@ -12,15 +12,17 @@ interface FundingProfileFormProps {
   onEdit: (index: number, updatedProfile: FundingProfile) => void;
   onDelete: (index: number) => void;
   onTotalAmountChange?: (totalAmount: number) => void; // Optional callback for total amount change
+  disabled?: boolean;
 }
 
 const FundingProfileForm: React.FC<FundingProfileFormProps> = ({ 
-  fundingProfiles, 
+  fundingProfiles,
   onAdd, 
   onEdit, 
   onDelete,
   initialData,
   onTotalAmountChange = () => {}, // Default to no-op if not provided
+  disabled = false
 }) => {
   const [errors, setErrors] = useState<{ [key: number]: string }>({});
   const [totalPercentage, setTotalPercentage] = useState(0);
@@ -93,6 +95,7 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
 
   // Handle amount Changing in UI
   const handleAmountChange = (index: number, profile: FundingProfile, value: string) => {
+    if (disabled) return;
     const updateAmount = (field: string, numValue: number) => {
       onEdit(index, { ...profile, [field]: numValue });
     };
@@ -140,7 +143,7 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
             Total Amount: {totalAmount.FormatToCurrency()}
           </div>
           
-          <Button color="blue" onClick={onAdd}>
+          <Button color="blue" onClick={onAdd} disabled={disabled}>
               <PlusIcon className="w-4 h-4 mr-1" />
               Add Funding
           </Button>
@@ -166,13 +169,14 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
                     name="source"
                     value={profile.Source}
                     onChange={(e) => onEdit(index, { ...profile, Source: String(e.target.value) })}
-                    className="w-full px-2 py-1 border border-gray-300 rounded"
-                    style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                    className={`${getDisabledClass(disabled)} w-full px-2 py-1 border border-gray-300 rounded truncate`}
+                    disabled={disabled}
+                    // style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
                   >
                     <option value="">Select Source</option>
                     {initialData?.Dropdowns?.Sources?.map((source) => (
                       <option key={source.Id} value={source.Organization}>
-                        {source.Name}
+                        {source.Name} 
                       </option>
                     ))}
                   </select>
@@ -182,9 +186,9 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
                     name="agreement"
                     value={profile.Agreement}
                     onChange={(e) => onEdit(index, { ...profile, Agreement: Number(e.target.value) })}
-                    className="w-full px-2 py-1 border border-gray-300 rounded truncate"
-                    style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
-                    disabled={!profile.Source} // Disable if no source selected
+                    className={`${getDisabledClass(disabled)} w-full px-2 py-1 border border-gray-300 rounded truncate`}
+                    // style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                    disabled={!profile.Source || disabled} // Disable if no source selected
                   >
                     <option value="">Select Agreement</option>
                     {initialData?.Dropdowns?.Agreements
@@ -203,8 +207,9 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
                     onChange={(e) => handleAmountChange(index, profile, e.target.value)}
                     onFocus={handleCurrencyFocus}
                     onBlur={(e) => handleCurrencyBlur(e, (value) => onEdit(index, { ...profile, Amount: value }))}
-                    className="w-full px-2 py-1 border border-gray-300 rounded text-right"
+                    className={`w-full px-2 py-1 border border-gray-300 rounded text-right ${getDisabledClass(disabled)}`}
                     placeholder="₱0.00"
+                    disabled={disabled}
                    />
                 </TableCell>
                 <TableCell className="w-1/6">

@@ -12,6 +12,7 @@ import type {
   MajorItemLocations,
 } from '../Model.d';
 import type { ProgramList } from '../../Program/Model';
+import { getDisabledClass } from '../../../utils/GlobalFunctions';
 
 interface MajorItemOfWorksFormProps {
   majorItems: MajorItemOfWorksWithDropdown[];
@@ -23,6 +24,7 @@ interface MajorItemOfWorksFormProps {
   onEdit: (index: number, updatedItem: MajorItemOfWorksWithDropdown) => void;
   onDelete: (index: number) => void;
   dropDowns?: ScopeOfWorkEnum[];
+  disabled?: boolean;
 }
 
 const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
@@ -34,7 +36,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
   onAdd,
   onEdit,
   onDelete,
-  
+  disabled = false,
   dropDowns
 }) => {
   const [majorItemDialogOpen, setMajorItemDialogOpen] = useState(false);
@@ -228,7 +230,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-semibold text-gray-900">Major Item of Work</h2>
-        <Button color="blue" onClick={handleAddMajorItem}>
+        <Button color="blue" onClick={handleAddMajorItem} disabled={disabled}>
           <PlusIcon className="w-4 h-4 mr-1" />
           Add Major Item
         </Button>
@@ -245,7 +247,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
               <TableHeader className='min-w-[100px]'> Infra Type</TableHeader>
               {/* <TableHeader className='min-w-[100px]'> Unit Cost</TableHeader> */}
               <TableHeader className="min-w-[100px]">Target Unit</TableHeader>
-              <TableHeader className="min-w-[120px]">Work Target</TableHeader>
+              <TableHeader className="min-w-[120px]">Work Locations</TableHeader>
               <TableHeader className="min-w-[80px]">Actions</TableHeader>
             </TableRow>
           </TableHead>
@@ -297,14 +299,16 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                       <Button
                         color="blue"
                         onClick={() => handleEditMajorItem(index)}
-                        className="text-xs px-2 py-1"
+                        className={`text-xs px-2 py-1 ${getDisabledClass(disabled)}`}
+                        disabled={disabled}
                       >
                         <PencilIcon className="w-3 h-3" />
                       </Button>
                       <Button
                         color="red"
                         onClick={() => onDelete(index)}
-                        className="text-xs px-2 py-1"
+                        className={`text-xs px-2 py-1 ${getDisabledClass(disabled)}`}
+                        disabled={disabled}
                       >
                         <TrashIcon className="w-3 h-3" />
                       </Button>
@@ -333,6 +337,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                         minAmount={getMinMaxAmounts(item.WorkTypeId).min}
                         parentId={item.ReferenceId}
                         dropDowns={dropDowns}
+                        disabled={disabled}
                       />
                     </TableCell>
                   </TableRow>

@@ -4,6 +4,7 @@ import { Button } from "../../../components/tailwindui/button";
 import { PlusIcon, TrashIcon, PencilIcon } from "@heroicons/react/24/outline";
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from "../../../components/tailwindui/table";
 import { ComponentCostDialog } from "../dialogs";
+import { getDisabledClass } from "../../../utils/GlobalFunctions";
 
 interface ComponentCostFormProps {
   componentCosts: ComponentCostWithYears[];
@@ -12,6 +13,7 @@ interface ComponentCostFormProps {
   onDelete: (index: number) => void;
   initialData?: any; // Optional initial data for dropdowns or other purposes
   maxAmountCost?: number; // Optional prop to set max amount in ComponentCostForm
+  disabled?: boolean;
 }
 
 const ComponentCostForm: React.FC<ComponentCostFormProps> = ({ 
@@ -20,7 +22,8 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
   onEdit, 
   onDelete,
   initialData,
-  maxAmountCost
+  maxAmountCost,
+  disabled = false
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -124,7 +127,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold text-gray-900">Component Cost</h2>
-            <Button color="blue" onClick={handleOpenAddModal}>
+            <Button color="blue" onClick={handleOpenAddModal} disabled={disabled}>
                 <PlusIcon className="w-4 h-4 mr-1" />
                 Add Cost
             </Button>
@@ -235,15 +238,17 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
                     <div className="flex space-x-2">
                       <button
                         onClick={() => handleOpenEditModal(index)}
-                        className="text-blue-600 hover:text-blue-800"
+                        className={`text-blue-600 hover:text-blue-800 ${getDisabledClass(disabled)}`}
                         title="Edit"
+                        disabled={disabled}
                       >
                         <PencilIcon className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => onDelete(index)}
-                        className="text-red-600 hover:text-red-800"
+                        className={`text-red-600 hover:text-red-800 ${getDisabledClass(disabled)}`}
                         title="Delete"
+                        disabled={disabled}
                       >
                         <TrashIcon className="w-4 h-4" />
                       </button>

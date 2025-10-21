@@ -80,3 +80,7 @@ Number.parseNumberInput = (value: string, fallback: number | null = null): numbe
   const num = Number(value);
   return isNaN(num) ? fallback : num;
 };
+
+// Disable Class
+export const getDisabledClass = (disabled: boolean): string =>
+  disabled ? 'bg-gray-100 cursor-not-allowed opacity-70' : '';

@@ -6,6 +6,7 @@ import { mockInfraData } from '../dialogs/mockInfraData';
 import { generateInfraId, shouldAutoGenerateInfraId, getInfraTypePrefix } from '../../../utils/infraIdGenerator';
 import type { MajorItemLocations, InfraData, ScopeOfWorkEnum, MajorItemOfWork } from '../Model.d';
 import type { ProgramList } from '../../Program/Model';
+import { getDisabledClass } from '../../../utils/GlobalFunctions';
 
 interface WorkLocationTableProps {
   majorItemOfWorks: MajorItemOfWork;
@@ -22,6 +23,7 @@ interface WorkLocationTableProps {
   maxAmount?: number;
   minAmount?: number;
   parentId: string; // Add parentId prop
+  disabled?: boolean;
 }
 
 const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
@@ -37,7 +39,8 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
   maxAmount,
   minAmount,
   parentId,
-  dropDowns
+  dropDowns,
+  disabled = false,
 }) => {
   const infraType = majorItemOfWorks.InfraType || '';
   const [infraDialogOpen, setInfraDialogOpen] = useState(false);
@@ -199,7 +202,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
                 type="text"
                 value={location.InfraId}
                 onChange={canSelectInfra ? undefined : (e) => handleFieldChange(index, 'InfraId', e.target.value)}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                className={`flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
                 placeholder={canSelectInfra ? "Click to select infrastructure..." : canAutoGenerate ? "Auto-generated or enter custom ID..." : "Enter infrastructure ID..."}
                 readOnly={canSelectInfra}
               />
@@ -207,7 +210,8 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
                 <Button
                   color="blue"
                   onClick={() => handleEditWorkLocation(index)}
-                  className="text-sm px-3 py-2"
+                  className={`text-sm px-3 py-2 ${getDisabledClass(disabled)}`}
+                  disabled={disabled}
                 >
                   <PencilIcon className="w-4 h-4" />
                 </Button>
@@ -215,11 +219,12 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
               {canAutoGenerate && (
                 <Button
                   color="green"
+                  disabled={disabled}
                   onClick={() => {
                     const newId = generateInfraId(infraType);
                     handleFieldChange(index, 'InfraId', newId);
                   }}
-                  className="text-sm px-3 py-2"
+                  className={`text-sm px-3 py-2 ${getDisabledClass(disabled)}`}
                   title="Generate new Infrastructure ID"
                 >
                   Generate ID
@@ -248,9 +253,10 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
             <textarea
               value={location.DetailedScope}
               onChange={(e) => handleFieldChange(index, 'DetailedScope', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
               placeholder="Enter detailed scope of work..."
               rows={3}
+              disabled={disabled}
             />
           </div>
         );
@@ -264,7 +270,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
             <input
               type="text"
               value={location.TargetUnit || actualTargetUnit}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-50 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-50 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
               placeholder="Target unit"
               readOnly
             />
@@ -297,8 +303,9 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
               onFocus={handleNumberFocus}
               max={maxAmount}
               min={minAmount}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
               placeholder="Enter target amount..."
+              disabled={disabled}
             />
             {(maxAmount || minAmount) && (
               <div className="text-xs text-gray-500">
@@ -318,8 +325,9 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
               type="text"
               value={location.StartStationLimit}
               onChange={(e) => handleFieldChange(index, 'StartStationLimit', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
               placeholder="Start station..."
+              disabled={disabled}
             />
           </div>
         );
@@ -334,8 +342,9 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
               type="text"
               value={location.EndStationLimit}
               onChange={(e) => handleFieldChange(index, 'EndStationLimit', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
               placeholder="End station..."
+              disabled={disabled}
             />
           </div>
         );
@@ -351,8 +360,9 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
               value={location.To}
               onFocus={handleNumberFocus}
               onChange={(e) => handleFieldChange(index, 'To', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-right"
+              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-right ${getDisabledClass(disabled)}`}
               placeholder="To..."
+              disabled={disabled}
             />
           </div>
         );
@@ -368,8 +378,9 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
               value={location.From}
               onFocus={handleNumberFocus}
               onChange={(e) => handleFieldChange(index, 'From', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-right"
+              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-right ${getDisabledClass(disabled)}`}  
               placeholder="From..."
+              disabled={disabled}
             />
           </div>
         );
@@ -384,8 +395,9 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
               type="text"
               value={location.StartX}
               onChange={(e) => handleFieldChange(index, 'StartX', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
               placeholder="Start X coordinate..."
+              disabled={disabled}
             />
           </div>
         );
@@ -416,8 +428,9 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
               type="text"
               value={location.EndX}
               onChange={(e) => handleFieldChange(index, 'EndX', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500" ${getDisabledClass(disabled)}`}
               placeholder="End X coordinate..."
+              disabled={disabled}
             />
           </div>
         );
@@ -432,8 +445,9 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
               type="text"
               value={location.EndY}
               onChange={(e) => handleFieldChange(index, 'EndY', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
               placeholder="End Y coordinate..."
+              disabled={disabled}
             />
           </div>
         );
@@ -449,7 +463,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
         <div>
           <h4 className="text-lg font-semibold text-gray-800">Work Locations</h4>
           <p className="text-sm text-gray-600 mt-1">
-            Configure work targets for {infraType || 'this project'}
+            Configure work location for {infraType || 'this project'}
           </p>
         </div>
       </div>
@@ -476,7 +490,8 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
                   <Button
                     color="red"
                     onClick={() => onDelete(index)}
-                    className="flex items-center px-3 py-1 text-xs"
+                    className={`flex items-center px-3 py-1 text-xs ${getDisabledClass(disabled)}`}
+                    disabled={disabled}
                   >
                     <TrashIcon className="w-3 h-3 mr-1" />
                     Remove
@@ -522,10 +537,11 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
           <Button
               color="blue"
               onClick={handleAddWorkLocation}
-              className="flex items-center px-4 py-2 text-sm"
+              className={`flex items-center px-4 py-2 text-sm ${getDisabledClass(disabled)}`}
+              disabled={disabled}
             >
             <PlusIcon className="w-4 h-4 mr-2" />
-            Add Target
+            Add Location
           </Button>
           </div>
         </div>

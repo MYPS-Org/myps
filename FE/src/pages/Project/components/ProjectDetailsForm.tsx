@@ -1,6 +1,7 @@
 import React from 'react';
 import type { ProjectDetails, ProjectEnums } from "../Model.d";
 import type { FormValidationError } from "../../../utils/FormValidation";
+import { getDisabledClass } from '../../../utils/GlobalFunctions';
 
 interface ProjectDetailsFormProps {
     projectDetails: ProjectDetails;
@@ -38,12 +39,10 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
         { id: 3, enum: 3, name: "Region Wide AIP ignores DEO" },
     ];
 
-
-
     return (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <div className='w-full flex flex-row items-end justify-end mb-6'>
-                { [{ label: "Lump Sum", value: "LS"}, { label: "Non Project", value: "N"}].map((item, index) => (
+                { [{ label: "Lump Sum", value: "LS"}, { label: "Non Project", value: "NP"}].map((item, index) => (
                     <label key={index} className={`flex-row items-center ${mode === 'edit' ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} mr-4`}>
                         <input className='mr-1'
                             type="checkbox" 
@@ -83,8 +82,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     type="text" 
                                     value={projectDetails?.MYId || ''}
                                     onChange={(e) => handleInputChange('MYId', e.target.value)}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.MYId ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
-                                    style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.MYId ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
                                     disabled={disabled}
                                 />
                             </div>
@@ -97,8 +95,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     type="text" 
                                     value={projectDetails?.AlternateId || ''}
                                     onChange={(e) => handleInputChange('AlternateId', e.target.value)}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.AlternateId ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
-                                    style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.AlternateId ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
+                                    disabled={disabled}
                                 />
                             </div>
                         </div>
@@ -113,8 +111,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     type="text"
                                     value={projectDetails?.ExternalId || ''}
                                     onChange={(e) => handleInputChange('ExternalId', e.target.value)}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.ExternalId ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
-                                    style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.ExternalId ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
+                                    disabled={disabled}
                                 />
                             </div>
                         </div>
@@ -125,8 +123,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     type="text" 
                                     value={projectDetails?.UACS || ''}
                                     onChange={(e) => handleInputChange('UACS', e.target.value)}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.UACS ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
-                                    style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.UACS ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
+                                    disabled={disabled}
                                 />
                             </div>
                         </div>
@@ -137,8 +135,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <select
                                     value={projectDetails?.Tier}
                                     onChange={(e) => handleInputChange('Tier', parseInt(e.target.value))}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.Tier ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
-                                    style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.Tier ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
+                                    disabled={disabled}
                                 >
                                     <option value={1}>Tier I</option>
                                     <option value={2}>Tier II</option>
@@ -155,8 +153,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <select
                                     value={projectDetails?.Category}
                                     onChange={(e) => handleInputChange('Category', parseInt(e.target.value))}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.Category ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
-                                    style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.Category ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
+                                    disabled={disabled}
                                 >
                                     <option value="">Select Category</option>
                                     {projectEnums?.Categories?.filter(x => x.ValidUntil === 0 || x.ValidUntil > new Date().getFullYear()).map((category) => (
@@ -176,8 +174,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     id="Thrust" 
                                     value={projectDetails?.Thrust} 
                                     onChange={(e) => handleInputChange('Thrust', parseInt(e.target.value))} 
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.Thrust ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
-                                    style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.Thrust ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
+                                    disabled={disabled}
                                 >
                                     <option value="">Select Thrust</option>
                                     {projectEnums?.Thrusts?.filter(x => x.ValidFromDate < new Date().getFullYear() && x.ValidToDate > new Date().getFullYear() || x.ValidToDate === 0).map((thrust) => (
@@ -196,8 +194,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     type="date"
                                     value={projectDetails?.MYCAApprovalDate ? new Date(projectDetails?.MYCAApprovalDate).toISOString().split('T')[0] : ''}
                                     onChange={(e) => handleInputChange('MYCAApprovalDate', e.target.value ? new Date(e.target.value).toISOString() : null)}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.MYCAApprovalDate ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
-                                    style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.MYCAApprovalDate ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
+                                    disabled={disabled}
                                 />
                             </div>
                         </div>
@@ -210,9 +208,10 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <textarea
                                     value={projectDetails?.Description}
                                     onChange={(e) => handleInputChange('Description', e.target.value)}
-                                    className={`w-full mt-1 px-3 py-2 border ${errors.Description ? 'border-red-500' : 'border-gray-300'} rounded-md`}
+                                    className={`w-full mt-1 px-3 py-2 border ${errors.Description ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md`}
                                     placeholder="Enter project description"
                                     rows={3}
+                                    disabled={disabled}
                                 />
                             </div>
                         </div>
@@ -232,8 +231,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <select
                                     value={projectDetails?.Province}
                                     onChange={(e) => handleInputChange('Province', parseInt(e.target.value))}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.Province ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
-                                    style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.Province ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
+                                    disabled={disabled}
                                 >
                                     <option value="">Select Province</option>
                                     {/* <option value="1">Cavite</option>
@@ -254,8 +253,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <select
                                     value={projectDetails?.City}
                                     onChange={(e) => handleInputChange('City', parseInt(e.target.value))}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.City ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
-                                    style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.City ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
+                                    disabled={disabled}
                                 >
                                     <option value="">Select City/Municipality</option>
                                     {projectEnums?.Cities?.map((city) => (
@@ -273,8 +272,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <select
                                     value={projectDetails?.LegislativeDistrict}
                                     onChange={(e) => handleInputChange('LegislativeDistrict', parseInt(e.target.value))}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.LegislativeDistrict ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
-                                    style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.LegislativeDistrict ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
+                                    disabled={disabled}
                                 >
                                     <option value="">Select Legislative District</option>
                                     {projectEnums?.LDs?.map((district) => (
@@ -304,9 +303,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     id="DistrictEngOffice" 
                                     value={projectDetails?.DEO} 
                                     onChange={(e) => handleInputChange('DEO', e.target.value)} 
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.DEO ? 'border-red-500' : 'border-gray-300'} ${mode === 'edit' ? 'bg-gray-100 cursor-not-allowed' : ''}  rounded-md truncate`}
-                                    style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
-                                    disabled={mode === 'edit'}
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.DEO ? 'border-red-500' : 'border-gray-300'} ${mode === 'edit' ? 'bg-gray-100 cursor-not-allowed' : ''} ${getDisabledClass(disabled)} rounded-md truncate`}
+                                    disabled={mode === 'edit' || disabled}
                                 >
                                     <option value="">Select District Engineering Office</option>
                                     {projectEnums?.DEOs?.map((deo) => (
@@ -324,9 +322,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <select
                                     value={projectDetails?.Region}
                                     onChange={(e) => handleInputChange('Region', e.target.value)}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.Region ? 'border-red-500' : 'border-gray-300'} ${mode === 'edit' ? 'bg-gray-100 cursor-not-allowed' : ''} rounded-md truncate`}
-                                    style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
-                                    disabled={mode === 'edit'}
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.Region ? 'border-red-500' : 'border-gray-300'} ${mode === 'edit' ? 'bg-gray-100 cursor-not-allowed' : ''} ${getDisabledClass(disabled)} rounded-md truncate`}
+                                    disabled={mode === 'edit' || disabled}
                                 >
                                     <option value="">Select Regional Office</option>
                                     {projectEnums?.DEOs?.filter(x => x.DeoCode === projectDetails?.DEO).map((region) => (
@@ -346,8 +343,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <select
                                     value={projectDetails?.OperatingUnit}
                                     onChange={(e) => handleInputChange('OperatingUnit', e.target.value)}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.OperatingUnit ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
-                                    style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.OperatingUnit ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
+                                    disabled={disabled}
                                 >
                                     <option value="">Select Operating Unit</option>
                                     {projectEnums?.OperatingUnits?.map((unit) => (
@@ -365,8 +362,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <select
                                     value={projectDetails?.ImplementingOffice}
                                     onChange={(e) => handleInputChange('ImplementingOffice', e.target.value)}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.ImplementingOffice ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
-                                    style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.ImplementingOffice ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
+                                    disabled={disabled}
                                 >
                                     <option value="">Select Implementing Office</option>
                                     {projectEnums?.IOs?.filter(x => projectDetails?.OperatingUnit != "" && (x.ParticipantId === projectDetails?.OperatingUnit || x.ParticipantId === "OI10")).map((office) => (
@@ -386,8 +383,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <select 
                                     value={projectDetails?.RegionWide} 
                                     onChange={(e) => handleInputChange('RegionWide', e.target.value ? parseInt(e.target.value) : undefined)}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.RegionWide ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
-                                    style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.RegionWide ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
+                                    disabled={disabled}
                                 >
                                  <option value={0}>Select Region Wide</option>
                                     {/* {projectEnums?.RegionWide?.map((region) => (
@@ -421,8 +418,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     id="Origin" 
                                     value={projectDetails?.Origin} 
                                     onChange={(e) => handleInputChange('Origin', parseInt(e.target.value))} 
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.Origin ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
-                                    style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.Origin ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
+                                    disabled={disabled}
                                 >
                                     <option value="">Select Origin</option>
                                     {projectEnums?.Origins?.map((origin) => (
@@ -440,8 +437,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <select
                                     value={projectDetails?.Agency}
                                     onChange={(e) => handleInputChange('Agency', parseInt(e.target.value))}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.Agency ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
-                                    style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.Agency ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
+                                    disabled={disabled}
                                 >
                                     <option value="">Select Originating Agency</option>
                                     {projectEnums?.Agencies?.map((agency) => (
@@ -468,8 +465,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <select
                                     value={projectDetails?.ImplementationMode}
                                     onChange={(e) => handleInputChange('ImplementationMode', parseInt(e.target.value))}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.ImplementationMode ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
-                                    style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.ImplementationMode ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
+                                    disabled={disabled}
                                 >
                                     <option value="">Select Implementation Mode</option>
                                     {projectEnums?.ImplementationModes?.map((mode) => (
@@ -489,8 +486,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     id="EmergencyCode" 
                                     value={projectDetails?.EmergencyMode ? 'true' : 'false'} 
                                     onChange={(e) => handleInputChange('EmergencyMode', e.target.value === 'true')} 
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.EmergencyMode ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
-                                    style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.EmergencyMode ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
+                                    disabled={disabled}
                                 >
                                     <option value="false">No</option>
                                     <option value="true">Yes</option>
@@ -504,7 +501,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <select 
                                     value={projectDetails?.RowAvailable ? 'true' : 'false'} 
                                     onChange={(e) => handleInputChange('RowAvailable', e.target.value === 'true')}
-                                    className={`flex-2/3 mt-1 px-3 py-2 border ${errors.RowAvailable ? 'border-red-500' : 'border-gray-300'} rounded-md`}
+                                    className={`flex-2/3 mt-1 px-3 py-2 border ${errors.RowAvailable ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md`}
+                                    disabled={disabled}
                                 >
                                     <option value="false">No</option>
                                     <option value="true">Yes</option>
@@ -525,8 +523,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <select 
                                     value={projectDetails?.Feasibility || ''} 
                                     onChange={(e) => handleInputChange('Feasibility', e.target.value ? parseInt(e.target.value) : undefined)}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.Feasibility ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
-                                    style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.Feasibility ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
+                                    disabled={disabled}
                                 >
                                     <option value="">Select Feasibility Study</option>
                                     {projectEnums?.Feasibility?.map((feasibility) => (
@@ -545,9 +543,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     type="date"
                                     value={projectDetails?.FeasibilityDate ? new Date(projectDetails?.FeasibilityDate).toISOString().split('T')[0] : ''}
                                     onChange={(e) => handleInputChange('FeasibilityDate', e.target.value ? new Date(e.target.value).toISOString() : null)}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.FeasibilityDate ? 'border-red-500' : 'border-gray-300'} ${!(projectDetails?.Feasibility === 1) ? 'bg-gray-100 cursor-not-allowed' : ''} rounded-md truncate`}
-                                    disabled={!(projectDetails?.Feasibility === 1)}
-                                    style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.FeasibilityDate ? 'border-red-500' : 'border-gray-300'} ${!(projectDetails?.Feasibility === 1) ? 'bg-gray-100 cursor-not-allowed' : ''} ${getDisabledClass(disabled)} rounded-md truncate`}
+                                    disabled={!(projectDetails?.Feasibility === 1) || disabled}
                                 />
                             </div>
                         </div>
@@ -560,8 +557,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <select 
                                     value={projectDetails?.DetailedDesign ? 'true' : 'false'} 
                                     onChange={(e) => handleInputChange('DetailedDesign', e.target.value === 'true')}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.DetailedDesign ? 'border-red-500' : 'border-gray-300'} rounded-md truncate`}
-                                    style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.DetailedDesign ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
+                                    disabled={disabled}
                                 >
                                     <option value="false">No</option>
                                     <option value="true">Yes</option>
@@ -576,9 +573,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     type="date"
                                     value={projectDetails?.DetailedDesignDate ? new Date(projectDetails?.DetailedDesignDate).toISOString().split('T')[0] : ''}
                                     onChange={(e) => handleInputChange('DetailedDesignDate', e.target.value ? new Date(e.target.value).toISOString() : null)}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.DetailedDesignDate ? 'border-red-500' : 'border-gray-300'} ${!(projectDetails?.DetailedDesign) ? 'bg-gray-100 cursor-not-allowed' : ''} rounded-md truncate`}
-                                    style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
-                                    disabled={!(projectDetails?.DetailedDesign)}
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.DetailedDesignDate ? 'border-red-500' : 'border-gray-300'} ${!(projectDetails?.DetailedDesign) ? 'bg-gray-100 cursor-not-allowed' : ''} ${getDisabledClass(disabled)} rounded-md truncate`}
+                                    disabled={!(projectDetails?.DetailedDesign) || disabled}
                                 />
                             </div>
                         </div>
@@ -613,8 +609,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     <input 
                                         type="text" 
                                         value={projectDetails?.CreatedDate ? projectDetails?.CreatedDate.StringToDate() : projectDetails?.CreatedDate} 
-                                        disabled
                                         className={`flex-2/3 mt-1 px-3 py-2 border ${errors.CreatedDate ? 'border-red-500' : 'border-gray-300'} rounded-md bg-gray-100`} 
+                                        disabled
                                     />
                                 </div>
                             </div>
