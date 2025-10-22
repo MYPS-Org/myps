@@ -25,10 +25,10 @@
     }
     public enum EnumProgramStatus
     {
-        Proposed = 1,
-        Candidate = 2,
+        //Proposed = 1,
+        //Candidate = 2,
         Working = 3,
-        Approved = 4
+        Approved = 1
     }
     #endregion
 }

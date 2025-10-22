@@ -607,17 +607,17 @@ namespace WebAPI.Controllers.Programs
             try
             {
                 DateTime CurrentDate = DateTime.UtcNow;
-                var checkProgram = await _db.tPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
+                var checkProgram = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
                 if (checkProgram == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Programs table. Please contact administrator!", Title = "Program not found" });
                 }
-                var checkRevisions = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
+                var checkRevisions = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId && x.Id == checkProgram.RevisionId);
                 if (checkRevisions == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Revisions table. Please contact administrator!", Title = "Program not found" });
                 }
-                var checkStage = await _db.tProgramStages.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionId == checkRevisions.Id);
+                var checkStage = await _db.tProgramStages.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionId == checkRevisions.Id && x.ProgramId == dto.ProgramId);
                 if (checkStage == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program ID Revision '{checkRevisions.Id}' does not exist in the Stages table. Please contact administrator!", Title = "Program Stage not found" });
@@ -831,6 +831,8 @@ namespace WebAPI.Controllers.Programs
                             CreatedDate = CurrentDate
                         };
                         await _db.tProgramRevisions.AddAsync(newProgramRevision);
+                        checkRevisions.Status = EnumProgramStatus.Approved;
+                        _db.tProgramRevisions.Update(checkRevisions);
                         await _db.SaveChangesAsync();
                         #endregion
                         #region Program Stages
