@@ -150,19 +150,11 @@ namespace WebAPI.Controllers.Programs
         {
             try
             {
-                //int[] initialStageInts = new[]
-                //{
-                //    (int)EnumProgramStage.RBP,
-                //    (int)EnumProgramStage.BP
-                //};
-                //int[] initialStatus = new[]
-                //{
-                //    (int)EnumProgramStatus.Working
-                //};
+                var SelectedStage = new[] { EnumProgramStage.RDIP, EnumProgramStage.PIP }.Select(stage => (int)stage).ToList();
 
-                var Stage = await _db.tProgramStageEnum.AsNoTracking().ToListAsync();
+                var Stage = await _db.tProgramStageEnum.AsNoTracking().Where(x => !SelectedStage.Contains(x.Id)).ToListAsync();
+
                 var Type = await _db.tProgramTypeEnum.AsNoTracking().ToListAsync();
-                //var Status = await _db.tProgramStatusEnum.AsNoTracking().Where(x => initialStatus.Contains(x.Enum)).ToListAsync();
                 var Group = await _db.tGroups.ToListAsync();
                 string[] includes = { "C", "R", "PMO", "PMOC", "B" };
                 var Security = await _db.tProjectImplementingOfficeEnum.AsNoTracking().Where(x => includes.Contains(x.OrgType)).ToListAsync();
@@ -170,7 +162,6 @@ namespace WebAPI.Controllers.Programs
                 {
                     Stages = Stage,
                     Types = Type,
-                    //Statuses = Status,
                     Groups = Group,
                     DataSecurity = Security
                 });
