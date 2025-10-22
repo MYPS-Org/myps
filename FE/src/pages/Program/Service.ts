@@ -113,3 +113,13 @@ export const dowloadTemplate = async () => {
         throw error;
     }
 }
+
+export const publishToPCMA = async (programId: string) => {
+    try {
+        const response = await httpClient.post('/PCMA/PublishProgram', { ProgramId: programId }, {});
+        return response;
+    } catch (error) {
+        console.error('Error publishing program to PCMA:', error);
+        throw error;
+    }
+}

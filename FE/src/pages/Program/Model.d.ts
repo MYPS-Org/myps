@@ -40,7 +40,7 @@ export interface ParentProgram {
 	YearEnd: number;
 	CreatedBy: string;
 	CreatedDate: string;
-	IsPublished: boolean;
+	IsPublished: boolean = true;
 	// Stages: ProgramList[];
 }
 
@@ -98,6 +98,7 @@ export interface ProgramDetailsEnums{
   Details: ProgramDetails;
   Projects: ProjectLists[];
   IsActive: boolean;
+  IsPublished: boolean;
   Dropdowns: {
     Stages: ProgramEnums[];
     Statuses: ProgramEnums[];

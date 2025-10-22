@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 
 import type { ProgramDetailsEnums } from '../Model.d'; // Adjust the import path as necessary
 import { Button } from '../../../components/tailwindui/button';
-import { editProgram, fetchProgramById } from '../Service';
+import { editProgram, fetchProgramById, publishToPCMA } from '../Service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
 import { ChevronDownIcon, ChevronRightIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
 import { useToast } from '../../../components/toaster/ToasterContext';
@@ -43,6 +43,7 @@ const ProgramDetail: React.FC = () => {
         UpdatedBy: '',
         UpdatedDate: '',
     },
+    IsPublished: false,
     IsActive: false,
     Projects: [],
     Dropdowns: {
@@ -76,6 +77,7 @@ const ProgramDetail: React.FC = () => {
         UpdatedBy: '',
         UpdatedDate: '',
     },
+    IsPublished: false,
     IsActive: false,
     Projects: [],
     Dropdowns: {
@@ -301,8 +303,17 @@ const ProgramDetail: React.FC = () => {
     }
   };
 
-  const handlePublishToPCMA = () => {
-    console.log('Publish to PCMA clicked');
+  const handlePublishToPCMA = async() => {
+    try {
+      if (programEnums?.Details.Status !== 1 && programEnums?.Details.StageId !== 9) return;
+      await publishToPCMA(programEnums?.Details.ProgramId);
+    } catch (error) {
+      console.error('Error publishing program to PCMA:', error);
+      showToast({
+        type: 'error',
+        message: 'Failed to publish program to PCMA. Please try again.',
+      });
+    }
   };
 
   const handleCloseNextStageDialog = () => {
@@ -632,7 +643,19 @@ const ProgramDetail: React.FC = () => {
             </div>
 
             <div className="pt-4 flex justify-end gap-4">
-              {programEnums.IsActive && programEnums.Details.StageId >= 4 && programEnums.Details.StageId <= 9 && (
+              {programEnums.IsActive &&
+              programEnums.Details &&
+              (
+                (
+                  programEnums.Details.StageId >= 4 &&
+                  programEnums.Details.StageId < 9
+                ) ||
+                (
+                  programEnums.Details.StageId === 9 &&
+                  programEnums.Details.Status === 1 /*&&
+                  programEnums.IsPublished === true*/
+                )
+              ) && (
                 <Button color="blue" className="w-auto items-center text-nowrap" onClick={handleProceed}>
                   Proceed to {nextStageName}
                 </Button>
@@ -674,7 +697,7 @@ const ProgramDetail: React.FC = () => {
         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
           <h2 className="text-xl font-semibold text-gray-900">Projects</h2>
           <div className="flex items-center gap-4">
-            {programEnums.IsActive && programEnums.Details.StageId === 10 && (
+            {programEnums.IsActive && programEnums.Details.StageId === 9 && (
               <Button color="yellow" onClick={handlePublishToPCMA}>
                 Publish to PCMA
               </Button>
