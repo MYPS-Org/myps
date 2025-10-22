@@ -652,7 +652,7 @@ const ProgramDetail: React.FC = () => {
                 ) ||
                 (
                   programEnums.Details.StageId === 9 &&
-                  programEnums.Details.Status === 1 /*&&
+                  defaultProgramEnums.Details.Status === 1 /*&&
                   programEnums.IsPublished === true*/
                 )
               ) && (
@@ -697,7 +697,7 @@ const ProgramDetail: React.FC = () => {
         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
           <h2 className="text-xl font-semibold text-gray-900">Projects</h2>
           <div className="flex items-center gap-4">
-            {programEnums.IsActive && programEnums.Details.StageId === 9 && (
+            {programEnums.IsActive && programEnums.Details.StageId === 9 && defaultProgramEnums.Details.Status === 1 && (
               <Button color="yellow" onClick={handlePublishToPCMA}>
                 Publish to PCMA
               </Button>

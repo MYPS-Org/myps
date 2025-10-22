@@ -3,12 +3,12 @@ import type { ComponentCost, ComponentCostWithYears, ComponentCostYear } from ".
 import { Button } from "../../../../components/tailwindui/button";
 import { PlusIcon, TrashIcon, PencilIcon } from "@heroicons/react/24/outline";
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from "../../../../components/tailwindui/table";
-import { ComponentCostDialog } from "../../../Project/dialogs";
+import { ComponentCostDialog } from "../../dialogs";
 import { getDisabledClass } from "../../../../utils/GlobalFunctions";
 
 interface ComponentCostFormProps {
   componentCosts: ComponentCostWithYears[];
-  onAdd: (cost: ComponentCost, costYear?: ComponentCostYear) => void;
+  onAdd: (cost: ComponentCost, costYears?: ComponentCostYear[]) => void; // Changed to accept multiple costYears
   onEdit: (index: number, updatedCost: ComponentCost) => void;
   onDelete: (index: number) => void;
   initialData?: any; // Optional initial data for dropdowns or other purposes
@@ -50,7 +50,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
     setEditingIndex(null);
   };
 
-  const handleSaveCost = (cost: ComponentCost, costYear?: ComponentCostYear) => {
+  const handleSaveCost = (cost: ComponentCost, costYears?: ComponentCostYear[]) => {
     // Validate if adding/editing would exceed max amount cost
     if (maxAmountCost && maxAmountCost > 0) {
       let newTotalCost = 0;
@@ -79,10 +79,10 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
     }
 
     if (modalMode === 'add') {
-      onAdd(cost, costYear);
+      onAdd(cost, costYears);
     } else if (modalMode === 'edit' && editingIndex !== null) {
       onEdit(editingIndex, cost);
-      // TODO: Handle costYear updates for edit mode
+      // TODO: Handle costYears updates for edit mode
     }
     handleCloseModal();
   };

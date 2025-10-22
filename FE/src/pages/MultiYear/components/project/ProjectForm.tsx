@@ -51,7 +51,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const [savingSection, setSavingSection] = useState<string | null>(null);
   const [projectEnums, setProjectEnums] = useState<ProjectEnums | null>(null);
   const [updateAllProject, setUpdateAllProject] = useState<boolean>(false);
-  const [updateUnlockProject, setUpdateUnlockProject] = useState<boolean>(false);
+  const [updateUnlockProject] = useState<boolean>(false);
   // const [reviseProject, setReviseProject] = useState<boolean>(false);
   const [errors, setErrors] = useState<FormValidationError<ProjectDetails>>({});
   //toaster here
@@ -327,10 +327,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   };
 
   // #region Component Costs
-  const handleAddComponentCost = (newCost: ComponentCost, newCostYear?: ComponentCostYear) => {
+  const handleAddComponentCost = (newCost: ComponentCost, newCostYears?: ComponentCostYear[]) => {
     console.log('=== ADDING COMPONENT COST ===');
     console.log('New cost:', newCost);
-    console.log('New cost year:', newCostYear);
+    console.log('New cost years:', newCostYears);
     console.log('Current componentCosts before add:', componentCosts);
     
     // Generate a temporary ID for new cost (will be replaced when saved)
@@ -343,19 +343,20 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       return updated;
     });
     
-    // If ComponentCostYear data is provided, add it to the componentCostsYear array
-    if (newCostYear) {
-      const costYearWithParentId = { 
-        ...newCostYear, 
+    // If ComponentCostYear data is provided, add all entries to the componentCostsYear array
+    if (newCostYears && newCostYears.length > 0) {
+      const costYearsWithParentId = newCostYears.map((yearEntry, index) => ({ 
+        ...yearEntry, 
         ParentId: tempId, // Link to the component cost
-        Id: Date.now() + 1 // Ensure unique ID
-      };
+        Id: Date.now() + index + 1 // Ensure unique IDs
+      }));
+      
       setComponentCostsYear(prev => {
-        const updated = [...prev, costYearWithParentId];
+        const updated = [...prev, ...costYearsWithParentId];
         console.log('Updated componentCostsYear:', updated);
         return updated;
       });
-      console.log('Added component cost year to staging:', costYearWithParentId);
+      console.log('Added component cost years to staging:', costYearsWithParentId);
     }
     
     console.log('Added component cost to staging:', costWithId);

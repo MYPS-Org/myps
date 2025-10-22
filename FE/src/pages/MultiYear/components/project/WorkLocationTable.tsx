@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { Button } from '../../../components/tailwindui/button';
+import { Button } from '../../../../components/tailwindui/button';
 import { PlusIcon, TrashIcon, PencilIcon } from '@heroicons/react/24/outline';
-import AddInfraDialog from '../dialogs/AddInfraDialog';
-import { mockInfraData } from '../dialogs/mockInfraData';
-import { generateInfraId, shouldAutoGenerateInfraId, getInfraTypePrefix } from '../../../utils/infraIdGenerator';
-import type { MajorItemLocations, InfraData, ScopeOfWorkEnum, MajorItemOfWork } from '../Model.d';
-import type { ProgramList } from '../../Program/Model';
-import { getDisabledClass } from '../../../utils/GlobalFunctions';
+import AddInfraDialog from '../../../Project/dialogs/AddInfraDialog';
+import { mockInfraData } from '../../../Project/dialogs/mockInfraData';
+import { generateInfraId, shouldAutoGenerateInfraId, getInfraTypePrefix } from '../../../../utils/infraIdGenerator';
+import type { MajorItemLocations, InfraData, ScopeOfWorkEnum, MajorItemOfWork } from '../../../Project/Model.d';
+import type { ProgramList } from '../../../Program/Model';
+import { getDisabledClass } from '../../../../utils/GlobalFunctions';
 
 interface WorkLocationTableProps {
   majorItemOfWorks: MajorItemOfWork;
