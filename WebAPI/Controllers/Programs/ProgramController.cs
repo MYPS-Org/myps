@@ -314,8 +314,8 @@ namespace WebAPI.Controllers.Programs
                     Description = x.Description,
                     Thrust = _db.tProjectThrustLists.FirstOrDefault(a => a.PAPKey == x.Thrust)!.ThrustDescription ?? x.Thrust.ToString(),
                     Category = _db.tProjectCategoryEnum.FirstOrDefault(a => a.Enum == x.Category)!.Name ?? x.Category.ToString(),
-                    City = _db.tProjectCityEnum.FirstOrDefault(a => a.Enum == x.City)!.Name ?? x.City.ToString(),
-                    LegislativeDistrict = _db.tProjectLegislativeDistrictEnum.FirstOrDefault(a => a.Enum == x.LegislativeDistrict)!.Name ?? x.LegislativeDistrict.ToString(),
+                    City = _db.tAdminAreaCityMunicipality.FirstOrDefault(a => a.Code == x.City.ToString())!.Name ?? x.City.ToString(),
+                    LegislativeDistrict = _db.tAdminAreaCongressionalDistrict.FirstOrDefault(a => a.Code == x.LegislativeDistrict.ToString())!.Name ?? x.LegislativeDistrict.ToString(),
                     Cost = _db.tProjectComponentCost.Where(a => a.ReferenceId == x.ReferenceId).Sum(a => a.Total),
                     CreatedBy = x.CreatedBy,
                     CreatedDate = x.CreatedDate,
@@ -806,6 +806,12 @@ namespace WebAPI.Controllers.Programs
                         };
                         await _db.tTransactionLog.AddAsync(transactionLog);
                         #endregion
+                        await _db.tProjectComponentCost.AddRangeAsync(NewComponent);
+                        await _db.tProjectComponentCostYear.AddRangeAsync(NewComponentPerYear);
+                        await _db.tProjectMajorWorkItem.AddRangeAsync(NewMajorItems);
+                        await _db.tProjectMajorWorkLocations.AddRangeAsync(NewMajorLocations);
+                        await _db.tProjectFundingProfile.AddRangeAsync(NewFundingProfiles);
+                        await _db.tProjectSupportingDocs.AddRangeAsync(NewSupportingDocs);
                         #region Program Revisions
                         var newProgramRevision = new ProgramRevisions()
                         {
@@ -824,7 +830,7 @@ namespace WebAPI.Controllers.Programs
                         await _db.tProgramRevisions.AddAsync(newProgramRevision);
                         checkRevisions.Status = EnumProgramStatus.Approved;
                         _db.tProgramRevisions.Update(checkRevisions);
-                        await _db.SaveChangesAsync();
+                        //await _db.SaveChangesAsync();
                         #endregion
                         #region Program Stages
                         var newStage = new ProgramStages()
@@ -838,12 +844,6 @@ namespace WebAPI.Controllers.Programs
                             IsPublished = false,
                         };
                         await _db.tProgramStages.AddAsync(newStage);
-                        await _db.tProjectComponentCost.AddRangeAsync(NewComponent);
-                        await _db.tProjectComponentCostYear.AddRangeAsync(NewComponentPerYear);
-                        await _db.tProjectMajorWorkItem.AddRangeAsync(NewMajorItems);
-                        await _db.tProjectMajorWorkLocations.AddRangeAsync(NewMajorLocations);
-                        await _db.tProjectFundingProfile.AddRangeAsync(NewFundingProfiles);
-                        await _db.tProjectSupportingDocs.AddRangeAsync(NewSupportingDocs);
                         await _db.SaveChangesAsync();
                         #endregion
                         await transaction.CommitAsync();

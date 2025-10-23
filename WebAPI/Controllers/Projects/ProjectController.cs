@@ -115,8 +115,8 @@ namespace WebAPI.Controllers.Projects
                     Description = x.Description,
                     Thrust = _db.tProjectThrustLists.FirstOrDefault(a => a.PAPKey == x.Thrust)!.ThrustDescription ?? x.Thrust.ToString(),
                     Category = _db.tProjectCategoryEnum.FirstOrDefault(a => a.Enum == x.Category)!.Name ?? x.Category.ToString(),
-                    City = _db.tProjectCityEnum.FirstOrDefault(a => a.Enum == x.City)!.Name ?? x.City.ToString(),
-                    LegislativeDistrict = _db.tProjectLegislativeDistrictEnum.FirstOrDefault(a => a.Enum == x.LegislativeDistrict)!.Name ?? x.LegislativeDistrict.ToString(),
+                    City = _db.tAdminAreaCityMunicipality.FirstOrDefault(a => a.Code == x.City)!.Name ?? x.City.ToString(),
+                    LegislativeDistrict = _db.tAdminAreaCongressionalDistrict.FirstOrDefault(a => a.Code == x.LegislativeDistrict)!.Name ?? x.LegislativeDistrict.ToString(),
                     Cost = _db.tProjectComponentCost.Where(a => a.ReferenceId == x.ReferenceId).Sum(a => a.Total),
                     CreatedBy = x.CreatedBy,
                     CreatedDate = x.CreatedDate,
@@ -143,9 +143,9 @@ namespace WebAPI.Controllers.Projects
                 var Category = await _db.tProjectCategoryEnum.Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync();
                 var Thrust = await _db.tProjectThrustLists.OrderBy(x => x.ThrustDescription).ToListAsync();
                 var Origin = await _db.tProjectOriginEnum.OrderBy(x => x.Name).ToListAsync();
-                var Province = await _db.tProjectProvinceEnum.OrderBy(x => x.ProvinceName).ToListAsync();
-                var City = await _db.tProjectCityEnum.OrderBy(x => x.Name).ToListAsync();
-                var LD = await _db.tProjectLegislativeDistrictEnum.OrderBy(x => x.Name).ToListAsync();
+                var Province = await _db.tAdminAreaProvince.OrderBy(x => x.Name).ToListAsync();
+                var City = await _db.tAdminAreaCityMunicipality.OrderBy(x => x.Name).ToListAsync();
+                var LD = await _db.tAdminAreaCongressionalDistrict.OrderBy(x => x.Name).ToListAsync();
                 var OperatingUnit = await _db.tProjectOperatingUnitEnum.OrderBy(x => x.OrgName).ToListAsync();
                 var IO = await _db.tProjectImplementingOfficeEnum.OrderBy(x => x.OrgName).ToListAsync();
                 var DEO = await _db.tProjectRODEOEnum.OrderBy(x => x.DeoName).ToListAsync();
@@ -220,12 +220,12 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = $"Selected Origin '{dto.Origin}' is not valid!", Title = "Invalid Origin" });
                 }
-                var City = await _db.tProjectCityEnum.FirstOrDefaultAsync(x => x.Enum == dto.City);
+                var City = await _db.tAdminAreaCityMunicipality.FirstOrDefaultAsync(x => x.Code == dto.City);
                 if(City == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Selected City '{dto.City}' is not valid!", Title = "Invalid City" });
                 }
-                var LD = await _db.tProjectLegislativeDistrictEnum.FirstOrDefaultAsync(x => x.Enum == dto.LegislativeDistrict);
+                var LD = await _db.tAdminAreaCongressionalDistrict.FirstOrDefaultAsync(x => x.Code == dto.LegislativeDistrict);
                 if(LD == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Selected Legislative District '{dto.LegislativeDistrict}' is not valid!", Title = "Invalid Legislative District" });
@@ -389,9 +389,9 @@ namespace WebAPI.Controllers.Projects
                 var Category = await _db.tProjectCategoryEnum.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync();
                 var Thrust = await _db.tProjectThrustLists.AsNoTracking().OrderBy(x => x.ThrustDescription).ToListAsync();
                 var Origin = await _db.tProjectOriginEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-                var Province = await _db.tProjectProvinceEnum.AsNoTracking().OrderBy(x => x.ProvinceName).ToListAsync();
-                var City = await _db.tProjectCityEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-                var LD = await _db.tProjectLegislativeDistrictEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var Province = await _db.tAdminAreaProvince.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var City = await _db.tAdminAreaCityMunicipality.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var LD = await _db.tAdminAreaCongressionalDistrict.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var OperatingUnit = await _db.tProjectOperatingUnitEnum.AsNoTracking().OrderBy(x => x.OrgName).ToListAsync();
                 var IO = await _db.tProjectImplementingOfficeEnum.AsNoTracking().OrderBy(x => x.OrgName).ToListAsync();
                 var DEO = await _db.tProjectRODEOEnum.AsNoTracking().OrderBy(x => x.DeoName).ToListAsync();
@@ -566,12 +566,12 @@ namespace WebAPI.Controllers.Projects
                 }
                 if (Project.City != dto.ProjectDetails?.City)
                 {
-                    var City = await _db.tProjectCityEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.City);
+                    var City = await _db.tAdminAreaCityMunicipality.AsNoTracking().FirstOrDefaultAsync(x => x.Code == dto.ProjectDetails!.City);
                     if (City == null)
                     {
                         return new BadRequestObjectResult(new { Message = $"Selected City '{dto.ProjectDetails!.City}' is not valid!", Title = "Invalid City" });
                     }
-                    var OldCity = await _db.tProjectCityEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == Project.City);
+                    var OldCity = await _db.tAdminAreaCityMunicipality.AsNoTracking().FirstOrDefaultAsync(x => x.Code == Project.City);
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
@@ -588,12 +588,12 @@ namespace WebAPI.Controllers.Projects
                 }
                 if (Project.Province != dto.ProjectDetails?.Province)
                 {
-                    var Province = await _db.tProjectProvinceEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dto.ProjectDetails!.Province);
+                    var Province = await _db.tAdminAreaProvince.AsNoTracking().FirstOrDefaultAsync(x => x.Code == dto.ProjectDetails!.Province);
                     if (Province == null)
                     {
                         return new BadRequestObjectResult(new { Message = $"Selected Province '{dto.ProjectDetails!.Province}' is not valid!", Title = "Invalid Province" });
                     }
-                    var OldProvince = await _db.tProjectProvinceEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Id == Project.Province);
+                    var OldProvince = await _db.tAdminAreaProvince.AsNoTracking().FirstOrDefaultAsync(x => x.Code == Project.Province);
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
@@ -601,8 +601,8 @@ namespace WebAPI.Controllers.Projects
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "Province",
-                        NewValue = Province.ProvinceName,
-                        OldValue = OldProvince?.ProvinceName ?? "",
+                        NewValue = Province.Name,
+                        OldValue = OldProvince?.Name ?? "",
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
@@ -610,12 +610,12 @@ namespace WebAPI.Controllers.Projects
                 }
                 if (Project.LegislativeDistrict != dto.ProjectDetails?.LegislativeDistrict)
                 {
-                    var LD = await _db.tProjectLegislativeDistrictEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.LegislativeDistrict);
+                    var LD = await _db.tAdminAreaCongressionalDistrict.AsNoTracking().FirstOrDefaultAsync(x => x.Code == dto.ProjectDetails!.LegislativeDistrict);
                     if (LD == null)
                     {
                         return new BadRequestObjectResult(new { Message = $"Selected Legislative District '{dto.ProjectDetails!.LegislativeDistrict}' is not valid!", Title = "Invalid Legislative District" });
                     }
-                    var OldLD = await _db.tProjectLegislativeDistrictEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == Project.LegislativeDistrict);
+                    var OldLD = await _db.tAdminAreaCongressionalDistrict.AsNoTracking().FirstOrDefaultAsync(x => x.Code == Project.LegislativeDistrict);
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {

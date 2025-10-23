@@ -22,9 +22,9 @@ namespace DBHelper.Models.Views
         public int Category { get; set; }
         public int Thrust { get; set; }
         public int Origin { get; set; }
-        public int City { get; set; }
-        public int Province { get; set; }
-        public int LegislativeDistrict { get; set; }
+        public string City { get; set; } = string.Empty;
+        public string Province { get; set; } = string.Empty;
+        public string LegislativeDistrict { get; set; } = string.Empty;
         public string? OperatingUnit { get; set; }
         public string? ImplementingOffice { get; set; }
         public string? DEO { get; set; }

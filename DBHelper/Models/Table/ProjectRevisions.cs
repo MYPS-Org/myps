@@ -37,11 +37,11 @@ namespace DBHelper.Models.Table
         [Required]
         public int Origin { get; set; }
         [Required]
-        public int City { get; set; }
+        public string City { get; set; } = string.Empty;
         [Required]
-        public int Province { get; set; }
+        public string Province { get; set; } = string.Empty;
         [Required]
-        public int LegislativeDistrict { get; set; }
+        public string LegislativeDistrict { get; set; } = string.Empty;
         [Required]
         [MaxLength(20)]
         public string OperatingUnit { get; set; } = string.Empty;

@@ -10,12 +10,22 @@ using System.Threading.Tasks;
 
 namespace DBHelper.Models.Table
 {
-    public class ProjectProvinceEnum
+    public class AdminAreaProvince
     {
         [Key]
         public int Id { get; set; }
         [Required]
+        public int GdbId { get; set; }
+        [Required]
+        [MaxLength(255)]
+        public string Name { get; set; } = string.Empty;
+        [Required]
         [MaxLength(50)]
-        public string ProvinceName { get; set; } = string.Empty;
+        public string Code { get; set; } = string.Empty;
+        [Required]
+        public int RegionFkId { get; set; }
+        [Required]
+        [MaxLength(255)]
+        public string RegionName { get; set; } = string.Empty;
     }
 }

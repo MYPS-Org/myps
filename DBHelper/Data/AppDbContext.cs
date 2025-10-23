@@ -25,8 +25,8 @@ namespace DBHelper.Data
         public DbSet<Models.Table.ProjectCategoryEnum> tProjectCategoryEnum { get; set; }
         public DbSet<Models.Table.ProjectThrustLists> tProjectThrustLists { get; set; }
         public DbSet<Models.Table.ProjectOriginEnum> tProjectOriginEnum { get; set; }
-        public DbSet<Models.Table.ProjectCityEnum> tProjectCityEnum { get; set; }
-        public DbSet<Models.Table.ProjectLegislativeDistrictEnum> tProjectLegislativeDistrictEnum { get; set; }
+        public DbSet<Models.Table.AdminAreaCityMunicipality> tAdminAreaCityMunicipality { get; set; }
+        public DbSet<Models.Table.AdminAreaCongressionalDistrict> tAdminAreaCongressionalDistrict { get; set; }
         public DbSet<Models.Table.ProjectOperatingUnitEnum> tProjectOperatingUnitEnum { get; set; }
         public DbSet<Models.Table.ProjectImplementingOfficeEnum> tProjectImplementingOfficeEnum { get; set; }
         public DbSet<Models.Table.ProjectDEOEnum> tProjectDEOEnum { get; set; }
@@ -52,7 +52,7 @@ namespace DBHelper.Data
         public DbSet<Models.Table.InfraType> tInfraType { get; set; }
         public DbSet<Models.Table.ProjectsInGroup> tProjectsInGroup { get; set; }
         public DbSet<Models.Table.ProjectGroups> tProjectGroups { get; set; }
-        public DbSet<Models.Table.ProjectProvinceEnum> tProjectProvinceEnum { get; set; }
+        public DbSet<Models.Table.AdminAreaProvince> tAdminAreaProvince { get; set; }
         public DbSet<Models.Table.DropdownSupportingDocs> tDropdownSupportingDocs { get; set; }
         public DbSet<Models.Table.FutureRoads> tFutureRoads { get; set; }
         public DbSet<Models.Table.FutureRoadsClassification> tFutureRoadsClassification { get; set; }
