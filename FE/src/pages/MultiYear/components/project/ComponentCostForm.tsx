@@ -9,7 +9,7 @@ import { getDisabledClass } from "../../../../utils/GlobalFunctions";
 interface ComponentCostFormProps {
   componentCosts: ComponentCostWithYears[];
   onAdd: (cost: ComponentCost, costYears?: ComponentCostYear[]) => void; // Changed to accept multiple costYears
-  onEdit: (index: number, updatedCost: ComponentCost) => void;
+  onEdit: (index: number, updatedCost: ComponentCost, costYears?: ComponentCostYear[]) => void;
   onDelete: (index: number) => void;
   initialData?: any; // Optional initial data for dropdowns or other purposes
   maxAmountCost?: number; // Optional prop to set max amount in ComponentCostForm
@@ -81,8 +81,8 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
     if (modalMode === 'add') {
       onAdd(cost, costYears);
     } else if (modalMode === 'edit' && editingIndex !== null) {
-      onEdit(editingIndex, cost);
-      // TODO: Handle costYears updates for edit mode
+      // Pass costYears up when editing so parent can persist per-year entries
+      onEdit(editingIndex, cost, costYears);
     }
     handleCloseModal();
   };

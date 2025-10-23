@@ -171,15 +171,7 @@ function App() {
 									}
 								/>
 								<Route 
-									path="/multiyear/projects/:programId"
-									element={
-										<ProtectedRoute>
-											<MultiYearDetails />
-										</ProtectedRoute>
-									}
-								/>
-								<Route 
-									path="/multiyear/project-details/:projectId"
+									path="/multiyear/project-details/:project"
 									element={
 										<ProtectedRoute>
 											<MYProjectDetails />

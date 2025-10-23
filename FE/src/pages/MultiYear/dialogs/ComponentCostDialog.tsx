@@ -3,6 +3,7 @@ import { Dialog, DialogTitle, DialogPanel } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import type { ComponentCost, ComponentCostYear, ComponentCostWithYears } from '../../Project/Model.d';
 import { XMarkIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { handleCurrencyBlur, handleCurrencyChange } from '../../../utils/GlobalFunctions';
 
 
 interface ComponentCostDialogProps {
@@ -44,6 +45,9 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
 
   // Separate state for managing cost per year entries
   const [costPerYearEntries, setCostPerYearEntries] = useState<ComponentCostYear[]>([]);
+  
+  // Display values for currency formatting in cost per year entries
+  const [costDisplayValues, setCostDisplayValues] = useState<{ [key: number]: string }>({});
 
   // Calculate remaining budget for validation
   const calculateRemainingBudget = () => {
@@ -78,7 +82,15 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
       });
       
       // Set cost per year entries from editing data
-      setCostPerYearEntries(editingCost.CostPerYear || []);
+      const entries = editingCost.CostPerYear || [];
+      setCostPerYearEntries(entries);
+      
+      // Initialize display values for existing entries
+      const displayValues: { [key: number]: string } = {};
+      entries.forEach((entry, index) => {
+        displayValues[index] = entry.Cost > 0 ? entry.Cost.FormatToCurrency() : '';
+      });
+      setCostDisplayValues(displayValues);
       
     } else if (mode === 'add') {
       // Reset form for new entry
@@ -99,6 +111,17 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
       // Reset cost per year entries - add default current year entry for new components
       const currentYear = new Date().getFullYear();
       setCostPerYearEntries([{
+          Id: 0,
+          ParentId: '',
+          CostYear: currentYear,
+          Cost: 0,
+          StartDate: new Date().toISOString(),
+          EndDate: new Date().toISOString()
+      }]);
+      
+      // Reset display values
+      setCostDisplayValues({ 0: '' });
+      console.log('Reset for add mode - costPerYearEntries:', [{
           Id: 0,
           ParentId: '',
           CostYear: currentYear,
@@ -147,6 +170,10 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    console.log('=== ComponentCostDialog handleSubmit triggered ===');
+    console.log('Form data:', formData);
+    console.log('Cost per year entries:', costPerYearEntries);
+    
     try {
         // Calculate total cost from cost per year entries
         const totalFromYears = costPerYearEntries.reduce((sum, entry) => sum + (entry.Cost || 0), 0);
@@ -172,16 +199,34 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
           }
         }
         
-        // Validate that we have at least one cost per year entry
+        // Validate that we have at least one cost per year entry with a cost > 0
         if (costPerYearEntries.length === 0) {
           alert('Please add at least one cost per year entry.');
+          return;
+        }
+        
+        const hasValidCosts = costPerYearEntries.some(entry => entry.Cost > 0);
+        if (!hasValidCosts) {
+          alert('Please enter a cost amount greater than 0 for at least one year.');
+          return;
+        }
+        
+        // Validate required fields
+        if (!formData.ComponentType) {
+          alert('Please select a component type.');
+          return;
+        }
+        
+        if (!formData.Description?.trim()) {
+          alert('Please enter a description.');
           return;
         }
         
         // Prepare component cost data with total from yearly breakdown
         const componentCostData = {
           ...formData,
-          Total: totalFromYears // Use calculated total from yearly entries
+          Total: totalFromYears, // Use calculated total from yearly entries
+          ReferenceId: mode === 'add' ? '' : formData.ReferenceId // Let ProjectForm generate ReferenceId for new items
         };
 
         // Send both ComponentCost and ComponentCostYear data to parent
@@ -218,6 +263,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
             StartDate: new Date().toISOString(),
             EndDate: new Date().toISOString()
         }]);
+        setCostDisplayValues({ 0: '' });
     };
 
     // Functions to manage cost per year entries
@@ -232,6 +278,12 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
             EndDate: new Date().toISOString()
         };
         setCostPerYearEntries(prev => [...prev, newEntry]);
+        
+        // Add display value for new entry
+        setCostDisplayValues(prev => ({
+            ...prev,
+            [costPerYearEntries.length]: ''
+        }));
     };
 
     const handleUpdateCostPerYear = (index: number, field: keyof ComponentCostYear, value: any) => {
@@ -244,6 +296,56 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
 
     const handleDeleteCostPerYear = (index: number) => {
         setCostPerYearEntries(prev => prev.filter((_, i) => i !== index));
+        
+        // Remove display value and reindex remaining values
+        setCostDisplayValues(prev => {
+            const newValues: { [key: number]: string } = {};
+            Object.keys(prev).forEach(key => {
+                const numKey = parseInt(key);
+                if (numKey < index) {
+                    newValues[numKey] = prev[numKey];
+                } else if (numKey > index) {
+                    newValues[numKey - 1] = prev[numKey];
+                }
+            });
+            return newValues;
+        });
+    };
+
+    // Currency handling functions for cost per year entries
+    const handleCostPerYearChange = (index: number, value: string) => {
+        console.log(`handleCostPerYearChange called - index: ${index}, value: ${value}`);
+        handleCurrencyChange(
+            value,
+            (displayValue) => {
+                console.log(`Setting display value for index ${index}:`, displayValue);
+                setCostDisplayValues(prev => ({ ...prev, [index]: displayValue }));
+            },
+            (_field, numericValue) => {
+                console.log(`Setting numeric value for index ${index}:`, numericValue);
+                handleUpdateCostPerYear(index, 'Cost', numericValue);
+            },
+            'Cost'
+        );
+    };
+
+    const handleCostPerYearFocus = (e: React.FocusEvent<HTMLInputElement>, index: number) => {
+        const entry = costPerYearEntries[index];
+        if (entry && entry.Cost > 0) {
+            e.target.value = entry.Cost.toString();
+        } else {
+            e.target.value = '';
+        }
+    };
+
+    const handleCostPerYearBlur = (e: React.FocusEvent<HTMLInputElement>, index: number) => {
+        handleCurrencyBlur(e, (numericValue) => {
+            handleUpdateCostPerYear(index, 'Cost', numericValue);
+            setCostDisplayValues(prev => ({
+                ...prev,
+                [index]: numericValue > 0 ? numericValue.FormatToCurrency() : ''
+            }));
+        });
     };
 
     // Calculate total from cost per year entries
@@ -290,10 +392,11 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                             handleChange('ComponentType', value);
                             handleChangeComponentId(value);
                         }}
+                        required
                     >   
                     <option value="">Select Component Type</option>
                         {componentTypes?.map((type: any) => (
-                            <option key={type.Id} value={type.description}>
+                            <option key={type.Id} value={type.Description}>
                                 {type.Description}
                             </option>
                         ))}
@@ -380,12 +483,10 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                                         </label>
                                         <input
                                             type="text"
-                                            value={entry.Cost > 0 ? entry.Cost.FormatToCurrency() : ''}
-                                            onChange={(e) => {
-                                                const value = e.target.value.replace(/[₱,]/g, '');
-                                                const numericValue = parseFloat(value) || 0;
-                                                handleUpdateCostPerYear(index, 'Cost', numericValue);
-                                            }}
+                                            value={costDisplayValues[index] || ''}
+                                            onChange={(e) => handleCostPerYearChange(index, e.target.value)}
+                                            onFocus={(e) => handleCostPerYearFocus(e, index)}
+                                            onBlur={(e) => handleCostPerYearBlur(e, index)}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-right"
                                             placeholder="₱0.00"
                                         />
@@ -453,7 +554,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                     <Button type="button" color="zinc" onClick={handleClose}>
                         Cancel
                     </Button>
-                    <Button type="submit" color="orange" onClick={handleSubmit}>
+                    <Button type="submit" color="orange">
                         {mode === 'add' ? 'Add' : 'Save'}
                     </Button>
                 </div>

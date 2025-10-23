@@ -31,6 +31,7 @@ import MajorItemOfWorksForm from './MajorItemOfWorksForm';
 import NotesForm from './NotesForm';
 import FundingProfileForm from './FundingProfileForm';
 import ActivitySection from './ActivitySection';
+import ProjectionAnalysisTab from './tabFolder/ProjectionAnalysisTab';
 import { addProjectDetails, getProjectEnums, updateEntireProject } from '../../../Project/Service';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import type { ProgramList } from '../../../Program/Model';
@@ -362,17 +363,35 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     console.log('Added component cost to staging:', costWithId);
   };
 
-  const handleEditComponentCost = (index: number, updatedCost: ComponentCost) => {
+  const handleEditComponentCost = (index: number, updatedCost: ComponentCost, updatedCostYears?: ComponentCostYear[]) => {
     console.log('=== EDITING COMPONENT COST ===');
     console.log('Index:', index);
     console.log('Updated cost:', updatedCost);
+    console.log('Updated cost years:', updatedCostYears);
     console.log('Current componentCosts before edit:', componentCosts);
     
+    // Update the component cost entry
     setComponentCosts(prev => {
       const updated = prev.map((cost, i) => i === index ? updatedCost : cost);
       console.log('Updated componentCosts after edit:', updated);
       return updated;
     });
+
+    // If per-year entries were provided, replace existing years for this component
+    if (updatedCostYears && updatedCost.ReferenceId) {
+      // Remove existing years linked to this ReferenceId and add the updated ones
+      setComponentCostsYear(prev => {
+        const withoutOld = prev.filter(year => year.ParentId !== updatedCost.ReferenceId);
+        const newEntries = updatedCostYears.map((y, i) => ({
+          ...y,
+          ParentId: updatedCost.ReferenceId,
+          Id: y.Id && y.Id > 0 ? y.Id : Date.now() + i + 1
+        }));
+        const updated = [...withoutOld, ...newEntries];
+        console.log('Updated componentCostsYear after edit:', updated);
+        return updated;
+      });
+    }
     console.log('Updated component cost in staging:', updatedCost);
   };
 
@@ -977,6 +996,13 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           />
         </div>
       </div>
+
+      {/* Projection Analysis Section */}
+      <ProjectionAnalysisTab
+        componentCosts={componentCostsWithYears}
+        projectId={initialData?.ProjectDetails?.ProjectId}
+        multiYearProjectId={initialData?.ProjectDetails?.ProjectId}
+      />
 
       <div className="grid grid-cols-1 gap-6">
         {/* Notes Section */}
