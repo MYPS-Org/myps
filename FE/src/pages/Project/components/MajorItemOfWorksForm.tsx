@@ -226,6 +226,33 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     };
   };
 
+  // Calculate total physical target for a major item
+  const getTotalPhysicalTarget = (majorItem: MajorItemOfWorksWithDropdown): number => {
+    return majorItem.MajorItemLocations?.reduce((total, location) => {
+      return total + (location.PhysicalTarget || 0);
+    }, 0) || 0;
+  };
+
+  // Calculate per unit cost for a major item
+  const getPerUnitCost = (majorItem: MajorItemOfWorksWithDropdown): number => {
+    const totalPhysicalTarget = getTotalPhysicalTarget(majorItem);
+    if (totalPhysicalTarget === 0) return 0;
+    
+    // Find the corresponding component cost
+    const componentCost = componentCosts?.find(cost => cost.ComponentId === majorItem.ComponentId);
+    if (!componentCost || !componentCost.Total) return 0;
+    
+    return componentCost.Total / totalPhysicalTarget;
+  };
+
+  // Format currency helper function
+  const formatCurrency = (amount: number): string => {
+    return amount.toLocaleString('en-PH', { 
+      minimumFractionDigits: 2, 
+      maximumFractionDigits: 2 
+    });
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
       <div className="flex justify-between items-center mb-4">
@@ -244,10 +271,11 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
               <TableHeader className="min-w-[120px]">Component</TableHeader>
               <TableHeader className="min-w-[100px]">Year of Work</TableHeader>
               <TableHeader className="min-w-[140px]">Type of Work</TableHeader>
-              <TableHeader className='min-w-[100px]'> Infra Type</TableHeader>
-              {/* <TableHeader className='min-w-[100px]'> Unit Cost</TableHeader> */}
+              <TableHeader className='min-w-[100px]'>Infra Type</TableHeader>
+              <TableHeader className='min-w-[120px]'>Unit Cost</TableHeader>
               <TableHeader className="min-w-[100px]">Target Unit</TableHeader>
-              <TableHeader className="min-w-[120px]">Work Locations</TableHeader>
+              <TableHeader className="min-w-[100px]">Total Unit</TableHeader>
+              {/* <TableHeader className="min-w-[120px]">Work Locations</TableHeader> */}
               <TableHeader className="min-w-[80px]">Actions</TableHeader>
             </TableRow>
           </TableHead>
@@ -283,15 +311,21 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                   <TableCell>
                     <div className="text-sm">{item.InfraType}</div>
                   </TableCell>
-                  {/* <TableCell>
-                    Unit cost here
-                  </TableCell> */}
+                  <TableCell>
+                    <div className="text-sm font-medium">
+                      ₱{formatCurrency(getPerUnitCost(item))}
+                    </div>
+                    <div className="text-xs text-gray-500">per {getTargetUnitName(item.WorkTypeId)}</div>
+                  </TableCell>
                   <TableCell>
                     <div className="text-sm">{getTargetUnitName(item.WorkTypeId)}</div>
                   </TableCell>
                   <TableCell>
-                    <div className="text-sm text-gray-600">
-                      {(item.MajorItemLocations?.length || 0)} Target(s)
+                    <div className="text-sm font-semibold text-blue-600">
+                      {getTotalPhysicalTarget(item).toLocaleString('en-PH')} {getTargetUnitName(item.WorkTypeId)}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {(item.MajorItemLocations?.length || 0)} location(s)
                     </div>
                   </TableCell>
                   <TableCell>
@@ -319,7 +353,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                 {/* Expanded row for work locations */}
                 {expandedRows.has(index) && (
                   <TableRow className="bg-gray-50">
-                    <TableCell colSpan={8} className="p-4">
+                    <TableCell colSpan={10} className="p-4">
                       <WorkLocationTable
                         majorItemOfWorks={item}
                         workLocations={item.MajorItemLocations || []}

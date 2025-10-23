@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import type { ProjectDetails, ProjectEnums } from "../Model.d";
 import type { FormValidationError } from "../../../utils/FormValidation";
 import { getDisabledClass } from '../../../utils/GlobalFunctions';
@@ -21,10 +21,135 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
     errors = {},
     disabled = false
 }) => {
+    const [ filteredCities, setFilteredCities ] = React.useState<ProjectEnums['Cities']>([]);
+    const [ filteredLegislativeDistricts, setFilteredLegislativeDistricts ] = React.useState<ProjectEnums['LDs']>([]);
+
+    // Initialize filtered data when projectEnums change
+    useEffect(() => {
+        if (projectEnums) {
+            updateFilteredData();
+        }
+    }, [projectEnums, projectDetails?.Province, projectDetails?.City, projectDetails?.LegislativeDistrict]);
+
+    const updateFilteredData = () => {
+        if (!projectEnums) return;
+
+        let availableCities = projectEnums.Cities || [];
+        let availableLDs = projectEnums.LDs || [];
+
+        // If province is selected, filter cities and LDs by province
+        if (projectDetails?.Province) {
+            availableCities = projectEnums.Cities?.filter(
+                (city) => city.ProvinceFkId === projectDetails.Province
+            ) || [];
+            availableLDs = projectEnums.LDs?.filter(
+                (ld) => ld.ProvinceFkId === projectDetails.Province
+            ) || [];
+
+            console.log('Filtered Cities and LDs by Province:', projectDetails.Province, availableCities, availableLDs);
+        }
+        // If city is selected but no province, filter LDs by city's province
+        else if (projectDetails?.City) {
+            const selectedCity = projectEnums.Cities?.find((city) => city.Code === projectDetails.City?.toString());
+            if (selectedCity) {
+                availableLDs = projectEnums.LDs?.filter(
+                    (ld) => ld.ProvinceFkId === selectedCity.ProvinceFkId
+                ) || [];
+            }
+            console.log('Filtered City:', projectDetails.City);
+            console.log('Filtered LDs:', availableLDs);
+        }
+        // If LD is selected but no province/city, filter cities by LD's province
+        else if (projectDetails?.LegislativeDistrict) {
+            const selectedLD = projectEnums.LDs?.find((ld) => ld.Code === projectDetails.LegislativeDistrict?.toString());
+            if (selectedLD) {
+                availableCities = projectEnums.Cities?.filter(
+                    (city) => city.ProvinceFkId === selectedLD.ProvinceFkId
+                ) || [];
+            }
+            console.log('Filtered Cities by LD:', projectDetails.LegislativeDistrict, availableCities);
+        }
+
+        setFilteredCities(availableCities);
+        setFilteredLegislativeDistricts(availableLDs);
+    };
+
     const handleInputChange = (field: keyof ProjectDetails, value: any) => {
         if (disabled) return; // Prevent changes if disabled
-        onChange(field, value);
+
+        if (field === 'Province') {
+            // When province changes, clear city and LD if they don't belong to the new province
+            const newProvince = value;
+            let newCity = projectDetails?.City;
+            let newLD = projectDetails?.LegislativeDistrict;
+
+            if (newCity) {
+                const cityBelongsToProvince = projectEnums?.Cities?.find(
+                    (city) => city.Code === newCity?.toString() && city.ProvinceFkId === newProvince
+                );
+                if (!cityBelongsToProvince) {
+                    newCity = undefined;
+                }
+            }
+
+            if (newLD) {
+                const ldBelongsToProvince = projectEnums?.LDs?.find(
+                    (ld) => ld.Code === newLD?.toString() && ld.ProvinceFkId === newProvince
+                );
+                if (!ldBelongsToProvince) {
+                    newLD = undefined;
+                }
+            }
+
+            onChange('Province', newProvince);
+            if (newCity !== projectDetails?.City) onChange('City', newCity);
+            if (newLD !== projectDetails?.LegislativeDistrict) onChange('LegislativeDistrict', newLD);
+        }
+        else if (field === 'City') {
+            const selectedCity = projectEnums?.Cities?.find((city) => city.Code === value?.toString());
+            if (selectedCity) {
+                // Auto-set province if not set or different
+                if (projectDetails?.Province !== selectedCity.ProvinceFkId) {
+                    onChange('Province', selectedCity.ProvinceFkId);
+                }
+
+                // Clear LD if it doesn't belong to the same province
+                if (projectDetails?.LegislativeDistrict) {
+                    const currentLD = projectEnums?.LDs?.find(
+                        (ld) => ld.Code === projectDetails.LegislativeDistrict?.toString()
+                    );
+                    if (currentLD && currentLD.ProvinceFkId !== selectedCity.ProvinceFkId) {
+                        onChange('LegislativeDistrict', undefined);
+                    }
+                }
+            }
+            onChange(field, value);
+        }
+        else if (field === 'LegislativeDistrict') {
+            const selectedLD = projectEnums?.LDs?.find((ld) => ld.Code === value?.toString());
+            if (selectedLD) {
+                // Auto-set province if not set or different
+                if (projectDetails?.Province !== selectedLD.ProvinceFkId) {
+                    onChange('Province', selectedLD.ProvinceFkId);
+                }
+
+                // Clear city if it doesn't belong to the same province
+                if (projectDetails?.City) {
+                    const currentCity = projectEnums?.Cities?.find(
+                        (city) => city.Code === projectDetails.City?.toString()
+                    );
+                    if (currentCity && currentCity.ProvinceFkId !== selectedLD.ProvinceFkId) {
+                        onChange('City', undefined);
+                    }
+                }
+            }
+            onChange(field, value);
+        }
+        else {
+            onChange(field, value);
+        }
     };
+
 
     const handleBoxClick = (boxValue: string) => {
         if (mode === 'edit') return; // Prevent clicking in edit mode
@@ -235,12 +360,9 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     disabled={disabled}
                                 >
                                     <option value="">Select Province</option>
-                                    {/* <option value="1">Cavite</option>
-                                    <option value="2">Batangas</option>
-                                    <option value="3">Laguna</option> */}
                                     {projectEnums?.Provinces?.map((province) => (
                                         <option key={province.Id} value={province.Id}>
-                                            {province.ProvinceName}
+                                            {province.Name}
                                         </option>
                                     ))}
                                 </select>
@@ -257,8 +379,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     disabled={disabled}
                                 >
                                     <option value="">Select City/Municipality</option>
-                                    {projectEnums?.Cities?.map((city) => (
-                                        <option key={city.Id} value={city.Enum}>
+                                    {filteredCities?.map((city) => (
+                                        <option key={city.Id} value={city.Code}>
                                             {city.Name}
                                         </option>
                                     ))}
@@ -276,9 +398,9 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     disabled={disabled}
                                 >
                                     <option value="">Select Legislative District</option>
-                                    {projectEnums?.LDs?.map((district) => (
-                                        <option key={district.Id} value={district.Enum}>
-                                            {district.Name}
+                                    {filteredLegislativeDistricts?.map((ld) => (
+                                        <option key={ld.Id} value={ld.Code}>
+                                            {ld.Name}
                                         </option>
                                     ))}
                                 </select>

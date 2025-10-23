@@ -295,6 +295,7 @@ export interface MajorItemLocations {
 	TargetUnitId: number;
 	TargetUnit: string; // Changed from number to string to match the UI usage
 	PhysicalTarget?: number | null;
+	Length?: number | null;
 	To: number;
 	From: number;
 	StartX: string;
@@ -525,20 +526,29 @@ export interface ProjectOriginEnum {
 
 export interface ProjectCityEnum {
 	Id: number;
-	Enum: number;
+	GdbId: number;
 	Name: string;
-	Description: string;
+	Code: string;
+	ProvinceFkId: number;
+	ProvinceName: string;
 }
 
 export interface ProjectProvinceEnum {
 	Id: number;
-	ProvinceName: string;
+	GdbId: number;
+	Name: string;
+	Code: string;
+	RegionFkId: number;
+	RegionName: string;
 }
 
 export interface ProjectLegislativeDistrictEnum {
 	Id: number;
-	Enum: number;
+	GdbId: number;
 	Name: string;
+	Code: string;
+	ProvinceFkId: number;
+	ProvinceName: string;
 }
 
 export interface ProjectOperatingUnitEnum {
