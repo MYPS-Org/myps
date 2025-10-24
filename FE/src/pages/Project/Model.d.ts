@@ -75,9 +75,9 @@ export interface ProjectDetails {
 	Category?: number;
 	Thrust?: number;
 	Origin?: number;
-	Province?: number;
-	City?: number;
-	LegislativeDistrict?: number;
+	Province?: string;
+	City?: string;
+	LegislativeDistrict?: string;
 	OperatingUnit?: string;
 	ImplementingOffice?: string;
 	DEO?: string;

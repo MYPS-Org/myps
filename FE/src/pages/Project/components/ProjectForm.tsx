@@ -105,8 +105,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       Category: 0,
       Thrust: 0,
       Origin: 0,
-      City: 0,
-      LegislativeDistrict: 0,
+      City: '',
+      Province: '',
+      LegislativeDistrict: '',
       OperatingUnit: '',
       ImplementingOffice: '',
       DEO: '',
@@ -637,6 +638,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         ProjectDetails: {
           ...projectDetails,
           // Add missing required fields for the expected payload
+          Province: projectDetails.Province ? projectDetails.Province.toString() : '',
+          City: projectDetails.City ? projectDetails.City.toString() : '',
+          LegislativeDistrict: projectDetails.LegislativeDistrict ? projectDetails.LegislativeDistrict.toString() : '',
           ProgramName: programDetails.Name || '',
           EmergencyMode: projectDetails.EmergencyMode ? true : false,
           CreatedBy: projectDetails.CreatedBy || 'SYSTEM',

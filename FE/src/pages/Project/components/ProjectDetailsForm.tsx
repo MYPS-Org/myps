@@ -39,11 +39,12 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
         // If province is selected, filter cities and LDs by province
         if (projectDetails?.Province) {
+            let ProvinceId = projectEnums.Provinces.find(p => p.Code === projectDetails.Province)?.Id;
             availableCities = projectEnums.Cities?.filter(
-                (city) => city.ProvinceFkId === projectDetails.Province
+                (city) => city.ProvinceFkId === ProvinceId
             ) || [];
             availableLDs = projectEnums.LDs?.filter(
-                (ld) => ld.ProvinceFkId === projectDetails.Province
+                (ld) => ld.ProvinceFkId === ProvinceId
             ) || [];
 
             console.log('Filtered Cities and LDs by Province:', projectDetails.Province, availableCities, availableLDs);
@@ -108,8 +109,9 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
         else if (field === 'City') {
             const selectedCity = projectEnums?.Cities?.find((city) => city.Code === value?.toString());
             if (selectedCity) {
+                let ProvinceId = projectEnums?.Provinces.find(p => p.Code === projectDetails.Province)?.Id;
                 // Auto-set province if not set or different
-                if (projectDetails?.Province !== selectedCity.ProvinceFkId) {
+                if (ProvinceId !== selectedCity.ProvinceFkId) {
                     onChange('Province', selectedCity.ProvinceFkId);
                 }
 
@@ -129,7 +131,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             const selectedLD = projectEnums?.LDs?.find((ld) => ld.Code === value?.toString());
             if (selectedLD) {
                 // Auto-set province if not set or different
-                if (projectDetails?.Province !== selectedLD.ProvinceFkId) {
+                let ProvinceId = projectEnums?.Provinces.find(p => p.Code === projectDetails.Province)?.Id;
+                if (ProvinceId !== selectedLD.ProvinceFkId) {
                     onChange('Province', selectedLD.ProvinceFkId);
                 }
 
@@ -361,7 +364,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 >
                                     <option value="">Select Province</option>
                                     {projectEnums?.Provinces?.map((province) => (
-                                        <option key={province.Id} value={province.Id}>
+                                        <option key={province.Id} value={province.Code}>
                                             {province.Name}
                                         </option>
                                     ))}
