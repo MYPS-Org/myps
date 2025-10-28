@@ -828,9 +828,9 @@ namespace WebAPI.Controllers.Programs
                             CreatedDate = CurrentDate
                         };
                         await _db.tProgramRevisions.AddAsync(newProgramRevision);
-                        checkRevisions.Status = EnumProgramStatus.Approved;
-                        _db.tProgramRevisions.Update(checkRevisions);
-                        //await _db.SaveChangesAsync();
+                        //checkRevisions.Status = EnumProgramStatus.Approved;
+                        //_db.tProgramRevisions.Update(checkRevisions);
+                        await _db.SaveChangesAsync();
                         #endregion
                         #region Program Stages
                         var newStage = new ProgramStages()

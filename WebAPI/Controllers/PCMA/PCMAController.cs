@@ -7,6 +7,7 @@ using Helpers.API;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 namespace WebAPI.Controllers.MockUps
 {
@@ -39,6 +40,11 @@ namespace WebAPI.Controllers.MockUps
                 };
                 var request = new PCMA(pcmaData);
                 var employee = await APIRequest.XML(request);
+                var param = new Dictionary<string, object> { { "@ProgramId", dto.ProgramId } };
+                int check = Sql.NormalQuery<int>(
+                    Appsetting.ConnectionString,
+                    "EXEC pPublishProgram @ProgramId = @ProgramId", param
+                ).FirstOrDefault();
                 if (string.IsNullOrEmpty(employee.Message))
                 {
                     return new BadRequestObjectResult(
