@@ -530,6 +530,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       console.log('Adding new project details:', projectDetails);
       const response = await addProjectDetails({
         ...projectDetails,
+        Province: projectDetails.Province ? projectDetails.Province.toString() : '',
+        City: projectDetails.City ? projectDetails.City.toString() : '',
+        LegislativeDistrict: projectDetails.LegislativeDistrict ? projectDetails.LegislativeDistrict.toString() : '',
         EmergencyMode: projectDetails.EmergencyMode ? true : false,
       });
       

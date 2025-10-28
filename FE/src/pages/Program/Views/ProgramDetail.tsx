@@ -29,6 +29,7 @@ const ProgramDetail: React.FC = () => {
         StageId: 0,
         StageName: '',
         IsSkipped: false,
+      IsPublished: false,
         SkipReason: '',
         UserGroup: 0,
         RegionCode: '',
@@ -43,7 +44,6 @@ const ProgramDetail: React.FC = () => {
         UpdatedBy: '',
         UpdatedDate: '',
     },
-    IsPublished: false,
     IsActive: false,
     Projects: [],
     Dropdowns: {
@@ -64,6 +64,7 @@ const ProgramDetail: React.FC = () => {
         StageName: '',
         IsSkipped: false,
         SkipReason: '',
+        IsPublished: false,
         UserGroup: 0,
         RegionCode: '',
         Status: 0,
@@ -77,7 +78,6 @@ const ProgramDetail: React.FC = () => {
         UpdatedBy: '',
         UpdatedDate: '',
     },
-    IsPublished: false,
     IsActive: false,
     Projects: [],
     Dropdowns: {
@@ -307,6 +307,10 @@ const ProgramDetail: React.FC = () => {
     try {
       if (programEnums?.Details.Status !== 1 && programEnums?.Details.StageId !== 9) return;
       await publishToPCMA(programEnums?.Details.ProgramId);
+      showToast({
+        type: 'success',
+        message: 'Program published to PCMA successfully.',
+      });
     } catch (error) {
       console.error('Error publishing program to PCMA:', error);
       showToast({
@@ -652,8 +656,8 @@ const ProgramDetail: React.FC = () => {
                 ) ||
                 (
                   programEnums.Details.StageId === 9 &&
-                  defaultProgramEnums.Details.Status === 1 /*&&
-                  programEnums.IsPublished === true*/
+                  defaultProgramEnums.Details.Status === 1 &&
+                  programEnums?.Details?.IsPublished === true
                 )
               ) && (
                 <Button color="blue" className="w-auto items-center text-nowrap" onClick={handleProceed}>

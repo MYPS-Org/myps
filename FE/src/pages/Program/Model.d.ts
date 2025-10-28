@@ -52,6 +52,7 @@ export interface ProgramDetails {
 	StageId: number;
 	StageName: string;
 	IsSkipped: boolean;
+	IsPublished: boolean;
 	SkipReason: string;
 	UserGroup: number;
 	RegionCode: string;
@@ -98,7 +99,6 @@ export interface ProgramDetailsEnums{
   Details: ProgramDetails;
   Projects: ProjectLists[];
   IsActive: boolean;
-  IsPublished: boolean;
   Dropdowns: {
     Stages: ProgramEnums[];
     Statuses: ProgramEnums[];

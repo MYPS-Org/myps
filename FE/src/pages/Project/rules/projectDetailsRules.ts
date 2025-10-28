@@ -35,12 +35,12 @@ export const projectDetailsRules: ValidationRule<ProjectDetails>[] = [
     {
         field: "City",
         message: "City is required.",
-        validate: (value) => typeof value === 'number' && value > 0
+        validate: (value) => !!value
     },
     {
         field: "LegislativeDistrict",
         message: "Legislative District is required.",
-        validate: (value) => typeof value === 'number' && value > 0
+        validate: (value) => !!value
     },
     {
         field: "OperatingUnit",
