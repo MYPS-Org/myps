@@ -576,9 +576,14 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     if (maxAmountCost && maxAmountCost > 0) {
       const totalComponentCost = componentCosts.reduce((sum, cost) => sum + (cost.Total || 0), 0);
       
-      if (totalComponentCost > maxAmountCost) {
-        const exceeded = totalComponentCost - maxAmountCost;
-        businessValidationErrors.push(`Total component cost (₱${totalComponentCost.toLocaleString('en-PH')}) exceeds the maximum budget (₱${maxAmountCost.toLocaleString('en-PH')}) by ₱${exceeded.toLocaleString('en-PH')}`);
+      if (totalComponentCost !== maxAmountCost) {
+        if (totalComponentCost < maxAmountCost) {
+          const shortfall = maxAmountCost - totalComponentCost;
+          businessValidationErrors.push(`Total component cost (₱${totalComponentCost.toLocaleString('en-PH')}) is less than the required budget (₱${maxAmountCost.toLocaleString('en-PH')}) by ₱${shortfall.toLocaleString('en-PH')}`);
+        } else {
+          const exceeded = totalComponentCost - maxAmountCost;
+          businessValidationErrors.push(`Total component cost (₱${totalComponentCost.toLocaleString('en-PH')}) exceeds the maximum budget (₱${maxAmountCost.toLocaleString('en-PH')}) by ₱${exceeded.toLocaleString('en-PH')}`);
+        }
       }
     }
 

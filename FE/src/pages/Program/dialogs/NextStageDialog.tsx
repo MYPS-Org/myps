@@ -195,7 +195,7 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
                             </div> */}
                             
                             <div className="w-full">
-                                        <div className='flex flex-row mb-4'>
+                                    <div className='flex flex-row mb-4'>
                                         <div className='w-1/3'>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">Base Program Name</label>
                                             <div className="items-center space-x-3">
@@ -211,7 +211,7 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
                                             </div>
                                         </div>
                                         <div className='w-2/3'>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Additional Name</label>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Sub Name</label>
                                             <div className="items-center space-x-3">
                                             <input
                                                 type="text"
@@ -221,10 +221,11 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
                                                 placeholder="Enter additional name (Optional)"
                                             />
                                             </div>
-                                            <p className="text-xs text-gray-500 mt-1">This was parsed from current name: "{parsedName.additionalName || 'None'}"</p>
+                                            {/* <p className="text-xs text-gray-500 mt-1">This was parsed from current name: "{parsedName.additionalName || 'None'}"</p> */}
                                         </div>
-                                        </div>
-                            </div>                            {formData.AddedName && formData.AddedName.trim() && (
+                                    </div>
+                            </div>
+                            {formData.AddedName && formData.AddedName.trim() && (
                                 <div className="bg-blue-50 p-3 rounded-md border border-blue-200">
                                     <label className="block text-sm font-medium text-blue-700 mb-1">
                                         Final Program Name Preview:

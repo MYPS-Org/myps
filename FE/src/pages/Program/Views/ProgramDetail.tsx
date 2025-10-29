@@ -648,18 +648,9 @@ const ProgramDetail: React.FC = () => {
 
             <div className="pt-4 flex justify-end gap-4">
               {programEnums.IsActive &&
-              programEnums.Details &&
-              (
-                (
-                  programEnums.Details.StageId >= 4 &&
-                  programEnums.Details.StageId < 9
-                ) ||
-                (
-                  programEnums.Details.StageId === 9 &&
-                  defaultProgramEnums.Details.Status === 1 &&
-                  programEnums?.Details?.IsPublished === true
-                )
-              ) && (
+                programEnums.Details &&
+                programEnums.Details.StageId >= 4 &&
+                programEnums.Details.StageId < 10 && (
                 <Button color="blue" className="w-auto items-center text-nowrap" onClick={handleProceed}>
                   Proceed to {nextStageName}
                 </Button>
@@ -701,7 +692,7 @@ const ProgramDetail: React.FC = () => {
         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
           <h2 className="text-xl font-semibold text-gray-900">Projects</h2>
           <div className="flex items-center gap-4">
-            {programEnums.IsActive && programEnums.Details.StageId === 9 && defaultProgramEnums.Details.Status === 1 && (
+            {programEnums.IsActive && programEnums.Details.StageId === 10 && defaultProgramEnums.Details.Status === 1 && (
               <Button color="yellow" onClick={handlePublishToPCMA}>
                 Publish to PCMA
               </Button>
@@ -830,7 +821,7 @@ const ProgramDetail: React.FC = () => {
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-20">
                     {project.CreatedDate.StringToDate()}
                   </TableCell>
-                  { programEnums?.IsActive && programEnums?.Details?.StageId === 10 && (
+                  { programEnums?.IsActive && programEnums?.Details?.StageId === 10 && programEnums?.Details?.IsPublished && (
                   <TableCell className='px-6 py-4 whitespace-nowrap text-sm font-medium text-center'>
                     <Button className="w-24 items-center" onClick={() => handleModifyProject(project.ProjectId, project.StageName)}>
                       Modify

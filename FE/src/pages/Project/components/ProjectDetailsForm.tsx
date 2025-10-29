@@ -491,7 +491,16 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     disabled={disabled}
                                 >
                                     <option value="">Select Implementing Office</option>
-                                    {projectEnums?.IOs?.filter(x => projectDetails?.OperatingUnit != "" && (x.ParticipantId === projectDetails?.OperatingUnit || x.ParticipantId === "OI10")).map((office) => (
+                                    {projectEnums?.IOs?.filter(x => {
+                                        // If no Operating Unit selected, show nothing
+                                        if (!projectDetails?.OperatingUnit || projectDetails?.OperatingUnit === "") return false;
+                                        
+                                        // If Central Office (OI10) is selected as Operating Unit, show all IOs
+                                        if (projectDetails?.OperatingUnit === "OI10") return true;
+                                        
+                                        // Otherwise, filter by matching Operating Unit or allow Central Office
+                                        return x.ParticipantId === projectDetails?.OperatingUnit;
+                                    }).map((office) => (
                                         <option key={office.Id} value={office.ParticipantId}>
                                             {office.OrgName}
                                         </option>

@@ -211,6 +211,8 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
               <TableHeader>Total Cost</TableHeader>
               <TableHeader>Created By</TableHeader>
               <TableHeader>Created Date</TableHeader>
+              <TableHeader>Updated By</TableHeader>
+              <TableHeader>Updated Date</TableHeader>
               <TableHeader>Actions</TableHeader>
             </TableRow>
           </TableHead>
@@ -234,6 +236,8 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
                   <TableCell>₱{formatCurrency(cost.Total || 0)}</TableCell>
                   <TableCell>{cost.CreatedBy || '-'}</TableCell>
                   <TableCell>{cost.CreatedDate ? new Date(cost.CreatedDate).toLocaleDateString() : '-'}</TableCell>
+                  <TableCell>{cost.UpdatedBy || '-'}</TableCell>
+                  <TableCell>{cost.UpdatedDate ? new Date(cost.UpdatedDate).toLocaleDateString() : '-'}</TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
                       <button
