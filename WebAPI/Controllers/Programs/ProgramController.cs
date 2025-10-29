@@ -625,7 +625,8 @@ namespace WebAPI.Controllers.Programs
                 if (checkProjects.Count > 0)
                 {
                     HashSet<string> projectIds = checkProjects.Select(p => p.ProjectId!).ToHashSet();
-                    var ProjectRevisions = await _db.tProjectRevisions.AsNoTracking().Where(x => projectIds.Contains(x.ProjectId)).ToListAsync();
+                    HashSet<int?> RevisionNumbers = checkProjects.Select(p => p.RevisionNumber!).ToHashSet();
+                    var ProjectRevisions = await _db.tProjectRevisions.AsNoTracking().Where(x => RevisionNumbers.Contains(x.Id)).ToListAsync();
 
                     var Components = await _db.tProjectComponentCost.AsNoTracking().Where(x => projectIds.Contains(x.ProjectId) && x.StageName == checkStage.StageName).ToListAsync();
                     HashSet<string> ComponentsRefs = Components.Select(pr => pr.ReferenceId).ToHashSet();
@@ -668,6 +669,8 @@ namespace WebAPI.Controllers.Programs
                                 StartDate = x.StartDate,
                                 EndDate = x.EndDate
                             }));
+                            await _db.tProjectComponentCost.AddRangeAsync(NewComponent);
+                            await _db.tProjectComponentCostYear.AddRangeAsync(NewComponentPerYear);
                         }
                         #endregion
                         #region Major Items
@@ -706,6 +709,8 @@ namespace WebAPI.Controllers.Programs
                                 CreatedBy = x.CreatedBy,
                                 CreatedDate = x.CreatedDate
                             }));
+                            await _db.tProjectMajorWorkItem.AddRangeAsync(NewMajorItems);
+                            await _db.tProjectMajorWorkLocations.AddRangeAsync(NewMajorLocations);
                         }
                         #endregion
                         #region Funding Profiles
@@ -723,6 +728,7 @@ namespace WebAPI.Controllers.Programs
                                 CreatedBy = x.CreatedBy,
                                 CreatedDate = x.CreatedDate
                             }));
+                            await _db.tProjectFundingProfile.AddRangeAsync(NewFundingProfiles);
                         }
                         #endregion
                         #region Supporting Documents
@@ -741,6 +747,7 @@ namespace WebAPI.Controllers.Programs
                                 CreatedBy = x.CreatedBy,
                                 CreatedDate = x.CreatedDate
                             }));
+                            await _db.tProjectSupportingDocs.AddRangeAsync(NewSupportingDocs);
                         }
                         #endregion
                         #region Project Revisions
@@ -779,20 +786,9 @@ namespace WebAPI.Controllers.Programs
                             CreatedDate = CurrentDate
                         }));
                         await _db.tProjectRevisions.AddRangeAsync(NewRevisions);
-                        await _db.SaveChangesAsync();
+                        checkRevisions.Status = EnumProgramStatus.Approved;
+                        _db.tProgramRevisions.Update(checkRevisions);
                         #endregion
-                        #region Project Stages
-                        var newStages = NewRevisions.Select(pr => new ProjectStages
-                        {
-                            ProgramId = dto.ProgramId,
-                            RevisionId = pr.Id,
-                            StageId = checkStage.StageId.UpdateStage(),
-                            StageName = checkStageType.Name,
-                            CreatedBy = _Session.UserId,
-                            CreatedDate = CurrentDate,
-                            IsPublished = false
-                        });
-                        await _db.tProjectStages.AddRangeAsync(newStages);
                         var transactionLog = new TransactionLog()
                         {
                             TransactionId = dto.ProgramId,
@@ -805,13 +801,20 @@ namespace WebAPI.Controllers.Programs
                             CreatedDate = CurrentDate
                         };
                         await _db.tTransactionLog.AddAsync(transactionLog);
+                        await _db.SaveChangesAsync();
+                        #region Project Stages
+                        var newStages = NewRevisions.Select(pr => new ProjectStages
+                        {
+                            ProgramId = dto.ProgramId,
+                            RevisionId = pr.Id,
+                            StageId = checkStage.StageId.UpdateStage(),
+                            StageName = checkStageType.Name,
+                            CreatedBy = _Session.UserId,
+                            CreatedDate = CurrentDate,
+                            IsPublished = false
+                        });
+                        await _db.tProjectStages.AddRangeAsync(newStages);
                         #endregion
-                        await _db.tProjectComponentCost.AddRangeAsync(NewComponent);
-                        await _db.tProjectComponentCostYear.AddRangeAsync(NewComponentPerYear);
-                        await _db.tProjectMajorWorkItem.AddRangeAsync(NewMajorItems);
-                        await _db.tProjectMajorWorkLocations.AddRangeAsync(NewMajorLocations);
-                        await _db.tProjectFundingProfile.AddRangeAsync(NewFundingProfiles);
-                        await _db.tProjectSupportingDocs.AddRangeAsync(NewSupportingDocs);
                         #region Program Revisions
                         var newProgramRevision = new ProgramRevisions()
                         {
@@ -828,8 +831,6 @@ namespace WebAPI.Controllers.Programs
                             CreatedDate = CurrentDate
                         };
                         await _db.tProgramRevisions.AddAsync(newProgramRevision);
-                        //checkRevisions.Status = EnumProgramStatus.Approved;
-                        //_db.tProgramRevisions.Update(checkRevisions);
                         await _db.SaveChangesAsync();
                         #endregion
                         #region Program Stages
