@@ -84,3 +84,19 @@ Number.parseNumberInput = (value: string, fallback: number | null = null): numbe
 // Disable Class
 export const getDisabledClass = (disabled: boolean): string =>
   disabled ? 'bg-gray-100 cursor-not-allowed opacity-70' : '';
+
+// Helper function to format dropdown options
+export const formatDropdownOptions = (
+  items: any[], 
+  valueField: any, 
+  labelField: any, 
+  keyField?: any
+) => {
+  if (!items || !Array.isArray(items)) return [];
+  
+  return items.map(item => ({
+    value: item[valueField],
+    label: item[labelField],
+    key: keyField ? item[keyField] : item[valueField]
+  }));
+};

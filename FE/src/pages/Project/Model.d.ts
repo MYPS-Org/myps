@@ -415,14 +415,22 @@ export interface LDEnum {
 export interface OperatingUnitEnum {
 	Id: number;
 	ParticipantId: string;
-	OrgName: string;
-	OrgType: string;
+	InternalOrgUnitName?: string;
+	InternalOrgUnitType?: string;
+	ProvinceName?: string;
+	RegionName?: string;
+	CongressionalDistrictName?: string;
+	IslandCode?: string;
 }
 export interface IOEnum {
 	Id: number;
 	ParticipantId: string;
-	OrgName: string;
-	OrgType: string;
+	InternalOrgUnitName?: string;
+	InternalOrgUnitType?: string;
+	ProvinceName?: string;
+	RegionName?: string;
+	CongressionalDistrictName?: string;
+	IslandCode?: string;
 }
 export interface RODEOEnum {
 	Id: number;
@@ -554,24 +562,34 @@ export interface ProjectLegislativeDistrictEnum {
 export interface ProjectOperatingUnitEnum {
 	Id: number;
 	ParticipantId: string;
-	OrgName: string;
-	OrgType: string;
+	InternalOrgUnitName?: string;
+	InternalOrgUnitType?: string;
+	ProvinceName?: string;
+	RegionName?: string;
+	CongressionalDistrictName?: string;
+	IslandCode?: string;
 }
 
 export interface ProjectImplementingOfficeEnum {
 	Id: number;
 	ParticipantId: string;
-	OrgName: string;
-	OrgType: string;
+	InternalOrgUnitName?: string;
+	InternalOrgUnitType?: string;
+	ProvinceName?: string;
+	RegionName?: string;
+	CongressionalDistrictName?: string;
+	IslandCode?: string;
 }
 
 export interface ProjectRODEOEnum {
 	Id: number;
-	DeoCode: string;
-	DeoName: string;
-	ROCode: string;
-	ROName: string;
-	Island?: string;
+	ParticipantId: string;
+	InternalOrgUnitName?: string;
+	InternalOrgUnitType?: string;
+	ProvinceName?: string;
+	RegionName?: string;
+	CongressionalDistrictName?: string;
+	IslandCode?: string;
 }
 
 export interface ProjectAgencyLists {
