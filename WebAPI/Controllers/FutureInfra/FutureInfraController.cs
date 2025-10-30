@@ -268,7 +268,7 @@ namespace WebAPI.Controllers.Programs
         {
             try
             {
-                var DEO = await _db.tProjectRODEOEnum.AsNoTracking().ToListAsync();
+                var DEO = await _db.tAdminImplementingOffice.AsNoTracking().Where(x => x.InternalOrgUnitType == "DO").ToListAsync();
                 var response = new
                 {
                     DEOs = DEO
@@ -366,7 +366,7 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                var checkDEO = await _db.tProjectRODEOEnum.AsNoTracking().FirstOrDefaultAsync(x => x.DeoCode == dto.DEO);
+                var checkDEO = await _db.tAdminImplementingOffice.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == dto.DEO);
                 if (checkDEO == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"DEO '{dto.DEO}' is not valid!", Title = "Invalid DEO" });
@@ -419,7 +419,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Road ID {dto.RoadId} does exist in the system.", Title = "Invalid Road ID" });
                 }
-                var checkDEO = await _db.tProjectRODEOEnum.AsNoTracking().FirstOrDefaultAsync(x => x.DeoCode == dto.DEO);
+                var checkDEO = await _db.tAdminImplementingOffice.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == dto.DEO);
                 if (checkDEO == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"DEO {dto.RoadId} does exist in the system.", Title = "Invalid DEO" });
@@ -531,7 +531,7 @@ namespace WebAPI.Controllers.Programs
         {
             try
             {
-                var DEO = await _db.tProjectRODEOEnum.AsNoTracking().ToListAsync();
+                var DEO = await _db.tAdminImplementingOffice.AsNoTracking().ToListAsync();
                 var response = new
                 {
                     DEOs = DEO

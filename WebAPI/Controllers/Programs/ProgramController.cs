@@ -157,7 +157,7 @@ namespace WebAPI.Controllers.Programs
                 var Type = await _db.tProgramTypeEnum.AsNoTracking().ToListAsync();
                 var Group = await _db.tGroups.ToListAsync();
                 string[] includes = { "C", "R", "PMO", "PMOC", "B" };
-                var Security = await _db.tProjectImplementingOfficeEnum.AsNoTracking().Where(x => includes.Contains(x.OrgType)).ToListAsync();
+                var Security = await _db.tAdminImplementingOffice.AsNoTracking().Where(x => includes.Contains(x.InternalOrgUnitType)).ToListAsync();
                 return Ok(new
                 {
                     Stages = Stage,
@@ -169,24 +169,6 @@ namespace WebAPI.Controllers.Programs
             catch (Exception ex)
             {
                 return ExceptionHandler(ex);
-            }
-        }
-        [AllowAnonymous]
-        [HttpPost]
-        public async Task<IActionResult> Tisting()
-        {
-            try
-            {
-                string[] DataSecurityGroup = new string[] { "walaraw", "OI10", "OI2311", "OI234", "OI235", "OI237" };
-                string[] includes = { "C", "R", "PMO", "PMOC", "B" };
-                var checkSecurityGroup = await _db.tProjectImplementingOfficeEnum.AsNoTracking().Where(x => includes.Contains(x.OrgType)).Select(x => x.ParticipantId).ToListAsync();
-                var CheckItems = DataSecurityGroup.Where(x => !checkSecurityGroup.Contains(x));
-                var CheckItems2 = checkSecurityGroup.Where(x => DataSecurityGroup.Contains(x));
-                return Ok(string.Join(", ", CheckItems2));
-            }
-            catch
-            {
-                return BadRequest();
             }
         }
         [AllowAnonymous]
@@ -212,7 +194,7 @@ namespace WebAPI.Controllers.Programs
                     return new BadRequestObjectResult(new { Message = $"Program Type '{dto.Type}' is not valid!", Title = "Invalid Type" });
                 }
                 string[] includes = { "C", "R", "PMO", "PMOC", "B" };
-                var GetSecurityGroup = await _db.tProjectImplementingOfficeEnum.AsNoTracking().Where(x => includes.Contains(x.OrgType)).Select(x => x.ParticipantId).ToListAsync();
+                var GetSecurityGroup = await _db.tAdminImplementingOffice.AsNoTracking().Where(x => includes.Contains(x.InternalOrgUnitType)).Select(x => x.ParticipantId).ToListAsync();
                 var CheckItems = dto.DataSecurityGroup.Where(x => !GetSecurityGroup.Contains(x));
                 if (CheckItems.Count() > 0)
                 {
@@ -326,7 +308,7 @@ namespace WebAPI.Controllers.Programs
                 var AvailableStatuses = await _db.tProgramStatusEnum.AsNoTracking().ToListAsync();
                 var AvailableGroups = await _db.tGroups.AsNoTracking().ToListAsync();
                 string[] includes = { "C", "R", "PMO", "PMOC", "B" };
-                var Security = await _db.tProjectImplementingOfficeEnum.AsNoTracking().Where(x => includes.Contains(x.OrgType)).ToListAsync();
+                var Security = await _db.tAdminImplementingOffice.AsNoTracking().Where(x => includes.Contains(x.InternalOrgUnitType)).ToListAsync();
                 var response = new
                 {
                     IsActive = (CurrentProgramVersion.StageName == program.StageName) ? true : false,
@@ -482,7 +464,7 @@ namespace WebAPI.Controllers.Programs
                     });
                 }
                 string[] includes = { "C", "R", "PMO", "PMOC", "B" };
-                var GetSecurityGroup = await _db.tProjectImplementingOfficeEnum.AsNoTracking().Where(x => includes.Contains(x.OrgType)).ToListAsync();
+                var GetSecurityGroup = await _db.tAdminImplementingOffice.AsNoTracking().Where(x => includes.Contains(x.InternalOrgUnitType)).ToListAsync();
                 var CheckItems = dto.DataSecurityGroup.Where(x => !GetSecurityGroup.Select(x => x.ParticipantId).Contains(x));
                 if (CheckItems.Count() > 0)
                 {
@@ -491,8 +473,8 @@ namespace WebAPI.Controllers.Programs
                 if (dto.DataSecurityGroup != NewProgramVersion.DataSecurityGroup)
                 {
                     hasUpdated = true;
-                    string CurrentSecurityGroup = string.Join(", ", GetSecurityGroup.Select(x => x.OrgName).Where(sg => NewProgramVersion.DataSecurityGroup.Contains(sg)));
-                    string OdSecurityGroup = string.Join(", ", GetSecurityGroup.Select(x => x.OrgName).Where(sg => dto.DataSecurityGroup.Contains(sg)));
+                    string CurrentSecurityGroup = string.Join(", ", GetSecurityGroup.Select(x => x.InternalOrgUnitName).Where(sg => NewProgramVersion.DataSecurityGroup.Contains(sg)));
+                    string OdSecurityGroup = string.Join(", ", GetSecurityGroup.Select(x => x.InternalOrgUnitName).Where(sg => dto.DataSecurityGroup.Contains(sg)));
                     transactionLogs.Add(new TransactionLog
                     {
                         TransactionId = dto.ProgramId,

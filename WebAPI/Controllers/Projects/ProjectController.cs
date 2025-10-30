@@ -146,9 +146,10 @@ namespace WebAPI.Controllers.Projects
                 var Province = await _db.tAdminAreaProvince.OrderBy(x => x.Name).ToListAsync();
                 var City = await _db.tAdminAreaCityMunicipality.OrderBy(x => x.Name).ToListAsync();
                 var LD = await _db.tAdminAreaCongressionalDistrict.OrderBy(x => x.Name).ToListAsync();
-                var OperatingUnit = await _db.tProjectOperatingUnitEnum.OrderBy(x => x.OrgName).ToListAsync();
-                var IO = await _db.tProjectImplementingOfficeEnum.OrderBy(x => x.OrgName).ToListAsync();
-                var DEO = await _db.tProjectRODEOEnum.OrderBy(x => x.DeoName).ToListAsync();
+                var IO = await _db.tAdminImplementingOffice.OrderBy(x => x.InternalOrgUnitName).ToListAsync();
+                HashSet<string> OUList = new HashSet<string>() { "C", "DO"};
+                var OperatingUnit = IO.Where(x => OUList.Contains(x.InternalOrgUnitType!));
+                var DEO = IO.Where(x => x.InternalOrgUnitType == "DO");
                 var Feasib = await _db.tProjectLongFeasibilityEnum.OrderBy(x => x.Name).ToListAsync();
                 var Agency = await _db.tProjectAgencyLists.OrderBy(x => x.AgencyName).ToListAsync();
                 var ImplementationMode = await _db.tProjectImplementModeEnum.OrderBy(x => x.Name).ToListAsync();
@@ -200,7 +201,7 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = "Selected Program is already published!", Title = "Program Already Published" });
                 }
-                var SelectedDeo = await _db.tProjectRODEOEnum.FirstOrDefaultAsync(x => x.DeoCode == dto.DEO);
+                var SelectedDeo = await _db.tAdminImplementingOffice.FirstOrDefaultAsync(x => x.ParticipantId == dto.DEO);
                 if( SelectedDeo == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Selected DEO '{dto.DEO}' is not valid!", Title = "Invalid DEO" });
@@ -230,17 +231,18 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = $"Selected Legislative District '{dto.LegislativeDistrict}' is not valid!", Title = "Invalid Legislative District" });
                 }
-                var OperatingUnit = await _db.tProjectOperatingUnitEnum.FirstOrDefaultAsync(x => x.ParticipantId == dto.OperatingUnit);
+                HashSet<string> OUList = new HashSet<string>() { "C", "DO" };
+                var OperatingUnit = await _db.tAdminImplementingOffice.Where(x => OUList.Contains(x.InternalOrgUnitType!)).FirstOrDefaultAsync(x => x.ParticipantId == dto.OperatingUnit);
                 if(OperatingUnit == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Selected Operating Unit '{dto.OperatingUnit}' is not valid!", Title = "Invalid Operating Unit" });
                 }
-                var IO = await _db.tProjectImplementingOfficeEnum.FirstOrDefaultAsync(x => x.ParticipantId == dto.ImplementingOffice);
+                var IO = await _db.tAdminImplementingOffice.FirstOrDefaultAsync(x => x.ParticipantId == dto.ImplementingOffice);
                 if(IO == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Selected Implementing Office '{dto.ImplementingOffice}' is not valid!", Title = "Invalid Implementing Office" });
                 }
-                var DEO = await _db.tProjectRODEOEnum.FirstOrDefaultAsync(x => x.DeoCode == dto.DEO);
+                var DEO = await _db.tAdminImplementingOffice.FirstOrDefaultAsync(x => x.ParticipantId == dto.DEO);
                 if(DEO == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Selected DEO '{dto.DEO}' is not valid!", Title = "Invalid DEO" });
@@ -269,7 +271,7 @@ namespace WebAPI.Controllers.Projects
                 string SecondSegment = ProgramDetails.YearStart.GenerateProjec2ndSegment();
                 Random rand = new Random();
                 string ThirdSegment = rand.Next(Category.Minimum, Category.Maximum+1).ToString("D5");
-                string FourthSegment = !string.IsNullOrEmpty(dto.IslandCode) ? dto.IslandCode : DEO.Island;
+                string FourthSegment = !string.IsNullOrEmpty(dto.IslandCode) ? dto.IslandCode : DEO.IslandCode;
                 string ReferenceId = $"{FirstSegment}{SecondSegment}{ThirdSegment}{FourthSegment}";
                 var SubmitProject = new DBHelper.Models.Table.Projects()
                 {
@@ -298,12 +300,12 @@ namespace WebAPI.Controllers.Projects
                     LegislativeDistrict = dto.LegislativeDistrict,
                     OperatingUnit = dto.OperatingUnit!,
                     ImplementingOffice = dto.ImplementingOffice!,
-                    DEO = SelectedDeo.DeoCode,
+                    DEO = SelectedDeo.ParticipantId,
                     Region = dto.Region!,
                     Agency = dto.Agency,
                     ImplementationMode = dto.ImplementationMode,
                     EmergencyMode = dto.EmergencyMode,
-                    IslandCode = DEO.Island ?? dto.IslandCode!,
+                    IslandCode = DEO.IslandCode ?? dto.IslandCode!,
                     Feasibility = dto.Feasibility,
                     FeasibilityDate = dto.FeasibilityDate,
                     DetailedDesign = dto.DetailedDesign,
@@ -392,9 +394,10 @@ namespace WebAPI.Controllers.Projects
                 var Province = await _db.tAdminAreaProvince.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var City = await _db.tAdminAreaCityMunicipality.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var LD = await _db.tAdminAreaCongressionalDistrict.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-                var OperatingUnit = await _db.tProjectOperatingUnitEnum.AsNoTracking().OrderBy(x => x.OrgName).ToListAsync();
-                var IO = await _db.tProjectImplementingOfficeEnum.AsNoTracking().OrderBy(x => x.OrgName).ToListAsync();
-                var DEO = await _db.tProjectRODEOEnum.AsNoTracking().OrderBy(x => x.DeoName).ToListAsync();
+                var IO = await _db.tAdminImplementingOffice.AsNoTracking().OrderBy(x => x.InternalOrgUnitName).ToListAsync();
+                HashSet<string> OUList = new HashSet<string>() { "C", "DO" };
+                var OperatingUnit = IO.Where(x => OUList.Contains(x.InternalOrgUnitType!));
+                var DEO = IO.Where(x => x.InternalOrgUnitType == "DO");
                 var Feasib = await _db.tProjectLongFeasibilityEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var Agency = await _db.tProjectAgencyLists.AsNoTracking().OrderBy(x => x.AgencyName).ToListAsync();
                 var ImplementationMode = await _db.tProjectImplementModeEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
@@ -632,12 +635,13 @@ namespace WebAPI.Controllers.Projects
                 }
                 if (Project.OperatingUnit != dto.ProjectDetails?.OperatingUnit)
                 {
-                    var OperatingUnit = await _db.tProjectOperatingUnitEnum.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == dto.ProjectDetails!.OperatingUnit);
+                    HashSet<string> OUList = new HashSet<string>() { "C", "DO" };
+                    var OperatingUnit = await _db.tAdminImplementingOffice.Where(x => OUList.Contains(x.InternalOrgUnitType!)).AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == dto.ProjectDetails!.OperatingUnit);
                     if (OperatingUnit == null)
                     {
                         return new BadRequestObjectResult(new { Message = $"Selected Operating Unit '{dto.ProjectDetails!.OperatingUnit}' is not valid!", Title = "Invalid Operating Unit" });
                     }
-                    var OldOperatingUnit = await _db.tProjectOperatingUnitEnum.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == Project.OperatingUnit);
+                    var OldOperatingUnit = await _db.tAdminImplementingOffice.Where(x => OUList.Contains(x.InternalOrgUnitType!)).AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == Project.OperatingUnit);
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
@@ -645,8 +649,8 @@ namespace WebAPI.Controllers.Projects
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "OperatingUnit",
-                        NewValue = OperatingUnit.OrgName,
-                        OldValue = OldOperatingUnit?.OrgName ?? "",
+                        NewValue = OperatingUnit.InternalOrgUnitName!,
+                        OldValue = OldOperatingUnit?.InternalOrgUnitName ?? "",
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
@@ -654,12 +658,12 @@ namespace WebAPI.Controllers.Projects
                 }
                 if (Project.ImplementingOffice != dto.ProjectDetails?.ImplementingOffice)
                 {
-                    var IO = await _db.tProjectImplementingOfficeEnum.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == dto.ProjectDetails!.ImplementingOffice);
+                    var IO = await _db.tAdminImplementingOffice.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == dto.ProjectDetails!.ImplementingOffice);
                     if (IO == null)
                     {
                         return new BadRequestObjectResult(new { Message = $"Selected Implementing Office '{dto.ProjectDetails!.ImplementingOffice}' is not valid!", Title = "Invalid Implementing Office" });
                     }
-                    var OldIO = await _db.tProjectImplementingOfficeEnum.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == Project.ImplementingOffice);
+                    var OldIO = await _db.tAdminImplementingOffice.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == Project.ImplementingOffice);
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
@@ -667,8 +671,8 @@ namespace WebAPI.Controllers.Projects
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "ImplementingOffice",
-                        NewValue = IO.OrgName,
-                        OldValue = OldIO?.OrgName ?? "",
+                        NewValue = IO.InternalOrgUnitName,
+                        OldValue = OldIO?.InternalOrgUnitName ?? "",
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
@@ -676,12 +680,12 @@ namespace WebAPI.Controllers.Projects
                 }
                 if (Project.DEO != dto.ProjectDetails?.DEO)
                 {
-                    var SelectedDeo = await _db.tProjectRODEOEnum.AsNoTracking().FirstOrDefaultAsync(x => x.DeoCode == dto.ProjectDetails!.DEO);
+                    var SelectedDeo = await _db.tAdminImplementingOffice.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == dto.ProjectDetails!.DEO);
                     if (SelectedDeo == null)
                     {
                         return new BadRequestObjectResult(new { Message = $"Selected DEO '{dto.ProjectDetails!.DEO}' is not valid!", Title = "Invalid DEO" });
                     }
-                    var OldDeo = await _db.tProjectRODEOEnum.AsNoTracking().FirstOrDefaultAsync(x => x.DeoCode == Project.DEO);
+                    var OldDeo = await _db.tAdminImplementingOffice.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == Project.DEO);
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
@@ -689,12 +693,12 @@ namespace WebAPI.Controllers.Projects
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "DEO",
-                        NewValue = SelectedDeo.DeoName,
-                        OldValue = OldDeo?.DeoName ?? "",
+                        NewValue = SelectedDeo.ParticipantId,
+                        OldValue = OldDeo?.ParticipantId ?? "",
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
-                    Project.DEO = SelectedDeo.DeoCode;
+                    Project.DEO = SelectedDeo.ParticipantId;
                 }
                 if (Project.Region != dto.ProjectDetails?.Region)
                 {

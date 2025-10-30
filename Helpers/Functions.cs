@@ -6,8 +6,11 @@ using OfficeOpenXml;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats;
 using SixLabors.ImageSharp.PixelFormats;
+using System.ComponentModel.DataAnnotations;
 using System.Drawing;
+using System.Net;
 using System.Net.Http.Json;
+using System.Net.Mail;
 using System.Text;
 using System.Text.Json;
 
@@ -170,6 +173,79 @@ namespace Helpers
 
             return $"{number}{suffix}";
         }
+        public static bool ValidateEmails(this string Emails)
+        {
+            Emails = Emails.Replace(";", ",");
+            List<bool> li = new List<bool>();
+            foreach (var address in Emails.Split(new[] { "," }, StringSplitOptions.RemoveEmptyEntries)) //foreach (var address in Emails.Split(new[] { ";" }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                li.Add(new EmailAddressAttribute().IsValid(address));
+            }
+            return li.Where(x => !x).Any();
+        }
+        public static string SendEmail(SMTPModel data)
+        {
+            try
+            {
+                if (Appsetting.Environment != "Production" && data.Subject != "KOJLMS Report")
+                {
+                    data.Recipient = "michael.ferrer@kojamjoom.com";
+                    data.CCAddress = "michael.ferrer@kojamjoom.com";
+                    //return "Success";
+                }
+                MailMessage Email = new MailMessage
+                {
+                    From = new MailAddress(SMTPClass.FROM, SMTPClass.DisplayName),
+                    Subject = data.Subject,
+                    IsBodyHtml = true,
+                    Body = data.Body
+                };
+                if (string.IsNullOrEmpty(data.Recipient))
+                {
+                    data.Recipient = data.CCAddress;
+                }
+                if (!string.IsNullOrEmpty(data.CCAddress))
+                {
+                    data.CCAddress.Replace(";", ",");
+                    if (data.CCAddress.ValidateEmails())
+                        return $"Invalid CC Email: '{data.CCAddress}'";
+                }
+                if (!string.IsNullOrEmpty(data.Recipient)) { data.Recipient.Replace(";", ","); }
+                if (data.Recipient.ValidateEmails() || data.Recipient == null)
+                    return $"Invalid Recipient Email: '{data.Recipient}'";
 
+                Email.To.Add(data.Recipient.Replace(";", ","));
+                if (data.Recipient.ValidateEmails() || data.Recipient == null)
+                    return $"Invalid Recipient Email: '{data.Recipient}'";
+                if (data.CCAddress != "")
+                {
+                    Email.CC.Add(data.CCAddress.Replace(";", ","));
+                    if (data.CCAddress.ValidateEmails())
+                        return $"Invalid CC Email: '{data.CCAddress}'";
+                }
+                SmtpClient smtp = new SmtpClient
+                {
+                    Credentials = new NetworkCredential(SMTPClass.Username, SMTPClass.Password),
+                    Port = SMTPClass.PORT,
+                    Host = SMTPClass.SMTP,
+                    EnableSsl = SMTPClass.SSL,
+                    Timeout = SMTPClass.TimeOut
+                };
+                if (data.Files != null)
+                {
+                    foreach (var File in data.Files)
+                    {
+                        Email.Attachments.Add(new Attachment(new MemoryStream(File.FileByte), File.FileName));
+                    }
+                }
+                smtp.Send(Email);
+                return "Success";
+            }
+            catch (Exception ex)
+            {
+                string code = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{data.Recipient} : {data.CCAddress}"));
+                throw new Exception($"An error occured while sending email. Please contact support service.");
+            }
+        }
     }
 }
