@@ -157,7 +157,7 @@ namespace WebAPI.Controllers.Programs
                 var Type = await _db.tProgramTypeEnum.AsNoTracking().ToListAsync();
                 var Group = await _db.tGroups.ToListAsync();
                 string[] includes = { "C", "R", "PMO", "PMOC", "B" };
-                var Security = await _db.tAdminImplementingOffice.AsNoTracking().Where(x => includes.Contains(x.InternalOrgUnitType)).ToListAsync();
+                var Security = await _db.tProjectImplementingOfficeEnum.AsNoTracking().Where(x => includes.Contains(x.OrgType)).ToListAsync();
                 return Ok(new
                 {
                     Stages = Stage,
@@ -194,7 +194,7 @@ namespace WebAPI.Controllers.Programs
                     return new BadRequestObjectResult(new { Message = $"Program Type '{dto.Type}' is not valid!", Title = "Invalid Type" });
                 }
                 string[] includes = { "C", "R", "PMO", "PMOC", "B" };
-                var GetSecurityGroup = await _db.tAdminImplementingOffice.AsNoTracking().Where(x => includes.Contains(x.InternalOrgUnitType)).Select(x => x.ParticipantId).ToListAsync();
+                var GetSecurityGroup = await _db.tProjectImplementingOfficeEnum.AsNoTracking().Where(x => includes.Contains(x.OrgType)).Select(x => x.ParticipantId).ToListAsync();
                 var CheckItems = dto.DataSecurityGroup.Where(x => !GetSecurityGroup.Contains(x));
                 if (CheckItems.Count() > 0)
                 {
@@ -308,7 +308,7 @@ namespace WebAPI.Controllers.Programs
                 var AvailableStatuses = await _db.tProgramStatusEnum.AsNoTracking().ToListAsync();
                 var AvailableGroups = await _db.tGroups.AsNoTracking().ToListAsync();
                 string[] includes = { "C", "R", "PMO", "PMOC", "B" };
-                var Security = await _db.tAdminImplementingOffice.AsNoTracking().Where(x => includes.Contains(x.InternalOrgUnitType)).ToListAsync();
+                var Security = await _db.tProjectImplementingOfficeEnum.AsNoTracking().Where(x => includes.Contains(x.OrgType)).ToListAsync();
                 var response = new
                 {
                     IsActive = (CurrentProgramVersion.StageName == program.StageName) ? true : false,

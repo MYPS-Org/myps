@@ -55,6 +55,7 @@ namespace DBHelper.Data
         public DbSet<Models.Table.FutureRoadsClassification> tFutureRoadsClassification { get; set; }
         public DbSet<Models.Table.FutureRoadSections> tFutureRoadSections { get; set; }
         public DbSet<Models.Table.FutureBridge> tFutureBridge { get; set; }
+        public DbSet<Models.Table.ProjectImplementingOfficeEnum> tProjectImplementingOfficeEnum { get; set; }
         #endregion
         #region Views
         public DbSet<Models.Views.Users> vUsers { get; set; }
