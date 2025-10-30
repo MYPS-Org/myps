@@ -694,7 +694,7 @@ const ProgramDetail: React.FC = () => {
           <div className="flex items-center gap-4">
             {programEnums.IsActive && programEnums.Details.StageId === 10 && defaultProgramEnums.Details.Status === 1 && (
               <Button color="yellow" onClick={handlePublishToPCMA}>
-                Publish to PCMA
+                Publish Program
               </Button>
             )}
             {programEnums.IsActive && programEnums?.Details?.StageId < 10 && (

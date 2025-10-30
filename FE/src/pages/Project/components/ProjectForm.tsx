@@ -803,7 +803,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                     </MenuButton>
                     <MenuItems className="absolute right-0 z-10 mt-2 w-80 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
                       <div className="py-1">
-                        {categoryData.filter((revisionType) => revisionType.Obsolete !== true).map((revisionType) => (
+                        {categoryData.filter((revisionType) => revisionType.Obsolete !== true)
+                          .sort((a, b) => a.CodeDescription.localeCompare(b.CodeDescription)) // Sort alphabetically
+                          .map((revisionType) => (
                           <MenuItem key={revisionType.Id}>
                             {({ active }) => (
                               <button
