@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { Toaster } from "./Toaster";
 
 type ToastType = "success" | "error" | "info" | "warning";
 
@@ -29,31 +30,27 @@ export const ToasterProvider: React.FC<{ children: ReactNode }> = ({ children })
     const id = Date.now();
     setToasts((prev) => [...prev, { ...toast, id }]);
 
-    // auto-remove after 3s
+    // auto-remove after 5s
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3000);
+    }, 5000);
+  }, []);
+
+  const removeToast = useCallback((id: number) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      <div className="fixed top-4 right-4 space-y-2 z-50">
+      <div className="fixed top-4 right-4 z-50 max-w-sm">
         {toasts.map((toast) => (
-          <div
+          <Toaster
             key={toast.id}
-            className={`p-3 rounded-xl shadow-md text-white ${
-              toast.type === "success"
-                ? "bg-green-500"
-                : toast.type === "error"
-                ? "bg-red-500"
-                : toast.type === "warning"
-                ? "bg-yellow-500"
-                : "bg-blue-500"
-            }`}
-          >
-            {toast.message}
-          </div>
+            onClose={() => removeToast(toast.id)}
+            message={toast.message}
+            type={toast.type}
+          />
         ))}
       </div>
     </ToastContext.Provider>
