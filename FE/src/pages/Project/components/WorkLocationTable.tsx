@@ -199,10 +199,10 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
     const infraTypeLower = infraType?.toLowerCase();
     
     if (infraTypeLower === 'road' || infraTypeLower === 'roads') {
-      return ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget', 'Length', 'StartStationLimit', 'EndStationLimit', 'From','To'];
+      return ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget', 'StartStationLimit', 'EndStationLimit', 'From','To', 'Length'];
     } else if (infraTypeLower === 'bridge' || infraTypeLower === 'bridges') {
       return ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget'];
-    } else if (infraTypeLower === 'consultancy' || infraTypeLower === 'non-infra') {
+    } else if (infraTypeLower === 'CoS' || infraTypeLower === 'non-infra') {
       return ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget'];
     } else {
       // Others - use coordinates
