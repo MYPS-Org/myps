@@ -320,21 +320,6 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                         searchPlaceholder="Search sub-categories..."
                                     />
                                 </div>
-                                {/* <select 
-                                    name="Thrust" 
-                                    id="Thrust" 
-                                    value={projectDetails?.Thrust} 
-                                    onChange={(e) => handleInputChange('Thrust', parseInt(e.target.value))} 
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.Thrust ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
-                                    disabled={disabled}
-                                >
-                                    <option value="">Select Thrust</option>
-                                    {projectEnums?.Thrusts?.filter(x => x.ValidFromDate < new Date().getFullYear() && x.ValidToDate > new Date().getFullYear() || x.ValidToDate === 0).map((thrust) => (
-                                        <option key={thrust.Id} value={thrust.PAPKey}>
-                                            {thrust.ThrustDescription}
-                                        </option>
-                                    ))}
-                                </select> */}
                             </div>
                         </div>
 
@@ -623,19 +608,6 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                         searchPlaceholder="Search agencies..."
                                     />
                                 </div>
-                                {/* <select
-                                    value={projectDetails?.Agency}
-                                    onChange={(e) => handleInputChange('Agency', parseInt(e.target.value))}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.Agency ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
-                                    disabled={disabled}
-                                >
-                                    <option value="">Select Originating Agency</option>
-                                    {projectEnums?.Agencies?.map((agency) => (
-                                        <option key={agency.Id} value={agency.Id}>
-                                            {agency.AgencyName}
-                                        </option>
-                                    ))}
-                                </select> */}
                             </div>
                         </div>
                     </div>

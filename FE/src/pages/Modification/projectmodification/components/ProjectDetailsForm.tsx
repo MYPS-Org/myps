@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import type { ProjectDetails, ProjectEnums } from "../../../Project/Model.d";
 import type { FormValidationError } from "../../../../utils/FormValidation";
-import { getDisabledClass } from '../../../../utils/GlobalFunctions';
+import { getDisabledClass, formatDropdownOptions } from '../../../../utils/GlobalFunctions';
+import SearchableDropdown from '../../../../components/ui/SearchableDropdown';
+import AllowedFields from '../../rules/AllowedFields';
 
 interface ProjectDetailsFormProps {
     projectDetails: ProjectDetails;
@@ -11,6 +13,8 @@ interface ProjectDetailsFormProps {
     initialData?: any;
     errors?: FormValidationError<ProjectDetails>;
     disabled?: boolean;
+    pcmaStatus?: string; // PCMA status from external database
+    packageStatus?: string; // Package status from external database
 }
 
 const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({ 
@@ -19,11 +23,182 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
     projectEnums,
     mode = '',
     errors = {},
-    disabled = false
+    disabled = false,
+    pcmaStatus,
+    packageStatus
 }) => {
+    // State for field permissions based on PCMA status
+    const [fieldPermissions, setFieldPermissions] = useState<any>(null);
+    const [showRandomizeButton, setShowRandomizeButton] = useState(true);
+
+    // Initialize field permissions based on PCMA status
+    useEffect(() => {
+        if (pcmaStatus && packageStatus) {
+            // Use actual status from props
+            const currentCase = AllowedFields.determineCase(pcmaStatus, packageStatus);
+            const editableFields = AllowedFields.getEditableFieldsForCase(currentCase);
+            setFieldPermissions({
+                pcmaStatus,
+                packageStatus,
+                case: currentCase,
+                editableFields
+            });
+        } else {
+            // Use random status for testing if no real status provided
+            const result = AllowedFields.runRandomization();
+            setFieldPermissions(result);
+        }
+    }, [pcmaStatus, packageStatus]);
+
+    // Function to check if a field is editable based on current permissions
+    const isFieldEditableByRules = (fieldName: string): boolean => {
+        if (!fieldPermissions) return true; // Default to editable if no permissions loaded
+        return AllowedFields.isFieldEditable(fieldName, fieldPermissions.case);
+    };
+
+    // Function to get the combined disabled state
+    const getFieldDisabledState = (fieldName: string): boolean => {
+        return disabled || !isFieldEditableByRules(fieldName);
+    };
+
+    // Function to handle randomization for testing
+    const handleRandomizeStatus = () => {
+        const result = AllowedFields.runRandomization();
+        setFieldPermissions(result);
+        console.log('New PCMA Status:', result);
+    };
+
+    const [ filteredCities, setFilteredCities ] = React.useState<ProjectEnums['Cities']>([]);
+    const [ filteredLegislativeDistricts, setFilteredLegislativeDistricts ] = React.useState<ProjectEnums['LDs']>([]);
+
+    // Initialize filtered data when projectEnums change
+    useEffect(() => {
+        if (projectEnums) {
+            updateFilteredData();
+        }
+    }, [projectEnums, projectDetails?.Province, projectDetails?.City, projectDetails?.LegislativeDistrict]);
+
+    const updateFilteredData = () => {
+        if (!projectEnums) return;
+
+        let availableCities = projectEnums.Cities || [];
+        let availableLDs = projectEnums.LDs || [];
+
+        // If province is selected, filter cities and LDs by province
+        if (projectDetails?.Province) {
+            let ProvinceId = projectEnums.Provinces.find(p => p.Code == projectDetails.Province)?.Id ?? projectDetails.Province;
+            availableCities = projectEnums.Cities?.filter(
+                (city) => city.ProvinceFkId === ProvinceId
+            ) || [];
+            availableLDs = projectEnums.LDs?.filter(
+                (ld) => ld.ProvinceFkId === ProvinceId
+            ) || [];
+
+            console.log('Filtered Cities and LDs by Province:', projectDetails.Province, availableCities, availableLDs);
+        }
+        // If city is selected but no province, filter LDs by city's province
+        else if (projectDetails?.City) {
+            const selectedCity = projectEnums.Cities?.find((city) => city.Code === projectDetails.City?.toString());
+            if (selectedCity) {
+                availableLDs = projectEnums.LDs?.filter(
+                    (ld) => ld.ProvinceFkId === selectedCity.ProvinceFkId
+                ) || [];
+            }
+            console.log('Filtered City:', projectDetails.City);
+            console.log('Filtered LDs:', availableLDs);
+        }
+        // If LD is selected but no province/city, filter cities by LD's province
+        else if (projectDetails?.LegislativeDistrict) {
+            const selectedLD = projectEnums.LDs?.find((ld) => ld.Code === projectDetails.LegislativeDistrict?.toString());
+            if (selectedLD) {
+                availableCities = projectEnums.Cities?.filter(
+                    (city) => city.ProvinceFkId === selectedLD.ProvinceFkId
+                ) || [];
+            }
+            console.log('Filtered Cities by LD:', projectDetails.LegislativeDistrict, availableCities);
+        }
+
+        setFilteredCities(availableCities);
+        setFilteredLegislativeDistricts(availableLDs);
+    };
+    
     const handleInputChange = (field: keyof ProjectDetails, value: any) => {
-        if (disabled) return; // Prevent changes if disabled
-        onChange(field, value);
+        console.log('ProjectDetailsForm - handleInputChange:', field, value, typeof value);
+        if (disabled && !isFieldEditableByRules(field)) return; // Prevent changes if disabled
+
+        if (field === 'Province') {
+            // When province changes, clear city and LD if they don't belong to the new province
+            const newProvince = value;
+            let newCity = projectDetails?.City;
+            let newLD = projectDetails?.LegislativeDistrict;
+            let ProvinceId = projectEnums?.Provinces.find(p => p.Code === projectDetails.Province)?.Id;
+            if (newCity) {
+                const cityBelongsToProvince = projectEnums?.Cities?.find(
+                    (city) => city.Code === newCity?.toString() && city.ProvinceFkId === ProvinceId
+                );
+                if (!cityBelongsToProvince) {
+                    newCity = undefined;
+                }
+            }
+
+            if (newLD) {
+                const ldBelongsToProvince = projectEnums?.LDs?.find(
+                    (ld) => ld.Code === newLD?.toString() && ld.ProvinceFkId === ProvinceId
+                );
+                if (!ldBelongsToProvince) {
+                    newLD = undefined;
+                }
+            }
+
+            onChange('Province', newProvince);
+            if (newCity !== projectDetails?.City) onChange('City', newCity);
+            if (newLD !== projectDetails?.LegislativeDistrict) onChange('LegislativeDistrict', newLD);
+        }
+        else if (field === 'City') {
+            const selectedCity = projectEnums?.Cities?.find((city) => city.Code === value?.toString());
+            if (selectedCity) {
+                let ProvinceCode = projectEnums?.Provinces.find(p => p.Id === selectedCity.ProvinceFkId)?.Code ?? selectedCity.ProvinceFkId;
+                // Auto-set province if not set or different
+                if (ProvinceCode !== selectedCity.ProvinceFkId) {
+                    onChange('Province', ProvinceCode);
+                }
+
+                // Clear LD if it doesn't belong to the same province
+                if (projectDetails?.LegislativeDistrict) {
+                    const currentLD = projectEnums?.LDs?.find(
+                        (ld) => ld.Code === projectDetails.LegislativeDistrict?.toString()
+                    );
+                    if (currentLD && currentLD.ProvinceFkId !== selectedCity.ProvinceFkId) {
+                        onChange('LegislativeDistrict', undefined);
+                    }
+                }
+            }
+            onChange(field, value);
+        }
+        else if (field === 'LegislativeDistrict') {
+            const selectedLD = projectEnums?.LDs?.find((ld) => ld.Code === value?.toString());
+            if (selectedLD) {
+                // Auto-set province if not set or different
+                let ProvinceId = projectEnums?.Provinces.find(p => p.Code === projectDetails.Province)?.Id ?? projectDetails.Province;
+                let ProvinceCode = projectEnums?.Provinces.find(p => p.Id === selectedLD.ProvinceFkId)?.Code ?? selectedLD.ProvinceFkId;
+                if (ProvinceId !== selectedLD.ProvinceFkId) {
+                    onChange('Province', ProvinceCode);
+                }
+                // Clear city if it doesn't belong to the same province
+                if (projectDetails?.City) {
+                    const currentCity = projectEnums?.Cities?.find(
+                        (city) => city.Code === projectDetails.City?.toString()
+                    );
+                    if (currentCity && currentCity.ProvinceFkId !== selectedLD.ProvinceFkId) {
+                        onChange('City', undefined);
+                    }
+                }
+            }
+            onChange(field, value);
+        }
+        else {
+            onChange(field, value);
+        }
     };
 
     const handleBoxClick = (boxValue: string) => {
@@ -41,6 +216,31 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
     return (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            {/* PCMA Permission Status - FOR TESTING */}
+            {fieldPermissions && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <h4 className="text-sm font-semibold text-yellow-800">PCMA Permission Status</h4>
+                            <p className="text-xs text-yellow-700">
+                                Status: <span className="font-medium">{fieldPermissions.pcmaStatus}</span> | 
+                                Package: <span className="font-medium">{fieldPermissions.packageStatus}</span> | 
+                                Case: <span className="font-medium">{fieldPermissions.case}</span>
+                            </p>
+                            <p className="text-xs text-yellow-700 mt-1">
+                                Editable Fields: {fieldPermissions.editableFields.length} fields allowed
+                            </p>
+                        </div>
+                        <button 
+                            onClick={handleRandomizeStatus}
+                            className="px-3 py-1 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700"
+                        >
+                            Randomize Status
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <div className='w-full flex flex-row items-end justify-end mb-6'>
                 { [{ label: "Lump Sum", value: "LS"}, { label: "Non Project", value: "NP"}].map((item, index) => (
                     <label key={index} className={`flex-row items-center ${mode === 'edit' ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} mr-4`}>
@@ -68,9 +268,10 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     type="text"
                                     value={projectDetails?.ProjectId}
                                     onChange={(e) => handleInputChange('ProjectId', (e.target.value))}
-                                    className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 bg-gray-100 rounded-md truncate'
+                                    className={`flex-2/3 mt-1 px-3 py-2 border border-gray-300 bg-gray-100 rounded-md truncate`}
                                     readOnly
                                     placeholder="Auto-generated Project ID"
+                                    disabled={disabled}
                                 />
                             </div>
                         </div>
@@ -150,40 +351,42 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                         <div className="w-full flex flex-col text-left gap-2">
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.Category ? 'text-red-500' : 'text-gray-600'}`}>*Category:</label>
-                                <select
-                                    value={projectDetails?.Category}
-                                    onChange={(e) => handleInputChange('Category', parseInt(e.target.value))}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.Category ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
-                                    disabled={disabled}
-                                >
-                                    <option value="">Select Category</option>
-                                    {projectEnums?.Categories?.filter(x => x.ValidUntil === 0 || x.ValidUntil > new Date().getFullYear()).map((category) => (
-                                    <option key={category.Id} value={category.Enum}>
-                                        {category.Name}
-                                    </option>
-                                    ))}
-                                </select>
+                                <div className="w-2/3">
+                                    <SearchableDropdown
+                                        options={formatDropdownOptions(projectEnums?.Provinces || [], 'Code', 'Name', 'Id')}
+                                        value={projectDetails?.Province || ''}
+                                        onChange={(value) => handleInputChange('Province', value === '' ? undefined : parseInt(value.toString()))}
+                                        placeholder="Select Province"
+                                        disabled={disabled}
+                                        error={!!errors.Province}
+                                        className={`${getDisabledClass(disabled) ? 'cursor:not-allowed' : ''}`}
+                                        allowClear={true}
+                                        searchPlaceholder="Search provinces..."
+                                    />
+                                </div>
                             </div>
                         </div>
 
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.Thrust ? 'text-red-500' : 'text-gray-600'}`}>*Sub-Category:</label>
-                                <select 
-                                    name="Thrust" 
-                                    id="Thrust" 
-                                    value={projectDetails?.Thrust} 
-                                    onChange={(e) => handleInputChange('Thrust', parseInt(e.target.value))} 
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.Thrust ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
-                                    disabled={disabled}
-                                >
-                                    <option value="">Select Thrust</option>
-                                    {projectEnums?.Thrusts?.filter(x => x.ValidFromDate < new Date().getFullYear() && x.ValidToDate > new Date().getFullYear() || x.ValidToDate === 0).map((thrust) => (
-                                        <option key={thrust.Id} value={thrust.PAPKey}>
-                                            {thrust.ThrustDescription}
-                                        </option>
-                                    ))}
-                                </select>
+                                <div className='w-2/3'>
+                                    <SearchableDropdown
+                                        options={formatDropdownOptions(
+                                            projectEnums?.Thrusts?.filter(x => x.ValidFromDate < new Date().getFullYear() && x.ValidToDate > new Date().getFullYear() || x.ValidToDate === 0) || [],
+                                            'PAPKey',
+                                            'ThrustDescription',
+                                            'Id'
+                                        )}
+                                        value={projectDetails?.Thrust || ''}
+                                        onChange={(value) => handleInputChange('Thrust', value === '' ? undefined : parseInt(value.toString()))}
+                                        placeholder="Select Sub-Category"
+                                        disabled={disabled}
+                                        error={!!errors.Thrust}
+                                        allowClear={true}
+                                        searchPlaceholder="Search sub-categories..."
+                                    />
+                                </div>
                             </div>
                         </div>
 
@@ -208,10 +411,11 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <textarea
                                     value={projectDetails?.Description}
                                     onChange={(e) => handleInputChange('Description', e.target.value)}
-                                    className={`w-full mt-1 px-3 py-2 border ${errors.Description ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md`}
+                                    className={`w-full mt-1 px-3 py-2 border ${errors.Description ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled && !isFieldEditableByRules('Description')) ? 'bg-gray-100 cursor-not-allowed' : ''} rounded-md`}
                                     placeholder="Enter project description"
                                     rows={3}
-                                    disabled={disabled}
+                                    disabled={disabled && !isFieldEditableByRules('Description')}
+                                    title={!isFieldEditableByRules('Description') ? `Field not editable in ${fieldPermissions?.case}` : ''}
                                 />
                             </div>
                         </div>
@@ -228,60 +432,54 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
                                 <label className="w-1/3 text-gray-600">Province:</label>
-                                <select
-                                    value={projectDetails?.Province}
-                                    onChange={(e) => handleInputChange('Province', parseInt(e.target.value))}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.Province ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
-                                    disabled={disabled}
-                                >
-                                    <option value="">Select Province</option>
-                                    {/* <option value="1">Cavite</option>
-                                    <option value="2">Batangas</option>
-                                    <option value="3">Laguna</option> */}
-                                    {projectEnums?.Provinces?.map((province) => (
-                                        <option key={province.Id} value={province.Id}>
-                                            {province.ProvinceName}
-                                        </option>
-                                    ))}
-                                </select>
+                                <div className="w-2/3">
+                                    <SearchableDropdown
+                                        options={formatDropdownOptions(projectEnums?.Provinces || [], 'Code', 'Name', 'Id')}
+                                        value={projectDetails?.Province || ''}
+                                        onChange={(value) => handleInputChange('Province', value === '' ? undefined : parseInt(value.toString()))}
+                                        placeholder="Select Province"
+                                        disabled={disabled && !isFieldEditableByRules('Province')}
+                                        error={!!errors.Province}
+                                        allowClear={true}
+                                        searchPlaceholder="Search provinces..."
+                                    />
+                                </div>
                             </div>
                         </div>
 
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.City ? 'text-red-500' : 'text-gray-600'}`}>*City/Municipality:</label>
-                                <select
-                                    value={projectDetails?.City}
-                                    onChange={(e) => handleInputChange('City', parseInt(e.target.value))}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.City ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
-                                    disabled={disabled}
-                                >
-                                    <option value="">Select City/Municipality</option>
-                                    {projectEnums?.Cities?.map((city) => (
-                                        <option key={city.Id} value={city.Enum}>
-                                            {city.Name}
-                                        </option>
-                                    ))}
-                                </select>
+                                <div className="w-2/3">
+                                    <SearchableDropdown
+                                        options={formatDropdownOptions(filteredCities || [], 'Code', 'Name', 'Id')}
+                                        value={projectDetails?.City || ''}
+                                        onChange={(value) => handleInputChange('City', value === '' ? undefined : parseInt(value.toString()))}
+                                        placeholder="Select City/Municipality"
+                                        disabled={disabled && !isFieldEditableByRules('City')}
+                                        error={!!errors.City}
+                                        allowClear={true}
+                                        searchPlaceholder="Search cities/municipalities..."
+                                    />
+                                </div>
                             </div>
                         </div>
 
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.LegislativeDistrict ? 'text-red-500' : 'text-gray-600'}`}>*Legislative District:</label>
-                                <select
-                                    value={projectDetails?.LegislativeDistrict}
-                                    onChange={(e) => handleInputChange('LegislativeDistrict', parseInt(e.target.value))}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.LegislativeDistrict ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
-                                    disabled={disabled}
-                                >
-                                    <option value="">Select Legislative District</option>
-                                    {projectEnums?.LDs?.map((district) => (
-                                        <option key={district.Id} value={district.Enum}>
-                                            {district.Name}
-                                        </option>
-                                    ))}
-                                </select>
+                                <div className="w-2/3">
+                                    <SearchableDropdown
+                                        options={formatDropdownOptions(filteredLegislativeDistricts || [], 'Code', 'Name', 'Id')}
+                                        value={projectDetails?.LegislativeDistrict || ''}
+                                        onChange={(value) => handleInputChange('LegislativeDistrict', value === '' ? undefined : parseInt(value.toString()))}
+                                        placeholder="Select Legislative District"
+                                        disabled={disabled && !isFieldEditableByRules('LegislativeDistrict')}
+                                        error={!!errors.LegislativeDistrict}
+                                        allowClear={true}
+                                        searchPlaceholder="Search legislative districts..."
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -298,40 +496,41 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.DEO ? 'text-red-500' : 'text-gray-600'}`}>*District Engineering Office:</label>
-                                <select 
-                                    name="DistrictEngOffice" 
-                                    id="DistrictEngOffice" 
-                                    value={projectDetails?.DEO} 
-                                    onChange={(e) => handleInputChange('DEO', e.target.value)} 
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.DEO ? 'border-red-500' : 'border-gray-300'} ${mode === 'edit' ? 'bg-gray-100 cursor-not-allowed' : ''} ${getDisabledClass(disabled)} rounded-md truncate`}
-                                    disabled={mode === 'edit' || disabled}
-                                >
-                                    <option value="">Select District Engineering Office</option>
-                                    {projectEnums?.DEOs?.map((deo) => (
-                                        <option key={deo.Id} value={deo.DeoCode}>
-                                            {deo.DeoName}
-                                        </option>
-                                    ))}
-                                </select>
+                                <div className='w-2/3'>
+                                    <SearchableDropdown
+                                        options={formatDropdownOptions(projectEnums?.DEOs || [], 'ParticipantId', 'CongressionalDistrictName', 'Id')}
+                                        value={projectDetails?.DEO || ''}
+                                        onChange={(value) => handleInputChange('DEO', value === '' ? undefined : value.toString())}
+                                        placeholder="Select District Engineering Office"
+                                        disabled={(mode === 'edit' || disabled) && !isFieldEditableByRules('DEO')}
+                                        error={!!errors.DEO}
+                                        allowClear={true}
+                                        searchPlaceholder="Search district engineering offices..."
+                                    />
+                                </div>
                             </div>
                         </div>
 
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.Region ? 'text-red-500' : 'text-gray-600'}`}>Regional Office:</label>
-                                <select
-                                    value={projectDetails?.Region}
-                                    onChange={(e) => handleInputChange('Region', e.target.value)}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.Region ? 'border-red-500' : 'border-gray-300'} ${mode === 'edit' ? 'bg-gray-100 cursor-not-allowed' : ''} ${getDisabledClass(disabled)} rounded-md truncate`}
-                                    disabled={mode === 'edit' || disabled}
-                                >
-                                    <option value="">Select Regional Office</option>
-                                    {projectEnums?.DEOs?.filter(x => x.DeoCode === projectDetails?.DEO).map((region) => (
-                                        <option key={region.Id} value={region.ROCode}>
-                                            {region.ROName}
-                                        </option>
-                                    ))}
-                                </select>
+                                <div className='w-2/3'>
+                                    <SearchableDropdown
+                                        options={formatDropdownOptions(
+                                            projectEnums?.DEOs?.filter(x => x.ParticipantId === projectDetails?.DEO) || [],
+                                            'ParticipantId',
+                                            'RegionName',
+                                            'Id'
+                                        )}
+                                        value={projectDetails?.Region || ''}
+                                        onChange={(value) => handleInputChange('Region', value === '' ? undefined : value.toString())}
+                                        placeholder="Select Regional Office"
+                                        disabled={(mode === 'edit' || disabled) && !isFieldEditableByRules('Region')}
+                                        error={!!errors.Region}
+                                        allowClear={true}
+                                        searchPlaceholder="Search regional offices..."
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -340,38 +539,50 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.OperatingUnit ? 'text-red-500' : 'text-gray-600'}`}>*Operating Unit:</label>
-                                <select
-                                    value={projectDetails?.OperatingUnit}
-                                    onChange={(e) => handleInputChange('OperatingUnit', e.target.value)}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.OperatingUnit ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
-                                    disabled={disabled}
-                                >
-                                    <option value="">Select Operating Unit</option>
-                                    {projectEnums?.OperatingUnits?.map((unit) => (
-                                        <option key={unit.Id} value={unit.ParticipantId}>
-                                            {unit.OrgName}
-                                        </option>
-                                    ))}
-                                </select>
+                                <div className="w-2/3">
+                                    <SearchableDropdown
+                                        options={formatDropdownOptions(projectEnums?.OperatingUnits || [], 'ParticipantId', 'InternalOrgUnitName', 'Id')}
+                                        value={projectDetails?.OperatingUnit || ''}
+                                        onChange={(value) => handleInputChange('OperatingUnit', value === '' ? undefined : value.toString())}
+                                        placeholder="Select Operating Unit"
+                                        disabled={disabled && !isFieldEditableByRules('OperatingUnit')}
+                                        error={!!errors.OperatingUnit}
+                                        allowClear={true}
+                                        searchPlaceholder="Search operating units..."
+                                    />
+                                </div>
                             </div>
                         </div>
 
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.ImplementingOffice ? 'text-red-500' : 'text-gray-600'}`}>*Implementing Office:</label>
-                                <select
-                                    value={projectDetails?.ImplementingOffice}
-                                    onChange={(e) => handleInputChange('ImplementingOffice', e.target.value)}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.ImplementingOffice ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
-                                    disabled={disabled}
-                                >
-                                    <option value="">Select Implementing Office</option>
-                                    {projectEnums?.IOs?.filter(x => projectDetails?.OperatingUnit != "" && (x.ParticipantId === projectDetails?.OperatingUnit || x.ParticipantId === "OI10")).map((office) => (
-                                        <option key={office.Id} value={office.ParticipantId}>
-                                            {office.OrgName}
-                                        </option>
-                                    ))}
-                                </select>
+                                <div className="w-2/3">
+                                    <SearchableDropdown
+                                        options={formatDropdownOptions(
+                                            projectEnums?.IOs?.filter(x => {
+                                                // If no Operating Unit selected, show nothing
+                                                if (!projectDetails?.OperatingUnit || projectDetails?.OperatingUnit === "") return false;
+                                                
+                                                // If Central Office (OI10) is selected as Operating Unit, show all IOs
+                                                if (projectDetails?.OperatingUnit === "OI10") return true;
+                                                
+                                                // Otherwise, filter by matching Operating Unit or allow Central Office
+                                                return x.ParticipantId === projectDetails?.OperatingUnit;
+                                            }) || [], 
+                                            'ParticipantId', 
+                                            'InternalOrgUnitName', 
+                                            'Id'
+                                        )}
+                                        value={projectDetails?.ImplementingOffice || ''}
+                                        onChange={(value) => handleInputChange('ImplementingOffice', value === '' ? undefined : value.toString())}
+                                        placeholder="Select Implementing Office"
+                                        disabled={disabled && !isFieldEditableByRules('ImplementingOffice')}
+                                        error={!!errors.ImplementingOffice}
+                                        allowClear={true}
+                                        searchPlaceholder="Search implementing offices..."
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -413,40 +624,43 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.Origin ? 'text-red-500' : 'text-gray-600'}`}>Origin:</label>
-                                <select 
-                                    name="Origin" 
-                                    id="Origin" 
-                                    value={projectDetails?.Origin} 
-                                    onChange={(e) => handleInputChange('Origin', parseInt(e.target.value))} 
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.Origin ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
-                                    disabled={disabled}
-                                >
-                                    <option value="">Select Origin</option>
-                                    {projectEnums?.Origins?.map((origin) => (
-                                        <option key={origin.Id} value={origin.Enum}>
-                                            {origin.Name}
-                                        </option>
-                                    ))}
-                                </select>
+                                <div className='w-2/3'>
+                                    <SearchableDropdown
+                                        options={formatDropdownOptions(projectEnums?.Origins || [],
+                                            'Enum',
+                                            'Name',
+                                            'Id'
+                                        )}
+                                        value={projectDetails?.Origin || ''}
+                                        onChange={(value) => handleInputChange('Origin', value === '' ? undefined : parseInt(value.toString()))}
+                                        placeholder="Select Origin"
+                                        disabled={disabled && !isFieldEditableByRules('Origin')}
+                                        error={!!errors.Origin}
+                                        allowClear={true}
+                                        searchPlaceholder="Search origins..."
+                                    />
+                                </div>
                             </div>
                         </div>
                         
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.Agency ? 'text-red-500' : 'text-gray-600'}`}>Originating Agency:</label>
-                                <select
-                                    value={projectDetails?.Agency}
-                                    onChange={(e) => handleInputChange('Agency', parseInt(e.target.value))}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.Agency ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
-                                    disabled={disabled}
-                                >
-                                    <option value="">Select Originating Agency</option>
-                                    {projectEnums?.Agencies?.map((agency) => (
-                                        <option key={agency.Id} value={agency.Id}>
-                                            {agency.AgencyName}
-                                        </option>
-                                    ))}
-                                </select>
+                                <div className='w-2/3'>
+                                    <SearchableDropdown
+                                        options={formatDropdownOptions(projectEnums?.Agencies || [],
+                                            'Id',
+                                            'AgencyName',
+                                        )}
+                                        value={projectDetails?.Agency || ''}
+                                        onChange={(value) => handleInputChange('Agency', value === '' ? undefined : parseInt(value.toString()))}
+                                        placeholder="Select Originating Agency"
+                                        disabled={disabled && !isFieldEditableByRules('Agency')}
+                                        error={!!errors.Agency}
+                                        allowClear={true}
+                                        searchPlaceholder="Search agencies..."
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -486,8 +700,9 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     id="EmergencyCode" 
                                     value={projectDetails?.EmergencyMode ? 'true' : 'false'} 
                                     onChange={(e) => handleInputChange('EmergencyMode', e.target.value === 'true')} 
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.EmergencyMode ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
-                                    disabled={disabled}
+                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.EmergencyMode ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled) && !isFieldEditableByRules('EmergencyMode') ? 'bg-gray-100 cursor-not-allowed' : ''} rounded-md truncate`}
+                                    disabled={disabled && !isFieldEditableByRules('EmergencyMode')}
+                                    title={!isFieldEditableByRules('EmergencyMode') ? `Field not editable in ${fieldPermissions?.case}` : ''}
                                 >
                                     <option value="false">No</option>
                                     <option value="true">Yes</option>

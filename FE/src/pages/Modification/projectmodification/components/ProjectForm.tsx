@@ -58,7 +58,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   //toaster here
   const { showToast } = useToast();
   // DisableFields if status === approved
-  const isDisabled = false;
+  const isDisabled = Number(initialData?.ProgramDetails?.Status) === 1;
 
   // toggle state for Program Details section
   const [isProgramOpen, setIsProgramOpen] = useState<boolean>(true);
@@ -101,15 +101,15 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       ExternalId: '',
       MYId: '',
       UACS: '',
-      // MYCAApprovalDate: '',
+      MYCAApprovalDate: '',
       IslandCode: '',
       RevisionNumber: 0,
       Description: '',
       Category: 0,
       Thrust: 0,
       Origin: 0,
-      City: 0,
-      LegislativeDistrict: 0,
+      City: '',
+      LegislativeDistrict: '',
       OperatingUnit: '',
       ImplementingOffice: '',
       DEO: '',

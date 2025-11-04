@@ -5,6 +5,7 @@ import { PlusIcon, TrashIcon, PencilIcon } from "@heroicons/react/24/outline";
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from "../../../../components/tailwindui/table";
 import { ComponentCostDialog } from "../../../Project/dialogs";
 import { getDisabledClass } from "../../../../utils/GlobalFunctions";
+import AllowedFields from '../../rules/AllowedFields';
 
 interface ComponentCostFormProps {
   componentCosts: ComponentCostWithYears[];
@@ -14,6 +15,8 @@ interface ComponentCostFormProps {
   initialData?: any; // Optional initial data for dropdowns or other purposes
   maxAmountCost?: number; // Optional prop to set max amount in ComponentCostForm
   disabled?: boolean;
+  pcmaStatus?: string; // PCMA status from external database
+  packageStatus?: string; // Package status from external database
 }
 
 const ComponentCostForm: React.FC<ComponentCostFormProps> = ({ 
@@ -23,7 +26,9 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
   onDelete,
   initialData,
   maxAmountCost,
-  disabled = false
+  disabled = false,
+  pcmaStatus,
+  packageStatus
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);

@@ -92,7 +92,7 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
   };
 
   const baseClasses = `
-    relative w-full mt-1 px-3 py-2 border rounded-md truncate cursor-pointer
+    relative w-full mt-1 px-3 py-2 border rounded-md truncate
     ${error ? 'border-red-500' : 'border-gray-300'}
     ${disabled ? 'bg-gray-100 cursor-not-allowed opacity-70' : 'bg-white hover:border-gray-400'}
     ${className}
