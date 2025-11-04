@@ -473,7 +473,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <label className={`w-1/3 ${errors.OperatingUnit ? 'text-red-500' : 'text-gray-600'}`}>*Operating Unit:</label>
                                 <div className="w-2/3">
                                     <SearchableDropdown
-                                        options={formatDropdownOptions(projectEnums?.OperatingUnits || [], 'ParticipantId', 'InternalOrgUnitName', 'Id')}
+                                        options={formatDropdownOptions(projectEnums?.OperatingUnits || [], 'ParticipantId', 'Name')}
                                         value={projectDetails?.OperatingUnit || ''}
                                         onChange={(value) => handleInputChange('OperatingUnit', value === '' ? undefined : value.toString())}
                                         placeholder="Select Operating Unit"
@@ -503,8 +503,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                                 return x.ParticipantId === projectDetails?.OperatingUnit;
                                             }) || [], 
                                             'ParticipantId', 
-                                            'InternalOrgUnitName', 
-                                            'Id'
+                                            'Name',
                                         )}
                                         value={projectDetails?.ImplementingOffice || ''}
                                         onChange={(value) => handleInputChange('ImplementingOffice', value === '' ? undefined : value.toString())}

@@ -413,24 +413,14 @@ export interface LDEnum {
 	Name: string;
 }
 export interface OperatingUnitEnum {
-	Id: number;
+	Name: string;
 	ParticipantId: string;
-	InternalOrgUnitName?: string;
-	InternalOrgUnitType?: string;
-	ProvinceName?: string;
-	RegionName?: string;
-	CongressionalDistrictName?: string;
-	IslandCode?: string;
+	OrgType: string;
 }
 export interface IOEnum {
-	Id: number;
+	Name: string;
 	ParticipantId: string;
-	InternalOrgUnitName?: string;
-	InternalOrgUnitType?: string;
-	ProvinceName?: string;
-	RegionName?: string;
-	CongressionalDistrictName?: string;
-	IslandCode?: string;
+	OrgType: string;
 }
 export interface RODEOEnum {
 	Id: number;
