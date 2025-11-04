@@ -58,7 +58,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
     // Function to get the combined disabled state
     const getFieldDisabledState = (fieldName: string): boolean => {
-        return disabled || !isFieldEditableByRules(fieldName);
+        return disabled && !isFieldEditableByRules(fieldName);
     };
 
     // Function to handle randomization for testing
@@ -124,7 +124,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
     
     const handleInputChange = (field: keyof ProjectDetails, value: any) => {
         console.log('ProjectDetailsForm - handleInputChange:', field, value, typeof value);
-        if (disabled && !isFieldEditableByRules(field)) return; // Prevent changes if disabled
+        if (getFieldDisabledState(field)) return; // Prevent changes if disabled
 
         if (field === 'Province') {
             // When province changes, clear city and LD if they don't belong to the new province
@@ -411,10 +411,10 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <textarea
                                     value={projectDetails?.Description}
                                     onChange={(e) => handleInputChange('Description', e.target.value)}
-                                    className={`w-full mt-1 px-3 py-2 border ${errors.Description ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled && !isFieldEditableByRules('Description')) ? 'bg-gray-100 cursor-not-allowed' : ''} rounded-md`}
+                                    className={`w-full mt-1 px-3 py-2 border ${errors.Description ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(getFieldDisabledState('Description')) ? 'bg-gray-100 cursor-not-allowed' : ''} rounded-md`}
                                     placeholder="Enter project description"
                                     rows={3}
-                                    disabled={disabled && !isFieldEditableByRules('Description')}
+                                    disabled={getFieldDisabledState('Description')}
                                     title={!isFieldEditableByRules('Description') ? `Field not editable in ${fieldPermissions?.case}` : ''}
                                 />
                             </div>
@@ -438,7 +438,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                         value={projectDetails?.Province || ''}
                                         onChange={(value) => handleInputChange('Province', value === '' ? undefined : parseInt(value.toString()))}
                                         placeholder="Select Province"
-                                        disabled={disabled && !isFieldEditableByRules('Province')}
+                                        disabled={getFieldDisabledState('Province')}
                                         error={!!errors.Province}
                                         allowClear={true}
                                         searchPlaceholder="Search provinces..."
@@ -456,7 +456,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                         value={projectDetails?.City || ''}
                                         onChange={(value) => handleInputChange('City', value === '' ? undefined : parseInt(value.toString()))}
                                         placeholder="Select City/Municipality"
-                                        disabled={disabled && !isFieldEditableByRules('City')}
+                                        disabled={getFieldDisabledState('City')}
                                         error={!!errors.City}
                                         allowClear={true}
                                         searchPlaceholder="Search cities/municipalities..."
@@ -474,7 +474,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                         value={projectDetails?.LegislativeDistrict || ''}
                                         onChange={(value) => handleInputChange('LegislativeDistrict', value === '' ? undefined : parseInt(value.toString()))}
                                         placeholder="Select Legislative District"
-                                        disabled={disabled && !isFieldEditableByRules('LegislativeDistrict')}
+                                        disabled={getFieldDisabledState('LegislativeDistrict')}
                                         error={!!errors.LegislativeDistrict}
                                         allowClear={true}
                                         searchPlaceholder="Search legislative districts..."
@@ -545,7 +545,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                         value={projectDetails?.OperatingUnit || ''}
                                         onChange={(value) => handleInputChange('OperatingUnit', value === '' ? undefined : value.toString())}
                                         placeholder="Select Operating Unit"
-                                        disabled={disabled && !isFieldEditableByRules('OperatingUnit')}
+                                        disabled={getFieldDisabledState('OperatingUnit')}
                                         error={!!errors.OperatingUnit}
                                         allowClear={true}
                                         searchPlaceholder="Search operating units..."
@@ -577,7 +577,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                         value={projectDetails?.ImplementingOffice || ''}
                                         onChange={(value) => handleInputChange('ImplementingOffice', value === '' ? undefined : value.toString())}
                                         placeholder="Select Implementing Office"
-                                        disabled={disabled && !isFieldEditableByRules('ImplementingOffice')}
+                                        disabled={getFieldDisabledState('ImplementingOffice')}
                                         error={!!errors.ImplementingOffice}
                                         allowClear={true}
                                         searchPlaceholder="Search implementing offices..."
@@ -634,7 +634,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                         value={projectDetails?.Origin || ''}
                                         onChange={(value) => handleInputChange('Origin', value === '' ? undefined : parseInt(value.toString()))}
                                         placeholder="Select Origin"
-                                        disabled={disabled && !isFieldEditableByRules('Origin')}
+                                        disabled={getFieldDisabledState('Origin')}
                                         error={!!errors.Origin}
                                         allowClear={true}
                                         searchPlaceholder="Search origins..."
@@ -655,7 +655,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                         value={projectDetails?.Agency || ''}
                                         onChange={(value) => handleInputChange('Agency', value === '' ? undefined : parseInt(value.toString()))}
                                         placeholder="Select Originating Agency"
-                                        disabled={disabled && !isFieldEditableByRules('Agency')}
+                                        disabled={getFieldDisabledState('Agency')}
                                         error={!!errors.Agency}
                                         allowClear={true}
                                         searchPlaceholder="Search agencies..."
@@ -701,7 +701,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     value={projectDetails?.EmergencyMode ? 'true' : 'false'} 
                                     onChange={(e) => handleInputChange('EmergencyMode', e.target.value === 'true')} 
                                     className={`w-2/3 mt-1 px-3 py-2 border ${errors.EmergencyMode ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled) && !isFieldEditableByRules('EmergencyMode') ? 'bg-gray-100 cursor-not-allowed' : ''} rounded-md truncate`}
-                                    disabled={disabled && !isFieldEditableByRules('EmergencyMode')}
+                                    disabled={getFieldDisabledState('EmergencyMode')}
                                     title={!isFieldEditableByRules('EmergencyMode') ? `Field not editable in ${fieldPermissions?.case}` : ''}
                                 >
                                     <option value="false">No</option>
