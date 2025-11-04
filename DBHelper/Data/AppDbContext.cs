@@ -27,7 +27,9 @@ namespace DBHelper.Data
         public DbSet<Models.Table.ProjectOriginEnum> tProjectOriginEnum { get; set; }
         public DbSet<Models.Table.AdminAreaCityMunicipality> tAdminAreaCityMunicipality { get; set; }
         public DbSet<Models.Table.AdminAreaCongressionalDistrict> tAdminAreaCongressionalDistrict { get; set; }
-        public DbSet<Models.Table.AdminImplementingOffice> tAdminImplementingOffice { get; set; }
+        public DbSet<Models.Table.OptionAdminAreaDistrictEngineeringOffice> tOptionAdminAreaDistrictEngineeringOffice { get; set; }
+        public DbSet<Models.Table.OptionAdminAreaRegion> tOptionAdminAreaRegion { get; set; }
+        //public DbSet<Models.Table.AdminImplementingOffice> tAdminImplementingOffice { get; set; }
         public DbSet<Models.Table.ProjectAgencyLists> tProjectAgencyLists { get; set; }
         public DbSet<Models.Table.ProjectImplementModeEnum> tProjectImplementModeEnum { get; set; }
         public DbSet<Models.Table.ProjectEmergencyModeEnum> tProjectEmergencyModeEnum { get; set; }
@@ -67,6 +69,8 @@ namespace DBHelper.Data
         public DbSet<Models.Views.ProjectDetails> vProjectDetails { get; set; }
         public DbSet<Models.Views.ProjectGroups> vProjectGroups { get; set; }
         public DbSet<Models.Views.ProjectsInGroup> vProjectsInGroup { get; set; }
+        public DbSet<Models.Views.AdminOperatingOffice> vAdminOperatingOffice { get; set; }
+        public DbSet<Models.Views.AdminImplementingOffice> vAdminImplementingOffice { get; set; }
         #endregion
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

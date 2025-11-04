@@ -23,7 +23,7 @@ namespace Helpers
             var parts = Current.Split('-');
             string NewStage = StageName.GenerateProjec1stSegment();
             string ReferenceId = parts[0].Replace("BP", NewStage);
-            return $"{ReferenceId}-{parts[1]}-{StageName}";
+            return $"{ReferenceId}-{(parts.Length > 1 ? parts[1] : "0")}-{(parts.Length > 2 && !string.IsNullOrEmpty(parts[2]) ? int.Parse(parts[2]) + 1 : 0)}";
         }
         public static string GenerateReferenceId(this string ReferenceId, string StageName)
         {
