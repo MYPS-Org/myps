@@ -217,7 +217,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
     return (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             {/* PCMA Permission Status - FOR TESTING */}
-            {fieldPermissions && (
+            {/* {fieldPermissions && (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
                     <div className="flex justify-between items-center">
                         <div>
@@ -239,7 +239,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                         </button>
                     </div>
                 </div>
-            )}
+            )} */}
 
             <div className='w-full flex flex-row items-end justify-end mb-6'>
                 { [{ label: "Lump Sum", value: "LS"}, { label: "Non Project", value: "NP"}].map((item, index) => (

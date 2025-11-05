@@ -424,11 +424,13 @@ export interface IOEnum {
 }
 export interface RODEOEnum {
 	Id: number;
-	DeoCode: string;
-	DeoName: string;
-	ROCode: string;
-	ROName: string;
-	Island?: string;
+	GdbId?: string;
+	Name: string;
+	ParticipantId: string;
+	ProvinceCode?: string;
+	ProvinceName?: string;
+	RegionParticipantId: string;
+	RegionName: string;
 }
 export interface FeasibEnum {
 	Id: number;
@@ -573,13 +575,13 @@ export interface ProjectImplementingOfficeEnum {
 
 export interface ProjectRODEOEnum {
 	Id: number;
+	GdbId?: string;
+	Name: string;
 	ParticipantId: string;
-	InternalOrgUnitName?: string;
-	InternalOrgUnitType?: string;
+	ProvinceCode?: number;
 	ProvinceName?: string;
-	RegionName?: string;
-	CongressionalDistrictName?: string;
-	IslandCode?: string;
+	RegionParticipantId: string;
+	RegionName: string;
 }
 
 export interface ProjectAgencyLists {

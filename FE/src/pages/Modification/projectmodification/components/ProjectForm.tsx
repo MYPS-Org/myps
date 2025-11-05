@@ -38,6 +38,7 @@ import { useToast } from '../../../../components/toaster/ToasterContext';
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/react';
 import { categoryData } from '../../../Modification/mockData/Dropdown';
 import ReviseProjectDialog from '../../dialogs/RevisedProjectDialog';
+import AllowedFields from '../../rules/AllowedFields';
 
 interface ProjectFormProps {
   initialData?: ProjectFormPayload;
@@ -124,9 +125,35 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     }
   );
 
-  // const [majorItemsLocation] = useState<MajorItemLocations[]>(
-  //   initialData?.MajorItemLocations || []
-  // );
+  // Load Allowed Fields
+  // #region Modification Set Fields
+  const [fieldPermissions, setFieldPermissions] = useState<any>(null);
+  const [showRandomizeButton, setShowRandomizeButton] = useState(true);
+  const [pcmaStatus, setPcmaStatus] = useState<string>('');
+  const [packageStatus, setPackageStatus] = useState<string>('');
+
+  useEffect(() => {
+    if (pcmaStatus && packageStatus) {
+      const currentCase = AllowedFields.determineCase(pcmaStatus, packageStatus);
+      const editableFields = AllowedFields.getEditableFieldsForCase(currentCase);
+      setFieldPermissions({
+          pcmaStatus,
+          packageStatus,
+          case: currentCase,
+          editableFields
+      });
+    } else {
+      const result = AllowedFields.runRandomization();
+      setFieldPermissions(result);
+    }
+  }, [pcmaStatus, packageStatus]);
+  // Function to handle randomization for testing
+  const handleRandomizeStatus = () => {
+      const result = AllowedFields.runRandomization();
+      setFieldPermissions(result);
+      console.log('New PCMA Status:', result);
+  };
+  // #endregion
 
   useEffect(() => {
     // Load project enums
@@ -139,25 +166,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         console.error('Error loading project enums:', error);
       }
     };
-
-    // Load infrastructure data
-    // const loadInfrastructureData = async () => {
-    //   try {
-    //     const response = await getInfrastructureData();
-    //     console.log('Infrastructure Data:', response.Data);
-    //     setInfraData(response.Data);
-    //   } catch (error) {
-    //     console.error('Error loading infrastructure data:', error);
-    //     // Set empty data on error to prevent crashes
-    //     setInfraData({
-    //       RoadSections: [],
-    //       Bridges: [],
-    //       FCS: [],
-    //       OtherInfra: []
-    //     });
-    //   }
-    // };
-
     loadProjectEnums();
     // loadInfrastructureData();
 
@@ -828,6 +836,30 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           {isProjectOpen && (
             <>
               <div className="px-4 py-6 sm:p-8">
+                {/* PCMA Permission Status - FOR TESTING */}
+                {fieldPermissions && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <h4 className="text-sm font-semibold text-yellow-800">PCMA Permission Status</h4>
+                                <p className="text-xs text-yellow-700">
+                                    Status: <span className="font-medium">{fieldPermissions.pcmaStatus}</span> | 
+                                    Package: <span className="font-medium">{fieldPermissions.packageStatus}</span> | 
+                                    Case: <span className="font-medium">{fieldPermissions.case}</span>
+                                </p>
+                                <p className="text-xs text-yellow-700 mt-1">
+                                    Editable Fields: {fieldPermissions.editableFields.length} fields allowed
+                                </p>
+                            </div>
+                            <button 
+                                onClick={handleRandomizeStatus}
+                                className="px-3 py-1 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700"
+                            >
+                                Randomize Status
+                            </button>
+                        </div>
+                    </div>
+                )}
                 <ProjectDetailsForm
                   projectDetails={projectDetails}
                   onChange={handleProjectDetailsChange}
