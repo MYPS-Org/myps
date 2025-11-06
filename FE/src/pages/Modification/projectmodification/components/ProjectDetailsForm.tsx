@@ -486,7 +486,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                         value={projectDetails?.LegislativeDistrict || ''}
                                         onChange={(value) => handleInputChange('LegislativeDistrict', value === '' ? undefined : value.toString())}
                                         placeholder="Select Legislative District"
-                                        // disabled={!isFieldEditable('LegislativeDistrict')}
+                                        disabled={!isFieldEditable('LegislativeDistrict')}
                                         error={!!errors.LegislativeDistrict}
                                         allowClear={true}
                                         searchPlaceholder="Search legislative districts..."

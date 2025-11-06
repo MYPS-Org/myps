@@ -174,7 +174,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
     const infraTypeLower = infraType?.toLowerCase();
     
     if (infraTypeLower === 'road' || infraTypeLower === 'roads') {
-      return ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget', 'StartStationLimit', 'EndStationLimit', 'From','To'];
+      return ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget', 'StartStationLimit', 'EndStationLimit', 'From', 'To', 'Length'];
     } else if (infraTypeLower === 'bridge' || infraTypeLower === 'bridges') {
       return ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget'];
     } else if (infraTypeLower === 'consultancy' || infraTypeLower === 'non-infra') {
@@ -449,6 +449,42 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
               placeholder="End Y coordinate..."
               disabled={disabled}
             />
+          </div>
+        );
+      case 'Length':
+        // Get length from InfraId if available, otherwise use current value or 0
+        // const infraLength = location.InfraId ? getInfraLength(location.InfraId) : '';
+        const infraLength = location.From - location.To !== 0 ? Math.abs(location.To - location.From).toString() : '';
+        const currentLength = location.Length !== null && location.Length !== undefined ? location.Length.toString() : '';
+        const displayLength = currentLength || infraLength || '0';
+        
+        return (
+          <div key={fieldName} className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Length (meters)
+            </label>
+            <input
+              type="number"
+              value={displayLength}
+              onChange={(e) => handleFieldChange(index, 'Length', e.target.value ? Number(e.target.value) : null)}
+              onFocus={(e) => {
+                // Auto-populate from InfraId if field is empty or 0
+                if ((!e.target.value || e.target.value === '0') && location.InfraId && infraLength) {
+                  handleFieldChange(index, 'Length', Number(infraLength));
+                }
+                handleNumberFocus(e);
+              }}
+              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
+              placeholder="Length in meters..."
+              min="0"
+              step="0.01"
+              disabled={disabled}
+            />
+            {location.InfraId && infraLength && (
+              <div className="text-xs text-blue-600">
+                Auto-detected length: {infraLength} meters (from {location.InfraId})
+              </div>
+            )}
           </div>
         );
 

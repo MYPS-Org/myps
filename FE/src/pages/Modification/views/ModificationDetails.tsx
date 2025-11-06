@@ -57,6 +57,7 @@ const EditProject: React.FC = () => {
         <ProjectForm
             initialData={initialData}
             mode="edit"
+            category="modification"
         />
     );
 };

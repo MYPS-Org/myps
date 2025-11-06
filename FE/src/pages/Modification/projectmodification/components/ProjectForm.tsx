@@ -44,9 +44,10 @@ interface ProjectFormProps {
   initialData?: ProjectFormPayload;
   mode?: 'add' | 'edit';
   initialProgramId?: string;
+  category?: string;
 }
 
-const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', initialProgramId }) => {
+const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', initialProgramId, category }) => {
 
   const navigate = useNavigate();
 

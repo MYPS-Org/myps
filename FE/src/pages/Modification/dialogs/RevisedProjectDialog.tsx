@@ -25,30 +25,6 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({ isOpen, onClo
         initializeData();
     }, [initializeData]);
 
-    useEffect(() => {
-        if (project) {
-            // Initialize mock components - you can replace this with actual component data
-            setPcmaStatus([
-                {
-                    id: '1',
-                    compId: 'CW-1',
-                    constructionStatus: 'Not yet started',
-                    permitted: true,
-                    implementationMode: 'Contract',
-                    selected: false
-                },
-                {
-                    id: '2',
-                    compId: 'CW-2',
-                    constructionStatus: 'Not yet started',
-                    permitted: true,
-                    implementationMode: 'Administration',
-                    selected: false
-                }
-            ]);
-        }
-    }, [project]);
-
     const handleComponentToggle = (componentId: string) => {
         setPcmaStatus(prev => 
             prev.map(comp => 
@@ -148,13 +124,12 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({ isOpen, onClo
                         </div>
                     </div>
                     {/* Component */}
-                    <div className='pt-4 border border-gray-100 rounded-2xl px-4'>
+                    {/* <div className='pt-4 border border-gray-100 rounded-2xl px-4'>
                         <Table>
                             <TableHead>
                                 <TableRow>
                                     <TableHeader>Select</TableHeader>
                                     <TableHeader>Comp ID</TableHeader>
-                                    {/* <TableHeader>PCMA Status</TableHeader> */}
                                     <TableHeader>Construction Status</TableHeader>
                                     <TableHeader>Permitted</TableHeader>
                                     <TableHeader>Implementation Mode</TableHeader>
@@ -174,15 +149,6 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({ isOpen, onClo
                                         <TableCell>
                                             {component.compId}
                                         </TableCell>
-                                        {/* <TableCell>
-                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                                component.pcmaStatus === 'Completed' ? 'bg-green-100 text-green-800' :
-                                                component.pcmaStatus === 'On-Going' ? 'bg-blue-100 text-blue-800' :
-                                                'bg-yellow-100 text-yellow-800'
-                                            }`}>
-                                                {component.pcmaStatus}
-                                            </span>
-                                        </TableCell> */}
                                         <TableCell>
                                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                                                 component.constructionStatus === 'Completed' ? 'bg-green-100 text-green-800' :
@@ -207,7 +173,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({ isOpen, onClo
                                 ))}
                             </TableBody>
                         </Table>
-                    </div>
+                    </div> */}
                     <div className='pt-4 border border-gray-100 rounded-2xl px-4 flex justify-end gap-5'>
                         <Button
                             type="submit"

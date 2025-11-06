@@ -243,7 +243,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-semibold text-gray-900">Major Item of Work</h2>
-        <Button color="blue" onClick={handleAddMajorItem} disabled={disabled}>
+        <Button color="blue" onClick={handleAddMajorItem} disabled={!isFieldEditable('MajorItemOfWork')}>
           <PlusIcon className="w-4 h-4 mr-1" />
           Add Major Item
         </Button>
@@ -312,16 +312,16 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                       <Button
                         color="blue"
                         onClick={() => handleEditMajorItem(index)}
-                        className={`text-xs px-2 py-1 ${getDisabledClass(disabled)}`}
-                        disabled={disabled}
+                        className={`text-xs px-2 py-1 ${getDisabledClass(!isFieldEditable('MajorItemOfWork'))}`}
+                        disabled={!isFieldEditable('MajorItemOfWork')}
                       >
                         <PencilIcon className="w-3 h-3" />
                       </Button>
                       <Button
                         color="red"
                         onClick={() => onDelete(index)}
-                        className={`text-xs px-2 py-1 ${getDisabledClass(disabled)}`}
-                        disabled={disabled}
+                        className={`text-xs px-2 py-1 ${getDisabledClass(!isFieldEditable('MajorItemOfWork'))}`}
+                        disabled={!isFieldEditable('MajorItemOfWork')}
                       >
                         <TrashIcon className="w-3 h-3" />
                       </Button>
@@ -350,7 +350,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                         minAmount={getMinMaxAmounts(item.WorkTypeId).min}
                         parentId={item.ReferenceId}
                         dropDowns={dropDowns}
-                        disabled={disabled}
+                        disabled={!isFieldEditable('MajorItemOfWork')}
                       />
                     </TableCell>
                   </TableRow>
