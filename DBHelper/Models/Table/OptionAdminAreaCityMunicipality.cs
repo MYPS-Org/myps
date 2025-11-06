@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace DBHelper.Models.Table
 {
-    public class AdminAreaCityMunicipality
+    public class OptionAdminAreaCityMunicipality
     {
         [Key]
         public int Id { get; set; }
@@ -21,6 +21,7 @@ namespace DBHelper.Models.Table
         [MaxLength(255)]
         public string Code { get; set; } = string.Empty;
         [Required]
+        [MaxLength(10)]
         public int ProvinceFkId { get; set; }
         [Required]
         [MaxLength(255)]

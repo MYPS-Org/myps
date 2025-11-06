@@ -10,13 +10,16 @@ namespace DBHelper.Models.Table
     public class OptionAdminAreaRegion
     {
         [Key]
-        [MaxLength(255)]
-        public string Id { get; set; } = string.Empty;
-        public Double? GdbId { get; set; }
-        [MaxLength(255)]
-        public string? Name { get; set; }
-        [MaxLength(255)]
-        public string? ParticipantId { get; set; }
+        public int Id { get; set; }
+        [Required]
+        [MaxLength(10)]
+        public string GdbId { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(200)]
+        public string Name { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(10)]
+        public string ParticipantId { get; set; } = string.Empty;
         [Required]
         [MaxLength(2)]
         public string IslandCode { get; set; } = string.Empty;

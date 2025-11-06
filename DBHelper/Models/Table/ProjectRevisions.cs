@@ -32,8 +32,7 @@ namespace DBHelper.Models.Table
         public string Description { get; set; } = string.Empty;
         [Required]
         public int Category { get; set; }
-        [Required]
-        public int Thrust { get; set; }
+        public int? Thrust { get; set; }
         [Required]
         public int Origin { get; set; }
         [Required]

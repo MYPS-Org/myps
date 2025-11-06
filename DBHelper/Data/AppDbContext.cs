@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using DBHelper.Models.Views;
+using Microsoft.EntityFrameworkCore;
 
 namespace DBHelper.Data
 {
@@ -25,7 +26,7 @@ namespace DBHelper.Data
         public DbSet<Models.Table.ProjectCategoryEnum> tProjectCategoryEnum { get; set; }
         public DbSet<Models.Table.ProjectThrustLists> tProjectThrustLists { get; set; }
         public DbSet<Models.Table.ProjectOriginEnum> tProjectOriginEnum { get; set; }
-        public DbSet<Models.Table.AdminAreaCityMunicipality> tAdminAreaCityMunicipality { get; set; }
+        public DbSet<Models.Table.OptionAdminAreaCityMunicipality> tOptionAdminAreaCityMunicipality { get; set; }
         public DbSet<Models.Table.AdminAreaCongressionalDistrict> tAdminAreaCongressionalDistrict { get; set; }
         public DbSet<Models.Table.OptionAdminAreaDistrictEngineeringOffice> tOptionAdminAreaDistrictEngineeringOffice { get; set; }
         public DbSet<Models.Table.OptionAdminAreaRegion> tOptionAdminAreaRegion { get; set; }
@@ -51,7 +52,7 @@ namespace DBHelper.Data
         public DbSet<Models.Table.InfraType> tInfraType { get; set; }
         public DbSet<Models.Table.ProjectsInGroup> tProjectsInGroup { get; set; }
         public DbSet<Models.Table.ProjectGroups> tProjectGroups { get; set; }
-        public DbSet<Models.Table.AdminAreaProvince> tAdminAreaProvince { get; set; }
+        public DbSet<Models.Table.OptionAdminAreaProvince> tOptionAdminAreaProvince { get; set; }
         public DbSet<Models.Table.DropdownSupportingDocs> tDropdownSupportingDocs { get; set; }
         public DbSet<Models.Table.FutureRoads> tFutureRoads { get; set; }
         public DbSet<Models.Table.FutureRoadsClassification> tFutureRoadsClassification { get; set; }
@@ -69,11 +70,13 @@ namespace DBHelper.Data
         public DbSet<Models.Views.ProjectDetails> vProjectDetails { get; set; }
         public DbSet<Models.Views.ProjectGroups> vProjectGroups { get; set; }
         public DbSet<Models.Views.ProjectsInGroup> vProjectsInGroup { get; set; }
-        public DbSet<Models.Views.AdminOperatingOffice> vAdminOperatingOffice { get; set; }
+        public DbSet<Models.Views.AdminOperatingUnit> vAdminOperatingUnit { get; set; }
         public DbSet<Models.Views.AdminImplementingOffice> vAdminImplementingOffice { get; set; }
         #endregion
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.Entity<AdminOperatingUnit>().HasNoKey().ToView("vAdminOperatingUnit");
+            modelBuilder.Entity<AdminImplementingOffice>().HasNoKey().ToView("vAdminImplementingOffice");
             base.OnModelCreating(modelBuilder);
         }
     }

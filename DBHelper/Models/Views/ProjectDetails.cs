@@ -20,7 +20,7 @@ namespace DBHelper.Models.Views
         public int? RevisionNumber { get; set; }
         public string? Description { get; set; }
         public int Category { get; set; }
-        public int Thrust { get; set; }
+        public int? Thrust { get; set; }
         public int Origin { get; set; }
         public string City { get; set; } = string.Empty;
         public string Province { get; set; } = string.Empty;

@@ -10,11 +10,12 @@ using System.Threading.Tasks;
 
 namespace DBHelper.Models.Table
 {
-    public class AdminAreaProvince
+    public class OptionAdminAreaProvince
     {
         [Key]
         public int Id { get; set; }
         [Required]
+        [MaxLength(10)]
         public int GdbId { get; set; }
         [Required]
         [MaxLength(255)]
@@ -23,9 +24,11 @@ namespace DBHelper.Models.Table
         [MaxLength(50)]
         public string Code { get; set; } = string.Empty;
         [Required]
-        public int RegionFkId { get; set; }
+        [MaxLength(10)]
+        public string RegionParticipantId { get; set; } = string.Empty;
         [Required]
         [MaxLength(255)]
         public string RegionName { get; set; } = string.Empty;
     }
+
 }

@@ -464,7 +464,8 @@ namespace WebAPI.Controllers.Programs
                     });
                 }
                 string[] includes = { "C", "R", "PMO", "PMOC", "B" };
-                var GetSecurityGroup = await _db.tAdminImplementingOffice.AsNoTracking().Where(x => includes.Contains(x.InternalOrgUnitType)).ToListAsync();
+                //Pedning
+                var GetSecurityGroup = await _db.vAdminImplementingOffice.AsNoTracking().ToListAsync();
                 var CheckItems = dto.DataSecurityGroup.Where(x => !GetSecurityGroup.Select(x => x.ParticipantId).Contains(x));
                 if (CheckItems.Count() > 0)
                 {
@@ -473,8 +474,8 @@ namespace WebAPI.Controllers.Programs
                 if (dto.DataSecurityGroup != NewProgramVersion.DataSecurityGroup)
                 {
                     hasUpdated = true;
-                    string CurrentSecurityGroup = string.Join(", ", GetSecurityGroup.Select(x => x.InternalOrgUnitName).Where(sg => NewProgramVersion.DataSecurityGroup.Contains(sg)));
-                    string OdSecurityGroup = string.Join(", ", GetSecurityGroup.Select(x => x.InternalOrgUnitName).Where(sg => dto.DataSecurityGroup.Contains(sg)));
+                    string CurrentSecurityGroup = string.Join(", ", GetSecurityGroup.Select(x => x.Name).Where(sg => NewProgramVersion.DataSecurityGroup.Contains(sg)));
+                    string OdSecurityGroup = string.Join(", ", GetSecurityGroup.Select(x => x.Name).Where(sg => dto.DataSecurityGroup.Contains(sg)));
                     transactionLogs.Add(new TransactionLog
                     {
                         TransactionId = dto.ProgramId,
