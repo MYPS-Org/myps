@@ -202,16 +202,6 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = "Selected Program is already published!", Title = "Program Already Published" });
                 }
-                var SelectedDeo = await _db.tOptionAdminAreaDistrictEngineeringOffice.FirstOrDefaultAsync(x => x.ParticipantId == dto.DEO);
-                if( SelectedDeo == null)
-                {
-                    return new BadRequestObjectResult(new { Message = $"Selected DEO '{dto.DEO}' is not valid!", Title = "Invalid DEO" });
-                }
-                var SelectedRegion = await _db.tOptionAdminAreaRegion.FirstOrDefaultAsync(x => x.ParticipantId == dto.Region);
-                if( SelectedRegion == null)
-                {
-                    return new BadRequestObjectResult(new { Message = $"Selected Region '{dto.Region}' is not valid!", Title = "Invalid Region" });
-                }
                 var Category = await _db.tProjectCategoryEnum.FirstOrDefaultAsync(x => x.Enum == dto.Category && (x.ValidUntil == 0 || x.ValidUntil >= CurrentDate.Year));
                 if(Category == null)
                 {
@@ -227,15 +217,25 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = $"Selected Origin '{dto.Origin}' is not valid!", Title = "Invalid Origin" });
                 }
-                var City = await _db.tOptionAdminAreaCityMunicipality.FirstOrDefaultAsync(x => x.Code == dto.City);
+                var City = await _db.tOptionAdminAreaCityMunicipality.FirstOrDefaultAsync(x => x.GdbId == dto.City);
                 if(City == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Selected City '{dto.City}' is not valid!", Title = "Invalid City" });
                 }
-                var LD = await _db.tAdminAreaCongressionalDistrict.FirstOrDefaultAsync(x => x.Code == dto.LegislativeDistrict);
+                var LD = await _db.tAdminAreaCongressionalDistrict.FirstOrDefaultAsync(x => x.GdbId.ToString() == dto.LegislativeDistrict);
                 if(LD == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Selected Legislative District '{dto.LegislativeDistrict}' is not valid!", Title = "Invalid Legislative District" });
+                }
+                var SelectedDeo = await _db.tOptionAdminAreaDistrictEngineeringOffice.FirstOrDefaultAsync(x => x.ParticipantId == dto.DEO);
+                if (SelectedDeo == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Selected DEO '{dto.DEO}' is not valid!", Title = "Invalid DEO" });
+                }
+                var SelectedRegion = await _db.tOptionAdminAreaRegion.FirstOrDefaultAsync(x => x.ParticipantId == dto.Region);
+                if (SelectedRegion == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Selected Region '{dto.Region}' is not valid!", Title = "Invalid Region" });
                 }
                 var OperatingUnit = await _db.vAdminOperatingUnit.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == dto.OperatingUnit);
                 if(OperatingUnit == null)
@@ -246,16 +246,6 @@ namespace WebAPI.Controllers.Projects
                 if(IO == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Selected Implementing Office '{dto.ImplementingOffice}' is not valid!", Title = "Invalid Implementing Office" });
-                }
-                var DEO = await _db.tOptionAdminAreaDistrictEngineeringOffice.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == dto.DEO);
-                if(DEO == null)
-                {
-                    return new BadRequestObjectResult(new { Message = $"Selected DEO '{dto.DEO}' is not valid!", Title = "Invalid DEO" });
-                }
-                var Region = await _db.tOptionAdminAreaRegion.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == dto.DEO);
-                if(Region == null)
-                {
-                    return new BadRequestObjectResult(new { Message = $"Selected Region '{dto.Region}' is not valid!", Title = "Invalid Region" });
                 }
                 var Feasib = await _db.tProjectLongFeasibilityEnum.FirstOrDefaultAsync(x => x.Enum == dto.Feasibility);
                 if(Feasib == null)
