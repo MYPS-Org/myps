@@ -78,6 +78,7 @@ namespace DBHelper.Data
         {
             modelBuilder.Entity<AdminOperatingUnit>().HasNoKey().ToView("vAdminOperatingUnit");
             modelBuilder.Entity<AdminImplementingOffice>().HasNoKey().ToView("vAdminImplementingOffice");
+            modelBuilder.Entity<GetProjectCategoryVersions>().HasNoKey().ToView("vGetProjectCategoryVersions");
             base.OnModelCreating(modelBuilder);
         }
     }
