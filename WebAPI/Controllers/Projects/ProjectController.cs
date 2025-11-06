@@ -115,7 +115,7 @@ namespace WebAPI.Controllers.Projects
                     Description = x.Description,
                     Thrust = _db.tProjectThrustLists.FirstOrDefault(a => a.PAPKey == x.Thrust)!.ThrustDescription ?? x.Thrust.ToString(),
                     Category = _db.tProjectCategoryEnum.FirstOrDefault(a => a.Enum == x.Category)!.Name ?? x.Category.ToString(),
-                    City = _db.tAdminAreaCityMunicipality.FirstOrDefault(a => a.Code == x.City)!.Name ?? x.City.ToString(),
+                    City = _db.tOptionAdminAreaCityMunicipality.FirstOrDefault(a => a.Code == x.City)!.Name ?? x.City.ToString(),
                     LegislativeDistrict = _db.tAdminAreaCongressionalDistrict.FirstOrDefault(a => a.Code == x.LegislativeDistrict)!.Name ?? x.LegislativeDistrict.ToString(),
                     Cost = _db.tProjectComponentCost.Where(a => a.ReferenceId == x.ReferenceId).Sum(a => a.Total),
                     CreatedBy = x.CreatedBy,
@@ -144,7 +144,7 @@ namespace WebAPI.Controllers.Projects
                 var Thrust = await _db.tProjectThrustLists.AsNoTracking().OrderBy(x => x.ThrustDescription).ToListAsync();
                 var Origin = await _db.tProjectOriginEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var Province = await _db.tOptionAdminAreaProvince.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-                var City = await _db.tAdminAreaCityMunicipality.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var City = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var LD = await _db.tAdminAreaCongressionalDistrict.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var IO = await _db.vAdminImplementingOffice.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var OperatingUnit = await _db.vAdminOperatingUnit.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
@@ -227,7 +227,7 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = $"Selected Origin '{dto.Origin}' is not valid!", Title = "Invalid Origin" });
                 }
-                var City = await _db.tAdminAreaCityMunicipality.FirstOrDefaultAsync(x => x.Code == dto.City);
+                var City = await _db.tOptionAdminAreaCityMunicipality.FirstOrDefaultAsync(x => x.Code == dto.City);
                 if(City == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Selected City '{dto.City}' is not valid!", Title = "Invalid City" });
@@ -280,8 +280,15 @@ namespace WebAPI.Controllers.Projects
                 string FirstSegment = ProgramDetails.StageName.GenerateProjec1stSegment();
                 string SecondSegment = ProgramDetails.YearStart.GenerateProjec2ndSegment();
                 Random rand = new Random();
-                string ThirdSegment = rand.Next(Category.Minimum, Category.Maximum+1).ToString("D5");
+                string ThirdSegment = Category.Minimum.ToString("D5");
                 string FourthSegment = !string.IsNullOrEmpty(dto.IslandCode) ? dto.IslandCode : Region.IslandCode;
+                var CheckExistingVersion = await _db.vGetProjectCategoryVersions.AsNoTracking().Where(x => x.Category == dto.Category
+                    && x.ProjectSuffix == FirstSegment
+                    && x.IslandCode == FourthSegment
+                    && x.YearStart == ProgramDetails.YearStart)
+                .OrderByDescending(x => x.MaxId)
+                .FirstOrDefaultAsync();
+                ThirdSegment = CheckExistingVersion != null ? (int.Parse(CheckExistingVersion.MaxId!) + 1).ToString("D5") : ThirdSegment;
                 string ReferenceId = $"{FirstSegment}{SecondSegment}{ThirdSegment}{FourthSegment}";
                 var SubmitProject = new DBHelper.Models.Table.Projects()
                 {
@@ -402,7 +409,7 @@ namespace WebAPI.Controllers.Projects
                 var Thrust = await _db.tProjectThrustLists.AsNoTracking().OrderBy(x => x.ThrustDescription).ToListAsync();
                 var Origin = await _db.tProjectOriginEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var Province = await _db.tOptionAdminAreaProvince.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-                var City = await _db.tAdminAreaCityMunicipality.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var City = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var LD = await _db.tAdminAreaCongressionalDistrict.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var IO = await _db.vAdminImplementingOffice.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var OperatingUnit = await _db.vAdminOperatingUnit.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
@@ -580,12 +587,12 @@ namespace WebAPI.Controllers.Projects
                 }
                 if (Project.City != dto.ProjectDetails?.City)
                 {
-                    var City = await _db.tAdminAreaCityMunicipality.AsNoTracking().FirstOrDefaultAsync(x => x.Code == dto.ProjectDetails!.City);
+                    var City = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().FirstOrDefaultAsync(x => x.Code == dto.ProjectDetails!.City);
                     if (City == null)
                     {
                         return new BadRequestObjectResult(new { Message = $"Selected City '{dto.ProjectDetails!.City}' is not valid!", Title = "Invalid City" });
                     }
-                    var OldCity = await _db.tAdminAreaCityMunicipality.AsNoTracking().FirstOrDefaultAsync(x => x.Code == Project.City);
+                    var OldCity = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().FirstOrDefaultAsync(x => x.Code == Project.City);
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {

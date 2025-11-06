@@ -72,6 +72,7 @@ namespace DBHelper.Data
         public DbSet<Models.Views.ProjectsInGroup> vProjectsInGroup { get; set; }
         public DbSet<Models.Views.AdminOperatingUnit> vAdminOperatingUnit { get; set; }
         public DbSet<Models.Views.AdminImplementingOffice> vAdminImplementingOffice { get; set; }
+        public DbSet<Models.Views.GetProjectCategoryVersions> vGetProjectCategoryVersions { get; set; }
         #endregion
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

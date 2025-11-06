@@ -19,8 +19,9 @@ namespace DBHelper.Models.Table
         [Required]
         [MaxLength(50)]
         public string ParticipantId { get; set; } = string.Empty;
-        [MaxLength(50)]
-        public string? ProvinceCode { get; set; }
+        [Required]
+        [MaxLength(10)]
+        public string? ProvinceId { get; set; }
         [MaxLength(255)]
         public string? ProvinceName { get; set; }
         [Required]

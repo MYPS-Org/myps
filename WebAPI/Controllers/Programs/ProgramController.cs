@@ -296,7 +296,7 @@ namespace WebAPI.Controllers.Programs
                     Description = x.Description,
                     Thrust = _db.tProjectThrustLists.FirstOrDefault(a => a.PAPKey == x.Thrust)!.ThrustDescription ?? x.Thrust.ToString(),
                     Category = _db.tProjectCategoryEnum.FirstOrDefault(a => a.Enum == x.Category)!.Name ?? x.Category.ToString(),
-                    City = _db.tAdminAreaCityMunicipality.FirstOrDefault(a => a.Code == x.City.ToString())!.Name ?? x.City.ToString(),
+                    City = _db.tOptionAdminAreaCityMunicipality.FirstOrDefault(a => a.Code == x.City.ToString())!.Name ?? x.City.ToString(),
                     LegislativeDistrict = _db.tAdminAreaCongressionalDistrict.FirstOrDefault(a => a.Code == x.LegislativeDistrict.ToString())!.Name ?? x.LegislativeDistrict.ToString(),
                     Cost = _db.tProjectComponentCost.Where(a => a.ReferenceId == x.ReferenceId).Sum(a => a.Total),
                     CreatedBy = x.CreatedBy,

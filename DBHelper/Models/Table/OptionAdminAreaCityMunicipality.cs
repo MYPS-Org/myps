@@ -22,7 +22,7 @@ namespace DBHelper.Models.Table
         public string Code { get; set; } = string.Empty;
         [Required]
         [MaxLength(10)]
-        public int ProvinceFkId { get; set; }
+        public string ProvinceId { get; set; } = string.Empty;
         [Required]
         [MaxLength(255)]
         public string ProvinceName { get; set; } = string.Empty;
