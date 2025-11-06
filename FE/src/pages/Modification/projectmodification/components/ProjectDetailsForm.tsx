@@ -33,13 +33,13 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
         if (!fieldPermissions) {
             return !disabled;
         }
-        
+        // check if isEditable is true in fieldPermissions
         const isEditable = fieldPermissions.editableFields?.includes(fieldName);
-        // Only log once per field per render
-        console.log(`isFieldEditable - Field: ${fieldName}, isEditable: ${isEditable}, disabled: ${disabled}`);
         
-        return isEditable && disabled; // Fixed: should be !disabled, not disabled
+        return isEditable || !disabled;
+
     }, [fieldPermissions, disabled]);
+
     // Initialize filtered data when projectEnums change
     useEffect(() => {
         if (projectEnums) {

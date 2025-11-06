@@ -14,6 +14,7 @@ const projectDetailFields = [
 ];
 
 const projectComponentFields = [
+    'ComponentCost',
     'Description',
     'Project Component Cost',
     'Component Addition (for ROW, CW, CWD, or DR type)',
@@ -21,11 +22,13 @@ const projectComponentFields = [
 ];
 
 const majorItemOfWorkFields = [
+    'MajorItemOfWork',
     'Add or Delete Major Item of Work (e.g., Target, Type of Work)',
     'Target Unit'
 ];
 
 const physicalTargetFields = [
+    'WorkLocation',
     'Physical Target',
     'Work Location fields (e.g., station limits, validation based on infrastructure type)',
 ];
@@ -126,6 +129,45 @@ const runRandomization = () => {
     };
 };
 
+const setCaseA = () => {
+    const pcmaStatus = 'Not yet started';
+    const packageStatus = 'not packaged';
+    const currentCase = determineCase(pcmaStatus, packageStatus);
+    const editableFields = getEditableFieldsForCase(currentCase);
+    return {
+        pcmaStatus,
+        packageStatus,
+        case: currentCase,
+        editableFields
+    };
+};
+
+const setCaseB = () => {
+    const pcmaStatus = ['On-going', 'Not yet started'][Math.floor(Math.random() * 2)];
+    const packageStatus = 'packaged';
+    const currentCase = determineCase(pcmaStatus, packageStatus);
+    const editableFields = getEditableFieldsForCase(currentCase);
+    return {
+        pcmaStatus,
+        packageStatus,
+        case: currentCase,
+        editableFields
+    };
+};
+
+const setCaseC = () => {
+    const pcmaStatus = ['Completed', 'Terminated'][Math.floor(Math.random() * 2)];
+    const packageStatus = ['not packaged', 'packaged'][Math.floor(Math.random() * 2)];
+    const currentCase = determineCase(pcmaStatus, packageStatus);
+    const editableFields = getEditableFieldsForCase(currentCase);
+    return {
+        pcmaStatus,
+        packageStatus,
+        case: currentCase,
+        editableFields
+    };
+}
+
 // Helper function to check if a specific field is editable based on current rules
 const isFieldEditable = (fieldName: string, currentCase: string) => {
     const editableFields = getEditableFieldsForCase(currentCase);
@@ -145,5 +187,8 @@ export default {
     determineCase,
     getEditableFieldsForCase,
     runRandomization,
-    isFieldEditable
+    isFieldEditable,
+    setCaseA,
+    setCaseB,
+    setCaseC
 };

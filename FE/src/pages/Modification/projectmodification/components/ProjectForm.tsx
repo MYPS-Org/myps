@@ -153,6 +153,22 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       setFieldPermissions(result);
       console.log('New PCMA Status:', result);
   };
+
+  const setCaseA = () => {
+      const result = AllowedFields.setCaseA();
+      setFieldPermissions(result);
+      console.log('New PCMA Status:', result);
+  };
+  const setCaseB = () => {
+      const result = AllowedFields.setCaseB();
+      setFieldPermissions(result);
+      console.log('New PCMA Status:', result);
+  };
+  const setCaseC = () => {
+      const result = AllowedFields.setCaseC();
+      setFieldPermissions(result);
+      console.log('New PCMA Status:', result);
+  };
   // #endregion
 
   useEffect(() => {
@@ -851,12 +867,26 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                                     Editable Fields: {fieldPermissions.editableFields.length} fields allowed
                                 </p>
                             </div>
-                            <button 
-                                onClick={handleRandomizeStatus}
-                                className="px-3 py-1 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700"
-                            >
-                                Randomize Status
-                            </button>
+                            <div className="flex space-x-2">
+                              <button 
+                                  onClick={setCaseA}
+                                  className="px-3 py-1 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700"
+                              >
+                                  Case A
+                              </button>
+                              <button 
+                                  onClick={setCaseB}
+                                  className="px-3 py-1 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700"
+                              >
+                                  Case B
+                              </button>
+                              <button 
+                                  onClick={setCaseC}
+                                  className="px-3 py-1 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700"
+                              >
+                                  Case C
+                              </button>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -923,6 +953,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             initialData={initialData}
             maxAmountCost={maxAmountCost}
             disabled={isDisabled}
+            fieldPermissions={fieldPermissions}
           />
         </div>
       </div>
@@ -944,6 +975,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             dropDowns={initialData?.Dropdowns?.ScopeOfWorks}
             programDetails={initialData?.ProgramDetails}
             disabled={isDisabled}
+            fieldPermissions={fieldPermissions}
           />
         </div>
       </div>

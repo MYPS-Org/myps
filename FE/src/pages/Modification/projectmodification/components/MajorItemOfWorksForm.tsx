@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '../../../../components/tailwindui/button';
 import { PlusIcon, TrashIcon, PencilIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { Table, TableHead, TableRow, TableHeader, TableBody, TableCell } from '../../../../components/tailwindui/table';
@@ -25,6 +25,7 @@ interface MajorItemOfWorksFormProps {
   onDelete: (index: number) => void;
   dropDowns?: ScopeOfWorkEnum[];
   disabled?: boolean;
+  fieldPermissions?: any;
 }
 
 const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
@@ -37,7 +38,8 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
   onEdit,
   onDelete,
   disabled = false,
-  dropDowns
+  dropDowns,
+  fieldPermissions
 }) => {
   const [majorItemDialogOpen, setMajorItemDialogOpen] = useState(false);
   const [editingMajorItemIndex, setEditingMajorItemIndex] = useState<number | null>(null);
@@ -93,6 +95,17 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
       }
     }
   }, [majorItems, dropDowns, onEdit]);
+
+  const isFieldEditable = useCallback((fieldName: string) => {
+      if (!fieldPermissions) {
+          return !disabled;
+      }
+      // check if isEditable is true in fieldPermissions
+      const isEditable = fieldPermissions.editableFields?.includes(fieldName);
+      
+      return isEditable || !disabled;
+
+  }, [fieldPermissions, disabled]);
 
   const handleAddMajorItem = () => {
     setIsAddingNewMajorItem(true);

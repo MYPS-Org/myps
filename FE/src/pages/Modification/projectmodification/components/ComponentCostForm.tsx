@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import type { ComponentCost, ComponentCostWithYears, ComponentCostYear } from "../../../Project/Model.d";
 import { Button } from "../../../../components/tailwindui/button";
 import { PlusIcon, TrashIcon, PencilIcon } from "@heroicons/react/24/outline";
@@ -15,8 +15,7 @@ interface ComponentCostFormProps {
   initialData?: any; // Optional initial data for dropdowns or other purposes
   maxAmountCost?: number; // Optional prop to set max amount in ComponentCostForm
   disabled?: boolean;
-  pcmaStatus?: string; // PCMA status from external database
-  packageStatus?: string; // Package status from external database
+  fieldPermissions?: any; // New prop for field permissions
 }
 
 const ComponentCostForm: React.FC<ComponentCostFormProps> = ({ 
@@ -27,8 +26,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
   initialData,
   maxAmountCost,
   disabled = false,
-  pcmaStatus,
-  packageStatus
+  fieldPermissions,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -54,6 +52,16 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
     setIsModalOpen(false);
     setEditingIndex(null);
   };
+
+  const isFieldEditable = useCallback((fieldName: string) => {
+      if (!fieldPermissions) {
+          return !disabled;
+      }
+      
+      const isEditable = fieldPermissions.editableFields?.includes(fieldName);
+      
+      return isEditable && disabled; // Fixed: should be !disabled, not disabled
+  }, [fieldPermissions, disabled]);
 
   const handleSaveCost = (cost: ComponentCost, costYear?: ComponentCostYear) => {
     // Validate if adding/editing would exceed max amount cost
@@ -132,7 +140,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold text-gray-900">Component Cost</h2>
-            <Button color="blue" onClick={handleOpenAddModal} disabled={disabled}>
+            <Button color="blue" onClick={handleOpenAddModal} disabled={!isFieldEditable('ComponentCost')}>
                 <PlusIcon className="w-4 h-4 mr-1" />
                 Add Cost
             </Button>
@@ -243,17 +251,17 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
                     <div className="flex space-x-2">
                       <button
                         onClick={() => handleOpenEditModal(index)}
-                        className={`text-blue-600 hover:text-blue-800 ${getDisabledClass(disabled)}`}
+                        className={`text-blue-600 hover:text-blue-800 ${!isFieldEditable('ComponentCost') ? getDisabledClass(disabled) : ''}`}
                         title="Edit"
-                        disabled={disabled}
+                        disabled={!isFieldEditable('ComponentCost')}
                       >
                         <PencilIcon className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => onDelete(index)}
-                        className={`text-red-600 hover:text-red-800 ${getDisabledClass(disabled)}`}
+                        className={`text-red-600 hover:text-red-800 ${!isFieldEditable('ComponentCost') ? getDisabledClass(disabled) : ''}`}
                         title="Delete"
-                        disabled={disabled}
+                        disabled={!isFieldEditable('ComponentCost')}
                       >
                         <TrashIcon className="w-4 h-4" />
                       </button>
