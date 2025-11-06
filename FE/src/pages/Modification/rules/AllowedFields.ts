@@ -13,6 +13,12 @@ const projectDetailFields = [
     'Agency',
 ];
 
+const projectFundingProfileFields = [
+    'FundingAgreement',
+    'FundSource',
+    'FundingOrganization',
+];
+
 const projectComponentFields = [
     'ComponentCost',
     'Description',
@@ -177,6 +183,7 @@ const isFieldEditable = (fieldName: string, currentCase: string) => {
 // Export all the functions and data
 export default {
     projectDetailFields,
+    projectFundingProfileFields,
     projectComponentFields,
     majorItemOfWorkFields,
     physicalTargetFields,

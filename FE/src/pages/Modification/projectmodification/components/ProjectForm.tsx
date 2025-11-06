@@ -38,7 +38,7 @@ import { useToast } from '../../../../components/toaster/ToasterContext';
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/react';
 import { categoryData } from '../../../Modification/mockData/Dropdown';
 import ReviseProjectDialog from '../../dialogs/RevisedProjectDialog';
-import AllowedFields from '../../rules/AllowedFields';
+import RuleManager from '../../rules/RuleManager';
 
 interface ProjectFormProps {
   initialData?: ProjectFormPayload;
@@ -135,40 +135,41 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
   useEffect(() => {
     if (pcmaStatus && packageStatus) {
-      const currentCase = AllowedFields.determineCase(pcmaStatus, packageStatus);
-      const editableFields = AllowedFields.getEditableFieldsForCase(currentCase);
+      const currentCase = RuleManager.determineCase(pcmaStatus, packageStatus, category);
+      const editableFields = RuleManager.getEditableFieldsForCase(currentCase, category);
       setFieldPermissions({
           pcmaStatus,
           packageStatus,
           case: currentCase,
+          category: category || 'modification',
           editableFields
       });
     } else {
-      const result = AllowedFields.runRandomization();
+      const result = RuleManager.runRandomization(category);
       setFieldPermissions(result);
     }
-  }, [pcmaStatus, packageStatus]);
+  }, [pcmaStatus, packageStatus, category]);
   // Function to handle randomization for testing
   const handleRandomizeStatus = () => {
-      const result = AllowedFields.runRandomization();
+      const result = RuleManager.runRandomization(category);
       setFieldPermissions(result);
-      console.log('New PCMA Status:', result);
+      console.log('New Field Permissions for', category, ':', result);
   };
 
   const setCaseA = () => {
-      const result = AllowedFields.setCaseA();
+      const result = RuleManager.setCaseA(category);
       setFieldPermissions(result);
-      console.log('New PCMA Status:', result);
+      console.log('Case A for', category, ':', result);
   };
   const setCaseB = () => {
-      const result = AllowedFields.setCaseB();
+      const result = RuleManager.setCaseB(category);
       setFieldPermissions(result);
-      console.log('New PCMA Status:', result);
+      console.log('Case B for', category, ':', result);
   };
   const setCaseC = () => {
-      const result = AllowedFields.setCaseC();
+      const result = RuleManager.setCaseC(category);
       setFieldPermissions(result);
-      console.log('New PCMA Status:', result);
+      console.log('Case C for', category, ':', result);
   };
   // #endregion
 
@@ -862,7 +863,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                                 <p className="text-xs text-yellow-700">
                                     Status: <span className="font-medium">{fieldPermissions.pcmaStatus}</span> | 
                                     Package: <span className="font-medium">{fieldPermissions.packageStatus}</span> | 
-                                    Case: <span className="font-medium">{fieldPermissions.case}</span>
+                                    Case: <span className="font-medium">{fieldPermissions.case}</span> |
+                                    Category: <span className="font-medium">{fieldPermissions.category || category}</span>
                                 </p>
                                 <p className="text-xs text-yellow-700 mt-1">
                                     Editable Fields: {fieldPermissions.editableFields.length} fields allowed
@@ -873,19 +875,19 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                                   onClick={setCaseA}
                                   className="px-3 py-1 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700"
                               >
-                                  Case A
+                                  Case A ({category})
                               </button>
                               <button 
                                   onClick={setCaseB}
                                   className="px-3 py-1 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700"
                               >
-                                  Case B
+                                  Case B ({category})
                               </button>
                               <button 
                                   onClick={setCaseC}
                                   className="px-3 py-1 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700"
                               >
-                                  Case C
+                                  Case C ({category})
                               </button>
                             </div>
                         </div>
@@ -900,6 +902,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                   errors={errors}
                   disabled={isDisabled}
                   fieldPermissions={fieldPermissions}
+                  category={category}
                 />
               </div>
               <div className="flex justify-end px-4 pb-6 sm:px-8">

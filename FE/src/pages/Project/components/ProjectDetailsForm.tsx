@@ -438,7 +438,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     <SearchableDropdown
                                         options={formatDropdownOptions(filteredCities || [], 'GdbId', 'Name', 'Id')}
                                         value={projectDetails?.City || ''}
-                                        onChange={(value) => handleInputChange('City', value === '' ? undefined : parseInt(value.toString()))}
+                                        onChange={(value) => handleInputChange('City', value === '' ? undefined : value.toString())}
                                         placeholder="Select City/Municipality"
                                         disabled={disabled}
                                         error={!!errors.City}

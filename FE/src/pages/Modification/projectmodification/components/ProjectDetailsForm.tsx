@@ -13,6 +13,7 @@ interface ProjectDetailsFormProps {
     errors?: FormValidationError<ProjectDetails>;
     disabled?: boolean;
     fieldPermissions?: any;
+    category?: string;
 }
 
 const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({ 
@@ -22,7 +23,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
     mode = '',
     errors = {},
     disabled = false,
-    fieldPermissions
+    fieldPermissions,
+    category
 }) => {
     const [ filteredCities, setFilteredCities ] = useState<ProjectEnums['Cities']>([]);
     const [ filteredLegislativeDistricts, setFilteredLegislativeDistricts ] = useState<ProjectEnums['LDs']>([]);
@@ -240,14 +242,16 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             {/* Debug section for field permissions */}
             {fieldPermissions && (
                 <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <h4 className="text-sm font-semibold text-blue-800 mb-2">Field Permissions Debug:</h4>
+                    <h4 className="text-sm font-semibold text-blue-800 mb-2">Field Permissions Debug ({category}):</h4>
                     <p className="text-xs text-blue-700">
                         PCMA Status: <span className="font-medium">{fieldPermissions.pcmaStatus}</span> | 
                         Package Status: <span className="font-medium">{fieldPermissions.packageStatus}</span> | 
-                        Case: <span className="font-medium">{fieldPermissions.case}</span>
+                        Case: <span className="font-medium">{fieldPermissions.case}</span> |
+                        Category: <span className="font-medium">{fieldPermissions.category || category}</span>
                     </p>
                     <p className="text-xs text-blue-700 mt-1">
-                        Editable Fields: {fieldPermissions.editableFields?.length || 0} fields
+                        Editable Fields ({fieldPermissions.editableFields?.length || 0}): 
+                        <span className="font-mono text-xs"> {fieldPermissions.editableFields?.join(', ')}</span>
                     </p>
                 </div>
             )}

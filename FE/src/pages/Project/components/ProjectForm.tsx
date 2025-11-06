@@ -726,7 +726,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     }
     if (revisionTypeId === 19 ){
       navigate(`/revision/modification-details/${projectId}:${stageName}`, { state: { stageName, revisionTypeId, revisionTypeDescription } });
-    } else {
+    } else if (revisionTypeId === 6) {
+      navigate(`/revision/adjustment-details/${projectId}:${stageName}`, { state: { stageName, revisionTypeId, revisionTypeDescription } });
+    }else {
       navigate(`/revision/${projectId}`, { state: { stageName, revisionTypeId, revisionTypeDescription } });
     }
     

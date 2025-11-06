@@ -6,7 +6,7 @@ import ProjectForm from '../projectmodification/components/ProjectForm';
 import type { ProjectFormPayload } from '../../Project/Model.d';
 import { getProjectDetails } from '../../Project/Service';
 
-const EditProject: React.FC = () => {
+const AdjustProject: React.FC = () => {
     const { project } = useParams<{ project: string }>();
     const id = useMemo(() => project?.split(':'), [project]);
     const [initialData, setInitialData] = useState<ProjectFormPayload | undefined>(undefined);
@@ -62,4 +62,4 @@ const EditProject: React.FC = () => {
     );
 };
 
-export default EditProject;
+export default AdjustProject;
