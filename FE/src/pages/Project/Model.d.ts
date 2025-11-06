@@ -427,7 +427,7 @@ export interface RODEOEnum {
 	GdbId?: string;
 	Name: string;
 	ParticipantId: string;
-	ProvinceCode?: string;
+	ProvinceId?: string;
 	ProvinceName?: string;
 	RegionParticipantId: string;
 	RegionName: string;
@@ -526,28 +526,28 @@ export interface ProjectOriginEnum {
 
 export interface ProjectCityEnum {
 	Id: number;
-	GdbId: number;
+	GdbId: string;
 	Name: string;
 	Code: string;
-	ProvinceFkId: number;
+	ProvinceId: string;
 	ProvinceName: string;
 }
 
 export interface ProjectProvinceEnum {
 	Id: number;
-	GdbId: number;
+	GdbId: string;
 	Name: string;
 	Code: string;
-	RegionFkId: number;
+	RegionId: string;
 	RegionName: string;
 }
 
 export interface ProjectLegislativeDistrictEnum {
 	Id: number;
-	GdbId: number;
+	GdbId: string;
 	Name: string;
 	Code: string;
-	ProvinceFkId: number;
+	ProvinceId: string;
 	ProvinceName: string;
 }
 
@@ -578,7 +578,7 @@ export interface ProjectRODEOEnum {
 	GdbId?: string;
 	Name: string;
 	ParticipantId: string;
-	ProvinceCode?: number;
+	ProvinceId?: string;
 	ProvinceName?: string;
 	RegionParticipantId: string;
 	RegionName: string;
