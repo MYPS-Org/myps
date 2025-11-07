@@ -1,5 +1,6 @@
 import AllowedFields from './AllowedFields';
 import AdjustmentFields from './AdjustmentFields';
+import ChangeInAuthority from './ChangeInAuthority';
 
 interface FieldPermissionRule {
     projectDetailFields: string[];
@@ -28,6 +29,9 @@ class RuleManager {
             case 'adjustment':
                 return AdjustmentFields;
             case 'modification':
+                 return AllowedFields;
+            case 'changeinauthority':
+                return ChangeInAuthority;
             default:
                 return AllowedFields;
         }

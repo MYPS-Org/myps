@@ -30,6 +30,7 @@ import ModifyProject from './pages/Modification/views/ModifyProject';
 import ModificationDetails from './pages/Modification/views/ModificationDetails';
 import MYProjectDetails from './pages/MultiYear/views/MYProjectDetails';
 import AdjustProject from './pages/Modification/views/AdjustProject';
+import ChangeInAuthority from './pages/Modification/views/ChangeInAuthority';
 
 // import AddProgram from './pages/Program/Views/AddProgram';
 function App() {
@@ -135,6 +136,12 @@ function App() {
 									path="/revision/adjustment-details/:project" 
 									element={<ProtectedRoute>
 										<AdjustProject />
+										</ProtectedRoute>}
+								/>
+								<Route 
+									path="/revision/change-in-authority/:project" 
+									element={<ProtectedRoute>
+										<ChangeInAuthority />
 										</ProtectedRoute>}
 								/>
 								<Route 

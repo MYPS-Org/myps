@@ -456,7 +456,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     <SearchableDropdown
                                         options={formatDropdownOptions(filteredLegislativeDistricts || [], 'GdbId', 'Name', 'Id')}
                                         value={projectDetails?.LegislativeDistrict || ''}
-                                        onChange={(value) => handleInputChange('LegislativeDistrict', value === '' ? undefined : parseInt(value.toString()))}
+                                        onChange={(value) => handleInputChange('LegislativeDistrict', value === '' ? undefined : value.toString())}
                                         placeholder="Select Legislative District"
                                         disabled={disabled}
                                         error={!!errors.LegislativeDistrict}
@@ -502,7 +502,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     <SearchableDropdown
                                         options={formatDropdownOptions(
                                             projectEnums?.DEOs?.filter(x => x.ParticipantId === projectDetails?.DEO) || [],
-                                            'ParticipantId',
+                                            'RegionParticipantId',
                                             'RegionName',
                                             'Id'
                                         )}
