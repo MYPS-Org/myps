@@ -95,7 +95,7 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
       const newFormData = { ...prev, [field]: value };
       
       // Auto-generate name when Stage or YearStart changes
-      if (field === 'Stage' || field === 'YearStart') {
+      if (field === 'Stage' || field === 'YearStart' || field === 'Type') {
         const selectedStage = Stage.find(stage => stage.Enum === (field === 'Stage' ? value : newFormData.Stage));
         const stageName = selectedStage ? selectedStage.Name : '';
         const yearStart = field === 'YearStart' ? value : newFormData.YearStart;
@@ -108,6 +108,10 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
           newFormData.IsSkipped = false;
           setSkipped(false);
           newFormData.SkipReason = ''; // Clear reason when not skipping
+        }
+        if(field === 'Type' && value == 3) {
+          newFormData.Stage = 11; // Reset Stage if Type is 3
+          newFormData.Name = 'TF' + newFormData.YearStart;
         }
       }
 
@@ -286,7 +290,8 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
               <select
                 value={formData.Stage}
                 onChange={(e) => handleChange('Stage', Number(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 ${formData.Type == 3 ? '!bg-gray-50 cursor-not-allowed' : ''}`}
+                disabled={formData.Type == 3}
               >
                 <option className="text-gray-500" value="">
                   Select Stage

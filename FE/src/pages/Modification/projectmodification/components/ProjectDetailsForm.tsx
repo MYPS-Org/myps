@@ -529,7 +529,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.Region ? 'text-red-500' : 'text-gray-600'}`}>Regional Office:</label>
+                                <label className={`w-1/3 ${errors.Region ? 'text-red-500' : 'text-gray-600'}`}>Region:</label>
                                 <div className='w-2/3'>
                                     <SearchableDropdown
                                         options={formatDropdownOptions(
