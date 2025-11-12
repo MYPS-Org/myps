@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace DBHelper.Models.Views
 {
-    public class AdminOperatingUnit
+    public class AdminOperatingUnitUnit
     {
         public string Name { get; set; } = string.Empty;
         public string ParticipantId { get; set; } = string.Empty;
