@@ -232,7 +232,7 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = $"Selected DEO '{dto.DEO}' is not valid!", Title = "Invalid DEO" });
                 }
-                var SelectedRegion = await _db.tOptionAdminAreaRegion.FirstOrDefaultAsync(x => x.ParticipantId == dto.Region);
+                var SelectedRegion = await _db.tOptionAdminAreaRegion.FirstOrDefaultAsync(x => x.ParticipantId == SelectedDeo.RegionParticipantId);
                 if (SelectedRegion == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Selected Region '{dto.Region}' is not valid!", Title = "Invalid Region" });
@@ -271,7 +271,7 @@ namespace WebAPI.Controllers.Projects
                 string SecondSegment = ProgramDetails.YearStart.GenerateProjec2ndSegment();
                 Random rand = new Random();
                 string ThirdSegment = Category.Minimum.ToString("D5");
-                string FourthSegment = !string.IsNullOrEmpty(dto.IslandCode) ? dto.IslandCode : Region.IslandCode;
+                string FourthSegment = !string.IsNullOrEmpty(dto.IslandCode) ? dto.IslandCode : SelectedRegion.IslandCode;
                 var CheckExistingVersion = await _db.vGetProjectCategoryVersions.AsNoTracking().Where(x => x.Category == dto.Category
                     && x.ProjectSuffix == FirstSegment
                     && x.IslandCode == FourthSegment
@@ -312,7 +312,7 @@ namespace WebAPI.Controllers.Projects
                     Agency = dto.Agency,
                     ImplementationMode = dto.ImplementationMode,
                     EmergencyMode = dto.EmergencyMode,
-                    IslandCode = Region.IslandCode ?? dto.IslandCode!,
+                    IslandCode = SelectedRegion.IslandCode ?? dto.IslandCode!,
                     Feasibility = dto.Feasibility,
                     FeasibilityDate = dto.FeasibilityDate,
                     DetailedDesign = dto.DetailedDesign,

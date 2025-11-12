@@ -11,5 +11,7 @@ namespace DBHelper.Models.Views
         public string Name { get; set; } = string.Empty;
         public string ParticipantId { get; set; } = string.Empty;
         public string OrgType { get; set; } = string.Empty;
+        public string RegionParticipantId { get; set; } = string.Empty;
+        public string RegionName { get; set; } = string.Empty;
     }
 }
