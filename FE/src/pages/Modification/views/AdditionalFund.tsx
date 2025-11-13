@@ -57,7 +57,7 @@ const AdditionalFund: React.FC = () => {
         <ProjectForm
             initialData={initialData}
             mode="edit"
-            category="Adjustment"
+            category="AdditionalFund"
         />
     );
 };

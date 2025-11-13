@@ -57,7 +57,7 @@ const Termination: React.FC = () => {
         <ProjectForm
             initialData={initialData}
             mode="edit"
-            category="Adjustment"
+            category="Termination"
         />
     );
 };

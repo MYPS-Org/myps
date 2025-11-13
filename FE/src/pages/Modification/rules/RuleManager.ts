@@ -1,6 +1,8 @@
 import AllowedFields from './AllowedFields';
 import AdjustmentFields from './AdjustmentFields';
 import ChangeInAuthority from './ChangeInAuthority';
+import Termination from './Termination';
+import AdditionalFund from './AdditionalFund';
 
 interface FieldPermissionRule {
     projectDetailFields: string[];
@@ -32,6 +34,10 @@ class RuleManager {
                  return AllowedFields;
             case 'changeinauthority':
                 return ChangeInAuthority;
+            case 'additionalfund':
+                return AdditionalFund;
+            case 'termination':
+                return Termination;
             default:
                 return AllowedFields;
         }

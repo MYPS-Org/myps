@@ -2,22 +2,14 @@
 
 const projectDetailFields = [
     'Description',
-    'EmergencyMode',
-    'Origin',
-    'MYCAApprovalDate',
-    'OperatingUnit',
-    'ImplementingOffice',
-    'DEO',
-    'LegislativeDistrict',
-    'City',
-    'Agency',
-    'Thrust',
 ];
 
 const projectFundingProfileFields = [
     'FundingAgreement',
     'FundSource',
     'FundingOrganization',
+    'FundingAdd',
+    'FundingDelete',
 ];
 
 const projectComponentFields = [
