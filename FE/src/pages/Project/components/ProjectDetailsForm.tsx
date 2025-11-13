@@ -25,13 +25,15 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
     const [ filteredCities, setFilteredCities ] = useState<ProjectEnums['Cities']>([]);
     const [ filteredLegislativeDistricts, setFilteredLegislativeDistricts ] = useState<ProjectEnums['LDs']>([]);
     const [ filteredDEOs, setFilteredDEOs ] = useState<ProjectEnums['DEOs']>([]);
+    const [ filteredIOs, setFilteredIOs ] = useState<ProjectEnums['IOs']>([]);
+    const [ filteredOUs, setFilteredOUs ] = useState<ProjectEnums['OperatingUnits']>([]);
 
     // Initialize filtered data when projectEnums change
     useEffect(() => {
         if (projectEnums) {
             updateFilteredData();
         }
-    }, [projectEnums, projectDetails?.Province, projectDetails?.City, projectDetails?.LegislativeDistrict, projectDetails?.DEO]);
+    }, [projectEnums, projectDetails?.Province, projectDetails?.City, projectDetails?.LegislativeDistrict, projectDetails?.DEO, projectDetails?.ImplementingOffice]);
 
     const updateFilteredData = () => {
         if (!projectEnums) return;
@@ -39,6 +41,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
         let availableCities = projectEnums.Cities || [];
         let availableLDs = projectEnums.LDs || [];
         let availableDEOs = projectEnums.DEOs || [];
+        let availableIOs = projectEnums.IOs || [];
+        let availableOUs = projectEnums.OperatingUnits || [];
 
         // If province is selected, filter cities and LDs by province
         if (projectDetails?.Province) {
@@ -89,6 +93,38 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
         setFilteredCities(availableCities);
         setFilteredLegislativeDistricts(availableLDs);
         setFilteredDEOs(availableDEOs);
+
+        // Filter IOs based on DEO's RegionParticipantId or OrgType === 'UPMO'
+        if (projectDetails?.DEO) {
+            const selectedDEO = projectEnums.DEOs?.find((deo) => deo.ParticipantId === projectDetails.DEO?.toString());
+            if (selectedDEO) {
+                availableIOs = projectEnums.IOs?.filter(
+                    (io) => io.RegionParticipantId === selectedDEO.RegionParticipantId || io.OrgType === 'UPMO'
+                ) || [];
+            }
+        } else {
+            // If no DEO selected, show only UPMO offices
+            availableIOs = projectEnums.IOs?.filter((io) => io.OrgType === 'UPMO') || [];
+        }
+
+        setFilteredIOs(availableIOs);
+
+        // Filter OU based on selected IO
+        if(projectDetails?.ImplementingOffice) {
+            const selectedIO = projectEnums.IOs?.find((io) => io.ParticipantId === projectDetails.ImplementingOffice);
+            console.log('Selected IO for OU filtering:', selectedIO);
+            if (selectedIO) {
+                // Show OUs that belong to the selected IO or are Central Office (CO)
+                availableOUs = projectEnums.OperatingUnits?.filter(
+                    (ou) => ou.ParticipantId === selectedIO.ParticipantId || (selectedIO.OrgType === 'UPMO' && ou.OrgType === 'CO')
+                ) || [];
+                console.log('Filtered OUs:', availableOUs);
+            }
+        } else {
+            // If no IO selected, show all OUs
+            availableOUs = projectEnums.OperatingUnits || [];
+        }
+        setFilteredOUs(availableOUs);
     };
 
     const handleInputChange = (field: keyof ProjectDetails, value: any) => {
@@ -522,38 +558,11 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     <div className="grid grid-cols-2 gap-5">
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.OperatingUnit ? 'text-red-500' : 'text-gray-600'}`}>*Operating Unit:</label>
-                                <div className="w-2/3">
-                                    <SearchableDropdown
-                                        options={formatDropdownOptions(projectEnums?.OperatingUnits || [], 'ParticipantId', 'Name')}
-                                        value={projectDetails?.OperatingUnit || ''}
-                                        onChange={(value) => handleInputChange('OperatingUnit', value === '' ? undefined : value.toString())}
-                                        placeholder="Select Operating Unit"
-                                        disabled={disabled}
-                                        error={!!errors.OperatingUnit}
-                                        allowClear={true}
-                                        searchPlaceholder="Search operating units..."
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className='w-full flex flex-col text-left gap-2'>
-                            <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.ImplementingOffice ? 'text-red-500' : 'text-gray-600'}`}>*Implementing Office:</label>
                                 <div className="w-2/3">
                                     <SearchableDropdown
                                         options={formatDropdownOptions(
-                                            projectEnums?.IOs?.filter(x => {
-                                                // If no Operating Unit selected, show nothing
-                                                if (!projectDetails?.OperatingUnit || projectDetails?.OperatingUnit === "") return false;
-                                                
-                                                // If Central Office (OI10) is selected as Operating Unit, show all IOs
-                                                if (projectDetails?.OperatingUnit === "OI10") return true;
-                                                
-                                                // Otherwise, filter by matching Operating Unit or allow Central Office
-                                                return x.ParticipantId === projectDetails?.OperatingUnit;
-                                            }) || [], 
+                                            filteredIOs || [], 
                                             'ParticipantId', 
                                             'Name',
                                         )}
@@ -564,6 +573,24 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                         error={!!errors.ImplementingOffice}
                                         allowClear={true}
                                         searchPlaceholder="Search implementing offices..."
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className='w-full flex flex-col text-left gap-2'>
+                            <div className="flex flex-row gap-5 items-center">
+                                <label className={`w-1/3 ${errors.OperatingUnit ? 'text-red-500' : 'text-gray-600'}`}>*Operating Unit:</label>
+                                <div className="w-2/3">
+                                    <SearchableDropdown
+                                        options={formatDropdownOptions(filteredOUs || [], 'ParticipantId', 'Name')}
+                                        value={projectDetails?.OperatingUnit || ''}
+                                        onChange={(value) => handleInputChange('OperatingUnit', value === '' ? undefined : value.toString())}
+                                        placeholder="Select Operating Unit"
+                                        disabled={disabled}
+                                        error={!!errors.OperatingUnit}
+                                        allowClear={true}
+                                        searchPlaceholder="Search operating units..."
                                     />
                                 </div>
                             </div>

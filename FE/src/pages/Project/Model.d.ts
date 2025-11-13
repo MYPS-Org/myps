@@ -554,23 +554,25 @@ export interface ProjectLegislativeDistrictEnum {
 export interface ProjectOperatingUnitEnum {
 	Id: number;
 	ParticipantId: string;
-	InternalOrgUnitName?: string;
-	InternalOrgUnitType?: string;
+	Name?: string;
+	OrgType?: string;
 	ProvinceName?: string;
 	RegionName?: string;
 	CongressionalDistrictName?: string;
 	IslandCode?: string;
+	RegionParticipantId: string;
 }
 
 export interface ProjectImplementingOfficeEnum {
 	Id: number;
 	ParticipantId: string;
-	InternalOrgUnitName?: string;
-	InternalOrgUnitType?: string;
+	Name?: string;
+	OrgType?: string;
 	ProvinceName?: string;
 	RegionName?: string;
 	CongressionalDistrictName?: string;
 	IslandCode?: string;
+	RegionParticipantId: string;
 }
 
 export interface ProjectRODEOEnum {
