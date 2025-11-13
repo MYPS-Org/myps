@@ -3,47 +3,108 @@ import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { useDropDownData } from "../hooks/useDropDown";
 import XMarkIcon from '@heroicons/react/24/outline/XMarkIcon';
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '../../../components/tailwindui/table';
-import type { ProjectDetails } from '../../Project/Model';
+import type { ProjectDetails, ComponentCost, ComponentCostYear, MajorItemOfWork, MajorItemLocations, FundingProfile } from '../../Project/Model';
+import { submitModificationRequest } from '../Service';
+import { useToast } from '../../../components/toaster/ToasterContext';
 
 interface ReviseProjectDialogProps {
     isOpen: boolean;
     onClose: () => void;
     project: ProjectDetails;
+    componentCosts: ComponentCost[];
+    componentCostYear: ComponentCostYear[];
+    majorItemOfWorks: MajorItemOfWork[];
+    majorItemLocations: MajorItemLocations[];
+    fundingProfile: FundingProfile[];
 }
 
-const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({ isOpen, onClose, project }) => {
+const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({ 
+    isOpen, 
+    onClose, 
+    project,
+    componentCosts,
+    componentCostYear,
+    majorItemOfWorks,
+    majorItemLocations,
+    fundingProfile
+}) => {
     const {
-        initializeData,
-        modCategories,
-        modReasons
+        initializeData
     } = useDropDownData();
 
-    const [pcmaStatus, setPcmaStatus] = useState<any[]>([]);
+    const { showToast } = useToast();
+    const [approvalDate, setApprovalDate] = useState<string>('');
+    const [approvalDocument, setApprovalDocument] = useState<File | null>(null);
+    const [revisionReason, setRevisionReason] = useState<string>('');
+    const [revisionType] = useState<string>('modification');
+    const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
     useEffect(() => {
         initializeData();
     }, [initializeData]);
 
-    const handleComponentToggle = (componentId: string) => {
-        setPcmaStatus(prev => 
-            prev.map(comp => 
-                comp.id === componentId 
-                    ? { ...comp, selected: !comp.selected }
-                    : comp
-            )
-        );
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            setApprovalDocument(e.target.files[0]);
+        }
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        const selectedComps = pcmaStatus.filter(comp => comp.selected);
-        console.log('Submit revised project:', {
-            project: project,
-            selectedComponents: selectedComps
-        });
-        // Handle form submission here
-        onClose();
+        
+        // Validation
+        if (!approvalDate) {
+            showToast({
+                type: 'error',
+                message: 'Please select an approval date.'
+            });
+            return;
+        }
+
+        if (!approvalDocument) {
+            showToast({
+                type: 'error',
+                message: 'Please upload an approval document.'
+            });
+            return;
+        }
+
+        setIsSubmitting(true);
+
+        try {
+            // Prepare the payload
+            const payload = {
+                ProjectDetails: project,
+                ComponentCosts: componentCosts,
+                ComponentCostYear: componentCostYear,
+                MajorItemOfWorks: majorItemOfWorks,
+                MajorItemLocations: majorItemLocations,
+                FundingProfile: fundingProfile,
+                RevisionReason: revisionReason,
+                RevisionType: revisionType,
+                ApprovalDate: approvalDate,
+                FileAttachments: [approvalDocument.name] // You may need to handle file upload separately
+            };
+
+            console.log('Submitting modification request with payload:', payload);
+
+            await submitModificationRequest(payload);
+
+            showToast({
+                type: 'success',
+                message: 'Modification request submitted successfully.'
+            });
+
+            onClose();
+        } catch (error) {
+            console.error('Error submitting modification request:', error);
+            showToast({
+                type: 'error',
+                message: 'Failed to submit modification request.'
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
     }
 
     return (
@@ -53,7 +114,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({ isOpen, onClo
             {/* Full-screen container */}
             <div className="fixed inset-0 flex items-center justify-center p-4">
 
-            <DialogPanel className="w-full max-w-4xl bg-white rounded-lg shadow-xl p-6">
+            <DialogPanel className="w-full max-w-3xl bg-white rounded-lg shadow-xl p-2">
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
                     <div>
                         <DialogTitle className="text-lg font-semibold text-gray-900">
@@ -94,23 +155,41 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({ isOpen, onClo
                     <div className='space-y-2'>
                         <div className='flex justify-between gap-5 items-center'>
                             <label className='w-1/3 block text-sm font-medium text-gray-700'>
-                                Date of Approval :
+                                *Date of Approval :
                             </label>
                             <input 
                                 type="date" 
+                                value={approvalDate}
+                                onChange={(e) => setApprovalDate(e.target.value)}
+                                required
                                 className='w-2/3 border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500'
                             />
                         </div>
                         <div className='flex justify-between gap-5 items-center'>
                             <label className='w-1/3 block text-sm font-medium text-gray-700'>
-                                Approval Document :
+                                *Approval Document :
                             </label>
                             <input 
                                 type="file" 
+                                accept=".pdf,.doc,.docx"
+                                onChange={handleFileChange}
+                                required
                                 className='w-2/3 border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500'
                             />
                         </div>
                         <div className='flex justify-between gap-5 items-center'>
+                            <label className='w-1/3 block text-sm font-medium text-gray-700'>
+                                Revision Reason :
+                            </label>
+                            <textarea 
+                                value={revisionReason}
+                                onChange={(e) => setRevisionReason(e.target.value)}
+                                placeholder="Enter reason for modification..."
+                                rows={3}
+                                className='w-2/3 border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500'
+                            />
+                        </div>
+                        {/* <div className='flex justify-between gap-5 items-center'>
                             <label className='w-1/3 block text-sm font-medium text-gray-700'>
                                 Reasons :
                             </label>
@@ -121,7 +200,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({ isOpen, onClo
                                     </option>
                                 ))}
                             </select>
-                        </div>
+                        </div> */}
                     </div>
                     {/* Component */}
                     {/* <div className='pt-4 border border-gray-100 rounded-2xl px-4'>
@@ -178,10 +257,14 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({ isOpen, onClo
                         <Button
                             type="submit"
                             color="blue"
-                        >Submit
+                            disabled={isSubmitting}
+                        >
+                            {isSubmitting ? 'Submitting...' : 'Submit'}
                         </Button>
                         <Button
+                            type="button"
                             onClick={onClose}
+                            disabled={isSubmitting}
                         >Cancel</Button>
                     </div>
                 </form>

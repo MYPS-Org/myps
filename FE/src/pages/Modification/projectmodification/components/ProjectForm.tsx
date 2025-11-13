@@ -1016,6 +1016,30 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         isOpen={isRevisedProjectDialogOpen}
         onClose={() => setIsRevisedProjectDialogOpen(false)}
         project={initialData?.ProjectDetails || projectDetails}
+        componentCosts={componentCosts}
+        componentCostYear={componentCostsYear}
+        majorItemOfWorks={majorItems.map(item => ({
+          Id: item.Id,
+          ProjectId: item.ProjectId,
+          StageName: initialData?.ProgramDetails.StageName || '',
+          ComponentId: item.ComponentId,
+          ReferenceId: item.ReferenceId,
+          YearOfWork: item.YearOfWork,
+          WorkTypeId: item.WorkTypeId,
+          InfraType: item.InfraType,
+          TargetUnitId: item.TargetUnitId,
+          TargetUnit: item.TargetUnit,
+          CreatedBy: item.CreatedBy
+        }))}
+        majorItemLocations={majorItems.flatMap(item => 
+          (item.MajorItemLocations || []).map(location => ({
+            ...location,
+            ParentId: item.ReferenceId,
+            ProjectId: item.ProjectId || '',
+            StageName: initialData?.ProgramDetails.StageName || ''
+          }))
+        )}
+        fundingProfile={fundingProfiles}
       />)}
     </div>
   );

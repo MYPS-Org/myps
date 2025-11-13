@@ -38,6 +38,8 @@ import { useToast } from '../../../components/toaster/ToasterContext';
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/react';
 import { categoryData } from '../../Modification/mockData/Dropdown';
 
+import RevisionDialog from '../dialogs/RevisionDialog';
+
 interface ProjectFormProps {
   initialData?: ProjectFormPayload;
   mode?: 'add' | 'edit';
@@ -63,6 +65,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const [isProgramOpen, setIsProgramOpen] = useState<boolean>(true);
   const [isProjectOpen, setIsProjectOpen] = useState<boolean>(true);
   const [isMapOpen, setIsMapOpen] = useState<boolean>(true);
+
+  // Dialog state
+  const [ isRevisionOpen, setIsRevisionOpen ] = useState<boolean>(false);
+  const [ selectedRevisionCategory, setSelectedRevisionCategory ] = useState<number>(0);
   
   // SetMaxAmount in ComponentCostForm
   const [maxAmountCost, setMaxAmountCost] = useState<number>(0);
@@ -724,10 +730,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       alert('Project ID, Stage Name, Revision Type ID or Revision Type Description is missing. Cannot revise project.');
       return;
     }
-    if (revisionTypeId === 19 ){
-      navigate(`/revision/modification-details/${projectId}:${stageName}`, { state: { stageName, revisionTypeId, revisionTypeDescription } });
-    } else if (revisionTypeId === 6) {
-      navigate(`/revision/adjustment-details/${projectId}:${stageName}`, { state: { stageName, revisionTypeId, revisionTypeDescription } });
+    if (revisionTypeId){
+      // Open the modification dialog
+      setSelectedRevisionCategory(revisionTypeId);
+      setIsRevisionOpen(true);
     }else {
       navigate(`/revision/${projectId}`, { state: { stageName, revisionTypeId, revisionTypeDescription } });
     }
@@ -805,7 +811,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                     </MenuButton>
                     <MenuItems className="absolute right-0 z-10 mt-2 w-80 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
                       <div className="py-1">
-                        {categoryData.filter((revisionType) => revisionType.Obsolete !== true)
+                        {categoryData.filter((revisionType) => revisionType.ObsoleteFlag !== 1)
                           .sort((a, b) => a.CodeDescription.localeCompare(b.CodeDescription)) // Sort alphabetically
                           .map((revisionType) => (
                           <MenuItem key={revisionType.Id}>
@@ -1019,6 +1025,16 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       <ActivitySection activities={activities} transactionLogs={transactionLogs} />
       </>
       )}
+
+      {/* Revision Dialog */}
+      <RevisionDialog 
+        isOpen={isRevisionOpen}
+        onClose={() => setIsRevisionOpen(false)}
+        projectId={initialData?.ProjectDetails.ProjectId || ''}
+        stageName={initialData?.ProgramDetails?.StageName || ''}
+        category={selectedRevisionCategory}
+      />
+
     </div>
   );
 };

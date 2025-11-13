@@ -12,16 +12,16 @@ export interface ModificationCategory {
     Id: number;
     CodeGroup: number;
     CodeDescription: string;
-    Sequence: number;
-    Obsolete?: boolean;
+    SequenceNo?: number;
+    ObsoleteFlag?: boolean;
 }
 
 export interface ModificationReason {
     Id: number;
     CodeGroup: number;
     CodeDescription: string;
-    Sequence: number;
-    Obsolete?: boolean;
+    SequenceNo?: number;
+    ObsoleteFlag?: boolean;
 }
 
 export interface ModificationModel {
