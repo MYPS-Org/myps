@@ -89,8 +89,8 @@ const TestAllowedFields: React.FC = () => {
                 projectDetails={mockProjectDetails}
                 onChange={handleProjectDetailsChange}
                 mode="edit"
-                pcmaStatus={testResult?.pcmaStatus}
-                packageStatus={testResult?.packageStatus}
+                // pcmaStatus={testResult?.pcmaStatus}
+                // packageStatus={testResult?.packageStatus}
                 errors={{}}
                 disabled={false}
             />

@@ -39,15 +39,17 @@ import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/react';
 import { categoryData } from '../../../Modification/mockData/Dropdown';
 import ReviseProjectDialog from '../../dialogs/RevisedProjectDialog';
 import RuleManager from '../../rules/RuleManager';
+import RevisionForm from './RevisionForm';
 
 interface ProjectFormProps {
   initialData?: ProjectFormPayload;
   mode?: 'add' | 'edit';
   initialProgramId?: string;
   category?: string;
+  reason?: string;
 }
 
-const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', initialProgramId, category }) => {
+const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', initialProgramId, category, reason }) => {
 
   const navigate = useNavigate();
 
@@ -808,6 +810,39 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             />
           </div>
         )}
+      </div>
+
+      {/* Revision Details */}
+      <div className='bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl'>
+        <RevisionForm
+          category={fieldPermissions?.category || category}
+          reason={reason}
+          projectDetails={projectDetails}
+          componentCosts={componentCosts}
+          componentCostYear={componentCostsYear}
+          majorItemOfWorks={majorItems.map(item => ({
+            Id: item.Id,
+            ProjectId: item.ProjectId,
+            StageName: initialData?.ProgramDetails.StageName || '',
+            ComponentId: item.ComponentId,
+            ReferenceId: item.ReferenceId,
+            YearOfWork: item.YearOfWork,
+            WorkTypeId: item.WorkTypeId,
+            InfraType: item.InfraType,
+            TargetUnitId: item.TargetUnitId,
+            TargetUnit: item.TargetUnit,
+            CreatedBy: item.CreatedBy
+          }))}
+          majorItemLocations={majorItems.flatMap(item => 
+            (item.MajorItemLocations || []).map(location => ({
+              ...location,
+              ParentId: item.ReferenceId,
+              ProjectId: item.ProjectId || '',
+              StageName: initialData?.ProgramDetails.StageName || ''
+            }))
+          )}
+          fundingProfile={fundingProfiles}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-6">
