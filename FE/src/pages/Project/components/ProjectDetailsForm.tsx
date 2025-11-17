@@ -74,12 +74,14 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
         // If LD is selected but no province/city, filter cities by LD's province
         else if (projectDetails?.LegislativeDistrict) {
             const selectedLD = projectEnums.LDs?.find((ld) => ld.GdbId === projectDetails.LegislativeDistrict);
+            console.log('Selected LD for City filtering:', selectedLD);
             if (selectedLD) {
                 availableCities = projectEnums.Cities?.filter(
                     (city) => city.ProvinceId === selectedLD.ProvinceId
                 ) || [];
             }
             console.log('Filtered Cities by LD:', projectDetails.LegislativeDistrict, availableCities);
+            console.log('Selected province:', selectedLD?.ProvinceId);
         }
         else if (projectDetails?.DEO) {
             const selectedDEO = projectEnums.DEOs?.find((deo) => deo.ParticipantId === projectDetails.DEO?.toString());
@@ -490,7 +492,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <label className={`w-1/3 ${errors.LegislativeDistrict ? 'text-red-500' : 'text-gray-600'}`}>*Legislative District:</label>
                                 <div className="w-2/3">
                                     <SearchableDropdown
-                                        options={formatDropdownOptions(filteredLegislativeDistricts || [], 'GdbId', 'Name', 'Id')}
+                                       options={formatDropdownOptions(filteredLegislativeDistricts || [], 'GdbId', 'Name', 'Id')}
                                         value={projectDetails?.LegislativeDistrict || ''}
                                         onChange={(value) => handleInputChange('LegislativeDistrict', value === '' ? undefined : value.toString())}
                                         placeholder="Select Legislative District"

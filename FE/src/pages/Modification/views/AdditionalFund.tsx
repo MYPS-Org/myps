@@ -1,16 +1,21 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
 import ProjectForm from '../projectmodification/components/ProjectForm';
 import type { ProjectFormPayload } from '../../Project/Model.d';
 import { getProjectDetails } from '../../Project/Service';
 
 const AdditionalFund: React.FC = () => {
     const { project } = useParams<{ project: string }>();
+    const location = useLocation();
     const id = useMemo(() => project?.split(':'), [project]);
     const [initialData, setInitialData] = useState<ProjectFormPayload | undefined>(undefined);
     const [isLoading, setIsLoading] = useState(true);
+
+    // Get category and reason from navigation state
+    const categoryDesc = location.state?.categoryDesc || 'modification';
+    const reasonDesc = location.state?.reasonDesc || '';
 
     useEffect(() => {
         // Load project data based on ID
@@ -57,7 +62,8 @@ const AdditionalFund: React.FC = () => {
         <ProjectForm
             initialData={initialData}
             mode="edit"
-            category="AdditionalFund"
+            category={categoryDesc}
+            reason={reasonDesc}
         />
     );
 };
