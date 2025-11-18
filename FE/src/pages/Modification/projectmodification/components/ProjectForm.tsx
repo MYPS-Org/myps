@@ -138,40 +138,41 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   useEffect(() => {
     if (pcmaStatus && packageStatus) {
       const currentCase = RuleManager.determineCase(pcmaStatus, packageStatus, category);
-      const editableFields = RuleManager.getEditableFieldsForCase(currentCase, category);
+      const editableFields = RuleManager.getEditableFieldsForCase(currentCase, category, reason);
       setFieldPermissions({
           pcmaStatus,
           packageStatus,
           case: currentCase,
           category: category || 'modification',
+          reason: reason,
           editableFields
       });
     } else {
-      const result = RuleManager.runRandomization(category);
+      const result = RuleManager.runRandomization(category, reason);
       setFieldPermissions(result);
     }
-  }, [pcmaStatus, packageStatus, category]);
+  }, [pcmaStatus, packageStatus, category, reason]);
   // Function to handle randomization for testing
   const handleRandomizeStatus = () => {
-      const result = RuleManager.runRandomization(category);
+      const result = RuleManager.runRandomization(category, reason);
       setFieldPermissions(result);
-      console.log('New Field Permissions for', category, ':', result);
+      console.log('New Field Permissions for', category, 'with reason:', reason, ':', result);
   };
 
   const setCaseA = () => {
-      const result = RuleManager.setCaseA(category);
+      const result = RuleManager.setCaseA(category, reason);
       setFieldPermissions(result);
-      console.log('Case A for', category, ':', result);
+      console.log('Case A for', category, 'with reason:', reason, ':', result);
   };
   const setCaseB = () => {
-      const result = RuleManager.setCaseB(category);
+      const result = RuleManager.setCaseB(category, reason);
       setFieldPermissions(result);
-      console.log('Case B for', category, ':', result);
+      console.log('Case B for', category, 'with reason:', reason, ':', result);
   };
   const setCaseC = () => {
-      const result = RuleManager.setCaseC(category);
+      const result = RuleManager.setCaseC(category, reason);
       setFieldPermissions(result);
-      console.log('Case C for', category, ':', result);
+      console.log('Case C for', category, 'with reason:', reason, ':', result);
   };
   // #endregion
 
