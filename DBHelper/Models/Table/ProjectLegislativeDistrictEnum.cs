@@ -13,7 +13,8 @@ namespace DBHelper.Models.Table
         [Key]
         public int Id { get; set; }
         [Required]
-        public int GdbId { get; set; }
+        [MaxLength(255)]
+        public string GdbId { get; set; } = string.Empty;
         [Required]
         [MaxLength(255)]
         public string Name { get; set; } = string.Empty;
