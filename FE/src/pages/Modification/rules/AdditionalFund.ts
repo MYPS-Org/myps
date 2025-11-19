@@ -15,8 +15,9 @@ const projectFundingProfileFields = [
 const projectComponentFields = [
     'ComponentCost',
     'ComponentDescription',
+    'ComponentCostEdit',
     'ComponentAdd',
-    'ComponentDelete',
+    // 'ComponentDelete',
 ];
 
 const majorItemOfWorkFields = [
@@ -33,6 +34,25 @@ const physicalTargetFields = [
     'WorkLocationDelete',
     'PhysicalTarget',
 ];
+
+// Reason-specific field rules (within each case)
+// These rules are applied AFTER the case is determined
+const reasonSpecificFields: Record<string, string[]> = {
+    // Reason: "Correction of MYPS typographical error for consistency with GAA"
+    'Additional funds for ROW (STO)' : [
+        ...projectFundingProfileFields,
+        ...projectComponentFields,
+        ...majorItemOfWorkFields,
+        ...physicalTargetFields,
+    ],
+
+    'Additional (buffer) funds from other agencies' : [
+        ...projectFundingProfileFields,
+        'Description',
+        'ComponentDescription',
+        'ComponentCostEdit',
+    ],
+};
 
 const pcmaStatus = [
     'On-going',
@@ -84,21 +104,23 @@ const determineCase = (pcmaStatus: string, packageStatus: string) => {
     return 'CaseC'; // Default to most restrictive
 };
 
-const getEditableFieldsForCase = (caseType: string) => {
+const getEditableFieldsForCase = (caseType: string, reason?: string) => {
+    let caseFields: string[] = [];
     switch (caseType) {
         case 'CaseA':
             // Case A: All fields are editable (most permissive)
-            return [
+            caseFields = [
                 ...projectDetailFields,
                 ...projectFundingProfileFields,
                 ...projectComponentFields,
                 ...majorItemOfWorkFields,
                 ...physicalTargetFields
             ];
+            break;
             
         case 'CaseB':
             // Case B: Only Description, EmergencyMode, and Origin are editable
-            return [
+            caseFields = [
                 'Description',
                 'EmergencyMode', 
                 'Origin',
@@ -110,22 +132,32 @@ const getEditableFieldsForCase = (caseType: string) => {
                 // Work Location
                 'WorkLocationEdit',
             ];
+            break;
             
         case 'CaseC':
             // Case C: No fields are editable
-            return [];
+            caseFields = [];
+            break;
             
         default:
-            return [];
+            caseFields = [];
+            break;
     }
+    // Apply reason-specific field rules
+    if (reason && reasonSpecificFields[reason]) {
+        const reasonFields = reasonSpecificFields[reason];
+        // Intersect caseFields with reasonFields to get final editable fields
+        caseFields = caseFields.filter(field => reasonFields.includes(field));
+    }
+    return caseFields;
 };
 
 // Function to run randomization and get editable fields
-const runRandomization = () => {
+const runRandomization = (reason?: string) => {
     const currentPcmaStatus = getPcmaStatus();
     const currentPackageStatus = packaged();
     const currentCase = determineCase(currentPcmaStatus, currentPackageStatus);
-    const editableFields = getEditableFieldsForCase(currentCase);
+    const editableFields = getEditableFieldsForCase(currentCase, reason);
     
     return {
         pcmaStatus: currentPcmaStatus,
@@ -139,7 +171,7 @@ const setCaseA = () => {
     const pcmaStatus = 'Not yet started';
     const packageStatus = 'not packaged';
     const currentCase = determineCase(pcmaStatus, packageStatus);
-    const editableFields = getEditableFieldsForCase(currentCase);
+    const editableFields = getEditableFieldsForCase(currentCase, );
     return {
         pcmaStatus,
         packageStatus,
@@ -180,6 +212,16 @@ const isFieldEditable = (fieldName: string, currentCase: string) => {
     return editableFields.includes(fieldName);
 };
 
+// Helper function to get all available reasons with specific field rules
+const getAvailableReasons = () => {
+    return Object.keys(reasonSpecificFields);
+};
+
+// Helper function to get fields allowed for a specific reason (independent of case)
+const getFieldsForReason = (reason: string) => {
+    return reasonSpecificFields[reason] || [];
+};
+
 // Export all the functions and data
 export default {
     projectDetailFields,
@@ -194,6 +236,8 @@ export default {
     getEditableFieldsForCase,
     runRandomization,
     isFieldEditable,
+    getAvailableReasons,
+    getFieldsForReason,
     setCaseA,
     setCaseB,
     setCaseC
