@@ -25,7 +25,7 @@ namespace WebAPI.Controllers.Revision
         #region Future Roads
         [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> RequestRevision()
+        public async Task<IActionResult> RequestReportAIP()
         {
             try
             {
