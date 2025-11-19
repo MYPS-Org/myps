@@ -21,13 +21,21 @@ import ProjectGroupDetails from './pages/ProjectGroups/Views/ProjectGroupDetails
 import CodeTables from './pages/CodeTables/Views/CodeTables';
 import { ModalProvider } from './components/Modal/ModalContext';
 import GlobalModal from './components/Modal/Modal';
+import { ToasterProvider } from './components/toaster/ToasterContext';
+import Rbia from './pages/Rbia/Views/Rbia';
+import ModificationList from './pages/Modification/views/ModifcationList';
+import MultiYear from './pages/MultiYear/views/MultiYear';
+import MultiYearDetails from './pages/MultiYear/views/MultiYearDetails';
+import ModifyProject from './pages/Modification/views/ModifyProject';
+import ModificationDetails from './pages/Modification/views/ModificationDetails';
+import MYProjectDetails from './pages/MultiYear/views/MYProjectDetails';
 
 // import AddProgram from './pages/Program/Views/AddProgram';
-
 function App() {
 	return (
 		<>
 		    <ModalProvider>
+				<ToasterProvider>
 				<ThemeProvider>
 					<AuthProvider>
 					<Router>
@@ -45,10 +53,18 @@ function App() {
 									} 
 								/>
 								<Route 
-									path="/rbac" 
+									path="/user-management" 
 									element={
 										<ProtectedRoute>
 											<Rbac />
+										</ProtectedRoute>
+									} 
+								/>
+								<Route 
+									path="/infrastructure-management" 
+									element={
+										<ProtectedRoute>
+											<Rbia />
 										</ProtectedRoute>
 									} 
 								/>
@@ -61,7 +77,7 @@ function App() {
 									} 
 								/>
 								<Route 
-									path="/programs/programdetails/:id" 
+									path="/programs/programdetails/:program" 
 									element={
 										<ProtectedRoute>
 											<ProgramDetail />
@@ -93,10 +109,32 @@ function App() {
 									} 
 								/>
 								<Route 
-									path="/projects/project-details/:id" 
+									path="/projects/project-details/:project" 
 									element={
 										<ProtectedRoute>
 											<EditProject />
+										</ProtectedRoute>
+									} 
+								/>
+								<Route 
+									path="/revision" 
+									element={
+										<ProtectedRoute>
+											<ModificationList />
+										</ProtectedRoute>
+									} 
+								/>
+								<Route 
+									path="/revision/:modificationType/:project" 
+									element={<ProtectedRoute>
+										<ModificationDetails />
+										</ProtectedRoute>}
+								/>
+								<Route 
+									path="/revision/:projectId" 
+									element={
+										<ProtectedRoute>
+											<ModifyProject />
 										</ProtectedRoute>
 									} 
 								/>
@@ -115,6 +153,30 @@ function App() {
 											<ProjectGroupDetails />
 										</ProtectedRoute>
 									} 
+								/>
+								<Route 
+									path="/multiyear/programs"
+									element={
+										<ProtectedRoute>
+											<MultiYear />
+										</ProtectedRoute>
+									}
+								/>
+								<Route 
+									path="/multiyear/programs/:programId"
+									element={
+										<ProtectedRoute>
+											<MultiYearDetails />
+										</ProtectedRoute>
+									}
+								/>
+								<Route 
+									path="/multiyear/project-details/:project"
+									element={
+										<ProtectedRoute>
+											<MYProjectDetails />
+										</ProtectedRoute>
+									}
 								/>
 								<Route 
 									path="/settings" 
@@ -148,6 +210,7 @@ function App() {
 				</AuthProvider>
 				</ThemeProvider>
 				<GlobalModal />
+				</ToasterProvider>
 		    </ModalProvider>
 		</>
 	)

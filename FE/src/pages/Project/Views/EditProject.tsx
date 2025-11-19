@@ -1,35 +1,49 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import ProjectForm from '../components/ProjectForm';
 import type { ProjectFormPayload } from '../Model.d';
 import { getProjectDetails } from '../Service';
 
 const EditProject: React.FC = () => {
-    const { id } = useParams<{ id: string }>();
+    const { project } = useParams<{ project: string }>();
+    const id = useMemo(() => project?.split(':'), [project]);
     const [initialData, setInitialData] = useState<ProjectFormPayload | undefined>(undefined);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         // Load project data based on ID
         const loadProjectData = async () => {
-            await getProjectDetails({ ProjectId: id || '' })
-                .then(response => {
-                    console.log('Project details loaded:', response);
-                    setInitialData(response.Data);
-                })
-                .catch(error => {
-                    console.error('Error loading project details:', error);
-                    // Handle error appropriately, e.g., show a toast or alert
-                })
-                .finally(() => {
+            try {
+                if (id && id.length == 2) {
+                    console.log('Loading project details for:', id[0], id[1]); // Debug log
+                    await fetchProjectDetails(id[0], id[1]);
+                } else {
+                    console.error('Invalid project ID format. Expected format: "ProjectId:StageName"', id);
                     setIsLoading(false);
-                });
+                }
+            } catch (error) {
+                console.error('Unexpected error loading project details:', error);
+                setIsLoading(false);
+            }
         };
 
         loadProjectData();
     }, [id]);
+
+    const fetchProjectDetails = async (projectId: string, stageName: string) => {
+        try {
+            console.log('Calling getProjectDetails with:', { ProjectId: projectId, StageName: stageName }); // Debug log
+            const response = await getProjectDetails({ ProjectId: projectId, StageName: stageName });
+            console.log('Project details response:', response); // Debug log
+            setInitialData(response.Data);
+        } catch (error) {
+            console.error('Error fetching project details:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     if (isLoading) {
         return (

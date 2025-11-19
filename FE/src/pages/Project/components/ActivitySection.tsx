@@ -7,7 +7,7 @@ interface ActivitySectionProps {
 }
 
 const ActivitySection: React.FC<ActivitySectionProps> = ({ activities, transactionLogs = [] }) => {
-  const [activeTab, setActiveTab] = useState<'activities' | 'logs'>('activities');
+  const [activeTab, setActiveTab] = useState<'activities' | 'logs'>('logs');
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString();
@@ -17,14 +17,14 @@ const ActivitySection: React.FC<ActivitySectionProps> = ({ activities, transacti
     switch (type.toLowerCase()) {
       case 'create':
       case 'insert':
-        return '➕';
+        return '';
       case 'update':
       case 'modify':
-        return '✏️';
+        return '';
       case 'delete':
-        return '🗑️';
+        return '';
       default:
-        return '📝';
+        return '';
     }
   };
 
@@ -104,7 +104,7 @@ const ActivitySection: React.FC<ActivitySectionProps> = ({ activities, transacti
         
         {/* Tab Navigation */}
         <div className="flex bg-gray-100 rounded-lg p-1">
-          <button
+          {/* <button
             onClick={() => setActiveTab('activities')}
             className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
               activeTab === 'activities'
@@ -113,7 +113,7 @@ const ActivitySection: React.FC<ActivitySectionProps> = ({ activities, transacti
             }`}
           >
             Activities ({activities.length})
-          </button>
+          </button> */}
           <button
             onClick={() => setActiveTab('logs')}
             className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${

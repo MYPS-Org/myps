@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { ProjectEnums } from "../Model";
 import type { ProgramList } from "../../Program/Model";
 
@@ -21,6 +21,13 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
 }) => {
   const [searchFormData, setSearchFormData] = useState('');
   const [isLoading] = useState(false);
+
+  // Update searchFormData when programDetails changes
+  useEffect(() => {
+    if (programDetails?.ProgramId) {
+      setSearchFormData(programDetails.ProgramId);
+    }
+  }, [programDetails?.ProgramId]);
 
   const setProgram = (value: string) => {
     console.log('Selected program value:', value);
@@ -71,7 +78,7 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
                   >
                     <option value="">Select Program</option>
-                    {projectEnums?.Programs?.map((program) => (
+                    {projectEnums?.Programs?.filter((program ) => (program.StageName !== 'GAA-R')).map((program) => (
                       <option key={program.Id} value={program.ProgramId}>
                         {program.Name}
                       </option>
@@ -96,10 +103,10 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
               <label className="flex-1/3 text-gray-600">Program Type:</label>
               <input
                   type="text"
-                  value={programDetails.Type || ''}
+                  value={programDetails.TypeName || ''}
                   disabled={mode === 'edit'}
-                  className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
                   readOnly
+                  className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-700'
               />
           </div>
 
@@ -109,8 +116,8 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
                   type="number"
                   value={programDetails.YearStart || ''}
                   disabled={mode === 'edit'}
-                  className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
                   readOnly
+                  className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-700'
               />
           </div>
 
@@ -120,12 +127,12 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
                   type="text"
                   value={programDetails.StageName || ''}
                   disabled={mode === 'edit'}
-                  className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
                   readOnly
+                  className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-700'
               />
           </div>
 
-          <div className='flex flex-row text-left gap-5 items-center'>
+          {/* <div className='flex flex-row text-left gap-5 items-center'>
               <label className="flex-1/3 text-gray-600">User Group:</label>
               <input
                   type="text"
@@ -134,9 +141,9 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
                   className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
                   readOnly
               />
-          </div>
+          </div> */}
 
-          <div className='flex flex-row text-left gap-5 items-center'>
+          {/* <div className='flex flex-row text-left gap-5 items-center'>
               <label className="flex-1/3 text-gray-600">Data Security:</label>
               <input
                   type="text"
@@ -145,7 +152,7 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
                   className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 rounded-md'
                   readOnly
               />
-          </div>
+          </div> */}
       </div>
     </div>
   );

@@ -20,7 +20,7 @@ import { useModal } from './ModalContext'
 	// will return true of false
 */
 const GlobalModal: React.FC = () => {
-  	const { open, closeModal, data, confirm, cancel } = useModal()
+  	const { open, data, confirm, cancel } = useModal()
 	const getIcon = (type: 'error' | 'info' | 'success') => {
 		switch (type) {
 			case 'error':

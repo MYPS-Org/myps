@@ -5,7 +5,7 @@ import { projectDetailsRules } from '../rules/projectDetailsRules';
 import type { 
   ProjectDetails, 
   ComponentCost, 
-  ProjectNote, 
+  // ProjectNote,
   FundingProfile, 
   Activity, 
   TransactionLog,
@@ -14,10 +14,14 @@ import type {
   Dropdowns,
   ComponentCostYear,
   InfraData,
-  MajorItemOfWorksWithDropdown
+  MajorItemOfWorksWithDropdown,
+  MajorItemOfWork,
+  MajorItemLocations,
+  ProjectSupportingDocs
 } from '../Model.d';
 
 import { Button } from '../../../components/tailwindui/button';
+import MetroManilaMap from '../../../components/map/MetroManilaMap';
 
 //Sub-components
 import ProgramDetailsForm from './ProgramDetailsForm';
@@ -30,24 +34,41 @@ import ActivitySection from './ActivitySection';
 import { addProjectDetails, getProjectEnums, updateEntireProject } from '../Service';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import type { ProgramList } from '../../Program/Model';
+import { useToast } from '../../../components/toaster/ToasterContext';
+import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/react';
+import { categoryData } from '../../Modification/mockData/Dropdown';
+
+import RevisionDialog from '../dialogs/RevisionDialog';
 
 interface ProjectFormProps {
   initialData?: ProjectFormPayload;
   mode?: 'add' | 'edit';
+  initialProgramId?: string;
 }
 
-const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) => {
+const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', initialProgramId }) => {
 
   const navigate = useNavigate();
 
   const [savingSection, setSavingSection] = useState<string | null>(null);
   const [projectEnums, setProjectEnums] = useState<ProjectEnums | null>(null);
   const [updateAllProject, setUpdateAllProject] = useState<boolean>(false);
+  const [updateUnlockProject, setUpdateUnlockProject] = useState<boolean>(false);
+  // const [reviseProject, setReviseProject] = useState<boolean>(false);
   const [errors, setErrors] = useState<FormValidationError<ProjectDetails>>({});
+  //toaster here
+  const { showToast } = useToast();
+  // DisableFields if status === approved
+  const isDisabled = Number(initialData?.ProgramDetails?.Status) === 1;
 
   // toggle state for Program Details section
   const [isProgramOpen, setIsProgramOpen] = useState<boolean>(true);
   const [isProjectOpen, setIsProjectOpen] = useState<boolean>(true);
+  const [isMapOpen, setIsMapOpen] = useState<boolean>(true);
+
+  // Dialog state
+  const [ isRevisionOpen, setIsRevisionOpen ] = useState<boolean>(false);
+  const [ selectedRevisionCategory, setSelectedRevisionCategory ] = useState<number>(0);
   
   // SetMaxAmount in ComponentCostForm
   const [maxAmountCost, setMaxAmountCost] = useState<number>(0);
@@ -76,28 +97,40 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
     initialData?.ProjectDetails || {
       Id: 0,
       ProgramId: '',
+      ProgramName: '',
+      StageName: '',
       ProjectId: '',
+      AlternateId: '',
+      ExternalId: '',
+      MYId: '',
+      UACS: '',
+      // MYCAApprovalDate: '',
       IslandCode: '',
       RevisionNumber: 0,
       Description: '',
       Category: 0,
       Thrust: 0,
       Origin: 0,
-      City: 0,
-      LegislativeDistrict: 0,
+      City: '',
+      Province: '',
+      LegislativeDistrict: '',
       OperatingUnit: '',
       ImplementingOffice: '',
       DEO: '',
       Region: '',
       Agency: 0,
-      AlternateId: '',
       ImplementationMode: 0,
       EmergencyMode: false,
       Feasibility: 0,
       DetailedDesign: false,
       RowAvailable: false,
+      Tier: 1,
     }
   );
+
+  // const [majorItemsLocation] = useState<MajorItemLocations[]>(
+  //   initialData?.MajorItemLocations || []
+  // );
 
   useEffect(() => {
     // Load project enums
@@ -138,6 +171,25 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
     }
   }, [mode, initialData]);
 
+  // Separate useEffect to handle initialProgramId
+  useEffect(() => {
+    if (initialProgramId && projectEnums?.Programs) {
+      const selectedProgram = projectEnums.Programs.find(
+        program => program.ProgramId === initialProgramId
+      );
+      if (selectedProgram) {
+        setProgramDetails(selectedProgram);
+        // Also update project details with the program ID
+        setProjectDetails(prev => ({
+          ...prev,
+          ProgramId: selectedProgram.ProgramId,
+          ProgramName: selectedProgram.Name,
+          StageName: selectedProgram.StageName || ''
+        }));
+      }
+    }
+  }, [initialProgramId, projectEnums?.Programs]);
+
   const [componentCosts, setComponentCosts] = useState<ComponentCost[]>(
     initialData?.ComponentCosts || []
   );
@@ -146,29 +198,67 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
     initialData?.ComponentCostPerYear || []
   );
 
-  // Combine componentCosts and componentCostsYear for UI
-  const componentCostsWithYears = componentCosts.map(cost => ({
-    ...cost,
-    CostPerYear: componentCostsYear.filter(year => year.ParentId === cost.ReferenceId)
-  }));
+  // Combine componentCosts and componentCostsYear for UI - using useMemo to ensure proper recalculation
+  const componentCostsWithYears = React.useMemo(() => {
+    console.log('Recalculating componentCostsWithYears:', { componentCosts, componentCostsYear });
+    return (componentCosts || []).map(cost => ({
+      ...cost,
+      CostPerYear: (componentCostsYear || []).filter(year => year.ParentId === cost.ReferenceId)
+    }));
+  }, [componentCosts, componentCostsYear]);
+
+  // Debug effect to monitor componentCosts state changes
+  useEffect(() => {
+    console.log('ComponentCosts state changed:', componentCosts);
+    console.log('ComponentCostsWithYears recalculated:', componentCostsWithYears);
+  }, [componentCosts, componentCostsWithYears]);
 
   const [majorItems, setMajorItems] = useState<MajorItemOfWorksWithDropdown[]>(() => {
     if (!initialData?.MajorItemOfWorks) return [];
     
     // Transform backend MajorItemOfWork[] to MajorItemOfWorksWithDropdown[]
-    return initialData.MajorItemOfWorks.map(item => ({
-      ...item,
-      DropdownData: initialData?.Dropdowns?.ScopeOfWorks?.filter(scope => scope.InfraType === item.InfraType) || []
-    }));
+    // Combine with MajorItemLocations from the separate array
+    return initialData.MajorItemOfWorks.map(item => {
+      // Find MajorItemLocations that belong to this MajorItem via ParentId matching ReferenceId
+      const itemWorkLocations = (initialData.MajorItemLocations || []).filter(
+        location => location.ParentId === item.ReferenceId
+      );
+      
+      return {
+        ...item,
+        // Ensure required fields exist
+        TargetUnitId: item.TargetUnitId || 0,
+        TargetUnit: item.TargetUnit || '',
+        MajorItemLocations: itemWorkLocations, // Combine WorkLocations from separate array
+        DropdownData: initialData?.Dropdowns?.ScopeOfWorks?.filter(scope => scope.InfraType === item.InfraType) || []
+      };
+    });
   });
 
-  const [notes, setNotes] = useState<ProjectNote[]>(
-    initialData?.ProjectNotes || []
+  // Debug effect to monitor majorItems state changes  
+  useEffect(() => {
+    console.log('MajorItems state changed:', majorItems);
+  }, [majorItems]);
+
+  // const [notes, setNotes] = useState<ProjectNote[]>(
+  //   initialData?.ProjectNotes || []
+  // );
+  const [docs, setDocs] = useState<ProjectSupportingDocs[]>(
+    initialData?.Docs || []
   );
 
   const [fundingProfiles, setFundingProfiles] = useState<FundingProfile[]>(
     initialData?.FundingProfile || []
   );
+
+  // Calculate total percentage for funding profile validation
+  const [totalPercentage, setTotalPercentage] = useState(0);
+
+  // Calculate total percentage whenever fundingProfiles change
+  useEffect(() => {
+    const total = fundingProfiles.reduce((sum, profile) => sum + (profile.Percentage || 0), 0);
+    setTotalPercentage(total);
+  }, [fundingProfiles]);
 
   const [Dropdowns] = useState<Dropdowns>(
     initialData?.Dropdowns || {
@@ -187,7 +277,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
     EmergencyModes: [],
     Agreements: [],
     Sources: [],
-    ScopeOfWorks: []
+    ScopeOfWorks: [],
+    SupportingDocs: []
   });
 
   const [infraData] = useState<InfraData>({
@@ -204,6 +295,17 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
   const [transactionLogs] = useState<TransactionLog[]>(
     initialData?.TransactionLogs || []
   );
+
+  // Sample project location (you can update this based on your project data)
+  const getProjectLocation = () => {
+    // You can map city codes or project data to coordinates later
+    // For now, return a sample location in Metro Manila
+    return {
+      lat: 14.6091,
+      lng: 121.0223,
+      name: projectDetails.Description || "Project Location"
+    };
+  };
 
   // const handleGoBack = () => {
   //   navigate('/projects');
@@ -233,11 +335,20 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
 
   // #region Component Costs
   const handleAddComponentCost = (newCost: ComponentCost, newCostYear?: ComponentCostYear) => {
+    console.log('=== ADDING COMPONENT COST ===');
+    console.log('New cost:', newCost);
+    console.log('New cost year:', newCostYear);
+    console.log('Current componentCosts before add:', componentCosts);
+    
     // Generate a temporary ID for new cost (will be replaced when saved)
     const tempId = Date.now().toString(); // Simple temp ID
     const costWithId = { ...newCost, ReferenceId: tempId };
     
-    setComponentCosts(prev => [...prev, costWithId]);
+    setComponentCosts(prev => {
+      const updated = [...prev, costWithId];
+      console.log('Updated componentCosts:', updated);
+      return updated;
+    });
     
     // If ComponentCostYear data is provided, add it to the componentCostsYear array
     if (newCostYear) {
@@ -246,7 +357,11 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
         ParentId: tempId, // Link to the component cost
         Id: Date.now() + 1 // Ensure unique ID
       };
-      setComponentCostsYear(prev => [...prev, costYearWithParentId]);
+      setComponentCostsYear(prev => {
+        const updated = [...prev, costYearWithParentId];
+        console.log('Updated componentCostsYear:', updated);
+        return updated;
+      });
       console.log('Added component cost year to staging:', costYearWithParentId);
     }
     
@@ -254,16 +369,37 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
   };
 
   const handleEditComponentCost = (index: number, updatedCost: ComponentCost) => {
-    setComponentCosts(prev => prev.map((cost, i) => i === index ? updatedCost : cost));
+    console.log('=== EDITING COMPONENT COST ===');
+    console.log('Index:', index);
+    console.log('Updated cost:', updatedCost);
+    console.log('Current componentCosts before edit:', componentCosts);
+    
+    setComponentCosts(prev => {
+      const updated = prev.map((cost, i) => i === index ? updatedCost : cost);
+      console.log('Updated componentCosts after edit:', updated);
+      return updated;
+    });
     console.log('Updated component cost in staging:', updatedCost);
   };
 
   const handleDeleteComponentCost = (index: number) => {
+    console.log('=== DELETING COMPONENT COST ===');
+    console.log('Index:', index);
+    console.log('Current componentCosts before delete:', componentCosts);
+    
     const costToDelete = componentCosts[index];
     if (costToDelete) {
-      setComponentCosts(prev => prev.filter((_, i) => i !== index));
+      setComponentCosts(prev => {
+        const updated = prev.filter((_, i) => i !== index);
+        console.log('Updated componentCosts after delete:', updated);
+        return updated;
+      });
       // Also remove related ComponentCostYear entries
-      setComponentCostsYear(prev => prev.filter(year => year.ParentId !== costToDelete.ReferenceId));
+      setComponentCostsYear(prev => {
+        const updated = prev.filter(year => year.ParentId !== costToDelete.ReferenceId);
+        console.log('Updated componentCostsYear after delete:', updated);
+        return updated;
+      });
       console.log('Deleted component cost from staging:', costToDelete);
     }
   };
@@ -287,25 +423,21 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
 
   // #region Major Items of Work
   const handleAddMajorItem = () => {
+    // Generate a unique temporary ReferenceId for linking WorkLocations
+    const tempReferenceId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
     const newItem: MajorItemOfWorksWithDropdown = {
       Id: 0, // Temporary ID
       ProjectId: '',
+      ReferenceId: tempReferenceId, // Use generated temp ID
       ComponentId: '',
-      DetailedScope: '',
       YearOfWork: 0,
       WorkTypeId: 0,
-      InfraId: '',
       InfraType: '',
       TargetUnitId: 0,
       TargetUnit: '',
-      StartX: 0,
-      StartY: 0,
-      EndX: 0,
-      EndY: 0,
-      TargetAmount: 0,
-      StartStationLimit: 0,
-      EndStationLimit: 0,
       CreatedBy: '',
+      MajorItemLocations: [], // Initialize empty work locations
       DropdownData: []
     };
     setMajorItems(prev => [...prev, newItem]);
@@ -313,14 +445,14 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
   };
 
   const handleEditMajorItem = (index: number, updatedItem: MajorItemOfWorksWithDropdown) => {
-    console.log('ProjectForm: Editing major item at index', index);
-    console.log('ProjectForm: Updated item received:', updatedItem);
+    // console.log('ProjectForm: Editing major item at index', index);
+    // console.log('ProjectForm: Updated item received:', updatedItem);
     setMajorItems(prev => {
       const newItems = prev.map((item, i) => i === index ? updatedItem : item);
-      console.log('ProjectForm: New majorItems state:', newItems);
+      // console.log('ProjectForm: New majorItems state:', newItems);
       return newItems;
     });
-    console.log('Updated major item in staging:', updatedItem);
+    // console.log('Updated major item in staging:', updatedItem);
   };
 
   const handleDeleteMajorItem = (index: number) => {
@@ -330,23 +462,23 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
   };
 // #endregion
 
-// #region Notes
-  const handleAddNote = (newNote: ProjectNote) => {
-    console.log('ProjectForm: Adding note:', newNote);
-    console.log('ProjectForm: Current notes before:', notes);
-    setNotes(prev => {
-      const newNotes = [...prev, newNote];
-      console.log('ProjectForm: New notes after adding:', newNotes);
-      return newNotes;
+// #region Docs
+  const handleAddDoc = (newDoc: ProjectSupportingDocs) => {
+    console.log('ProjectForm: Adding doc:', newDoc);
+    console.log('ProjectForm: Current docs before:', docs);
+    setDocs(prev => {
+      const newDocs = [...prev, newDoc];
+      console.log('ProjectForm: New docs after adding:', newDocs);
+      return newDocs;
     });
   };
 
-  const handleEditNote = (index: number, updatedNote: ProjectNote) => {
-    setNotes(prev => prev.map((note, i) => i === index ? updatedNote : note));
+  const handleEditDoc = (index: number, updatedDoc: ProjectSupportingDocs) => {
+    setDocs(prev => prev.map((doc, i) => i === index ? updatedDoc : doc));
   };
 
-  const handleDeleteNote = (index: number) => {
-    setNotes(prev => prev.filter((_, i) => i !== index));
+  const handleDeleteDoc = (doc: ProjectSupportingDocs) => {
+    setDocs(prev => prev.filter(selected => selected.Id !== doc.Id));
   };
 // #endregion
 
@@ -355,6 +487,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
     const newProfile: FundingProfile = {
       Id: 0, // Temporary ID
       ProjectId: projectDetails.ProjectId || '',
+      StageName: initialData?.ProgramDetails?.StageName || '',
       Source: '',
       Agreement: 0,
       Percentage: 0,
@@ -367,8 +500,14 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
   };
 
   const handleEditFundingProfile = (index: number, updatedProfile: FundingProfile) => {
-    setFundingProfiles(prev => prev.map((profile, i) => i === index ? updatedProfile : profile));
-    console.log('Updated funding profile in staging:', updatedProfile);
+    // Force Id to 0 for all funding profiles to treat as new records
+    const profileWithResetId = { ...updatedProfile, Id: 0 };
+    
+    setFundingProfiles(prev => 
+      prev.map((profile, i) => i === index ? profileWithResetId : profile)
+    );
+    
+    console.log('Updated funding profile in staging:', profileWithResetId);
   };
 
   const handleDeleteFundingProfile = (index: number) => {
@@ -397,20 +536,29 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       console.log('Adding new project details:', projectDetails);
       const response = await addProjectDetails({
         ...projectDetails,
+        Province: projectDetails.Province ? projectDetails.Province.toString() : '',
+        City: projectDetails.City ? projectDetails.City.toString() : '',
+        LegislativeDistrict: projectDetails.LegislativeDistrict ? projectDetails.LegislativeDistrict.toString() : '',
         EmergencyMode: projectDetails.EmergencyMode ? true : false,
       });
       
-      if (response.Data.ProjectId) {
-        navigate(`/projects/project-details/${response.Data.ProjectId}`);
+      if (response.Data.ProjectId && response.Data.StageName) {
+        navigate(`/projects/project-details/${response.Data.ProjectId}:${response.Data.StageName}`);
       }
     } catch (error) {
       console.error('Error adding project details:', error);
+      showToast({
+          type: 'error',
+          message: 'Failed to add project details.'
+      });
     } finally {
       setSavingSection(null);
     }
   };
 
   const handleUpdateProject = async () => {
+    // Clear previous error/success states
+    
     // Validate form before updating
     const validationErrors = formValidation(projectDetails, projectDetailsRules);
     setErrors(validationErrors);
@@ -418,6 +566,41 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
     // If there are validation errors, don't proceed with update
     if (Object.keys(validationErrors).length > 0) {
       console.log('Validation errors found:', validationErrors);
+      return;
+    }
+
+    // Collect all business validation errors
+    const businessValidationErrors: string[] = [];
+
+    // Check funding percentage validation
+    const roundedTotal = Math.round(totalPercentage * 100) / 100;
+    if (roundedTotal !== 100) {
+      businessValidationErrors.push(`Total funding percentage must equal 100%. Current total: ${roundedTotal.toFixed(1)}%`);
+    }
+
+    // Check component cost validation
+    if (maxAmountCost && maxAmountCost > 0) {
+      const totalComponentCost = componentCosts.reduce((sum, cost) => sum + (cost.Total || 0), 0);
+      
+      if (totalComponentCost !== maxAmountCost) {
+        if (totalComponentCost < maxAmountCost) {
+          const shortfall = maxAmountCost - totalComponentCost;
+          businessValidationErrors.push(`Total component cost (₱${totalComponentCost.toLocaleString('en-PH')}) is less than the required budget (₱${maxAmountCost.toLocaleString('en-PH')}) by ₱${shortfall.toLocaleString('en-PH')}`);
+        } else {
+          const exceeded = totalComponentCost - maxAmountCost;
+          businessValidationErrors.push(`Total component cost (₱${totalComponentCost.toLocaleString('en-PH')}) exceeds the maximum budget (₱${maxAmountCost.toLocaleString('en-PH')}) by ₱${exceeded.toLocaleString('en-PH')}`);
+        }
+      }
+    }
+
+    // If there are any business validation errors, show each one separately and return
+    if (businessValidationErrors.length > 0) {
+      businessValidationErrors.forEach(errorMessage => {
+        showToast({
+          type: 'error',
+          message: errorMessage
+        });
+      });
       return;
     }
     
@@ -431,10 +614,47 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       console.log('Funding Profiles:', fundingProfiles);
       
       // Prepare data for backend matching the expected payload structure
+      
+      // Transform majorItems into separate MajorItemOfWorks and WorkLocations arrays
+      const majorItemsForPayload: MajorItemOfWork[] = [];
+      const workLocationsForPayload: MajorItemLocations[] = [];
+      
+      majorItems.forEach(item => {
+        // Create MajorItemOfWork without WorkLocations and DropdownData (UI-only)
+        const majorItemPayload: MajorItemOfWork = {
+          Id: item.Id,
+          ProjectId: initialData?.ProjectDetails.ProjectId || '',
+          StageName: initialData?.ProgramDetails.StageName || '',
+          ComponentId: item.ComponentId,
+          ReferenceId: item.ReferenceId,
+          YearOfWork: item.YearOfWork,
+          WorkTypeId: item.WorkTypeId,
+          InfraType: item.InfraType,
+          TargetUnitId: item.TargetUnitId,
+          TargetUnit: item.TargetUnit,
+          CreatedBy: item.CreatedBy
+        };
+        majorItemsForPayload.push(majorItemPayload);
+        
+        // Add MajorItemLocations with ParentId referencing the MajorItem's ReferenceId
+        if (item.MajorItemLocations && item.MajorItemLocations.length > 0) {
+          item.MajorItemLocations.forEach(location => {
+            const workLocationPayload: MajorItemLocations = {
+              ...location,
+              ParentId: item.ReferenceId // Link to MajorItem via ReferenceId
+            };
+            workLocationsForPayload.push(workLocationPayload);
+          });
+        }
+      });
+      
       const payload = {
         ProjectDetails: {
           ...projectDetails,
           // Add missing required fields for the expected payload
+          Province: projectDetails.Province ? projectDetails.Province.toString() : '',
+          City: projectDetails.City ? projectDetails.City.toString() : '',
+          LegislativeDistrict: projectDetails.LegislativeDistrict ? projectDetails.LegislativeDistrict.toString() : '',
           ProgramName: programDetails.Name || '',
           EmergencyMode: projectDetails.EmergencyMode ? true : false,
           CreatedBy: projectDetails.CreatedBy || 'SYSTEM',
@@ -445,6 +665,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
         ComponentCosts: componentCosts.map(cost => ({
           Id: cost.Id,
           ProjectId: cost.ProjectId || projectDetails.ProjectId || '',
+          StageName: initialData?.ProgramDetails?.StageName || '',
           ReferenceId: cost.ReferenceId || '',
           ComponentType: cost.ComponentType || '',
           ComponentId: cost.ComponentId || '',
@@ -452,44 +673,87 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
           Total: cost.Total || 0,
           CreatedBy: cost.CreatedBy || 'SYSTEM',
           CreatedDate: cost.CreatedDate || new Date().toISOString(),
-          UpdatedBy: cost.UpdatedBy || 'SYSTEM',
-          UpdatedDate: cost.UpdatedDate || new Date().toISOString()
+          UpdatedBy: 'SYSTEM',
+          UpdatedDate: new Date().toISOString(),
         })),
         ComponentCostYear: componentCostsYear.map(year => ({
           Id: year.Id,
           ParentId: year.ParentId,
           CostYear: year.CostYear,
           Cost: year.Cost,
-          // Add missing required fields for ComponentCostYear
-          ApprovalDate: year.ApprovalDate || new Date().toISOString(),
-          PAPCode: year.PAPCode || '',
           StartDate: year.StartDate || new Date().toISOString(),
           EndDate: year.EndDate || new Date().toISOString()
         })),
-        MajorItemOfWorks: majorItems,
+        MajorItemOfWorks: majorItemsForPayload,
+        MajorItemLocations: workLocationsForPayload,
         // ProjectNotes: notes, // Include ProjectNotes as it's in the expected payload
-        FundingProfile: fundingProfiles,
+        FundingProfile: fundingProfiles.map(profile => ({
+          ...profile, StageName: initialData?.ProgramDetails?.StageName || '',
+        }))
       };
 
       console.log('=== SENDING TO BACKEND (MATCHING EXPECTED PAYLOAD) ===');
       console.log('Update payload:', payload);
-      
-      const response = await updateEntireProject(payload);
-      if( response.Data) {
-        console.log('Project updated successfully:', response.Data);
-        // Optionally navigate or show success message
-        // navigate(`/projects/Edit/${response.Data.ProjectId}`);
-      }
+
+      await updateEntireProject(payload);
+
+      showToast({
+          type: 'success',
+          message: 'Project updated successfully.'
+      });
+
+      // Backend only returns success message, not the updated data
+      // So we keep the current state as is after successful update
+      console.log('=== PROJECT UPDATE SUCCESSFUL ===');
+      console.log('Keeping current state after successful update');
+      console.log('Current Component Costs:', componentCosts);
+      console.log('Current Component Cost Years:', componentCostsYear);
+      console.log('Current Major Items:', majorItems);
+      console.log('Current Funding Profiles:', fundingProfiles);
+
     } catch (error) {
-      console.error('Error updating project:', error);
-      alert('Error updating project. Please try again.');
+      showToast({
+          type: 'error',
+          message: 'Failed to fetch projects.'
+      });
+      
+      // Don't use alert() - use proper error state instead
+      // console.error('Update failed with error:', errorMessage);
     } finally {
       setUpdateAllProject(false);
     }
   };
 
+  const handleReviseProject = (projectId: string, stageName: string, revisionTypeId: number, revisionTypeDescription: string) => {
+    // navigate(`/projects/modify-project/${projectId}:${stageName}`);
+    if (!projectId || !stageName || !revisionTypeId || !revisionTypeDescription) {
+      alert('Project ID, Stage Name, Revision Type ID or Revision Type Description is missing. Cannot revise project.');
+      return;
+    }
+    if (revisionTypeId){
+      // Open the modification dialog
+      setSelectedRevisionCategory(revisionTypeId);
+      setIsRevisionOpen(true);
+    }else {
+      navigate(`/revision/${projectId}`, { state: { stageName, revisionTypeId, revisionTypeDescription } });
+    }
+    
+
+    // alert('Modify Project feature is coming soon! ' + projectId + ':' + stageName); 
+  }
+
+  const handleLock = (projectId: string, stageName: string) => {
+    // navigate(`/projects/modify-project/${projectId}:${stageName}`);
+    if (!projectId || !stageName) {
+      alert('Project ID or Stage Name is missing. Cannot lock project.');
+      return;
+    }
+    alert('Lock Project feature is coming soon! ' + projectId + ':' + stageName);
+  }
+
   return (
-    <div className="max-w-10xl mx-auto p-6 space-y-6">
+    
+    <div className="overflow-hidden max-w-10xl mx-auto p-6 space-y-6">
         <div className='flex items-center justify-between mb-6'>
             {/* Breadcrumb */}
             {/* <nav className="flex items-center text-sm text-left text-gray-500">
@@ -509,19 +773,99 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
               
             </div>
             <div className="flex space-x-3">
-                {mode === 'edit' && (
-                  <Button color="orange" className='cursor-pointer' onClick={handleUpdateProject} disabled={updateAllProject}>
-                    {updateAllProject ? 'Updating...' : 'Update Project'}
+                {mode === 'edit' && initialData?.IsActive === true && initialData?.IsUnlock === true && initialData?.ProgramDetails?.StageId !== 10 && (
+                  <>
+                    <Button color="red" className='cursor-pointer' onClick={() => handleLock(initialData?.ProjectDetails?.ProjectId ?? '', initialData?.ProgramDetails?.StageName ?? '')} disabled={updateAllProject}>
+                      {updateUnlockProject ? 'Unlocking...' : 'UnLock Project'}
+                    </Button>
+                  </>
+                )}
+                {mode === 'edit' && initialData?.IsActive === true && initialData?.ProgramDetails?.StageId !== 10 && (
+                  <>
+                    <Button color="orange" className='cursor-pointer' onClick={handleUpdateProject} disabled={updateAllProject}>
+                      {updateAllProject ? 'Updating...' : 'Update Project'}
+                    </Button>
+                  </>
+                )}
+                {mode === 'edit' && initialData?.IsActive === true && initialData?.IsModify === true && (
+                  <>
+                    <Button color="orange" className='cursor-pointer' onClick={handleUpdateProject} disabled={updateAllProject}>
+                      {updateAllProject ? 'Updating...' : 'Update Project'}
+                    </Button>
+                  </>
+                )}
+                {/* {mode === 'edit' && initialData?.ProgramDetails?.StageId === 9 && (
+                  <Button color="yellow" className='cursor-pointer' onClick={() => handleReviseProject(initialData?.ProjectDetails?.ProjectId ?? '', initialData?.ProgramDetails?.StageName ?? '')} disabled={updateAllProject}>
+                    {reviseProject ? 'Revisioning...' : 'Revise Project'}
                   </Button>
+                )} */}
+                {mode === 'edit' && initialData?.ProgramDetails?.StageId === 10 && (
+                  <Menu as="div" className="relative inline-block text-left">
+                    <MenuButton
+                      as={Button}
+                      color='yellow' 
+                      className='cursor-pointer'
+                    >
+                     {updateAllProject ? 'Revisioning...' : 'Revise Project'}
+                      <ChevronDownIcon className="h-4 w-4" />
+                    </MenuButton>
+                    <MenuItems className="absolute right-0 z-10 mt-2 w-80 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                      <div className="py-1">
+                        {categoryData.filter((revisionType) => revisionType.ObsoleteFlag !== 1)
+                          .sort((a, b) => a.CodeDescription.localeCompare(b.CodeDescription)) // Sort alphabetically
+                          .map((revisionType) => (
+                          <MenuItem key={revisionType.Id}>
+                            {({ active }) => (
+                              <button
+                                onClick={() => handleReviseProject(
+                                  initialData?.ProjectDetails?.ProjectId ?? '', 
+                                  initialData?.ProgramDetails?.StageName ?? '',
+                                  revisionType.Id,
+                                  revisionType.CodeDescription
+                                )}
+                                className={`${
+                                  active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'
+                                } group flex w-full items-center px-4 py-2 text-sm text-left hover:bg-gray-50`}
+                                disabled={updateAllProject}
+                              >
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{revisionType.CodeDescription}</span>
+                                  {/* <span className="text-xs text-gray-500">ID: {revisionType.Id}</span> */}
+                                </div>
+                              </button>
+                            )}
+                          </MenuItem>
+                        ))}
+                      </div>
+                    </MenuItems>
+                  </Menu>
                 )}
             </div>
         </div>
 
       {/* Map Section */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-        <div className="h-64 bg-blue-100 rounded-lg flex items-center justify-center">
-          <div className="text-gray-500 text-lg">Map View - {projectDetails.ProjectId || 'New Project'}</div>
+      <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
+        <div
+          className="flex justify-between items-center px-4 py-4 cursor-pointer border-b"
+          onClick={() => setIsMapOpen(!isMapOpen)}
+        >
+          <h3 className="text-lg font-semibold leading-7 text-gray-900">
+            Project Location - Metro Manila
+          </h3>
+          {isMapOpen ? (
+            <ChevronDownIcon className="h-5 w-5 text-gray-500" />
+          ) : (
+            <ChevronRightIcon className="h-5 w-5 text-gray-500" />
+          )}
         </div>
+        {isMapOpen && (
+          <div className="p-4">
+            <MetroManilaMap 
+              projectLocation={getProjectLocation()}
+              height="400px"
+            />
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-6">
@@ -575,6 +919,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
                   initialData={initialData}
                   mode={mode}
                   errors={errors}
+                  disabled={isDisabled}
                 />
               </div>
               <div className="flex justify-end px-4 pb-6 sm:px-8">
@@ -585,7 +930,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
                     disabled={savingSection === 'projectDetails'}
                     className="text-sm"
                   >
-                    {savingSection === 'projectDetails' ? 'Saving...' : 'Save Section'}
+                    {savingSection === 'projectDetails' ? 'Saving...' : 'Save Project'}
                   </Button>
                 )}
               </div>
@@ -609,6 +954,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
               onDelete={handleDeleteFundingProfile}
               initialData={initialData ? { ...initialData, Dropdowns } : undefined}
               onTotalAmountChange={setMaxAmountCost}
+              disabled={isDisabled}
             />
           </div>
         </div>
@@ -627,6 +973,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
             onDelete={handleDeleteComponentCost}
             initialData={initialData}
             maxAmountCost={maxAmountCost}
+            disabled={isDisabled}
           />
         </div>
       </div>
@@ -639,12 +986,15 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
           </div>
           <MajorItemOfWorksForm
             majorItems={majorItems}
+            projectId={initialData?.ProjectDetails.ProjectId || ''}
             componentCosts={componentCosts}
             infraData={infraData}
             onAdd={handleAddMajorItem}
             onEdit={handleEditMajorItem}
             onDelete={handleDeleteMajorItem}
             dropDowns={initialData?.Dropdowns?.ScopeOfWorks}
+            programDetails={initialData?.ProgramDetails}
+            disabled={isDisabled}
           />
         </div>
       </div>
@@ -657,11 +1007,13 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
               <h3 className="text-lg font-semibold leading-7 text-gray-900">Supporting Documents</h3>
             </div>
             <NotesForm
-              notes={notes}
-              onAdd={handleAddNote}
-              onEdit={handleEditNote}
-              onDelete={handleDeleteNote}
+              docs={docs}
+              onAdd={handleAddDoc}
+              onEdit={handleEditDoc}
+              onDelete={handleDeleteDoc}
               initialData={initialData}
+              dropDownOptions={initialData?.Dropdowns?.SupportingDocs}
+              disabled={isDisabled}
             />
           </div>
         </div>
@@ -673,6 +1025,16 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add' }) 
       <ActivitySection activities={activities} transactionLogs={transactionLogs} />
       </>
       )}
+
+      {/* Revision Dialog */}
+      <RevisionDialog 
+        isOpen={isRevisionOpen}
+        onClose={() => setIsRevisionOpen(false)}
+        projectId={initialData?.ProjectDetails.ProjectId || ''}
+        stageName={initialData?.ProgramDetails?.StageName || ''}
+        category={selectedRevisionCategory}
+      />
+
     </div>
   );
 };

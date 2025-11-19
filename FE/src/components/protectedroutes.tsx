@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useSignalR } from '../hooks/useSignalR';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -42,6 +43,20 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
+  // const { isConnected, error, on, off, invoke } = useSignalR(`${import.meta.env.VITE_API_BASE_URL}:5001/notificationHub`);
+  //   useEffect(() => {
+  //     if (isConnected) {
+  //       on('ReceiveNotification', (message: string) => {
+  //         console.log('Notification', message)
+  //       });
+  //       // Join chat room
+  //       //invoke('JoinRoom', 'general');
+  
+  //       return () => {
+  //         off('ReceiveNotification');
+  //       };
+  //     }
+  //   }, [isConnected, on, off, invoke]);
   return <>{children}</>;
 };
 

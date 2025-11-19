@@ -2,8 +2,17 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchProgram, fetchProgramEnums, fetchStagesByProgramId } from '../Service'; // Adjust the import path as necessary
-import type { ProgramEnums, ParentProgram, ProgramPagination, StageList, } from '../Model.d'; // Adjust the import path as necessary
+import type { ProgramEnums, ParentProgram, ProgramPagination, StageList } from '../Model.d'; // Adjust the import path as necessary
 import { Pagination, PaginationPrevious, PaginationNext, PaginationPage, PaginationList } from '../../../components/tailwindui/pagination'; // Adjust the import path as necessary
+
+// Define local interface for pagination response
+interface PaginationResponse<T> {
+    lists: T[];
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+}
 
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '../../../components/tailwindui/table'; // Adjust the import path as necessary
 
@@ -29,13 +38,14 @@ const Program: React.FC = () => {
         Stages: ProgramEnums[];
         Types: ProgramEnums[];
         Groups: ProgramEnums[];
+        DataSecurity: ProgramEnums[];
     } | null>(null);
 
     const [isAddProgramOpen, setIsAddProgramOpen] = useState(false);
     const [isDeleteProgramOpen, setIsDeleteProgramOpen] = useState(false);
     const [selectedProgram, setSelectedProgram] = useState<string | null>(); // Initialize with an empty string or a default value
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set()); // Track expanded rows
-    const [stageList, setStageList] = useState<StageList>();
+    const [stageLists, setStageLists] = useState<Record<string, StageList>>({}); // Store stages per program ID
     const [searchInput, setSearchInput] = useState<string>(''); // Separate state for search input
 
     useEffect(() => {
@@ -85,16 +95,16 @@ const Program: React.FC = () => {
     };
 
     // Helper function to map status numbers to strings
-    const getStatusString = (statusId: number): string => {
-        const statusMap: { [key: number]: string } = {
-            1: 'Working',
-            2: 'Approved', 
-            3: 'Pending',
-            4: 'Rejected',
-            5: 'Proposed'
-        };
-        return statusMap[statusId] || 'Unknown';
-    };
+    // const getStatusString = (statusId: number): string => {
+    //     const statusMap: { [key: number]: string } = {
+    //         1: 'Working',
+    //         2: 'Approved', 
+    //         3: 'Pending',
+    //         4: 'Rejected',
+    //         5: 'Proposed'
+    //     };
+    //     return statusMap[statusId] || 'Unknown';
+    // };
 
     // Helper function to render status badge
     const getStatusBadge = (status: string) => {
@@ -132,10 +142,13 @@ const Program: React.FC = () => {
                     return newExpanded;
                 });
 
-                // Only fetch data if we're expanding (not collapsing)
-                if (!isCurrentlyExpanded) {
+                // Only fetch data if we're expanding (not collapsing) and data doesn't already exist
+                if (!isCurrentlyExpanded && !stageLists[programId]) {
                     const response = await fetchStagesByProgramId(programId);
-                    setStageList(response.Data);
+                    setStageLists(prev => ({
+                        ...prev,
+                        [programId]: response.Data
+                    }));
                 }
             }
         } catch (error) {
@@ -143,10 +156,11 @@ const Program: React.FC = () => {
         }
     };
 
-    const handleViewDetails = async (programId?: string) => {
+    const handleViewDetails = async (programId: string, stageName: string) => {
         try {
-            if (programId) {
-                navigate(`/programs/programdetails/${programId}`);
+            if (programId && stageName) {
+                const programWithStage = programId + ':' + stageName;
+                navigate(`/programs/programdetails/${programWithStage}`);
             }
         } catch (error) {
             console.error('Error navigating to program details:', error);
@@ -307,11 +321,11 @@ const Program: React.FC = () => {
                     <TableHead>
                     <TableRow>
                         <TableHeader>Name</TableHeader>
-                        <TableHeader>Status</TableHeader>
-                        <TableHeader>Program Stage</TableHeader>
+                        {/* <TableHeader>Status</TableHeader> */}
+                        {/* <TableHeader>Program Stage</TableHeader> */}
                         <TableHeader>Program Type</TableHeader>
                         <TableHeader>Start Year</TableHeader>
-                        <TableHeader>End Year</TableHeader>
+                        {/* <TableHeader>End Year</TableHeader> */}
                         <TableHeader>Actions</TableHeader>
                     </TableRow>
                     </TableHead>
@@ -335,25 +349,25 @@ const Program: React.FC = () => {
                                     </div>
                                 </TableCell>
                                 <TableCell>
-                                    {getStatusBadge(program.Status || '')}
+                                    {getStatusBadge(program.Type || '')}
                                 </TableCell>
-                                <TableCell>
+                                {/* <TableCell>
                                     {program.StageName}
                                 </TableCell>
                                 <TableCell>
                                     {program.Type}
-                                </TableCell>
+                                </TableCell> */}
                                 <TableCell>
                                     {program.YearStart}
                                 </TableCell>
-                                <TableCell>
+                                {/* <TableCell>
                                     {program.YearEnd}
-                                </TableCell>
+                                </TableCell> */}
                                 <TableCell>
                                     <div className="flex items-center space-x-1">
                                         <Button 
                                             color="orange"
-                                            onClick={() => handleViewDetails(program.ProgramId)}
+                                            onClick={() => handleViewDetails(program.ProgramId, program.StageName)}
                                             className="text-xs px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded"
                                         >
                                             View
@@ -375,40 +389,40 @@ const Program: React.FC = () => {
                                                     Program Stages under "{program.Name}"
                                                 </h4>
                                                 <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded-full border">
-                                                    {stageList?.Stages?.length || 0} stages
+                                                    {stageLists[program.ProgramId || '']?.Stages?.length || 0} stages
                                                 </span>
                                             </div>
                                             <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
                                                 <Table className="mb-0">
                                                     <TableHead>
                                                         <TableRow>
-                                                            <TableHeader className="text-xs">Stage Name</TableHeader>
+                                                            <TableHeader justify="center" className="text-xs">Stage Name</TableHeader>
                                                             {/* <TableHeader className="text-xs">Status</TableHeader> */}
-                                                            <TableHeader className="text-xs">Type</TableHeader>
-                                                            <TableHeader className="text-xs">Start Year</TableHeader>
-                                                            <TableHeader className="text-xs">End Year</TableHeader>
-                                                            <TableHeader className="text-xs">Cost</TableHeader>
-                                                            <TableHeader className="text-xs">Actions</TableHeader>
+                                                            <TableHeader justify="center" className="text-xs">Type</TableHeader>
+                                                            <TableHeader justify="center" className="text-xs">Start Year</TableHeader>
+                                                            {/* <TableHeader className="text-xs">End Year</TableHeader> */}
+                                                            <TableHeader justify="center" className="text-xs">Cost</TableHeader>
+                                                            <TableHeader justify="center" className="text-xs">Actions</TableHeader>
                                                         </TableRow>
                                                     </TableHead>
                                                     <TableBody>
-                                                        {stageList?.Stages?.map((stage) => (
+                                                        {stageLists[program.ProgramId || '']?.Stages?.map((stage) => (
                                                             <TableRow key={stage.Id}>
-                                                                <TableCell className="font-medium text-sm">{stage.Name}</TableCell>
+                                                                <TableCell className="font-medium text-sm text-center">{stage.StageName}</TableCell>
                                                                 {/* <TableCell>
                                                                     {getStatusBadge(getStatusString(stage.Status || 0))}
                                                                 </TableCell> */}
-                                                                <TableCell className="text-sm text-gray-600">{stage.Type}</TableCell>
-                                                                <TableCell className="text-sm text-gray-600">{stage.YearStart}</TableCell>
-                                                                <TableCell className="text-sm text-gray-600">{stage.YearEnd}</TableCell>
-                                                                <TableCell className="text-sm font-medium">
+                                                                <TableCell className="text-sm text-gray-600 text-center">{stage.TypeName}</TableCell>
+                                                                <TableCell className="text-sm text-gray-600 text-center">{stage.YearStart}</TableCell>
+                                                                {/* <TableCell className="text-sm text-gray-600">{stage.YearEnd}</TableCell> */}
+                                                                <TableCell className="text-sm font-medium text-center">
                                                                     {stage.Cost ? `₱${stage.Cost.toLocaleString()}` : 'N/A'}
                                                                 </TableCell>
-                                                                <TableCell>
-                                                                    <Button 
+                                                                <TableCell className='text-center'>
+                                                                    <Button
                                                                         color="blue"
-                                                                        className="text-xs px-3 py-1.5"
-                                                                        onClick={() => handleViewDetails(stage.ProgramId)}
+                                                                        className="text-xs px-3 py-1.5 text-center"
+                                                                        onClick={() => handleViewDetails(stage.ProgramId, stage.StageName)}
                                                                     >
                                                                         View Details
                                                                     </Button>

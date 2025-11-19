@@ -6,7 +6,7 @@ import type { ProgramModel, ProgramEnums, ProgramPagination, ProgramList, Progra
 
 export const fetchProgramEnums = async () => {
     try {
-        const response = await httpClient.post< { Stages: ProgramEnums[]; Types: ProgramEnums[]; Groups: ProgramEnums[] } >(
+        const response = await httpClient.post< { Stages: ProgramEnums[]; Types: ProgramEnums[]; Groups: ProgramEnums[], DataSecurity: ProgramEnums[] } >(
             '/Program/InitAddProgram',
             null,
             {
@@ -32,9 +32,9 @@ export const fetchProgram = async (data: ProgramPagination) => {
     }
 };
 
-export const fetchProgramById = async (programId: string) => {
+export const fetchProgramById = async (programId: string, StageName: string) => {
     try {
-        const request = await httpClient.post< ProgramDetailsEnums >(`/Program/ProgramDetails`, { ProgramId: programId }, {
+        const request = await httpClient.post< ProgramDetailsEnums >(`/Program/ProgramDetails`, { ProgramId: programId, StageName: StageName }, {
             preloaderMessage: 'Loading program details...'
         });
         return request;
@@ -80,7 +80,7 @@ export const deleteProgram = async (program: ProgramList) => {
     }
 };
 
-export const nextStage = async (data: { ProgramId: string; Stage: number }) => {
+export const nextStage = async (data: { ProgramId: string; Stage: number, Name: string }) => {
     try {
         const request = await httpClient.post<ProgramDetails>('/Program/updateProgramStage', data, {
             preloaderMessage: 'Proceeding to next stage...'
@@ -100,6 +100,26 @@ export const fetchStagesByProgramId = async (programId: string) => {
         return request;
     } catch (error) {
         console.error('Error fetching program stages:', error);
+        throw error;
+    }
+}
+
+export const dowloadTemplate = async () => {
+    try {
+        const response = await httpClient.post<{link: string}>('/Program/DownloadProgramTemplate', null, {});
+        return response;
+    } catch (error) {
+        console.error('Error downloading template:', error);
+        throw error;
+    }
+}
+
+export const publishToPCMA = async (programId: string) => {
+    try {
+        const response = await httpClient.post('/PCMA/PublishProgram', { ProgramId: programId }, {});
+        return response;
+    } catch (error) {
+        console.error('Error publishing program to PCMA:', error);
         throw error;
     }
 }

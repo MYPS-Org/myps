@@ -4,6 +4,7 @@ import { Button } from "../../../components/tailwindui/button";
 import { PlusIcon, TrashIcon, PencilIcon } from "@heroicons/react/24/outline";
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from "../../../components/tailwindui/table";
 import { ComponentCostDialog } from "../dialogs";
+import { getDisabledClass } from "../../../utils/GlobalFunctions";
 
 interface ComponentCostFormProps {
   componentCosts: ComponentCostWithYears[];
@@ -12,6 +13,7 @@ interface ComponentCostFormProps {
   onDelete: (index: number) => void;
   initialData?: any; // Optional initial data for dropdowns or other purposes
   maxAmountCost?: number; // Optional prop to set max amount in ComponentCostForm
+  disabled?: boolean;
 }
 
 const ComponentCostForm: React.FC<ComponentCostFormProps> = ({ 
@@ -20,7 +22,8 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
   onEdit, 
   onDelete,
   initialData,
-  maxAmountCost
+  maxAmountCost,
+  disabled = false
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -28,7 +31,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
   const formatCurrency = (amount: number) => {
     return amount.toLocaleString('en-PH');
   };
-    console.log('Rine => ', initialData)
+    // console.log('Rine => ', initialData)
   const handleOpenAddModal = () => {
     setModalMode('add');
     setEditingIndex(null);
@@ -101,7 +104,8 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
     
     const percentage = (totalCosts.totalCost / maxAmountCost) * 100;
     
-    if (percentage >= 100) return 'exceeded';
+    if (percentage > 100) return 'exceeded';
+    if (percentage === 100) return 'reach';
     if (percentage >= 90) return 'warning';
     if (percentage >= 75) return 'caution';
     return 'normal';
@@ -112,6 +116,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
   const getBudgetStatusColor = () => {
     switch (budgetStatus) {
       case 'exceeded': return 'bg-red-50 text-red-600';
+      case 'reach': return 'bg-green-50 text-green-600';
       case 'warning': return 'bg-orange-50 text-orange-600';
       case 'caution': return 'bg-yellow-50 text-yellow-600';
       default: return 'bg-blue-50 text-blue-600';
@@ -122,20 +127,25 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold text-gray-900">Component Cost</h2>
-            <Button color="blue" onClick={handleOpenAddModal}>
+            <Button color="blue" onClick={handleOpenAddModal} disabled={disabled}>
                 <PlusIcon className="w-4 h-4 mr-1" />
                 Add Cost
             </Button>
         </div>
 
         {/* Cost Summary Cards */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-2 gap-4 mb-6">
             <div className={`p-4 rounded-lg text-center ${getBudgetStatusColor()}`}>
                 <div className="text-sm text-gray-600">Total Cost</div>
                 <div className="text-lg font-semibold">₱{formatCurrency(totalCosts.totalCost)}</div>
                 {budgetStatus === 'exceeded' && (
                   <div className="text-xs text-red-500 mt-1">
                     Exceeds budget by ₱{formatCurrency(totalCosts.totalCost - (maxAmountCost || 0))}
+                  </div>  
+                )}
+                {budgetStatus === 'reach' && (
+                  <div className="text-xs text-green-500 mt-1">
+                    Budget limit reached
                   </div>
                 )}
                 {budgetStatus === 'warning' && (
@@ -149,16 +159,20 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
                   </div>
                 )}
             </div>
-            <div className="bg-blue-50 p-4 rounded-lg text-center">
+            {/* <div className="bg-blue-50 p-4 rounded-lg text-center">
                 <div className="text-sm text-gray-600">Total Cost (2025)</div>
                 <div className="text-lg font-semibold text-blue-600">₱{formatCurrency(totalCosts.totalCost)}</div>
-            </div>
+            </div> */}
             <div className="bg-green-50 p-4 rounded-lg text-center">
                 <div className="text-sm text-gray-600">Max Cost</div>
-                <div className="text-lg font-semibold text-green-600">₱{formatCurrency(maxAmountCost || 0)}</div>
-                {maxAmountCost && maxAmountCost > 0 && (
+                <div className="text-lg font-semibold text-green-600">{maxAmountCost && maxAmountCost > 0 ? `₱${formatCurrency(maxAmountCost)}` : ""}</div>
+                {maxAmountCost && maxAmountCost > 0  ? (
                   <div className="text-xs text-gray-500 mt-1">
                     Remaining: ₱{formatCurrency(Math.max(0, maxAmountCost - totalCosts.totalCost))}
+                  </div>
+                ) : (
+                  <div className="text-xs text-gray-500 mt-1">
+                    No remaining budget
                   </div>
                 )}
             </div>
@@ -197,6 +211,8 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
               <TableHeader>Total Cost</TableHeader>
               <TableHeader>Created By</TableHeader>
               <TableHeader>Created Date</TableHeader>
+              <TableHeader>Updated By</TableHeader>
+              <TableHeader>Updated Date</TableHeader>
               <TableHeader>Actions</TableHeader>
             </TableRow>
           </TableHead>
@@ -220,19 +236,23 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
                   <TableCell>₱{formatCurrency(cost.Total || 0)}</TableCell>
                   <TableCell>{cost.CreatedBy || '-'}</TableCell>
                   <TableCell>{cost.CreatedDate ? new Date(cost.CreatedDate).toLocaleDateString() : '-'}</TableCell>
+                  <TableCell>{cost.UpdatedBy || '-'}</TableCell>
+                  <TableCell>{cost.UpdatedDate ? new Date(cost.UpdatedDate).toLocaleDateString() : '-'}</TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
                       <button
                         onClick={() => handleOpenEditModal(index)}
-                        className="text-blue-600 hover:text-blue-800"
+                        className={`text-blue-600 hover:text-blue-800 ${getDisabledClass(disabled)}`}
                         title="Edit"
+                        disabled={disabled}
                       >
                         <PencilIcon className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => onDelete(index)}
-                        className="text-red-600 hover:text-red-800"
+                        className={`text-red-600 hover:text-red-800 ${getDisabledClass(disabled)}`}
                         title="Delete"
+                        disabled={disabled}
                       >
                         <TrashIcon className="w-4 h-4" />
                       </button>

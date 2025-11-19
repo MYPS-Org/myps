@@ -3,7 +3,7 @@ import { Dialog, DialogTitle, DialogPanel } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import type { ComponentCost, ComponentCostYear, ComponentCostWithYears } from '../Model';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { handleNumberFocus } from '../../../utils/GlobalFunctions';
+import { handleCurrencyBlur, handleCurrencyChange } from '../../../utils/GlobalFunctions';
 
 interface ComponentCostDialogProps {
   isOpen: boolean;
@@ -42,11 +42,13 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     UpdatedDate: new Date().toISOString(),
     CostPerYear: [] as ComponentCostYear[],
     // Fields for ComponentCostYear
-    ApprovalDate: '',
-    PAPCode: '',
-    StartDate: new Date().toISOString(),
-    EndDate: new Date().toISOString(),
+    // ApprovalDate: '',
+    // PAPCode: '',
+    StartDate: '',
+    EndDate: '',
   });
+
+  const [displayValue, setDisplayValue] = useState('');
 
   // Calculate remaining budget for validation
   const calculateRemainingBudget = () => {
@@ -67,13 +69,22 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   useEffect(() => {
     if (editingCost && mode === 'edit') {
       setFormData({
-        ...editingCost,
+        Id: editingCost.Id ?? 0,
+        ProjectId: editingCost.ProjectId ?? ProjectId,
+        ReferenceId: editingCost.ReferenceId ?? '',
+        ComponentType: editingCost.ComponentType ?? '',
+        ComponentId: editingCost.ComponentId ?? '',
+        Description: editingCost.Description ?? '',
+        Total: editingCost.Total ?? 0,
+        CreatedBy: editingCost.CreatedBy ?? '',
+        CreatedDate: editingCost.CreatedDate ?? new Date().toISOString(),
+        UpdatedBy: editingCost.UpdatedBy ?? '',
+        UpdatedDate: editingCost.UpdatedDate ?? new Date().toISOString(),
         CostPerYear: editingCost.CostPerYear || [],
-        // Initialize ComponentCostYear fields from the first year if available
-        ApprovalDate: editingCost.CostPerYear?.[0]?.ApprovalDate || '',
-        PAPCode: editingCost.CostPerYear?.[0]?.PAPCode || '',
-        StartDate: editingCost.CostPerYear?.[0]?.StartDate || new Date().toISOString(),
-        EndDate: editingCost.CostPerYear?.[0]?.EndDate || new Date().toISOString(),
+        // ApprovalDate: editingCost.CostPerYear?.[0]?.ApprovalDate || '',
+        // PAPCode: editingCost.CostPerYear?.[0]?.PAPCode || '',
+        StartDate: editingCost.CostPerYear?.[0]?.StartDate || '',
+        EndDate: editingCost.CostPerYear?.[0]?.EndDate || '',
       });
     } else if (mode === 'add') {
       // Reset form for new entry
@@ -91,13 +102,21 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         UpdatedDate: new Date().toISOString(),
         CostPerYear: [] as ComponentCostYear[],
         // Fields for ComponentCostYear
-        ApprovalDate: '',
-        PAPCode: '',
-        StartDate: new Date().toISOString(),
-        EndDate: new Date().toISOString(),
+        // ApprovalDate: '',
+        // PAPCode: '',
+        StartDate: '',
+        EndDate: '',
       });
     }
   }, [editingCost, mode, isOpen]);
+
+  useEffect(() => {
+    if (formData.Total > 0) {
+      setDisplayValue(formData.Total.FormatToCurrency());
+    } else {
+      setDisplayValue('');
+    }
+  }, [formData.Total]);
 
   const handleChange = (field: string, value: string | number) => {
     setFormData(prev => ({
@@ -105,17 +124,35 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
       [field]: value
     }));
   };
+  
+  const handleCurrencyFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    // Show raw number on focus for easier editing
+    if (formData.Total > 0) {
+      e.target.value = formData.Total.toString();
+    } else {
+      e.target.value = '';
+    }
+  };
 
   const [newComponentId, setNewComponentId] = useState('');
   const handleChangeComponentId = (value: string) => {
     const selectedComponent = componentTypes.find(type => type.Description === value);
+    
+    if (!selectedComponent) {
+      return;
+    }
 
-    // Count how many existing componentCosts have the same ComponentType
-    console.log('Selected component:', componentCosts);
-    const matchingCount = componentCosts.filter(item => item.ComponentType === value).length;
-
-    // Create the new ID: "DR-1", "DR-2", etc.
-    const generatedId = `${selectedComponent.Name}${matchingCount + 1}`;
+    let generatedId = selectedComponent.Name;
+    
+    // Only add number increment if the component type is "Civil Works"
+    if (value.toLowerCase() === 'civil works') {
+      // Count how many existing componentCosts have the same ComponentType
+      console.log('Selected component:', componentCosts);
+      const matchingCount = componentCosts.filter(item => item.ComponentType === value).length;
+      
+      // Create the new ID: "DR-1", "DR-2", etc.
+      generatedId = `${selectedComponent.Name}${matchingCount + 1}`;
+    }
 
     setNewComponentId(generatedId)
     // ✅ Save into formData so it's actually submitted
@@ -149,7 +186,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         }
         
         // Split the form data into ComponentCost and ComponentCostYear parts
-        const { CostPerYear, ApprovalDate, PAPCode, StartDate, EndDate, ...componentCostData } = formData;
+        const { CostPerYear, StartDate, EndDate, ...componentCostData } = formData;
         
         // Create ComponentCostYear object if we have the required fields
         const componentCostYear: ComponentCostYear = {
@@ -157,8 +194,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
           ParentId: componentCostData.ReferenceId, // Will be linked after ComponentCost is saved
           CostYear: new Date().getFullYear(), // Default to current year
           Cost: componentCostData.Total, // Use the same cost value
-          ApprovalDate: ApprovalDate || undefined,
-          PAPCode: PAPCode || '',
+          // ApprovalDate: ApprovalDate || undefined,
+          // PAPCode: PAPCode || '',
           StartDate: StartDate || new Date().toISOString(),
           EndDate: EndDate || new Date().toISOString()
         };
@@ -189,8 +226,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
             UpdatedDate: new Date().toISOString(),
             CostPerYear: [] as ComponentCostYear[],
             // Fields for ComponentCostYear
-            ApprovalDate: '',
-            PAPCode: '',
+            // ApprovalDate: '',
+            // PAPCode: '',
             StartDate: new Date().toISOString(),
             EndDate: new Date().toISOString(),
         });
@@ -211,7 +248,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         <DialogPanel className="w-full max-w-7xl bg-white rounded-lg shadow-xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
                 <DialogTitle className="text-lg font-semibold text-gray-900">
-                    {mode === 'add' ? 'Add Cost' : 'Edit Cost'}
+                    {mode === 'add' ? 'Add Project Component Cost' : 'Edit Project Component Cost'}
                 </DialogTitle>
                 <button
                     onClick={onClose}
@@ -284,24 +321,24 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                 </div>
 
                 {/* Cost Years Row */}
-                <div className="grid grid-cols-5 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                             Cost
                         </label>
                         <input
-                            type="number"
-                            value={formData.Total}
-                            onChange={(e) => handleChange('Total', Number(e.target.value))}
-                            onFocus={handleNumberFocus}
-                            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+                            type="text"
+                            value={displayValue}
+                            onChange={(e) => handleCurrencyChange(e.target.value, setDisplayValue, handleChange, 'Total')}
+                            onFocus={handleCurrencyFocus}
+                            onBlur={(e) => handleCurrencyBlur(e, (value) => handleChange('Total', value))}
+                            className={`w-full px-3 py-2 border rounded-md text-right focus:outline-none focus:ring-2 ${
                               remainingBudget !== null && formData.Total > remainingBudget 
                                 ? 'border-red-300 focus:ring-red-500' 
                                 : 'border-gray-300 focus:ring-blue-500'
                             }`}
-                            placeholder="0"
+                            placeholder="₱0.00"
                             min="0"
-                            max={remainingBudget || undefined}
                         />
                         {remainingBudget !== null && (
                           <div className="mt-1">
@@ -316,7 +353,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                           </div>
                         )}
                     </div>
-                    <div>
+                    {/* <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                             Date of Approval
                         </label>
@@ -326,8 +363,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                             onChange={(e) => handleChange('ApprovalDate', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
-                    </div>
-                    <div>
+                    </div> */}
+                    {/* <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                             UACS PAP Code
                         </label>
@@ -337,7 +374,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                             onChange={(e) => handleChange('PAPCode', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
-                    </div>
+                    </div> */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                             Planned Start Date

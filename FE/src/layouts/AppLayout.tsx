@@ -8,11 +8,11 @@ const DashboardLayout: React.FC = () => (
     <div className='bg-gray-50 shadow-xl transition-colors duration-200'>
       <AppSidebar/>
     </div>
-    <div className='w-full overflow-x-auto'>
-        <div className='bg-gray-50 shadow-md transition-colors duration-200'>
+    <div className='max-h-screen w-full overflow-x-auto'>
+        <div className='sticky top-0 z-10 bg-gray-50 shadow-md transition-colors duration-200'>
         <AppNavbar/>
         </div>
-        <main className="transition-colors duration-200">
+        <main className="overflow-auto transition-colors duration-200">
             <Outlet/>
         </main>
     </div>

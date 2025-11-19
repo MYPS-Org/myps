@@ -1,5 +1,5 @@
 import { httpClient, type ApiResponse } from "../../services/httpClient";
-import type { ProjectLists, ProgramDetails, ComponentCost, ComponentCostYear, ProjectDetails, MajorItemOfWork, FundingProfile, ProjectNote, ProjectEnums, ProjectFormPayload, ProjectPagination, AddNotes, InfraData } from "./Model.d";
+import type { ProjectLists, ProgramDetails, ComponentCost, ComponentCostYear, ProjectDetails, MajorItemOfWork, MajorItemLocations, FundingProfile, ProjectNote, ProjectEnums, ProjectFormPayload, ProjectPagination, AddNotes, InfraData, ProjectSupportingDocs, ProjectRevisionList } from "./Model.d";
 
 // #region INITIALIZE Project Lists
 export const fetchProject = async (data: ProjectPagination) => {
@@ -55,7 +55,7 @@ export const getProjectEnums = async () => {
 // #region Project Details
 export const addProjectDetails = async (projectDetails: ProjectDetails) => {
     try {
-        const response = await httpClient.post<{ProjectId: string, Title: string, Message: string}>(`/Project/addproject/`, projectDetails, {
+        const response = await httpClient.post<{ProjectId: string, StageName: string, Title: string, Message: string}>(`/Project/addproject/`, projectDetails, {
             preloaderMessage: 'Adding project details...'
         });
         return response;
@@ -64,9 +64,9 @@ export const addProjectDetails = async (projectDetails: ProjectDetails) => {
         throw ErrorResponse;
     }
 };
-export const getProjectDetails = async ({ProjectId}: {ProjectId: string}) => {
+export const getProjectDetails = async ({ProjectId, StageName}: {ProjectId: string, StageName: string}) => {
     try {
-        const response = await httpClient.post<ProjectFormPayload>(`/Project/ProjectDetails/`, {ProjectId}, {
+        const response = await httpClient.post<ProjectFormPayload>(`/Project/ProjectDetails/`, {ProjectId, StageName}, {
             preloaderMessage: 'Loading project details...'
         });
         return response;
@@ -94,6 +94,7 @@ export const updateEntireProject = async (payload: {
     ComponentCosts: ComponentCost[];
     ComponentCostYear: ComponentCostYear[];
     MajorItemOfWorks: MajorItemOfWork[];
+    MajorItemLocations: MajorItemLocations[];
     FundingProfile: FundingProfile[];
 }) => {
     try {
@@ -236,14 +237,36 @@ export const addNote = async (formData: AddNotes) => {
     throw error;
   }
 };
+export const addDoc = async (formData: AddNotes) => {
+  try {
+    const response = await httpClient.post<ApiResponse>(`/Project/UploadSupportingDocs/`, formData, {
+      preloaderMessage: 'Adding document...',
+    });
+    return response;
+  } catch (error) {
+    console.error('Error adding document:', error);
+    throw error;
+  }
+};
 export const deleteNote = async (notes: ProjectNote[]) => {
     try {
-        const response = await httpClient.post<ProjectNote[]>(`/Program/DeleteNote/`, notes, {
+        const response = await httpClient.post<ProjectNote[]>(`/Project/DeleteNote/`, notes, {
             preloaderMessage: 'Deleting note...'
         });
         return response;
     } catch (ErrorResponse) {
         console.error('Error deleting note:', ErrorResponse);
+        throw ErrorResponse;
+    }
+}
+export const deleteDoc = async (docs: ProjectSupportingDocs) => {
+    try {
+        const response = await httpClient.post<ProjectSupportingDocs>(`/Project/DeleteSupportingDocs/`, docs, {
+            preloaderMessage: 'Deleting document...'
+        });
+        return response;
+    } catch (ErrorResponse) {
+        console.error('Error deleting document:', ErrorResponse);
         throw ErrorResponse;
     }
 }
@@ -259,6 +282,31 @@ export const getInfrastructureData = async () => {
     } catch (ErrorResponse) {
         console.error('Error fetching infrastructure data:', ErrorResponse);
         throw ErrorResponse;
+    }
+};
+// #endregion
+
+// #region Project Stages
+export const fetchProjectStagesByProjectId = async (projectId: string) => {
+    try {
+        const response = await httpClient.post<ProjectRevisionList>(`/Project/ShowProjectStages`, {ProjectId: projectId}, {
+            preloaderMessage: 'Loading project revisions...'
+        });
+        return response;
+    } catch (ErrorResponse) {
+        console.error('Error fetching project revisions:', ErrorResponse);
+        // If API fails, return empty revisions for graceful degradation
+        return {
+            Data: {
+                Stages: [],
+                Dropdowns: {
+                    CategoryEnum: [],
+                    ThrustEnum: []
+                }
+            },
+            Status: 200,
+            Message: "No revisions found"
+        }
     }
 };
 // #endregion

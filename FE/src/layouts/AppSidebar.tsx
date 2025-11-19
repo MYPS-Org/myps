@@ -96,6 +96,10 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 				<Square2StackIcon />
 				<SidebarLabel className="text-gray-500">Projects</SidebarLabel>
 			</SidebarItem>
+			<SidebarItem href="/revision" current={currentPath === '/revision'}>
+				<Square2StackIcon />
+				<SidebarLabel className="text-gray-500">Revision</SidebarLabel>
+			</SidebarItem>
 			<SidebarItem href="/project-groups" current={currentPath === '/project-groups'}>
 				<Square2StackIcon />
 				<SidebarLabel className="text-gray-500">Project Groups</SidebarLabel>
@@ -104,10 +108,19 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 				<Square2StackIcon />
 				<SidebarLabel className="text-gray-500">Program Stages</SidebarLabel>
 			</SidebarItem> */}
-			<SidebarItem href="/mult-year" current={currentPath === '/mult-year'}>
-				<CalendarDateRangeIcon />
-				<SidebarLabel className="text-gray-500">Mult-Year</SidebarLabel>
-			</SidebarItem>
+			<SidebarDropdown
+				label="Multi-Year Management"
+				defaultOpen={false}
+				className="text-gray-500"
+				>
+				<Cog6ToothIcon />
+				<SidebarDropdownItem href="/multiyear/programs" current={currentPath === '/multiyear/programs'}>
+					<SidebarLabel>Programs</SidebarLabel>
+				</SidebarDropdownItem>
+				<SidebarDropdownItem href="/multiyear/projects" current={currentPath === '/multiyear/projects'}>
+					<SidebarLabel>Projects</SidebarLabel>
+				</SidebarDropdownItem>
+			</SidebarDropdown>
 			<SidebarDropdown
 				label="Settings"
 				defaultOpen={false}
@@ -120,8 +133,11 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 				<SidebarDropdownItem href="/settings/security" current={currentPath === '/settings/security'}>
 					<SidebarLabel>Security</SidebarLabel>
 				</SidebarDropdownItem>
-				<SidebarDropdownItem href="/rbac" current={currentPath === '/rbac'}>
+				<SidebarDropdownItem href="/user-management" current={currentPath === '/user-management'}>
 					<SidebarLabel>User Management</SidebarLabel>
+				</SidebarDropdownItem>
+				<SidebarDropdownItem href="/infrastructure-management" current={currentPath === '/infrastructure-management'}>
+					<SidebarLabel>Infra Management</SidebarLabel>
 				</SidebarDropdownItem>
 			</SidebarDropdown>
 			</SidebarSection>

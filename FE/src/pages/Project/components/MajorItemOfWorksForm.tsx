@@ -1,74 +1,67 @@
-import React, { useState, useEffect } from "react";
-import type { ComponentCost, InfraData, ScopeOfWorkEnum, MajorItemOfWorksWithDropdown } from '../Model.d';
+import React, { useState, useEffect } from 'react';
 import { Button } from '../../../components/tailwindui/button';
-import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
-import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '../../../components/tailwindui/table';
-import AddInfraDialog from '../dialogs/AddInfraDialog';
-import { mockInfraData } from "../dialogs/mockInfraData";
-import { handleNumberFocus } from "../../../utils/GlobalFunctions";
-
-interface SelectedInfraData {
-  infraId: string;
-  infraName: string;
-  infraType: string;
-}
+import { PlusIcon, TrashIcon, PencilIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { Table, TableHead, TableRow, TableHeader, TableBody, TableCell } from '../../../components/tailwindui/table';
+import AddMajorItemDialog from '../dialogs/AddMajorItemDialog';
+import WorkLocationTable from './WorkLocationTable';
+import type { 
+  MajorItemOfWorksWithDropdown, 
+  ComponentCost, 
+  InfraData, 
+  ScopeOfWorkEnum,
+  MajorItemLocations,
+} from '../Model.d';
+import type { ProgramList } from '../../Program/Model';
+import { getDisabledClass } from '../../../utils/GlobalFunctions';
 
 interface MajorItemOfWorksFormProps {
   majorItems: MajorItemOfWorksWithDropdown[];
+  projectId: string;
   componentCosts: ComponentCost[];
   infraData?: InfraData;
+  programDetails?: ProgramList;
   onAdd: () => void;
   onEdit: (index: number, updatedItem: MajorItemOfWorksWithDropdown) => void;
   onDelete: (index: number) => void;
-  dropDowns?: ScopeOfWorkEnum[]; // Optional initial data for dropdowns or other purposes
+  dropDowns?: ScopeOfWorkEnum[];
+  disabled?: boolean;
 }
 
-const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({ 
-  majorItems, 
-  componentCosts, 
+const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
+  majorItems,
+  projectId,
+  componentCosts,
   infraData,
-  onAdd, 
-  onEdit, 
+  programDetails,
+  onAdd,
+  onEdit,
   onDelete,
+  disabled = false,
   dropDowns
 }) => {
-  const [infraDialogOpen, setInfraDialogOpen] = useState(false);
-  const [selectedItemIndex, setSelectedItemIndex] = useState<number | null>(null);
-  const [isAddingNewItem, setIsAddingNewItem] = useState(false);
+  const [majorItemDialogOpen, setMajorItemDialogOpen] = useState(false);
+  const [editingMajorItemIndex, setEditingMajorItemIndex] = useState<number | null>(null);
+  const [isAddingNewMajorItem, setIsAddingNewMajorItem] = useState(false);
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
 
   // Debug: Monitor when majorItems prop changes
   useEffect(() => {
-    console.log('MajorItemOfWorksForm: majorItems prop changed:', majorItems);
-    console.log('Available dropDowns:', dropDowns);
-    majorItems.forEach((item, index) => {
-      console.log(`Item ${index} - WorkTypeId:`, item.WorkTypeId, 'InfraType:', item.InfraType, 'DropdownData length:', item.DropdownData?.length);
+    // console.log('MajorItemOfWorksForm: majorItems prop changed:', majorItems);
+    // console.log('Available dropDowns:', dropDowns);
+    majorItems.forEach((item/*, index*/) => {
+      // console.log(`Item ${index} - WorkTypeId:`, item.WorkTypeId, 'InfraType:', item.InfraType, 'DropdownData length:', item.DropdownData?.length);
       if (item.InfraType) {
-        const filtered = dropDowns?.filter(x => x.InfraType === item.InfraType);
-        console.log(`Filtered dropdowns for InfraType '${item.InfraType}':`, filtered);
+        /*const filtered = */dropDowns?.filter(x => x.InfraType === item.InfraType);
+        // console.log(`Filtered dropdowns for InfraType '${item.InfraType}':`, filtered);
       }
     });
   }, [majorItems, dropDowns]);
 
-  // Initialize rowUnits and TargetUnit display for items loaded from backend
+  // Debug: Monitor when componentCosts prop changes
   useEffect(() => {
-    if (majorItems.length > 0 && dropDowns?.length) {
-      const newRowUnits: Record<number, { max?: number; min?: number }> = {};
-      
-      majorItems.forEach((item, index) => {
-        if (item.TargetUnitId && item.TargetUnitId > 0) {
-          const targetUnitEnum = dropDowns.find(option => option.Enum === item.TargetUnitId);
-          if (targetUnitEnum) {
-            newRowUnits[index] = {
-              max: targetUnitEnum.MaxAmount,
-              min: targetUnitEnum.MinAmount
-            };
-          }
-        }
-      });
-      
-      setRowUnits(newRowUnits);
-    }
-  }, [majorItems, dropDowns]);
+    console.log('MajorItemOfWorksForm: componentCosts prop changed:', componentCosts);
+    console.log('ComponentCosts count:', componentCosts?.length || 0);
+  }, [componentCosts]);
 
   // Update dropdown data for items that have InfraType but no DropdownData (from backend)
   useEffect(() => {
@@ -101,348 +94,316 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     }
   }, [majorItems, dropDowns, onEdit]);
 
-  const handleInfraSelect = (infraId: string, infraName: string, infraType: string) => {
-    if (isAddingNewItem) {
-      // Create a new item with the selected infrastructure data
-      // We'll call onAdd first, then immediately update the new item with infrastructure data
+  const handleAddMajorItem = () => {
+    setIsAddingNewMajorItem(true);
+    setEditingMajorItemIndex(null);
+    setMajorItemDialogOpen(true);
+  };
+
+  const handleEditMajorItem = (index: number) => {
+    setIsAddingNewMajorItem(false);
+    setEditingMajorItemIndex(index);
+    setMajorItemDialogOpen(true);
+  };
+
+  const handleMajorItemDialogSubmit = (majorItemData: {
+    ComponentId: string;
+    YearOfWork: number;
+    WorkTypeId: number;
+    InfraType: string;
+  }) => {
+    if (isAddingNewMajorItem) {
+      // Generate a unique temporary ReferenceId for linking WorkLocations
+      const tempReferenceId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Create new major item
+      const newMajorItem: MajorItemOfWorksWithDropdown = {
+        Id: 0, // Temporary ID
+        ProjectId: projectId,
+        ReferenceId: tempReferenceId, // Use generated temp ID
+        ComponentId: majorItemData.ComponentId,
+        YearOfWork: majorItemData.YearOfWork,
+        WorkTypeId: majorItemData.WorkTypeId,
+        InfraType: majorItemData.InfraType,
+        TargetUnitId: majorItemData.WorkTypeId, // Same as WorkTypeId for now
+        TargetUnit: getTargetUnitName(majorItemData.WorkTypeId),
+        CreatedBy: '',
+        DropdownData: dropDowns?.filter(x => x.InfraType === majorItemData.InfraType) || [],
+        MajorItemLocations: [] // Initialize empty work locations array
+      };
+      
+      // Use the parent's onAdd method first, then update the last item
       onAdd();
       
-      // Store the infrastructure data to be applied to the new item
-      setSelectedInfraData({ infraId, infraName, infraType });
-      console.log("New item added, storing infra data for application:", { infraId, infraName, infraType });
-      
-      setIsAddingNewItem(false);
-    } else if (selectedItemIndex !== null) {
-      // Update existing item
-      const updatedItem: MajorItemOfWorksWithDropdown = { 
-        ...majorItems[selectedItemIndex], 
-        InfraId: infraId,
-        InfraType: infraType,
-        DropdownData: (dropDowns?.filter(x => x.InfraType === infraType)) ?? [], // Filter dropdown data by InfraType
+      // We need to wait for the parent to update the majorItems array, then update it
+      setTimeout(() => {
+        const lastIndex = majorItems.length; // This will be the index of the new item
+        onEdit(lastIndex, newMajorItem);
+      }, 10);
+    } else if (editingMajorItemIndex !== null) {
+      // Update existing major item
+      const updatedItem: MajorItemOfWorksWithDropdown = {
+        ...majorItems[editingMajorItemIndex],
+        ComponentId: majorItemData.ComponentId,
+        YearOfWork: majorItemData.YearOfWork,
+        WorkTypeId: majorItemData.WorkTypeId,
+        InfraType: majorItemData.InfraType,
+        TargetUnitId: majorItemData.WorkTypeId,
+        TargetUnit: getTargetUnitName(majorItemData.WorkTypeId),
+        DropdownData: dropDowns?.filter(x => x.InfraType === majorItemData.InfraType) || [],
       };
-      console.log("Updating existing item at index:", selectedItemIndex, "with InfraType:", infraType);
-      onEdit(selectedItemIndex, updatedItem);
+      onEdit(editingMajorItemIndex, updatedItem);
     }
-    setInfraDialogOpen(false);
-    setSelectedItemIndex(null);
+
+    setMajorItemDialogOpen(false);
+    setEditingMajorItemIndex(null);
+    setIsAddingNewMajorItem(false);
   };
 
-  // Store infrastructure data for new items
-  const [selectedInfraData, setSelectedInfraData] = useState<SelectedInfraData | null>(null);
-
-  // Apply infrastructure data to newly created item
-  useEffect(() => {
-    if (selectedInfraData && majorItems.length > 0) {
-      const lastIndex = majorItems.length - 1;
-      const lastItem = majorItems[lastIndex];
-      console.log("Applying InfraId to last item:", lastItem, "with selectedInfraData:", selectedInfraData);
-      
-      // Check if this is a new item without InfraId
-      if (!lastItem.InfraId) {
-        const updatedItem = {
-          ...lastItem,
-          InfraId: selectedInfraData.infraId,
-          InfraType: selectedInfraData.infraType,
-          DropdownData: (dropDowns?.filter(x => x.InfraType === selectedInfraData.infraType)) ?? [], // Filter dropdown data by InfraType
-        };
-        console.log("Updating last item with InfraId and filtered dropdown data:", updatedItem);
-        
-        onEdit(lastIndex, updatedItem);
-        setSelectedInfraData(null);
-      }
-    }
-  }, [majorItems, selectedInfraData, onEdit, dropDowns]);
-
-  // Store max/min units per row index
-  const [rowUnits, setRowUnits] = useState<Record<number, { max?: number; min?: number }>>({});
-
-  const handleChange = (index: number, field: string, value: any) => {
-    const updatedItem = { ...majorItems[index], [field]: value };
-    onEdit(index, updatedItem);
+  const getTargetUnitName = (workTypeId: number): string => {
+    const targetUnit = dropDowns?.find(option => option.Enum === workTypeId);
+    return targetUnit?.Measure?.toString() || '';
   };
 
-  const handleTypeOfWorkChange = (index: number, value: string) => {
-    const numValue = value === '' ? 0 : Number(value);
-    console.log("TypeOfWork select changed - string value:", value, "number value:", numValue);
-    
-    // Create the updated item with both TypeOfWork and TargetUnit
-    let updatedItem = { ...majorItems[index], WorkTypeId: numValue };
-    
-    // If we have a valid selection, also update the TargetUnit
-    if (numValue > 0) {
-      console.log("Looking for TypeOfWork enum:", numValue);
-      const newTargetUnit = dropDowns?.find(option => option.Enum === numValue);
-      if (newTargetUnit) {
-        console.log("Found matching target unit:", newTargetUnit.Measure);
-        updatedItem.TargetUnitId = newTargetUnit.Enum;
-        updatedItem.TargetUnit = newTargetUnit.Measure.toString(); // Keep this for compatibility, convert to string
-        
-        // Update row-specific units
-        setRowUnits(prev => ({
-          ...prev,
-          [index]: {
-            max: newTargetUnit.MaxAmount,
-            min: newTargetUnit.MinAmount
-          }
-        }));
-        console.log("Setting max/min units:", { max: newTargetUnit.MaxAmount, min: newTargetUnit.MinAmount });
-      } else {
-        console.log("No match found for TypeOfWork value:", numValue);
-        updatedItem.TargetUnitId = 0;
-        updatedItem.TargetUnit = '';
-      }
+  const getWorkTypeDescription = (workTypeId: number): string => {
+    const workType = dropDowns?.find(option => option.Enum === workTypeId);
+    return workType?.Description || '';
+  };
+
+  const getComponentDescription = (componentId: string): string => {
+    console.log('Looking for component with ID:', componentId, 'in componentCosts:', componentCosts);
+    const component = componentCosts?.find(cost => cost.ComponentId === componentId);
+    console.log('Found component:', component);
+    // Return the description or the componentId as fallback
+    return component?.ComponentId || component?.ComponentId || componentId || 'Unknown Component';
+  };
+
+  const toggleRowExpansion = (index: number) => {
+    const newExpanded = new Set(expandedRows);
+    if (newExpanded.has(index)) {
+      newExpanded.delete(index);
     } else {
-      // Clear target unit if no valid selection
-      updatedItem.TargetUnitId = 0;
-      updatedItem.TargetUnit = '';
-      // Clear row-specific units
-      setRowUnits(prev => ({
-        ...prev,
-        [index]: { max: undefined, min: undefined }
-      }));
+      newExpanded.add(index);
     }
-    
-    console.log("Final updated item to send to parent:", updatedItem);
-    onEdit(index, updatedItem);
+    setExpandedRows(newExpanded);
   };
 
-  const getInfraLength = (infraId: string) => {
-    const data = mockInfraData;
-    // if (!infraId || !infraData) return '';
-    if (!infraId || !data) return '';
-    console.log("Fetching length for InfraId:", infraId);
-    // Check in RoadSections
-    const roadSection = data.RoadSections?.find(road => road.SectionId === infraId);
-    console.log("Found RoadSection:", roadSection);
-    if (roadSection) return roadSection.SectionLength?.toString() || '';
-    
-    // Check in Bridges
-    // const bridge = infraData.Bridges?.find(bridge => bridge.BridgeId === infraId);
-    const bridge = data.Bridges?.find(bridge => bridge.BridgeId === infraId);
-    if (bridge) return bridge.Length?.toString() || '';
-    
-    // For FCS and OtherInfra, they might not have length properties
-    return '';
+  // Work Location handlers
+  const handleAddWorkLocation = (majorItemIndex: number, workLocation: MajorItemLocations) => {
+    const updatedItem = {
+      ...majorItems[majorItemIndex],
+      MajorItemLocations: [...(majorItems[majorItemIndex].MajorItemLocations || []), workLocation]
+    };
+    onEdit(majorItemIndex, updatedItem);
   };
 
-  const openInfraDialog = (index: number) => {
-    setSelectedItemIndex(index);
-    setInfraDialogOpen(true);
+  const handleEditWorkLocation = (majorItemIndex: number, workLocationIndex: number, workLocation: MajorItemLocations) => {
+    const updatedWorkLocations = [...(majorItems[majorItemIndex].MajorItemLocations || [])];
+    updatedWorkLocations[workLocationIndex] = workLocation;
+    
+    const updatedItem = {
+      ...majorItems[majorItemIndex],
+      MajorItemLocations: updatedWorkLocations
+    };
+    onEdit(majorItemIndex, updatedItem);
   };
 
-  const openInfraDialogForNewItem = () => {
-    setIsAddingNewItem(true);
-    setSelectedItemIndex(null);
-    setInfraDialogOpen(true);
+  const handleDeleteWorkLocation = (majorItemIndex: number, workLocationIndex: number) => {
+    const updatedWorkLocations = (majorItems[majorItemIndex].MajorItemLocations || []).filter((_, i) => i !== workLocationIndex);
+    
+    const updatedItem = {
+      ...majorItems[majorItemIndex],
+      MajorItemLocations: updatedWorkLocations
+    };
+    onEdit(majorItemIndex, updatedItem);
+  };
+
+  const getMinMaxAmounts = (workTypeId: number) => {
+    const workType = dropDowns?.find(option => option.Enum === workTypeId);
+    return {
+      max: workType?.MaxAmount,
+      min: workType?.MinAmount
+    };
+  };
+
+  // Calculate total physical target for a major item
+  const getTotalPhysicalTarget = (majorItem: MajorItemOfWorksWithDropdown): number => {
+    return majorItem.MajorItemLocations?.reduce((total, location) => {
+      return total + (location.PhysicalTarget || 0);
+    }, 0) || 0;
+  };
+
+  // Calculate per unit cost for a major item
+  const getPerUnitCost = (majorItem: MajorItemOfWorksWithDropdown): number => {
+    const totalPhysicalTarget = getTotalPhysicalTarget(majorItem);
+    if (totalPhysicalTarget === 0) return 0;
+    
+    // Find the corresponding component cost
+    const componentCost = componentCosts?.find(cost => cost.ComponentId === majorItem.ComponentId);
+    if (!componentCost || !componentCost.Total) return 0;
+    
+    return componentCost.Total / totalPhysicalTarget;
+  };
+
+  // Format currency helper function
+  const formatCurrency = (amount: number): string => {
+    return amount.toLocaleString('en-PH', { 
+      minimumFractionDigits: 2, 
+      maximumFractionDigits: 2 
+    });
   };
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Major Item of Work</h2>
-          <Button color="blue" onClick={openInfraDialogForNewItem}>
-            <PlusIcon className="w-4 h-4 mr-1" />
-            Add Item
-          </Button>
-        </div>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-lg font-semibold text-gray-900">Major Item of Work</h2>
+        <Button color="blue" onClick={handleAddMajorItem} disabled={disabled}>
+          <PlusIcon className="w-4 h-4 mr-1" />
+          Add Major Item
+        </Button>
+      </div>
 
-        <div className="overflow-x-auto">
+      <div className="overflow-x-auto">
         <Table>
           <TableHead>
             <TableRow>
-              <TableHeader className="min-w-[120px]">Component ID</TableHeader>
+              <TableHeader className="min-w-[40px]"></TableHeader>
+              <TableHeader className="min-w-[120px]">Component</TableHeader>
               <TableHeader className="min-w-[100px]">Year of Work</TableHeader>
               <TableHeader className="min-w-[140px]">Type of Work</TableHeader>
+              <TableHeader className='min-w-[100px]'>Infra Type</TableHeader>
+              <TableHeader className='min-w-[120px]'>Unit Cost</TableHeader>
               <TableHeader className="min-w-[100px]">Target Unit</TableHeader>
-              <TableHeader className="min-w-[120px]">Physical Target</TableHeader>
-              <TableHeader className="min-w-[120px]">Detailed Scope</TableHeader>
-              <TableHeader className="min-w-[100px]">Infra ID</TableHeader>
-              <TableHeader className="min-w-[80px]">Length</TableHeader>
-              <TableHeader className="min-w-[80px]">Start Station</TableHeader>
-              <TableHeader className="min-w-[80px]">End Station</TableHeader>
-              <TableHeader className="min-w-[80px]">Start From</TableHeader>
-              <TableHeader className="min-w-[80px]">End From</TableHeader>
+              <TableHeader className="min-w-[100px]">Total Unit</TableHeader>
+              {/* <TableHeader className="min-w-[120px]">Work Locations</TableHeader> */}
               <TableHeader className="min-w-[80px]">Actions</TableHeader>
             </TableRow>
           </TableHead>
           <TableBody>
-            {majorItems.map((item, index) => {
-              console.log(`Row ${index} - WorkTypeId:`, item.WorkTypeId, typeof item.WorkTypeId);
-              return (
-              <TableRow key={item.Id}>
-                <TableCell>
-                  <select
-                    value={item.ComponentId}
-                    onChange={(e) => handleChange(index, 'ComponentId', String(e.target.value))}
-                    className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
-                  >
-                    <option value="">Select Component</option>
-                    {componentCosts.map(cost => (
-                      <option key={cost.Id} value={cost.ComponentId}>{cost.ComponentId}</option>
-                    ))}
-                  </select>
-                </TableCell>
-                <TableCell>
-                  <input
-                    type="number"
-                    value={item.YearOfWork}
-                    onChange={(e) => handleChange(index, 'YearOfWork', Number(e.target.value))}
-                    onFocus={handleNumberFocus}
-                    className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
-                  />
-                </TableCell>
-                <TableCell className="">
-                  <select name="typeOfWork" id="typeOfWork" 
-                          value={item.WorkTypeId || ''}
-                          onChange={(e) => handleTypeOfWorkChange(index, e.target.value)}
-                          className="w-[150px] px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500 truncate"
-                          style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}
-                          >
-                    <option value="">Select Type of Work</option>
-                    {item.DropdownData?.map(option => (
-                      <option key={option.Id} value={option.Enum}>
-                        {option.Description}
-                      </option>
-                    ))}
-                  </select>
-                </TableCell>
-                <TableCell>
-                  <input
-                    type="text"
-                    value={(() => {
-                      if (item.TargetUnitId > 0) {
-                        const targetUnit = dropDowns?.find(option => option.Enum === item.TargetUnitId);
-                        if (targetUnit) {
-                          return targetUnit.Measure.toString();
-                        }
-                      }
-                      return item.TargetUnit || '';
-                    })()}
-                    className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
-                    placeholder="Target unit"
-                    readOnly
-                  />
-                </TableCell>
-                <TableCell>
-                  <input
-                    type="number"
-                    value={item.TargetAmount}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      handleChange(index, 'TargetAmount', val === '' ? null : Number(val));
-                    }}
-                    onFocus={handleNumberFocus}
-                    max={rowUnits[index]?.max}
-                    min={rowUnits[index]?.min}
-                    className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
-                    // placeholder={`Minimum ${rowUnits[index]?.min} - Maximum ${rowUnits[index]?.max}`}
-                  />
-                </TableCell>
-                <TableCell>
-                  <textarea
-                    value={item.DetailedScope}
-                    onChange={(e) => handleChange(index, 'DetailedScope', e.target.value)}
-                    className="w-full px-2 py-1 mt-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
-                    placeholder="Enter scope"
-                    rows={1}
-                  />
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="text"
-                      value={item.InfraId}
-                      onChange={(e) => handleChange(index, 'InfraId', e.target.value)}
-                      className="flex-1 px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
-                      placeholder="Enter infra ID"
-                      readOnly
-                    />
-                    <Button
-                      color="orange"
-                      onClick={() => openInfraDialog(index)}
-                      className="whitespace-nowrap text-xs px-2 py-1"
+            {majorItems.map((item, index) => (
+              <React.Fragment key={item.Id || index}>
+                <TableRow className="border-b">
+                  <TableCell>
+                    <button
+                      onClick={() => toggleRowExpansion(index)}
+                      className="p-1 hover:bg-gray-100 rounded"
                     >
-                      Select
-                    </Button>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <input
-                    type="text"
-                    value={getInfraLength(item.InfraId)}
-                    className="w-20 px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
-                    placeholder="Length"
-                    readOnly
-                  />
-                </TableCell>
-                <TableCell>
-                  <input
-                    type="text"
-                    value={item.StartStationLimit}
-                    onChange={(e) => handleChange(index, 'StartStationLimit', Number(e.target.value))}
-                    onFocus={handleNumberFocus}
-                    className="w-24 px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
-                    placeholder="Start"
-                  />
-                </TableCell>
-                <TableCell>
-                  <input
-                    type="text"
-                    value={item.EndStationLimit}
-                    onChange={(e) => handleChange(index, 'EndStationLimit', Number(e.target.value))}
-                    onFocus={handleNumberFocus}
-                    className="w-24 px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
-                    placeholder="End"
-                  />
-                </TableCell>
-                <TableCell>
-                  <input
-                    type="number"
-                    value={item.StartX}
-                    onChange={(e) => handleChange(index, 'StartX', Number(e.target.value))}
-                    onFocus={handleNumberFocus}
-                    className="w-24 px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
-                    placeholder="Start"
-                  />
-                </TableCell>
-                <TableCell>
-                  <input
-                    type="number"
-                    value={item.EndX}
-                    onChange={(e) => handleChange(index, 'EndX', Number(e.target.value))}
-                    onFocus={handleNumberFocus}
-                    className="w-24 px-2 py-1 border border-gray-300 rounded focus:ring-orange-500 focus:border-orange-500"
-                    placeholder="End"
-                  />
-                </TableCell>
-                <TableCell>
-                  <button
-                    onClick={() => onDelete(index)}
-                    className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50"
-                  >
-                    <TrashIcon className="w-4 h-4" />
-                  </button>
-                </TableCell>
-              </TableRow>
-              );
-            })}
+                      {expandedRows.has(index) ? (
+                        <ChevronDownIcon className="w-4 h-4" />
+                      ) : (
+                        <ChevronRightIcon className="w-4 h-4" />
+                      )}
+                    </button>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm">
+                      {getComponentDescription(item.ComponentId)}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm">{item.YearOfWork}</div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm">
+                      {getWorkTypeDescription(item.WorkTypeId)}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm">{item.InfraType}</div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm font-medium">
+                      ₱{formatCurrency(getPerUnitCost(item))}
+                    </div>
+                    <div className="text-xs text-gray-500">per {getTargetUnitName(item.WorkTypeId)}</div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm">{getTargetUnitName(item.WorkTypeId)}</div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm font-semibold text-blue-600">
+                      {getTotalPhysicalTarget(item).toLocaleString('en-PH')} {getTargetUnitName(item.WorkTypeId)}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {(item.MajorItemLocations?.length || 0)} location(s)
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex space-x-2">
+                      <Button
+                        color="blue"
+                        onClick={() => handleEditMajorItem(index)}
+                        className={`text-xs px-2 py-1 ${getDisabledClass(disabled)}`}
+                        disabled={disabled}
+                      >
+                        <PencilIcon className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        color="red"
+                        onClick={() => onDelete(index)}
+                        className={`text-xs px-2 py-1 ${getDisabledClass(disabled)}`}
+                        disabled={disabled}
+                      >
+                        <TrashIcon className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+                
+                {/* Expanded row for work locations */}
+                {expandedRows.has(index) && (
+                  <TableRow className="bg-gray-50">
+                    <TableCell colSpan={10} className="p-4">
+                      <WorkLocationTable
+                        majorItemOfWorks={item}
+                        workLocations={item.MajorItemLocations || []}
+                        onAdd={(workLocation) => handleAddWorkLocation(index, workLocation)}
+                        onEdit={(workLocationIndex, workLocation) => 
+                          handleEditWorkLocation(index, workLocationIndex, workLocation)
+                        }
+                        onDelete={(workLocationIndex) => handleDeleteWorkLocation(index, workLocationIndex)}
+                        programDetails={programDetails}
+                        infraData={infraData}
+                        infraType={item.InfraType}
+                        workTypeId={item.WorkTypeId}
+                        targetUnit={item.TargetUnit}
+                        maxAmount={getMinMaxAmounts(item.WorkTypeId).max}
+                        minAmount={getMinMaxAmounts(item.WorkTypeId).min}
+                        parentId={item.ReferenceId}
+                        dropDowns={dropDowns}
+                        disabled={disabled}
+                      />
+                    </TableCell>
+                  </TableRow>
+                )}
+              </React.Fragment>
+            ))}
           </TableBody>
         </Table>
-        </div>
-
-        {/* Add Infrastructure Dialog */}
-        <AddInfraDialog
-          isOpen={infraDialogOpen}
-          onClose={() => {
-            setInfraDialogOpen(false);
-            setSelectedItemIndex(null);
-            setIsAddingNewItem(false);
-          }}
-          onAdd={handleInfraSelect}
-          initialData={infraData}
-          mode="add"
-        />
       </div>
+
+      {/* Add Major Item Dialog */}
+      <AddMajorItemDialog
+        isOpen={majorItemDialogOpen}
+        onClose={() => {
+          setMajorItemDialogOpen(false);
+          setEditingMajorItemIndex(null);
+          setIsAddingNewMajorItem(false);
+        }}
+        onAdd={handleMajorItemDialogSubmit}
+        componentCosts={componentCosts}
+        dropDowns={dropDowns}
+        mode={isAddingNewMajorItem ? 'add' : 'edit'}
+        initialData={editingMajorItemIndex !== null ? {
+          ComponentId: majorItems[editingMajorItemIndex].ComponentId,
+          YearOfWork: majorItems[editingMajorItemIndex].YearOfWork,
+          WorkTypeId: majorItems[editingMajorItemIndex].WorkTypeId,
+          InfraType: majorItems[editingMajorItemIndex].InfraType,
+        } : undefined}
+        existingMajorItems={majorItems.map(item => ({ ComponentId: item.ComponentId }))}
+        programDetails={programDetails}
+      />
+    </div>
   );
 };
 

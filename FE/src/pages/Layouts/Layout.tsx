@@ -21,7 +21,7 @@ const Dashboard: React.FC = () => {
             {/* Main Content */}
             <main className="flex-1 bg-white rounded-lg shadow-md p-8">
                 <Heading level={1} className="mb-4">Welcome, {user?.name || 'User'}!</Heading>
-                <Text className="text-gray-600">This is your dashboard. Select an option from the sidebar.</Text>
+                <Text className="text-gray-600">This is your dashboard. Select an option frsom the sidebar.</Text>
             </main>
         </div>
     </div>
