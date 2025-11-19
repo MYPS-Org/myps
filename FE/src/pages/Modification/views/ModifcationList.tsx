@@ -9,6 +9,7 @@ import ReviseProjectDialog from '../dialogs/RevisedProjectDialog';
 import { getModificationProjects, searchProjects, type ModificationProject } from '../mockData/ProjectData';
 import AddProjectDialog from '../dialogs/AddProjectDialog';
 import AdjustProjectDialog from '../dialogs/ModifiyProjectDialog';
+import { useSignalR } from '../../../hooks/useSignalR';
 
 interface RevisionState {
     projectId?: string;
@@ -35,7 +36,52 @@ const ModificationList: React.FC = () => {
     const [ isAddNewDialogOpen, setIsAddNewDialogOpen ] = useState<boolean>(false);
     const [ isAdjustDialogOpen, setIsAdjustDialogOpen ] = useState<boolean>(false);
 
+    const { isConnected, on, off, invoke } = useSignalR();
     const [ searchInput, setSearchInput ] = useState<string>('');
+    // Subscribe to SignalR events when connected
+    useEffect(() => {
+        if (!isConnected) return;
+
+        // Handler when server pushes an updated project
+        const handleProjectUpdated = (updated: ModificationProject) => {
+            console.log('SignalR ProjectUpdated received', updated);
+            setProjects(prev => {
+                const exists = prev.some(p => p.id === updated.id);
+                if (exists) return prev.map(p => p.id === updated.id ? updated : p);
+                return [updated, ...prev];
+            });
+            setFilteredProjects(prev => {
+                const exists = prev.some(p => p.id === updated.id);
+                if (exists) return prev.map(p => p.id === updated.id ? updated : p);
+                return [updated, ...prev];
+            });
+        };
+
+        // General notification handler
+        const handleNotification = (payload: any) => {
+            console.log('SignalR NewNotification:', payload);
+        };
+
+        on('ProjectUpdated', handleProjectUpdated);
+        on('NewNotification', handleNotification);
+
+        return () => {
+            // the `off` implementation in our hook accepts the event name only
+            off('ProjectUpdated');
+            off('NewNotification');
+        };
+    }, [isConnected, on, off]);
+
+    // Export / Subscribe action should await the hub invoke and handle errors
+    const handleExportClick = async () => {
+        try {
+            // invoke is provided by useSignalR and should ensure the connection is ready
+            const result = await invoke?.('SubscribeToOrder', 'user123');
+            console.log('Subscribed to notifications result:', result);
+        } catch (err) {
+            console.error('SignalR invoke failed:', err);
+        }
+    };
 
     useEffect(() => {
         const projectData = getModificationProjects();

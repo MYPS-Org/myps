@@ -1,53 +1,46 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { signalRService } from '../services/signalrService';
 
-export const useSignalR = (url: string) => {
-  const [isConnected, setIsConnected] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+// useSignalR no longer requires a URL. The connection should be started once
+// (for example in `src/main.tsx`) via `signalRService.startConnection(...)`.
+export const useSignalR = () => {
+  const [isConnected, setIsConnected] = useState<boolean>(() => signalRService.isConnected());
+  const [error] = useState<string | null>(null);
   const listenersRef = useRef<Map<string, (...args: any[]) => void>>(new Map());
 
   useEffect(() => {
-    const connect = async () => {
-      try {
-        await signalRService.startConnection(url);
-        setIsConnected(true);
-        setError(null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Connection failed');
-        setIsConnected(false);
-      }
-    };
-
-    connect();
+    // Initialize isConnected state from the service. The service manages the
+    // actual connection lifetime (main.tsx should call startConnection).
+    setIsConnected(signalRService.isConnected());
 
     return () => {
-      // Clean up listeners
+      // Clean up listeners only; do NOT stop the shared connection here.
       listenersRef.current.forEach((callback, methodName) => {
         signalRService.off(methodName, callback);
       });
       listenersRef.current.clear();
-      
-      signalRService.stopConnection();
-      setIsConnected(false);
     };
-  }, [url]);
+  }, []);
 
-  const on = (methodName: string, callback: (...args: any[]) => void) => {
+  const on = useCallback((methodName: string, callback: (...args: any[]) => void) => {
     signalRService.on(methodName, callback);
     listenersRef.current.set(methodName, callback);
-  };
+  }, []);
 
-  const off = (methodName: string) => {
+  const off = useCallback((methodName: string) => {
     const callback = listenersRef.current.get(methodName);
     if (callback) {
       signalRService.off(methodName, callback);
       listenersRef.current.delete(methodName);
+    } else {
+      // If no specific callback tracked, remove all handlers for the method name
+      signalRService.off(methodName);
     }
-  };
+  }, []);
 
-  const invoke = async (methodName: string, ...args: any[]) => {
+  const invoke = useCallback(async (methodName: string, ...args: any[]) => {
     return await signalRService.invoke(methodName, ...args);
-  };
+  }, []);
 
   return {
     isConnected,
