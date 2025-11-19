@@ -189,8 +189,8 @@ namespace Helpers
             {
                 if (Appsetting.Environment != "Production" && data.Subject != "KOJLMS Report")
                 {
-                    data.Recipient = "michael.ferrer@kojamjoom.com";
-                    data.CCAddress = "michael.ferrer@kojamjoom.com";
+                    //data.Recipient = "michael.ferrer@kojamjoom.com";
+                    //data.CCAddress = "michael.ferrer@kojamjoom.com";
                     //return "Success";
                 }
                 MailMessage Email = new MailMessage

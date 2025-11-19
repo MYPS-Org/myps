@@ -18,9 +18,9 @@ namespace WebAPI.Controllers.Programs
 {
     [ApiController]
     [Route("api/[controller]/[action]")]
-    public class FutureInfraController : CoreController
+    public class FutureInfra : CoreController
     {
-        public FutureInfraController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
+        public FutureInfra(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
         #region Future Roads
         [AllowAnonymous]
         [HttpPost]
