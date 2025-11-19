@@ -41,6 +41,10 @@
     <ProjectReference Include="..\WebAPI\WebAPI.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Resources\Templates\" />
+  </ItemGroup>
+
 	<Target Name="PreBuild" BeforeTargets="PreBuildEvent">
 		<Exec Command="if $(ConfigurationName) == Release (&#xD;&#xA;   call &quot;$(ProjectDir)React-PreBuild.bat&quot;&#xD;&#xA;)" />
 	</Target>
