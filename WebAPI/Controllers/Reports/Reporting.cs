@@ -4,10 +4,13 @@ using DBHelper.Models.Enums;
 using DBHelper.Models.Extra;
 using DBHelper.Models.Table;
 using DBHelper.Models.Views;
+using DinkToPdf;
+using DinkToPdf.Contracts;
 using Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using OfficeOpenXml;
 using System.Data.SqlClient;
 using System.Reflection;
 using System.Text.RegularExpressions;
@@ -21,34 +24,85 @@ namespace WebAPI.Controllers.Revision
     [Route("api/[controller]/[action]")]
     public class Reporting : CoreController
     {
-        public Reporting(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
-        #region Future Roads
+        IConverter _converter;
+        public Reporting(AppDbContext db, IProducer<Null, string> producer, IConverter con) : base(db, producer) {
+            _converter = con;
+        }
+        #region Reporting Region
         [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> RequestReportAIP()
         {
             try
             {
-                SMTPModel sMTPModel = new SMTPModel
-                {
-                    Recipient = "mf102798@gmail.com",
-                    Subject = "Request for Revision",
-                    Body = "Dear Team,<br/><br/>A new revision request has been submitted. Please review the details and take the necessary actions.<br/><br/>Best Regards,<br/>Automated Notification System"
-                };
-                Functions.SendEmail(sMTPModel);
-                var Classification = await _db.tFutureRoadsClassification.AsNoTracking().ToListAsync();
-                var response = new
-                {
-                    Classifications = Classification
-                };
+                // Fix the file path - use absolute path from base directory
+                string excelPath = Path.Combine(Appsetting.Resources.Templates, "AIP.xlsx");
 
-                return Ok(response); // Remove the extra wrapper
+                // Check if file exists
+                if (!System.IO.File.Exists(excelPath))
+                {
+                    return BadRequest($"Template file not found at: {excelPath}");
+                }
+
+                // 1. convert excel to html (fixed method name)
+                string htmlContent = ExcelToHtml(excelPath);
+
+                // 2. convert html to pdf
+                byte[] pdfBytes = HtmlToPdf(htmlContent);
+
+                // Return the PDF file
+                return File(pdfBytes, "application/pdf", "AIP_Report.pdf");
             }
             catch (Exception ex)
             {
                 return ExceptionHandler(ex);
             }
         }
+
+        private string ExcelToHtml(string filePath)
+        {
+            using var package = new ExcelPackage(new FileInfo(filePath));
+            var ws = package.Workbook.Worksheets[0];
+
+            string html = "<html><body>";
+            html += "<h1 style='text-align:center'>AIP Report</h1>";
+            html += "<table border='1' style='border-collapse:collapse; width:100%'>";
+            for (int row = 1; row <= ws.Dimension.End.Row; row++)
+            {
+                html += "<tr>";
+                for (int col = 1; col <= ws.Dimension.End.Column; col++)
+                {
+                    html += $"<td style='padding:5px'>{ws.Cells[row, col].Text}</td>";
+                }
+                html += "</tr>";
+            }
+            html += "</table></body></html>";
+
+            return html;
+        }
+
+        private byte[] HtmlToPdf(string htmlContent)
+        {
+            var doc = new HtmlToPdfDocument()
+            {
+                GlobalSettings = new GlobalSettings
+                {
+                    ColorMode = ColorMode.Color,
+                    Orientation = Orientation.Portrait,
+                    PaperSize = PaperKind.A4,
+                    Margins = new MarginSettings { Top = 20, Bottom = 20 }
+                },
+                Objects = {
+                    new ObjectSettings
+                    {
+                        HtmlContent = htmlContent,
+                        WebSettings = { DefaultEncoding = "utf-8" }
+                    }
+                }
+            };
+            return _converter.Convert(doc);
+        }
         #endregion
+
     }
 }

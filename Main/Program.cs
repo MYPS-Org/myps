@@ -36,6 +36,8 @@ builder.Services.AddControllers().AddJsonOptions(options =>
 //Custom function in Services
 builder.Services.AddSocketMicroService();
 
+builder.Services.AddDinkToPdf();
+
 
 await builder.Services.AuthRolesBasedOnDbAsync();
 

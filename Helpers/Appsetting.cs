@@ -28,6 +28,8 @@ namespace Helpers
         public string Projects { get; set; } = string.Empty;
         public string ProjectNotes { get; set; } = string.Empty;
         public string SupportingDocs { get; set; } = string.Empty;
+
+        public string Templates { get; set; } = string.Empty;
     }
     public class KafkaConfig
     {
@@ -71,6 +73,7 @@ namespace Helpers
             Resources.Projects = Path.Combine(Resources.Main, Resources.Projects);
             Resources.ProjectNotes = Path.Combine(Resources.Projects, Resources.ProjectNotes);
             Resources.SupportingDocs = Path.Combine(Resources.Projects, Resources.SupportingDocs);
+            Resources.Templates = Path.Combine(Resources.Main, Resources.Templates);
             KafkaConfigs = config.GetSection("Kafka").Get<KafkaConfig>()!;
             SMTP = config.GetSection("SMTP").Get<SMTPClass>()!;
         }

@@ -9,4 +9,11 @@ using System.Threading.Tasks;
 
 namespace WebAPI.Controllers.Revision
 {
+    public class DTOReportAIP
+    {
+        [Required]
+        public string ProgramName { get; set; } = string.Empty;
+        [Required]
+        public string ReportType { get; set; } = string.Empty;
+    }
 }
