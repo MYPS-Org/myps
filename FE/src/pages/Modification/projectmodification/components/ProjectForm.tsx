@@ -38,6 +38,8 @@ import { useToast } from '../../../../components/toaster/ToasterContext';
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/react';
 import { categoryData } from '../../../Modification/mockData/Dropdown';
 import ReviseProjectDialog from '../../dialogs/RevisedProjectDialog';
+import ApproveModifyDialog from '../../dialogs/ApproveModifyDialog';
+import ForReviewModifyDialog from '../../dialogs/ForReviewModifyDialog';
 import RuleManager from '../../rules/RuleManager';
 import RevisionForm from './RevisionForm';
 
@@ -57,6 +59,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const [projectEnums, setProjectEnums] = useState<ProjectEnums | null>(null);
   const [updateAllProject, setUpdateAllProject] = useState<boolean>(false);
   const [updateUnlockProject, setUpdateUnlockProject] = useState<boolean>(false);
+  const [updateApproveProject, setUpdateApproveProject] = useState<boolean>(false);
+  const [updateReviseProject, setUpdateReviseProject] = useState<boolean>(false);
+  const [updateForReviewProject, setUpdateForReviewProject] = useState<boolean>(false);
   // const [reviseProject, setReviseProject] = useState<boolean>(false);
   const [errors, setErrors] = useState<FormValidationError<ProjectDetails>>({});
   //toaster here
@@ -70,6 +75,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const [isMapOpen, setIsMapOpen] = useState<boolean>(true);
   // set isRevisedProjectDialogOpen
   const [isRevisedProjectDialogOpen, setIsRevisedProjectDialogOpen] = useState<boolean>(false);
+  const [isApproveDialogOpen, setIsApproveDialogOpen] = useState<boolean>(false);
+  const [isForReviewDialogOpen, setIsForReviewDialogOpen] = useState<boolean>(false);
   
   // SetMaxAmount in ComponentCostForm
   const [maxAmountCost, setMaxAmountCost] = useState<number>(0);
@@ -742,6 +749,47 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     setIsRevisedProjectDialogOpen(true);
   }
 
+  const handleApproveModification = async () => {
+    // TODO: Implement the actual approval API call
+    console.log('Approving modification for:', {
+      project: projectDetails,
+      category,
+      reason
+    });
+    
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Here you would call your actual API service
+    // await approveModificationRequest(projectDetails.ProjectId, category, reason);
+    
+    showToast({
+      type: 'success',
+      message: 'Modification approved successfully'
+    });
+  }
+
+  const handleForReviewModification = async (reviewComments: string) => {
+    // TODO: Implement the actual review request API call
+    console.log('Sending for review:', {
+      project: projectDetails,
+      category,
+      reason,
+      comments: reviewComments
+    });
+    
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Here you would call your actual API service
+    // await sendForReviewModificationRequest(projectDetails.ProjectId, reviewComments);
+    
+    showToast({
+      type: 'success',
+      message: 'Request sent for review successfully'
+    });
+  }
+
   return (
     
     <div className="overflow-hidden max-w-10xl mx-auto p-6 space-y-6">
@@ -764,10 +812,24 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
               
             </div>
             <div className="flex space-x-3">
-                {mode === 'edit' && initialData?.IsActive === true && (
+                {mode === 'edit' && (
                   <>
-                    <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify()} disabled={updateAllProject}>
-                      {updateUnlockProject ? 'Submitting...' : 'Submit Modify Request'}
+                    <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify()} disabled={updateReviseProject}>
+                      {updateReviseProject ? 'Submitting...' : 'Submit Modify Request'}
+                    </Button>
+                  </>
+                )}
+                {mode === 'edit' && (
+                  <>
+                    <Button color="green" className='cursor-pointer' onClick={() => setIsApproveDialogOpen(true)} disabled={updateApproveProject}>
+                      {updateApproveProject ? 'Approving...' : 'Approve'}
+                    </Button>
+                  </>
+                )}
+                {mode === 'edit' && (
+                  <>
+                    <Button color="amber" className='cursor-pointer' onClick={() => setIsForReviewDialogOpen(true)} disabled={updateForReviewProject}>
+                      {updateForReviewProject ? 'Initializing...' : 'For Review'}
                     </Button>
                   </>
                 )}
@@ -1077,6 +1139,30 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         )}
         fundingProfile={fundingProfiles}
       />)}
+
+      {/* Approve Modification Modal */}
+      {isApproveDialogOpen && (
+        <ApproveModifyDialog
+          isOpen={isApproveDialogOpen}
+          onClose={() => setIsApproveDialogOpen(false)}
+          project={initialData?.ProjectDetails || projectDetails}
+          category={category}
+          reason={reason}
+          onApprove={handleApproveModification}
+        />
+      )}
+
+      {/* For Review Modification Modal */}
+      {isForReviewDialogOpen && (
+        <ForReviewModifyDialog
+          isOpen={isForReviewDialogOpen}
+          onClose={() => setIsForReviewDialogOpen(false)}
+          project={initialData?.ProjectDetails || projectDetails}
+          category={category}
+          reason={reason}
+          onSubmitForReview={handleForReviewModification}
+        />
+      )}
     </div>
   );
 };
