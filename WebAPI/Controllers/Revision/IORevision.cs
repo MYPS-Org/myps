@@ -8,13 +8,6 @@ using Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Data.SqlClient;
-using System.Reflection;
-using System.Text.RegularExpressions;
-using System.Xml;
-using static Eaf.Domain.Uow.EafDataFilters;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 namespace WebAPI.Controllers.Revision
 {
     [ApiController]
@@ -28,125 +21,124 @@ namespace WebAPI.Controllers.Revision
         {
             try
             {
+                var Project = await _db.vProjectDetails
+                .FromSqlInterpolated($"SELECT * FROM fProjectsPerStage({dto.ProjectDetails.ProjectId}) fp WHERE fp.ProjectId = {dto.ProjectDetails.ProjectId} AND fp.StageName = {dto.ProjectDetails.StageName}")
+                .AsNoTracking()
+                .FirstOrDefaultAsync();
+                DateTime CurrentDate = DateTime.UtcNow;
                 string loc = System.IO.File.ReadAllText(SMTPClass.PathEmailTemplate);
                 string Body = $@"
-<h3>Booking Information:</h3>
+<h3>Revision Information:</h3>
 <table style='margin: auto; min-width: 300px; max-width: 100%; border-collapse: collapse; color: #333; border-top-left-radius: 10px; border-top-right-radius: 10px; overflow: hidden; border: 1px solid #ddd;'>
     <tbody>
         <tr style='border-top: none; background: #00148b; color: #fff;'>
-            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Booking ID</th>
-            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Supplier</th>
-            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Origin Country</th>
-            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Destination Country</th>
-            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Shipping Mode</th>
-            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Number of PO</th>
-            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Total Order Quantity</th>
-            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Total Value in SAR</th>
-            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Created by</th>
-            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Created on</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Revision Category</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Revision Reason</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Requested by</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Requested on</th>
         </tr>
         <tr style='border-top: 1px solid #ddd; border-bottom: 1px solid #ddd; background-color: #f5f9fc;'>
                 <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
-                    {{bk}}
+                    {dto.RevisionDetails.RevisionCategory}
+                </td>
+                <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd
+                    {dto.RevisionDetails.RevisionReason}
                 </td>
                 <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
-                    {{po[0].supplier}}
+                    {_Session.UserId}
                 </td>
                 <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
-                    {{po[0].Origin_Country}}
-                </td>
-                <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
-                    {{po[0].destination_country}}
-                </td>
-                <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
-                    {{po[0].ship_method}}
-                </td>
-                <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
-                    {{po[0].number_po}}
-                </td>
-                <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
-                    {{totalqty.ToString().Replace("".0"", """")}}
-                </td>
-                <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
-                    {{Functions.DecimalToStr(totalcost)}}
-                </td>
-                <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
-                    {{AccountSession.FullName}}
-                </td>
-                <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
-                    {{po[0].booked_date.Date.ToString(""dd-MM-yyyy"")}}
+                    {CurrentDate}
                 </td>
             </tr>
         </tbody>
 </table>
-<h3>Purchase Order Information:</h3>
+<h3>Project Details Information:</h3>
 <table style='margin: auto; min-width: 300px; max-width: 100%; border-collapse: collapse; color: #333; border-top-left-radius: 10px; border-top-right-radius: 10px; overflow: hidden; border: 1px solid #ddd;'>
     <tbody>
         <tr style='border-top: none; background: #00148b; color: #fff;'>
-            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Order Number</th>
-            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Invoice No.</th>
-            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Brand</th>
-            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Readiness Date</th>
-            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Launch Requred Date</th>
-            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Total Order Qty</th>
-            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Total Order Cost</th>
-            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>PO Value in SAR</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Program Id</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Program Name</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Stage</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Reference Id</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Project Id</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Alternate Id</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>External Id</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>MY Id</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>UACS</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>MYCA Approval Date</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Island Code</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Revision #</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Description</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Category</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Thrust</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Origin</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>City</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Province</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Legislative District</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Operating Unit</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Implementing Office</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>DEO</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Region</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Agency</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Implementation Mode</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Emergency Mode</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Feasibility</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Feasibility Date</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Detailed Design</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Detailed Design Date</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>ROW Available</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Region Wide</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Tier</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Created By</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Created Date</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Updated By</th>
+            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Updated Date</th>
         </tr>
+
         <tr style='border-top: 1px solid #ddd; border-bottom: 1px solid #ddd; background-color: #f5f9fc;'>
-            <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
-                {{rows1.order_no}}
-            </td>
-            <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
-                {{rows1.Inv_Number}}
-            </td>
-            <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
-                {{rows1.brand}}
-            </td>
-            <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
-                {{rows1.readiness_date?.Date.ToString(""dd-MM-yyyy"")}}
-            </td>
-            <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
-                {{rows1.launch_required_date?.Date.ToString(""dd-MM-yyyy"")}}
-            </td>
-            <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
-                {{rows1.total_order_qty.ToString().Replace("".0"", """")}}
-            </td>
-            <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
-                {{rows1.total_order_cost}}
-            </td>
-            <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
-                {{Functions.DecimalToStr(rows1.po_value_in_sar)}}
-            </td>
+            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.ProgramId}</td>
+            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.ProgramName}</td>
+            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.StageName}</td>
+            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.ReferenceId}</td>
+            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.ProjectId}</td>
+            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.AlternateId}</td>
+            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.ExternalId}</td>
+            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.MYId}</td>
+            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.UACS}</td>
+            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.MYCAApprovalDate}</td>
+            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.IslandCode}</td>
+            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.RevisionNumber}</td>
+            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Description}</td>
+            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Category}</td>
+            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Thrust}</td>
+            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Origin}</td>
+            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.City}</td>
+            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Province}</td>
+            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.LegislativeDistrict}</td>
+            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.OperatingUnit}</td>
+            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.ImplementingOffice}</td>
+            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.DEO}</td>
+            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Region}</td>
+            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Agency}</td>
+            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.ImplementationMode}</td>
+            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.EmergencyMode}</td>
+            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Feasibility}</td>
+            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.FeasibilityDate}</td>
+            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.DetailedDesign}</td>
+            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.DetailedDesignDate}</td>
+            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.RowAvailable}</td>
+            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.RegionWide}</td>
+            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Tier}</td>
+            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.CreatedBy}</td>
+            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.CreatedDate}</td>
+            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.UpdatedBy}</td>
+            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.UpdatedDate}</td>
         </tr>
-        <tr style='border-top: 1px solid #ddd; border-bottom: 1px solid #ddd; background-color: #f5f9fc;'>
-            <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
-                {{rows1.order_no}}
-            </td>
-            <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
-                {{rows1.Inv_Number}}
-            </td>
-            <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
-                {{rows1.brand}}
-            </td>
-            <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
-                {{rows1.readiness_date?.Date.ToString(""dd-MM-yyyy"")}}
-            </td>
-            <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
-                {{rows1.launch_required_date?.Date.ToString(""dd-MM-yyyy"")}}
-            </td>
-            <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
-                {{rows1.total_order_qty.ToString().Replace("".0"", """")}}
-            </td>
-            <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
-                {{rows1.total_order_cost}}
-            </td>
-            <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
-                {{Functions.DecimalToStr(rows1.po_value_in_sar)}}
-            </td>
-        </tr>
+
     </tbody>
 </table>""";
-                loc = loc.Replace("{Title}", "FDC Invoice Payment Approval <b><u>Approved</u></b>");
+                loc = loc.Replace("{Title}", "Project Revision <b><u>Request</u></b>");
                 loc = loc.Replace("{Body}", Body);
                 loc = loc.Replace("{Footer}", $"For more information click <a href='{Appsetting.RootPath}/Batch'>HERE</a>");
                 loc = loc.Replace("{From}", "");
@@ -154,8 +146,9 @@ namespace WebAPI.Controllers.Revision
                 SMTPModel sMTPModel = new SMTPModel
                 {
                     Recipient = "mf102798@gmail.com",
+                    CCAddress = "yabutgerard@gmail.com",
                     Subject = "Request for Revision",
-                    Body = "Dear Team,<br/><br/>A new revision request has been submitted. Please review the details and take the necessary actions.<br/><br/>Best Regards,<br/>Automated Notification System"
+                    Body = loc
                 };
                 Functions.SendEmail(sMTPModel);
                 return Ok();
@@ -165,10 +158,6 @@ namespace WebAPI.Controllers.Revision
                 var ComponentYear = dto.ComponentCostYear;
                 var MajorWorks = dto.MajorItemOfWorks;
                 var MajorWorkLocations = dto.MajorItemLocations;
-                var Project = await _db.vProjectDetails
-                .FromSqlInterpolated($"SELECT * FROM fProjectsPerStage({dto.ProjectDetails.ProjectId}) fp WHERE fp.ProjectId = {dto.ProjectDetails.ProjectId} fp.StageName = {dto.ProjectDetails.StageName}")
-                .AsNoTracking()
-                .FirstOrDefaultAsync();
                 if(Project == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Invalid Project" });
@@ -185,11 +174,10 @@ namespace WebAPI.Controllers.Revision
                     };
                     await _db.tPCMARevisions.AddAsync(revisions);
                 }
-                DateTime CurrentDate = DateTime.UtcNow;
                 var NewRevisionDetails = new PCMARevisionDetails
                 {
                     RevisionId = RevisionId,
-                    RevisionType = dto.RevisionDetails.RevisionName,
+                    RevisionType = dto.RevisionDetails.RevisionCategory,
                     RevisionCategory = dto.RevisionDetails.RevisionCategory,
                     RevisionReason = dto.RevisionDetails.RevisionReason,
                     CreatedBy = _Session.UserId,
