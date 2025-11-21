@@ -69,6 +69,11 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   // DisableFields if status === approved
   const isDisabled = Number(initialData?.ProgramDetails?.Status) === 1;
 
+  // Determine category and reason based on whether modification is submitted (in database) or not
+  // If modification exists in database, use those values; otherwise use props from project module
+  const modificationCategory = initialData?.ModificationCategory || category;
+  const modificationReason = initialData?.ModificationReason || reason;
+
   // toggle state for Program Details section
   const [isProgramOpen, setIsProgramOpen] = useState<boolean>(true);
   const [isProjectOpen, setIsProjectOpen] = useState<boolean>(true);
@@ -144,21 +149,21 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
   useEffect(() => {
     if (pcmaStatus && packageStatus) {
-      const currentCase = RuleManager.determineCase(pcmaStatus, packageStatus, category);
-      const editableFields = RuleManager.getEditableFieldsForCase(currentCase, category, reason);
+      const currentCase = RuleManager.determineCase(pcmaStatus, packageStatus, modificationCategory);
+      const editableFields = RuleManager.getEditableFieldsForCase(currentCase, modificationCategory, modificationReason);
       setFieldPermissions({
           pcmaStatus,
           packageStatus,
           case: currentCase,
-          category: category || 'modification',
-          reason: reason,
+          category: modificationCategory || 'modification',
+          reason: modificationReason,
           editableFields
       });
     } else {
-      const result = RuleManager.runRandomization(category, reason);
+      const result = RuleManager.runRandomization(modificationCategory, modificationReason);
       setFieldPermissions(result);
     }
-  }, [pcmaStatus, packageStatus, category, reason]);
+  }, [pcmaStatus, packageStatus, modificationCategory, modificationReason]);
   // Function to handle randomization for testing
   const handleRandomizeStatus = () => {
       const result = RuleManager.runRandomization(category, reason);
@@ -167,19 +172,19 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   };
 
   const setCaseA = () => {
-      const result = RuleManager.setCaseA(category, reason);
+      const result = RuleManager.setCaseA(modificationCategory, modificationReason);
       setFieldPermissions(result);
-      console.log('Case A for', category, 'with reason:', reason, ':', result);
+      console.log('Case A for', modificationCategory, 'with reason:', modificationReason, ':', result);
   };
   const setCaseB = () => {
-      const result = RuleManager.setCaseB(category, reason);
+      const result = RuleManager.setCaseB(modificationCategory, modificationReason);
       setFieldPermissions(result);
-      console.log('Case B for', category, 'with reason:', reason, ':', result);
+      console.log('Case B for', modificationCategory, 'with reason:', modificationReason, ':', result);
   };
   const setCaseC = () => {
-      const result = RuleManager.setCaseC(category, reason);
+      const result = RuleManager.setCaseC(modificationCategory, modificationReason);
       setFieldPermissions(result);
-      console.log('Case C for', category, 'with reason:', reason, ':', result);
+      console.log('Case C for', modificationCategory, 'with reason:', modificationReason, ':', result);
   };
   // #endregion
 
@@ -753,15 +758,15 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     // TODO: Implement the actual approval API call
     console.log('Approving modification for:', {
       project: projectDetails,
-      category,
-      reason
+      category: modificationCategory,
+      reason: modificationReason
     });
     
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     // Here you would call your actual API service
-    // await approveModificationRequest(projectDetails.ProjectId, category, reason);
+    // await approveModificationRequest(projectDetails.ProjectId, modificationCategory, modificationReason);
     
     showToast({
       type: 'success',
@@ -773,8 +778,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     // TODO: Implement the actual review request API call
     console.log('Sending for review:', {
       project: projectDetails,
-      category,
-      reason,
+      category: modificationCategory,
+      reason: modificationReason,
       comments: reviewComments
     });
     
@@ -878,8 +883,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       {/* Revision Details */}
       <div className='bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl'>
         <RevisionForm
-          category={fieldPermissions?.category || category}
-          reason={reason}
+          category={fieldPermissions?.category || modificationCategory}
+          reason={modificationReason}
           projectDetails={projectDetails}
           componentCosts={componentCosts}
           componentCostYear={componentCostsYear}
@@ -1000,7 +1005,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                   errors={errors}
                   disabled={isDisabled}
                   fieldPermissions={fieldPermissions}
-                  category={category}
+                  category={modificationCategory}
                 />
               </div>
               <div className="flex justify-end px-4 pb-6 sm:px-8">
@@ -1113,6 +1118,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       {isRevisedProjectDialogOpen && (<ReviseProjectDialog
         isOpen={isRevisedProjectDialogOpen}
         onClose={() => setIsRevisedProjectDialogOpen(false)}
+        revisionCategory={modificationCategory}
+        revisionReason={modificationReason}
         project={initialData?.ProjectDetails || projectDetails}
         componentCosts={componentCosts}
         componentCostYear={componentCostsYear}
@@ -1146,8 +1153,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           isOpen={isApproveDialogOpen}
           onClose={() => setIsApproveDialogOpen(false)}
           project={initialData?.ProjectDetails || projectDetails}
-          category={category}
-          reason={reason}
+          category={modificationCategory}
+          reason={modificationReason}
           onApprove={handleApproveModification}
         />
       )}
@@ -1158,8 +1165,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           isOpen={isForReviewDialogOpen}
           onClose={() => setIsForReviewDialogOpen(false)}
           project={initialData?.ProjectDetails || projectDetails}
-          category={category}
-          reason={reason}
+          category={modificationCategory}
+          reason={modificationReason}
           onSubmitForReview={handleForReviewModification}
         />
       )}

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { useDropDownData } from "../hooks/useDropDown";
-import XMarkIcon from '@heroicons/react/24/outline/XMarkIcon';
+import { XMarkIcon, DocumentArrowUpIcon, DocumentIcon } from '@heroicons/react/24/outline';
 import type { ProjectDetails, ComponentCost, ComponentCostYear, MajorItemOfWork, MajorItemLocations, FundingProfile } from '../../Project/Model';
 import { submitModificationRequest } from '../Service';
 import { useToast } from '../../../components/toaster/ToasterContext';
@@ -16,6 +16,8 @@ interface ReviseProjectDialogProps {
     majorItemOfWorks: MajorItemOfWork[];
     majorItemLocations: MajorItemLocations[];
     fundingProfile: FundingProfile[];
+    revisionCategory?: string;
+    revisionReason?: string;
 }
 
 const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({ 
@@ -26,7 +28,9 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
     componentCostYear,
     majorItemOfWorks,
     majorItemLocations,
-    fundingProfile
+    fundingProfile,
+    revisionCategory,
+    revisionReason
 }) => {
     const {
         initializeData
@@ -34,8 +38,12 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
 
     const { showToast } = useToast();
     const [approvalDate, setApprovalDate] = useState<string>('');
-    const [approvalDocument, setApprovalDocument] = useState<File | null>(null);
-    const [revisionReason, setRevisionReason] = useState<string>('');
+    const [approvalDocument, setApprovalDocument] = useState<{
+        Name: string;
+        Extension: string;
+        ContentType: string;
+        DataUrl: string;
+    } | null>(null);
     const [revisionType] = useState<string>('modification');
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
@@ -43,9 +51,37 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
         initializeData();
     }, [initializeData]);
 
+    // Reset form when modal opens
+    useEffect(() => {
+        if (isOpen) {
+            setApprovalDate('');
+            setApprovalDocument(null);
+        }
+    }, [isOpen]);
+
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            setApprovalDocument(e.target.files[0]);
+        const file = e.target.files?.[0];
+        if (file) {
+            // Check if file is PDF
+            if (file.type !== 'application/pdf') {
+                showToast({
+                    type: 'error',
+                    message: 'Please select a PDF file only.'
+                });
+                e.target.value = ''; // Clear the input
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setApprovalDocument({
+                    Name: file.name,
+                    Extension: file.name.split('.').pop() || '',
+                    ContentType: file.type,
+                    DataUrl: reader.result as string,
+                });
+            };
+            reader.readAsDataURL(file);
         }
     };
 
@@ -74,16 +110,23 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
         try {
             // Prepare the payload
             const payload = {
+                RevisionDetails: {
+                    RevisionCategory: revisionCategory || revisionType,
+                    RevisionReason: revisionReason || '',
+                    ApprovalDate: approvalDate,
+                    ApprovedDocument: {
+                        Name: approvalDocument.Name,
+                        Extension: approvalDocument.Extension,
+                        ContentType: approvalDocument.ContentType,
+                        DataUrl: approvalDocument.DataUrl
+                    }
+                },
                 ProjectDetails: project,
                 ComponentCosts: componentCosts,
                 ComponentCostYear: componentCostYear,
                 MajorItemOfWorks: majorItemOfWorks,
                 MajorItemLocations: majorItemLocations,
                 FundingProfile: fundingProfile,
-                RevisionReason: revisionReason,
-                RevisionType: revisionType,
-                ApprovalDate: approvalDate,
-                FileAttachments: [approvalDocument.name] // You may need to handle file upload separately
             };
 
             console.log('Submitting modification request with payload:', payload);
@@ -94,6 +137,10 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
                 type: 'success',
                 message: 'Modification request submitted successfully.'
             });
+
+            // Reset form
+            setApprovalDate('');
+            setApprovalDocument(null);
 
             onClose();
         } catch (error) {
@@ -142,7 +189,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
                             </div>
                             <div>
                                 <span className="font-medium text-gray-700">Current Revision:</span>
-                                <p className="text-gray-600">Modification</p>
+                                <p className="text-gray-600">{revisionType}</p>
                             </div>
                             <div className="col-span-2">
                                 <span className="font-medium text-gray-700">Description:</span>
@@ -150,6 +197,27 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
                             </div>
                         </div>
                     </div>
+
+                    {/* Modification Details */}
+                    {(revisionCategory || revisionReason) && (
+                        <div className='bg-blue-50 p-4 rounded-lg space-y-2'>
+                            <h4 className="text-sm font-medium text-gray-900">Modification Details</h4>
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                                {revisionCategory && (
+                                    <div>
+                                        <span className="font-medium text-gray-700">Category:</span>
+                                        <p className="text-gray-600">{revisionCategory}</p>
+                                    </div>
+                                )}
+                                {revisionReason && (
+                                    <div>
+                                        <span className="font-medium text-gray-700">Reason:</span>
+                                        <p className="text-gray-600">{revisionReason}</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Revision Details */}
                     <div className='space-y-2'>
@@ -165,17 +233,38 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
                                 className='w-2/3 border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500'
                             />
                         </div>
-                        <div className='flex justify-between gap-5 items-center'>
-                            <label className='w-1/3 block text-sm font-medium text-gray-700'>
-                                *Approval Document :
+                        <div className='space-y-2'>
+                            <label className='block text-sm font-medium text-gray-700'>
+                                *Approval Document (PDF only)
                             </label>
-                            <input 
-                                type="file" 
-                                accept=".pdf,.doc,.docx"
-                                onChange={handleFileChange}
-                                required
-                                className='w-2/3 border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500'
-                            />
+                            <div className="relative">
+                                <div className="flex items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                        {approvalDocument ? (
+                                            <>
+                                                <DocumentIcon className="w-8 h-8 mb-2 text-green-500" />
+                                                <p className="text-sm text-gray-700 font-medium">{approvalDocument.Name}</p>
+                                                <p className="text-xs text-gray-500">PDF file selected</p>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <DocumentArrowUpIcon className="w-8 h-8 mb-2 text-gray-400" />
+                                                <p className="mb-2 text-sm text-gray-500">
+                                                    <span className="font-semibold">Click to upload</span> or drag and drop
+                                                </p>
+                                                <p className="text-xs text-gray-500">PDF files only</p>
+                                            </>
+                                        )}
+                                    </div>
+                                    <input
+                                        type="file"
+                                        accept=".pdf,application/pdf"
+                                        onChange={handleFileChange}
+                                        required
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    />
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div className='pt-4 border border-gray-100 rounded-2xl px-4 flex justify-end gap-5'>
