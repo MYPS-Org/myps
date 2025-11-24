@@ -27,7 +27,7 @@ namespace DBHelper.Data
         public DbSet<Models.Table.ProjectThrustLists> tProjectThrustLists { get; set; }
         public DbSet<Models.Table.ProjectOriginEnum> tProjectOriginEnum { get; set; }
         public DbSet<Models.Table.OptionAdminAreaCityMunicipality> tOptionAdminAreaCityMunicipality { get; set; }
-        public DbSet<Models.Table.AdminAreaCongressionalDistrict> tAdminAreaCongressionalDistrict { get; set; }
+        public DbSet<Models.Table.OptionAdminAreaCongressionalDistrict> tOptionAdminAreaCongressionalDistrict { get; set; }
         public DbSet<Models.Table.OptionAdminAreaDistrictEngineeringOffice> tOptionAdminAreaDistrictEngineeringOffice { get; set; }
         public DbSet<Models.Table.OptionAdminAreaRegion> tOptionAdminAreaRegion { get; set; }
         //public DbSet<Models.Table.AdminImplementingOffice> tAdminImplementingOffice { get; set; }
@@ -59,6 +59,10 @@ namespace DBHelper.Data
         public DbSet<Models.Table.FutureRoadSections> tFutureRoadSections { get; set; }
         public DbSet<Models.Table.FutureBridge> tFutureBridge { get; set; }
         public DbSet<Models.Table.ProjectImplementingOfficeEnum> tProjectImplementingOfficeEnum { get; set; }
+        public DbSet<Models.Table.PCMARevisions> tPCMARevisions { get; set; }
+        public DbSet<Models.Table.PCMARevisionDetails> tPCMARevisionDetails { get; set; }
+        public DbSet<Models.Table.PCMARevisionChangelogs> tPCMARevisionChangelogs { get; set; }
+        public DbSet<Models.Table.RevisionHeader> tRevisionHeader { get; set; }
         #endregion
         #region Views
         public DbSet<Models.Views.Users> vUsers { get; set; }
