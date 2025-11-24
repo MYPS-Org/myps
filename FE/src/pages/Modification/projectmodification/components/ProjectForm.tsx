@@ -820,24 +820,31 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
               
             </div>
             <div className="flex space-x-3">
-                {mode === 'edit' && user?.UserRole === 'Implementing Office' && (
+                {mode === 'edit' && (user?.UserRole === 'DEO' || user?.RegCode === initialData?.ProjectDetails.DEO ) && (
                   <>
                     <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify()} disabled={updateReviseProject}>
-                      {updateReviseProject ? 'Submitting...' : 'Submit Modify Request'}
+                      {updateReviseProject ? 'Submitting...' : 'Submit Modify Request to RO'}
                     </Button>
                   </>
                 )}
-                {mode === 'edit' && user?.UserRole === 'Regional Office' && (
+                {mode === 'edit' && (user?.UserRole === 'Regional Office' || user?.RegCode === initialData?.ProjectDetails.DEO ) && (
                   <>
-                    <Button color="green" className='cursor-pointer' onClick={() => setIsApproveDialogOpen(true)} disabled={updateApproveProject}>
-                      {updateApproveProject ? 'Approving...' : 'Approve'}
+                    <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify()} disabled={updateReviseProject}>
+                      {updateReviseProject ? 'Submitting...' : 'Submit Modify Request CO'}
                     </Button>
                   </>
                 )}
-                {mode === 'edit' && (
+                {mode === 'edit' && user?.UserRole === 'Central Office' && (
                   <>
                     <Button color="amber" className='cursor-pointer' onClick={() => setIsForReviewDialogOpen(true)} disabled={updateForReviewProject}>
                       {updateForReviewProject ? 'Initializing...' : 'For Review'}
+                    </Button>
+                  </>
+                )}
+                {mode === 'edit' && user?.UserRole === 'Central Office' && (
+                  <>
+                    <Button color="green" className='cursor-pointer' onClick={() => setIsApproveDialogOpen(true)} disabled={updateApproveProject}>
+                      {updateApproveProject ? 'Approving...' : 'Approve'}
                     </Button>
                   </>
                 )}

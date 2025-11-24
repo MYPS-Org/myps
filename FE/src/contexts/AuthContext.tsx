@@ -70,7 +70,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                         isAuthenticated: true,
                         isLoading: false,
                         user: { ...response.Data.Data.User,
-                            UserRole: 'Implementing Office'
+                            UserRole: 'Central Office'
                          }
                     });
                     if(window.location.pathname === '/login') {
