@@ -275,20 +275,66 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
     return (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            {/* Debug section for field permissions */}
+            {/* Field Permissions Information */}
             {fieldPermissions && (
-                <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <h4 className="text-sm font-semibold text-blue-800 mb-2">Field Permissions Debug ({category}):</h4>
-                    <p className="text-xs text-blue-700">
-                        PCMA Status: <span className="font-medium">{fieldPermissions.pcmaStatus}</span> | 
-                        Package Status: <span className="font-medium">{fieldPermissions.packageStatus}</span> | 
-                        Case: <span className="font-medium">{fieldPermissions.case}</span> |
-                        Category: <span className="font-medium">{fieldPermissions.category || category}</span>
-                    </p>
-                    <p className="text-xs text-blue-700 mt-1">
-                        Editable Fields ({fieldPermissions.editableFields?.length || 0}): 
-                        <span className="font-mono text-xs"> {fieldPermissions.editableFields?.join(', ')}</span>
-                    </p>
+                <div className="mb-6 p-5 bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500 rounded-lg shadow-sm">
+                    <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                            <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <h4 className="text-base font-semibold text-gray-800">{category} Permissions</h4>
+                        </div>
+                        <span className="px-3 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded-full">
+                            {fieldPermissions.editableFields?.length || 0} Editable {fieldPermissions.editableFields?.length === 1 ? 'Field' : 'Fields'}
+                        </span>
+                    </div>
+                    
+                    {/* Status Information */}
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                        <div className="bg-white p-3 rounded-md shadow-sm">
+                            <p className="text-xs text-gray-500 mb-1">PCMA Status</p>
+                            <p className="text-sm font-semibold text-gray-800">{fieldPermissions.pcmaStatus || 'N/A'}</p>
+                        </div>
+                        <div className="bg-white p-3 rounded-md shadow-sm">
+                            <p className="text-xs text-gray-500 mb-1">Package Status</p>
+                            <p className="text-sm font-semibold text-gray-800">{fieldPermissions.packageStatus || 'N/A'}</p>
+                        </div>
+                        <div className="bg-white p-3 rounded-md shadow-sm">
+                            <p className="text-xs text-gray-500 mb-1">Case</p>
+                            <p className="text-sm font-semibold text-gray-800">{fieldPermissions.case || 'N/A'}</p>
+                        </div>
+                        <div className="bg-white p-3 rounded-md shadow-sm">
+                            <p className="text-xs text-gray-500 mb-1">Category</p>
+                            <p className="text-sm font-semibold text-gray-800">{fieldPermissions.category || category || 'N/A'}</p>
+                        </div>
+                    </div>
+
+                    {/* Editable Fields */}
+                    {fieldPermissions.editableFields && fieldPermissions.editableFields.length > 0 ? (
+                        <div className="bg-white p-3 rounded-md shadow-sm">
+                            <p className="text-xs text-gray-500 mb-2 font-medium">Editable Fields:</p>
+                            <div className="flex flex-wrap gap-2">
+                                {fieldPermissions.editableFields.map((field: string, index: number) => (
+                                    <span 
+                                        key={index}
+                                        className="px-2.5 py-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-md"
+                                    >
+                                        {field}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="bg-white p-3 rounded-md shadow-sm">
+                            <p className="text-xs text-amber-600 flex items-center gap-2">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                                No fields are currently editable based on current permissions
+                            </p>
+                        </div>
+                    )}
                 </div>
             )}
             <div className='w-full flex flex-row items-end justify-end mb-6'>

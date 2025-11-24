@@ -893,19 +893,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                 {/* PCMA Permission Status - FOR TESTING */}
                 {fieldPermissions && (
                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-                        <div className="flex justify-between items-center">
-                            <div>
-                                <h4 className="text-sm font-semibold text-yellow-800">PCMA Permission Status</h4>
-                                <p className="text-xs text-yellow-700">
-                                    Status: <span className="font-medium">{fieldPermissions.pcmaStatus}</span> | 
-                                    Package: <span className="font-medium">{fieldPermissions.packageStatus}</span> | 
-                                    Case: <span className="font-medium">{fieldPermissions.case}</span> |
-                                    Category: <span className="font-medium">{fieldPermissions.category || category}</span>
-                                </p>
-                                <p className="text-xs text-yellow-700 mt-1">
-                                    Editable Fields: {fieldPermissions.editableFields.length} fields allowed
-                                </p>
-                            </div>
+                        <div className="flex justify-center items-center">
                             <div className="flex space-x-2">
                               <button 
                                   onClick={setCaseA}
