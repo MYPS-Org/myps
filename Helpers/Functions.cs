@@ -1,11 +1,16 @@
-﻿using DBHelper.Models.Extra;
+﻿using DBHelper.Data;
+using DBHelper.Models.Enums;
+using DBHelper.Models.Extra;
 using Microsoft.AspNetCore.Http;
 using OfficeOpenXml;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats;
 using SixLabors.ImageSharp.PixelFormats;
+using System.ComponentModel.DataAnnotations;
 using System.Drawing;
+using System.Net;
 using System.Net.Http.Json;
+using System.Net.Mail;
 using System.Text;
 using System.Text.Json;
 
@@ -13,21 +18,51 @@ namespace Helpers
 {
     public static class Functions
     {
-        public static string GenerateProjec2ndSegment(int endYear)
+        public static string UpdateReferenceId(this string Current, string StageName)
+        {
+            var parts = Current.Split('-');
+            string NewStage = StageName.GenerateProjec1stSegment();
+            string ReferenceId = parts[0].Replace("BP", NewStage);
+            return $"{ReferenceId}-{(parts.Length > 1 ? parts[1] : "0")}-{(parts.Length > 2 && !string.IsNullOrEmpty(parts[2]) ? int.Parse(parts[2]) + 1 : 0)}";
+        }
+        public static string GenerateReferenceId(this string ReferenceId, string StageName)
+        {
+            return ReferenceId + "-" + ("tCountComponentCost").GenerateCode() + "-" + StageName;
+        }
+        public static EnumProgramStage UpdateStage(this EnumProgramStage Current)
+        {
+            if (Current == EnumProgramStage.BP) return EnumProgramStage.NEP;
+            else if (Current == EnumProgramStage.NEP) return EnumProgramStage.NEPE;
+            else if (Current == EnumProgramStage.NEPE) return EnumProgramStage.HGAB;
+            else if (Current == EnumProgramStage.HGAB) return EnumProgramStage.HGABI;
+            else if (Current == EnumProgramStage.HGABI) return EnumProgramStage.GAA;
+            else if (Current == EnumProgramStage.GAA) return EnumProgramStage.GAAR;
+            return Current;
+        }
+        public static string GenerateProjec1stSegment(this string StageName)
+        {
+            var stageGroups = new Dictionary<string, string[]>
+            {
+                { "BP", new[] { "BP", "RBP", "UPMO", "UBP" } },
+                { "MY", new[] { "RDIP", "UDIP", "PIP" } },
+                { "P",  new[] { "NEP", "HGAB", "GAA" } }
+            };
+            return stageGroups.FirstOrDefault(g => g.Value.Contains(StageName)).Key ?? "P";
+        }
+        public static string GenerateProjec2ndSegment(this int endYear)
         {
             int startYear = 2016;
             int count = endYear - startYear;
             return count.ToString("D3");
         }
-        public static string GenerateProjec1stSegment(string StageName)
+        public static string GenerateCode(this string TableName)
         {
-            var stageGroups = new Dictionary<string, string[]>
-            {
-                { "BP", new[] { "RBP", "UPMO", "UBP" } },
-                { "MY", new[] { "RDIP", "UDIP", "PIP" } },
-                { "P",  new[] { "BP", "NEP", "HGAB", "GAA" } }
-            };
-            return stageGroups.FirstOrDefault(g => g.Value.Contains(StageName)).Key ?? "P";
+            var uidList = new List<string>();
+            var param = new Dictionary<string, object> { { "@Table", TableName } };
+            return Sql.NormalQuery<string>(
+                Appsetting.ConnectionString,
+                "EXEC pGenerateUID @Table = @Table", param
+            ).FirstOrDefault() ?? string.Empty;
         }
         public static bool IsFileCorrupted(this FileUpload File)
         {
@@ -112,6 +147,105 @@ namespace Helpers
                 return true;
             }
         }
+        public static string ToOrdinal(this int number)
+        {
+            if (number <= 0) return number.ToString();
 
+            int lastTwoDigits = number % 100;
+            int lastDigit = number % 10;
+
+            string suffix;
+
+            if (lastTwoDigits >= 11 && lastTwoDigits <= 13)
+            {
+                suffix = "th";
+            }
+            else
+            {
+                switch (lastDigit)
+                {
+                    case 1: suffix = "st"; break;
+                    case 2: suffix = "nd"; break;
+                    case 3: suffix = "rd"; break;
+                    default: suffix = "th"; break;
+                }
+            }
+
+            return $"{number}{suffix}";
+        }
+        public static bool ValidateEmails(this string Emails)
+        {
+            Emails = Emails.Replace(";", ",");
+            List<bool> li = new List<bool>();
+            foreach (var address in Emails.Split(new[] { "," }, StringSplitOptions.RemoveEmptyEntries)) //foreach (var address in Emails.Split(new[] { ";" }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                li.Add(new EmailAddressAttribute().IsValid(address));
+            }
+            return li.Where(x => !x).Any();
+        }
+        public static string SendEmail(SMTPModel data)
+        {
+            try
+            {
+                if (Appsetting.Environment != "Production" && data.Subject != "KOJLMS Report")
+                {
+                    //data.Recipient = "michael.ferrer@kojamjoom.com";
+                    //data.CCAddress = "michael.ferrer@kojamjoom.com";
+                    //return "Success";
+                }
+                MailMessage Email = new MailMessage
+                {
+                    From = new MailAddress(SMTPClass.FROM, SMTPClass.DisplayName),
+                    Subject = data.Subject,
+                    IsBodyHtml = true,
+                    Body = data.Body
+                };
+                if (string.IsNullOrEmpty(data.Recipient))
+                {
+                    data.Recipient = data.CCAddress;
+                }
+                if (!string.IsNullOrEmpty(data.CCAddress))
+                {
+                    data.CCAddress.Replace(";", ",");
+                    if (data.CCAddress.ValidateEmails())
+                        return $"Invalid CC Email: '{data.CCAddress}'";
+                }
+                if (!string.IsNullOrEmpty(data.Recipient)) { data.Recipient.Replace(";", ","); }
+                if (data.Recipient.ValidateEmails() || data.Recipient == null)
+                    return $"Invalid Recipient Email: '{data.Recipient}'";
+
+                Email.To.Add(data.Recipient.Replace(";", ","));
+                if (data.Recipient.ValidateEmails() || data.Recipient == null)
+                    return $"Invalid Recipient Email: '{data.Recipient}'";
+                if (data.CCAddress != "")
+                {
+                    Email.CC.Add(data.CCAddress.Replace(";", ","));
+                    if (data.CCAddress.ValidateEmails())
+                        return $"Invalid CC Email: '{data.CCAddress}'";
+                }
+                SmtpClient smtp = new SmtpClient
+                {
+                    Credentials = new NetworkCredential(SMTPClass.Username, SMTPClass.Password),
+                    Port = SMTPClass.PORT,
+                    Host = SMTPClass.SMTP,
+                    EnableSsl = SMTPClass.SSL,
+                    Timeout = SMTPClass.TimeOut
+                };
+                if (data.Files != null)
+                {
+                    foreach (var File in data.Files)
+                    {
+                        Email.Attachments.Add(new Attachment(new MemoryStream(File.FileByte), File.FileName));
+                    }
+                }
+                smtp.Send(Email);
+                return "Success";
+            }
+            catch (Exception ex)
+            {
+                string code = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{data.Recipient} : {data.CCAddress}"));
+                throw new Exception($"An error occured while sending email. Please contact support service.");
+            }
+        }
     }
 }

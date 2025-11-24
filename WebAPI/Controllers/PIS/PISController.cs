@@ -1,14 +1,16 @@
-﻿using DBHelper.Data;
+﻿using Confluent.Kafka;
+using DBHelper.Data;
 using DBHelper.Models.Dtos;
 using DBHelper.Models.Enums;
+using DBHelper.Models.Extra;
 using DBHelper.Models.Table;
 using DBHelper.Models.Views;
+using Helpers;
+using Helpers.API;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Helpers;
 using System.Text;
-using DBHelper.Models.Extra;
 
 namespace WebAPI.Controllers.MockUps
 {
@@ -16,7 +18,7 @@ namespace WebAPI.Controllers.MockUps
     [Route("api/[controller]/[action]")]
     public class PISController : CoreController
     {
-        public PISController(AppDbContext db) : base(db) { }
+        public PISController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
 
         [HttpPost]
         [AllowAnonymous]
@@ -35,7 +37,7 @@ namespace WebAPI.Controllers.MockUps
                         }
                     );
                 }
-                var request = new GetEmployeeRequest(dto.EmployeeId);
+                var request = new PIS(dto.EmployeeId);
                 var employee = await APIRequest.XML(request);
                 if (string.IsNullOrEmpty(employee.EmployeeId))
                 {
@@ -79,12 +81,12 @@ namespace WebAPI.Controllers.MockUps
                     return new BadRequestObjectResult(
                         new
                         {
-                            Message = $"Employee: '{dto.EmployeeId}' already exists",
-                            Title = "User Exists"
+                            Message = $"Employee: '{dto.EmployeeId}' does not exist",
+                            Title = "User Not Found"
                         }
                     );
                 }
-                var request = new GetEmployeeRequest(dto.EmployeeId);
+                var request = new PIS(dto.EmployeeId);
                 var employee = await APIRequest.XML(request);
                 if (string.IsNullOrEmpty(employee.EmployeeId))
                 {

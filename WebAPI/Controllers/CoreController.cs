@@ -1,14 +1,20 @@
-﻿using DBHelper.Data;
+﻿using Confluent.Kafka;
+using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Table;
+using Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using System.Diagnostics;
 using System.Reflection;
 using System.Security.Claims;
+using System.Text.RegularExpressions;
+using static Confluent.Kafka.ConfigPropertyNames;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace WebAPI.Controllers
@@ -18,14 +24,28 @@ namespace WebAPI.Controllers
     {
         public AppDbContext _db;
         public Users _Session = new Users();
-        public CoreController(AppDbContext db)
+        private readonly IProducer<Null, string> _producer;
+        public CoreController(AppDbContext db, IProducer<Null, string> producer)
         {
             _db = db;
+            _producer = producer;
         }
         public override void OnActionExecuting(ActionExecutingContext context)
         {
             try
             {
+                if (!context.ModelState.IsValid)
+                {
+                    string errors = ValidateModel(context.ModelState);
+
+                    var response = new
+                    {
+                        status = 400,
+                        Title = "Validation failed",
+                        Message = errors
+                    };
+                    context.Result = new BadRequestObjectResult(response);
+                }
                 var controllerActionDescriptor = context.ActionDescriptor as ControllerActionDescriptor;
                 bool hasAllowAnonymous = context.ActionDescriptor.EndpointMetadata
                     .Any(meta => meta is AllowAnonymousAttribute);
@@ -81,6 +101,37 @@ namespace WebAPI.Controllers
                     }
                 );
             }
+        }
+        [NonAction]
+        public string ValidateModel(ModelStateDictionary ModelState)
+        {
+            var messages = new List<string>();
+
+            foreach (var entry in ModelState.Where(ms => ms.Value.Errors.Count > 0))
+            {
+                string key = entry.Key;
+                var errors = entry.Value!.Errors;
+
+                foreach (var error in errors)
+                {
+                    var match = Regex.Match(key, @"^(\w+)\[(\d+)\]\.(\w+)$");
+
+                    if (match.Success)
+                    {
+                        string collection = match.Groups[1].Value;
+                        int index = int.Parse(match.Groups[2].Value);
+                        string property = match.Groups[3].Value;
+
+                        messages.Add($"{collection} {(index + 1).ToOrdinal()} row: {error.ErrorMessage}");
+                    }
+                    else
+                    {
+                        messages.Add($"{key}: {error.ErrorMessage}");
+                    }
+                }
+            }
+
+            return string.Join("\n", messages);
         }
 
         [NonAction]

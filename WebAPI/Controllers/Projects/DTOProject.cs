@@ -22,6 +22,11 @@ namespace WebAPI.Controllers.Projects
         public string? ProgramId { get; set; }
         public string? ProjectId { get; set; }
     }
+    public class ShowProjectStagesDTO
+    {
+        [Required]
+        public string ProjectId { get; set; } = string.Empty;
+    }
     public class AddProjectDTO : ProjectDetails
     {
     }
@@ -29,6 +34,8 @@ namespace WebAPI.Controllers.Projects
     {
         [Required]
         public string ProjectId { get; set; } = string.Empty;
+        [Required]
+        public string StageName { get; set; } = string.Empty;
     }
     public class UpdateProjectDetailsDTO
     {
@@ -36,13 +43,16 @@ namespace WebAPI.Controllers.Projects
         public List<ProjectComponentCostDTO> ComponentCosts { get; set; } = new List<ProjectComponentCostDTO>();
         public List<ProjectComponentCostYearDTO> ComponentCostYear { get; set; } = new List<ProjectComponentCostYearDTO>();
         public List<ProjectMajorWorkItemDTO> MajorItemOfWorks { get; set; } = new List<ProjectMajorWorkItemDTO>();
+        public List<ProjectMajorWorkLocationsDTO> MajorItemLocations { get; set; } = new List<ProjectMajorWorkLocationsDTO>();
         public List<ProjectNotes> ProjectNotes { get; set; } = new List<ProjectNotes>();
+        public List<ProjectSupportingDocs> Docs { get; set; } = new List<ProjectSupportingDocs>();
         public List<FundingProfileDTO> FundingProfile { get; set; } = new List<FundingProfileDTO>();
     }
     public class ProjectComponentCostDTO
     {
         [Required]
         public long Id { get; set; }
+        [Required]
         public string ProjectId { get; set; } = string.Empty;
         [Required]
         [MaxLength(200)]
@@ -68,10 +78,6 @@ namespace WebAPI.Controllers.Projects
         public int CostYear { get; set; }
         [Required]
         public Double Cost { get; set; }
-        public DateTime? ApprovalDate { get; set; }
-        [Required]
-        [MaxLength(100)]
-        public string PAPCode { get; set; } = string.Empty;
         [Required]
         public DateTime StartDate { get; set; }
         [Required]
@@ -82,37 +88,55 @@ namespace WebAPI.Controllers.Projects
         [Required]
         public int Id { get; set; }
         [Required]
+        [MaxLength(100)]
+        public string ProjectId { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(100)]
+        public string ReferenceId { get; set; } = string.Empty;
+        [Required]
         [MaxLength(50)]
         public string ComponentId { get; set; } = string.Empty;
-        [Required]
-        [MaxLength(255)]
-        public string DetailedScope { get; set; } = string.Empty;
         [Required]
         public int YearOfWork { get; set; }
         [Required]
         public int WorkTypeId { get; set; }
         [Required]
-        [MaxLength(100)]
-        public string InfraId { get; set; } = string.Empty;
-        [Required]
         [MaxLength(50)]
         public string InfraType { get; set; } = string.Empty;
+    }
+    public class ProjectMajorWorkLocationsDTO
+    {
         [Required]
-        public int TargetUnitId { get; set; }
+        public int Id { get; set; }
         [Required]
-        public Double StartX { get; set; }
+        [MaxLength(100)]
+        public string ParentId { get; set; } = string.Empty;
         [Required]
-        public Double StartY { get; set; }
+        [MaxLength(50)]
+        public string InfraId { get; set; } = string.Empty;
         [Required]
-        public Double EndX { get; set; }
+        [MaxLength(100)]
+        public string DetailedScope { get; set; } = string.Empty;
         [Required]
-        public Double EndY { get; set; }
+        public int TargetUnitId { get; set; }               
+        [MaxLength(100)]
+        public string TargetUnit { get; set; } = string.Empty;
+        [MaxLength(100)]
+        public string? StartX { get; set; }
+        [MaxLength(100)]
+        public string? StartY { get; set; }
+        [MaxLength(100)]
+        public string? EndX { get; set; }
+        [MaxLength(100)]
+        public string? EndY { get; set; }
         [Required]
-        public Double TargetAmount { get; set; }
-        [Required]
-        public Double StartStationLimit { get; set; }
-        [Required]
-        public Double EndStationLimit { get; set; }
+        public Double? PhysicalTarget { get; set; }
+        [MaxLength(100)]
+        public string? StartStationLimit { get; set; }
+        [MaxLength(100)]
+        public string? EndStationLimit { get; set; }
+        public Double? From { get; set; }
+        public Double? To { get; set; }
     }
     public class AddNotesDTO : ProjectDetailsDTO
     {
@@ -122,7 +146,23 @@ namespace WebAPI.Controllers.Projects
         [Required]
         public FileUpload File { get; set; } = new FileUpload();
     }
-    public class DeleteNotesDTO
+    public class AddSupportingDocsDTO : ProjectDetailsDTO
+    {
+        [Required]
+        [MaxLength(200)]
+        public string Description { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(200)]
+        public string DocumentType { get; set; } = string.Empty;
+        [Required]
+        public FileUpload File { get; set; } = new FileUpload();
+    }
+    public class DeleteSupportingDocsDTO : ProjectDetailsDTO
+    {
+        [Required]
+        public int Id { get; set; }
+    }
+    public class DeleteNotesDTO : ProjectDetailsDTO
     {
         [Required]
         public int Id { get; set; }
@@ -131,12 +171,13 @@ namespace WebAPI.Controllers.Projects
     {
         public int Id { get; set; }
         [Required]
-        [MaxLength(100)]
         public string ProjectId { get; set; } = string.Empty;
         [Required]
         public string Source { get; set; } = string.Empty;
         [Required]
         public int Agreement { get; set; }
+        [Required]
+        public Double Amount { get; set; }
         [Required]
         public Double Percentage { get; set; }
     }

@@ -23,10 +23,9 @@ namespace DBHelper.Models.Table
         [MaxLength(100)]
         public string Name { get; set; } = string.Empty;
         [Required]
-        public int UserGroup { get; set; }
+        public string[] DataSecurityGroup { get; set; } = new string[] { };
         [Required]
-        [MaxLength(10)]
-        public string RegionCode { get; set; } = string.Empty;
+        public int UserGroup { get; set; }
         [Required]
         public EnumProgramStatus Status { get; set; }
         [Required]
@@ -35,14 +34,9 @@ namespace DBHelper.Models.Table
         [Required]
         public int YearStart { get; set; }
         [Required]
-        public int YearEnd { get; set; }
-        [Required]
         [MaxLength(100)]
         public string CreatedBy { get; set; } = string.Empty;
         [Required]
-        public DateTime CreatedDate { get; set; }
-        [MaxLength(100)]
-        public string? UpdatedBy { get; set; }
-        public DateTime? UpdatedDate { get; set; }
+        public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
     }
 }

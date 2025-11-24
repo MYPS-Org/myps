@@ -9,11 +9,46 @@ namespace Helpers
     public abstract class XMLRequest<T>
     {
         private readonly string _employeeId;
+        private readonly Func<string> _customBodyProvider;
+        
+        /// <summary>
+        /// Constructor for employee-based requests (backward compatibility)
+        /// </summary>
+        /// <param name="employeeId">The employee ID</param>
         public XMLRequest(string employeeId)
         {
             _employeeId = employeeId;
+            _customBodyProvider = null;
         }
+        
+        /// <summary>
+        /// Constructor for custom SOAP body requests
+        /// </summary>
+        /// <param name="customBodyProvider">Function that returns the custom SOAP body content</param>
+        protected XMLRequest(Func<string> customBodyProvider)
+        {
+            _customBodyProvider = customBodyProvider ?? throw new ArgumentNullException(nameof(customBodyProvider));
+            _employeeId = null;
+        }
+        
         internal abstract string RequestUri { get; }
+        
+        /// <summary>
+        /// Override this method to provide custom SOAP body content.
+        /// Default implementation returns employee-based body.
+        /// </summary>
+        protected virtual string GetSoapBody()
+        {
+            if (_customBodyProvider != null)
+            {
+                return _customBodyProvider();
+            }
+            
+            return $@"<pis_get_employee xmlns=""https://www.dpwh.gov.ph/"">
+                                <employee_id>{_employeeId}</employee_id>
+                            </pis_get_employee>";
+        }
+        
         internal HttpRequestMessage ToHttpRequest()
         {
             var httpRequest = new HttpRequestMessage
@@ -30,9 +65,7 @@ namespace Helpers
                             <password>{Appsetting.PIS.password}</password>
                         </soap:Header>
                         <soap:Body>
-                            <pis_get_employee xmlns=""https://www.dpwh.gov.ph/"">
-                                <employee_id>{_employeeId}</employee_id>
-                            </pis_get_employee>
+                            {GetSoapBody()}
                         </soap:Body>
                     </soap:Envelope>",
                     Encoding.UTF8,
@@ -41,6 +74,7 @@ namespace Helpers
             httpRequest.Headers.Add("SOAPAction", "");
             return httpRequest;
         }
+        
         internal abstract Task<T> ReadResponseContent(HttpContent responseContent);
     }
 }

@@ -16,11 +16,35 @@ namespace Helpers
         public string userName { get; set; } = string.Empty;
         public string password { get; set; } = string.Empty;
     }
+    public class MYPSToPCMA
+    {
+        public string Host { get; set; } = string.Empty;
+        public string userName { get; set; } = string.Empty;
+        public string password { get; set; } = string.Empty;
+    }
     public class ResourcesFolder
     {
         public string Main { get; set; } = string.Empty;
         public string Projects { get; set; } = string.Empty;
         public string ProjectNotes { get; set; } = string.Empty;
+        public string SupportingDocs { get; set; } = string.Empty;
+    }
+    public class KafkaConfig
+    {
+        public string KafkaServer { get; set; } = string.Empty;
+    }
+    public class SMTPClass
+    {
+        public static string DisplayName { get; set; } = string.Empty;
+        public static string To { get; set; } = string.Empty;
+        public static string FROM { get; set; } = string.Empty;
+        public static string SMTP { get; set; } = string.Empty;
+        public static int PORT { get; set; }
+        public static bool SSL { get; set; }
+        public static int TimeOut { get; set; }
+        public static string Username { get; set; } = string.Empty;
+        public static string Password { get; set; } = string.Empty;
+        public static string PathEmailTemplate { get; set; } = string.Empty;
     }
     public static class Appsetting
     {
@@ -30,18 +54,25 @@ namespace Helpers
         public static string AppName { get; } = "MYPS";
         public static LDAPConfig LDAP { get; set; } = new LDAPConfig();
         public static PISConfig PIS { get; set; } = new PISConfig();
+        public static MYPSToPCMA PCMA { get; set; } = new MYPSToPCMA();
         public static string WebRootPath { get; set; } = string.Empty;
         public static string RootPath { get; set; } = string.Empty;
         public static ResourcesFolder Resources { get; set; } = new ResourcesFolder();
+        public static KafkaConfig KafkaConfigs { get; set; } = new KafkaConfig();
+        public static SMTPClass SMTP { get; set; } = new SMTPClass();
         public static void PrepareAppsettings(IConfiguration config)
         {
             /* PREPARE DATABASE CONNECTIONS */
             ConnectionString = config.GetConnectionString("DbConnection")!;
             LDAP = config.GetSection("LDAP").Get<LDAPConfig>()!;
             PIS = config.GetSection("PIS").Get<PISConfig>()!;
+            PCMA = config.GetSection("MYPSToPCMA").Get<MYPSToPCMA>()!;
             Resources = config.GetSection("Resources").Get<ResourcesFolder>()!;
             Resources.Projects = Path.Combine(Resources.Main, Resources.Projects);
             Resources.ProjectNotes = Path.Combine(Resources.Projects, Resources.ProjectNotes);
+            Resources.SupportingDocs = Path.Combine(Resources.Projects, Resources.SupportingDocs);
+            KafkaConfigs = config.GetSection("Kafka").Get<KafkaConfig>()!;
+            SMTP = config.GetSection("SMTP").Get<SMTPClass>()!;
         }
     }
 }

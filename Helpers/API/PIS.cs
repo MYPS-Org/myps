@@ -3,13 +3,25 @@ using System.Threading.Tasks;
 using DBHelper.Models.Extra;
 using System.Xml.Linq;
 
-namespace Helpers
+namespace Helpers.API
 {
-    public class GetEmployeeRequest : XMLRequest<EmployeeResponse>
+    public class PIS : XMLRequest<EmployeeResponse>
     {
-        public GetEmployeeRequest(string employeeId) : base(employeeId) { }
+        private readonly string _employeeId;
+        
+        public PIS(string employeeId) : base((string)null) 
+        {
+            _employeeId = employeeId;
+        }
 
         internal override string RequestUri => Appsetting.PIS.Host;
+
+        protected override string GetSoapBody()
+        {
+            return $@"<pis_get_employee xmlns=""https://www.dpwh.gov.ph/"">
+                        <employee_id>{_employeeId}</employee_id>
+                    </pis_get_employee>";
+        }
 
         internal override async Task<EmployeeResponse> ReadResponseContent(HttpContent responseContent)
         {

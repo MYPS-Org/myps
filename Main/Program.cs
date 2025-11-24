@@ -1,3 +1,4 @@
+using Confluent.Kafka;
 using DBHelper.Data;
 using DBHelper.Models.Table;
 using Helpers;
@@ -8,6 +9,8 @@ using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using OfficeOpenXml;
+using WebAPI.Controllers;
+using WebAPI.MicroService;
 
 var builder = WebApplication.CreateBuilder(args);
 ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
@@ -29,7 +32,10 @@ builder.Services.AddControllers().AddJsonOptions(options =>
 {
     options.JsonSerializerOptions.PropertyNamingPolicy = null;
 });
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+
+//Custom function in Services
+builder.Services.AddSocketMicroService();
+
 
 await builder.Services.AuthRolesBasedOnDbAsync();
 
@@ -51,10 +57,14 @@ if (builder.Environment.IsDevelopment())
 
     builder.Services.AddDevSwagger();
 }
+builder.Services.AddSignalR(opt =>
+{
+    opt.EnableDetailedErrors = true;
+});
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+app.UseRouting();
 if (app.Environment.IsDevelopment())
 {
     app.UseCors("AllowReactApp");
@@ -73,4 +83,5 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<RegistrationHub>("/notificationHub").RequireCors("AllowReactApp");
 app.Run();

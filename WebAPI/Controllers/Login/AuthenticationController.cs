@@ -1,4 +1,5 @@
-﻿using DBHelper.Data;
+﻿using Confluent.Kafka;
+using DBHelper.Data;
 using Helpers;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -16,7 +17,7 @@ namespace WebAPI.Controllers.Auth
     [Route("api/[controller]/[action]")]
     public class AuthController : CoreController
     {
-        public AuthController(AppDbContext db) : base (db) { }
+        public AuthController(AppDbContext db, IProducer<Null, string> producer) : base (db, producer) { }
         [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> Login([FromBody] LoginDto dto)

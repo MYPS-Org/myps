@@ -1,5 +1,4 @@
-﻿using DBHelper.Models.Enums;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
@@ -8,17 +7,21 @@ using System.Threading.Tasks;
 
 namespace DBHelper.Models.Table
 {
-    public class ProjectCityEnum
+    public class OptionAdminAreaRegion
     {
         [Key]
         public int Id { get; set; }
         [Required]
-        public int Enum { get; set; }
+        [MaxLength(10)]
+        public string GdbId { get; set; } = string.Empty;
         [Required]
-        [MaxLength(100)]
+        [MaxLength(200)]
         public string Name { get; set; } = string.Empty;
         [Required]
-        [MaxLength(300)]
-        public string Description { get; set; } = string.Empty;
+        [MaxLength(10)]
+        public string ParticipantId { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(2)]
+        public string IslandCode { get; set; } = string.Empty;
     }
 }

@@ -1,11 +1,5 @@
-﻿using DBHelper.Models;
+﻿using DBHelper.Models.Views;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Data.SqlClient;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace DBHelper.Data
 {
@@ -32,12 +26,11 @@ namespace DBHelper.Data
         public DbSet<Models.Table.ProjectCategoryEnum> tProjectCategoryEnum { get; set; }
         public DbSet<Models.Table.ProjectThrustLists> tProjectThrustLists { get; set; }
         public DbSet<Models.Table.ProjectOriginEnum> tProjectOriginEnum { get; set; }
-        public DbSet<Models.Table.ProjectCityEnum> tProjectCityEnum { get; set; }
-        public DbSet<Models.Table.ProjectLegislativeDistrictEnum> tProjectLegislativeDistrictEnum { get; set; }
-        public DbSet<Models.Table.ProjectOperatingUnitEnum> tProjectOperatingUnitEnum { get; set; }
-        public DbSet<Models.Table.ProjectImplementingOfficeEnum> tProjectImplementingOfficeEnum { get; set; }
-        public DbSet<Models.Table.ProjectDEOEnum> tProjectDEOEnum { get; set; }
-        public DbSet<Models.Table.ProjectRODEOEnum> tProjectRODEOEnum { get; set; }
+        public DbSet<Models.Table.OptionAdminAreaCityMunicipality> tOptionAdminAreaCityMunicipality { get; set; }
+        public DbSet<Models.Table.AdminAreaCongressionalDistrict> tAdminAreaCongressionalDistrict { get; set; }
+        public DbSet<Models.Table.OptionAdminAreaDistrictEngineeringOffice> tOptionAdminAreaDistrictEngineeringOffice { get; set; }
+        public DbSet<Models.Table.OptionAdminAreaRegion> tOptionAdminAreaRegion { get; set; }
+        //public DbSet<Models.Table.AdminImplementingOffice> tAdminImplementingOffice { get; set; }
         public DbSet<Models.Table.ProjectAgencyLists> tProjectAgencyLists { get; set; }
         public DbSet<Models.Table.ProjectImplementModeEnum> tProjectImplementModeEnum { get; set; }
         public DbSet<Models.Table.ProjectEmergencyModeEnum> tProjectEmergencyModeEnum { get; set; }
@@ -48,7 +41,9 @@ namespace DBHelper.Data
         public DbSet<Models.Table.TransactionLog> tTransactionLog { get; set; }
         public DbSet<Models.Table.ProjectScopeOfWorkEnum> tProjectScopeOfWorkEnum { get; set; }
         public DbSet<Models.Table.ProjectMajorWorkItem> tProjectMajorWorkItem { get; set; }
+        public DbSet<Models.Table.ProjectMajorWorkLocations> tProjectMajorWorkLocations { get; set; }
         public DbSet<Models.Table.ProjectNotes> tProjectNotes { get; set; }
+        public DbSet<Models.Table.ProjectSupportingDocs> tProjectSupportingDocs { get; set; }
         public DbSet<Models.Table.ProjectFundingProfile> tProjectFundingProfile { get; set; }
         public DbSet<Models.Table.ProjectFundingAgreementLists> tProjectFundingAgreementLists { get; set; }
         public DbSet<Models.Table.ProjectFundingSource> tProjectFundingSource { get; set; }
@@ -57,6 +52,13 @@ namespace DBHelper.Data
         public DbSet<Models.Table.InfraType> tInfraType { get; set; }
         public DbSet<Models.Table.ProjectsInGroup> tProjectsInGroup { get; set; }
         public DbSet<Models.Table.ProjectGroups> tProjectGroups { get; set; }
+        public DbSet<Models.Table.OptionAdminAreaProvince> tOptionAdminAreaProvince { get; set; }
+        public DbSet<Models.Table.DropdownSupportingDocs> tDropdownSupportingDocs { get; set; }
+        public DbSet<Models.Table.FutureRoads> tFutureRoads { get; set; }
+        public DbSet<Models.Table.FutureRoadsClassification> tFutureRoadsClassification { get; set; }
+        public DbSet<Models.Table.FutureRoadSections> tFutureRoadSections { get; set; }
+        public DbSet<Models.Table.FutureBridge> tFutureBridge { get; set; }
+        public DbSet<Models.Table.ProjectImplementingOfficeEnum> tProjectImplementingOfficeEnum { get; set; }
         #endregion
         #region Views
         public DbSet<Models.Views.Users> vUsers { get; set; }
@@ -68,9 +70,15 @@ namespace DBHelper.Data
         public DbSet<Models.Views.ProjectDetails> vProjectDetails { get; set; }
         public DbSet<Models.Views.ProjectGroups> vProjectGroups { get; set; }
         public DbSet<Models.Views.ProjectsInGroup> vProjectsInGroup { get; set; }
+        public DbSet<Models.Views.AdminOperatingUnit> vAdminOperatingUnit { get; set; }
+        public DbSet<Models.Views.AdminImplementingOffice> vAdminImplementingOffice { get; set; }
+        public DbSet<Models.Views.GetProjectCategoryVersions> vGetProjectCategoryVersions { get; set; }
         #endregion
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.Entity<AdminOperatingUnit>().HasNoKey().ToView("vAdminOperatingUnit");
+            modelBuilder.Entity<AdminImplementingOffice>().HasNoKey().ToView("vAdminImplementingOffice");
+            modelBuilder.Entity<GetProjectCategoryVersions>().HasNoKey().ToView("vGetProjectCategoryVersions");
             base.OnModelCreating(modelBuilder);
         }
     }

@@ -1,4 +1,6 @@
-﻿using DBHelper.Data;
+﻿using Confluent.Kafka;
+using DBHelper.Data;
+using DBHelper.Models.API;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Table;
 using DBHelper.Models.Views;
@@ -6,20 +8,16 @@ using Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Data.SqlClient;
 using System.Reflection;
-using System.Text.RegularExpressions;
-using System.Xml;
-using static Eaf.Domain.Uow.EafDataFilters;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
-using static System.Runtime.InteropServices.JavaScript.JSType;
+using Helpers.API;
+
 namespace WebAPI.Controllers.Programs
 {
     [ApiController]
     [Route("api/[controller]/[action]")]
     public class ProgramController : CoreController
     {
-        public ProgramController(AppDbContext db) : base(db) { }
+        public ProgramController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
         #region Program Lists
         [AllowAnonymous]
         [HttpPost]
@@ -90,9 +88,6 @@ namespace WebAPI.Controllers.Programs
                 if (!string.IsNullOrEmpty(dto.Filters?.YearStart))
                     baseQuery = baseQuery.Where(e => e.YearStart.ToString() == dto.Filters.YearStart);
 
-                if (!string.IsNullOrEmpty(dto.Filters?.YearEnd))
-                    baseQuery = baseQuery.Where(e => e.YearEnd.ToString() == dto.Filters.YearEnd);
-
                 if (dto.Filters?.GroupName != null)
                     baseQuery = baseQuery.Where(e => e.GroupName == dto.Filters.GroupName);
 
@@ -109,10 +104,10 @@ namespace WebAPI.Controllers.Programs
                         : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField));
 
                 // Apply pagination and execute query
-                 List<DBHelper.Models.Views.Programs> permissionLists = await sortedQuery
-                    .Skip((dto.page - 1) * dto.limit)
-                    .Take(dto.limit)
-                    .ToListAsync();
+                List<DBHelper.Models.Views.Programs> permissionLists = await sortedQuery
+                   .Skip((dto.page - 1) * dto.limit)
+                   .Take(dto.limit)
+                   .ToListAsync();
 
                 var totalPages = (int)Math.Ceiling((double)totalRecords / dto.limit);
 
@@ -155,19 +150,11 @@ namespace WebAPI.Controllers.Programs
         {
             try
             {
-                int[] initialStageInts = new[]
-                {
-                    (int)EnumProgramStage.RBP,
-                    (int)EnumProgramStage.BP
-                };
-                //int[] initialStatus = new[]
-                //{
-                //    (int)EnumProgramStatus.Working
-                //};
+                var SelectedStage = new[] { EnumProgramStage.RDIP, EnumProgramStage.PIP }.Select(stage => (int)stage).ToList();
 
-                var Stage = await _db.tProgramStageEnum.AsNoTracking().Where(x => initialStageInts.Contains(x.Enum)).ToListAsync();
+                var Stage = await _db.tProgramStageEnum.AsNoTracking().Where(x => !SelectedStage.Contains(x.Id)).ToListAsync();
+
                 var Type = await _db.tProgramTypeEnum.AsNoTracking().ToListAsync();
-                //var Status = await _db.tProgramStatusEnum.AsNoTracking().Where(x => initialStatus.Contains(x.Enum)).ToListAsync();
                 var Group = await _db.tGroups.ToListAsync();
                 string[] includes = { "C", "R", "PMO", "PMOC", "B" };
                 var Security = await _db.tProjectImplementingOfficeEnum.AsNoTracking().Where(x => includes.Contains(x.OrgType)).ToListAsync();
@@ -175,7 +162,6 @@ namespace WebAPI.Controllers.Programs
                 {
                     Stages = Stage,
                     Types = Type,
-                    //Statuses = Status,
                     Groups = Group,
                     DataSecurity = Security
                 });
@@ -198,45 +184,37 @@ namespace WebAPI.Controllers.Programs
                     return new BadRequestObjectResult(new { Message = $"Program name '{dto.Name}' already exists in the System!", Title = "Program Already Exists" });
                 }
                 var checkStageType = await _db.tProgramStageEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == (int)dto.Stage);
-                if(checkStageType == null)
+                if (checkStageType == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program Stage '{dto.Stage}' is not valid!", Title = "Invalid Stage" });
-                }
-                var checkStatusType = await _db.tProgramStatusEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == (int)dto.Status);
-                if(checkStatusType == null)
-                {
-                    return new BadRequestObjectResult(new { Message = $"Program Status '{dto.Status}' is not valid!", Title = "Invalid Status" });
                 }
                 var checkType = await _db.tProgramTypeEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == (int)dto.Type);
                 if (checkType == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program Type '{dto.Type}' is not valid!", Title = "Invalid Type" });
                 }
-                var checkUserGroup = await _db.tGroups.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dto.UserGroup);
-                if (checkUserGroup == null)
+                string[] includes = { "C", "R", "PMO", "PMOC", "B" };
+                var GetSecurityGroup = await _db.tProjectImplementingOfficeEnum.AsNoTracking().Where(x => includes.Contains(x.OrgType)).Select(x => x.ParticipantId).ToListAsync();
+                var CheckItems = dto.DataSecurityGroup.Where(x => !GetSecurityGroup.Contains(x));
+                if (CheckItems.Count() > 0)
                 {
-                    return new BadRequestObjectResult(new { Message = $"User Group '{dto.UserGroup}' is not valid!", Title = "Invalid User Group" });
+                    return new BadRequestObjectResult(new { Message = $"Security Group '{string.Join(", ", CheckItems)}' is not valid!", Title = "Invalid Security Group" });
                 }
-                var param = new Dictionary<string, object>
+                if (dto.IsSkipped == true && string.IsNullOrEmpty(dto.SkipReason))
                 {
-                    {"@Table", "tCountSequence"}
-                };
-                string uid = Sql.NormalQuery<string>(Appsetting.ConnectionString,
-                        "EXEC pGenerateUID @Table = @Table", param)
-                    .FirstOrDefault() ?? string.Empty;
-                if(string.Empty == uid)
-                {
-                    return new BadRequestObjectResult(new { Message = "Unable to generate Reference ID for the Program!", Title = "Please contact administrator" });
+                    return new BadRequestObjectResult(new { Message = $"Please provide a reason for skipping stage of this program.", Title = "Skip Reason Required" });
                 }
-                string ReferenceId = "PR" + uid ?? string.Empty;
+                string ReferenceId = "PR" + ("tCountSequence").GenerateCode();
                 DateTime currentDate = DateTime.UtcNow;
-                string UserId = _Session.UserId ?? "TESTING";
+                string UserId = _Session.UserId;
                 var newProgram = new DBHelper.Models.Table.Programs()
                 {
                     ProgramId = ReferenceId,
                     CreatedBy = UserId,
                     CreatedDate = currentDate,
-                    IsDeleted= false
+                    IsDeleted = false,
+                    IsSkipped = dto.IsSkipped,
+                    SkipReason = dto.IsSkipped ? dto.SkipReason : null
                 };
                 await _db.tPrograms.AddAsync(newProgram);
                 var newRevisions = new ProgramRevisions()
@@ -244,14 +222,13 @@ namespace WebAPI.Controllers.Programs
                     ProgramId = ReferenceId,
                     RevisionNumber = 1,
                     Name = dto.Name,
+                    DataSecurityGroup = dto.DataSecurityGroup,
                     UserGroup = dto.UserGroup,
-                    RegionCode = dto.RegionCode,
                     Status = EnumProgramStatus.Working,
                     Type = dto.Type,
                     YearStart = dto.YearStart,
-                    YearEnd = dto.YearEnd,
                     CreatedBy = UserId,
-                    CreatedDate = currentDate,
+                    CreatedDate = currentDate
 
                 };
                 await _db.tProgramRevisions.AddAsync(newRevisions);
@@ -271,6 +248,7 @@ namespace WebAPI.Controllers.Programs
                 return Ok(new
                 {
                     Id = ReferenceId,
+                    Stage = dto.Stage.ToString(),
                     Message = "Program added successfully",
                     Title = "Add Complete"
                 });
@@ -298,8 +276,33 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Programs table. Please contact administrator!", Title = "Program not found" });
                 }
-                var program = await _db.vProgramDetails.AsNoTracking().FirstOrDefaultAsync(x => x.Id == CurrentProgramVersion.RevisionId && x.ProgramId == dto.ProgramId);
-                var ProjectLists = await _db.vProjects.AsNoTracking().Where(x => x.ProgramId == dto.ProgramId).ToListAsync();
+                var program = await _db.vProgramDetails.AsNoTracking().OrderByDescending(x => x.Id).FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId && x.StageName == dto.StageName);
+                if (program == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' with Stage {dto.StageName} does not exist in the Programs table. Please contact administrator!", Title = "Program not found" });
+                }
+                //var ProjectLists = await _db.vProjects.AsNoTracking().Where(x => x.ProgramId == dto.ProgramId && x.StageName == dto.StageName).ToListAsync();
+                var ProjectLists = await _db.vProjectDetails
+                .FromSqlInterpolated($"SELECT * FROM fProjectsPerStage({dto.ProgramId}) fp WHERE fp.StageName = {dto.StageName}")
+                .AsNoTracking().Select(x => new ProjectPerStage()
+                {
+                    Id = x.Id,
+                    ProgramId = x.ProgramId,
+                    ProgramName = x.ProgramName,
+                    StageId = x.StageId,
+                    StageName = x.StageName,
+                    ReferenceId = x.ReferenceId,
+                    ProjectId = x.ProjectId,
+                    Description = x.Description,
+                    Thrust = _db.tProjectThrustLists.FirstOrDefault(a => a.PAPKey == x.Thrust)!.ThrustDescription ?? x.Thrust.ToString(),
+                    Category = _db.tProjectCategoryEnum.FirstOrDefault(a => a.Enum == x.Category)!.Name ?? x.Category.ToString(),
+                    City = _db.tOptionAdminAreaCityMunicipality.FirstOrDefault(a => a.Code == x.City.ToString())!.Name ?? x.City.ToString(),
+                    LegislativeDistrict = _db.tAdminAreaCongressionalDistrict.FirstOrDefault(a => a.Code == x.LegislativeDistrict.ToString())!.Name ?? x.LegislativeDistrict.ToString(),
+                    Cost = _db.tProjectComponentCost.Where(a => a.ReferenceId == x.ReferenceId).Sum(a => a.Total),
+                    CreatedBy = x.CreatedBy,
+                    CreatedDate = x.CreatedDate,
+
+                }).ToListAsync();
                 var AvailableStages = await _db.tProgramStageEnum.AsNoTracking().ToListAsync();
                 var AvailableTypes = await _db.tProgramTypeEnum.AsNoTracking().ToListAsync();
                 var AvailableStatuses = await _db.tProgramStatusEnum.AsNoTracking().ToListAsync();
@@ -308,6 +311,7 @@ namespace WebAPI.Controllers.Programs
                 var Security = await _db.tProjectImplementingOfficeEnum.AsNoTracking().Where(x => includes.Contains(x.OrgType)).ToListAsync();
                 var response = new
                 {
+                    IsActive = (CurrentProgramVersion.StageName == program.StageName) ? true : false,
                     Details = program,
                     Projects = ProjectLists,
                     Dropdowns = new
@@ -343,7 +347,8 @@ namespace WebAPI.Controllers.Programs
                     return new BadRequestObjectResult(new { Message = $"Program {dto.ProgramId} does not exist in the ", Title = "Delete Failed" });
                 }
                 var ProgramStage = await _db.tProgramStages.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionId == dto.RevisionId);
-                if(ProgramStage == null) {
+                if (ProgramStage == null)
+                {
                     return new BadRequestObjectResult(new { Message = $"Program Stage with Revision ID '{dto.RevisionId}' does not exist in the Program Stages table. Please contact administrator!", Title = "Stage not found" });
                 }
                 int[] AllowedStages =
@@ -392,7 +397,6 @@ namespace WebAPI.Controllers.Programs
             {
                 bool hasUpdated = false;
                 var referenceId = dto.ProgramId;
-                var expectedRevision = dto.RevisionNumber;
 
                 var currentVersion = await _db.vPrograms.FirstOrDefaultAsync(x => x.ProgramId == referenceId);
                 if (currentVersion == null)
@@ -405,7 +409,7 @@ namespace WebAPI.Controllers.Programs
                 }
 
                 var getProgram = await _db.vProgramDetails
-                    .FirstOrDefaultAsync(x => x.RevisionNumber == currentVersion.RevisionId && x.ProgramId == referenceId);
+                    .FirstOrDefaultAsync(x => x.ProgramId == referenceId && x.StageId == dto.StageId);
 
                 if (getProgram == null)
                 {
@@ -416,12 +420,10 @@ namespace WebAPI.Controllers.Programs
                     });
                 }
 
-                if (currentVersion.RevisionId != expectedRevision)
+                if (currentVersion.RevisionId != dto.Id)
                 {
-
                     var updatedBy = getProgram?.UpdatedBy ?? "Unknown";
                     var updatedDate = getProgram?.UpdatedDate?.ToString("MM-dd-yyyy HH:mm:ss") ?? "Unknown";
-
                     return new BadRequestObjectResult(new
                     {
                         Title = "Outdated Revision",
@@ -436,17 +438,14 @@ namespace WebAPI.Controllers.Programs
                     ProgramId = getProgram.ProgramId,
                     RevisionNumber = getProgram.RevisionNumber + 1, // Increment the revision number
                     Name = getProgram.Name,
+                    DataSecurityGroup = getProgram.DataSecurityGroup,
                     UserGroup = getProgram.UserGroup,
-                    RegionCode = getProgram.RegionCode,
                     Status = getProgram.Status,
                     Type = getProgram.Type,
                     Cost = getProgram.Cost,
                     YearStart = getProgram.YearStart,
-                    YearEnd = getProgram.YearEnd,
-                    CreatedBy = getProgram.CreatedBy,
-                    CreatedDate = getProgram.CreatedDate,
-                    UpdatedBy = _Session.UserId,
-                    UpdatedDate = CurrentDate
+                    CreatedBy = _Session.UserId,
+                    CreatedDate = CurrentDate
                 };
                 if (dto.Name != NewProgramVersion.Name && !string.IsNullOrEmpty(NewProgramVersion.Name))
                 {
@@ -464,24 +463,31 @@ namespace WebAPI.Controllers.Programs
                         CreatedDate = CurrentDate
                     });
                 }
-                var Groups = await _db.tGroups.FirstOrDefaultAsync(x => x.Id == dto.UserGroup);
-                if (Groups == null) { return new BadRequestObjectResult(new { Message = $"The selected User Group is invalid. Please ensure the User Group field has a valid value selected.", Title = "Update Failed" }); }
-                if (dto.UserGroup != NewProgramVersion.UserGroup)
+                string[] includes = { "C", "R", "PMO", "PMOC", "B" };
+                //Pedning
+                var GetSecurityGroup = await _db.vAdminImplementingOffice.AsNoTracking().ToListAsync();
+                var CheckItems = dto.DataSecurityGroup.Where(x => !GetSecurityGroup.Select(x => x.ParticipantId).Contains(x));
+                if (CheckItems.Count() > 0)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Security Group '{string.Join(", ", CheckItems)}' is not valid!", Title = "Invalid Security Group" });
+                }
+                if (dto.DataSecurityGroup != NewProgramVersion.DataSecurityGroup)
                 {
                     hasUpdated = true;
-                    var Current = await _db.tGroups.FirstOrDefaultAsync(x => x.Id == NewProgramVersion.UserGroup);
-                    NewProgramVersion.UserGroup = dto.UserGroup;
+                    string CurrentSecurityGroup = string.Join(", ", GetSecurityGroup.Select(x => x.Name).Where(sg => NewProgramVersion.DataSecurityGroup.Contains(sg)));
+                    string OdSecurityGroup = string.Join(", ", GetSecurityGroup.Select(x => x.Name).Where(sg => dto.DataSecurityGroup.Contains(sg)));
                     transactionLogs.Add(new TransactionLog
                     {
                         TransactionId = dto.ProgramId,
                         TypeOfTransaction = "Update",
-                        AffectedTable = "tProgramRevisions",    
-                        AffectedColumn = "UserGroup",
-                        NewValue = Groups.GroupName!,
-                        OldValue = Current!.GroupName!,
+                        AffectedTable = "tProgramRevisions",
+                        AffectedColumn = "DataSecurityGroup",
+                        NewValue = CurrentSecurityGroup!,
+                        OldValue = OdSecurityGroup!,
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
+                    NewProgramVersion.DataSecurityGroup = dto.DataSecurityGroup;
                 }
                 var Status = await _db.tProgramStatusEnum.FirstOrDefaultAsync(x => x.Enum == (int)dto.Status);
                 if (Status == null) { return new BadRequestObjectResult(new { Message = $"The selected Status is invalid. Please ensure the Status field has a valid value selected.", Title = "Update Failed" }); }
@@ -537,23 +543,7 @@ namespace WebAPI.Controllers.Programs
                         CreatedDate = CurrentDate
                     });
                 }
-                if (dto.YearEnd != NewProgramVersion.YearEnd)
-                {
-                    hasUpdated = true;
-                    NewProgramVersion.YearEnd = dto.YearEnd;
-                    transactionLogs.Add(new TransactionLog
-                    {
-                        TransactionId = dto.ProgramId,
-                        TypeOfTransaction = "Update",
-                        AffectedTable = "tProgramRevisions",
-                        AffectedColumn = "YearEnd",
-                        NewValue = dto.YearEnd.ToString(),
-                        OldValue = NewProgramVersion.YearEnd.ToString(),
-                        CreatedBy = _Session.UserId,
-                        CreatedDate = CurrentDate
-                    });
-                }
-                if(hasUpdated)
+                if (hasUpdated)
                 {
                     await _db.tProgramRevisions.AddAsync(NewProgramVersion);
                     await _db.SaveChangesAsync();
@@ -591,127 +581,267 @@ namespace WebAPI.Controllers.Programs
             try
             {
                 DateTime CurrentDate = DateTime.UtcNow;
-                var checkProgram = await _db.tPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
+                var checkProgram = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
                 if (checkProgram == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Programs table. Please contact administrator!", Title = "Program not found" });
                 }
-                var checkRevisions = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
-                if(checkRevisions == null)
+                var checkRevisions = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId && x.Id == checkProgram.RevisionId);
+                if (checkRevisions == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Revisions table. Please contact administrator!", Title = "Program not found" });
                 }
-                var checkStage = await _db.tProgramStages.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionId == checkRevisions.Id);
+                var checkStage = await _db.tProgramStages.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionId == checkRevisions.Id && x.ProgramId == dto.ProgramId);
                 if (checkStage == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program ID Revision '{checkRevisions.Id}' does not exist in the Stages table. Please contact administrator!", Title = "Program Stage not found" });
                 }
                 var checkStageType = await _db.tProgramStageEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == (int)dto.Stage);
-                if(checkStageType == null)
+                if (checkStageType == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program Stage '{dto.Stage}' is not valid!", Title = "Invalid Stage" });
                 }
-                var checkProjects = await _db.vProjectDetails.AsNoTracking().Where(x => x.ProgramId == dto.ProgramId).ToListAsync();
+                var checkProjects = await _db.vProjectDetails
+                .FromSqlInterpolated($"SELECT * FROM fProjectsPerStage({dto.ProgramId}) fp WHERE fp.StageId = {checkStage.StageId}")
+                .AsNoTracking()
+                .ToListAsync();
                 if (checkProjects.Count > 0)
                 {
                     HashSet<string> projectIds = checkProjects.Select(p => p.ProjectId!).ToHashSet();
-                    var ProjectRevisions = await _db.tProjectRevisions.AsNoTracking().Where(x => projectIds.Contains(x.AlternateId)).ToListAsync();
+                    HashSet<int?> RevisionNumbers = checkProjects.Select(p => p.RevisionNumber!).ToHashSet();
+                    var ProjectRevisions = await _db.tProjectRevisions.AsNoTracking().Where(x => RevisionNumbers.Contains(x.Id)).ToListAsync();
+
+                    var Components = await _db.tProjectComponentCost.AsNoTracking().Where(x => projectIds.Contains(x.ProjectId) && x.StageName == checkStage.StageName).ToListAsync();
+                    HashSet<string> ComponentsRefs = Components.Select(pr => pr.ReferenceId).ToHashSet();
+                    var ComponentsPerYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentsRefs.Contains(x.ParentId)).ToListAsync();
+
+                    var MajorItems = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => projectIds.Contains(x.ProjectId) && x.StageName == checkStage.StageName).ToListAsync();
+                    HashSet<string> MajorItemsRefs = MajorItems.Select(pr => pr.ReferenceId).ToHashSet();
+                    var MajorLocations = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => MajorItemsRefs.Contains(x.ParentId)).ToListAsync();
+
+                    var FundingProfiles = await _db.tProjectFundingProfile.AsNoTracking().Where(x => projectIds.Contains(x.ProjectId) && x.StageName == checkStage.StageName).ToListAsync();
+
+                    var SupportingDocuments = await _db.tProjectSupportingDocs.AsNoTracking().Where(x => projectIds.Contains(x.ProjectId) && x.StageName == checkStage.StageName).ToListAsync();
+
                     List<ProjectRevisions> NewRevisions = new List<ProjectRevisions>();
                     if (ProjectRevisions.Count > 0)
                     {
-                        foreach (var project in ProjectRevisions)
+                        string FirstSegment = checkStageType.Name.GenerateProjec1stSegment();
+                        #region Component Costs
+                        List<ProjectComponentCost> NewComponent = new List<ProjectComponentCost>();
+                        List<ProjectComponentCostYear> NewComponentPerYear = new List<ProjectComponentCostYear>();
+                        if (Components.Count() > 0)
                         {
-                            string FirstSegment = Functions.GenerateProjec1stSegment(checkStageType.Name);
-                            string NewProjectId = Regex.Replace(project.ProjectId, @"\b(BP|MY|P)\b", FirstSegment);
-                            var newRevision = new ProjectRevisions()
+                            NewComponent.AddRange(Components.Select(x => new ProjectComponentCost()
                             {
-                                ProjectId = NewProjectId,
-                                AlternateId = project.AlternateId,
-                                RevisionNumber = project.RevisionNumber + 1,
-                                Description = project.Description,
-                                Category = project.Category,
-                                Thrust = project.Thrust,
-                                Origin = project.Origin,
-                                City = project.City,
-                                LegislativeDistrict = project.LegislativeDistrict,
-                                OperatingUnit = project.OperatingUnit,
-                                ImplementingOffice = project.ImplementingOffice,
-                                DEO = project.DEO,
-                                Region = project.Region,
-                                Agency = project.Agency,
-                                IslandCode = project.IslandCode,
-                                ImplementationMode = project.ImplementationMode,
-                                EmergencyMode = project.EmergencyMode,
-                                Feasibility = project.Feasibility,
-                                DetailedDesign = project.DetailedDesign,
-                                RowAvailable = project.RowAvailable,
-                                CreatedBy = _Session.UserId,
-                                CreatedDate = CurrentDate
-                            };
-                            NewRevisions.Add(newRevision);
+                                ProjectId = x.ProjectId.Replace("BP", FirstSegment),
+                                ReferenceId = x.ReferenceId.UpdateReferenceId(FirstSegment),
+                                ComponentType = x.ComponentType,
+                                ComponentId = x.ComponentId,
+                                Description = x.Description,
+                                Total = x.Total,
+                                StageName = checkStageType.Name,
+                                CreatedBy = x.CreatedBy,
+                                CreatedDate = x.CreatedDate
+                            }));
+                            NewComponentPerYear.AddRange(ComponentsPerYear.Select(x => new ProjectComponentCostYear()
+                            {
+                                ParentId = x.ParentId.UpdateReferenceId(FirstSegment),
+                                CostYear = x.CostYear,
+                                Cost = x.Cost,
+                                StartDate = x.StartDate,
+                                EndDate = x.EndDate
+                            }));
+                            await _db.tProjectComponentCost.AddRangeAsync(NewComponent);
+                            await _db.tProjectComponentCostYear.AddRangeAsync(NewComponentPerYear);
                         }
+                        #endregion
+                        #region Major Items
+                        List<ProjectMajorWorkItem> NewMajorItems = new List<ProjectMajorWorkItem>();
+                        List<ProjectMajorWorkLocations> NewMajorLocations = new List<ProjectMajorWorkLocations>();
+                        if (MajorItems.Count() > 0)
+                        {
+                            NewMajorItems.AddRange(MajorItems.Select(x => new ProjectMajorWorkItem()
+                            {
+                                ProjectId = x.ProjectId.Replace("BP", FirstSegment),
+                                ReferenceId = x.ReferenceId.UpdateReferenceId(FirstSegment),
+                                ComponentId = x.ComponentId,
+                                YearOfWork = x.YearOfWork,
+                                WorkTypeId = x.WorkTypeId,
+                                InfraType = x.InfraType,
+                                StageName = checkStageType.Name,
+                                CreatedBy = x.CreatedBy,
+                                CreatedDate = x.CreatedDate
+                            }));
+                            NewMajorLocations.AddRange(MajorLocations.Select(x => new ProjectMajorWorkLocations()
+                            {
+                                ParentId = x.ParentId.UpdateReferenceId(FirstSegment),
+                                InfraId = x.InfraId,
+                                DetailedScope = x.DetailedScope,
+                                TargetUnitId = x.TargetUnitId,
+                                TargetUnit = x.TargetUnit,
+                                StartX = x.StartX,
+                                StartY = x.StartY,
+                                EndX = x.EndX,
+                                EndY = x.EndY,
+                                PhysicalTarget = x.PhysicalTarget,
+                                StartStationLimit = x.StartStationLimit,
+                                EndStationLimit = x.EndStationLimit,
+                                From = x.From,
+                                To = x.To,
+                                CreatedBy = x.CreatedBy,
+                                CreatedDate = x.CreatedDate
+                            }));
+                            await _db.tProjectMajorWorkItem.AddRangeAsync(NewMajorItems);
+                            await _db.tProjectMajorWorkLocations.AddRangeAsync(NewMajorLocations);
+                        }
+                        #endregion
+                        #region Funding Profiles
+                        List<ProjectFundingProfile> NewFundingProfiles = new List<ProjectFundingProfile>();
+                        if (FundingProfiles.Count() > 0)
+                        {
+                            NewFundingProfiles.AddRange(FundingProfiles.Select(x => new ProjectFundingProfile()
+                            {
+                                ProjectId = x.ProjectId.Replace("BP", FirstSegment),
+                                Source = x.Source,
+                                Agreement = x.Agreement,
+                                Amount = x.Amount,
+                                Percentage = x.Percentage,
+                                StageName = checkStageType.Name,
+                                CreatedBy = x.CreatedBy,
+                                CreatedDate = x.CreatedDate
+                            }));
+                            await _db.tProjectFundingProfile.AddRangeAsync(NewFundingProfiles);
+                        }
+                        #endregion
+                        #region Supporting Documents
+                        List<ProjectSupportingDocs> NewSupportingDocs = new List<ProjectSupportingDocs>();
+                        if (SupportingDocuments.Count() > 0)
+                        {
+                            NewSupportingDocs.AddRange(SupportingDocuments.Select(x => new ProjectSupportingDocs()
+                            {
+                                StageName = checkStageType.Name,
+                                DocumentType = x.DocumentType,
+                                ProjectId = x.ProjectId.Replace("BP", FirstSegment),
+                                FileName = x.FileName,
+                                FileExtension = x.FileExtension,
+                                FilePath = x.FilePath,
+                                Description = x.Description,
+                                CreatedBy = x.CreatedBy,
+                                CreatedDate = x.CreatedDate
+                            }));
+                            await _db.tProjectSupportingDocs.AddRangeAsync(NewSupportingDocs);
+                        }
+                        #endregion
+                        #region Project Revisions
+                        NewRevisions.AddRange(ProjectRevisions.Select(project => new ProjectRevisions()
+                        {
+                            ReferenceId = project.ReferenceId,
+                            ProjectId = project.ProjectId.Replace("BP", FirstSegment),
+                            AlternateId = project.AlternateId,
+                            ExternalId = project.ExternalId,
+                            MYId = project.MYId,
+                            UACS = project.UACS,
+                            MYCAApprovalDate = project.MYCAApprovalDate,
+                            RevisionNumber = project.RevisionNumber + 1,
+                            Description = project.Description,
+                            Category = project.Category,
+                            Thrust = project.Thrust,
+                            Origin = project.Origin,
+                            Province = project.Province,
+                            City = project.City,
+                            LegislativeDistrict = project.LegislativeDistrict,
+                            OperatingUnit = project.OperatingUnit,
+                            ImplementingOffice = project.ImplementingOffice,
+                            DEO = project.DEO,
+                            Region = project.Region,
+                            Agency = project.Agency,
+                            IslandCode = project.IslandCode,
+                            ImplementationMode = project.ImplementationMode,
+                            EmergencyMode = project.EmergencyMode,
+                            Feasibility = project.Feasibility,
+                            FeasibilityDate = project.FeasibilityDate,
+                            DetailedDesign = project.DetailedDesign,
+                            DetailedDesignDate = project.DetailedDesignDate,
+                            RowAvailable = project.RowAvailable,
+                            RegionWide = project.RegionWide,
+                            CreatedBy = _Session.UserId,
+                            CreatedDate = CurrentDate
+                        }));
                         await _db.tProjectRevisions.AddRangeAsync(NewRevisions);
+                        checkRevisions.Status = EnumProgramStatus.Approved;
+                        _db.tProgramRevisions.Update(checkRevisions);
+                        #endregion
+                        var transactionLog = new TransactionLog()
+                        {
+                            TransactionId = dto.ProgramId,
+                            TypeOfTransaction = "Update",
+                            AffectedTable = "tProgramStages",
+                            AffectedColumn = "StageName",
+                            NewValue = checkStageType.Name,
+                            OldValue = checkStage.StageName,
+                            CreatedBy = _Session.UserId,
+                            CreatedDate = CurrentDate
+                        };
+                        await _db.tTransactionLog.AddAsync(transactionLog);
                         await _db.SaveChangesAsync();
+                        #region Project Stages
                         var newStages = NewRevisions.Select(pr => new ProjectStages
                         {
+                            ProgramId = dto.ProgramId,
                             RevisionId = pr.Id,
-                            StageId = dto.Stage,
+                            StageId = checkStage.StageId.UpdateStage(),
                             StageName = checkStageType.Name,
                             CreatedBy = _Session.UserId,
                             CreatedDate = CurrentDate,
                             IsPublished = false
                         });
                         await _db.tProjectStages.AddRangeAsync(newStages);
+                        #endregion
+                        #region Program Revisions
+                        var newProgramRevision = new ProgramRevisions()
+                        {
+                            ProgramId = dto.ProgramId,
+                            RevisionNumber = checkRevisions.RevisionNumber + 1,
+                            Name = dto.Name,
+                            DataSecurityGroup = checkRevisions.DataSecurityGroup,
+                            UserGroup = checkRevisions.UserGroup,
+                            Status = checkRevisions.Status,
+                            Type = checkRevisions.Type,
+                            Cost = checkRevisions.Cost,
+                            YearStart = checkRevisions.YearStart,
+                            CreatedBy = _Session.UserId,
+                            CreatedDate = CurrentDate
+                        };
+                        await _db.tProgramRevisions.AddAsync(newProgramRevision);
+                        await _db.SaveChangesAsync();
+                        #endregion
+                        #region Program Stages
+                        var newStage = new ProgramStages()
+                        {
+                            ProgramId = dto.ProgramId,
+                            RevisionId = newProgramRevision.Id,
+                            StageId = dto.Stage,
+                            StageName = checkStageType.Name,
+                            CreatedBy = _Session.UserId,
+                            CreatedDate = CurrentDate,
+                            IsPublished = false,
+                        };
+                        await _db.tProgramStages.AddAsync(newStage);
+                        await _db.SaveChangesAsync();
+                        #endregion
+                        await transaction.CommitAsync();
+                        return Ok(new
+                        {
+                            Message = "Program updated successfully",
+                            Title = "Update Stage Complete"
+                        });
                     }
                 }
-                var transactionLog = new TransactionLog()
+                return new BadRequestObjectResult(new
                 {
-                    TransactionId = dto.ProgramId,
-                    TypeOfTransaction = "Update",
-                    AffectedTable = "tProgramStages",
-                    AffectedColumn = "StageName",
-                    NewValue = checkStageType.Name,
-                    OldValue = checkStage.StageName,
-                    CreatedBy = _Session.UserId,
-                    CreatedDate = CurrentDate
-                };
-                await _db.tTransactionLog.AddAsync(transactionLog);
-                var newProgramRevision = new ProgramRevisions()
-                {
-                    ProgramId = dto.ProgramId,
-                    RevisionNumber = checkRevisions.RevisionNumber + 1,
-                    Name = checkRevisions.Name,
-                    UserGroup = checkRevisions.UserGroup,
-                    RegionCode = checkRevisions.RegionCode,
-                    Status = checkRevisions.Status,
-                    Type = checkRevisions.Type,
-                    Cost = checkRevisions.Cost,
-                    YearStart = checkRevisions.YearStart,
-                    YearEnd = checkRevisions.YearEnd,
-                    CreatedBy = _Session.UserId,
-                    CreatedDate = CurrentDate,
-                    UpdatedBy = _Session.UserId,
-                    UpdatedDate = CurrentDate
-                };
-                await _db.tProgramRevisions.AddAsync(newProgramRevision);
-                await _db.SaveChangesAsync();
-                var newStage = new ProgramStages()
-                {
-                    ProgramId = dto.ProgramId,
-                    RevisionId = newProgramRevision.Id,
-                    StageId = dto.Stage,
-                    StageName = checkStageType.Name,
-                    CreatedBy = _Session.UserId,
-                    CreatedDate = CurrentDate,
-                    IsPublished = false,
-                };
-                await _db.tProgramStages.AddAsync(newStage);
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
-                return Ok(new
-                {
-                    Message = "Program updated successfully",
-                    Title = "Update Stage Complete"
+                    Message = "No projects are linked to this program.",
+                    Title = "Project Link Missing"
                 });
             }
             catch (Exception ex)

@@ -11,13 +11,15 @@ namespace DBHelper.Models.Views
         public string Name { get; set; } = string.Empty;
         public EnumProgramStage StageId { get; set; }
         public string StageName { get; set; } = string.Empty;
+        public bool IsSkipped { get; set; }
+        public string? SkipReason { get; set; }
+        public string[] DataSecurityGroup { get; set; } = new string[] { };
         public int UserGroup { get; set; }
-        public string RegionCode { get; set; } = string.Empty;
         public EnumProgramStatus Status { get; set; }
         public EnumProgramType Type { get; set; }
+        public string TypeName { get; set; } = string.Empty;
         public Double? Cost { get; set; }
         public int YearStart { get; set; }
-        public int YearEnd { get; set; }
         public bool IsPublished { get; set; }
         public string CreatedBy { get; set; } = string.Empty;
         public DateTime CreatedDate { get; set; }

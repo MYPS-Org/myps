@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -29,6 +30,9 @@ namespace DBHelper.Models.Table
         public string Description { get; set; } = string.Empty;
         [Required]
         public Double Total { get; set; }
+        [Required]
+        [MaxLength(10)]
+        public string StageName { get; set; } = string.Empty;
         [Required]
         [MaxLength(100)]
         public string CreatedBy { get; set; } = string.Empty;

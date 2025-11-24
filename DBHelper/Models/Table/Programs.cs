@@ -17,5 +17,9 @@ namespace DBHelper.Models.Table
         public DateTime CreatedDate { get; set; }
         [Required]
         public bool IsDeleted { get; set; }
+        [Required]
+        public bool IsSkipped { get; set; }
+        [MaxLength(250)]
+        public string? SkipReason { get; set; }
     }
 }
