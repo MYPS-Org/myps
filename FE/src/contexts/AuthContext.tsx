@@ -65,10 +65,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 const response = await authService.validateSession();
                 console.log('rine => ', response);
                 if (response.Data.Data.Authenticated) {
+                    // console.log('✅ Valid session found', response);
                     setAuthState({
                         isAuthenticated: true,
                         isLoading: false,
-                        user: response.Data.Data.User
+                        user: { ...response.Data.Data.User,
+                            UserRole: 'Implementing Office'
+                         }
                     });
                     if(window.location.pathname === '/login') {
                         const storedPath = localStorage.getItem('currentPath');

@@ -43,6 +43,8 @@ import ForReviewModifyDialog from '../../dialogs/ForReviewModifyDialog';
 import RuleManager from '../../rules/RuleManager';
 import RevisionForm from './RevisionForm';
 
+import { useAuth } from '../../../../contexts/AuthContext';
+
 interface ProjectFormProps {
   initialData?: ProjectFormPayload;
   mode?: 'add' | 'edit';
@@ -54,6 +56,7 @@ interface ProjectFormProps {
 const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', initialProgramId, category, reason }) => {
 
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [savingSection, setSavingSection] = useState<string | null>(null);
   const [projectEnums, setProjectEnums] = useState<ProjectEnums | null>(null);
@@ -817,14 +820,14 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
               
             </div>
             <div className="flex space-x-3">
-                {mode === 'edit' && (
+                {mode === 'edit' && user?.UserRole === 'Implementing Office' && (
                   <>
                     <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify()} disabled={updateReviseProject}>
                       {updateReviseProject ? 'Submitting...' : 'Submit Modify Request'}
                     </Button>
                   </>
                 )}
-                {mode === 'edit' && (
+                {mode === 'edit' && user?.UserRole === 'Regional Office' && (
                   <>
                     <Button color="green" className='cursor-pointer' onClick={() => setIsApproveDialogOpen(true)} disabled={updateApproveProject}>
                       {updateApproveProject ? 'Approving...' : 'Approve'}
