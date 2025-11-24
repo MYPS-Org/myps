@@ -529,7 +529,7 @@ export interface ProjectCityEnum {
 	GdbId: string;
 	Name: string;
 	Code: string;
-	ProvinceId: string;
+	ProvinceGdbId: string;
 	ProvinceName: string;
 }
 
@@ -547,7 +547,7 @@ export interface ProjectLegislativeDistrictEnum {
 	GdbId: string;
 	Name: string;
 	Code: string;
-	ProvinceId: string;
+	ProvinceGdbId: string;
 	ProvinceName: string;
 }
 
@@ -580,7 +580,7 @@ export interface ProjectRODEOEnum {
 	GdbId?: string;
 	Name: string;
 	ParticipantId: string;
-	ProvinceId?: string;
+	ProvinceGdbId?: string;
 	ProvinceName?: string;
 	RegionParticipantId: string;
 	RegionName: string;
