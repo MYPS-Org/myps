@@ -30,7 +30,7 @@ HomeIcon,
 QuestionMarkCircleIcon,
 Square2StackIcon,
 FolderIcon,
-CalendarDateRangeIcon,
+// CalendarDateRangeIcon,
 UserIcon,
 UserGroupIcon
 } from '@heroicons/react/20/solid'

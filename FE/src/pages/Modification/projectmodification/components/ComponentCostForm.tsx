@@ -5,7 +5,6 @@ import { PlusIcon, TrashIcon, PencilIcon } from "@heroicons/react/24/outline";
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from "../../../../components/tailwindui/table";
 import { ComponentCostDialog } from "../../../Project/dialogs";
 import { getDisabledClass } from "../../../../utils/GlobalFunctions";
-import RuleManager from '../../rules/RuleManager';
 
 interface ComponentCostFormProps {
   componentCosts: ComponentCostWithYears[];

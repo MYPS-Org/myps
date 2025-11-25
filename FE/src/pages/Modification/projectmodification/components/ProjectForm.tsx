@@ -35,8 +35,6 @@ import { addProjectDetails, getProjectEnums, updateEntireProject } from '../../.
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import type { ProgramList } from '../../../Program/Model';
 import { useToast } from '../../../../components/toaster/ToasterContext';
-import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/react';
-import { categoryData } from '../../../Modification/mockData/Dropdown';
 import ReviseProjectDialog from '../../dialogs/RevisedProjectDialog';
 import ApproveModifyDialog from '../../dialogs/ApproveModifyDialog';
 import ForReviewModifyDialog from '../../dialogs/ForReviewModifyDialog';
@@ -146,7 +144,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   // Load Allowed Fields
   // #region Modification Set Fields
   const [fieldPermissions, setFieldPermissions] = useState<any>(null);
-  const [showRandomizeButton, setShowRandomizeButton] = useState(true);
   const [pcmaStatus, setPcmaStatus] = useState<string>('');
   const [packageStatus, setPackageStatus] = useState<string>('');
 
@@ -167,12 +164,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       setFieldPermissions(result);
     }
   }, [pcmaStatus, packageStatus, modificationCategory, modificationReason]);
-  // Function to handle randomization for testing
-  const handleRandomizeStatus = () => {
-      const result = RuleManager.runRandomization(category, reason);
-      setFieldPermissions(result);
-      console.log('New Field Permissions for', category, 'with reason:', reason, ':', result);
-  };
 
   const setCaseA = () => {
       const result = RuleManager.setCaseA(modificationCategory, modificationReason);

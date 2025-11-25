@@ -32,7 +32,6 @@ import MYProjectDetails from './pages/MultiYear/views/MYProjectDetails';
 
 // import AddProgram from './pages/Program/Views/AddProgram';
 function App() {
-	var userGroupSession = "IO";
 	return (
 		<>
 		    <ModalProvider>
