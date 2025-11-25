@@ -316,7 +316,7 @@ export function SidebarDropdownItem({
       {current && (
         <motion.span
           layoutId="current-dropdown-indicator"
-          className="absolute inset-y-1 -left-19 w-0.5 rounded-full bg-zinc-950"
+          className="absolute inset-y-1 -left-28 w-0.5 rounded-full bg-zinc-950"
         />
       )}
       {'href' in props ? (

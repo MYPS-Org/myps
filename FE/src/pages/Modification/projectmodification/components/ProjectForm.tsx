@@ -841,6 +841,13 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                     </Button>
                   </>
                 )}
+                {mode === 'edit' && user?.UserRole === 'Regional Office' && (
+                  <>
+                    <Button color="amber" className='cursor-pointer' onClick={() => setIsForReviewDialogOpen(true)} disabled={updateForReviewProject}>
+                      {updateForReviewProject ? 'Initializing...' : 'For Review'}
+                    </Button>
+                  </>
+                )}
                 {mode === 'edit' && user?.UserRole === 'Central Office' && (
                   <>
                     <Button color="green" className='cursor-pointer' onClick={() => setIsApproveDialogOpen(true)} disabled={updateApproveProject}>
