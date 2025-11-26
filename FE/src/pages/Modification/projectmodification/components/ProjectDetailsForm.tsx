@@ -277,7 +277,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             {/* Field Permissions Information */}
             {fieldPermissions && (
-                <div className="mb-6 p-5 bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500 rounded-lg shadow-sm">
+                <div className="mb-6 p-5 border border-blue-100 rounded-lg shadow-sm">
                     <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-2">
                             <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -292,19 +292,19 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     
                     {/* Status Information */}
                     <div className="grid grid-cols-2 gap-3 mb-4">
-                        <div className="bg-white p-3 rounded-md shadow-sm">
+                        <div className="bg-white p-3 border border-blue-50 rounded-md shadow-sm">
                             <p className="text-xs text-gray-500 mb-1">PCMA Status</p>
                             <p className="text-sm font-semibold text-gray-800">{fieldPermissions.pcmaStatus || 'N/A'}</p>
                         </div>
-                        <div className="bg-white p-3 rounded-md shadow-sm">
+                        <div className="bg-white p-3 border border-blue-50 rounded-md shadow-sm">
                             <p className="text-xs text-gray-500 mb-1">Package Status</p>
                             <p className="text-sm font-semibold text-gray-800">{fieldPermissions.packageStatus || 'N/A'}</p>
                         </div>
-                        <div className="bg-white p-3 rounded-md shadow-sm">
+                        <div className="bg-white p-3 border border-blue-50 rounded-md shadow-sm">
                             <p className="text-xs text-gray-500 mb-1">Case</p>
                             <p className="text-sm font-semibold text-gray-800">{fieldPermissions.case || 'N/A'}</p>
                         </div>
-                        <div className="bg-white p-3 rounded-md shadow-sm">
+                        <div className="bg-white p-3 border border-blue-50 rounded-md shadow-sm">
                             <p className="text-xs text-gray-500 mb-1">Category</p>
                             <p className="text-sm font-semibold text-gray-800">{fieldPermissions.category || category || 'N/A'}</p>
                         </div>

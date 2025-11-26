@@ -63,8 +63,12 @@ export const reasonData = [
   { Id: 40, CodeGroupId: 10, CodeDescription: "Additional funds for ROW (STO)", SequenceNo: 2, ObsoleteFlag: 0 },
   { Id: 41, CodeGroupId: 11, CodeDescription: "Unutilized Balance", SequenceNo: 1, ObsoleteFlag: 0 },
   { Id: 42, CodeGroupId: 12, CodeDescription: "Expiry of Loan Funding", SequenceNo: 1, ObsoleteFlag: 0 },
-  { Id: 43, CodeGroupId: 13, CodeDescription: "Failure of Bidding", SequenceNo: 1, ObsoleteFlag: 0 },
+  // { Id: 43, CodeGroupId: 13, CodeDescription: "Failure of Bidding", SequenceNo: 1, ObsoleteFlag: 0 },
   { Id: 44, CodeGroupId: 14, CodeDescription: "Updates in Multi-Year Costing/Dates", SequenceNo: 1, ObsoleteFlag: 0 },
   { Id: 45, CodeGroupId: 15, CodeDescription: "Project does not commence and funding has expired", SequenceNo: 1, ObsoleteFlag: 0 },
   { Id: 46, CodeGroupId: 16, CodeDescription: "Terminated project but balance of work to be continued as another contract", SequenceNo: 1, ObsoleteFlag: 0 }
 ];
+
+export const filteredReasonsByCategory = (categoryId: number) => {
+  return reasonData.filter(reason => reason.CodeGroupId === categoryId);
+}
