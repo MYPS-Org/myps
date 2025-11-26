@@ -138,7 +138,7 @@ namespace WebAPI.Controllers.Projects
         {
             try
             {
-                var AvailablePrograms = await _db.vPrograms.AsNoTracking().Where(x => x.IsPublished != true).ToListAsync();
+                var AvailablePrograms = await _db.vProgramDetails.AsNoTracking().Where(x => x.IsPublished != true).ToListAsync();
                 int CurrentYear = (int)DateTime.UtcNow.Year;
                 var Category = await _db.tProjectCategoryEnum.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync();
                 var Thrust = await _db.tProjectThrustLists.AsNoTracking().OrderBy(x => x.ThrustDescription).ToListAsync();

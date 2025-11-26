@@ -8,6 +8,7 @@ using Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 namespace WebAPI.Controllers.Revision
 {
     [ApiController]
@@ -150,7 +151,10 @@ namespace WebAPI.Controllers.Revision
                     Subject = "Request for Revision",
                     Body = loc
                 };
-                Functions.SendEmail(sMTPModel);
+                string RevisionString = JsonConvert.SerializeObject(dto);
+                string Rules = "{\r\n  \"ProjectDetails\": {\r\n    \"UACS\": false,\r\n    \"MYCAApprovalDate\": false,\r\n    \"IslandCode\": false,\r\n    \"RevisionNumber\": false,\r\n    \"Description\": false,\r\n    \"Category\": false,\r\n    \"Thrust\": false,\r\n    \"Origin\": false,\r\n    \"City\": false,\r\n    \"Province\": false,\r\n    \"LegislativeDistrict\": false,\r\n    \"OperatingUnit\": false,\r\n    \"ImplementingOffice\": false,\r\n    \"DEO\": false,\r\n    \"Region\": false,\r\n    \"Agency\": false,\r\n    \"ImplementationMode\": false,\r\n    \"EmergencyMode\": false,\r\n    \"Feasibility\": false,\r\n    \"FeasibilityDate\": false,\r\n    \"DetailedDesign\": false,\r\n    \"DetailedDesignDate\": false,\r\n    \"RowAvailable\": false,\r\n    \"RegionWide\": false,\r\n    \"Tier\": false\r\n  },\r\n  \"ComponentCosts\": [\r\n    {\r\n      \"ComponentType\": false,\r\n      \"ComponentId\": false,\r\n      \"Description\": false,\r\n      \"Total\": false\r\n    }\r\n  ],\r\n  \"ComponentCostYear\": [\r\n    {\r\n      \"ParentId\": false,\r\n      \"CostYear\": false,\r\n      \"Cost\": false,\r\n      \"StartDate\": false,\r\n      \"EndDate\": false\r\n    }\r\n  ],\r\n  \"MajorItemOfWorks\": [\r\n    {\r\n      \"ComponentId\": false,\r\n      \"YearOfWork\": false,\r\n      \"WorkTypeId\": false,\r\n      \"InfraType\": false\r\n    }\r\n  ],\r\n  \"MajorItemLocations\": [\r\n    {\r\n      \"InfraId\": false,\r\n      \"DetailedScope\": false,\r\n      \"TargetUnitId\": false,\r\n      \"TargetUnit\": false,\r\n      \"StartX\": false,\r\n      \"StartY\": false,\r\n      \"EndX\": false,\r\n      \"EndY\": false,\r\n      \"PhysicalTarget\": false,\r\n      \"StartStationLimit\": false,\r\n      \"EndStationLimit\": false,\r\n      \"From\": false,\r\n      \"To\": false\r\n    }\r\n  ],\r\n  \"FundingProfile\": [\r\n    {\r\n      \"Source\": false,\r\n      \"Agreement\": false,\r\n      \"Amount\": false,\r\n      \"Percentage\": false\r\n    }\r\n  ]\r\n}";
+                //filter values that is true
+                //Functions.SendEmail(sMTPModel);
                 return Ok();
                 var Details = dto.ProjectDetails;
                 var FundingProfile = dto.FundingProfile;
@@ -158,7 +162,7 @@ namespace WebAPI.Controllers.Revision
                 var ComponentYear = dto.ComponentCostYear;
                 var MajorWorks = dto.MajorItemOfWorks;
                 var MajorWorkLocations = dto.MajorItemLocations;
-                if(Project == null)
+                if (Project == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Invalid Project" });
                 }
@@ -506,6 +510,23 @@ namespace WebAPI.Controllers.Revision
                 };
 
                 return Ok(response); // Remove the extra wrapper
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
+        [AllowAnonymous]
+        [HttpPost]
+        public IActionResult RequestRevision2([FromBody] RequstRevisionsDTO dto)
+        {
+            try
+            {
+                string RevisionString = JsonConvert.SerializeObject(dto);
+                string Rules = "{\r\n  \"ProjectDetails\": {\r\n    \"UACS\": false,\r\n    \"MYCAApprovalDate\": false,\r\n    \"IslandCode\": false,\r\n    \"RevisionNumber\": false,\r\n    \"Description\": false,\r\n    \"Category\": false,\r\n    \"Thrust\": false,\r\n    \"Origin\": false,\r\n    \"City\": false,\r\n    \"Province\": false,\r\n    \"LegislativeDistrict\": false,\r\n    \"OperatingUnit\": false,\r\n    \"ImplementingOffice\": false,\r\n    \"DEO\": false,\r\n    \"Region\": false,\r\n    \"Agency\": false,\r\n    \"ImplementationMode\": false,\r\n    \"EmergencyMode\": false,\r\n    \"Feasibility\": false,\r\n    \"FeasibilityDate\": false,\r\n    \"DetailedDesign\": false,\r\n    \"DetailedDesignDate\": false,\r\n    \"RowAvailable\": false,\r\n    \"RegionWide\": false,\r\n    \"Tier\": false\r\n  },\r\n  \"ComponentCosts\": [\r\n    {\r\n      \"ComponentType\": false,\r\n      \"ComponentId\": false,\r\n      \"Description\": false,\r\n      \"Total\": false\r\n    }\r\n  ],\r\n  \"ComponentCostYear\": [\r\n    {\r\n      \"ParentId\": false,\r\n      \"CostYear\": false,\r\n      \"Cost\": false,\r\n      \"StartDate\": false,\r\n      \"EndDate\": false\r\n    }\r\n  ],\r\n  \"MajorItemOfWorks\": [\r\n    {\r\n      \"ComponentId\": false,\r\n      \"YearOfWork\": false,\r\n      \"WorkTypeId\": false,\r\n      \"InfraType\": false\r\n    }\r\n  ],\r\n  \"MajorItemLocations\": [\r\n    {\r\n      \"InfraId\": false,\r\n      \"DetailedScope\": false,\r\n      \"TargetUnitId\": false,\r\n      \"TargetUnit\": false,\r\n      \"StartX\": false,\r\n      \"StartY\": false,\r\n      \"EndX\": false,\r\n      \"EndY\": false,\r\n      \"PhysicalTarget\": false,\r\n      \"StartStationLimit\": false,\r\n      \"EndStationLimit\": false,\r\n      \"From\": false,\r\n      \"To\": false\r\n    }\r\n  ],\r\n  \"FundingProfile\": [\r\n    {\r\n      \"Source\": false,\r\n      \"Agreement\": false,\r\n      \"Amount\": false,\r\n      \"Percentage\": false\r\n    }\r\n  ]\r\n}";
+                //filter values that is true
+                //Functions.SendEmail(sMTPModel);
+                return Ok(Rules);
             }
             catch (Exception ex)
             {

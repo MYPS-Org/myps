@@ -21,7 +21,7 @@ namespace DBHelper.Models.Table
         public string ParticipantId { get; set; } = string.Empty;
         [Required]
         [MaxLength(10)]
-        public string? ProvinceId { get; set; }
+        public string ProvinceGdbId { get; set; } = string.Empty;
         [MaxLength(255)]
         public string? ProvinceName { get; set; }
         [Required]
