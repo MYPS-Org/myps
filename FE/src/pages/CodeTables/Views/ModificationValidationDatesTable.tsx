@@ -37,7 +37,7 @@ const ModificationValidationDatesTable: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-gray-900">Modification Validation Dates Management</h2>
+        <h2 className="text-lg font-semibold text-gray-900">Revision Validation Dates Management</h2>
         <button className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
           Add New Date Range
         </button>
