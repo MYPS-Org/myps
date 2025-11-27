@@ -41,3 +41,13 @@ export const submitModificationRequest = async (payload: {
         throw ErrorResponse;
     }
 };
+
+export const getLabelField = async (payload: { categoryDesc: any; reasonDesc: any; projectId: string | undefined }) => {
+    try {
+        const response = await httpClient.post(`/IORevision/GetLabelField/`, payload);
+        return response;
+    } catch (error) {
+        console.error('Error fetching label field:', error);
+        throw error;
+    }
+};

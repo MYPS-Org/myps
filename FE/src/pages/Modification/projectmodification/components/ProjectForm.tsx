@@ -49,12 +49,15 @@ interface ProjectFormProps {
   initialProgramId?: string;
   category?: string;
   reason?: string;
+  fieldLabels?: Record<string, any>;
 }
 
-const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', initialProgramId, category, reason }) => {
+const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', initialProgramId, category, reason, fieldLabels }) => {
 
   const navigate = useNavigate();
   const { user } = useAuth();
+
+  const fields = fieldLabels || {};
 
   const [savingSection, setSavingSection] = useState<string | null>(null);
   const [projectEnums, setProjectEnums] = useState<ProjectEnums | null>(null);
