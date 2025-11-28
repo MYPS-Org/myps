@@ -26,9 +26,7 @@ namespace WebAPI.Controllers.Revision
         //[Required]
         //public string RevisionName { get; set; } = string.Empty;
         [Required]
-        public string RevisionCategory { get; set; } = string.Empty;
-        [Required]
-        public string RevisionReason { get; set; } = string.Empty;
+        public int ReasonId { get; set; }
         [Required]
         public DateTime ApprovalDate { get; set; } = DateTime.UtcNow;
         [Required]

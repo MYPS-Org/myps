@@ -2066,6 +2066,20 @@ namespace WebAPI.Controllers.Projects
                 return ExceptionHandler(ex);
             }
         }
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> GetReasons()
+        {
+            try
+            {
+                
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
         #endregion
     }
 }

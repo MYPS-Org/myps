@@ -63,6 +63,8 @@ namespace DBHelper.Data
         public DbSet<Models.Table.PCMARevisionDetails> tPCMARevisionDetails { get; set; }
         public DbSet<Models.Table.PCMARevisionChangelogs> tPCMARevisionChangelogs { get; set; }
         public DbSet<Models.Table.RevisionHeader> tRevisionHeader { get; set; }
+        public DbSet<Models.Table.RevisionDetails> tRevisionDetails { get; set; }
+        public DbSet<Models.Table.OptionRevisionHeader> tOptionRevisionHeader { get; set; }
         #endregion
         #region Views
         public DbSet<Models.Views.Users> vUsers { get; set; }
@@ -77,6 +79,7 @@ namespace DBHelper.Data
         public DbSet<Models.Views.AdminOperatingUnit> vAdminOperatingUnit { get; set; }
         public DbSet<Models.Views.AdminImplementingOffice> vAdminImplementingOffice { get; set; }
         public DbSet<Models.Views.GetProjectCategoryVersions> vGetProjectCategoryVersions { get; set; }
+        public DbSet<Models.Views.RevisionRules> vRevisionRules { get; set; }
         #endregion
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

@@ -1,0 +1,810 @@
+﻿using Confluent.Kafka;
+using DBHelper.Data;
+using DBHelper.Models.Enums;
+using DBHelper.Models.Extra;
+using DBHelper.Models.Table;
+using DBHelper.Models.Views;
+using Helpers;
+using JetBrains.Annotations;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
+using System.Threading.Tasks;
+namespace WebAPI.Controllers.Revision
+{
+    [ApiController]
+    [Route("api/[controller]/[action]")]
+    public class IORevision : CoreController
+    {
+        public IORevision(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
+        //[AllowAnonymous]
+        //[HttpPost]
+        //        public async Task<IActionResult> RequestRevision([FromBody] RequstRevisionsDTO dto)
+        //        {
+        //            try
+        //            {
+        //                var Project = await _db.vProjectDetails
+        //                .FromSqlInterpolated($"SELECT * FROM fProjectsPerStage({dto.ProjectDetails.ProjectId}) fp WHERE fp.ProjectId = {dto.ProjectDetails.ProjectId} AND fp.StageName = {dto.ProjectDetails.StageName}")
+        //                .AsNoTracking()
+        //                .FirstOrDefaultAsync();
+        //                DateTime CurrentDate = DateTime.UtcNow;
+        //                string loc = System.IO.File.ReadAllText(SMTPClass.PathEmailTemplate);
+        //                string Body = $@"
+        //<h3>Revision Information:</h3>
+        //<table style='margin: auto; min-width: 300px; max-width: 100%; border-collapse: collapse; color: #333; border-top-left-radius: 10px; border-top-right-radius: 10px; overflow: hidden; border: 1px solid #ddd;'>
+        //    <tbody>
+        //        <tr style='border-top: none; background: #00148b; color: #fff;'>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Revision Category</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Revision Reason</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Requested by</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Requested on</th>
+        //        </tr>
+        //        <tr style='border-top: 1px solid #ddd; border-bottom: 1px solid #ddd; background-color: #f5f9fc;'>
+        //                <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
+        //                    {dto.RevisionDetails.RevisionCategory}
+        //                </td>
+        //                <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd
+        //                    {dto.RevisionDetails.RevisionReason}
+        //                </td>
+        //                <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
+        //                    {_Session.UserId}
+        //                </td>
+        //                <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
+        //                    {CurrentDate}
+        //                </td>
+        //            </tr>
+        //        </tbody>
+        //</table>
+        //<h3>Project Details Information:</h3>
+        //<table style='margin: auto; min-width: 300px; max-width: 100%; border-collapse: collapse; color: #333; border-top-left-radius: 10px; border-top-right-radius: 10px; overflow: hidden; border: 1px solid #ddd;'>
+        //    <tbody>
+        //        <tr style='border-top: none; background: #00148b; color: #fff;'>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Program Id</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Program Name</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Stage</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Reference Id</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Project Id</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Alternate Id</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>External Id</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>MY Id</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>UACS</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>MYCA Approval Date</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Island Code</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Revision #</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Description</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Category</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Thrust</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Origin</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>City</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Province</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Legislative District</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Operating Unit</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Implementing Office</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>DEO</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Region</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Agency</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Implementation Mode</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Emergency Mode</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Feasibility</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Feasibility Date</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Detailed Design</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Detailed Design Date</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>ROW Available</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Region Wide</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Tier</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Created By</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Created Date</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Updated By</th>
+        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Updated Date</th>
+        //        </tr>
+
+        //        <tr style='border-top: 1px solid #ddd; border-bottom: 1px solid #ddd; background-color: #f5f9fc;'>
+        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.ProgramId}</td>
+        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.ProgramName}</td>
+        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.StageName}</td>
+        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.ReferenceId}</td>
+        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.ProjectId}</td>
+        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.AlternateId}</td>
+        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.ExternalId}</td>
+        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.MYId}</td>
+        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.UACS}</td>
+        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.MYCAApprovalDate}</td>
+        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.IslandCode}</td>
+        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.RevisionNumber}</td>
+        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Description}</td>
+        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Category}</td>
+        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Thrust}</td>
+        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Origin}</td>
+        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.City}</td>
+        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Province}</td>
+        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.LegislativeDistrict}</td>
+        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.OperatingUnit}</td>
+        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.ImplementingOffice}</td>
+        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.DEO}</td>
+        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Region}</td>
+        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Agency}</td>
+        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.ImplementationMode}</td>
+        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.EmergencyMode}</td>
+        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Feasibility}</td>
+        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.FeasibilityDate}</td>
+        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.DetailedDesign}</td>
+        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.DetailedDesignDate}</td>
+        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.RowAvailable}</td>
+        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.RegionWide}</td>
+        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Tier}</td>
+        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.CreatedBy}</td>
+        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.CreatedDate}</td>
+        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.UpdatedBy}</td>
+        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.UpdatedDate}</td>
+        //        </tr>
+
+        //    </tbody>
+        //</table>""";
+        //                loc = loc.Replace("{Title}", "Project Revision <b><u>Request</u></b>");
+        //                loc = loc.Replace("{Body}", Body);
+        //                loc = loc.Replace("{Footer}", $"For more information click <a href='{Appsetting.RootPath}/Batch'>HERE</a>");
+        //                loc = loc.Replace("{From}", "");
+        //                string To = "";
+        //                SMTPModel sMTPModel = new SMTPModel
+        //                {
+        //                    Recipient = "mf102798@gmail.com",
+        //                    CCAddress = "yabutgerard@gmail.com",
+        //                    Subject = "Request for Revision",
+        //                    Body = loc
+        //                };
+        //                string RevisionString = JsonConvert.SerializeObject(dto);
+        //                string Rules = "{\r\n  \"ProjectDetails\": {\r\n    \"UACS\": false,\r\n    \"MYCAApprovalDate\": false,\r\n    \"IslandCode\": false,\r\n    \"RevisionNumber\": false,\r\n    \"Description\": false,\r\n    \"Category\": false,\r\n    \"Thrust\": false,\r\n    \"Origin\": false,\r\n    \"City\": false,\r\n    \"Province\": false,\r\n    \"LegislativeDistrict\": false,\r\n    \"OperatingUnit\": false,\r\n    \"ImplementingOffice\": false,\r\n    \"DEO\": false,\r\n    \"Region\": false,\r\n    \"Agency\": false,\r\n    \"ImplementationMode\": false,\r\n    \"EmergencyMode\": false,\r\n    \"Feasibility\": false,\r\n    \"FeasibilityDate\": false,\r\n    \"DetailedDesign\": false,\r\n    \"DetailedDesignDate\": false,\r\n    \"RowAvailable\": false,\r\n    \"RegionWide\": false,\r\n    \"Tier\": false\r\n  },\r\n  \"ComponentCosts\": [\r\n    {\r\n      \"ComponentType\": false,\r\n      \"ComponentId\": false,\r\n      \"Description\": false,\r\n      \"Total\": false\r\n    }\r\n  ],\r\n  \"ComponentCostYear\": [\r\n    {\r\n      \"ParentId\": false,\r\n      \"CostYear\": false,\r\n      \"Cost\": false,\r\n      \"StartDate\": false,\r\n      \"EndDate\": false\r\n    }\r\n  ],\r\n  \"MajorItemOfWorks\": [\r\n    {\r\n      \"ComponentId\": false,\r\n      \"YearOfWork\": false,\r\n      \"WorkTypeId\": false,\r\n      \"InfraType\": false\r\n    }\r\n  ],\r\n  \"MajorItemLocations\": [\r\n    {\r\n      \"InfraId\": false,\r\n      \"DetailedScope\": false,\r\n      \"TargetUnitId\": false,\r\n      \"TargetUnit\": false,\r\n      \"StartX\": false,\r\n      \"StartY\": false,\r\n      \"EndX\": false,\r\n      \"EndY\": false,\r\n      \"PhysicalTarget\": false,\r\n      \"StartStationLimit\": false,\r\n      \"EndStationLimit\": false,\r\n      \"From\": false,\r\n      \"To\": false\r\n    }\r\n  ],\r\n  \"FundingProfile\": [\r\n    {\r\n      \"Source\": false,\r\n      \"Agreement\": false,\r\n      \"Amount\": false,\r\n      \"Percentage\": false\r\n    }\r\n  ]\r\n}";
+        //                //filter values that is true
+        //                //Functions.SendEmail(sMTPModel);
+        //                return Ok();
+        //                var Details = dto.ProjectDetails;
+        //                var FundingProfile = dto.FundingProfile;
+        //                var Component = dto.ComponentCosts;
+        //                var ComponentYear = dto.ComponentCostYear;
+        //                var MajorWorks = dto.MajorItemOfWorks;
+        //                var MajorWorkLocations = dto.MajorItemLocations;
+        //                if (Project == null)
+        //                {
+        //                    return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Invalid Project" });
+        //                }
+        //                var RevisionExists = await _db.tPCMARevisions.AsNoTracking()
+        //                    .FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectDetails.ProjectId);
+        //                string RevisionId = RevisionExists?.RevisionId ?? "R" + ("tCountSequence").GenerateCode();
+        //                if (RevisionExists == null)
+        //                {
+        //                    PCMARevisions revisions = new PCMARevisions
+        //                    {
+        //                        RevisionId = RevisionId,
+        //                        ProjectId = dto.ProjectDetails.ProjectId!,
+        //                    };
+        //                    await _db.tPCMARevisions.AddAsync(revisions);
+        //                }
+        //                var NewRevisionDetails = new PCMARevisionDetails
+        //                {
+        //                    RevisionId = RevisionId,
+        //                    RevisionType = dto.RevisionDetails.RevisionCategory,
+        //                    RevisionCategory = dto.RevisionDetails.RevisionCategory,
+        //                    RevisionReason = dto.RevisionDetails.RevisionReason,
+        //                    CreatedBy = _Session.UserId,
+        //                    CreatedDate = CurrentDate,
+        //                };
+        //                List<PCMARevisionChangelogs> changelogs = new List<PCMARevisionChangelogs>();
+        //                bool hasUpdated = false;
+        //                #region Update Project Details
+        //                if (Project != null)
+        //                {
+        //                    if (Project.Description != dto.ProjectDetails?.Description)
+        //                    {
+        //                        changelogs.Add(new PCMARevisionChangelogs
+        //                        {
+        //                            RevisionDetailsId = RevisionId,
+        //                            NewValue = dto.ProjectDetails!.Description,
+        //                            OldValue = Project.Description,
+        //                        });
+        //                        Project.Description = dto.ProjectDetails!.Description;
+        //                    }
+        //                    if (Project.Category != dto.ProjectDetails?.Category)
+        //                    {
+        //                        hasUpdated = true;
+        //                        changelogs.Add(new PCMARevisionChangelogs
+        //                        {
+        //                            RevisionDetailsId = RevisionId,
+        //                            NewValue = dto.ProjectDetails!.Category.ToString(),
+        //                            OldValue = Project.Category.ToString(),
+        //                        });
+        //                        Project.Category = dto.ProjectDetails!.Category;
+        //                    }
+        //                    if (Project.Thrust != dto.ProjectDetails?.Thrust)
+        //                    {
+        //                        hasUpdated = true;
+        //                        changelogs.Add(new PCMARevisionChangelogs
+        //                        {
+        //                            RevisionDetailsId = RevisionId,
+        //                            NewValue = dto.ProjectDetails!.Thrust.ToString()!,
+        //                            OldValue = Project.Thrust!.ToString()!
+        //                        });
+        //                        Project.Thrust = dto.ProjectDetails!.Thrust;
+        //                    }
+        //                    if (Project.Origin != dto.ProjectDetails?.Origin)
+        //                    {
+        //                        hasUpdated = true;
+        //                        changelogs.Add(new PCMARevisionChangelogs
+        //                        {
+        //                            RevisionDetailsId = RevisionId,
+        //                            NewValue = dto.ProjectDetails!.Origin.ToString(),
+        //                            OldValue = Project!.Origin.ToString(),
+        //                        });
+        //                        Project.Origin = dto.ProjectDetails!.Origin;
+        //                    }
+        //                    if (Project.City != dto.ProjectDetails?.City)
+        //                    {
+        //                        hasUpdated = true;
+        //                        changelogs.Add(new PCMARevisionChangelogs
+        //                        {
+        //                            RevisionDetailsId = RevisionId,
+        //                            NewValue = dto.ProjectDetails!.City,
+        //                            OldValue = Project.City
+        //                        });
+        //                        Project.City = dto.ProjectDetails!.City;
+        //                    }
+        //                    if (Project.LegislativeDistrict != dto.ProjectDetails?.LegislativeDistrict)
+        //                    {
+        //                        hasUpdated = true;
+        //                        changelogs.Add(new PCMARevisionChangelogs
+        //                        {
+        //                            RevisionDetailsId = RevisionId,
+        //                            NewValue = dto.ProjectDetails!.LegislativeDistrict,
+        //                            OldValue = Project.LegislativeDistrict
+        //                        });
+        //                        Project.LegislativeDistrict = dto.ProjectDetails!.LegislativeDistrict;
+        //                    }
+        //                    if (Project.OperatingUnit != dto.ProjectDetails?.OperatingUnit)
+        //                    {
+        //                        HashSet<string> OUList = new HashSet<string>() { "C", "DO" };
+        //                        var OperatingUnit = await _db.vAdminOperatingUnit.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == dto.ProjectDetails!.OperatingUnit);
+        //                        if (OperatingUnit == null)
+        //                        {
+        //                            return new BadRequestObjectResult(new { Message = $"Selected Operating Unit '{dto.ProjectDetails!.OperatingUnit}' is not valid!", Title = "Invalid Operating Unit" });
+        //                        }
+        //                        var OldOperatingUnit = await _db.vAdminImplementingOffice.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == Project.OperatingUnit);
+        //                        hasUpdated = true;
+        //                        changelogs.Add(new PCMARevisionChangelogs
+        //                        {
+        //                            RevisionDetailsId = RevisionId,
+        //                            NewValue = dto.ProjectDetails!.OperatingUnit!,
+        //                            OldValue = Project.OperatingUnit!
+        //                        });
+        //                        Project.OperatingUnit = dto.ProjectDetails!.OperatingUnit;
+        //                    }
+        //                    if (Project.ImplementingOffice != dto.ProjectDetails?.ImplementingOffice)
+        //                    {
+        //                        var IO = await _db.vAdminImplementingOffice.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == dto.ProjectDetails!.ImplementingOffice);
+        //                        if (IO == null)
+        //                        {
+        //                            return new BadRequestObjectResult(new { Message = $"Selected Implementing Office '{dto.ProjectDetails!.ImplementingOffice}' is not valid!", Title = "Invalid Implementing Office" });
+        //                        }
+        //                        var OldIO = await _db.vAdminImplementingOffice.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == Project.ImplementingOffice);
+        //                        hasUpdated = true;
+        //                        changelogs.Add(new PCMARevisionChangelogs
+        //                        {
+        //                            RevisionDetailsId = RevisionId,
+        //                            NewValue = dto.ProjectDetails!.ImplementingOffice!,
+        //                            OldValue = Project.ImplementingOffice!
+        //                        });
+        //                        Project.ImplementingOffice = dto.ProjectDetails!.ImplementingOffice;
+        //                    }
+        //                    if (Project.Agency != dto.ProjectDetails?.Agency)
+        //                    {
+        //                        var Agency = await _db.tProjectAgencyLists.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dto.ProjectDetails!.Agency);
+        //                        if (Agency == null)
+        //                        {
+        //                            return new BadRequestObjectResult(new { Message = $"Selected Agency '{dto.ProjectDetails!.Agency}' is not valid!", Title = "Invalid Agency" });
+        //                        }
+        //                        var OldAgency = await _db.tProjectAgencyLists.AsNoTracking().FirstOrDefaultAsync(x => x.Id == Project.Agency);
+        //                        hasUpdated = true;
+        //                        changelogs.Add(new PCMARevisionChangelogs
+        //                        {
+        //                            RevisionDetailsId = RevisionId,
+        //                            NewValue = dto.ProjectDetails!.Agency.ToString(),
+        //                            OldValue = Project.Agency.ToString()
+        //                        });
+        //                        Project.Agency = dto.ProjectDetails!.Agency;
+        //                    }
+        //                    if (Project.ImplementationMode != dto.ProjectDetails?.ImplementationMode)
+        //                    {
+        //                        var ImplementationMode = await _db.tProjectImplementModeEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.ImplementationMode);
+        //                        if (ImplementationMode == null)
+        //                        {
+        //                            return new BadRequestObjectResult(new { Message = $"Selected Implementation Mode '{dto.ProjectDetails!.ImplementationMode}' is not valid!", Title = "Invalid Implementation Mode" });
+        //                        }
+        //                        var OldImplementationMode = await _db.tProjectImplementModeEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == Project.ImplementationMode);
+        //                        hasUpdated = true;
+        //                        changelogs.Add(new PCMARevisionChangelogs
+        //                        {
+        //                            RevisionDetailsId = RevisionId,
+        //                            NewValue = dto.ProjectDetails!.ImplementationMode.ToString(),
+        //                            OldValue = Project.ImplementationMode.ToString()
+        //                        });
+        //                        Project.ImplementationMode = dto.ProjectDetails!.ImplementationMode;
+        //                    }
+        //                    if (Project.EmergencyMode != dto.ProjectDetails?.EmergencyMode)
+        //                    {
+        //                        var EmergencyMode = await _db.tProjectEmergencyModeEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.EmergencyMode);
+        //                        if (EmergencyMode == null)
+        //                        {
+        //                            return new BadRequestObjectResult(new { Message = $"Selected Emergency Mode '{dto.ProjectDetails!.EmergencyMode}' is not valid!", Title = "Invalid Emergency Mode" });
+        //                        }
+        //                        var OldEmergencyMode = await _db.tProjectEmergencyModeEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == Project.EmergencyMode);
+        //                        hasUpdated = true;
+        //                        changelogs.Add(new PCMARevisionChangelogs
+        //                        {
+        //                            RevisionDetailsId = RevisionId,
+        //                            NewValue = dto.ProjectDetails!.EmergencyMode.ToString(),
+        //                            OldValue = Project.EmergencyMode.ToString()
+        //                        });
+        //                        Project.EmergencyMode = dto.ProjectDetails!.EmergencyMode;
+        //                    }
+        //                    if (Project.Feasibility != dto.ProjectDetails?.Feasibility)
+        //                    {
+        //                        var Feasib = await _db.tProjectLongFeasibilityEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.Feasibility);
+        //                        if (Feasib == null)
+        //                        {
+        //                            return new BadRequestObjectResult(new { Message = $"Selected Feasibility '{dto.ProjectDetails!.Feasibility}' is not valid!", Title = "Invalid Feasibility" });
+        //                        }
+        //                        var OldFeasibility = await _db.tProjectLongFeasibilityEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == Project.Feasibility);
+        //                        hasUpdated = true;
+        //                        changelogs.Add(new PCMARevisionChangelogs
+        //                        {
+        //                            RevisionDetailsId = RevisionId,
+        //                            NewValue = dto.ProjectDetails!.Feasibility.ToString()!,
+        //                            OldValue = Project.Feasibility.ToString()!
+        //                        });
+        //                        Project.Feasibility = dto.ProjectDetails!.Feasibility;
+        //                    }
+        //                    if (Project.FeasibilityDate != dto.ProjectDetails?.FeasibilityDate)
+        //                    {
+        //                        hasUpdated = true;
+        //                        changelogs.Add(new PCMARevisionChangelogs
+        //                        {
+        //                            RevisionDetailsId = RevisionId,
+        //                            NewValue = dto.ProjectDetails!.FeasibilityDate.ToString()!,
+        //                            OldValue = Project.FeasibilityDate.ToString()!
+        //                        });
+        //                        Project.FeasibilityDate = dto.ProjectDetails?.FeasibilityDate;
+        //                    }
+        //                    if (Project.DetailedDesign != dto.ProjectDetails?.DetailedDesign)
+        //                    {
+        //                        var DetailedDesign = await _db.tProjectEmergencyModeEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.DetailedDesign);
+        //                        if (DetailedDesign == null)
+        //                        {
+        //                            return new BadRequestObjectResult(new { Message = $"Selected Detailed Design '{dto.ProjectDetails!.DetailedDesign}' is not valid!", Title = "Invalid Detailed Design" });
+        //                        }
+        //                        var OldDetailedDesign = await _db.tProjectEmergencyModeEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == Project.DetailedDesign);
+        //                        hasUpdated = true;
+        //                        changelogs.Add(new PCMARevisionChangelogs
+        //                        {
+        //                            RevisionDetailsId = RevisionId,
+        //                            NewValue = dto.ProjectDetails!.DetailedDesign.ToString()!,
+        //                            OldValue = Project.DetailedDesign.ToString()!
+        //                        });
+        //                        Project.DetailedDesign = dto.ProjectDetails!.DetailedDesign;
+        //                    }
+        //                    if (Project.DetailedDesignDate != dto.ProjectDetails?.DetailedDesignDate)
+        //                    {
+        //                        hasUpdated = true;
+        //                        changelogs.Add(new PCMARevisionChangelogs
+        //                        {
+        //                            RevisionDetailsId = RevisionId,
+        //                            NewValue = dto.ProjectDetails!.DetailedDesignDate.ToString()!,
+        //                            OldValue = Project.DetailedDesignDate.ToString()!
+        //                        });
+        //                        Project.DetailedDesignDate = dto.ProjectDetails?.DetailedDesignDate;
+        //                    }
+        //                    if (Project.RowAvailable != dto.ProjectDetails?.RowAvailable)
+        //                    {
+        //                        var RowAvailable = await _db.tProjectEmergencyModeEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.EmergencyMode);
+        //                        if (RowAvailable == null)
+        //                        {
+        //                            return new BadRequestObjectResult(new { Message = $"Selected Row Available '{dto.ProjectDetails!.EmergencyMode}' is not valid!", Title = "Invalid Row Available" });
+        //                        }
+        //                        var OldRowAvailable = await _db.tProjectEmergencyModeEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == Project.RowAvailable);
+        //                        hasUpdated = true;
+        //                        changelogs.Add(new PCMARevisionChangelogs
+        //                        {
+        //                            RevisionDetailsId = RevisionId,
+        //                            NewValue = dto.ProjectDetails!.RowAvailable.ToString()!,
+        //                            OldValue = Project.RowAvailable.ToString()!
+        //                        });
+        //                        Project.RowAvailable = dto.ProjectDetails!.RowAvailable;
+        //                    }
+        //                    if (Project.RegionWide != dto.ProjectDetails?.RegionWide)
+        //                    {
+        //                        hasUpdated = true;
+        //                        changelogs.Add(new PCMARevisionChangelogs
+        //                        {
+        //                            RevisionDetailsId = RevisionId,
+        //                            NewValue = dto.ProjectDetails!.RegionWide.ToString()!,
+        //                            OldValue = Project.RegionWide.ToString()!
+        //                        });
+        //                        Project.RegionWide = dto.ProjectDetails!.RegionWide;
+        //                    }
+        //                    if (Project.Tier != dto.ProjectDetails?.Tier)
+        //                    {
+        //                        hasUpdated = true;
+        //                        changelogs.Add(new PCMARevisionChangelogs
+        //                        {
+        //                            RevisionDetailsId = RevisionId,
+        //                            NewValue = dto.ProjectDetails!.Tier.ToString()!,
+        //                            OldValue = Project.Tier.ToString()!
+        //                        });
+        //                        Project.Tier = dto.ProjectDetails!.Tier;
+        //                    }
+        //                    if (hasUpdated)
+        //                    {
+        //                        //var LatestRevision = await _db.tProjectRevisions.AsNoTracking()
+        //                        //    .Where(x => x.ProjectId == Project.ProjectId)
+        //                        //    .OrderByDescending(x => x.RevisionNumber)
+        //                        //    .FirstOrDefaultAsync();
+        //                        //var NewRevision = new ProjectRevisions()
+        //                        //{
+        //                        //    ProjectId = Project.ProjectId!,
+        //                        //    AlternateId = Project.AlternateId,
+        //                        //    ExternalId = Project.ExternalId,
+        //                        //    MYId = Project.MYId,
+        //                        //    UACS = Project.UACS,
+        //                        //    MYCAApprovalDate = Project.MYCAApprovalDate,
+        //                        //    IslandCode = Project.IslandCode!,
+        //                        //    RevisionNumber = LatestRevision!.RevisionNumber! + 1,
+        //                        //    Description = Project!.Description!,
+        //                        //    Category = Project!.Category,
+        //                        //    Thrust = Project!.Thrust,
+        //                        //    Origin = Project!.Origin,
+        //                        //    City = Project!.City,
+        //                        //    LegislativeDistrict = Project!.LegislativeDistrict,
+        //                        //    OperatingUnit = Project!.OperatingUnit!,
+        //                        //    ImplementingOffice = Project!.ImplementingOffice!,
+        //                        //    DEO = Project.DEO!,
+        //                        //    Region = Project.Region!,
+        //                        //    Agency = Project.Agency,
+        //                        //    ImplementationMode = Project.ImplementationMode,
+        //                        //    EmergencyMode = Project.EmergencyMode,
+        //                        //    Feasibility = Project.Feasibility,
+        //                        //    DetailedDesign = Project.DetailedDesign,
+        //                        //    RowAvailable = Project.RowAvailable,
+        //                        //    CreatedBy = _Session.UserId,
+        //                        //    CreatedDate = CurrentDate
+        //                        //};
+        //                        //await _db.tProjectRevisions.AddAsync(NewRevision);
+        //                        //await _db.SaveChangesAsync();
+        //                        //var newStage = new ProjectStages()
+        //                        //{
+        //                        //    ProgramId = Program.ProgramId!,
+        //                        //    RevisionId = NewRevision.Id,
+        //                        //    StageId = Program.StageId,
+        //                        //    StageName = Program.StageName,
+        //                        //    CreatedBy = _Session.UserId,
+        //                        //    CreatedDate = CurrentDate,
+        //                        //    IsPublished = false
+        //                        //};
+        //                        //await _db.tProjectStages.AddAsync(newStage);
+        //                    }
+        //                }
+        //                #endregion
+        //                #region Update Funding Profile
+        //                var existingFundingProfiles = await _db.tProjectFundingProfile
+        //                    .Where(fp => fp.ProjectId == Details.ProjectId && fp.StageName == dto.ProjectDetails.StageName)
+        //                    .ToListAsync();
+        //                #endregion
+        //                #region Update Component Costs
+        //                #endregion
+        //                #region Update Component Cost Year
+        //                #endregion
+        //                #region Update Major Item of Works
+        //                #endregion
+        //                #region Update Major Item of Work Locations
+        //                #endregion
+
+        //                var Classification = await _db.tFutureRoadsClassification.AsNoTracking().ToListAsync();
+        //                var response = new
+        //                {
+        //                    Classifications = Classification
+        //                };
+
+        //                return Ok(response); // Remove the extra wrapper
+        //            }
+        //            catch (Exception ex)
+        //            {
+        //                return ExceptionHandler(ex);
+        //            }
+        //        }
+
+
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> ProjectRevisionDetails ([FromBody] RequstRevisionsDTO dto)
+        {
+            try
+            {
+                string RevisionString = JsonConvert.SerializeObject(dto);
+                var Projects = await _db.tProjectRevisions.FirstOrDefaultAsync(x => x.ProjectId == "PR00001");
+                return Ok(Projects);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> RequestRevision([FromBody] RequstRevisionsDTO dto)
+        {
+            try
+            {
+                bool hasUpdated = false;
+                DateTime CurrentDate = DateTime.UtcNow;
+                var NewComponent = new List<ProjectComponentCost>();
+                var NewComponentYear = new List<ProjectComponentCostYear>();
+                var NewMajorWorkItem = new List<ProjectMajorWorkItem>();
+                var NewMajorWorkLocations = new List<ProjectMajorWorkLocations>();
+                #region Validations
+                var Project = await _db.tProjectRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectDetails.ProjectId && x.Id == dto.ProjectDetails.RevisionNumber);
+                if (Project == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Invalid Project" });
+                }
+                var ProjectStage = await _db.tProjectStages.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionId == dto.ProjectDetails.RevisionNumber);
+                if(ProjectStage == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Project Stage not found!", Title = "Invalid Project Stage" });
+                }
+                var RevisionRules = await _db.vRevisionRules.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dto.RevisionDetails.ReasonId);
+                if(RevisionRules == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Revision type does not exist!", Title = "Invalid Revision Type" });
+                }
+                var RevisionCategory = await _db.tOptionRevisionHeader.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionGroupId == RevisionRules.RevisionGroupId);
+                if(RevisionCategory == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Revision category does not match with the selected revision reason!", Title = "Invalid Revision Category" });
+                }
+                var HasPendingModification = await _db.tRevisionDetails.AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.TransactionId == dto.ProjectDetails.ProjectId);
+                if(HasPendingModification != null && HasPendingModification.COApproveStatus == false && HasPendingModification.RegionApproveStatus == false)
+                {
+                    return new BadRequestObjectResult(new { Message = "There is a pending modification request for this project. Please wait for the current request to be processed before submitting a new one.", Title = "Pending Modification Request" });
+                }
+                var jsonRules = JsonConvert.DeserializeObject<ModificationRules>(RevisionRules.Field);
+                #endregion
+                #region ProjectRevision
+                var ProjectDetailsRules = jsonRules.ProjectDetailsRules.GetType()
+                .GetProperties()
+                .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
+                .Where(p => (bool?)p.GetValue(jsonRules.ProjectDetailsRules) == true)
+                .Select(p => p.Name)
+                .ToList();
+                var NewProjectRevision = dto.ProjectDetails;
+                if(ProjectDetailsRules.Count > 0)
+                {
+                    hasUpdated = true;
+                    Project = ProjectDetailsRules.UpdateRevisionData(NewProjectRevision, Project);
+                }
+                #endregion
+                #region ComponentCosts
+                var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId).ToListAsync();
+                var ComponentCostRules = jsonRules.ComponentCostRules.GetType()
+                .GetProperties()
+                .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
+                .Where(p => (bool?)p.GetValue(jsonRules.ComponentCostRules) == true)
+                .Select(p => p.Name)
+                .ToList();
+                var UpdateComponentCost = dto.ComponentCosts;
+                if (ComponentCostRules.Count > 0)
+                {
+                    foreach (var component in UpdateComponentCost)
+                    {
+                        var ComponentId = component.Id;
+                        var SelectedComponent = ComponentCost.FirstOrDefault(x => x.Id == ComponentId);
+
+                        if (SelectedComponent != null)
+                        {
+                            hasUpdated = true;
+                            SelectedComponent.RevisedNumber = 1;
+                            SelectedComponent = ComponentCostRules.UpdateRevisionData(component, SelectedComponent);
+                            SelectedComponent.RevisedNumber = 1;
+                        }
+                    }
+                }
+                var NewComponentToInsert = UpdateComponentCost.Where(x => x.Id == 0);
+                if(NewComponentToInsert.Count() > 0)
+                {
+                    NewComponent.AddRange(NewComponentToInsert.Select(x => new ProjectComponentCost
+                    {
+                        ProjectId = Project.ProjectId,
+                        ReferenceId = x.ReferenceId,
+                        ComponentType = x.ComponentType,
+                        ComponentId = x.ComponentId,
+                        Description = x.Description,
+                        Total = x.Total,
+                        StageName = ProjectStage.StageName,
+                        RevisedNumber = 1,
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    }));
+                }
+                #endregion
+                #region ComponentCostYear
+                var ComponentCostYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentCost.Select(c => c.ReferenceId).Contains(x.ParentId)).ToListAsync();
+                var ComponentCostYearRules = jsonRules.ComponentCostYearRules.GetType()
+                .GetProperties()
+                .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
+                .Where(p => (bool?)p.GetValue(jsonRules.ComponentCostYearRules) == true)
+                .Select(p => p.Name)
+                .ToList();
+                var UpdateComponentCostYear = dto.ComponentCostYear;
+                if (ComponentCostYearRules.Count > 0)
+                {
+                    foreach (var year in UpdateComponentCostYear)
+                    {
+                        var UpdateCostYear = ComponentCostYear.FirstOrDefault(x => x.Id == year.Id);
+                        if (UpdateCostYear != null)
+                        {
+                            hasUpdated = true;
+                            UpdateCostYear = ComponentCostYearRules.UpdateRevisionData(year, UpdateCostYear);
+                        }
+                    }
+                }
+                var NewComponentYearToInsert = UpdateComponentCostYear.Where(x => NewComponentToInsert.Select(c => c.ReferenceId).Contains(x.ParentId));
+                if (NewComponentYearToInsert.Count() > 0)
+                {
+                    NewComponentYear.AddRange(NewComponentYearToInsert.Select(x => new ProjectComponentCostYear
+                    {
+                        ParentId = x.ParentId,
+                        CostYear = x.CostYear,
+                        Cost = x.Cost,
+                        StartDate = x.StartDate,
+                        EndDate = x.EndDate,
+                    }));
+                }
+                #endregion
+                #region MajorWorkItem
+                var MajorWorkItem = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId).ToListAsync();
+                var MajorWorkItemRules = jsonRules.MajorItemOfWorkRules.GetType()
+                .GetProperties()
+                .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
+                .Where(p => (bool?)p.GetValue(jsonRules.MajorItemOfWorkRules) == true)
+                .Select(p => p.Name)
+                .ToList();
+                var UpdateMajorItemOfWorks = dto.MajorItemOfWorks;
+                if (MajorWorkItemRules.Count > 0)
+                {
+                    foreach (var item in UpdateMajorItemOfWorks)
+                    {
+                        var UpdateMajorWorkItem = MajorWorkItem.FirstOrDefault(x => x.Id == item.Id);
+                        if (UpdateMajorWorkItem != null)
+                        {
+                            hasUpdated = true;
+                            UpdateMajorWorkItem = MajorWorkItemRules.UpdateRevisionData(item, UpdateMajorWorkItem);
+                            UpdateMajorWorkItem.RevisedNumber = 1;
+                        }
+                    }
+                }
+                var NewMajorItemOfWorksToInsert = UpdateMajorItemOfWorks.Where(x => x.Id == 0);
+                if (NewMajorItemOfWorksToInsert.Count() > 0)
+                {
+                    NewMajorWorkItem.AddRange(NewMajorItemOfWorksToInsert.Select(x => new ProjectMajorWorkItem
+                    {
+                        ProjectId = Project.ProjectId,
+                        ReferenceId = x.ReferenceId,
+                        ComponentId = x.ComponentId,
+                        YearOfWork = x.YearOfWork,
+                        WorkTypeId = x.WorkTypeId,
+                        InfraType = x.InfraType,
+                        StageName = ProjectStage.StageName,
+                        RevisedNumber = 1,
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    }));
+                }
+                #endregion
+                #region MajorWorkLocations
+                var MajorWorkLocations = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => MajorWorkItem.Select(c => c.ReferenceId).Contains(x.ParentId)).ToListAsync();
+                var MajorItemLocationsRules = jsonRules.MajorItemLocationRules.GetType()
+                .GetProperties()
+                .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
+                .Where(p => (bool?)p.GetValue(jsonRules.MajorItemLocationRules) == true)
+                .Select(p => p.Name)
+                .ToList();
+                var UpdateMajorWorkLocations = dto.MajorItemLocations;
+                if (MajorWorkItemRules.Count > 0)
+                {
+                    foreach (var location in UpdateMajorWorkLocations)
+                    {
+                        var UpdateMajorWorkLocation = MajorWorkLocations.FirstOrDefault(x => x.Id == location.Id);
+                        if (UpdateMajorWorkLocation != null)
+                        {
+                            hasUpdated = true;
+                            UpdateMajorWorkLocation = MajorItemLocationsRules.UpdateRevisionData(location, UpdateMajorWorkLocation);
+                        }
+                    }
+                }
+                var NewMajorWorkLocationsToInsert = UpdateMajorWorkLocations.Where(x => NewMajorItemOfWorksToInsert.Select(c => c.ReferenceId).Contains(x.ParentId));
+                if (NewMajorWorkLocationsToInsert.Count() > 0)
+                {
+                    NewMajorWorkLocations.AddRange(NewMajorWorkLocationsToInsert.Select(x => new ProjectMajorWorkLocations
+                    {
+                        ParentId = x.ParentId,
+                        InfraId = x.InfraId,
+                        DetailedScope = x.DetailedScope,
+                        TargetUnitId = x.TargetUnitId,
+                        TargetUnit = x.TargetUnit,
+                        StartX = x.StartX,
+                        StartY = x.StartY,
+                        EndX = x.EndX,
+                        EndY = x.EndY,
+                        PhysicalTarget = x.PhysicalTarget,
+                        StartStationLimit = x.StartStationLimit,
+                        EndStationLimit = x.EndStationLimit,
+                        From = x.From,
+                        To = x.To,
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    }));
+                }
+                #endregion
+                if (hasUpdated)
+                {
+                    Project.isRevised = true;
+                    Project.RevisedNumber = (Project.RevisedNumber ?? 0) + 1;
+                    _db.tProjectRevisions.UpdateRange(Project);
+                    _db.tProjectComponentCost.UpdateRange(ComponentCost);
+                    _db.tProjectComponentCostYear.UpdateRange(ComponentCostYear);
+                    _db.tProjectMajorWorkItem.UpdateRange(MajorWorkItem);
+                    _db.tProjectMajorWorkLocations.UpdateRange(MajorWorkLocations);
+                    if(NewComponent.Count > 0)
+                    {
+                        await _db.tProjectComponentCost.AddRangeAsync(NewComponent);
+                    }
+                    if (NewComponentYear.Count > 0)
+                    {
+                        await _db.tProjectComponentCostYear.AddRangeAsync(NewComponentYear);
+                    }
+                    if (NewMajorWorkItem.Count > 0)
+                    {
+                        await _db.tProjectMajorWorkItem.AddRangeAsync(NewMajorWorkItem);
+                    }
+                    if (NewMajorWorkLocations.Count > 0)
+                    {
+                        await _db.tProjectMajorWorkLocations.AddRangeAsync(NewMajorWorkLocations);
+                    }
+                    _db.tRevisionDetails.Add(new RevisionDetails
+                    {
+                        TransactionId = Project.ProjectId + "-" + Project.RevisedNumber,
+                        ModificationCategory = RevisionCategory.RevisionGroupId,
+                        ModificationReason = RevisionRules.ReasonId,
+                        RegionApproveStatus = false,
+                        RegionApprover = null,
+                        RegionApprovedDate = null,
+                        COApproveStatus = false,
+                        COApprover = null,
+                        COApprovedDate = null,
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    });
+                    await _db.SaveChangesAsync();
+                }
+                return Ok(
+                    new
+                    {
+                        Message = "Revision request submitted successfully.",
+                        Title = "Success"
+                    }
+                );
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
+    }
+} 

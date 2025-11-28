@@ -2,6 +2,7 @@
 using DBHelper.Models.Enums;
 using DBHelper.Models.Extra;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using OfficeOpenXml;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats;
@@ -246,6 +247,48 @@ namespace Helpers
                 string code = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{data.Recipient} : {data.CCAddress}"));
                 throw new Exception($"An error occured while sending email. Please contact support service.");
             }
+        }
+        public static TDest UpdateRevisionData<TSrc, TDest>(
+            this List<string>? allowedKeys,
+            TSrc sourceData,
+            TDest destinationData)
+        {
+            if (allowedKeys == null || allowedKeys.Count == 0)
+                return destinationData;
+
+            if (sourceData == null || destinationData == null)
+                return destinationData;
+
+            var sourceType = typeof(TSrc);
+            var destType = typeof(TDest);
+
+            foreach (var key in allowedKeys)
+            {
+                if (string.IsNullOrWhiteSpace(key))
+                    continue;
+
+                var sourceProp = sourceType.GetProperty(key);
+                var destProp = destType.GetProperty(key);
+
+                if (sourceProp == null || destProp == null)
+                    continue;
+
+                if (!destProp.CanWrite)
+                    continue;
+
+                if (!destProp.PropertyType.IsAssignableFrom(sourceProp.PropertyType))
+                    continue;
+
+                var newValue = sourceProp.GetValue(sourceData);
+                var oldValue = destProp.GetValue(destinationData);
+
+                if (Equals(newValue, oldValue))
+                    continue;
+
+                destProp.SetValue(destinationData, newValue);
+            }
+
+            return destinationData;
         }
     }
 }
