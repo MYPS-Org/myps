@@ -558,7 +558,7 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = "Project Stage not found!", Title = "Invalid Project Stage" });
                 }
-                var RevisionRules = await _db.vRevisionRules.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dto.RevisionDetails.ReasonId);
+                var RevisionRules = await _db.vRevisionRules.AsNoTracking().FirstOrDefaultAsync(x => x.ReasonId == dto.RevisionDetails.ReasonId);
                 if(RevisionRules == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Revision type does not exist!", Title = "Invalid Revision Type" });
@@ -756,7 +756,7 @@ namespace WebAPI.Controllers.Revision
                 {
                     Project.isRevised = true;
                     Project.RevisedNumber = (Project.RevisedNumber ?? 0) + 1;
-                    _db.tProjectRevisions.UpdateRange(Project);
+                    await _db.tProjectRevisions.AddAsync(Project);
                     _db.tProjectComponentCost.UpdateRange(ComponentCost);
                     _db.tProjectComponentCostYear.UpdateRange(ComponentCostYear);
                     _db.tProjectMajorWorkItem.UpdateRange(MajorWorkItem);
@@ -777,7 +777,7 @@ namespace WebAPI.Controllers.Revision
                     {
                         await _db.tProjectMajorWorkLocations.AddRangeAsync(NewMajorWorkLocations);
                     }
-                    _db.tRevisionDetails.Add(new RevisionDetails
+                    await _db.tRevisionDetails.AddAsync(new RevisionDetails
                     {
                         TransactionId = Project.ProjectId + "-" + Project.RevisedNumber,
                         ModificationCategory = RevisionCategory.RevisionGroupId,
