@@ -12,6 +12,7 @@ using System.Drawing;
 using System.Net;
 using System.Net.Http.Json;
 using System.Net.Mail;
+using System.Net.NetworkInformation;
 using System.Text;
 using System.Text.Json;
 
@@ -184,7 +185,7 @@ namespace Helpers
             }
             return li.Where(x => !x).Any();
         }
-        public static string SendEmail(SMTPModel data)
+        public static string SendEmail(this SMTPModel data)
         {
             try
             {

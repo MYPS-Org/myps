@@ -62,9 +62,10 @@ namespace DBHelper.Data
         public DbSet<Models.Table.PCMARevisions> tPCMARevisions { get; set; }
         public DbSet<Models.Table.PCMARevisionDetails> tPCMARevisionDetails { get; set; }
         public DbSet<Models.Table.PCMARevisionChangelogs> tPCMARevisionChangelogs { get; set; }
-        public DbSet<Models.Table.RevisionHeader> tRevisionHeader { get; set; }
         public DbSet<Models.Table.RevisionDetails> tRevisionDetails { get; set; }
         public DbSet<Models.Table.OptionRevisionHeader> tOptionRevisionHeader { get; set; }
+        public DbSet<Models.Table.OptionRevisionReasons> tOptionRevisionReasons { get; set; }
+        public DbSet<Models.Table.EnumRevisionStatus> tEnumRevisionStatus { get; set; }
         #endregion
         #region Views
         public DbSet<Models.Views.Users> vUsers { get; set; }

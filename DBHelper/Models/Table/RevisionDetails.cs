@@ -1,10 +1,4 @@
-﻿using DBHelper.Models.Enums;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace DBHelper.Models.Table
 {
@@ -19,14 +13,16 @@ namespace DBHelper.Models.Table
         public int ModificationCategory { get; set; }
         [Required]
         public int ModificationReason { get; set; }
-        public bool? RegionApproveStatus { get; set; }
+        public Enums.EnumRevisionStatus RegionApproveStatus { get; set; } = Enums.EnumRevisionStatus.Pending;
         [MaxLength(100)]
         public string? RegionApprover { get; set; }
         public DateTime? RegionApprovedDate { get; set; }
-        public bool? COApproveStatus { get; set; }
+        public DateTime? RegionLastUpdatedDate { get; set; }
+        public Enums.EnumRevisionStatus COApproveStatus { get; set; } = Enums.EnumRevisionStatus.Pending;
         [MaxLength(100)]
         public string? COApprover { get; set; }
         public DateTime? COApprovedDate { get; set; }
+        public DateTime? COLastUpdatedDate { get; set; }
         [MaxLength(100)]
         public string? CreatedBy { get; set; }
         public DateTime? CreatedDate { get; set; }

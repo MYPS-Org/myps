@@ -29,13 +29,13 @@ namespace WebAPI.Controllers.Revision
         {
             try
             {
-                SMTPModel sMTPModel = new SMTPModel
+                SMTPModel EmailConfig = new SMTPModel
                 {
                     Recipient = "mf102798@gmail.com",
                     Subject = "Request for Revision",
                     Body = "Dear Team,<br/><br/>A new revision request has been submitted. Please review the details and take the necessary actions.<br/><br/>Best Regards,<br/>Automated Notification System"
                 };
-                Functions.SendEmail(sMTPModel);
+                EmailConfig.SendEmail();
                 var Classification = await _db.tFutureRoadsClassification.AsNoTracking().ToListAsync();
                 var response = new
                 {

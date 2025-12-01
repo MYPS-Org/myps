@@ -1,6 +1,6 @@
 ﻿namespace DBHelper.Models.Enums
 {
-    #region Programs
+    #region Stages
     public enum EnumProgramStage
     {
         RDIP = 1,
@@ -16,6 +16,8 @@
         TF = 11,
         TFR = 12,
     }
+    #endregion
+    #region Type
     public enum EnumProgramType
     {
         RegularInfrastructure = 1,
@@ -23,6 +25,8 @@
         TrustFund = 3,
         AutomaticAppropriation = 4,
     }
+    #endregion
+    #region Status
     public enum EnumProgramStatus
     {
         //Proposed = 1,

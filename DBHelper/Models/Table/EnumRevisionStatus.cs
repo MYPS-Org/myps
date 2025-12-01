@@ -7,15 +7,17 @@ using System.Threading.Tasks;
 
 namespace DBHelper.Models.Table
 {
-    public class RevisionHeader
+    public class EnumRevisionStatus
     {
         [Key]
         public int Id { get; set; }
         [Required]
-        [MaxLength(200)]
-        public string RevisionName { get; set; } = string.Empty;
+        public int Enum { get; set; }
         [Required]
-        [MaxLength(5)]
-        public string RevisionId { get; set; } = string.Empty;
+        [MaxLength(20)]
+        public string Name { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(200)]
+        public string Description { get; set; } = string.Empty;
     }
 }
