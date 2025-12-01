@@ -3,6 +3,9 @@ import AdjustmentFields from './AdjustmentFields';
 import ChangeInAuthority from './ChangeInAuthority';
 import Termination from './Termination';
 import AdditionalFund from './AdditionalFund';
+import NIAbandonment from './NIAbandonmentForSavings';
+import NIDelisted from './NIDelisted';
+import NIReversion from './NIReversion';
 
 interface FieldPermissionRule {
     projectDetailFields: string[];
@@ -39,6 +42,13 @@ class RuleManager {
                 return ChangeInAuthority;
             case 'additionalfund':
                 return AdditionalFund;
+            case 'niabandonment':
+            case 'niabandonmentforsavings':
+                return NIAbandonment;
+            case 'nidelisted':
+                return NIDelisted;
+            case 'nireversion':
+                return NIReversion;
             case 'termination':
                 return Termination;
             default:

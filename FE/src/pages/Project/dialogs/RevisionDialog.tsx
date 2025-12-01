@@ -114,6 +114,15 @@ const ReviseDialog: React.FC<ReviseProjectDialogProps> = ({
             }
 
             console.log('Navigating to:', navigationPath);
+            console.log('Navigation state being passed:', {
+                stageName, 
+                revisionTypeId, 
+                revisionTypeDescription,
+                categoryDesc,
+                reasonDesc,
+                categoryId: finalCategory,
+                reasonId: selectedReason
+            });
 
             // Navigate with state
             navigate(navigationPath, { 
@@ -123,8 +132,8 @@ const ReviseDialog: React.FC<ReviseProjectDialogProps> = ({
                     revisionTypeDescription,
                     categoryDesc,
                     reasonDesc,
-                    selectedCategoryId: finalCategory,
-                    selectedReasonId: selectedReason
+                    categoryId: finalCategory,
+                    reasonId: selectedReason  // This is the reason ID
                 } 
             });
 

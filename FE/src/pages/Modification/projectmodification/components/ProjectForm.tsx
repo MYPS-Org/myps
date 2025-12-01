@@ -49,15 +49,17 @@ interface ProjectFormProps {
   initialProgramId?: string;
   category?: string;
   reason?: string;
+  reasonId?: number;
   fieldLabels?: Record<string, any>;
 }
 
-const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', initialProgramId, category, reason, fieldLabels }) => {
-
+const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', initialProgramId, category, reason, reasonId, fieldLabels }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
   const fields = fieldLabels || {};
+
+  console.log('ProjectForm - Received props:', { category, reason, reasonId });
 
   const [savingSection, setSavingSection] = useState<string | null>(null);
   const [projectEnums, setProjectEnums] = useState<ProjectEnums | null>(null);
@@ -77,6 +79,19 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   // If modification exists in database, use those values; otherwise use props from project module
   const modificationCategory = initialData?.ModificationCategory || category;
   const modificationReason = initialData?.ModificationReason || reason;
+  const modificationReasonId = initialData?.ModificationReasonId || reasonId;
+
+  console.log('ProjectForm - Final values:', { 
+    modificationCategory, 
+    modificationReason, 
+    modificationReasonId,
+    fromInitialData: {
+      category: initialData?.ModificationCategory,
+      reason: initialData?.ModificationReason,
+      reasonId: initialData?.ModificationReasonId
+    },
+    fromProps: { category, reason, reasonId }
+  });
 
   // toggle state for Program Details section
   const [isProgramOpen, setIsProgramOpen] = useState<boolean>(true);
@@ -814,7 +829,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
               
             </div>
             <div className="flex space-x-3">
-                {mode === 'edit' && (user?.UserRole === 'DEO' || user?.RegCode === initialData?.ProjectDetails.DEO ) && (
+                {mode === 'edit' && (user?.UserRole === 'Implementing Office' || user?.RegCode === initialData?.ProjectDetails.DEO ) && (
                   <>
                     <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify()} disabled={updateReviseProject}>
                       {updateReviseProject ? 'Submitting...' : 'Submit Modify Request to RO'}
@@ -887,6 +902,14 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
               projectLocation={getProjectLocation()}
               height="400px"
             />
+          </div>
+        )}
+      </div>
+      <div>
+        {category && reasonId && (
+          <div className="text-sm text-gray-600">
+            <span className="font-semibold">Modification Category:</span> {category} &nbsp; | &nbsp; 
+            <span className="font-semibold">Modification Reason:</span> {reasonId}
           </div>
         )}
       </div>
@@ -1060,6 +1083,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             maxAmountCost={maxAmountCost}
             disabled={isDisabled}
             fieldPermissions={fieldPermissions}
+            category={modificationCategory}
+            reason={modificationReason}
+            reasonId={modificationReasonId}
           />
         </div>
       </div>
@@ -1119,6 +1145,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         onClose={() => setIsRevisedProjectDialogOpen(false)}
         revisionCategory={modificationCategory}
         revisionReason={modificationReason}
+        reasonId={modificationReasonId}
         project={initialData?.ProjectDetails || projectDetails}
         componentCosts={componentCosts}
         componentCostYear={componentCostsYear}

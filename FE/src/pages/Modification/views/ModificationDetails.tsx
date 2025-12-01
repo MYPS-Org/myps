@@ -18,6 +18,12 @@ const ModifyProject: React.FC = () => {
     // Get category and reason from navigation state
     const categoryDesc = location.state?.categoryDesc || 'modification';
     const reasonDesc = location.state?.reasonDesc || '';
+    const selectedReasonId = location.state?.reasonId || 0;
+
+    console.log('ModificationDetails - Navigation state:', location.state);
+    console.log('ModificationDetails - Category:', categoryDesc);
+    console.log('ModificationDetails - Reason:', reasonDesc);
+    console.log('ModificationDetails - Reason ID:', selectedReasonId);
 
     useEffect(() => {
         // Load project data based on ID
@@ -62,8 +68,8 @@ const ModifyProject: React.FC = () => {
 
             const payload = {
                 categoryDesc,
-                reasonDesc,
-                projectId: initialData.ProjectDetails.ProjectId,
+                reasonId: selectedReasonId,
+                projectId: initialData.ProjectDetails.ProjectId
             };
             
             console.log('Fetching label field with payload:', payload);
@@ -109,6 +115,7 @@ const ModifyProject: React.FC = () => {
             mode="edit"
             category={categoryDesc}
             reason={reasonDesc}
+            reasonId={selectedReasonId}
             fieldLabels={fieldLabels}
         />
     );

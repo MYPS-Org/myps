@@ -3,7 +3,7 @@ import type { ComponentCost, ComponentCostWithYears, ComponentCostYear } from ".
 import { Button } from "../../../../components/tailwindui/button";
 import { PlusIcon, TrashIcon, PencilIcon } from "@heroicons/react/24/outline";
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from "../../../../components/tailwindui/table";
-import { ComponentCostDialog } from "../../../Project/dialogs";
+import ComponentCostDialog from "../../dialogs/ComponentCostDialog";
 import { getDisabledClass } from "../../../../utils/GlobalFunctions";
 
 interface ComponentCostFormProps {
@@ -15,6 +15,9 @@ interface ComponentCostFormProps {
   maxAmountCost?: number; // Optional prop to set max amount in ComponentCostForm
   disabled?: boolean;
   fieldPermissions?: any; // New prop for field permissions
+  category?: string;
+  reason?: string;
+  reasonId?: number;
 }
 
 const ComponentCostForm: React.FC<ComponentCostFormProps> = ({ 
@@ -26,6 +29,9 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
   maxAmountCost,
   disabled = false,
   fieldPermissions,
+  category,
+  reason,
+  reasonId,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -283,6 +289,9 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
           componentCosts={componentCosts}
           ProjectId={initialData?.ProjectDetails?.ProjectId}
           maxAmountCost={maxAmountCost}
+          categoryDesc={category}
+          reasonDesc={reason}
+          reasonId={reasonId}
         />
       </div>
   );

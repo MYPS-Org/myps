@@ -12,27 +12,34 @@ export const fetchDropDownData = async () => {
     }
 }
 
-export const submitModificationRequest = async (payload: {
-    RevisionDetails: {
-        RevisionCategory: string;
-        RevisionReason: string;
-        ApprovalDate: string;
-        ApprovedDocument: {
-            Name: string;
-            Extension: string;
-            ContentType: string;
-            DataUrl: string;
-        };
-    }
-    ProjectDetails: ProjectDetails;
-    ComponentCosts: ComponentCost[];
-    ComponentCostYear: ComponentCostYear[];
-    MajorItemOfWorks: MajorItemOfWork[];
-    MajorItemLocations: MajorItemLocations[];
-    FundingProfile: FundingProfile[];
-}) => {
+export const submitModificationRequest = async (
+    payload: {
+        RevisionDetails: {
+            ReasonId: number;
+            ApprovalDate: string;
+            ApprovedDocument: {
+                Name: string;
+                Extension: string;
+                ContentType: string;
+                DataUrl: string;
+            };
+        }
+        ProjectDetails: ProjectDetails;
+        ComponentCosts: ComponentCost[];
+        ComponentCostYear: ComponentCostYear[];
+        MajorItemOfWorks: MajorItemOfWork[];
+        MajorItemLocations: MajorItemLocations[];
+        FundingProfile: FundingProfile[];
+    },
+    userRole?: string
+) => {
     try {
-        const response = await httpClient.post(`/IORevision/RequestRevision/`, payload, {
+        // Determine endpoint based on user role
+        // IO = Implementing Office, RO = Regional Office
+        const isIO = userRole?.toLowerCase().includes('implementing') || userRole?.toLowerCase().includes('io');
+        const endpoint = isIO ? '/IORevision/RequestRevision/' : '/RORevision/RequestRevision/';
+        
+        const response = await httpClient.post(endpoint, payload, {
             preloaderMessage: 'Requesting revision...'
         });
         return response;
@@ -42,7 +49,19 @@ export const submitModificationRequest = async (payload: {
     }
 };
 
-export const getLabelField = async (payload: { categoryDesc: any; reasonDesc: any; projectId: string | undefined }) => {
+export const updateRevisionRequestStatus = async (projectId: string, status: string) => {
+    try {
+        const response = await httpClient.post(`/RORevision/UpdateRevisionStatus/`, { 'ProjectId': projectId, 'Status': status }, {
+            preloaderMessage: 'Requesting revision...'
+        });
+        return response;
+    } catch (ErrorResponse) {
+        console.error('Error requesting revision:', ErrorResponse);
+        throw ErrorResponse;
+    }
+};
+
+export const getLabelField = async (payload: { categoryDesc: any; reasonId: any; projectId: string | undefined }) => {
     try {
         const response = await httpClient.post(`/IORevision/GetLabelField/`, payload);
         return response;

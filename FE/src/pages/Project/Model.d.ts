@@ -16,6 +16,7 @@ export interface ProjectFormPayload {
   IsUnlock?: boolean;
   ModificationCategory?: string; // Category from database if modification is submitted
   ModificationReason?: string; // Reason from database if modification is submitted
+  ModificationReasonId?: number; // ReasonId from database if modification is submitted
   ProgramDetails: ProgramList;
   ProjectDetails: ProjectDetails;
   ComponentCosts: ComponentCost[];

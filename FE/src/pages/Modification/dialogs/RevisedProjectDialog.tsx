@@ -6,6 +6,7 @@ import { XMarkIcon, DocumentArrowUpIcon, DocumentIcon } from '@heroicons/react/2
 import type { ProjectDetails, ComponentCost, ComponentCostYear, MajorItemOfWork, MajorItemLocations, FundingProfile } from '../../Project/Model';
 import { submitModificationRequest } from '../Service';
 import { useToast } from '../../../components/toaster/ToasterContext';
+import { useAuth } from '../../../contexts/AuthContext';
 
 interface ReviseProjectDialogProps {
     isOpen: boolean;
@@ -18,6 +19,7 @@ interface ReviseProjectDialogProps {
     fundingProfile: FundingProfile[];
     revisionCategory?: string;
     revisionReason?: string;
+    reasonId?: number;
 }
 
 const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({ 
@@ -30,13 +32,15 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
     majorItemLocations,
     fundingProfile,
     revisionCategory,
-    revisionReason
+    revisionReason,
+    reasonId
 }) => {
     const {
         initializeData
     } = useDropDownData();
 
     const { showToast } = useToast();
+    const { user } = useAuth(); // Get user from auth context
     const [approvalDate, setApprovalDate] = useState<string>('');
     const [approvalDocument, setApprovalDocument] = useState<{
         Name: string;
@@ -112,7 +116,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
             const payload = {
                 RevisionDetails: {
                     RevisionCategory: revisionCategory || revisionType,
-                    RevisionReason: revisionReason || '',
+                    ReasonId:  reasonId || 0,
                     ApprovalDate: approvalDate,
                     ApprovedDocument: {
                         Name: approvalDocument.Name,
@@ -131,7 +135,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
 
             console.log('Submitting modification request with payload:', payload);
 
-            await submitModificationRequest(payload);
+            await submitModificationRequest(payload, user?.UserRole);
 
             showToast({
                 type: 'success',
