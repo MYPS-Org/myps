@@ -19,9 +19,6 @@ namespace DBHelper.Models.Table
         public int RevisionGroupId { get; set; }
         [Required]
         public int ReasonId { get; set; }
-        [Required]
-        [MaxLength(100)]
-        public string CreatedBy { get; set; } = string.Empty;
-        public DateTime? CreatedDate { get; set; }
+        public int? CategoryId { get; set; }
     }
 }

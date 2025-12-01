@@ -9,7 +9,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace WebAPI.Controllers.Revision
+namespace WebAPI.Controllers.Revision.ImplementingOffice
 {
     public class RequstRevisionsDTO
     {
@@ -51,7 +51,7 @@ namespace WebAPI.Controllers.Revision
         [MaxLength(400)]
         public string Description { get; set; } = string.Empty;
         [Required]
-        public Double Total { get; set; }
+        public double Total { get; set; }
     }
     public class RevisionComponentCostYearDTO
     {
@@ -61,7 +61,7 @@ namespace WebAPI.Controllers.Revision
         [Required]
         public int CostYear { get; set; }
         [Required]
-        public Double Cost { get; set; }
+        public double Cost { get; set; }
         [Required]
         public DateTime StartDate { get; set; }
         [Required]
@@ -114,13 +114,13 @@ namespace WebAPI.Controllers.Revision
         [MaxLength(100)]
         public string? EndY { get; set; }
         [Required]
-        public Double? PhysicalTarget { get; set; }
+        public double? PhysicalTarget { get; set; }
         [MaxLength(100)]
         public string? StartStationLimit { get; set; }
         [MaxLength(100)]
         public string? EndStationLimit { get; set; }
-        public Double? From { get; set; }
-        public Double? To { get; set; }
+        public double? From { get; set; }
+        public double? To { get; set; }
     }
     public class RevisionFundingProfileDTO
     {
@@ -132,8 +132,8 @@ namespace WebAPI.Controllers.Revision
         [Required]
         public int Agreement { get; set; }
         [Required]
-        public Double Amount { get; set; }
+        public double Amount { get; set; }
         [Required]
-        public Double Percentage { get; set; }
+        public double Percentage { get; set; }
     }
 }

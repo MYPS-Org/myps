@@ -11,7 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using System.Threading.Tasks;
-namespace WebAPI.Controllers.Revision
+namespace WebAPI.Controllers.Revision.RegionalOffice
 {
     [ApiController]
     [Route("api/[controller]/[action]")]
@@ -53,6 +53,7 @@ namespace WebAPI.Controllers.Revision
                 }
                 RevisionDetails.RegionApprover = _Session.UserId;
                 RevisionDetails.RegionApproveStatus = dto.Status;
+                RevisionDetails.RegionDescription = dto.Status == DBHelper.Models.Enums.EnumRevisionStatus.ForReview ? dto.Description : null;
                 RevisionDetails.RegionLastUpdatedDate = CurrentDate;
                 _db.tRevisionDetails.Update(RevisionDetails);
                 //await _db.SaveChangesAsync();

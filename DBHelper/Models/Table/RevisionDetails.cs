@@ -14,11 +14,13 @@ namespace DBHelper.Models.Table
         [Required]
         public int ModificationReason { get; set; }
         public Enums.EnumRevisionStatus RegionApproveStatus { get; set; } = Enums.EnumRevisionStatus.Pending;
+        public string? RegionDescription { get; set; }
         [MaxLength(100)]
         public string? RegionApprover { get; set; }
         public DateTime? RegionApprovedDate { get; set; }
         public DateTime? RegionLastUpdatedDate { get; set; }
         public Enums.EnumRevisionStatus COApproveStatus { get; set; } = Enums.EnumRevisionStatus.Pending;
+        public string? CODescription { get; set; }
         [MaxLength(100)]
         public string? COApprover { get; set; }
         public DateTime? COApprovedDate { get; set; }

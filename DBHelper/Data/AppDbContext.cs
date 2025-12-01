@@ -65,6 +65,7 @@ namespace DBHelper.Data
         public DbSet<Models.Table.RevisionDetails> tRevisionDetails { get; set; }
         public DbSet<Models.Table.OptionRevisionHeader> tOptionRevisionHeader { get; set; }
         public DbSet<Models.Table.OptionRevisionReasons> tOptionRevisionReasons { get; set; }
+        public DbSet<Models.Table.OptionRevisionCategory> tOptionRevisionCategory { get; set; }
         public DbSet<Models.Table.EnumRevisionStatus> tEnumRevisionStatus { get; set; }
         #endregion
         #region Views

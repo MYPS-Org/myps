@@ -11,7 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using System.Threading.Tasks;
-namespace WebAPI.Controllers.Revision
+namespace WebAPI.Controllers.Revision.ImplementingOffice
 {
     [ApiController]
     [Route("api/[controller]/[action]")]

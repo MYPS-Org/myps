@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace WebAPI.Controllers.Revision
+namespace WebAPI.Controllers.Revision.RegionalOffice
 {
     public class RORevisionDTO
     {
@@ -8,5 +8,6 @@ namespace WebAPI.Controllers.Revision
         public string ProjectId { get; set; } = string.Empty;
         [Required]
         public DBHelper.Models.Enums.EnumRevisionStatus Status { get; set; }
+        public string? Description { get; set; }
     }
 }
