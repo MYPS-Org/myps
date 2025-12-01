@@ -1,10 +1,10 @@
 import { httpClient } from "../../services/httpClient";
-import type { ModificationCategory } from "./Model.d"
+import type { ModificationCategory, OptionRevisionCategory, OptionRevisionHeader, OptionRevisionReasons } from "./Model.d"
 import type { ProjectDetails, ComponentCost, ComponentCostYear, MajorItemOfWork, MajorItemLocations, FundingProfile } from "../Project/Model.d";
 
-export const fetchDropDownData = async () => {
+export const fetchRevDropdownData = async () => {
     try {
-        const response = await httpClient.post<{ ModCategories: ModificationCategory[], ModReasons: ModificationCategory[] }>('/modification/initDropdowns');
+        const response = await httpClient.post<{ RevisionTypes: OptionRevisionHeader[], Categories: OptionRevisionCategory[], Reasons: OptionRevisionReasons[] }>('/Revision/RevisionCategories');
         return response;
     } catch (error) {
         console.error('Error fetching modification dropdown data:', error);

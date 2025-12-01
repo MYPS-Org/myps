@@ -33,3 +33,26 @@ export interface ModificationModel {
     ProjectDescription: string;
     OperatingUnit: number;
 }
+
+export interface OptionRevisionReasons {
+	Id: number;
+	Reason: string;
+	RevisionGroupId: number;
+	ReasonId: number;
+    CategoryId?: number;
+	CreatedBy: string;
+	CreatedDate?: string;
+}
+
+export interface OptionRevisionHeader {
+	Id: number;
+	RevisionName: string;
+	RevisionGroupId: number;
+}
+
+export interface OptionRevisionCategory {
+	Id: number;
+	CategoryName: string;
+	CategoryId: number;
+	RevisionGroupId: number;
+}

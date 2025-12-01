@@ -19,6 +19,7 @@ import type {
   MajorItemLocations,
   ProjectSupportingDocs
 } from '../Model.d';
+import type { OptionRevisionCategory, OptionRevisionHeader, OptionRevisionReasons } from '../../Modification/Model';
 
 import { Button } from '../../../components/tailwindui/button';
 import MetroManilaMap from '../../../components/map/MetroManilaMap';
@@ -36,9 +37,9 @@ import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import type { ProgramList } from '../../Program/Model';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/react';
-import { categoryData } from '../../Modification/mockData/Dropdown';
 
 import RevisionDialog from '../dialogs/RevisionDialog';
+import { fetchRevDropdownData } from '../../Modification/Service';
 
 interface ProjectFormProps {
   initialData?: ProjectFormPayload;
@@ -53,6 +54,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const [savingSection, setSavingSection] = useState<string | null>(null);
   const [projectEnums, setProjectEnums] = useState<ProjectEnums | null>(null);
   const [updateAllProject, setUpdateAllProject] = useState<boolean>(false);
+  const [reviseProject, setReviseProject] = useState<boolean>(false);
   const [updateUnlockProject, setUpdateUnlockProject] = useState<boolean>(false);
   // const [reviseProject, setReviseProject] = useState<boolean>(false);
   const [errors, setErrors] = useState<FormValidationError<ProjectDetails>>({});
@@ -68,7 +70,12 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
   // Dialog state
   const [ isRevisionOpen, setIsRevisionOpen ] = useState<boolean>(false);
-  const [ selectedRevisionCategory, setSelectedRevisionCategory ] = useState<number>(0);
+  const [ selectedRevHeaderId, setSelectedRevHeaderId ] = useState<number>(0);
+
+  // Revision Dropdown Data
+  const [ revHeaderData, setRevHeaderData ] = useState<OptionRevisionHeader[]>([]);
+  const [ revCategoryData, setRevCategoryData ] = useState<OptionRevisionCategory[]>([]);
+  const [ reasonData, setReasonData ] = useState<OptionRevisionReasons[]>([]);
   
   // SetMaxAmount in ComponentCostForm
   const [maxAmountCost, setMaxAmountCost] = useState<number>(0);
@@ -170,6 +177,26 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       setProgramDetails(initialData.ProgramDetails);
     }
   }, [mode, initialData]);
+
+  useEffect(() => {
+    getRevisonDropdown();
+  }, []);
+
+  const getRevisonDropdown =  async() => {
+    try {
+      const response = await fetchRevDropdownData();
+      setRevHeaderData(response.Data.RevisionTypes || []);
+      setReasonData(response.Data.Reasons || []);
+      setRevCategoryData(response.Data.Categories || []);
+    }
+    catch {
+      console.log('error fetch data');
+      setRevHeaderData([]);
+      setReasonData([]);
+      setRevCategoryData([]);
+    }
+      
+  }
 
   // Separate useEffect to handle initialProgramId
   useEffect(() => {
@@ -732,10 +759,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     }
     if (revisionTypeId){
       // Open the modification dialog
-      setSelectedRevisionCategory(revisionTypeId);
+      setSelectedRevHeaderId(revisionTypeId);
       setIsRevisionOpen(true);
     }else {
-      navigate(`/revision/${projectId}`, { state: { stageName, revisionTypeId, revisionTypeDescription } });
+      alert('Please select a valid revision type to proceed.');
     }
     
 
@@ -794,11 +821,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                     </Button>
                   </>
                 )}
-                {/* {mode === 'edit' && initialData?.ProgramDetails?.StageId === 9 && (
-                  <Button color="yellow" className='cursor-pointer' onClick={() => handleReviseProject(initialData?.ProjectDetails?.ProjectId ?? '', initialData?.ProgramDetails?.StageName ?? '')} disabled={updateAllProject}>
-                    {reviseProject ? 'Revisioning...' : 'Revise Project'}
-                  </Button>
-                )} */}
                 {mode === 'edit' && initialData?.ProgramDetails?.StageId === 10 && (
                   <Menu as="div" className="relative inline-block text-left">
                     <MenuButton
@@ -806,30 +828,28 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                       color='yellow' 
                       className='cursor-pointer'
                     >
-                     {updateAllProject ? 'Revisioning...' : 'Revise Project'}
+                     {reviseProject ? 'Revisioning...' : 'Revise Project'}
                       <ChevronDownIcon className="h-4 w-4" />
                     </MenuButton>
                     <MenuItems className="absolute right-0 z-10 mt-2 w-80 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
                       <div className="py-1">
-                        {categoryData.filter((revisionType) => revisionType.ObsoleteFlag !== 1)
-                          .sort((a, b) => a.CodeDescription.localeCompare(b.CodeDescription)) // Sort alphabetically
-                          .map((revisionType) => (
-                          <MenuItem key={revisionType.Id}>
+                        {revHeaderData?.map((types) => (
+                          <MenuItem key={types.Id}>
                             {({ active }) => (
                               <button
                                 onClick={() => handleReviseProject(
                                   initialData?.ProjectDetails?.ProjectId ?? '', 
                                   initialData?.ProgramDetails?.StageName ?? '',
-                                  revisionType.Id,
-                                  revisionType.CodeDescription
+                                  types.Id,
+                                  types.RevisionName
                                 )}
                                 className={`${
                                   active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'
                                 } group flex w-full items-center px-4 py-2 text-sm text-left hover:bg-gray-50`}
-                                disabled={updateAllProject}
+                                disabled={reviseProject}
                               >
                                 <div className="flex flex-col">
-                                  <span className="font-medium">{revisionType.CodeDescription}</span>
+                                  <span className="font-medium">{types.RevisionName}</span>
                                   {/* <span className="text-xs text-gray-500">ID: {revisionType.Id}</span> */}
                                 </div>
                               </button>
@@ -1032,7 +1052,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         onClose={() => setIsRevisionOpen(false)}
         projectId={initialData?.ProjectDetails.ProjectId || ''}
         stageName={initialData?.ProgramDetails?.StageName || ''}
-        category={selectedRevisionCategory}
+        selectedRevHeaderId={selectedRevHeaderId}
+        revHeaders={revHeaderData}
+        categories={revCategoryData}
+        reasons={reasonData}
       />
 
     </div>

@@ -1,16 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import XMarkIcon from '@heroicons/react/24/outline/XMarkIcon';
 import { useToast } from '../../../components/toaster/ToasterContext';
-import { categoryData as mockCategoryData, reasonData as mockReasonData } from '../../Modification/mockData/Dropdown';
 import { useNavigate } from 'react-router-dom';
+import type { OptionRevisionCategory, OptionRevisionReasons, OptionRevisionHeader } from '../../Modification/Model.d';
 
 interface ReviseProjectDialogProps {
     isOpen: boolean;
     onClose: () => void;
-    category?: number;
-    reason?: string;
+    selectedRevHeaderId?: number;
+    revHeaders?: OptionRevisionHeader[];
+    categories?: OptionRevisionCategory[];
+    reasons?: OptionRevisionReasons[];
     projectId?: string;
     stageName?: string;
 }
@@ -20,7 +22,10 @@ const ReviseDialog: React.FC<ReviseProjectDialogProps> = ({
     onClose,
     projectId,
     stageName,
-    category,
+    selectedRevHeaderId,
+    revHeaders,
+    categories = [],
+    reasons = []
 }) => {
     const { showToast } = useToast();
     const navigate = useNavigate();
@@ -28,21 +33,42 @@ const ReviseDialog: React.FC<ReviseProjectDialogProps> = ({
     const [selectedReason, setSelectedReason] = useState<number | ''>('');
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-    // Filter categories to only show obsoleteFlag = 0
-    const activeCategories = mockCategoryData.filter(cat => cat.ObsoleteFlag === 1);
+    // Get the selected header's RevisionGroupId
+    const selectedRevisionGroupId = useMemo(() => {
+        return revHeaders?.find(header => header.Id === selectedRevHeaderId)?.RevisionGroupId;
+    }, [revHeaders, selectedRevHeaderId]);
 
-    // Filter reasons based on selected category or category prop
-    const effectiveCategory = category && category !== 19 ? category : selectedCategory;
-    const filteredReasons = effectiveCategory 
-        ? mockReasonData.filter(reason => reason.CodeGroupId === effectiveCategory)
-        : [];
+    // Filter categories based on RevisionGroupId
+    const filteredCategories = useMemo(() => {
+        if (!selectedRevisionGroupId) return [];
+        return categories.filter(cat => cat.RevisionGroupId === selectedRevisionGroupId);
+    }, [categories, selectedRevisionGroupId]);
 
-    // Set initial category if provided and not modification (19)
-    useEffect(() => {
-        if (category && category !== 19) {
-            setSelectedCategory(category);
+    // Check if category dropdown should be shown
+    const showCategoryDropdown = filteredCategories.length > 0;
+
+    // Filter reasons based on RevisionGroupId and optionally by CategoryId
+    const filteredReasons = useMemo(() => {
+        if (!selectedRevisionGroupId) return [];
+        
+        // First filter by RevisionGroupId
+        let filtered = reasons.filter(reason => reason.RevisionGroupId === selectedRevisionGroupId);
+        
+        // If a category is selected and categories exist, further filter by CategoryId
+        if (showCategoryDropdown && selectedCategory) {
+            filtered = filtered.filter(reason => reason.CategoryId === selectedCategory);
         }
-    }, [category]);
+        
+        return filtered;
+    }, [reasons, selectedRevisionGroupId, selectedCategory, showCategoryDropdown]);
+
+    // Reset selections when dialog opens or header changes
+    useEffect(() => {
+        if (isOpen) {
+            setSelectedCategory('');
+            setSelectedReason('');
+        }
+    }, [isOpen, selectedRevHeaderId]);
 
     // Reset reason when category changes
     useEffect(() => {
@@ -52,11 +78,8 @@ const ReviseDialog: React.FC<ReviseProjectDialogProps> = ({
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         
-        // Use category prop if not modification, otherwise use selected category
-        const finalCategory = category && category !== 19 ? category : selectedCategory;
-        
         // Validation
-        if (!finalCategory) {
+        if (showCategoryDropdown && !selectedCategory) {
             showToast({
                 type: 'error',
                 message: 'Please select a category.'
@@ -75,41 +98,43 @@ const ReviseDialog: React.FC<ReviseProjectDialogProps> = ({
         setIsSubmitting(true);
 
         try {
-            // Find category and reason descriptions
-            const categoryDesc = mockCategoryData.find(cat => cat.Id === finalCategory)?.CodeDescription || '';
-            const reasonDesc = mockReasonData.find(r => r.Id === selectedReason)?.CodeDescription || '';
-            const categoryCodeGroupId = mockCategoryData.find(cat => cat.Id === finalCategory)?.CodeGroupId || 0;
+            // Get selected header name
+            const selectedHeader = revHeaders?.find(h => h.Id === selectedRevHeaderId);
+            const revisionTypeName = selectedHeader?.RevisionName || 'Revision';
+            
+            // Get category name if category was selected
+            const categoryName = selectedCategory 
+                ? filteredCategories.find(cat => cat.Id === selectedCategory)?.CategoryName || ''
+                : '';
+            
+            // Get reason name
+            const reasonName = filteredReasons.find(r => r.Id === selectedReason)?.Reason || '';
 
-            console.log('Selected category:', categoryDesc);
-            console.log('Selected reason:', reasonDesc);
-            console.log('Category CodeGroupId:', categoryCodeGroupId);
+            console.log('Selected revision type:', revisionTypeName);
+            console.log('Selected category:', categoryName);
+            console.log('Selected reason:', reasonName);
+            console.log('Revision Group ID:', selectedRevisionGroupId);
 
-            // Determine navigation route based on category CodeGroupId
+            // Determine navigation route based on RevisionGroupId
             let navigationPath = '';
-            let revisionTypeId = 19; // Default to modification
-            let revisionTypeDescription = categoryDesc;
+            let revisionTypeId = selectedRevisionGroupId || 0;
 
-            // Map CodeGroupId to routes based on your App.tsx routes
-            switch (categoryCodeGroupId) {
+            // Map RevisionGroupId to routes based on your App.tsx routes
+            switch (selectedRevisionGroupId) {
                 case 6: // Adjustment
                     navigationPath = `/revision/adjustment-details/${projectId}:${stageName}`;
-                    revisionTypeId = 6;
                     break;
                 case 7: // Change in Authority to Implement
                     navigationPath = `/revision/change-in-authority/${projectId}:${stageName}`;
-                    revisionTypeId = 7;
                     break;
                 case 10: // Additional Funding
                     navigationPath = `/revision/additional-funding/${projectId}:${stageName}`;
-                    revisionTypeId = 10;
                     break;
                 case 9: // Termination
                     navigationPath = `/revision/termination/${projectId}:${stageName}`;
-                    revisionTypeId = 9;
                     break;
-                default: // All other categories go to modification-details
+                default: // All other cases go to modification-details
                     navigationPath = `/revision/modification-details/${projectId}:${stageName}`;
-                    revisionTypeId = 19;
                     break;
             }
 
@@ -117,10 +142,10 @@ const ReviseDialog: React.FC<ReviseProjectDialogProps> = ({
             console.log('Navigation state being passed:', {
                 stageName, 
                 revisionTypeId, 
-                revisionTypeDescription,
-                categoryDesc,
-                reasonDesc,
-                categoryId: finalCategory,
+                revisionTypeDescription: revisionTypeName,
+                categoryName,
+                reasonName,
+                categoryId: selectedCategory || null,
                 reasonId: selectedReason
             });
 
@@ -129,20 +154,20 @@ const ReviseDialog: React.FC<ReviseProjectDialogProps> = ({
                 state: { 
                     stageName, 
                     revisionTypeId, 
-                    revisionTypeDescription,
-                    categoryDesc,
-                    reasonDesc,
-                    categoryId: finalCategory,
-                    reasonId: selectedReason  // This is the reason ID
+                    revisionTypeDescription: revisionTypeName,
+                    categoryName,
+                    reasonName,
+                    categoryId: selectedCategory || null,
+                    reasonId: selectedReason
                 } 
             });
 
             onClose();
         } catch (error) {
-            console.error('Error processing modification request:', error);
+            console.error('Error processing revision request:', error);
             showToast({
                 type: 'error',
-                message: 'Failed to process modification request.'
+                message: 'Failed to process revision request.'
             });
         } finally {
             setIsSubmitting(false);
@@ -160,10 +185,10 @@ const ReviseDialog: React.FC<ReviseProjectDialogProps> = ({
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
                     <div>
                         <DialogTitle className="text-lg font-semibold text-gray-900">
-                            {mockCategoryData.find(cat => cat.Id === category)?.CodeDescription || 'Modification'}
+                            {revHeaders?.find(h => h.Id === selectedRevHeaderId)?.RevisionName || 'Revision'}
                         </DialogTitle>
                         <p className="text-sm text-gray-600 mt-1">
-                            {/* Project ID: {projectId} */}
+                            Project ID: {projectId}
                         </p>
                     </div>
                     <button
@@ -185,7 +210,7 @@ const ReviseDialog: React.FC<ReviseProjectDialogProps> = ({
                             <div>
                                 <span className="font-medium text-gray-700">Revision Type:</span>
                                 <p className="text-gray-600">
-                                    {mockCategoryData.find(cat => cat.Id === category)?.CodeDescription || 'Modification'}
+                                    {revHeaders?.find(h => h.Id === selectedRevHeaderId)?.RevisionName || 'Revision'}
                                 </p>
                             </div>
                         </div>
@@ -193,7 +218,7 @@ const ReviseDialog: React.FC<ReviseProjectDialogProps> = ({
 
                     {/* Revision Details */}
                     <div className='space-y-2'>
-                        {category === 19 && (
+                        {showCategoryDropdown && (
                         <div className='flex justify-between gap-5 items-center'>
                             <label className='w-1/3 block text-sm font-medium text-gray-700'>
                                 *Category:
@@ -205,9 +230,9 @@ const ReviseDialog: React.FC<ReviseProjectDialogProps> = ({
                                 className='w-2/3 border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500'
                             >
                                 <option value="">Select Category</option>
-                                {activeCategories.map((cat) => (
+                                {filteredCategories.map((cat) => (
                                     <option key={cat.Id} value={cat.Id}>
-                                        {cat.CodeDescription}
+                                        {cat.CategoryName}
                                     </option>
                                 ))}
                             </select>
@@ -222,42 +247,17 @@ const ReviseDialog: React.FC<ReviseProjectDialogProps> = ({
                                 value={selectedReason}
                                 onChange={(e) => setSelectedReason(e.target.value ? Number(e.target.value) : '')}
                                 required
-                                disabled={!effectiveCategory}
+                                disabled={filteredReasons.length === 0}
                                 className='w-2/3 border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed'
                             >
                                 <option value="">Select Reason</option>
                                 {filteredReasons.map((reason) => (
                                     <option key={reason.Id} value={reason.Id}>
-                                        {reason.CodeDescription}
+                                        {reason.Reason}
                                     </option>
                                 ))}
                             </select>
                         </div>
-
-                        {/* <div className='flex justify-between gap-5 items-center'>
-                            <label className='w-1/3 block text-sm font-medium text-gray-700'>
-                                *Date of Approval:
-                            </label>
-                            <input 
-                                type="date" 
-                                value={approvalDate}
-                                onChange={(e) => setApprovalDate(e.target.value)}
-                                required
-                                className='w-2/3 border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500'
-                            />
-                        </div>
-                        <div className='flex justify-between gap-5 items-center'>
-                            <label className='w-1/3 block text-sm font-medium text-gray-700'>
-                                *Approval Document:
-                            </label>
-                            <input 
-                                type="file" 
-                                accept=".pdf,.doc,.docx"
-                                onChange={handleFileChange}
-                                required
-                                className='w-2/3 border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500'
-                            />
-                        </div> */}
                     </div>
                     <div className='pt-4 border border-gray-100 rounded-2xl px-4 flex justify-end gap-5'>
                         <Button
