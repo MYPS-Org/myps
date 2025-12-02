@@ -22,7 +22,7 @@ import type {
 import type { OptionRevisionCategory, OptionRevisionHeader, OptionRevisionReasons } from '../../Modification/Model';
 
 import { Button } from '../../../components/tailwindui/button';
-import MetroManilaMap from '../../../components/map/MetroManilaMap';
+import MapRenderer from '../../../components/map/MapRenderer';
 
 //Sub-components
 import ProgramDetailsForm from './ProgramDetailsForm';
@@ -32,7 +32,7 @@ import MajorItemOfWorksForm from './MajorItemOfWorksForm';
 import NotesForm from './NotesForm';
 import FundingProfileForm from './FundingProfileForm';
 import ActivitySection from './ActivitySection';
-import { addProjectDetails, getProjectEnums, updateEntireProject } from '../Service';
+import { addProjectDetails, getProjectEnums, updateEntireProject, fetchProjectGeoJSON } from '../Service';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import type { ProgramList } from '../../Program/Model';
 import { useToast } from '../../../components/toaster/ToasterContext';
@@ -54,6 +54,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const [savingSection, setSavingSection] = useState<string | null>(null);
   const [projectEnums, setProjectEnums] = useState<ProjectEnums | null>(null);
   const [updateAllProject, setUpdateAllProject] = useState<boolean>(false);
+  const [geoJsonData, setGeoJsonData] = useState<GeoJSON.FeatureCollection | null>(null);
   const [reviseProject, setReviseProject] = useState<boolean>(false);
   const [updateUnlockProject, setUpdateUnlockProject] = useState<boolean>(false);
   // const [reviseProject, setReviseProject] = useState<boolean>(false);
@@ -181,6 +182,30 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   useEffect(() => {
     getRevisonDropdown();
   }, []);
+
+  // Fetch GeoJSON data for map rendering
+  useEffect(() => {
+    const loadMapData = async () => {
+      if (mode === 'edit' && initialData?.ProjectDetails?.ProjectId && initialData?.ProgramDetails?.ProgramId) {
+        try {
+          const response = await fetchProjectGeoJSON(
+            // initialData.ProjectDetails.ProjectId,
+            // initialData.ProgramDetails.ProgramId
+            'P00906380VS',
+            'P_CO-PS-635_01302025_100232'
+          );
+          if (response.Data) {
+            setGeoJsonData(response.Data);
+          }
+        } catch (error) {
+          console.error('Error loading map data:', error);
+          // Gracefully handle error - map will show "No data available"
+        }
+      }
+    };
+
+    loadMapData();
+  }, [mode, initialData?.ProjectDetails?.ProjectId, initialData?.ProgramDetails?.ProgramId]);
 
   const getRevisonDropdown =  async() => {
     try {
@@ -322,17 +347,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const [transactionLogs] = useState<TransactionLog[]>(
     initialData?.TransactionLogs || []
   );
-
-  // Sample project location (you can update this based on your project data)
-  const getProjectLocation = () => {
-    // You can map city codes or project data to coordinates later
-    // For now, return a sample location in Metro Manila
-    return {
-      lat: 14.6091,
-      lng: 121.0223,
-      name: projectDetails.Description || "Project Location"
-    };
-  };
 
   // const handleGoBack = () => {
   //   navigate('/projects');
@@ -870,7 +884,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           onClick={() => setIsMapOpen(!isMapOpen)}
         >
           <h3 className="text-lg font-semibold leading-7 text-gray-900">
-            Project Location - Metro Manila
+            Project Location Map
           </h3>
           {isMapOpen ? (
             <ChevronDownIcon className="h-5 w-5 text-gray-500" />
@@ -880,9 +894,11 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         </div>
         {isMapOpen && (
           <div className="p-4">
-            <MetroManilaMap 
-              projectLocation={getProjectLocation()}
-              height="400px"
+            <MapRenderer 
+              geoJsonData={geoJsonData}
+              projectId={initialData?.ProjectDetails?.ProjectId || 'P00906380VS'}
+              programId={initialData?.ProgramDetails?.ProgramId || 'P_CO-PS-635_01302025_100232'}
+              height="500px"
             />
           </div>
         )}

@@ -101,7 +101,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             const selectedDEO = projectEnums.DEOs?.find((deo) => deo.ParticipantId === projectDetails.DEO?.toString());
             if (selectedDEO) {
                 availableIOs = projectEnums.IOs?.filter(
-                    (io) => io.RegionParticipantId === selectedDEO.RegionParticipantId || io.OrgType === 'UPMO'
+                    (io) => (io.RegionParticipantId === selectedDEO.RegionParticipantId && io.OrgType === 'R') || io.OrgType === 'UPMO' ||  io.ParticipantId === selectedDEO.ParticipantId
                 ) || [];
             }
         } else {

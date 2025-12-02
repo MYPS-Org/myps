@@ -11,6 +11,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@deck.gl/core": "^9.2.2",
+    "@deck.gl/layers": "^9.2.2",
+    "@deck.gl/mapbox": "^9.2.2",
     "@headlessui/react": "^2.2.4",
     "@heroicons/react": "^2.2.0",
     "@jridgewell/resolve-uri": "^3.1.2",
@@ -18,12 +21,15 @@
     "@tailwindcss/vite": "^4.1.10",
     "axios": "^1.12.2",
     "clsx": "^2.1.1",
+    "deck.gl": "^9.2.2",
     "framer-motion": "^12.18.1",
     "jotai": "^2.14.0",
     "leaflet": "^1.9.4",
+    "maplibre-gl": "^5.13.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-leaflet": "^5.0.0",
+    "react-resizable": "^3.0.5",
     "react-router-dom": "^7.6.2",
     "tailwindcss": "^4.1.10",
     "vite-plugin-svgr": "^4.3.0"
@@ -34,6 +40,7 @@
     "@types/node": "^24.0.3",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
+    "@types/react-resizable": "^3.0.8",
     "@vitejs/plugin-react-swc": "^3.9.0",
     "eslint": "^9.25.0",
     "eslint-plugin-react-hooks": "^5.2.0",

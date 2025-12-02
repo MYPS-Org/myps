@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formValidation, type FormValidationError } from '../../../../utils/FormValidation';
 import { projectDetailsRules } from '../../../Project/rules/projectDetailsRules';
+
 import type { 
   ProjectDetails, 
   ComponentCost, 
@@ -21,7 +22,7 @@ import type {
 } from '../../../Project/Model.d';
 
 import { Button } from '../../../../components/tailwindui/button';
-import MetroManilaMap from '../../../../components/map/MetroManilaMap';
+import MapRenderer from '../../../../components/map/MapRenderer';
 
 //Sub-components
 import ProgramDetailsForm from './ProgramDetailsForm';
@@ -31,7 +32,7 @@ import MajorItemOfWorksForm from './MajorItemOfWorksForm';
 import NotesForm from './NotesForm';
 import FundingProfileForm from './FundingProfileForm';
 import ActivitySection from './ActivitySection';
-import { addProjectDetails, getProjectEnums, updateEntireProject } from '../../../Project/Service';
+import { addProjectDetails, getProjectEnums, updateEntireProject, fetchProjectGeoJSON } from '../../../Project/Service';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import type { ProgramList } from '../../../Program/Model';
 import { useToast } from '../../../../components/toaster/ToasterContext';
@@ -101,6 +102,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const [isRevisedProjectDialogOpen, setIsRevisedProjectDialogOpen] = useState<boolean>(false);
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState<boolean>(false);
   const [isForReviewDialogOpen, setIsForReviewDialogOpen] = useState<boolean>(false);
+
+  // set GeoJSON data for map
+  const [geoJsonData, setGeoJsonData] = useState<GeoJSON.FeatureCollection | null>(null);
   
   // SetMaxAmount in ComponentCostForm
   const [maxAmountCost, setMaxAmountCost] = useState<number>(0);
@@ -199,6 +203,32 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       console.log('Case C for', modificationCategory, 'with reason:', modificationReason, ':', result);
   };
   // #endregion
+
+  // #region GEOJSON DATA FOR MAP
+    // Fetch GeoJSON data for map rendering
+    useEffect(() => {
+      const loadMapData = async () => {
+        if (mode === 'edit' && initialData?.ProjectDetails?.ProjectId && initialData?.ProgramDetails?.ProgramId) {
+          try {
+            const response = await fetchProjectGeoJSON(
+              // initialData.ProjectDetails.ProjectId,
+              // initialData.ProgramDetails.ProgramId
+              'P00906380VS',
+              'P_CO-PS-635_01302025_100232'
+            );
+            if (response.Data) {
+              setGeoJsonData(response.Data);
+            }
+          } catch (error) {
+            console.error('Error loading map data:', error);
+            // Gracefully handle error - map will show "No data available"
+          }
+        }
+      };
+  
+      loadMapData();
+    }, [mode, initialData?.ProjectDetails?.ProjectId, initialData?.ProgramDetails?.ProgramId]);
+    // #endregion
 
   useEffect(() => {
     // Load project enums
@@ -888,7 +918,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           onClick={() => setIsMapOpen(!isMapOpen)}
         >
           <h3 className="text-lg font-semibold leading-7 text-gray-900">
-            Project Location - Metro Manila
+            Project Location
           </h3>
           {isMapOpen ? (
             <ChevronDownIcon className="h-5 w-5 text-gray-500" />
@@ -898,9 +928,11 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         </div>
         {isMapOpen && (
           <div className="p-4">
-            <MetroManilaMap 
-              projectLocation={getProjectLocation()}
-              height="400px"
+            <MapRenderer 
+              geoJsonData={geoJsonData}
+              projectId={initialData?.ProjectDetails?.ProjectId || 'P00906380VS'}
+              programId={initialData?.ProgramDetails?.ProgramId || 'P_CO-PS-635_01302025_100232'}
+              height="500px"
             />
           </div>
         )}
