@@ -7,11 +7,7 @@ using DBHelper.Models.Enums;
 
 namespace WebAPI.Controllers.Settings.UserManagement
 {
-    public class ShowPermissionsDTO : EnumPagination
-    {
-        public ShowPermissionFilterDTO Filters { get; set; } = new ShowPermissionFilterDTO();
-        public string SortField { get; set; } = "Id";
-    }
+    public class ShowPermissionsDTO : EnumPagination<ShowPermissionFilterDTO> { }
     public class ShowPermissionFilterDTO
     {
         public string? PermissionGroupName { get; set; }

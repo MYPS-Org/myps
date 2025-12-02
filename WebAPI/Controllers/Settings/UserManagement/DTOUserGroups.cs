@@ -2,11 +2,7 @@
 using DBHelper.Models.Enums;
 namespace WebAPI.Controllers.Settings.UserManagement
 {
-    public class UserGroupsPaginationDto : EnumPagination
-    {
-        public UserGroupFilterDTO Filters { get; set; } = new UserGroupFilterDTO();
-        public string? SortField { get; set; }
-    }
+    public class UserGroupsPaginationDto : EnumPagination<UserGroupFilterDTO> { }
     public class UserGroupFilterDTO
     {
         public string? GroupName { get; set; }

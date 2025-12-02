@@ -12,11 +12,7 @@ using System.Threading.Tasks;
 
 namespace WebAPI.Controllers.Projects
 {
-    public class ShowProjectDTO : EnumPagination
-    {
-        public ShowProjectFilterDTO Filters { get; set; } = new ShowProjectFilterDTO();
-        public string SortField { get; set; } = "Id";
-    }
+    public class ShowProjectDTO : EnumPagination<ShowProjectFilterDTO> { }
     public class ShowProjectFilterDTO
     {
         public string? ProgramId { get; set; }

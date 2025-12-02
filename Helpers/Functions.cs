@@ -13,8 +13,10 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Net.Mail;
 using System.Net.NetworkInformation;
+using System.Reflection;
 using System.Text;
 using System.Text.Json;
+using static Dapper.SqlMapper;
 
 namespace Helpers
 {
@@ -248,6 +250,70 @@ namespace Helpers
                 string code = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{data.Recipient} : {data.CCAddress}"));
                 throw new Exception($"An error occured while sending email. Please contact support service.");
             }
+        }
+
+        public static FilterDataResult<T> FilterData<T, TFilter>(this List<T> table, EnumPagination<TFilter> dto)
+        {
+            var result = new FilterDataResult<T>();
+
+            if (dto == null || dto.Filters == null)
+            {
+                result.HasError = true;
+                result.ErrorMessage = "Expected Parameters missing!";
+                return result;
+            }
+
+            // default sort field
+            dto.SortField = string.IsNullOrWhiteSpace(dto.SortField) ? "Id" : dto.SortField;
+
+            // validate sort field against T
+            var prop = typeof(T)
+                .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .FirstOrDefault(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
+
+            if (prop == null)
+            {
+                result.HasError = true;
+                result.ErrorMessage = $"Invalid Column: {dto.SortField} to sort!";
+                return result;
+            }
+
+            // ensure sort direction
+            dto.sortDirection ??= sortDirectionList.DESC;
+            if (!Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!.Value))
+            {
+                result.HasError = true;
+                result.ErrorMessage = $"Sorting Direction: {dto.sortDirection} not allowed!";
+                return result;
+            }
+
+            // normalize pagination
+            if (dto.page < 1) dto.page = 1;
+            if (dto.limit < 1) dto.limit = 10;
+
+            // in-memory ordering using reflection
+            Func<T, object?> keySelector = x => prop.GetValue(x);
+
+            IEnumerable<T> ordered = dto.sortDirection!.Value == sortDirectionList.ASC
+                ? table.OrderBy(keySelector)
+                : table.OrderByDescending(keySelector);
+
+            int total = ordered.Count();
+            var lists = ordered.Skip((dto.page - 1) * dto.limit).Take(dto.limit).ToList();
+            int totalPages = dto.limit > 0 ? (int)Math.Ceiling((double)total / dto.limit) : 0;
+
+            result.HasError = false;
+            result.ErrorMessage = null;
+            result.Data = new FilteredResult<T>
+            {
+                lists = lists,
+                page = dto.page,
+                limit = dto.limit,
+                total = total,
+                totalPages = totalPages
+            };
+
+            return result;
         }
         public static TDest UpdateRevisionData<TSrc, TDest>(
             this List<string>? allowedKeys,
