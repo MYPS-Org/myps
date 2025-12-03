@@ -52,7 +52,7 @@ const Program: React.FC = () => {
         const getPrograms = async () => {
             setIsLoading(true);
             try {
-                const response = await fetchProgram(ProgramData);
+                const response = await fetchProgram(ProgramFilters);
                 setProgramData(response.Data);
             } catch (error) {
                 console.error('Error fetching programs:', error);
@@ -74,6 +74,9 @@ const Program: React.FC = () => {
     const [ProgramFilters, setProgramFilters] = useState<ProgramPagination>({
             filters: {
                 Name: '',
+                YearStart: '',
+                GroupName: '',
+                StageName: '',
             },
             sortField: '',
             sortDirection: 1,

@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import { Deck } from '@deck.gl/core';
 import { GeoJsonLayer } from '@deck.gl/layers';
-import type { MapboxOverlay } from '@deck.gl/mapbox';
+// import type { MapboxOverlay } from '@deck.gl/mapbox';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 interface MapRendererProps {
@@ -15,8 +15,8 @@ interface MapRendererProps {
 const MapRenderer: React.FC<MapRendererProps> = ({ 
   geoJsonData,
   height = '400px',
-  projectId,
-  programId
+//   projectId,
+//   programId
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);

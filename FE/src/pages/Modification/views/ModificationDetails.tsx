@@ -16,7 +16,7 @@ const ModifyProject: React.FC = () => {
     const [fieldLabels, setFieldLabels] = useState<Record<string, any>>({});
 
     // Get category and reason from navigation state
-    const categoryDesc = location.state?.categoryDesc || 'modification';
+    const categoryDesc = location.state?.categoryDesc;
     const reasonDesc = location.state?.reasonDesc || '';
     const selectedReasonId = location.state?.reasonId || 0;
 

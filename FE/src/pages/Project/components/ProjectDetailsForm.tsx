@@ -118,7 +118,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             if (selectedIO) {
                 // Show OUs that belong to the selected IO or are Central Office (CO)
                 availableOUs = projectEnums.OperatingUnits?.filter(
-                    (ou) => ou.ParticipantId === selectedIO.ParticipantId || (selectedIO.OrgType === 'UPMO' && ou.OrgType === 'CO')
+                    (ou) => ou.ParticipantId === selectedIO.ParticipantId || (selectedIO.OrgType === 'UPMO' || ou.OrgType === 'CO')
                 ) || [];
                 console.log('Filtered OUs:', availableOUs);
             }

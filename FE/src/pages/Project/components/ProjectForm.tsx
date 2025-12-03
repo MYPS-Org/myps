@@ -188,11 +188,12 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     const loadMapData = async () => {
       if (mode === 'edit' && initialData?.ProjectDetails?.ProjectId && initialData?.ProgramDetails?.ProgramId) {
         try {
+          // alert('loading map data' + initialData?.ProjectDetails?.ProjectId + ' ' + initialData?.ProgramDetails?.ProgramId);
           const response = await fetchProjectGeoJSON(
-            // initialData.ProjectDetails.ProjectId,
-            // initialData.ProgramDetails.ProgramId
-            'P00906380VS',
-            'P_CO-PS-635_01302025_100232'
+            initialData.ProjectDetails.ProjectId,
+            initialData.ProgramDetails.ProgramId
+            // 'P00906380VS',
+            // 'P_CO-PS-635_01302025_100232'
           );
           if (response.Data) {
             setGeoJsonData(response.Data);
@@ -774,6 +775,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     if (revisionTypeId){
       // Open the modification dialog
       setSelectedRevHeaderId(revisionTypeId);
+      console.log(`Opening revision dialog for Project ${projectId}, Stage ${stageName}, Revision Type ${revisionTypeDescription} (${revisionTypeId})`);
       setIsRevisionOpen(true);
     }else {
       alert('Please select a valid revision type to proceed.');
@@ -896,8 +898,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           <div className="p-4">
             <MapRenderer 
               geoJsonData={geoJsonData}
-              projectId={initialData?.ProjectDetails?.ProjectId || 'P00906380VS'}
-              programId={initialData?.ProgramDetails?.ProgramId || 'P_CO-PS-635_01302025_100232'}
+              projectId={initialData?.ProjectDetails?.ProjectId}
+              programId={initialData?.ProgramDetails?.ProgramId}
               height="500px"
             />
           </div>

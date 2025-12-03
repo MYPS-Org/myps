@@ -31,26 +31,63 @@ interface FieldPermissionRule {
 
 class RuleManager {
     private static getRuleSet(category?: string): FieldPermissionRule {
-        const categoryKey = category?.toLowerCase() || 'modification';
+        // Normalize category string: remove spaces, special chars, convert to lowercase
+        const categoryKey = category?.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '') || 'modification';
         
         switch (categoryKey) {
             case 'adjustment':
                 return AdjustmentFields;
             case 'modification':
                  return AllowedFields;
+            case 'changeinauthoritytoimplement':
             case 'changeinauthority':
                 return ChangeInAuthority;
+            case 'additionalfunding':
             case 'additionalfund':
                 return AdditionalFund;
+            case 'abandonmentforsavings':
             case 'niabandonment':
             case 'niabandonmentforsavings':
                 return NIAbandonment;
+            case 'delisted':
             case 'nidelisted':
                 return NIDelisted;
+            case 'forreversion':
             case 'nireversion':
                 return NIReversion;
             case 'termination':
                 return Termination;
+            case 'forsavingspartialunutilizedbalance':
+            case 'forsavings':
+                return AllowedFields; // Add specific rule if needed
+            case 'changeinfunding':
+                return AllowedFields; // Add specific rule if needed
+            case 'modeofimplementation':
+                return AllowedFields; // Add specific rule if needed
+            case 'multiyearcostingchanges':
+            case 'multiyearcosting':
+                return AllowedFields; // Add specific rule if needed
+            case 'expiredfunding':
+                return AllowedFields; // Add specific rule if needed
+            case 'changeofcreditor':
+                return AllowedFields; // Add specific rule if needed
+            case 'nonimplementable':
+                return AllowedFields; // Add specific rule if needed
+            case 'categoryatypographicalerror':
+            case 'categorya':
+                return AllowedFields; // Add specific rule if needed
+            case 'categorybchangeinstationlimitsduetoincreaseordecreaseinbudget':
+            case 'categoryb':
+                return AllowedFields; // Add specific rule if needed
+            case 'categorycchangeinlocation':
+            case 'categoryc':
+                return AllowedFields; // Add specific rule if needed
+            case 'categorydchangeinoperatingunitou':
+            case 'categoryd':
+                return AllowedFields; // Add specific rule if needed
+            case 'categoryeduetotheoccurrenceofcalamity':
+            case 'categorye':
+                return AllowedFields; // Add specific rule if needed
             default:
                 return AllowedFields;
         }
