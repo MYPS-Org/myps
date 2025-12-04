@@ -40,8 +40,10 @@ import ReviseProjectDialog from '../../dialogs/RevisedProjectDialog';
 import ApproveModifyDialog from '../../dialogs/ApproveModifyDialog';
 import ForReviewModifyDialog from '../../dialogs/ForReviewModifyDialog';
 import TerminationDialog from '../../dialogs/TerminationDialog';
+import ExcessPrompt from '../../dialogs/ExcessPrompt';
 import RuleManager from '../../rules/RuleManager';
 import RevisionForm from './RevisionForm';
+import { checkExcessComponent } from '../../conditions/ExcessComponentAutomation';
 
 import { useAuth } from '../../../../contexts/AuthContext';
 
@@ -104,6 +106,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState<boolean>(false);
   const [isForReviewDialogOpen, setIsForReviewDialogOpen] = useState<boolean>(false);
   const [isTerminationDialogOpen, setIsTerminationDialogOpen] = useState<boolean>(false);
+  const [isExcessPromptOpen, setIsExcessPromptOpen] = useState<boolean>(false);
+  const [excessComponentData, setExcessComponentData] = useState<{ excessAmount: number; message: string } | null>(null);
 
   // set GeoJSON data for map
   const [geoJsonData, setGeoJsonData] = useState<GeoJSON.FeatureCollection | null>(null);
@@ -420,6 +424,23 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     console.log('New cost:', newCost);
     console.log('New cost year:', newCostYear);
     console.log('Current componentCosts before add:', componentCosts);
+
+    // // Check for excess component condition before adding
+    // const newTotalComponentCost = componentCosts.reduce((sum, cost) => sum + (cost.Total || 0), 0) + (newCost.Total || 0);
+    // const projectCost = programDetails.Cost || 0;
+    
+    // const excessCheck = checkExcessComponent(modificationCategory, projectCost, newTotalComponentCost);
+    
+    // if (excessCheck && excessCheck.shouldPrompt) {
+    //   // Store the new cost temporarily and show prompt
+    //   setExcessComponentData({
+    //     excessAmount: excessCheck.excessAmount,
+    //     message: excessCheck.message
+    //   });
+    //   setIsExcessPromptOpen(true);
+    //   // We'll handle the actual addition after user confirmation
+    //   return;
+    // }
     
     // Generate a temporary ID for new cost (will be replaced when saved)
     const tempId = Date.now().toString(); // Simple temp ID
@@ -484,6 +505,45 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       console.log('Deleted component cost from staging:', costToDelete);
     }
   };
+
+    // #region Excess Component Handling
+  const handleExcessPromptConfirm = () => {
+    // User confirmed - create EXC component
+    if (excessComponentData) {
+      const tempId  = Date.now().toString();
+      const excComponent: ComponentCost = {
+        Id: 0,
+        ProjectId: projectDetails.ProjectId || '',
+        StageName: initialData?.ProgramDetails?.StageName || '',
+        ReferenceId: tempId,
+        ComponentType: 'EXC',
+        ComponentId: `EXC`,
+        Description: 'Excess - Intentional Project Cost Reduction',
+        Total: excessComponentData.excessAmount,
+      };
+
+      setComponentCosts(prev => [...prev, excComponent]);
+      console.log('Created EXC component:', excComponent);
+      
+      showToast({
+        type: 'success',
+        message: 'EXC component created successfully'
+      });
+    }
+    setExcessComponentData(null);
+  };
+
+  const handleExcessPromptCancel = () => {
+    // User cancelled - do nothing, just close the dialog
+    console.log('User cancelled EXC component creation');
+    setExcessComponentData(null);
+    
+    showToast({
+      type: 'info',
+      message: 'Component addition cancelled'
+    });
+  };
+  // #endregion
 
   // Handlers for ComponentCostYear (these will be used when we implement year-by-year cost breakdown)
   // const handleAddComponentCostYear = (parentId: number, newCostYear: ComponentCostYear) => {
@@ -597,6 +657,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     console.log('Deleted funding profile from staging:', profileToDelete);
   };
 // #endregion
+
+
 
   // Handler for adding new project (only for 'add' mode)
   const handleSaveProjectDetails = async () => {
@@ -795,6 +857,24 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   };
 
   const handleSubmitModify = () => {
+  // Check for excess component condition before submitting
+    const totalComponentCost = componentCosts.reduce((sum, cost) => sum + (cost.Total || 0), 0);
+    const projectCost = programDetails.Cost || 0;
+    
+    const excessCheck = checkExcessComponent(modificationCategory, projectCost, totalComponentCost);
+    
+    if (excessCheck && excessCheck.shouldPrompt) {
+      // Store the excess data and show prompt
+      setExcessComponentData({
+        excessAmount: excessCheck.excessAmount,
+        message: excessCheck.message
+      });
+      setIsExcessPromptOpen(true);
+      // We'll open the ReviseProjectDialog after user confirms
+      return;
+    }
+    
+    // If no excess or not applicable, proceed directly
     setIsRevisedProjectDialogOpen(true);
   }
 
@@ -1269,6 +1349,19 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           category={modificationCategory}
           reason={modificationReason}
           onSubmitTermination={handleTerminationSubmit}
+        />
+      )}
+
+      {/* Excess Component Prompt */}
+      {isExcessPromptOpen && excessComponentData && (
+        <ExcessPrompt
+          isOpen={isExcessPromptOpen}
+          onClose={() => setIsExcessPromptOpen(false)}
+          onConfirm={handleExcessPromptConfirm}
+          onCancel={handleExcessPromptCancel}
+          projectCost={programDetails.Cost || 0}
+          totalComponentCost={componentCosts.reduce((sum, cost) => sum + (cost.Total || 0), 0)}
+          excessAmount={excessComponentData.excessAmount}
         />
       )}
     </div>

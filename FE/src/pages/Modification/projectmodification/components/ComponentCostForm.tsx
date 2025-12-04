@@ -68,6 +68,34 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
       return isEditable && disabled; // Fixed: should be !disabled, not disabled
   }, [fieldPermissions, disabled]);
 
+  // Check if a component cost is from database (has real Id > 0) or newly added (Id = 0 or temp ReferenceId)
+  const isFromDatabase = useCallback((cost: ComponentCost) => {
+    // If Id > 0, it's from database
+    if (cost.Id && cost.Id > 0) {
+      return true;
+    }
+    // If ReferenceId doesn't start with 'temp' or is a timestamp string, it might be from DB
+    // Newly added items have ReferenceId like: Date.now().toString() or 'temp_...'
+    if (cost.ReferenceId && (cost.ReferenceId.startsWith('temp_') || /^\d+$/.test(cost.ReferenceId))) {
+      return false; // This is a newly added item
+    }
+    return true; // Default to assuming it's from DB to be safe
+  }, []);
+
+  // Check if delete button should be enabled for a specific component cost
+  const canDelete = useCallback((cost: ComponentCost) => {
+    // If field is not editable due to permissions, can't delete
+    if (!isFieldEditable('ComponentCost')) {
+      return false;
+    }
+    // If component is from database, can't delete
+    if (isFromDatabase(cost)) {
+      return false;
+    }
+    // Otherwise, can delete (newly added component)
+    return true;
+  }, [isFieldEditable, isFromDatabase]);
+
   const handleSaveCost = (cost: ComponentCost, costYear?: ComponentCostYear) => {
     // Validate if adding/editing would exceed max amount cost
     if (maxAmountCost && maxAmountCost > 0) {
@@ -264,9 +292,9 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
                       </button>
                       <button
                         onClick={() => onDelete(index)}
-                        className={`text-red-600 hover:text-red-800 ${!isFieldEditable('ComponentCost') ? getDisabledClass(disabled) : ''}`}
-                        title="Delete"
-                        disabled={!isFieldEditable('ComponentCost')}
+                        className={`text-red-600 hover:text-red-800 ${!canDelete(cost) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        title={isFromDatabase(cost) ? "Cannot delete component from database" : "Delete"}
+                        disabled={!canDelete(cost)}
                       >
                         <TrashIcon className="w-4 h-4" />
                       </button>
