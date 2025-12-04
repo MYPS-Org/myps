@@ -39,6 +39,7 @@ import { useToast } from '../../../../components/toaster/ToasterContext';
 import ReviseProjectDialog from '../../dialogs/RevisedProjectDialog';
 import ApproveModifyDialog from '../../dialogs/ApproveModifyDialog';
 import ForReviewModifyDialog from '../../dialogs/ForReviewModifyDialog';
+import TerminationDialog from '../../dialogs/TerminationDialog';
 import RuleManager from '../../rules/RuleManager';
 import RevisionForm from './RevisionForm';
 
@@ -102,6 +103,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const [isRevisedProjectDialogOpen, setIsRevisedProjectDialogOpen] = useState<boolean>(false);
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState<boolean>(false);
   const [isForReviewDialogOpen, setIsForReviewDialogOpen] = useState<boolean>(false);
+  const [isTerminationDialogOpen, setIsTerminationDialogOpen] = useState<boolean>(false);
 
   // set GeoJSON data for map
   const [geoJsonData, setGeoJsonData] = useState<GeoJSON.FeatureCollection | null>(null);
@@ -837,6 +839,35 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     });
   }
 
+  const handleTerminationSubmit = async (hasUnfinishedWork: boolean) => {
+    // TODO: Implement the actual termination API call
+    console.log('Termination submitted:', {
+      project: projectDetails,
+      category: modificationCategory,
+      reason: modificationReason,
+      hasUnfinishedWork: hasUnfinishedWork
+    });
+    
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Alert the result for now
+    alert(`Termination request submitted!\n\nHas Unfinished Work Balance: ${hasUnfinishedWork ? 'Yes' : 'No'}\n\nProject: ${projectDetails.ProjectId}\nCategory: ${modificationCategory}\nReason: ${modificationReason}`);
+    
+    showToast({
+      type: 'success',
+      message: 'Termination request submitted successfully'
+    });
+  }
+
+  // Check if category is Termination and show dialog automatically
+  useEffect(() => {
+    const normalizedCategory = modificationCategory?.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
+    if (normalizedCategory === 'termination' && mode === 'edit') {
+      setIsTerminationDialogOpen(true);
+    }
+  }, [modificationCategory, mode]);
+
   return (
     
     <div className="overflow-hidden max-w-10xl mx-auto p-6 space-y-6">
@@ -1226,6 +1257,18 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           category={modificationCategory}
           reason={modificationReason}
           onSubmitForReview={handleForReviewModification}
+        />
+      )}
+
+      {/* Termination Modal */}
+      {isTerminationDialogOpen && (
+        <TerminationDialog
+          isOpen={isTerminationDialogOpen}
+          onClose={() => setIsTerminationDialogOpen(false)}
+          project={initialData?.ProjectDetails || projectDetails}
+          category={modificationCategory}
+          reason={modificationReason}
+          onSubmitTermination={handleTerminationSubmit}
         />
       )}
     </div>

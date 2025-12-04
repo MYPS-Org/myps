@@ -121,57 +121,45 @@ const ReviseDialog: React.FC<ReviseProjectDialogProps> = ({
 
             // Determine navigation route based on RevisionGroupId
             let navigationPath = '';
-            let revisionTypeId = selectedRevisionGroupId || 0;
+            let revisionTypeId = selectedRevHeaderId || 0;
 
             // Map RevisionGroupId to routes based on your App.tsx routes
-            switch (selectedRevisionGroupId) {
-                case 1: // Categories A-E (Typographical Errors, Station Limits, Location, OU, Calamity)
-                    navigationPath = `/revision/modification-details/${projectId}:${stageName}`;
+            switch (selectedRevHeaderId) {
+                case 1: // Additional Funding
+                    navigationPath = `/revision/additional-funding/${projectId}:${stageName}`;
                     break;
                 case 2: // Change in work station limits
                     navigationPath = `/revision/adjustment-details/${projectId}:${stageName}`;
                     break;
-                case 3: // Change in Location
+                case 3: // Change in Authority to Implement
                     navigationPath = `/revision/change-in-authority/${projectId}:${stageName}`;
                     break;
-                case 4: // Change in Operating Unit (OU)
-                    navigationPath = `/revision/modification-details/${projectId}:${stageName}`;
+                case 4: // Change in Funding
+                    navigationPath = `/revision/change-in-funding/${projectId}:${stageName}`;
                     break;
-                case 5: // Due to Occurrence of Calamity
-                    navigationPath = `/revision/modification-details/${projectId}:${stageName}`;
+                case 5: // Change of Creditor
+                    navigationPath = `/revision/change-of-creditor/${projectId}:${stageName}`;
                     break;
-                case 6: // Adjustment
-                    navigationPath = `/revision/adjustment-details/${projectId}:${stageName}`;
+                case 6: // Expired Funding
+                    navigationPath = `/revision/expired-funding/${projectId}:${stageName}`;
                     break;
-                case 7: // Change in Authority to Implement
-                    navigationPath = `/revision/change-in-authority/${projectId}:${stageName}`;
+                case 7: // For Saving
+                    navigationPath = `/revision/for-saving/${projectId}:${stageName}`;
                     break;
-                case 8: // Non-Implementable
-                    navigationPath = `/revision/modification-details/${projectId}:${stageName}`;
+                case 8: // Mode of Implementation
+                    navigationPath = `/revision/mode-of-implementation/${projectId}:${stageName}`;
                     break;
-                case 9: // Termination
+                case 9: // multi-year Costing Changes
+                    navigationPath = `/revision/multi-year-costing-changes/${projectId}:${stageName}`;
+                    break;
+                case 10: // multi-year Costing Changes
+                    navigationPath = `/revision/multi-year-costing-changes/${projectId}:${stageName}`;
+                    break;
+                case 11: // Non implementable
+                    navigationPath = `/revision/non-implementable/${projectId}:${stageName}`;
+                    break;
+                case 12: // Termination
                     navigationPath = `/revision/termination/${projectId}:${stageName}`;
-                    break;
-                case 10: // Additional Funding
-                    navigationPath = `/revision/additional-funding/${projectId}:${stageName}`;
-                    break;
-                case 11: // For Savings - Partial Unutilized Balance
-                    navigationPath = `/revision/modification-details/${projectId}:${stageName}`;
-                    break;
-                case 12: // Change in Funding
-                    navigationPath = `/revision/modification-details/${projectId}:${stageName}`;
-                    break;
-                case 13: // Mode of Implementation
-                    navigationPath = `/revision/modification-details/${projectId}:${stageName}`;
-                    break;
-                case 14: // Multi-Year Costing Changes
-                    navigationPath = `/revision/modification-details/${projectId}:${stageName}`;
-                    break;
-                case 15: // Expired Funding
-                    navigationPath = `/revision/modification-details/${projectId}:${stageName}`;
-                    break;
-                case 16: // Change of Creditor
-                    navigationPath = `/revision/modification-details/${projectId}:${stageName}`;
                     break;
                 default: // Fallback
                     navigationPath = `/revision/modification-details/${projectId}:${stageName}`;
@@ -182,6 +170,7 @@ const ReviseDialog: React.FC<ReviseProjectDialogProps> = ({
             console.log('Navigation state being passed:', {
                 stageName, 
                 revisionTypeId, 
+                revisionHeaderId: selectedRevHeaderId,
                 revisionTypeDescription: revisionTypeName,
                 categoryDesc: categoryToSend,
                 reasonDesc: reasonName,
@@ -193,7 +182,8 @@ const ReviseDialog: React.FC<ReviseProjectDialogProps> = ({
             navigate(navigationPath, { 
                 state: { 
                     stageName, 
-                    revisionTypeId, 
+                    revisionTypeId,
+                    revisionHeaderId: selectedRevHeaderId,
                     revisionTypeDescription: revisionTypeName,
                     categoryDesc: categoryToSend,
                     reasonDesc: reasonName,

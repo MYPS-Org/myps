@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogTitle, DialogPanel } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
-import type { ComponentCost, ComponentCostYear, ComponentCostWithYears } from '../../Project/Model';
+import type { ComponentCost, ComponentCostYear, ComponentCostWithYears, ComponentTypeEnum } from '../../Project/Model';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { handleCurrencyBlur, handleCurrencyChange } from '../../../utils/GlobalFunctions';
 
@@ -11,7 +11,7 @@ interface ComponentCostDialogProps {
   onSave: (cost: ComponentCost, costYear?: ComponentCostYear) => void; // Added costYear parameter
   editingCost?: ComponentCostWithYears;
   mode: 'add' | 'edit';
-  componentTypes: any[];
+  componentTypes: ComponentTypeEnum[];
   componentCosts: ComponentCost[];
   ProjectId: string;
   maxAmountCost?: number;
@@ -280,11 +280,14 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                         }}
                     >   
                     <option value="">Select Component Type</option>
-                        {componentTypes?.map((type: any) => (
-                            <option key={type.Id} value={type.description}>
-                                {type.Description}
-                            </option>
-                        ))}
+                        {componentTypes
+                            ?.filter((type: any) => ['CW', 'CWD', 'ROW', 'DR', 'EAO', 'EXC', 'SAV'].includes(type.Name))
+                            .map((type: any) => (
+                                <option key={type.Id} value={type.Description}>
+                                    {type.Description}
+                                </option>
+                            ))
+                        }
                     </select>
                     </div>
                     <div>
