@@ -88,10 +88,10 @@ namespace WebAPI.Controllers.Programs
                 if (!string.IsNullOrEmpty(dto.Filters?.YearStart))
                     baseQuery = baseQuery.Where(e => e.YearStart.ToString() == dto.Filters.YearStart);
 
-                if (dto.Filters?.GroupName != null)
+                if (!string.IsNullOrEmpty(dto.Filters?.GroupName))
                     baseQuery = baseQuery.Where(e => e.GroupName == dto.Filters.GroupName);
 
-                if (dto.Filters?.StageName != null)
+                if (!string.IsNullOrEmpty(dto.Filters?.StageName))
                     baseQuery = baseQuery.Where(e => e.StageName == dto.Filters.StageName);
 
                 // Get total count of filtered results (before pagination)
