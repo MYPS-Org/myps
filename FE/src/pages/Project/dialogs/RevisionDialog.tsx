@@ -54,7 +54,13 @@ const ReviseDialog: React.FC<ReviseProjectDialogProps> = ({
         // First filter by RevisionGroupId
         let filtered = reasons.filter(reason => reason.RevisionGroupId === selectedRevisionGroupId);
         
-        // If a category is selected and categories exist, further filter by CategoryId
+        // Special handling for Non-Implementable (RevisionGroupId: 8)
+        // All reasons have null CategoryId, so show them all regardless of selected category
+        if (selectedRevisionGroupId === 8) {
+            return filtered; // Return all reasons for Non-Implementable
+        }
+        
+        // For other revision types, filter by CategoryId if a category is selected
         if (showCategoryDropdown && selectedCategory) {
             filtered = filtered.filter(reason => reason.CategoryId === selectedCategory);
         }
@@ -123,12 +129,12 @@ const ReviseDialog: React.FC<ReviseProjectDialogProps> = ({
             let navigationPath = '';
             let revisionTypeId = selectedRevHeaderId || 0;
 
-            // Map RevisionGroupId to routes based on your App.tsx routes
+            // Map Id to routes based on RevisionTypes
             switch (selectedRevHeaderId) {
                 case 1: // Additional Funding
                     navigationPath = `/revision/additional-funding/${projectId}:${stageName}`;
                     break;
-                case 2: // Change in work station limits
+                case 2: // Adjustment
                     navigationPath = `/revision/adjustment-details/${projectId}:${stageName}`;
                     break;
                 case 3: // Change in Authority to Implement
@@ -143,19 +149,19 @@ const ReviseDialog: React.FC<ReviseProjectDialogProps> = ({
                 case 6: // Expired Funding
                     navigationPath = `/revision/expired-funding/${projectId}:${stageName}`;
                     break;
-                case 7: // For Saving
+                case 7: // For Savings - Partial Unutilized Balance
                     navigationPath = `/revision/for-saving/${projectId}:${stageName}`;
                     break;
                 case 8: // Mode of Implementation
                     navigationPath = `/revision/mode-of-implementation/${projectId}:${stageName}`;
                     break;
-                case 9: // multi-year Costing Changes
+                case 9: // Modification
+                    navigationPath = `/revision/modification-details/${projectId}:${stageName}`;
+                    break;
+                case 10: // Multi-Year Costing Changes
                     navigationPath = `/revision/multi-year-costing-changes/${projectId}:${stageName}`;
                     break;
-                case 10: // multi-year Costing Changes
-                    navigationPath = `/revision/multi-year-costing-changes/${projectId}:${stageName}`;
-                    break;
-                case 11: // Non implementable
+                case 11: // Non-Implementable
                     navigationPath = `/revision/non-implementable/${projectId}:${stageName}`;
                     break;
                 case 12: // Termination

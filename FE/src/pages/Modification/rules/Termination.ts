@@ -87,10 +87,7 @@ const getEditableFieldsForCase = (caseType: string) => {
         case 'CaseA':
             // Case A: All fields are editable (most permissive)
             return [
-                ...projectDetailFields,
-                ...projectComponentFields,
-                ...majorItemOfWorkFields,
-                ...physicalTargetFields
+                
             ];
             
         case 'CaseB':
@@ -106,7 +103,11 @@ const getEditableFieldsForCase = (caseType: string) => {
             
         case 'CaseC':
             // Case C: No fields are editable
-            return [];
+            return [
+                ...projectDetailFields,
+                ...projectComponentFields,
+                ...majorItemOfWorkFields,
+                ...physicalTargetFields];
             
         default:
             return [];

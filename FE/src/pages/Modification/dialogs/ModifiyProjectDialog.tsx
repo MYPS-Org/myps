@@ -134,11 +134,11 @@ const AdjustProjectDialog: React.FC<AdjustProjectDialogProps> = ({
                                     className='w-2/3 border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500'
                                     defaultValue={revisionTypeDescription}
                                 >
-                                    {modCategories.filter((category) => !category.Obsolete).map((category) => (
-                                        <option key={category.Id} value={category.CodeGroup}>
+                                    {/* {modCategories.filter((category) => !category.Obsolete).map((category) => ( */}
+                                        {/* <option key={category.Id} value={category.CodeGroup}>
                                             {category.CodeDescription}
                                         </option>
-                                    ))}
+                                    ))} */}
                                 </select>
                             </div>
                             <div className='flex justify-between gap-5 items-center'>
@@ -165,11 +165,11 @@ const AdjustProjectDialog: React.FC<AdjustProjectDialogProps> = ({
                                     Revision Category :
                                 </label>
                                 <select className='w-2/3 border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500'>
-                                    {modCategories.filter((category) => category.Obsolete).map((category) => (
+                                    {/* {modCategories.filter((category) => category.Obsolete).map((category) => (
                                         <option key={category.Id} value={category.CodeGroup}>
                                             {category.CodeDescription}
                                         </option>
-                                    ))}
+                                    ))} */}
                                 </select>
                             </div>
                             <div className='flex justify-between gap-5 items-center'>

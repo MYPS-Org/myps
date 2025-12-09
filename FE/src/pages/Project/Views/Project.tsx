@@ -34,7 +34,7 @@ const Project: React.FC = () => {
         sortField: '',
         sortDirection: 1,
         page: 1,
-        limit: 20
+        limit: 10
     });
 
     const [ProjectData, setProjectData] = useState<PaginationResponse<ProjectLists>>({

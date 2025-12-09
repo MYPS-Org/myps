@@ -217,10 +217,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         if (mode === 'edit' && initialData?.ProjectDetails?.ProjectId && initialData?.ProgramDetails?.ProgramId) {
           try {
             const response = await fetchProjectGeoJSON(
-              // initialData.ProjectDetails.ProjectId,
-              // initialData.ProgramDetails.ProgramId
-              'P00906380VS',
-              'P_CO-PS-635_01302025_100232'
+              initialData.ProjectDetails.ProjectId,
+              initialData.ProgramDetails.ProgramId
+              // 'P00906380VS',
+              // 'P_CO-PS-635_01302025_100232'
             );
             if (response.Data) {
               setGeoJsonData(response.Data);
@@ -1041,8 +1041,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           <div className="p-4">
             <MapRenderer 
               geoJsonData={geoJsonData}
-              projectId={initialData?.ProjectDetails?.ProjectId || 'P00906380VS'}
-              programId={initialData?.ProgramDetails?.ProgramId || 'P_CO-PS-635_01302025_100232'}
+              projectId={initialData?.ProjectDetails?.ProjectId}
+              programId={initialData?.ProgramDetails?.ProgramId}
               height="500px"
             />
           </div>
