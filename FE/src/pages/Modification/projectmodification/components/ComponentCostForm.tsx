@@ -18,6 +18,9 @@ interface ComponentCostFormProps {
   category?: string;
   reason?: string;
   reasonId?: number;
+  currentCase?: string;
+  pcmaStatus?: string;
+  packageStatus?: string;
 }
 
 const ComponentCostForm: React.FC<ComponentCostFormProps> = ({ 
@@ -32,6 +35,9 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
   category,
   reason,
   reasonId,
+  currentCase,
+  pcmaStatus,
+  packageStatus,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -320,6 +326,9 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
           categoryDesc={category}
           reasonDesc={reason}
           reasonId={reasonId}
+          currentCase={currentCase}
+          pcmaStatus={pcmaStatus}
+          packageStatus={packageStatus}
         />
       </div>
   );

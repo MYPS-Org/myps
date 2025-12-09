@@ -74,9 +74,13 @@ const reasonSpecificFields: Record<string, string[]> = {
     
     // Reason: "Input of missing Planned Start/End Date (only if null or zero)"
     'Input of missing Planned Start/End Date (only if null or zero)': [
+        // Allow access to component cost form
+        'ComponentCost',
         // Add date fields when they're implemented
         'PlannedStartDate',
-        'PlannedEndDate'
+        'PlannedEndDate',
+        'StartDate',
+        'EndDate'
     ],
     
     // Reason: "Excess Amount due to Revised Estimate"
@@ -92,6 +96,30 @@ const reasonSpecificFields: Record<string, string[]> = {
         'ComponentAdd',
         'ComponentDelete'
     ]
+};
+
+// Dynamic field conditions - defines when a field can be edited based on its current value
+// Format: { reason: { fieldName: validationFunction } }
+const fieldValueConditions: Record<string, Record<string, (value: any) => boolean>> = {
+    'Correction of MYPS for null or zero targets': {
+        'PhysicalTarget': (value) => value === null || value === undefined || value === 0 || value === '',
+        'WorkLocation': (value) => value === null || value === undefined || value === '',
+        'WorkLocationEdit': (value) => value === null || value === undefined || value === '',
+        'TargetUnit': (value) => value === null || value === undefined || value === '',
+    },
+    'Input of missing Location, Work Location data (if null or zero)': {
+        'City': (value) => value === null || value === undefined || value === '',
+        'LegislativeDistrict': (value) => value === null || value === undefined || value === 0 || value === '',
+        'WorkLocation': (value) => value === null || value === undefined || value === '',
+        'WorkLocationAdd': (_value) => true, // Adding is always allowed when condition matches
+        'PhysicalTarget': (value) => value === null || value === undefined || value === 0 || value === '',
+    },
+    'Input of missing Planned Start/End Date (only if null or zero)': {
+        'PlannedStartDate': (value) => value === null || value === undefined || value === '',
+        'PlannedEndDate': (value) => value === null || value === undefined || value === '',
+        'StartDate': (value) => value === null || value === undefined || value === '',
+        'EndDate': (value) => value === null || value === undefined || value === '',
+    }
 };
 
 const pcmaStatus = [
@@ -269,6 +297,86 @@ const getFieldsForReason = (reason: string) => {
     return reasonSpecificFields[reason] || [];
 };
 
+// Helper function to check if a field can be edited based on its current value and the reason's conditions
+const canEditFieldBasedOnValue = (fieldName: string, currentValue: any, reason?: string): boolean => {
+    // If no reason specified, no additional value-based restrictions
+    if (!reason) {
+        return true;
+    }
+    
+    // Check if this reason has value-based conditions
+    const reasonConditions = fieldValueConditions[reason];
+    if (!reasonConditions) {
+        return true; // No value conditions for this reason
+    }
+    
+    // Check if this specific field has a condition
+    const fieldCondition = reasonConditions[fieldName];
+    if (!fieldCondition) {
+        return true; // No value condition for this specific field
+    }
+    
+    // Apply the condition
+    return fieldCondition(currentValue);
+};
+
+// Enhanced version of isFieldEditable that considers both permissions AND value conditions
+const isFieldEditableWithValue = (
+    fieldName: string, 
+    currentCase: string, 
+    fieldValue?: any,
+    reason?: string
+): boolean => {
+    // First check if field is in the editable list for this case/reason
+    const editableFields = getEditableFieldsForCase(currentCase, reason);
+    const isInEditableList = editableFields.includes(fieldName);
+    
+    if (!isInEditableList) {
+        return false; // Not in editable list, definitely not editable
+    }
+    
+    // If in editable list, check value-based conditions
+    if (fieldValue !== undefined) {
+        return canEditFieldBasedOnValue(fieldName, fieldValue, reason);
+    }
+    
+    // If no value provided, just return the permission-based result
+    return true;
+};
+
+// Helper function to get field edit status with reason
+const getFieldEditStatus = (
+    fieldName: string,
+    currentCase: string,
+    fieldValue?: any,
+    reason?: string
+): { canEdit: boolean; reason: string } => {
+    const editableFields = getEditableFieldsForCase(currentCase, reason);
+    const isInEditableList = editableFields.includes(fieldName);
+    
+    if (!isInEditableList) {
+        return {
+            canEdit: false,
+            reason: 'Field is not editable for this case/reason combination'
+        };
+    }
+    
+    if (fieldValue !== undefined && reason && fieldValueConditions[reason]?.[fieldName]) {
+        const conditionMet = canEditFieldBasedOnValue(fieldName, fieldValue, reason);
+        if (!conditionMet) {
+            return {
+                canEdit: false,
+                reason: 'Field already has a value and cannot be edited per the modification reason'
+            };
+        }
+    }
+    
+    return {
+        canEdit: true,
+        reason: 'Field is editable'
+    };
+};
+
 // Export all the functions and data
 export default {
     projectDetailFields,
@@ -277,6 +385,7 @@ export default {
     majorItemOfWorkFields,
     physicalTargetFields,
     reasonSpecificFields,
+    fieldValueConditions,
     pcmaStatus,
     packageStatus,
     getPcmaStatus,
@@ -289,5 +398,9 @@ export default {
     getFieldsForReason,
     setCaseA,
     setCaseB,
-    setCaseC
+    setCaseC,
+    // New value-based functions
+    canEditFieldBasedOnValue,
+    isFieldEditableWithValue,
+    getFieldEditStatus
 };

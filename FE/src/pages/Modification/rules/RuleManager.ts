@@ -14,6 +14,7 @@ interface FieldPermissionRule {
     majorItemOfWorkFields: string[];
     physicalTargetFields: string[];
     reasonSpecificFields?: Record<string, string[]>;
+    fieldValueConditions?: Record<string, Record<string, (value: any) => boolean>>;
     pcmaStatus: string[];
     packageStatus: string[];
     getPcmaStatus: () => string;
@@ -27,6 +28,10 @@ interface FieldPermissionRule {
     setCaseA: (reason?: string) => any;
     setCaseB: (reason?: string) => any;
     setCaseC: (reason?: string) => any;
+    // New value-based methods
+    canEditFieldBasedOnValue?: (fieldName: string, currentValue: any, reason?: string) => boolean;
+    isFieldEditableWithValue?: (fieldName: string, currentCase: string, fieldValue?: any, reason?: string) => boolean;
+    getFieldEditStatus?: (fieldName: string, currentCase: string, fieldValue?: any, reason?: string) => { canEdit: boolean; reason: string };
 }
 
 class RuleManager {
@@ -152,6 +157,31 @@ class RuleManager {
     static getFieldsForReason(reason: string, category?: string) {
         const ruleSet = this.getRuleSet(category);
         return ruleSet.getFieldsForReason ? ruleSet.getFieldsForReason(reason) : [];
+    }
+
+    static canEditFieldBasedOnValue(fieldName: string, currentValue: any, category?: string, reason?: string) {
+        const ruleSet = this.getRuleSet(category);
+        return ruleSet.canEditFieldBasedOnValue ? ruleSet.canEditFieldBasedOnValue(fieldName, currentValue, reason) : true;
+    }
+
+    static isFieldEditableWithValue(fieldName: string, currentCase: string, fieldValue: any, category?: string, reason?: string) {
+        const ruleSet = this.getRuleSet(category);
+        return ruleSet.isFieldEditableWithValue 
+            ? ruleSet.isFieldEditableWithValue(fieldName, currentCase, fieldValue, reason) 
+            : ruleSet.isFieldEditable(fieldName, currentCase, reason);
+    }
+
+    static getFieldEditStatus(fieldName: string, currentCase: string, fieldValue: any, category?: string, reason?: string) {
+        const ruleSet = this.getRuleSet(category);
+        if (ruleSet.getFieldEditStatus) {
+            return ruleSet.getFieldEditStatus(fieldName, currentCase, fieldValue, reason);
+        }
+        // Fallback for rule sets that don't have this method
+        const canEdit = ruleSet.isFieldEditable(fieldName, currentCase, reason);
+        return {
+            canEdit,
+            reason: canEdit ? 'Field is editable' : 'Field is not editable for this case/reason combination'
+        };
     }
 }
 

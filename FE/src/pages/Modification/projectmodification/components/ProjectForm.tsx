@@ -1229,6 +1229,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             category={modificationCategory}
             reason={modificationReason}
             reasonId={modificationReasonId}
+            currentCase={fieldPermissions?.case}
+            pcmaStatus={fieldPermissions?.pcmaStatus}
+            packageStatus={fieldPermissions?.packageStatus}
           />
         </div>
       </div>
