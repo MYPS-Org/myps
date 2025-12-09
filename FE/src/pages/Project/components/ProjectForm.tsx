@@ -531,7 +531,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       ProjectId: projectDetails.ProjectId || '',
       StageName: initialData?.ProgramDetails?.StageName || '',
       Source: '',
-      Agreement: 0,
+      Agreement: '',
       Percentage: 0,
       Amount: 0,
       CreatedBy: '',

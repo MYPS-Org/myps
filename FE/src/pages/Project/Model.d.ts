@@ -334,7 +334,7 @@ export interface FundingProfile {
 	ProjectId: string;
 	StageName?: string;
 	Source: string;
-	Agreement: number;
+	Agreement: string;
 	Percentage: number;
 	Amount: number;
 	CreatedBy: string;

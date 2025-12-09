@@ -41,11 +41,12 @@ import ApproveModifyDialog from '../../dialogs/ApproveModifyDialog';
 import ForReviewModifyDialog from '../../dialogs/ForReviewModifyDialog';
 import TerminationDialog from '../../dialogs/TerminationDialog';
 import ExcessPrompt from '../../dialogs/ExcessPrompt';
-import RuleManager from '../../rules/RuleManager';
+
 import RevisionForm from './RevisionForm';
 import { checkExcessComponent } from '../../conditions/ExcessComponentAutomation';
 
 import { useAuth } from '../../../../contexts/AuthContext';
+import { useFieldPermissions, useInitializeModificationContext, useDebugControls } from '../../hooks/useFieldPermissions';
 
 interface ProjectFormProps {
   initialData?: ProjectFormPayload;
@@ -57,21 +58,20 @@ interface ProjectFormProps {
   fieldLabels?: Record<string, any>;
 }
 
-const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', initialProgramId, category, reason, reasonId, fieldLabels }) => {
+const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', initialProgramId, category, reason, reasonId, fieldLabels: _fieldLabels }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const fields = fieldLabels || {};
+
 
   console.log('ProjectForm - Received props:', { category, reason, reasonId });
 
   const [savingSection, setSavingSection] = useState<string | null>(null);
   const [projectEnums, setProjectEnums] = useState<ProjectEnums | null>(null);
   const [updateAllProject, setUpdateAllProject] = useState<boolean>(false);
-  const [updateUnlockProject, setUpdateUnlockProject] = useState<boolean>(false);
-  const [updateApproveProject, setUpdateApproveProject] = useState<boolean>(false);
-  const [updateReviseProject, setUpdateReviseProject] = useState<boolean>(false);
-  const [updateForReviewProject, setUpdateForReviewProject] = useState<boolean>(false);
+  const [updateApproveProject] = useState<boolean>(false);
+  const [updateReviseProject] = useState<boolean>(false);
+  const [updateForReviewProject] = useState<boolean>(false);
   // const [reviseProject, setReviseProject] = useState<boolean>(false);
   const [errors, setErrors] = useState<FormValidationError<ProjectDetails>>({});
   //toaster here
@@ -169,45 +169,29 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     }
   );
 
-  // Load Allowed Fields
+  // Load Allowed Fields using Jotai
   // #region Modification Set Fields
-  const [fieldPermissions, setFieldPermissions] = useState<any>(null);
-  const [pcmaStatus, setPcmaStatus] = useState<string>('');
-  const [packageStatus, setPackageStatus] = useState<string>('');
+  const {
+    pcmaStatus,
+    packageStatus,
+    currentCase,
+    permissions: fieldPermissions,
+    // setPcmaStatus, // For future API integration
+    // setPackageStatus // For future API integration
+  } = useFieldPermissions();
 
+  // Initialize modification context from props
+  useInitializeModificationContext(modificationCategory, modificationReason, modificationReasonId);
+
+  // Debug controls
+  const { setCaseA, setCaseB, setCaseC } = useDebugControls();
+
+  // Log when permissions change
   useEffect(() => {
-    if (pcmaStatus && packageStatus) {
-      const currentCase = RuleManager.determineCase(pcmaStatus, packageStatus, modificationCategory);
-      const editableFields = RuleManager.getEditableFieldsForCase(currentCase, modificationCategory, modificationReason);
-      setFieldPermissions({
-          pcmaStatus,
-          packageStatus,
-          case: currentCase,
-          category: modificationCategory || 'modification',
-          reason: modificationReason,
-          editableFields
-      });
-    } else {
-      const result = RuleManager.runRandomization(modificationCategory, modificationReason);
-      setFieldPermissions(result);
+    if (fieldPermissions) {
+      console.log('Field Permissions Updated:', fieldPermissions);
     }
-  }, [pcmaStatus, packageStatus, modificationCategory, modificationReason]);
-
-  const setCaseA = () => {
-      const result = RuleManager.setCaseA(modificationCategory, modificationReason);
-      setFieldPermissions(result);
-      console.log('Case A for', modificationCategory, 'with reason:', modificationReason, ':', result);
-  };
-  const setCaseB = () => {
-      const result = RuleManager.setCaseB(modificationCategory, modificationReason);
-      setFieldPermissions(result);
-      console.log('Case B for', modificationCategory, 'with reason:', modificationReason, ':', result);
-  };
-  const setCaseC = () => {
-      const result = RuleManager.setCaseC(modificationCategory, modificationReason);
-      setFieldPermissions(result);
-      console.log('Case C for', modificationCategory, 'with reason:', modificationReason, ':', result);
-  };
+  }, [fieldPermissions]);
   // #endregion
 
   // #region GEOJSON DATA FOR MAP
@@ -382,15 +366,16 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   );
 
   // Sample project location (you can update this based on your project data)
-  const getProjectLocation = () => {
-    // You can map city codes or project data to coordinates later
-    // For now, return a sample location in Metro Manila
-    return {
-      lat: 14.6091,
-      lng: 121.0223,
-      name: projectDetails.Description || "Project Location"
-    };
-  };
+  // Commented out as it's not currently used but may be needed for future map functionality
+  // const getProjectLocation = () => {
+  //   // You can map city codes or project data to coordinates later
+  //   // For now, return a sample location in Metro Manila
+  //   return {
+  //     lat: 14.6091,
+  //     lng: 121.0223,
+  //     name: projectDetails.Description || "Project Location"
+  //   };
+  // };
 
   // const handleGoBack = () => {
   //   navigate('/projects');
@@ -630,7 +615,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       ProjectId: projectDetails.ProjectId || '',
       StageName: initialData?.ProgramDetails?.StageName || '',
       Source: '',
-      Agreement: 0,
+      Agreement: '',
       Percentage: 0,
       Amount: 0,
       CreatedBy: '',
@@ -1135,7 +1120,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             <>
               <div className="px-4 py-6 sm:p-8">
                 {/* PCMA Permission Status - FOR TESTING */}
-                {fieldPermissions && (
+                
                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
                         <div className="flex justify-center items-center">
                             <div className="flex space-x-2">
@@ -1160,7 +1145,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                             </div>
                         </div>
                     </div>
-                )}
+                
                 <ProjectDetailsForm
                   projectDetails={projectDetails}
                   onChange={handleProjectDetailsChange}
@@ -1169,7 +1154,12 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                   mode={mode}
                   errors={errors}
                   disabled={isDisabled}
-                  fieldPermissions={fieldPermissions}
+                  fieldPermissions={{
+                    ...fieldPermissions,
+                    pcmaStatus,
+                    packageStatus,
+                    case: currentCase
+                  }}
                   category={modificationCategory}
                 />
               </div>
@@ -1229,9 +1219,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             category={modificationCategory}
             reason={modificationReason}
             reasonId={modificationReasonId}
-            currentCase={fieldPermissions?.case}
-            pcmaStatus={fieldPermissions?.pcmaStatus}
-            packageStatus={fieldPermissions?.packageStatus}
           />
         </div>
       </div>

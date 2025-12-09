@@ -11,16 +11,14 @@ interface ComponentCostFormProps {
   onAdd: (cost: ComponentCost, costYear?: ComponentCostYear) => void;
   onEdit: (index: number, updatedCost: ComponentCost) => void;
   onDelete: (index: number) => void;
-  initialData?: any; // Optional initial data for dropdowns or other purposes
-  maxAmountCost?: number; // Optional prop to set max amount in ComponentCostForm
+  initialData?: any;
+  maxAmountCost?: number;
   disabled?: boolean;
-  fieldPermissions?: any; // New prop for field permissions
+  fieldPermissions?: any;
   category?: string;
   reason?: string;
   reasonId?: number;
-  currentCase?: string;
-  pcmaStatus?: string;
-  packageStatus?: string;
+  // Removed: currentCase, pcmaStatus, packageStatus - now from Jotai in ComponentCostDialog
 }
 
 const ComponentCostForm: React.FC<ComponentCostFormProps> = ({ 
@@ -35,9 +33,6 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
   category,
   reason,
   reasonId,
-  currentCase,
-  pcmaStatus,
-  packageStatus,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -179,7 +174,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold text-gray-900">Component Cost</h2>
-            <Button color="blue" onClick={handleOpenAddModal} disabled={!isFieldEditable('ComponentCost')}>
+            <Button color="blue" onClick={handleOpenAddModal} disabled={!isFieldEditable('AddComponentCost')}>
                 <PlusIcon className="w-4 h-4 mr-1" />
                 Add Cost
             </Button>
@@ -290,9 +285,9 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
                     <div className="flex space-x-2">
                       <button
                         onClick={() => handleOpenEditModal(index)}
-                        className={`text-blue-600 hover:text-blue-800 ${!isFieldEditable('ComponentCost') ? getDisabledClass(disabled) : ''}`}
+                        className={`text-blue-600 hover:text-blue-800 ${!isFieldEditable('EditComponentCost') ? getDisabledClass(disabled) : ''}`}
                         title="Edit"
-                        disabled={!isFieldEditable('ComponentCost')}
+                        disabled={!isFieldEditable('EditComponentCost')}
                       >
                         <PencilIcon className="w-4 h-4" />
                       </button>
@@ -326,9 +321,6 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
           categoryDesc={category}
           reasonDesc={reason}
           reasonId={reasonId}
-          currentCase={currentCase}
-          pcmaStatus={pcmaStatus}
-          packageStatus={packageStatus}
         />
       </div>
   );

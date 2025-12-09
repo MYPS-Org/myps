@@ -17,13 +17,13 @@ interface AdjustProjectDialogProps {
 const AdjustProjectDialog: React.FC<AdjustProjectDialogProps> = ({ 
     isOpen, 
     onClose, 
-    revisionTypeId, 
+    revisionTypeId: _revisionTypeId, 
     revisionTypeDescription, 
     projectId, 
     stageName, 
 }) => {
 
-    const { initializeData, modCategories, modReasons } = useDropDownData();
+    const { initializeData, modReasons } = useDropDownData();
     useEffect(() => {
         initializeData();
     }, []);
@@ -33,11 +33,14 @@ const AdjustProjectDialog: React.FC<AdjustProjectDialogProps> = ({
         revisionType: revisionTypeDescription,
     };
 
-    const handleChange = (index: number, fieldName: string, value: string) => {
-        // Update the form state with the new value
-    };
+    // Commented out - will be implemented when form state management is added
+    // const handleChange = (index: number, fieldName: string, value: string) => {
+    //     // Update the form state with the new value
+    // };
 
+    // Commented out - will be implemented when form rendering is added
     // Change the type any to real model later
+    /*
     const renderFormField = (modification: any, fieldName: string, index: number) => {
         switch (fieldName) {
             // Category A
@@ -83,6 +86,7 @@ const AdjustProjectDialog: React.FC<AdjustProjectDialogProps> = ({
             // Category E not yet known
         }
     }
+    */
 
     return (
         <Dialog open={isOpen} onClose={onClose} className="fixed z-10 inset-0 overflow-y-auto">

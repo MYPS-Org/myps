@@ -21,10 +21,11 @@ const projectFundingProfileFields = [
 ];
 
 const projectComponentFields = [
+    'EditComponentCost',
     'ComponentCost',
     'ComponentDescription',
-    'ComponentAdd',
-    'ComponentDelete',
+    'AddComponentCost',
+    'DeleteComponentCost',
 ];
 
 const majorItemOfWorkFields = [
@@ -75,12 +76,12 @@ const reasonSpecificFields: Record<string, string[]> = {
     // Reason: "Input of missing Planned Start/End Date (only if null or zero)"
     'Input of missing Planned Start/End Date (only if null or zero)': [
         // Allow access to component cost form
-        'ComponentCost',
+        'EditComponentCost',
         // Add date fields when they're implemented
-        'PlannedStartDate',
-        'PlannedEndDate',
         'StartDate',
-        'EndDate'
+        'EndDate',
+        // 'PlannedStartDate',
+        'Cost'
     ],
     
     // Reason: "Excess Amount due to Revised Estimate"
@@ -91,7 +92,9 @@ const reasonSpecificFields: Record<string, string[]> = {
     
     // Reason: "New Component needed - movement of funds also required"
     'New Component needed - movement of funds also required': [
-        'ComponentCost',
+        'EditComponentCost',
+        'DeleteComponentCost',
+        'AddComponentCost',
         'ComponentDescription',
         'ComponentAdd',
         'ComponentDelete'

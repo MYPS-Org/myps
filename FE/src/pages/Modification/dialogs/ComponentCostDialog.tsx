@@ -1,27 +1,25 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogTitle, DialogPanel } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import type { ComponentCost, ComponentCostYear, ComponentCostWithYears, ComponentTypeEnum } from '../../Project/Model';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { handleCurrencyBlur, handleCurrencyChange } from '../../../utils/GlobalFunctions';
-import RuleManager from '../rules/RuleManager';
+import { useIsFieldEditable, useFieldEditStatus } from '../hooks/useFieldPermissions';
 
 interface ComponentCostDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (cost: ComponentCost, costYear?: ComponentCostYear) => void; // Added costYear parameter
+  onSave: (cost: ComponentCost, costYear?: ComponentCostYear) => void;
   editingCost?: ComponentCostWithYears;
   mode: 'add' | 'edit';
   componentTypes: ComponentTypeEnum[];
   componentCosts: ComponentCost[];
   ProjectId: string;
   maxAmountCost?: number;
-  categoryDesc?: string;
-  reasonDesc?: string;
-  reasonId?: number;
-  currentCase?: string; // Add current case for dynamic validation
-  pcmaStatus?: string; // Add PCMA status
-  packageStatus?: string; // Add package status
+  categoryDesc?: string; // Keep for display purposes
+  reasonDesc?: string; // Keep for display purposes
+  reasonId?: number; // Keep for reference
+  // Removed: currentCase, pcmaStatus, packageStatus - now from Jotai
 }
 
 const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
@@ -34,12 +32,9 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   componentCosts,
   ProjectId,
   maxAmountCost,
-  categoryDesc,
-  reasonDesc,
-  reasonId,
-  currentCase,
-  pcmaStatus,
-  packageStatus
+  // categoryDesc, // May be needed for future display/logging
+  // reasonDesc, // May be needed for future display/logging
+  // reasonId // May be needed for validation logic
 }) => {
   const [formData, setFormData] = useState({
     Id: 0,
@@ -63,40 +58,19 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
 
   const [displayValue, setDisplayValue] = useState('');
 
-  // Dynamic field validation based on current values
-  const determinedCase = currentCase || (pcmaStatus && packageStatus 
-    ? RuleManager.determineCase(pcmaStatus, packageStatus, categoryDesc)
-    : 'CaseA');
+  // Get field permissions from Jotai store
 
-  // Check if a field is editable considering both permissions and value conditions
-  const isFieldEditable = useCallback((fieldName: string, currentValue?: any) => {
-    if (!categoryDesc || !reasonDesc) {
-      return true; // No restrictions if category/reason not specified
-    }
-    
-    return RuleManager.isFieldEditableWithValue(
-      fieldName,
-      determinedCase,
-      currentValue,
-      categoryDesc,
-      reasonDesc
-    );
-  }, [determinedCase, categoryDesc, reasonDesc]);
+  // Check if a field is editable using Jotai hooks
+  const isStartDateEditable = useIsFieldEditable('StartDate', formData.StartDate || editingCost?.CostPerYear?.[0]?.StartDate);
+  const isEndDateEditable = useIsFieldEditable('EndDate', formData.EndDate || editingCost?.CostPerYear?.[0]?.EndDate);
 
-  // Get field edit status with explanation (useful for showing tooltips/messages)
-  const getFieldEditStatus = useCallback((fieldName: string, currentValue?: any) => {
-    if (!categoryDesc || !reasonDesc) {
-      return { canEdit: true, reason: 'No restrictions' };
-    }
-    
-    return RuleManager.getFieldEditStatus(
-      fieldName,
-      determinedCase,
-      currentValue,
-      categoryDesc,
-      reasonDesc
-    );
-  }, [determinedCase, categoryDesc, reasonDesc]);
+  const isCostEditable = useIsFieldEditable('Total', formData.Total || editingCost?.Total);
+  const isDescriptionEditable = useIsFieldEditable('Description', formData.Description || editingCost?.Description);
+  const isComponentTypeEditable = useIsFieldEditable('ComponentType', formData.ComponentType || editingCost?.ComponentType);  
+  
+  // Get field edit status with explanation
+  const startDateStatus = useFieldEditStatus('StartDate', formData.StartDate || editingCost?.CostPerYear?.[0]?.StartDate);
+  const endDateStatus = useFieldEditStatus('EndDate', formData.EndDate || editingCost?.CostPerYear?.[0]?.EndDate);
 
   // Calculate remaining budget for validation
   const calculateRemainingBudget = () => {
@@ -313,7 +287,11 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                         Component Type
                     </label>
                     <select 
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500${
+                          !isComponentTypeEditable
+                            ? ' bg-gray-100 cursor-not-allowed' 
+                            : ''
+                          }`}
                         value={formData.ComponentType}
                         onChange={(e) => { 
                             const value = e.target.value; 
@@ -365,7 +343,12 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                     value={formData.Description}
                     onChange={(e) => handleChange('Description', e.target.value)}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      !isDescriptionEditable
+                        ? 'bg-gray-100 cursor-not-allowed' 
+                        : ''
+                    }`}
+                    disabled={!isDescriptionEditable}
                     placeholder="Enter description..."
                     required
                     />
@@ -387,9 +370,13 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                               remainingBudget !== null && formData.Total > remainingBudget 
                                 ? 'border-red-300 focus:ring-red-500' 
                                 : 'border-gray-300 focus:ring-blue-500'
-                            }`}
+                            } ${!isStartDateEditable
+                                    ? 'bg-gray-100 cursor-not-allowed' 
+                                    : ''}
+                            `}
                             placeholder="₱0.00"
                             min="0"
+                            disabled={!isCostEditable}
                         />
                         {remainingBudget !== null && (
                           <div className="mt-1">
@@ -429,53 +416,41 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                             Planned Start Date
-                            {(() => {
-                                const status = getFieldEditStatus('StartDate', formData.StartDate || editingCost?.CostPerYear?.[0]?.StartDate);
-                                if (!status.canEdit && formData.StartDate) {
-                                    return <span className="text-xs text-gray-500 ml-2">({status.reason})</span>;
-                                }
-                                return null;
-                            })()}
+                            {/* {!startDateStatus.canEdit && formData.StartDate && (
+                                <span className="text-xs text-gray-500 ml-2">({startDateStatus.reason})</span>
+                            )} */}
                         </label>
                         <input
                             type="date"
                             value={formData.StartDate.split('T')[0]}
                             onChange={(e) => handleChange('StartDate', e.target.value)}
-                            disabled={!isFieldEditable('StartDate', formData.StartDate || editingCost?.CostPerYear?.[0]?.StartDate)}
+                            disabled={!isStartDateEditable}
                             className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                                !isFieldEditable('StartDate', formData.StartDate || editingCost?.CostPerYear?.[0]?.StartDate) 
+                                !isStartDateEditable
                                     ? 'bg-gray-100 cursor-not-allowed' 
                                     : ''
                             }`}
-                            title={!isFieldEditable('StartDate', formData.StartDate || editingCost?.CostPerYear?.[0]?.StartDate) 
-                                ? getFieldEditStatus('StartDate', formData.StartDate || editingCost?.CostPerYear?.[0]?.StartDate).reason 
-                                : ''}
+                            title={!isStartDateEditable ? startDateStatus.reason : ''}
                         />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                             Planned End Date
-                            {(() => {
-                                const status = getFieldEditStatus('EndDate', formData.EndDate || editingCost?.CostPerYear?.[0]?.EndDate);
-                                if (!status.canEdit && formData.EndDate) {
-                                    return <span className="text-xs text-gray-500 ml-2">({status.reason})</span>;
-                                }
-                                return null;
-                            })()}
+                            {/* {!endDateStatus.canEdit && formData.EndDate && (
+                                <span className="text-xs text-gray-500 ml-2">({endDateStatus.reason})</span>
+                            )} */}
                         </label>
                         <input
                             type="date"
                             value={formData.EndDate.split('T')[0]}
                             onChange={(e) => handleChange('EndDate', e.target.value)}
-                            disabled={!isFieldEditable('EndDate', formData.EndDate || editingCost?.CostPerYear?.[0]?.EndDate)}
+                            disabled={!isEndDateEditable}
                             className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                                !isFieldEditable('EndDate', formData.EndDate || editingCost?.CostPerYear?.[0]?.EndDate) 
+                                !isEndDateEditable
                                     ? 'bg-gray-100 cursor-not-allowed' 
                                     : ''
                             }`}
-                            title={!isFieldEditable('EndDate', formData.EndDate || editingCost?.CostPerYear?.[0]?.EndDate) 
-                                ? getFieldEditStatus('EndDate', formData.EndDate || editingCost?.CostPerYear?.[0]?.EndDate).reason 
-                                : ''}
+                            title={!isEndDateEditable ? endDateStatus.reason : ''}
                         />
                     </div>
                 </div>
