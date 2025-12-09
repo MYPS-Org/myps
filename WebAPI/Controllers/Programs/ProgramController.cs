@@ -687,8 +687,8 @@ namespace WebAPI.Controllers.Programs
                                 PhysicalTarget = x.PhysicalTarget,
                                 StartStationLimit = x.StartStationLimit,
                                 EndStationLimit = x.EndStationLimit,
-                                From = x.From,
-                                To = x.To,
+                                EndChainage = x.EndChainage,
+                                StartChainage = x.StartChainage,
                                 CreatedBy = x.CreatedBy,
                                 CreatedDate = x.CreatedDate
                             }));

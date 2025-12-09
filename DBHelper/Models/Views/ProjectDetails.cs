@@ -9,7 +9,7 @@ namespace DBHelper.Models.Views
         public string ProgramName { get; set; } = string.Empty;
         public EnumProgramStage StageId { get; set; }
         public string StageName { get; set; } = string.Empty;
-        public string ReferenceId { get; set; } = string.Empty;
+        public string? ReferenceId { get; set; } = string.Empty;
         public string? ProjectId { get; set; }
         public string? AlternateId { get; set; }
         public string? ExternalId { get; set; }
@@ -30,7 +30,7 @@ namespace DBHelper.Models.Views
         public string? DEO { get; set; }
         public string? Region { get; set; }
         public int Agency { get; set; }
-        public int ImplementationMode { get; set; }
+        public int? ImplementationMode { get; set; }
         public bool EmergencyMode { get; set; }
         public int? Feasibility { get; set; }
         public DateTime? FeasibilityDate { get; set; }

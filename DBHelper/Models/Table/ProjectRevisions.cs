@@ -58,8 +58,7 @@ namespace DBHelper.Models.Table
         [Required]
         [MaxLength(2)]
         public string IslandCode { get; set; } = string.Empty;
-        [Required]
-        public int ImplementationMode { get; set; }
+        public int? ImplementationMode { get; set; }
         [Required]
         public bool EmergencyMode { get; set; }
         public int? Feasibility { get; set; }

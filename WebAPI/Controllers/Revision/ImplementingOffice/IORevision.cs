@@ -243,8 +243,8 @@ namespace WebAPI.Controllers.Revision.ImplementingOffice
                         PhysicalTarget = x.PhysicalTarget,
                         StartStationLimit = x.StartStationLimit,
                         EndStationLimit = x.EndStationLimit,
-                        From = x.From,
-                        To = x.To,
+                        EndChainage = x.EndChainage,
+                        StartChainage = x.StartChainage,
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     }));

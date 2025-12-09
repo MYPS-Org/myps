@@ -119,8 +119,8 @@ namespace WebAPI.Controllers.Revision.ImplementingOffice
         public string? StartStationLimit { get; set; }
         [MaxLength(100)]
         public string? EndStationLimit { get; set; }
-        public double? From { get; set; }
-        public double? To { get; set; }
+        public double? EndChainage { get; set; }
+        public double? StartChainage { get; set; }
     }
     public class RevisionFundingProfileDTO
     {

@@ -1551,7 +1551,7 @@ namespace WebAPI.Controllers.Projects
                                         });
                                         ExistingLoc.EndStationLimit = loc.EndStationLimit;
                                     }
-                                    if (ExistingLoc.From != loc.From)
+                                    if (ExistingLoc.EndChainage != loc.EndChainage)
                                     {
                                         hasLocUpdate = true;
                                         transactionLogs.Add(new TransactionLog
@@ -1559,15 +1559,15 @@ namespace WebAPI.Controllers.Projects
                                             TransactionId = Project.ProjectId!,
                                             TypeOfTransaction = "Update",
                                             AffectedTable = "tProjectMajorWorkLocations",
-                                            AffectedColumn = "From",
-                                            NewValue = loc.From.ToString() ?? "",
-                                            OldValue = ExistingLoc.From.ToString() ?? "",
+                                            AffectedColumn = "EndChainage",
+                                            NewValue = loc.EndChainage.ToString() ?? "",
+                                            OldValue = ExistingLoc.EndChainage.ToString() ?? "",
                                             CreatedBy = _Session.UserId,
                                             CreatedDate = CurrentDate
                                         });
-                                        ExistingLoc.From = loc.From;
+                                        ExistingLoc.EndChainage = loc.EndChainage;
                                     }
-                                    if (ExistingLoc.To != loc.To)
+                                    if (ExistingLoc.StartChainage != loc.StartChainage)
                                     {
                                         hasLocUpdate = true;
                                         transactionLogs.Add(new TransactionLog
@@ -1575,13 +1575,13 @@ namespace WebAPI.Controllers.Projects
                                             TransactionId = Project.ProjectId!,
                                             TypeOfTransaction = "Update",
                                             AffectedTable = "tProjectMajorWorkLocations",
-                                            AffectedColumn = "To",
-                                            NewValue = loc.To.ToString() ?? "",
-                                            OldValue = ExistingLoc.To.ToString() ?? "",
+                                            AffectedColumn = "StartChainage",
+                                            NewValue = loc.StartChainage.ToString() ?? "",
+                                            OldValue = ExistingLoc.StartChainage.ToString() ?? "",
                                             CreatedBy = _Session.UserId,
                                             CreatedDate = CurrentDate
                                         });
-                                        ExistingLoc.To = loc.To;
+                                        ExistingLoc.StartChainage = loc.StartChainage;
                                     }
                                     if (hasLocUpdate)
                                     {
@@ -1605,8 +1605,8 @@ namespace WebAPI.Controllers.Projects
                                     PhysicalTarget = item.PhysicalTarget,
                                     StartStationLimit = item.StartStationLimit,
                                     EndStationLimit = item.EndStationLimit,
-                                    From = item.From,
-                                    To = item.To,
+                                    EndChainage = item.EndChainage,
+                                    StartChainage = item.StartChainage,
                                     CreatedBy = _Session.UserId,
                                     CreatedDate = CurrentDate
                                 }).ToList();
@@ -1632,8 +1632,8 @@ namespace WebAPI.Controllers.Projects
                                 PhysicalTarget = item.PhysicalTarget,
                                 StartStationLimit = item.StartStationLimit,
                                 EndStationLimit = item.EndStationLimit,
-                                From = item.From,
-                                To = item.To,
+                                EndChainage = item.EndChainage,
+                                StartChainage = item.StartChainage,
                                 CreatedBy = _Session.UserId,
                                 CreatedDate = CurrentDate
                             }));
@@ -1687,8 +1687,8 @@ namespace WebAPI.Controllers.Projects
                         PhysicalTarget = item.PhysicalTarget,
                         StartStationLimit = item.StartStationLimit,
                         EndStationLimit = item.EndStationLimit,
-                        From = item.From,
-                        To = item.To,
+                        EndChainage = item.EndChainage,
+                        StartChainage = item.StartChainage,
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     }));
@@ -1737,8 +1737,8 @@ namespace WebAPI.Controllers.Projects
                                 if (ExistingItem.Agreement != item.Agreement)
                                 {
                                     FundingUpdate = true;
-                                    var CurrentAgreement = await _db.tOptionFundingAgreement.FirstOrDefaultAsync(x => x.Id == ExistingItem.Agreement);
-                                    var NewAgreement = await _db.tOptionFundingAgreement.FirstOrDefaultAsync(x => x.Id == item.Agreement);
+                                    var CurrentAgreement = await _db.tOptionFundingAgreement.FirstOrDefaultAsync(x => x.Code == ExistingItem.Agreement);
+                                    var NewAgreement = await _db.tOptionFundingAgreement.FirstOrDefaultAsync(x => x.Code == item.Agreement);
                                     transactionLogs.Add(new TransactionLog
                                     {
                                         TransactionId = dto.ProjectDetails!.ProjectId!,
