@@ -26,26 +26,60 @@ const projectComponentFields = [
     'ComponentDescription',
     'AddComponentCost',
     'DeleteComponentCost',
+    
+    'ComponentType',
+    'StartDate',
+    'EndDate',
+    'Total'
 ];
 
 const majorItemOfWorkFields = [
     'MajorItemOfWork',
-    'MajorItemOfWorkAdd',
-    'MajorItemOfWorkDelete',
-    'TargetUnit'
+    'AddMajorItemOfWork',
+    'DeleteMajorItemOfWork',
+    'EditMajorItemOfWork',
+    // 'TargetUnit',
 ];
 
 const physicalTargetFields = [
-    'WorkLocation',
-    'WorkLocationEdit',
-    'WorkLocationAdd',
-    'WorkLocationDelete',
+    'AddWorkLocation',
+    'EditWorkLocation',
+    'DeleteWorkLocation',
+    'InfraId',
     'PhysicalTarget',
+    'DetailedScope',
+    'StartX',
+    'StartY',
+    'EndX',
+    'EndY',
+    'TargetUnit',
+    'StartChainage',
+    'EndChainage',
+    'StartStationLimit',
+    'EndStationLimit'
 ];
 
 // Reason-specific field rules (within each case)
 // These rules are applied AFTER the case is determined
 const reasonSpecificFields: Record<string, string[]> = {
+     // Reason: "New Component needed - movement of funds also required"
+    // Note: Component types EAO, EXC, and SAV are automatically filtered out in AddMajorItemDialog
+    'Component incorrectly set up - to be deleted': [
+        // CRUD permissions for component cost
+        'EditComponentCost',
+        'DeleteComponentCost',
+        'AddComponentCost',
+        // CRUD permissions for major item of work
+        // 'AddMajorItemOfWork',
+        'DeleteMajorItemOfWork',
+        // 'EditMajorItemOfWork',
+        // Allow field access in Component Cost Dialog
+        'ComponentDescription',      // Component description field
+        'Total',           // Cost amount field
+        'ComponentType',   // Component type dropdown
+        'StartDate',       // Planned start date
+        'EndDate'          // Planned end date
+    ],
     // Reason: "Correction of MYPS typographical error for consistency with GAA"
     'Correction of MYPS typographical error for consistency with GAA': [
         'Description'
@@ -54,23 +88,39 @@ const reasonSpecificFields: Record<string, string[]> = {
     // Reason: "Correction of MYPS for null or zero targets"
     'Correction of MYPS for null or zero targets': [
         'PhysicalTarget',
-        'WorkLocation',
-        'WorkLocationEdit',
-        'TargetUnit'
+        // 'AddWorkLocation',
+        'EditWorkLocation',
     ],
     
     // Reason: "Move funds between existing Project Components"
     'Move funds between existing Project Components': [
-        'ComponentCost',
+        'EditComponentCost',
+        'AddComponentCost',
+
+        // Allow field access in Component Cost Dialog
+        'Description',      // Component description field
+        'Total',           // Cost amount field
+        'ComponentType',   // Component type dropdown
+        'StartDate',       // Planned start date
+        'EndDate'          // Planned end date
     ],
     
     // Reason: "Input of missing Location, Work Location data (if null or zero)"
     'Input of missing Location, Work Location data (if null or zero)': [
-        'City',
-        'LegislativeDistrict',
-        'WorkLocation',
-        'WorkLocationAdd',
-        'PhysicalTarget'
+        'AddWorkLocation',
+        'EditWorkLocation',
+        'InfraId',
+        'PhysicalTarget',
+        'DetailedScope',
+        'StartX',
+        'StartY',
+        'EndX',
+        'EndY',
+        'TargetUnit',
+        'StartChainage',
+        'EndChainage',
+        'StartStationLimit',
+        'EndStationLimit'
     ],
     
     // Reason: "Input of missing Planned Start/End Date (only if null or zero)"
@@ -81,23 +131,37 @@ const reasonSpecificFields: Record<string, string[]> = {
         'StartDate',
         'EndDate',
         // 'PlannedStartDate',
-        'Cost'
+        // 'Total'
     ],
     
     // Reason: "Excess Amount due to Revised Estimate"
     'Excess Amount due to Revised Estimate': [
-        'ComponentCost',
-        'ComponentDescription'
+        'AddComponentCost',
+        'EditComponentCost', 
+        'ComponentDescription',
+        'Total',
+        'ComponentType',
+        'StartDate',
+        'EndDate'
     ],
     
     // Reason: "New Component needed - movement of funds also required"
+    // Note: Component types EAO, EXC, and SAV are automatically filtered out in AddMajorItemDialog
     'New Component needed - movement of funds also required': [
+        // CRUD permissions for component cost
         'EditComponentCost',
-        'DeleteComponentCost',
+        // 'DeleteComponentCost',
         'AddComponentCost',
-        'ComponentDescription',
-        'ComponentAdd',
-        'ComponentDelete'
+        // CRUD permissions for major item of work
+        'AddMajorItemOfWork',
+        'DeleteMajorItemOfWork',
+        'EditMajorItemOfWork',
+        // Allow field access in Component Cost Dialog
+        'Description',      // Component description field
+        'Total',           // Cost amount field
+        'ComponentType',   // Component type dropdown
+        'StartDate',       // Planned start date
+        'EndDate'          // Planned end date
     ]
 };
 
@@ -107,7 +171,6 @@ const fieldValueConditions: Record<string, Record<string, (value: any) => boolea
     'Correction of MYPS for null or zero targets': {
         'PhysicalTarget': (value) => value === null || value === undefined || value === 0 || value === '',
         'WorkLocation': (value) => value === null || value === undefined || value === '',
-        'WorkLocationEdit': (value) => value === null || value === undefined || value === '',
         'TargetUnit': (value) => value === null || value === undefined || value === '',
     },
     'Input of missing Location, Work Location data (if null or zero)': {
@@ -363,6 +426,8 @@ const getFieldEditStatus = (
             reason: 'Field is not editable for this case/reason combination'
         };
     }
+
+
     
     if (fieldValue !== undefined && reason && fieldValueConditions[reason]?.[fieldName]) {
         const conditionMet = canEditFieldBasedOnValue(fieldName, fieldValue, reason);

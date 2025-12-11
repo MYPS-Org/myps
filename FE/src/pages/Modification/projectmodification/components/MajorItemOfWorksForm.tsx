@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '../../../../components/tailwindui/button';
 import { PlusIcon, TrashIcon, PencilIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { Table, TableHead, TableRow, TableHeader, TableBody, TableCell } from '../../../../components/tailwindui/table';
-import AddMajorItemDialog from '../../../Project/dialogs/AddMajorItemDialog';
+import AddMajorItemDialog from '../../dialogs/AddMajorItemDialog';
 import WorkLocationTable from './WorkLocationTable';
 import type { 
   MajorItemOfWorksWithDropdown, 
@@ -26,6 +26,7 @@ interface MajorItemOfWorksFormProps {
   dropDowns?: ScopeOfWorkEnum[];
   disabled?: boolean;
   fieldPermissions?: any;
+  reason?: string;
 }
 
 const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
@@ -39,7 +40,8 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
   onDelete,
   disabled = false,
   dropDowns,
-  fieldPermissions
+  fieldPermissions,
+  reason
 }) => {
   const [majorItemDialogOpen, setMajorItemDialogOpen] = useState(false);
   const [editingMajorItemIndex, setEditingMajorItemIndex] = useState<number | null>(null);
@@ -243,7 +245,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-semibold text-gray-900">Major Item of Work</h2>
-        <Button color="blue" onClick={handleAddMajorItem} disabled={!isFieldEditable('MajorItemOfWork')}>
+        <Button color="blue" onClick={handleAddMajorItem} disabled={!isFieldEditable('AddMajorItemOfWork')}>
           <PlusIcon className="w-4 h-4 mr-1" />
           Add Major Item
         </Button>
@@ -312,16 +314,16 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                       <Button
                         color="blue"
                         onClick={() => handleEditMajorItem(index)}
-                        className={`text-xs px-2 py-1 ${getDisabledClass(!isFieldEditable('MajorItemOfWork'))}`}
-                        disabled={!isFieldEditable('MajorItemOfWork')}
+                        className={`text-xs px-2 py-1 ${getDisabledClass(!isFieldEditable('EditMajorItemOfWork'))}`}
+                        disabled={!isFieldEditable('EditMajorItemOfWork')}
                       >
                         <PencilIcon className="w-3 h-3" />
                       </Button>
                       <Button
                         color="red"
                         onClick={() => onDelete(index)}
-                        className={`text-xs px-2 py-1 ${getDisabledClass(!isFieldEditable('MajorItemOfWork'))}`}
-                        disabled={!isFieldEditable('MajorItemOfWork')}
+                        className={`text-xs px-2 py-1 ${getDisabledClass(!isFieldEditable('DeleteMajorItemOfWork'))}`}
+                        disabled={!isFieldEditable('DeleteMajorItemOfWork')}
                       >
                         <TrashIcon className="w-3 h-3" />
                       </Button>
@@ -381,6 +383,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
         } : undefined}
         existingMajorItems={majorItems.map(item => ({ ComponentId: item.ComponentId }))}
         programDetails={programDetails}
+        reason={reason}
       />
     </div>
   );

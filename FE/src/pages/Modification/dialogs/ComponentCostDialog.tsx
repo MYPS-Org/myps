@@ -4,7 +4,7 @@ import { Button } from '../../../components/tailwindui/button';
 import type { ComponentCost, ComponentCostYear, ComponentCostWithYears, ComponentTypeEnum } from '../../Project/Model';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { handleCurrencyBlur, handleCurrencyChange } from '../../../utils/GlobalFunctions';
-import { useIsFieldEditable, useFieldEditStatus } from '../hooks/useFieldPermissions';
+import { useIsFieldEditable, useFieldEditStatus, useFieldPermissionState } from '../hooks/useFieldPermissions';
 
 interface ComponentCostDialogProps {
   isOpen: boolean;
@@ -58,6 +58,24 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
 
   const [displayValue, setDisplayValue] = useState('');
 
+  // Get field permissions state for debugging
+  const permissionState = useFieldPermissionState();
+
+  // Debug logging
+  useEffect(() => {
+    if (isOpen) {
+      console.log('ComponentCostDialog - Permission State:', {
+        pcmaStatus: permissionState.pcmaStatus,
+        packageStatus: permissionState.packageStatus,
+        currentCase: permissionState.currentCase,
+        category: permissionState.context.category,
+        reason: permissionState.context.reason,
+        reasonId: permissionState.context.reasonId,
+        editableFields: permissionState.permissions?.editableFields
+      });
+    }
+  }, [isOpen, permissionState]);
+
   // Get field permissions from Jotai store
 
   // Check if a field is editable using Jotai hooks
@@ -65,7 +83,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   const isEndDateEditable = useIsFieldEditable('EndDate', formData.EndDate || editingCost?.CostPerYear?.[0]?.EndDate);
 
   const isCostEditable = useIsFieldEditable('Total', formData.Total || editingCost?.Total);
-  const isDescriptionEditable = useIsFieldEditable('Description', formData.Description || editingCost?.Description);
+  const isDescriptionEditable = useIsFieldEditable('ComponentDescription', formData.Description || editingCost?.Description);
   const isComponentTypeEditable = useIsFieldEditable('ComponentType', formData.ComponentType || editingCost?.ComponentType);  
   
   // Get field edit status with explanation
@@ -293,6 +311,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                             : ''
                           }`}
                         value={formData.ComponentType}
+                        disabled={!isComponentTypeEditable}
                         onChange={(e) => { 
                             const value = e.target.value; 
                             handleChange('ComponentType', value);
@@ -370,7 +389,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                               remainingBudget !== null && formData.Total > remainingBudget 
                                 ? 'border-red-300 focus:ring-red-500' 
                                 : 'border-gray-300 focus:ring-blue-500'
-                            } ${!isStartDateEditable
+                            } ${!isCostEditable
                                     ? 'bg-gray-100 cursor-not-allowed' 
                                     : ''}
                             `}

@@ -31,6 +31,35 @@ export interface ProjectFormPayload {
   TransactionLogs: TransactionLog[];
 }
 
+export interface RevisionDropdown {
+	Headers: OptionRevisionHeader[];
+	Reasons: OptionRevisionReasons[];
+	Categories: OptionRevisionCategory[];
+}
+
+export interface OptionRevisionReasons {
+	Id: number;
+	Reason: string;
+	RevisionGroupId: number;
+	ReasonId: number;
+    CategoryId?: number;
+	CreatedBy: string;
+	CreatedDate?: string;
+}
+
+export interface OptionRevisionHeader {
+	Id: number;
+	RevisionName: string;
+	RevisionGroupId: number;
+}
+
+export interface OptionRevisionCategory {
+	Id: number;
+	CategoryName: string;
+	CategoryId: number;
+	RevisionGroupId: number;
+}
+
 export interface AddProject {
   ProjectName: string;
   ProgramName: string;
@@ -299,8 +328,8 @@ export interface MajorItemLocations {
 	TargetUnit: string; // Changed from number to string to match the UI usage
 	PhysicalTarget?: number | null;
 	Length?: number | null;
-	To: number;
-	From: number;
+	EndChainage: number;
+	StartChainage: number;
 	StartX: string;
 	StartY: string;
 	EndX: string;
@@ -362,6 +391,7 @@ export interface Dropdowns {
 	// Major Item of Works
 	ScopeOfWorks: ScopeOfWorkEnum[];
 	SupportingDocs: DropdownSupportingDocs[];
+	Revisions: RevisionDropdown;
 }
 export interface DropdownSupportingDocs {
 	Id: number;

@@ -17,9 +17,11 @@ import type {
   MajorItemOfWorksWithDropdown,
   MajorItemOfWork,
   MajorItemLocations,
-  ProjectSupportingDocs
+  ProjectSupportingDocs,
+  OptionRevisionCategory,
+  OptionRevisionHeader,
+  OptionRevisionReasons 
 } from '../Model.d';
-import type { OptionRevisionCategory, OptionRevisionHeader, OptionRevisionReasons } from '../../Modification/Model';
 
 import { Button } from '../../../components/tailwindui/button';
 import MapRenderer from '../../../components/map/MapRenderer';
@@ -39,7 +41,6 @@ import { useToast } from '../../../components/toaster/ToasterContext';
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/react';
 
 import RevisionDialog from '../dialogs/RevisionDialog';
-import { fetchRevDropdownData } from '../../Modification/Service';
 
 interface ProjectFormProps {
   initialData?: ProjectFormPayload;
@@ -179,10 +180,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     }
   }, [mode, initialData]);
 
-  useEffect(() => {
-    getRevisonDropdown();
-  }, []);
-
   // Fetch GeoJSON data for map rendering
   useEffect(() => {
     const loadMapData = async () => {
@@ -207,22 +204,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
     loadMapData();
   }, [mode, initialData?.ProjectDetails?.ProjectId, initialData?.ProgramDetails?.ProgramId]);
-
-  const getRevisonDropdown =  async() => {
-    try {
-      const response = await fetchRevDropdownData();
-      setRevHeaderData(response.Data.RevisionTypes || []);
-      setReasonData(response.Data.Reasons || []);
-      setRevCategoryData(response.Data.Categories || []);
-    }
-    catch {
-      console.log('error fetch data');
-      setRevHeaderData([]);
-      setReasonData([]);
-      setRevCategoryData([]);
-    }
-      
-  }
 
   // Separate useEffect to handle initialProgramId
   useEffect(() => {
@@ -331,7 +312,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     Agreements: [],
     Sources: [],
     ScopeOfWorks: [],
-    SupportingDocs: []
+    SupportingDocs: [],
+    Revisions: { Headers: [], Reasons: [], Categories: [] }
   });
 
   const [infraData] = useState<InfraData>({
@@ -849,7 +831,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                     </MenuButton>
                     <MenuItems className="absolute right-0 z-10 mt-2 w-80 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
                       <div className="py-1">
-                        {revHeaderData?.map((types) => (
+                        {Dropdowns?.Revisions?.Headers.map((types) => (
                           <MenuItem key={types.Id}>
                             {({ active }) => (
                               <button
@@ -1071,9 +1053,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         projectId={initialData?.ProjectDetails.ProjectId || ''}
         stageName={initialData?.ProgramDetails?.StageName || ''}
         selectedRevHeaderId={selectedRevHeaderId}
-        revHeaders={revHeaderData}
-        categories={revCategoryData}
-        reasons={reasonData}
+        revHeaders={Dropdowns?.Revisions?.Headers}
+        categories={Dropdowns?.Revisions?.Categories}
+        reasons={Dropdowns?.Revisions?.Reasons}
       />
 
     </div>

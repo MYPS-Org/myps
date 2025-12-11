@@ -11,6 +11,7 @@ const projectDetailFields = [
     'LegislativeDistrict',
     'City',
     'Agency',
+    'Thrust',
 ];
 
 const projectFundingProfileFields = [
@@ -20,23 +21,48 @@ const projectFundingProfileFields = [
 ];
 
 const projectComponentFields = [
+    'EditComponentCost',
     'ComponentCost',
-    'Description',
-    'Project Component Cost',
-    'Component Addition (for ROW, CW, CWD, or DR type)',
-    'Component Deletion (for CW, CWD, ROW or DR)',
+    'ComponentDescription',
+    'AddComponentCost',
+    'DeleteComponentCost',
+    
+    'ComponentType',
+    'StartDate',
+    'EndDate',
+    'Total'
 ];
 
 const majorItemOfWorkFields = [
-    'MajorItemOfWork',
-    'Add or Delete Major Item of Work (e.g., Target, Type of Work)',
-    'Target Unit'
+    'AddMajorItemOfWork',
+    'DeleteMajorItemOfWork',
+    'EditMajorItemOfWork',
+    'ComponentId',
+	'ReferenceId',
+	'YearOfWork',
+	'WorkTypeId',
+	'InfraType',
+	'TargetUnitId',
+	'TargetUnit'
+
 ];
 
 const physicalTargetFields = [
-    'WorkLocation',
-    'Physical Target',
-    'Work Location fields (e.g., station limits, validation based on infrastructure type)',
+    'AddWorkLocation',
+    'EditWorkLocation',
+    'DeleteWorkLocation',
+    'InfraId',
+    'PhysicalTarget',
+    'DetailedScope',
+    'StartX',
+    'StartY',
+    'EndX',
+    'EndY',
+    'TargetUnit',
+    'StartChainage',
+    'EndChainage',
+    'StartStationLimit',
+    'EndStationLimit'
 ];
 
 const pcmaStatus = [

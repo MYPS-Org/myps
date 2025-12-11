@@ -347,7 +347,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     Agreements: [],
     Sources: [],
     ScopeOfWorks: [],
-    SupportingDocs: []
+    SupportingDocs: [],
+    Revisions: { Headers: [], Reasons: [], Categories: [] }
   });
 
   const [infraData] = useState<InfraData>({
@@ -1241,6 +1242,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             programDetails={initialData?.ProgramDetails}
             disabled={isDisabled}
             fieldPermissions={fieldPermissions}
+            reason={modificationReason}
           />
         </div>
       </div>
