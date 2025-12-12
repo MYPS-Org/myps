@@ -25,9 +25,8 @@ namespace DBHelper.Models.Table
         [Required]
         [MaxLength(10)]
         public string ComponentId { get; set; } = string.Empty;
-        [Required]
-        [MaxLength(400)]
-        public string Description { get; set; } = string.Empty;
+        //[Required]
+        public string? Description { get; set; }
         [Required]
         public Double Total { get; set; }
         [Required]

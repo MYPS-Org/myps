@@ -132,6 +132,8 @@ namespace WebAPI.Controllers.Projects
                 return ExceptionHandler(ex);
             }
         }
+        #endregion
+        #region Add Project
         [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> InitAddProject()
@@ -178,8 +180,6 @@ namespace WebAPI.Controllers.Projects
                 return ExceptionHandler(ex);
             }
         }
-        #endregion
-        #region Add Project
         [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> AddProject([FromBody] AddProjectDTO dto)
@@ -415,6 +415,15 @@ namespace WebAPI.Controllers.Projects
 
                 var ScopeOfWork = await _db.tProjectScopeOfWorkEnum.AsNoTracking().OrderBy(x => x.WorkCategory).ToListAsync();
                 var Transactions = await _db.tTransactionLog.AsNoTracking().Where(x => x.TransactionId == dto.ProjectId).ToListAsync();
+                List<OptionRevisionHeader> ReasonHeader = new List<OptionRevisionHeader>();
+                List<OptionRevisionCategory> ReasonCategory = new List<OptionRevisionCategory>();
+                List<OptionRevisionReasons> ReasonReason = new List<OptionRevisionReasons>();
+                if (Project.StageName == "GAA-R")
+                {
+                    ReasonHeader = await _db.tOptionRevisionHeader.AsNoTracking().OrderBy(x => x.RevisionName).ToListAsync();
+                    ReasonCategory = await _db.tOptionRevisionCategory.AsNoTracking().OrderBy(x => x.CategoryName).ToListAsync();
+                    ReasonReason = await _db.tOptionRevisionReasons.AsNoTracking().OrderBy(x => x.Reason).ToListAsync();
+                }
                 return Ok(new
                 {
                     IsActive = (CurrentProgramVersion.StageName == Project.StageName) ? true : false,
@@ -459,6 +468,13 @@ namespace WebAPI.Controllers.Projects
                         //Funding Profile
                         Agreements = Agreement,
                         Sources = Source,
+
+                        Revisions = new
+                        {
+                            Headers = ReasonHeader,
+                            Categories = ReasonCategory,
+                            Reasons = ReasonReason
+                        }
                     }
                 });
             }
@@ -1160,8 +1176,8 @@ namespace WebAPI.Controllers.Projects
                                             TypeOfTransaction = "Update",
                                             AffectedTable = "tProjectComponentCostYear",
                                             AffectedColumn = "StartDate",
-                                            NewValue = SelectedYear.StartDate.ToString("MM/dd/yyyy mm:ss t") ?? "",
-                                            OldValue = yearItem.StartDate.ToString("MM/dd/yyyy mm:ss t") ?? "",
+                                            NewValue = SelectedYear.StartDate?.ToString("MM/dd/yyyy mm:ss t") ?? "",
+                                            OldValue = yearItem.StartDate?.ToString("MM/dd/yyyy mm:ss t") ?? "",
                                             CreatedBy = _Session.UserId,
                                             CreatedDate = CurrentDate
                                         });
@@ -1176,8 +1192,8 @@ namespace WebAPI.Controllers.Projects
                                             TypeOfTransaction = "Update",
                                             AffectedTable = "tProjectComponentCostYear",
                                             AffectedColumn = "EndDate",
-                                            NewValue = SelectedYear.EndDate.ToString("MM/dd/yyyy mm:ss t") ?? "",
-                                            OldValue = yearItem.EndDate.ToString("MM/dd/yyyy mm:ss t") ?? "",
+                                            NewValue = SelectedYear.EndDate?.ToString("MM/dd/yyyy mm:ss t") ?? "",
+                                            OldValue = yearItem.EndDate?.ToString("MM/dd/yyyy mm:ss t") ?? "",
                                             CreatedBy = _Session.UserId,
                                             CreatedDate = CurrentDate
                                         });
@@ -2063,20 +2079,6 @@ namespace WebAPI.Controllers.Projects
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                return ExceptionHandler(ex);
-            }
-        }
-        [AllowAnonymous]
-        [HttpPost]
-        public async Task<IActionResult> GetReasons()
-        {
-            try
-            {
-                
-                return Ok();
-            }
-            catch (Exception ex)
-            {
                 return ExceptionHandler(ex);
             }
         }

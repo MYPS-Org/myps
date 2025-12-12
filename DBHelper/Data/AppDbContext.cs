@@ -5,7 +5,9 @@ namespace DBHelper.Data
 {
     public class AppDbContext : DbContext
     {
-        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) {
+            this.Database.SetCommandTimeout(TimeSpan.FromMinutes(30));
+        }
         #region Tables
         public DbSet<Models.Table.Users> tUsers { get; set; }
         public DbSet<Models.Table.PermissionGroups> tPermissionGroups { get; set; }
@@ -82,12 +84,14 @@ namespace DBHelper.Data
         public DbSet<Models.Views.AdminImplementingOffice> vAdminImplementingOffice { get; set; }
         public DbSet<Models.Views.GetProjectCategoryVersions> vGetProjectCategoryVersions { get; set; }
         public DbSet<Models.Views.RevisionRules> vRevisionRules { get; set; }
+        public DbSet<Models.Views.ProjectComponentStatus> vProjectComponentStatus { get; set; }
         #endregion
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<AdminOperatingUnit>().HasNoKey().ToView("vAdminOperatingUnit");
             modelBuilder.Entity<AdminImplementingOffice>().HasNoKey().ToView("vAdminImplementingOffice");
             modelBuilder.Entity<GetProjectCategoryVersions>().HasNoKey().ToView("vGetProjectCategoryVersions");
+            modelBuilder.Entity<ProjectComponentStatus>().HasNoKey().ToView("vProjectComponentStatus");
             base.OnModelCreating(modelBuilder);
         }
     }

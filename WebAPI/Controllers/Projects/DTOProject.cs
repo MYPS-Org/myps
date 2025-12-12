@@ -59,9 +59,7 @@ namespace WebAPI.Controllers.Projects
         [Required]
         [MaxLength(10)]
         public string ComponentId { get; set; } = string.Empty;
-        [Required]
-        [MaxLength(400)]
-        public string Description { get; set; } = string.Empty;
+        public string? Description { get; set; }
         [Required]
         public Double Total { get; set; }
     }
@@ -74,10 +72,8 @@ namespace WebAPI.Controllers.Projects
         public int CostYear { get; set; }
         [Required]
         public Double Cost { get; set; }
-        [Required]
-        public DateTime StartDate { get; set; }
-        [Required]
-        public DateTime EndDate { get; set; }
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
     }
     public class ProjectMajorWorkItemDTO
     {

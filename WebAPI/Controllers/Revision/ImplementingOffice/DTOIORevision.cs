@@ -47,9 +47,7 @@ namespace WebAPI.Controllers.Revision.ImplementingOffice
         [Required]
         [MaxLength(10)]
         public string ComponentId { get; set; } = string.Empty;
-        [Required]
-        [MaxLength(400)]
-        public string Description { get; set; } = string.Empty;
+        public string? Description { get; set; } = string.Empty;
         [Required]
         public double Total { get; set; }
     }
@@ -62,10 +60,8 @@ namespace WebAPI.Controllers.Revision.ImplementingOffice
         public int CostYear { get; set; }
         [Required]
         public double Cost { get; set; }
-        [Required]
-        public DateTime StartDate { get; set; }
-        [Required]
-        public DateTime EndDate { get; set; }
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
     }
     public class RevisionMajorWorkItemDTO
     {
