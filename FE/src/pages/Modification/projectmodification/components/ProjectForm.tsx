@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formValidation, type FormValidationError } from '../../../../utils/FormValidation';
 import { projectDetailsRules } from '../../../Project/rules/projectDetailsRules';
@@ -46,7 +46,7 @@ import RevisionForm from './RevisionForm';
 import { checkExcessComponent } from '../../conditions/ExcessComponentAutomation';
 
 import { useAuth } from '../../../../contexts/AuthContext';
-import { useFieldPermissions, useInitializeModificationContext, useDebugControls } from '../../hooks/useFieldPermissions';
+import { useFieldPermissions, useInitializeModificationContext } from '../../hooks/useFieldPermissions';
 
 interface ProjectFormProps {
   initialData?: ProjectFormPayload;
@@ -55,16 +55,18 @@ interface ProjectFormProps {
   category?: string;
   reason?: string;
   reasonId?: number;
+  categoryId?: number;
+  revisionGroupId?: number;
   fieldLabels?: Record<string, any>;
 }
 
-const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', initialProgramId, category, reason, reasonId, fieldLabels: _fieldLabels }) => {
+const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', initialProgramId, category, reason, reasonId, categoryId, revisionGroupId, fieldLabels: _fieldLabels }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
 
 
-  console.log('ProjectForm - Received props:', { category, reason, reasonId });
+  console.log('ProjectForm - Received props:', { category, reason, reasonId, categoryId, revisionGroupId });
 
   const [savingSection, setSavingSection] = useState<string | null>(null);
   const [projectEnums, setProjectEnums] = useState<ProjectEnums | null>(null);
@@ -81,9 +83,19 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
   // Determine category and reason based on whether modification is submitted (in database) or not
   // If modification exists in database, use those values; otherwise use props from project module
-  const modificationCategory = initialData?.ModificationCategory || category;
-  const modificationReason = initialData?.ModificationReason || reason;
-  const modificationReasonId = initialData?.ModificationReasonId || reasonId;
+  // Memoize these to prevent recreating on every render which causes infinite loops
+  const modificationCategory = useMemo(() => 
+    initialData?.ModificationCategory || category,
+    [initialData?.ModificationCategory, category]
+  );
+  const modificationReason = useMemo(() => 
+    initialData?.ModificationReason || reason,
+    [initialData?.ModificationReason, reason]
+  );
+  const modificationReasonId = useMemo(() => 
+    initialData?.ModificationReasonId || reasonId,
+    [initialData?.ModificationReasonId, reasonId]
+  );
 
   console.log('ProjectForm - Final values:', { 
     modificationCategory, 
@@ -183,8 +195,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   // Initialize modification context from props
   useInitializeModificationContext(modificationCategory, modificationReason, modificationReasonId);
 
-  // Debug controls
-  const { setCaseA, setCaseB, setCaseC } = useDebugControls();
+  // Debug controls - Commented out since PCMA status now comes from API
+  // const { setCaseA, setCaseB, setCaseC } = useDebugControls();
 
   // Log when permissions change
   useEffect(() => {
@@ -192,6 +204,27 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       console.log('Field Permissions Updated:', fieldPermissions);
     }
   }, [fieldPermissions]);
+  // #endregion
+
+  // #region Get Revision Data
+  // useEffect(() => {
+  //   const loadRevisionData = async () => {
+  //     if (mode === 'edit' && projectDetails.ProjectId && modificationReasonId) {
+  //       try {
+  //         await fetchRevisionData(
+  //           projectDetails.ProjectId,
+  //           revisionGroupId || 0, // RevisionHeader - Use RevisionGroupId
+  //           categoryId || 0, // RevisionCategory - Use categoryId
+  //           modificationReasonId // RevisionReason - Use reasonId
+  //         );
+  //       } catch (error) {
+  //         console.error('Error loading revision data:', error);
+  //       }
+  //     }
+  //   };
+
+  //   loadRevisionData();
+  // }, [mode, projectDetails.ProjectId, modificationReasonId, categoryId, revisionGroupId]);
   // #endregion
 
   // #region GEOJSON DATA FOR MAP
@@ -1121,7 +1154,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             <>
               <div className="px-4 py-6 sm:p-8">
                 {/* PCMA Permission Status - FOR TESTING */}
-                
+                {/* Commented out - PCMA status now comes from API via fetchRevisionData
                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
                         <div className="flex justify-center items-center">
                             <div className="flex space-x-2">
@@ -1146,6 +1179,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                             </div>
                         </div>
                     </div>
+                */}
                 
                 <ProjectDetailsForm
                   projectDetails={projectDetails}
@@ -1281,6 +1315,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         revisionCategory={modificationCategory}
         revisionReason={modificationReason}
         reasonId={modificationReasonId}
+        categoryId={categoryId}
+        revisionGroupId={revisionGroupId}
         project={initialData?.ProjectDetails || projectDetails}
         componentCosts={componentCosts}
         componentCostYear={componentCostsYear}

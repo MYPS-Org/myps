@@ -4,7 +4,7 @@ import { Button } from '../../../components/tailwindui/button';
 import XMarkIcon from '@heroicons/react/24/outline/XMarkIcon';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import { useNavigate } from 'react-router-dom';
-import type { OptionRevisionCategory, OptionRevisionReasons, OptionRevisionHeader } from '../../Modification/Model.d';
+import type { OptionRevisionCategory, OptionRevisionReasons, OptionRevisionHeader } from '../Model.d';
 
 interface ReviseProjectDialogProps {
     isOpen: boolean;
@@ -117,7 +117,7 @@ const ReviseDialog: React.FC<ReviseProjectDialogProps> = ({
             const categoryToSend = categoryName || revisionTypeName;
             
             // Get reason name
-            const reasonName = filteredReasons.find(r => r.Id === selectedReason)?.Reason || '';
+            const reasonName = filteredReasons.find(r => r.ReasonId === selectedReason)?.Reason || '';
 
             console.log('Selected revision type:', revisionTypeName);
             console.log('Selected category:', categoryName);
@@ -176,7 +176,7 @@ const ReviseDialog: React.FC<ReviseProjectDialogProps> = ({
             console.log('Navigation state being passed:', {
                 stageName, 
                 revisionTypeId, 
-                revisionHeaderId: selectedRevHeaderId,
+                revisionGroupId: selectedRevisionGroupId,
                 revisionTypeDescription: revisionTypeName,
                 categoryDesc: categoryToSend,
                 reasonDesc: reasonName,
@@ -189,7 +189,7 @@ const ReviseDialog: React.FC<ReviseProjectDialogProps> = ({
                 state: { 
                     stageName, 
                     revisionTypeId,
-                    revisionHeaderId: selectedRevHeaderId,
+                    revisionGroupId: selectedRevisionGroupId,
                     revisionTypeDescription: revisionTypeName,
                     categoryDesc: categoryToSend,
                     reasonDesc: reasonName,
@@ -288,7 +288,7 @@ const ReviseDialog: React.FC<ReviseProjectDialogProps> = ({
                             >
                                 <option value="">Select Reason</option>
                                 {filteredReasons.map((reason) => (
-                                    <option key={reason.Id} value={reason.Id}>
+                                    <option key={reason.Id} value={reason.ReasonId}>
                                         {reason.Reason}
                                     </option>
                                 ))}

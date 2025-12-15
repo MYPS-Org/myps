@@ -1,16 +1,17 @@
 import { httpClient } from "../../services/httpClient";
-import type { ModificationCategory, OptionRevisionCategory, OptionRevisionHeader, OptionRevisionReasons } from "./Model.d"
+import type { ModificationCategory } from "./Model.d"
 import type { ProjectDetails, ComponentCost, ComponentCostYear, MajorItemOfWork, MajorItemLocations, FundingProfile } from "../Project/Model.d";
+import Project from "../Project/Views/Project";
 
-export const fetchRevDropdownData = async () => {
-    try {
-        const response = await httpClient.post<{ RevisionTypes: OptionRevisionHeader[], Categories: OptionRevisionCategory[], Reasons: OptionRevisionReasons[] }>('/Revision/RevisionCategories');
-        return response;
-    } catch (error) {
-        console.error('Error fetching modification dropdown data:', error);
-        throw error;
-    }
-}
+// export const fetchRevDropdownData = async () => {
+//     try {
+//         const response = await httpClient.post<{ RevisionTypes: OptionRevisionHeader[], Categories: OptionRevisionCategory[], Reasons: OptionRevisionReasons[] }>('/Revision/RevisionCategories');
+//         return response;
+//     } catch (error) {
+//         console.error('Error fetching modification dropdown data:', error);
+//         throw error;
+//     }
+// }
 
 export const submitModificationRequest = async (
     payload: {
@@ -70,3 +71,13 @@ export const getLabelField = async (payload: { categoryDesc: any; reasonId: any;
         throw error;
     }
 };
+
+export const fetchRevisionData = async ( ProjectId: string, RevisionHeader: number, RevisionCategory: number, RevisionReason: number ) => {
+    try {
+        const response = await httpClient.post(`/Revision/ReviseProject/`, { ProjectId, RevisionHeader, RevisionCategory, RevisionReason });
+        return response;
+    } catch (error) {
+        console.error('Error fetching revision data:', error);
+        throw error;
+    }
+}

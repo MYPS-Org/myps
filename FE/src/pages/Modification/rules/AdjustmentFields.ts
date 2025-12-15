@@ -152,6 +152,7 @@ const reasonSpecificFields: Record<string, string[]> = {
         'EditComponentCost',
         // 'DeleteComponentCost',
         'AddComponentCost',
+        'DeleteComponentCost',
         // CRUD permissions for major item of work
         'AddMajorItemOfWork',
         'DeleteMajorItemOfWork',
@@ -221,12 +222,12 @@ const packaged = () => {
 // Helper function to determine case based on status and package
 const determineCase = (pcmaStatus: string, packageStatus: string) => {
     // Case A: Not yet started AND not packaged
-    if (pcmaStatus === 'Not yet started' && packageStatus === 'not packaged') {
+    if (pcmaStatus === 'Not yet started' && packageStatus === 'Not Packaged') {
         return 'CaseA';
     }
     
     // Case B: (Not yet started AND packaged) OR (On-going AND packaged)
-    if ((pcmaStatus === 'Not yet started' || pcmaStatus === 'On-going') && packageStatus === 'packaged') {
+    if ((pcmaStatus === 'Not yet started' || pcmaStatus === 'On-going') && packageStatus === 'Packaged') {
         return 'CaseB';
     }
     

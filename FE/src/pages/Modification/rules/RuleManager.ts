@@ -135,8 +135,19 @@ class RuleManager {
     }
 
     static determineCase(pcmaStatus: string, packageStatus: string, category?: string) {
+        console.log('=== RULE MANAGER - determineCase ===');
+        console.log('Input - PCMA Status:', pcmaStatus);
+        console.log('Input - Package Status:', packageStatus);
+        console.log('Input - Category:', category);
+        
         const ruleSet = this.getRuleSet(category);
-        return ruleSet.determineCase(pcmaStatus, packageStatus);
+        console.log('Using RuleSet:', ruleSet === AllowedFields ? 'AllowedFields' : 'Other');
+        
+        const result = ruleSet.determineCase(pcmaStatus, packageStatus);
+        console.log('Result Case:', result);
+        console.log('===================================');
+        
+        return result;
     }
 
     static getEditableFieldsForCase(caseType: string, category?: string, reason?: string) {

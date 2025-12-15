@@ -20,6 +20,8 @@ interface ReviseProjectDialogProps {
     revisionCategory?: string;
     revisionReason?: string;
     reasonId?: number;
+    categoryId?: number;
+    revisionGroupId?: number;
 }
 
 const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({ 
@@ -33,7 +35,9 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
     fundingProfile,
     revisionCategory,
     revisionReason,
-    reasonId
+    reasonId,
+    categoryId,
+    revisionGroupId
 }) => {
     const {
         initializeData
@@ -49,6 +53,8 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
         DataUrl: string;
     } | null>(null);
     const [revisionType] = useState<string>('modification');
+
+    console.log('ReviseProjectDialog - Received IDs:', { categoryId, revisionGroupId, reasonId });
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
     useEffect(() => {
