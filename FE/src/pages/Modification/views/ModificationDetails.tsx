@@ -31,6 +31,16 @@ const ModifyProject: React.FC = () => {
     console.log('ModificationDetails - Category ID:', selectedCategoryId);
     console.log('ModificationDetails - Revision Group ID:', selectedRevisionGroupId);
 
+    // Set modification context once on mount from navigation state
+    useEffect(() => {
+        setModificationContext({
+            category: categoryDesc || '',
+            reason: reasonDesc || '',
+            reasonId: selectedReasonId
+        });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Empty deps - set once on mount only from initial navigation state
+
     useEffect(() => {
         // Load project data based on ID
         const loadProjectData = async () => {
@@ -111,19 +121,14 @@ const ModifyProject: React.FC = () => {
                 setStatusFromAPI('Not yet started', 'Not Packaged');
             }
 
-            // Set modification context
-            setModificationContext({
-                category: categoryDesc || '',
-                reason: reasonDesc || '',
-                reasonId: selectedReasonId
-            });
+            // Note: Modification context is set once on mount, not here
 
         } catch (error) {
             console.error('Error fetching revision data:', error);
         } finally {
             setIsLoading(false);
         }
-    }, [selectedRevisionGroupId, selectedCategoryId, selectedReasonId, categoryDesc, reasonDesc]);
+    }, [selectedRevisionGroupId, selectedCategoryId, selectedReasonId, setStatusFromAPI]);
 
     // Fetch label fields when project data and modification details are available
     useEffect(() => {

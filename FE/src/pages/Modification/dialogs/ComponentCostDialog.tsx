@@ -78,17 +78,16 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
 
   // Get field permissions from Jotai store
 
-  // Check if a field is editable using Jotai hooks
-  const isStartDateEditable = useIsFieldEditable('StartDate', formData.StartDate || editingCost?.CostPerYear?.[0]?.StartDate);
-  const isEndDateEditable = useIsFieldEditable('EndDate', formData.EndDate || editingCost?.CostPerYear?.[0]?.EndDate);
-
-  const isCostEditable = useIsFieldEditable('Total', formData.Total || editingCost?.Total);
-  const isDescriptionEditable = useIsFieldEditable('ComponentDescription', formData.Description || editingCost?.Description);
-  const isComponentTypeEditable = useIsFieldEditable('ComponentType', formData.ComponentType || editingCost?.ComponentType);  
+  // Check if a field is editable using simplified hooks (no currentValue to prevent loops)
+  const isStartDateEditable = useIsFieldEditable('StartDate');
+  const isEndDateEditable = useIsFieldEditable('EndDate');
+  const isCostEditable = useIsFieldEditable('Total');
+  const isDescriptionEditable = useIsFieldEditable('ComponentDescription');
+  const isComponentTypeEditable = useIsFieldEditable('ComponentType');  
   
   // Get field edit status with explanation
-  const startDateStatus = useFieldEditStatus('StartDate', formData.StartDate || editingCost?.CostPerYear?.[0]?.StartDate);
-  const endDateStatus = useFieldEditStatus('EndDate', formData.EndDate || editingCost?.CostPerYear?.[0]?.EndDate);
+  const startDateStatus = useFieldEditStatus('StartDate');
+  const endDateStatus = useFieldEditStatus('EndDate');
 
   // Calculate remaining budget for validation
   const calculateRemainingBudget = () => {

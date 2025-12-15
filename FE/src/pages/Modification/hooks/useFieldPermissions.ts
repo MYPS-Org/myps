@@ -1,105 +1,69 @@
 import React from 'react';
-import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { useAtomValue, useSetAtom } from 'jotai';
+import RuleManager from '../rules/RuleManager';
 import {
     pcmaStatusAtom,
     packageStatusAtom,
     modificationContextAtom,
     currentCaseAtom,
     fieldPermissionsAtom,
-    setCaseAAtom,
-    setCaseBAtom,
-    setCaseCAtom,
-    randomizeStatusAtom,
     setModificationContextAtom,
     setStatusFromAPIAtom,
     resetStatusAtom,
-    isFieldEditableAtom,
-    fieldEditStatusAtom,
     type ModificationContext,
     type FieldPermissions
 } from '../store/fieldPermissionStore';
 
 /**
- * Hook to manage field permissions
- * Provides all the necessary state and actions for field permission management
+ * Hook to manage field permissions (READ-ONLY)
+ * Status and context are set from API only
  */
 export const useFieldPermissions = () => {
-    const [pcmaStatus, setPcmaStatus] = useAtom(pcmaStatusAtom);
-    const [packageStatus, setPackageStatus] = useAtom(packageStatusAtom);
-    const [context, setContext] = useAtom(modificationContextAtom);
+    const pcmaStatus = useAtomValue(pcmaStatusAtom);
+    const packageStatus = useAtomValue(packageStatusAtom);
+    const context = useAtomValue(modificationContextAtom);
     const currentCase = useAtomValue(currentCaseAtom);
     const permissions = useAtomValue(fieldPermissionsAtom);
 
-    // Action setters
-    const setCaseA = useSetAtom(setCaseAAtom);
-    const setCaseB = useSetAtom(setCaseBAtom);
-    const setCaseC = useSetAtom(setCaseCAtom);
-    const randomize = useSetAtom(randomizeStatusAtom);
-    const setFromAPI = useSetAtom(setStatusFromAPIAtom);
-    const reset = useSetAtom(resetStatusAtom);
-
     return {
-        // State
         pcmaStatus,
         packageStatus,
         context,
         currentCase,
-        permissions,
-
-        // Direct setters (for API integration)
-        setPcmaStatus,
-        setPackageStatus,
-        setContext,
-
-        // Actions
-        setCaseA,
-        setCaseB,
-        setCaseC,
-        randomize,
-        setFromAPI,
-        reset
+        permissions
     };
 };
 
 /**
  * Hook to check if a specific field is editable
  * @param fieldName - The name of the field to check
- * @param currentValue - The current value of the field (optional)
  */
-export const useIsFieldEditable = (fieldName: string, currentValue?: any): boolean => {
-    const atom = isFieldEditableAtom(fieldName, currentValue);
-    return useAtomValue(atom);
+export const useIsFieldEditable = (fieldName: string): boolean => {
+    const permissions = useAtomValue(fieldPermissionsAtom);
+    const currentCase = useAtomValue(currentCaseAtom);
+    const context = useAtomValue(modificationContextAtom);
+
+    if (!permissions || !currentCase) {
+        return true; // Default to editable if no restrictions set
+    }
+
+    return RuleManager.isFieldEditable(fieldName, currentCase, context.category, context.reason);
 };
 
 /**
  * Hook to get the edit status of a specific field with explanation
  * @param fieldName - The name of the field to check
- * @param currentValue - The current value of the field (optional)
  */
-export const useFieldEditStatus = (fieldName: string, currentValue?: any) => {
-    const atom = fieldEditStatusAtom(fieldName, currentValue);
-    return useAtomValue(atom);
-};
+export const useFieldEditStatus = (fieldName: string) => {
+    const permissions = useAtomValue(fieldPermissionsAtom);
+    const currentCase = useAtomValue(currentCaseAtom);
+    const context = useAtomValue(modificationContextAtom);
 
-/**
- * Hook to initialize modification context from navigation state or props
- * @param category - Modification category
- * @param reason - Modification reason
- * @param reasonId - Modification reason ID
- */
-export const useInitializeModificationContext = (
-    category?: string,
-    reason?: string,
-    reasonId?: number
-) => {
-    const setContext = useSetAtom(setModificationContextAtom);
+    if (!permissions || !currentCase) {
+        return { canEdit: true, reason: 'No restrictions' };
+    }
 
-    // Initialize context when component mounts or when values change
-    React.useEffect(() => {
-        if (category || reason || reasonId) {
-            setContext({ category, reason, reasonId });
-        }
-    }, [category, reason, reasonId, setContext]);
+    return RuleManager.getFieldEditStatus(fieldName, currentCase, undefined, context.category, context.reason);
 };
 
 /**
@@ -124,44 +88,23 @@ export const useFieldPermissionState = () => {
 
 /**
  * Hook for debug controls only
- * Provides actions for setting cases manually (for development/testing)
  */
 export const useDebugControls = () => {
-    const setCaseA = useSetAtom(setCaseAAtom);
-    const setCaseB = useSetAtom(setCaseBAtom);
-    const setCaseC = useSetAtom(setCaseCAtom);
-    const randomize = useSetAtom(randomizeStatusAtom);
     const reset = useSetAtom(resetStatusAtom);
-
-    return {
-        setCaseA,
-        setCaseB,
-        setCaseC,
-        randomize,
-        reset
-    };
+    return { reset };
 };
 
 /**
- * Hook for API integration
- * Provides functions to set status from API responses
+ * Hook for API integration - sets status and context from API
  */
 export const useAPIIntegration = () => {
     const setFromAPI = useSetAtom(setStatusFromAPIAtom);
     const setContext = useSetAtom(setModificationContextAtom);
 
-    /**
-     * Set status from API response
-     * @param pcmaStatus - PCMA status from external API
-     * @param packageStatus - Package status from external API
-     */
     const setStatusFromAPI = React.useCallback((pcmaStatus: string, packageStatus: string) => {
         setFromAPI({ pcmaStatus, packageStatus });
     }, [setFromAPI]);
 
-    /**
-     * Set modification context from navigation or initial data
-     */
     const setModificationContext = React.useCallback((context: ModificationContext) => {
         setContext(context);
     }, [setContext]);

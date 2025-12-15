@@ -24,11 +24,6 @@ const RevisionForm: React.FC<RevisionFormProps> = ({
     category, 
     reason,
     projectDetails,
-    componentCosts,
-    componentCostYear,
-    majorItemOfWorks,
-    majorItemLocations,
-    fundingProfile
 }) => {
     
     console.log('RevisionForm - Received props:', { category, reason });

@@ -45,7 +45,7 @@ import RevisionForm from './RevisionForm';
 import { checkExcessComponent } from '../../conditions/ExcessComponentAutomation';
 
 import { useAuth } from '../../../../contexts/AuthContext';
-import { useFieldPermissions, useInitializeModificationContext } from '../../hooks/useFieldPermissions';
+import { useFieldPermissions } from '../../hooks/useFieldPermissions';
 import type { RevisionProjectPayload } from '../../Model';
 
 interface ProjectFormProps {
@@ -188,22 +188,11 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     packageStatus,
     currentCase,
     permissions: fieldPermissions,
-    // setPcmaStatus, // For future API integration
-    // setPackageStatus // For future API integration
   } = useFieldPermissions();
 
-  // Initialize modification context from props
-  useInitializeModificationContext(modificationCategory, modificationReason, modificationReasonId);
+  // Note: Status and context are set ONLY from API in ModificationDetails.tsx
+  // Do NOT set them here to avoid infinite loops
 
-  // Debug controls - Commented out since PCMA status now comes from API
-  // const { setCaseA, setCaseB, setCaseC } = useDebugControls();
-
-  // Log when permissions change
-  useEffect(() => {
-    if (fieldPermissions) {
-      console.log('Field Permissions Updated:', fieldPermissions);
-    }
-  }, [fieldPermissions]);
   // #endregion
 
   // #region Get Revision Data
