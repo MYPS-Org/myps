@@ -67,6 +67,53 @@ export const useFieldEditStatus = (fieldName: string) => {
 };
 
 /**
+ * Hook to check multiple fields at once
+ * @param fieldNames - Array of field names to check
+ * @returns Object mapping field names to their editable state
+ */
+export const useFieldsEditable = (fieldNames: string[]): Record<string, boolean> => {
+    const permissions = useAtomValue(fieldPermissionsAtom);
+    const currentCase = useAtomValue(currentCaseAtom);
+    const context = useAtomValue(modificationContextAtom);
+
+    return React.useMemo(() => {
+        if (!permissions || !currentCase) {
+            return fieldNames.reduce((acc, field) => ({ ...acc, [field]: true }), {});
+        }
+
+        return fieldNames.reduce((acc, fieldName) => {
+            acc[fieldName] = RuleManager.isFieldEditable(fieldName, currentCase, context.category, context.reason);
+            return acc;
+        }, {} as Record<string, boolean>);
+    }, [fieldNames, permissions, currentCase, context.category, context.reason]);
+};
+
+/**
+ * Hook to get edit status for multiple fields at once
+ * @param fieldNames - Array of field names to check
+ * @returns Object mapping field names to their edit status with explanation
+ */
+export const useFieldsEditStatus = (fieldNames: string[]): Record<string, { canEdit: boolean; reason: string }> => {
+    const permissions = useAtomValue(fieldPermissionsAtom);
+    const currentCase = useAtomValue(currentCaseAtom);
+    const context = useAtomValue(modificationContextAtom);
+
+    return React.useMemo(() => {
+        if (!permissions || !currentCase) {
+            return fieldNames.reduce((acc, field) => ({ 
+                ...acc, 
+                [field]: { canEdit: true, reason: 'No restrictions' } 
+            }), {});
+        }
+
+        return fieldNames.reduce((acc, fieldName) => {
+            acc[fieldName] = RuleManager.getFieldEditStatus(fieldName, currentCase, undefined, context.category, context.reason);
+            return acc;
+        }, {} as Record<string, { canEdit: boolean; reason: string }>);
+    }, [fieldNames, permissions, currentCase, context.category, context.reason]);
+};
+
+/**
  * Hook to get only the read-only field permission state
  * Useful for components that only need to read permissions
  */

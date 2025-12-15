@@ -190,32 +190,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     permissions: fieldPermissions,
   } = useFieldPermissions();
 
-  // Note: Status and context are set ONLY from API in ModificationDetails.tsx
-  // Do NOT set them here to avoid infinite loops
-
-  // #endregion
-
-  // #region Get Revision Data
-  // useEffect(() => {
-  //   const loadRevisionData = async () => {
-  //     if (mode === 'edit' && projectDetails.ProjectId && modificationReasonId) {
-  //       try {
-  //         await fetchRevisionData(
-  //           projectDetails.ProjectId,
-  //           revisionGroupId || 0, // RevisionHeader - Use RevisionGroupId
-  //           categoryId || 0, // RevisionCategory - Use categoryId
-  //           modificationReasonId // RevisionReason - Use reasonId
-  //         );
-  //       } catch (error) {
-  //         console.error('Error loading revision data:', error);
-  //       }
-  //     }
-  //   };
-
-  //   loadRevisionData();
-  // }, [mode, projectDetails.ProjectId, modificationReasonId, categoryId, revisionGroupId]);
-  // #endregion
-
   // #region GEOJSON DATA FOR MAP
     // Fetch GeoJSON data for map rendering
     useEffect(() => {
@@ -1137,34 +1111,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           {isProjectOpen && (
             <>
               <div className="px-4 py-6 sm:p-8">
-                {/* PCMA Permission Status - FOR TESTING */}
-                {/* Commented out - PCMA status now comes from API via fetchRevisionData
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-                        <div className="flex justify-center items-center">
-                            <div className="flex space-x-2">
-                              <button 
-                                  onClick={setCaseA}
-                                  className="px-3 py-1 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700"
-                              >
-                                  Case A ({category})
-                              </button>
-                              <button 
-                                  onClick={setCaseB}
-                                  className="px-3 py-1 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700"
-                              >
-                                  Case B ({category})
-                              </button>
-                              <button 
-                                  onClick={setCaseC}
-                                  className="px-3 py-1 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700"
-                              >
-                                  Case C ({category})
-                              </button>
-                            </div>
-                        </div>
-                    </div>
-                */}
-                
                 <ProjectDetailsForm
                   projectDetails={projectDetails}
                   onChange={handleProjectDetailsChange}

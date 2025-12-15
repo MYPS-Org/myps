@@ -4,7 +4,7 @@ import { Button } from '../../../components/tailwindui/button';
 import type { ComponentCost, ComponentCostYear, ComponentCostWithYears, ComponentTypeEnum } from '../../Project/Model';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { handleCurrencyBlur, handleCurrencyChange } from '../../../utils/GlobalFunctions';
-import { useIsFieldEditable, useFieldEditStatus, useFieldPermissionState } from '../hooks/useFieldPermissions';
+import { useFieldsEditable, useFieldsEditStatus, useFieldPermissionState } from '../hooks/useFieldPermissions';
 
 interface ComponentCostDialogProps {
   isOpen: boolean;
@@ -76,18 +76,24 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     }
   }, [isOpen, permissionState]);
 
-  // Get field permissions from Jotai store
+  // Get field permissions from Jotai store - Check multiple fields at once
+  const fieldNames = ['StartDate', 'EndDate', 'Total', 'ComponentDescription', 'ComponentType'];
+  const fieldsEditable = useFieldsEditable(fieldNames);
+  const fieldsEditStatus = useFieldsEditStatus(fieldNames);
 
-  // Check if a field is editable using simplified hooks (no currentValue to prevent loops)
-  const isStartDateEditable = useIsFieldEditable('StartDate');
-  const isEndDateEditable = useIsFieldEditable('EndDate');
-  const isCostEditable = useIsFieldEditable('Total');
-  const isDescriptionEditable = useIsFieldEditable('ComponentDescription');
-  const isComponentTypeEditable = useIsFieldEditable('ComponentType');  
-  
-  // Get field edit status with explanation
-  const startDateStatus = useFieldEditStatus('StartDate');
-  const endDateStatus = useFieldEditStatus('EndDate');
+  // Destructure for cleaner usage
+  const {
+    StartDate: isStartDateEditable,
+    EndDate: isEndDateEditable,
+    Total: isCostEditable,
+    ComponentDescription: isDescriptionEditable,
+    ComponentType: isComponentTypeEditable
+  } = fieldsEditable;
+
+  const {
+    StartDate: startDateStatus,
+    EndDate: endDateStatus
+  } = fieldsEditStatus;
 
   // Calculate remaining budget for validation
   const calculateRemainingBudget = () => {

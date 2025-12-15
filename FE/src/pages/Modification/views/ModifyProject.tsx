@@ -1,8 +1,6 @@
 "use-client";
 
-import React, { useState, useEffect } from 'react';
-import { MagnifyingGlassIcon } from '@heroicons/react/16/solid';
-import { Button } from '../../../components/tailwindui/button';
+import React, { useState } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 
 interface RevisionState {
