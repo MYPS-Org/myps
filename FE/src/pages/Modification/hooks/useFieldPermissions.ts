@@ -1,3 +1,4 @@
+import React from 'react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import {
     pcmaStatusAtom,
@@ -154,16 +155,16 @@ export const useAPIIntegration = () => {
      * @param pcmaStatus - PCMA status from external API
      * @param packageStatus - Package status from external API
      */
-    const setStatusFromAPI = (pcmaStatus: string, packageStatus: string) => {
+    const setStatusFromAPI = React.useCallback((pcmaStatus: string, packageStatus: string) => {
         setFromAPI({ pcmaStatus, packageStatus });
-    };
+    }, [setFromAPI]);
 
     /**
      * Set modification context from navigation or initial data
      */
-    const setModificationContext = (context: ModificationContext) => {
+    const setModificationContext = React.useCallback((context: ModificationContext) => {
         setContext(context);
-    };
+    }, [setContext]);
 
     return {
         setStatusFromAPI,
@@ -174,5 +175,3 @@ export const useAPIIntegration = () => {
 // Re-export types for convenience
 export type { ModificationContext, FieldPermissions };
 
-// Import React for useEffect
-import React from 'react';

@@ -10,7 +10,6 @@ import type {
   FundingProfile, 
   Activity, 
   TransactionLog,
-  ProjectFormPayload,
   ProjectEnums,
   Dropdowns,
   ComponentCostYear,
@@ -47,9 +46,10 @@ import { checkExcessComponent } from '../../conditions/ExcessComponentAutomation
 
 import { useAuth } from '../../../../contexts/AuthContext';
 import { useFieldPermissions, useInitializeModificationContext } from '../../hooks/useFieldPermissions';
+import type { RevisionProjectPayload } from '../../Model';
 
 interface ProjectFormProps {
-  initialData?: ProjectFormPayload;
+  initialData?: RevisionProjectPayload;
   mode?: 'add' | 'edit';
   initialProgramId?: string;
   category?: string;
@@ -313,7 +313,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   useEffect(() => {
     console.log('ComponentCosts state changed:', componentCosts);
     console.log('ComponentCostsWithYears recalculated:', componentCostsWithYears);
-  }, [componentCosts, componentCostsWithYears]);
+  }, [componentCosts, componentCostsYear]); // componentCostsWithYears is derived, don't include it
 
   const [majorItems, setMajorItems] = useState<MajorItemOfWorksWithDropdown[]>(() => {
     if (!initialData?.MajorItemOfWorks) return [];
@@ -336,11 +336,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       };
     });
   });
-
-  // Debug effect to monitor majorItems state changes  
-  useEffect(() => {
-    console.log('MajorItems state changed:', majorItems);
-  }, [majorItems]);
 
   // const [notes, setNotes] = useState<ProjectNote[]>(
   //   initialData?.ProjectNotes || []

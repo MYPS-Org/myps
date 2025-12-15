@@ -14,9 +14,6 @@ export interface ProjectFormPayload {
   IsModify?: boolean;
   IsActive: boolean;
   IsUnlock?: boolean;
-  ModificationCategory?: string; // Category from database if modification is submitted
-  ModificationReason?: string; // Reason from database if modification is submitted
-  ModificationReasonId?: number; // ReasonId from database if modification is submitted
   ProgramDetails: ProgramList;
   ProjectDetails: ProjectDetails;
   ComponentCosts: ComponentCost[];
@@ -29,8 +26,6 @@ export interface ProjectFormPayload {
   Dropdowns: Dropdowns;
   Activities: Activity[];
   TransactionLogs: TransactionLog[];
-  ProjectComponentStatus?: ProjectComponentStatus[];
-  ComponentsStatus?: ProjectComponentStatus[]; // Alternative property name used by API
 }
 
 export interface RevisionDropdown {
@@ -393,7 +388,7 @@ export interface Dropdowns {
 	// Major Item of Works
 	ScopeOfWorks: ScopeOfWorkEnum[];
 	SupportingDocs: DropdownSupportingDocs[];
-	Revisions: RevisionDropdown;
+	Revisions?: RevisionDropdown;
 }
 export interface DropdownSupportingDocs {
 	Id: number;
@@ -682,14 +677,3 @@ export interface ProjectRevisionList {
 
 // #endregion Enums
 
-// #additiona region for pcma status
-export interface ProjectComponentStatus {
-	ProgramName: string;
-	ProjectId: string;
-	ProjectComponentId: string;
-	ComponentId?: string;
-	ConstructionStatusCode?: number;
-	ConstructionStatusName: string;
-	PackedStatusCode: boolean;
-	PackedStatusName: string;
-}

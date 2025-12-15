@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
-import { useDropDownData } from "../hooks/useDropDown";
 import { XMarkIcon, DocumentArrowUpIcon, DocumentIcon } from '@heroicons/react/24/outline';
 import type { ProjectDetails, ComponentCost, ComponentCostYear, MajorItemOfWork, MajorItemLocations, FundingProfile } from '../../Project/Model';
 import { submitModificationRequest } from '../Service';
@@ -39,10 +38,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
     categoryId,
     revisionGroupId
 }) => {
-    const {
-        initializeData
-    } = useDropDownData();
-
+    
     const { showToast } = useToast();
     const { user } = useAuth(); // Get user from auth context
     const [approvalDate, setApprovalDate] = useState<string>('');
@@ -57,9 +53,6 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
     console.log('ReviseProjectDialog - Received IDs:', { categoryId, revisionGroupId, reasonId });
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-    useEffect(() => {
-        initializeData();
-    }, [initializeData]);
 
     // Reset form when modal opens
     useEffect(() => {

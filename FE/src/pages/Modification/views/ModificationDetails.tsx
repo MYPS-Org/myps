@@ -3,16 +3,16 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import ProjectForm from '../projectmodification/components/ProjectForm';
-import type { ProjectFormPayload } from '../../Project/Model.d';
 import { getLabelField, fetchRevisionData } from '../Service';
 import { determinePCMAStatus, determinePackageStatus } from '../utils/pcmaStatusHelper';
 import { useAPIIntegration } from '../hooks/useFieldPermissions';
+import type { RevisionProjectPayload } from '../Model';
 
 const ModifyProject: React.FC = () => {
     const { project } = useParams<{ project: string }>();
     const location = useLocation();
     const id = useMemo(() => project?.split(':'), [project]);
-    const [initialData, setInitialData] = useState<ProjectFormPayload | undefined>(undefined);
+    const [initialData, setInitialData] = useState<RevisionProjectPayload | undefined>(undefined);
     const [isLoading, setIsLoading] = useState(true);
     const [fieldLabels, setFieldLabels] = useState<Record<string, any>>({});
     const { setStatusFromAPI, setModificationContext } = useAPIIntegration();
@@ -68,18 +68,18 @@ const ModifyProject: React.FC = () => {
             );
             console.log('Revision data response:', response);
             
-            const data = response.Data as ProjectFormPayload;
+            const data = response.Data as RevisionProjectPayload;
             setInitialData(data);
 
             // Debug: Check what properties exist in the response
             console.log('=== RESPONSE DATA STRUCTURE ===');
             console.log('All keys in response.Data:', Object.keys(data));
-            console.log('ProjectComponentStatus:', data.ProjectComponentStatus);
+            console.log('ProjectComponentStatus:', data.ComponentsStatus);
             console.log('ComponentsStatus (if exists):', (data as any).ComponentsStatus);
             console.log('===============================');
 
             // Process ComponentsStatus if available - check both possible property names
-            const componentsStatus = data.ComponentsStatus || data.ProjectComponentStatus;
+            const componentsStatus = data.ComponentsStatus || data.ComponentsStatus;
             
             if (componentsStatus && componentsStatus.length > 0) {
                 console.log('=== PCMA STATUS DETERMINATION ===');
@@ -123,7 +123,7 @@ const ModifyProject: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [selectedRevisionGroupId, selectedCategoryId, selectedReasonId, categoryDesc, reasonDesc, setStatusFromAPI, setModificationContext]);
+    }, [selectedRevisionGroupId, selectedCategoryId, selectedReasonId, categoryDesc, reasonDesc]);
 
     // Fetch label fields when project data and modification details are available
     useEffect(() => {

@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/16/solid';
-import { useDropDownData } from '../hooks/useDropDown';
 import { Button } from '../../../components/tailwindui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
 
@@ -23,10 +22,6 @@ const AdjustProjectDialog: React.FC<AdjustProjectDialogProps> = ({
     stageName, 
 }) => {
 
-    const { initializeData, modReasons } = useDropDownData();
-    useEffect(() => {
-        initializeData();
-    }, []);
 
     const project = {
         date: new Date().toISOString().split('T')[0], // Default to today's date in YYYY-MM-DD format
@@ -180,13 +175,13 @@ const AdjustProjectDialog: React.FC<AdjustProjectDialogProps> = ({
                                 <label className='w-1/3 block text-sm font-medium text-gray-700'>
                                     Reasons :
                                 </label>
-                                <select className='w-2/3 border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500'>
+                                {/* <select className='w-2/3 border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500'>
                                     {modReasons.map((reason) => (
                                         <option key={reason.Id} value={reason.CodeGroup}>
                                             {reason.CodeDescription}
                                         </option>
                                     ))}
-                                </select>
+                                </select> */}
                             </div>
                             <div className='flex justify-between gap-5 items-center'>
                                 <label className='w-1/3 block text-sm font-medium text-gray-700'>
