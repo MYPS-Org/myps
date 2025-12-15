@@ -44,14 +44,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
     }, [fieldPermissions, disabled]);
 
-    // Initialize filtered data when projectEnums change
-    useEffect(() => {
-        if (projectEnums) {
-            updateFilteredData();
-        }
-    }, [projectEnums, projectDetails?.Province, projectDetails?.City, projectDetails?.LegislativeDistrict, projectDetails?.DEO, projectDetails?.ImplementingOffice]);
-
-    const updateFilteredData = () => {
+    const updateFilteredData = useCallback(() => {
         if (!projectEnums) return;
 
         let availableCities = projectEnums.Cities || [];
@@ -115,7 +108,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             const selectedDEO = projectEnums.DEOs?.find((deo) => deo.ParticipantId === projectDetails.DEO?.toString());
             if (selectedDEO) {
                 availableIOs = projectEnums.IOs?.filter(
-                    (io) => (io.RegionParticipantId === selectedDEO.RegionParticipantId && io.OrgType === 'R') || io.OrgType === 'UPMO'
+                    (io) => (io.RegionParticipantId === selectedDEO.RegionParticipantId && io.OrgType === 'R') || io.OrgType === 'UPMO' ||  io.ParticipantId === selectedDEO.ParticipantId
                 ) || [];
             }
         } else {
@@ -132,7 +125,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             if (selectedIO) {
                 // Show OUs that belong to the selected IO or are Central Office (CO)
                 availableOUs = projectEnums.OperatingUnits?.filter(
-                    (ou) => ou.ParticipantId === selectedIO.ParticipantId || (selectedIO.OrgType === 'UPMO' && ou.OrgType === 'CO')
+                    (ou) => ou.ParticipantId === selectedIO.ParticipantId || (selectedIO.OrgType === 'UPMO' || ou.OrgType === 'CO')
                 ) || [];
                 console.log('Filtered OUs:', availableOUs);
             }
@@ -141,7 +134,14 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             availableOUs = projectEnums.OperatingUnits || [];
         }
         setFilteredOUs(availableOUs);
-    };
+    }, [projectEnums, projectDetails?.Province, projectDetails?.City, projectDetails?.LegislativeDistrict, projectDetails?.DEO, projectDetails?.ImplementingOffice]);
+
+    // Initialize filtered data when projectEnums change
+    useEffect(() => {
+        if (projectEnums) {
+            updateFilteredData();
+        }
+    }, [projectEnums, updateFilteredData]);
 
     const handleInputChange = (field: keyof ProjectDetails, value: any) => {
             console.log('ProjectDetailsForm - handleInputChange:', field, value, typeof value);
@@ -616,7 +616,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     <SearchableDropdown
                                         options={formatDropdownOptions(
                                             projectEnums?.DEOs?.filter(x => x.ParticipantId === projectDetails?.DEO) || [],
-                                            'ParticipantId',
+                                            'RegionParticipantId',
                                             'RegionName',
                                             'Id'
                                         )}

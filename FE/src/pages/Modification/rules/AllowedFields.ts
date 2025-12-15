@@ -97,21 +97,40 @@ const packaged = () => {
 
 // Helper function to determine case based on status and package
 const determineCase = (pcmaStatus: string, packageStatus: string) => {
+    console.log('=== ALLOWED FIELDS - determineCase ===');
+    console.log('Raw PCMA Status:', pcmaStatus, '(type:', typeof pcmaStatus, ')');
+    console.log('Raw Package Status:', packageStatus, '(type:', typeof packageStatus, ')');
+    
+    // Normalize strings to lowercase for case-insensitive comparison
+    const normalizedPcmaStatus = pcmaStatus.toLowerCase();
+    const normalizedPackageStatus = packageStatus.toLowerCase();
+    
+    console.log('Normalized PCMA Status:', normalizedPcmaStatus);
+    console.log('Normalized Package Status:', normalizedPackageStatus);
+    
     // Case A: Not yet started AND not packaged
-    if (pcmaStatus === 'Not yet started' && packageStatus === 'not packaged') {
+    if (normalizedPcmaStatus === 'not yet started' && normalizedPackageStatus === 'not packaged') {
+        console.log('✓ Matched Case A');
+        console.log('=====================================');
         return 'CaseA';
     }
     
     // Case B: (Not yet started AND packaged) OR (On-going AND packaged)
-    if ((pcmaStatus === 'Not yet started' || pcmaStatus === 'On-going') && packageStatus === 'packaged') {
+    if ((normalizedPcmaStatus === 'not yet started' || normalizedPcmaStatus === 'on-going') && normalizedPackageStatus === 'packaged') {
+        console.log('✓ Matched Case B');
+        console.log('=====================================');
         return 'CaseB';
     }
     
     // Case C: Completed OR Terminated (regardless of package status)
-    if (pcmaStatus === 'Completed' || pcmaStatus === 'Terminated') {
+    if (normalizedPcmaStatus === 'completed' || normalizedPcmaStatus === 'terminated') {
+        console.log('✓ Matched Case C');
+        console.log('=====================================');
         return 'CaseC';
     }
     
+    console.log('✗ No match, defaulting to Case C');
+    console.log('=====================================');
     return 'CaseC'; // Default to most restrictive
 };
 

@@ -1,5 +1,4 @@
 import { atom } from 'jotai';
-import { atomWithStorage } from 'jotai/utils';
 import RuleManager from '../rules/RuleManager';
 
 // ============================================================================
@@ -32,10 +31,7 @@ export interface ModificationContext {
  * 
  * Possible values: 'On-going', 'Completed', 'Not yet started', 'Terminated'
  */
-export const pcmaStatusAtom = atomWithStorage<string>(
-    'modification-pcma-status',
-    '' // Empty means not yet set
-);
+export const pcmaStatusAtom = atom<string>(''); // Changed from atomWithStorage to regular atom
 
 /**
  * Package Status Atom
@@ -44,10 +40,7 @@ export const pcmaStatusAtom = atomWithStorage<string>(
  * 
  * Possible values: 'packaged', 'not packaged'
  */
-export const packageStatusAtom = atomWithStorage<string>(
-    'modification-package-status',
-    '' // Empty means not yet set
-);
+export const packageStatusAtom = atom<string>(''); // Changed from atomWithStorage to regular atom
 
 /**
  * Modification Context Atom
@@ -73,11 +66,21 @@ export const currentCaseAtom = atom((get) => {
     const packageStatus = get(packageStatusAtom);
     const context = get(modificationContextAtom);
 
+    console.log('=== CURRENT CASE ATOM ===');
+    console.log('PCMA Status from atom:', pcmaStatus);
+    console.log('Package Status from atom:', packageStatus);
+    console.log('Context:', context);
+
     if (!pcmaStatus || !packageStatus) {
+        console.log('Status not set, returning undefined');
         return undefined;
     }
 
-    return RuleManager.determineCase(pcmaStatus, packageStatus, context.category);
+    const determinedCase = RuleManager.determineCase(pcmaStatus, packageStatus, context.category);
+    console.log('Determined Case:', determinedCase);
+    console.log('========================');
+    
+    return determinedCase;
 });
 
 /**

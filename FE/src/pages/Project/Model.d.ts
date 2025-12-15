@@ -29,6 +29,8 @@ export interface ProjectFormPayload {
   Dropdowns: Dropdowns;
   Activities: Activity[];
   TransactionLogs: TransactionLog[];
+  ProjectComponentStatus?: ProjectComponentStatus[];
+  ComponentsStatus?: ProjectComponentStatus[]; // Alternative property name used by API
 }
 
 export interface RevisionDropdown {
@@ -679,3 +681,15 @@ export interface ProjectRevisionList {
 // #endregion Project Revisions
 
 // #endregion Enums
+
+// #additiona region for pcma status
+export interface ProjectComponentStatus {
+	ProgramName: string;
+	ProjectId: string;
+	ProjectComponentId: string;
+	ComponentId?: string;
+	ConstructionStatusCode?: number;
+	ConstructionStatusName: string;
+	PackedStatusCode: boolean;
+	PackedStatusName: string;
+}

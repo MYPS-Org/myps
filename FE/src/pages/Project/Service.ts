@@ -315,7 +315,7 @@ export const fetchProjectStagesByProjectId = async (projectId: string) => {
 export const fetchProjectGeoJSON = async (projectId: string, programId: string) => {
     try {
         // Using external API endpoint with query parameters
-        const apiUrl = `http://192.168.50.146:8000/api_v1.0/project/features?project_id=${projectId}&program_id=${programId}`;
+        const apiUrl = `http://192.168.1.93:8000/api_v1.0/project/features?project_id=${projectId}&program_id=${programId}`;
         
         const response = await fetch(apiUrl, {
             method: 'GET',

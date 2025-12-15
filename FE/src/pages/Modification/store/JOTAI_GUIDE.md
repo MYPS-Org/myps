@@ -8,35 +8,35 @@ The field permission system now uses **Jotai** for state management, making it e
 
 ```
 ┌─────────────────────────────────────────────┐
-│         Jotai Atom Store                     │
-│  (fieldPermissionStore.ts)                   │
-│                                              │
-│  • pcmaStatusAtom                            │
-│  • packageStatusAtom                         │
-│  • modificationContextAtom                   │
-│  • fieldPermissionsAtom (derived)            │
-│  • currentCaseAtom (derived)                 │
+│         Jotai Atom Store                    │
+│  (fieldPermissionStore.ts)                  │
+│                                             │
+│  • pcmaStatusAtom                           │
+│  • packageStatusAtom                        │
+│  • modificationContextAtom                  │
+│  • fieldPermissionsAtom (derived)           │
+│  • currentCaseAtom (derived)                │
 └─────────────────────────────────────────────┘
                       │
                       ▼
 ┌─────────────────────────────────────────────┐
-│         Custom Hooks                         │
-│  (useFieldPermissions.ts)                    │
-│                                              │
-│  • useFieldPermissions()                     │
-│  • useIsFieldEditable()                      │
-│  • useFieldEditStatus()                      │
-│  • useDebugControls()                        │
-│  • useAPIIntegration()                       │
+│         Custom Hooks                        │
+│  (useFieldPermissions.ts)                   │
+│                                             │
+│  • useFieldPermissions()                    │
+│  • useIsFieldEditable()                     │
+│  • useFieldEditStatus()                     │
+│  • useDebugControls()                       │
+│  • useAPIIntegration()                      │
 └─────────────────────────────────────────────┘
                       │
                       ▼
 ┌─────────────────────────────────────────────┐
-│         Components                           │
-│                                              │
-│  • ProjectForm (sets context)                │
-│  • ComponentCostDialog (checks permissions)  │
-│  • FieldPermissionDebugPanel (debug UI)      │
+│         Components                          │
+│                                             │
+│  • ProjectForm (sets context)               │
+│  • ComponentCostDialog (checks permissions) │
+│  • FieldPermissionDebugPanel (debug UI)     │
 └─────────────────────────────────────────────┘
 ```
 
