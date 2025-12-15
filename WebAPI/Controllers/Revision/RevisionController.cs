@@ -124,6 +124,26 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found in PCMA", Title = "Project Not Found" });
                 }
+                #region Project Status Validation
+                string ConstructionStatus = "On-Going";
+                var HasOnGoing = ProjectComponentsStatus.FirstOrDefault(x => x.ConstructionStatusName == ConstructionStatus);
+                if(HasOnGoing == null)
+                {
+                    #region Has Completed
+                    string[] CompletedCondition = { "Terminated", "Not Yet Started" };
+                    var HasCompleted = ProjectComponentsStatus.Where(x => x.ConstructionStatusName == "Completed");
+                    HasOnGoing = HasCompleted.FirstOrDefault(x => CompletedCondition.Contains(x.ConstructionStatusName));
+                    if (HasOnGoing == null) ConstructionStatus = "Completed";
+                    #endregion
+
+                    #region Has Not Yet Started
+                    string[] NYSCondition = { "Completed", "Terminated" };
+                    var HasNYS = ProjectComponentsStatus.Where(x => x.ConstructionStatusName == "Not Yet Started");
+                    HasOnGoing = HasNYS.FirstOrDefault(x => NYSCondition.Contains(x.ConstructionStatusName));
+                    if (HasOnGoing == null) ConstructionStatus = "Not Yet Started";
+                    #endregion
+                }
+                #endregion
                 #endregion
 
                 #region Validate Selected Revision Details
@@ -143,7 +163,7 @@ namespace WebAPI.Controllers.Revision
                         return new BadRequestObjectResult(new { Message = "Revision Category not found!", Title = "Invalid Revision Category" });
                     }
                 }
-                SelectedReason = await _db.tOptionRevisionReasons.AsNoTracking().FirstOrDefaultAsync(x => x.ReasonId == dto.RevisionReason);
+                SelectedReason = await _db.tOptionRevisionReasons.AsNoTracking().FirstOrDefaultAsync(x => x.ReasonId == dto.RevisionReason && x.RevisionGroupId == dto.RevisionHeader);
                 if (SelectedReason == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Revision Reason not found!", Title = "Invalid Revision Reason" });
@@ -204,10 +224,7 @@ namespace WebAPI.Controllers.Revision
                     Category = SelectedCategory,
                     Reason = SelectedReason,
 
-                    //ProjectStatus = new
-                    //{
-                    //    Construction = (ProjectComponentsStatus.Where(x => x.ConstructionStatusName == "Not Yet Started"))
-                    //},
+                    ProjectStatus = ConstructionStatus,
 
                     Rules = SelectedRules,
                     ComponentsStatus = ProjectComponentsStatus,
