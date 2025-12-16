@@ -7,7 +7,7 @@ import { generateInfraId, shouldAutoGenerateInfraId, getInfraTypePrefix } from '
 import type { MajorItemLocations, InfraData, ScopeOfWorkEnum, MajorItemOfWork } from '../../../Project/Model.d';
 import type { ProgramList } from '../../../Program/Model';
 import { getDisabledClass } from '../../../../utils/GlobalFunctions';
-import { useIsFieldEditable } from '../../hooks/useFieldPermissions';
+import { useFieldsEditable, useFieldsEditStatus, useIsFieldEditable } from '../../hooks/useFieldPermissions';
 
 interface WorkLocationTableProps {
   majorItemOfWorks: MajorItemOfWork;
@@ -48,6 +48,44 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [isAddingNew, setIsAddingNew] = useState(false);
 
+  // Get field permissions from Jotai store - Check all possible fields at once
+  const fieldNames = [
+    'InfraId',
+    'DetailedScope',
+    'TargetUnit',
+    'PhysicalTarget',
+    'StartStationLimit',
+    'EndStationLimit',
+    'StartChainage',
+    'EndChainage',
+    'StartX',
+    'StartY',
+    'EndX',
+    'EndY',
+    'Length'
+  ];
+  const fieldsEditable = useFieldsEditable(fieldNames);
+  const fieldsEditStatus = useFieldsEditStatus(fieldNames);
+
+  // Destructure for cleaner usage throughout the component
+  const {
+    InfraId: isInfraIdEditable,
+    DetailedScope: isDetailedScopeEditable,
+    TargetUnit: isTargetUnitEditable,
+    StartStationLimit: isStartStationLimitEditable,
+    EndStationLimit: isEndStationLimitEditable,
+    StartChainage: isStartChainageEditable,
+    EndChainage: isEndChainageEditable,
+    StartX: isStartXEditable,
+    StartY: isStartYEditable,
+    EndX: isEndXEditable,
+    EndY: isEndYEditable,
+    Length: isLengthEditable
+  } = fieldsEditable;
+
+  const { 
+    PhysicalTarget: isPhysicalTargetEditable,
+  } = fieldsEditStatus;
 
   // Helper function to get target unit name from workTypeId when targetUnit prop is empty
   const getTargetUnitName = (workTypeId: number): string => {
@@ -189,19 +227,6 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
 
   // Render individual form fields based on field type and infrastructure type
   const renderFormField = (location: MajorItemLocations, index: number, fieldName: string) => {
-    // Calculate field permissions for this specific work location
-    const isInfraIdEditable = useIsFieldEditable('InfraId', location.InfraId);
-    const isPhysicalTargetEditable = useIsFieldEditable('PhysicalTarget', location.PhysicalTarget);
-    const isStartChainageEditable = useIsFieldEditable('StartChainage', location.StartChainage);
-    const isEndChainageEditable = useIsFieldEditable('EndChainage', location.EndChainage);
-    const isStartXEditable = useIsFieldEditable('StartX', location.StartX);
-    const isStartYEditable = useIsFieldEditable('StartY', location.StartY);
-    const isEndXEditable = useIsFieldEditable('EndX', location.EndX);
-    const isEndYEditable = useIsFieldEditable('EndY', location.EndY);
-    const isDetailedScopeEditable = useIsFieldEditable('DetailedScope', location.DetailedScope);
-    const isStartStationLimitEditable = useIsFieldEditable('StartStationLimit', location.StartStationLimit);
-    const isEndStationLimitEditable = useIsFieldEditable('EndStationLimit', location.EndStationLimit);
-    
     switch (fieldName) {
       case 'InfraId':
         const canSelectInfra = shouldUseInfraDialog();
@@ -217,8 +242,9 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
                 type="text"
                 value={location.InfraId}
                 onChange={canSelectInfra ? undefined : (e) => handleFieldChange(index, 'InfraId', e.target.value)}
-                className={`flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
-                placeholder={canSelectInfra ? "Click to select infrastructure..." : canAutoGenerate ? "Auto-generated or enter custom ID..." : "Enter infrastructure ID..."}
+              className={`flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(!isInfraIdEditable || disabled)}`}
+              placeholder={canSelectInfra ? "Click to select infrastructure..." : canAutoGenerate ? "Auto-generated or enter custom ID..." : "Enter infrastructure ID..."}
+              disabled={!isInfraIdEditable || disabled}
                 readOnly={canSelectInfra}
               />
               {canSelectInfra && (
@@ -234,12 +260,12 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
               {canAutoGenerate && (
                 <Button
                   color="green"
-                  disabled={disabled}
+                  disabled={!isInfraIdEditable || disabled}
                   onClick={() => {
                     const newId = generateInfraId(infraType);
                     handleFieldChange(index, 'InfraId', newId);
                   }}
-                  className={`text-sm px-3 py-2 ${getDisabledClass(!isInfraIdEditable)}`}
+                  className={`text-sm px-3 py-2 ${getDisabledClass(!isInfraIdEditable || disabled)}`}
                   title="Generate new Infrastructure ID"
                 >
                   Generate ID
@@ -268,10 +294,10 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
             <textarea
               value={location.DetailedScope}
               onChange={(e) => handleFieldChange(index, 'DetailedScope', e.target.value)}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(!isDetailedScopeEditable)}`}
+              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(!isDetailedScopeEditable || disabled)}`}
               placeholder="Enter detailed scope of work..."
               rows={3}
-              disabled={!isDetailedScopeEditable}
+              disabled={!isDetailedScopeEditable || disabled}
             />
           </div>
         );
@@ -285,9 +311,10 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
             <input
               type="text"
               value={location.TargetUnit || actualTargetUnit}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-50 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-50 cursor-not-allowed"
               placeholder="Target unit"
               readOnly
+              disabled
             />
             <div className="text-xs text-gray-500">
               Based on selected work type
@@ -318,8 +345,8 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
               onFocus={handleNumberFocus}
               max={maxAmount}
               min={minAmount}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(!isPhysicalTargetEditable)}`}
               placeholder="Enter target amount..."
+              // disabled={!isPhysicalTargetEditable || disabled}
               disabled={!isPhysicalTargetEditable} // || disabled
             />
             {(maxAmount || minAmount) && (
@@ -340,9 +367,9 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
               type="text"
               value={location.StartStationLimit}
               onChange={(e) => handleFieldChange(index, 'StartStationLimit', e.target.value)}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(!isStartStationLimitEditable)}`}
+              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(!isStartStationLimitEditable || disabled)}`}
               placeholder="Start station..."
-              disabled={!isStartStationLimitEditable}
+              disabled={!isStartStationLimitEditable || disabled}
             />
           </div>
         );
@@ -357,45 +384,45 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
               type="text"
               value={location.EndStationLimit}
               onChange={(e) => handleFieldChange(index, 'EndStationLimit', e.target.value)}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(!isEndStationLimitEditable)}`}
+              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(!isEndStationLimitEditable || disabled)}`}
               placeholder="End station..."
-              disabled={!isEndStationLimitEditable}
+              disabled={!isEndStationLimitEditable || disabled}
             />
           </div>
         );
       
-      case 'To': 
+      case 'EndChainage': 
         return (
           <div key={fieldName} className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
-              To (km)
+              End Chainage (km)
             </label>
             <input
               type="number"
               value={location.EndChainage}
               onFocus={handleNumberFocus}
               onChange={(e) => handleFieldChange(index, 'EndChainage', e.target.value)}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-right ${getDisabledClass(!isEndChainageEditable)}`}
+              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-right ${getDisabledClass(!isEndChainageEditable || disabled)}`}
               placeholder="To..."
-              disabled={!isEndChainageEditable}
+              disabled={!isEndChainageEditable || disabled}
             />
           </div>
         );
 
-      case 'From':
+      case 'StartChainage':
         return (
           <div key={fieldName} className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
-              From (km)
+              Start Chainage (km)
             </label>
             <input
               type="number"
               value={location.StartChainage}
               onFocus={handleNumberFocus}
               onChange={(e) => handleFieldChange(index, 'StartChainage', e.target.value)}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-right ${getDisabledClass(!isStartChainageEditable)}`}  
+              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-right ${getDisabledClass(!isStartChainageEditable || disabled)}`}  
               placeholder="From..."
-              disabled={!isStartChainageEditable}
+              disabled={!isStartChainageEditable || disabled}
             />
           </div>
         );
@@ -410,9 +437,9 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
               type="text"
               value={location.StartX}
               onChange={(e) => handleFieldChange(index, 'StartX', e.target.value)}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(!isStartXEditable)}`}
+              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(!isStartXEditable || disabled)}`}
               placeholder="Start X coordinate..."
-              disabled={!isStartXEditable}
+              disabled={!isStartXEditable || disabled}
             />
           </div>
         );
@@ -427,9 +454,9 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
               type="text"
               value={location.StartY}
               onChange={(e) => handleFieldChange(index, 'StartY', e.target.value)}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(!isStartYEditable)}`}
+              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(!isStartYEditable || disabled)}`}
               placeholder="Start Y coordinate..."
-              disabled={!isStartYEditable}
+              disabled={!isStartYEditable || disabled}
             />
           </div>
         );
@@ -444,9 +471,9 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
               type="text"
               value={location.EndX}
               onChange={(e) => handleFieldChange(index, 'EndX', e.target.value)}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500" ${getDisabledClass(!isEndXEditable)}`}
+              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(!isEndXEditable || disabled)}`}
               placeholder="End X coordinate..."
-              disabled={!isEndXEditable}
+              disabled={!isEndXEditable || disabled}
             />
           </div>
         );
@@ -461,9 +488,9 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
               type="text"
               value={location.EndY}
               onChange={(e) => handleFieldChange(index, 'EndY', e.target.value)}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(!isEndYEditable)}`}
+              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(!isEndYEditable || disabled)}`}
               placeholder="End Y coordinate..."
-              disabled={!isEndYEditable}
+              disabled={!isEndYEditable || disabled}
             />
           </div>
         );
@@ -490,11 +517,11 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
                 }
                 handleNumberFocus(e);
               }}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
+              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(!isLengthEditable || disabled)}`}
               placeholder="Length in meters..."
               min="0"
               step="0.01"
-              disabled={disabled}
+              disabled={!isLengthEditable || disabled}
             />
             {location.InfraId && infraLength && (
               <div className="text-xs text-blue-600">

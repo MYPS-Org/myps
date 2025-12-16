@@ -81,8 +81,8 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
       TargetUnitId: workTypeId,
       TargetUnit: actualTargetUnit,
       Length: 0,
-      To: 0,
-      From: 0,
+      EndChainage: 0,
+      StartChainage: 0,
       StartX: '',
       StartY: '',
       EndX: '',
@@ -118,8 +118,8 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
         TargetUnitId: workTypeId,
         TargetUnit: actualTargetUnit,
         Length: 0,
-        To: 0,
-        From: 0,
+        EndChainage: 0,
+        StartChainage: 0,
         StartX: '',
         StartY: '',
         EndX: '',
@@ -199,7 +199,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
     const infraTypeLower = infraType?.toLowerCase();
     
     if (infraTypeLower === 'road' || infraTypeLower === 'roads') {
-      return ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget', 'StartStationLimit', 'EndStationLimit', 'From','To', 'Length'];
+      return ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget', 'StartStationLimit', 'EndStationLimit', 'StartChainage','EndChainage', 'Length'];
     } else if (infraTypeLower === 'bridge' || infraTypeLower === 'bridges') {
       return ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget'];
     } else if (infraTypeLower === 'CoS' || infraTypeLower === 'non-infra') {
@@ -386,17 +386,17 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
           </div>
         );
       
-      case 'To': 
+      case 'EndChainage': 
         return (
           <div key={fieldName} className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
-              To (km)
+              End Chainage (km)
             </label>
             <input
               type="number"
-              value={location.To}
+              value={location.EndChainage}
               onFocus={handleNumberFocus}
-              onChange={(e) => handleFieldChange(index, 'To', e.target.value)}
+              onChange={(e) => handleFieldChange(index, 'EndChainage', e.target.value)}
               className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-right ${getDisabledClass(disabled)}`}
               placeholder="To..."
               disabled={disabled}
@@ -404,17 +404,17 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
           </div>
         );
 
-      case 'From':
+      case 'StartChainage':
         return (
           <div key={fieldName} className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
-              From (km)
+              Start Chainage (km)
             </label>
             <input
               type="number"
-              value={location.From}
+              value={location.StartChainage}
               onFocus={handleNumberFocus}
-              onChange={(e) => handleFieldChange(index, 'From', e.target.value)}
+              onChange={(e) => handleFieldChange(index, 'StartChainage', e.target.value)}
               className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-right ${getDisabledClass(disabled)}`}  
               placeholder="From..."
               disabled={disabled}
@@ -492,9 +492,9 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
       case 'Length':
         // Get length from InfraId if available, otherwise use current value or 0
         // const infraLength = location.InfraId ? getInfraLength(location.InfraId) : '';
-        const infraLength = location.From - location.To !== 0 ? Math.abs(location.To - location.From).toString() : '';
-        const currentLength = location.Length !== null && location.Length !== undefined ? location.Length.toString() : '';
-        const displayLength = currentLength || infraLength || '0';
+        const infraLength = location.StartChainage - location.EndChainage !== 0 ? Math.abs(location.EndChainage - location.StartChainage).toString() : '';
+        // const currentLength = location.Length !== null && location.Length !== undefined ? location.Length.toString() : '';
+        const displayLength = /*currentLength ||*/ infraLength || '0';
         
         return (
           <div key={fieldName} className="space-y-2">
