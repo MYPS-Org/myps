@@ -103,200 +103,206 @@ namespace WebAPI.Controllers.Revision
                 return ExceptionHandler(ex);
             }
         }
-        //[AllowAnonymous]
-        //[HttpPost]
-        //public async Task<IActionResult> ViewReviseProject([FromBody] ViewReviseProjectDTO dto)
-        //{
-        //    try
-        //    {
-        //        string ProjectId = 
-        //        var Project = await _db.vProjectDetails
-        //        .FromSqlInterpolated($"SELECT * FROM fProjectsPerStage({dto.ProjectId}) fp WHERE fp.StageName = 'GAA-R' AND fp.ProjectId = {dto.ProjectId}")
-        //        .AsNoTracking()
-        //        .FirstOrDefaultAsync();
-        //        if(Project == null)
-        //        {
-        //            return new BadRequestObjectResult(new { Message = "Project not found or not in GAA-R stage!", Title = "Invalid Project" });
-        //        }
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> ViewReviseProject([FromBody] ViewReviseProjectDTO dto)
+        {
+            try
+            {
+                var RevisionTransation = dto.TransactionId.Split('-');
+                string ProjectId = RevisionTransation[0];
+                int RevisedNumber = int.Parse(RevisionTransation[1]);
+                var Project = await _db.vProjectDetails
+                .FromSqlInterpolated($"SELECT * FROM fProjectsPerStage({ProjectId}) fp WHERE fp.StageName = 'GAA-R' AND fp.ProjectId = {ProjectId}")
+                .AsNoTracking()
+                .FirstOrDefaultAsync();
+                if (Project == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Project not found or not in GAA-R stage!", Title = "Invalid Project" });
+                }
+                var RevisionDetails = await _db.vRevisionLists.AsNoTracking().FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId);
+                if(RevisionDetails == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Revision details not found!", Title = "Invalid Revision" });
+                }
+                #region Validate PCMA Status
+                var SelectedRules = await _db.vRevisionRules.FirstOrDefaultAsync(x => x.ReasonId == RevisionDetails.ReasonId && x.RevisionGroupId == RevisionDetails.RevisionGroupId);
+                var ProjectComponentsStatus = await _db.vProjectComponentStatus.AsNoTracking().Where(x => x.ProjectId == ProjectId).ToListAsync();
+                if (ProjectComponentsStatus == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Project not found in PCMA", Title = "Project Not Found" });
+                }
+                #region Project Construction Status Validation
+                string ConStatus = "On-Going";
+                var HasOnGoing = ProjectComponentsStatus.FirstOrDefault(x => x.ConstructionStatusName == ConStatus);
+                if (HasOnGoing == null)
+                {
+                    #region Has Completed
+                    string[] CompletedCondition = { "Terminated", "Not Yet Started" };
+                    var HasCompleted = ProjectComponentsStatus.Where(x => x.ConstructionStatusName == "Completed");
+                    HasOnGoing = HasCompleted.FirstOrDefault(x => CompletedCondition.Contains(x.ConstructionStatusName));
+                    if (HasOnGoing == null) ConStatus = "Completed";
+                    #endregion
 
-        //        #region Validate PCMA Status
-        //        var SelectedRules = await _db.vRevisionRules.FirstOrDefaultAsync(x => x.ReasonId == dto.RevisionReason && x.RevisionGroupId == dto.RevisionHeader);
-        //        var ProjectComponentsStatus = await _db.vProjectComponentStatus.AsNoTracking().Where(x => x.ProjectId == dto.ProjectId).ToListAsync();
-        //        if(ProjectComponentsStatus == null)
-        //        {
-        //            return new BadRequestObjectResult(new { Message = "Project not found in PCMA", Title = "Project Not Found" });
-        //        }
-        //        #region Project Construction Status Validation
-        //        string ConStatus = "On-Going";
-        //        var HasOnGoing = ProjectComponentsStatus.FirstOrDefault(x => x.ConstructionStatusName == ConStatus);
-        //        if(HasOnGoing == null)
-        //        {
-        //            #region Has Completed
-        //            string[] CompletedCondition = { "Terminated", "Not Yet Started" };
-        //            var HasCompleted = ProjectComponentsStatus.Where(x => x.ConstructionStatusName == "Completed");
-        //            HasOnGoing = HasCompleted.FirstOrDefault(x => CompletedCondition.Contains(x.ConstructionStatusName));
-        //            if (HasOnGoing == null) ConStatus = "Completed";
-        //            #endregion
+                    #region Has Not Yet Started
+                    string[] NYSCondition = { "Completed", "Terminated" };
+                    var HasNYS = ProjectComponentsStatus.Where(x => x.ConstructionStatusName == "Not Yet Started");
+                    HasOnGoing = HasNYS.FirstOrDefault(x => NYSCondition.Contains(x.ConstructionStatusName));
+                    if (HasOnGoing == null) ConStatus = "Not Yet Started";
+                    #endregion
+                }
+                #endregion
+                #region Project Packaged Status Validation
+                string PackedStatus =
+                    (ProjectComponentsStatus.FirstOrDefault(x => x.PackedStatusName == "Not Packaged") != null) ?
+                    "Not Packaged" :
+                    "Packaged";
+                #endregion
+                #endregion
 
-        //            #region Has Not Yet Started
-        //            string[] NYSCondition = { "Completed", "Terminated" };
-        //            var HasNYS = ProjectComponentsStatus.Where(x => x.ConstructionStatusName == "Not Yet Started");
-        //            HasOnGoing = HasNYS.FirstOrDefault(x => NYSCondition.Contains(x.ConstructionStatusName));
-        //            if (HasOnGoing == null) ConStatus = "Not Yet Started";
-        //            #endregion
-        //        }
-        //        #endregion
-        //        #region Project Packaged Status Validation
-        //        string PackedStatus =
-        //            (ProjectComponentsStatus.FirstOrDefault(x => x.PackedStatusName == "Not Packaged") != null) ?
-        //            "Not Packaged" :
-        //            "Packaged";
-        //        #endregion
-        //        #endregion
+                #region Validate Selected Revision Details
+                var SelectedType = new DBHelper.Models.Table.OptionRevisionHeader();
+                var SelectedCategory = new DBHelper.Models.Table.OptionRevisionCategory();
+                var SelectedReason = new DBHelper.Models.Table.OptionRevisionReasons();
+                SelectedType = await _db.tOptionRevisionHeader.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionGroupId == RevisionDetails.RevisionGroupId);
+                if (SelectedType == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Revision Type not found!", Title = "Invalid Revision Type" });
+                }
+                //if (dto.RevisionCategory != null)
+                //{
+                //    SelectedCategory = await _db.tOptionRevisionCategory.AsNoTracking().FirstOrDefaultAsync(x => x.CategoryId == dto.RevisionCategory);
+                //    if (SelectedCategory == null)
+                //    {
+                //        return new BadRequestObjectResult(new { Message = "Revision Category not found!", Title = "Invalid Revision Category" });
+                //    }
+                //}
+                SelectedReason = await _db.tOptionRevisionReasons.AsNoTracking().FirstOrDefaultAsync(x => x.ReasonId == RevisionDetails.ReasonId && x.RevisionGroupId == RevisionDetails.RevisionGroupId);
+                if (SelectedReason == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Revision Reason not found!", Title = "Invalid Revision Reason" });
+                }
+                #endregion
 
-        //        #region Validate Selected Revision Details
-        //        var SelectedType = new DBHelper.Models.Table.OptionRevisionHeader();
-        //        var SelectedCategory  = new DBHelper.Models.Table.OptionRevisionCategory();
-        //        var SelectedReason = new DBHelper.Models.Table.OptionRevisionReasons();
-        //        SelectedType = await _db.tOptionRevisionHeader.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionGroupId == dto.RevisionHeader);
-        //        if(SelectedType == null)
-        //        {
-        //            return new BadRequestObjectResult(new { Message = "Revision Type not found!", Title = "Invalid Revision Type" });
-        //        }
-        //        if(dto.RevisionCategory != null)
-        //        {
-        //            SelectedCategory = await _db.tOptionRevisionCategory.AsNoTracking().FirstOrDefaultAsync(x => x.CategoryId == dto.RevisionCategory);
-        //            if (SelectedCategory == null)
-        //            {
-        //                return new BadRequestObjectResult(new { Message = "Revision Category not found!", Title = "Invalid Revision Category" });
-        //            }
-        //        }
-        //        SelectedReason = await _db.tOptionRevisionReasons.AsNoTracking().FirstOrDefaultAsync(x => x.ReasonId == dto.RevisionReason && x.RevisionGroupId == dto.RevisionHeader);
-        //        if (SelectedReason == null)
-        //        {
-        //            return new BadRequestObjectResult(new { Message = "Revision Reason not found!", Title = "Invalid Revision Reason" });
-        //        }
-        //        #endregion
+                #region Program Validation
+                var CurrentProgramVersion = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == Project.ProgramId);
+                if (CurrentProgramVersion == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"No program is associated with the Project ID {ProjectId}. Please contact administrator!", Title = "Program Not Associated" });
+                }
+                var Program = await _db.vProgramDetails.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == Project.ProgramId && x.StageName == Project.StageName);
+                if (Program == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Program not found for this project!", Title = "Program Not Found" });
+                }
+                #endregion
 
-        //        #region Program Validation
-        //        var CurrentProgramVersion = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == Project.ProgramId);
-        //        if (CurrentProgramVersion == null)
-        //        {
-        //            return new BadRequestObjectResult(new { Message = $"No program is associated with the Project ID {dto.ProjectId}. Please contact administrator!", Title = "Program Not Associated" });
-        //        }
-        //        var Program = await _db.vProgramDetails.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == Project.ProgramId && x.StageName == Project.StageName);
-        //        if (Program == null)
-        //        {
-        //            return new BadRequestObjectResult(new { Message = "Program not found for this project!", Title = "Program Not Found" });
-        //        }
-        //        #endregion
+                #region Full Project Details
+                int CurrentYear = (int)DateTime.UtcNow.Year;
+                var Doc = await _db.tProjectSupportingDocs.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
+                var SupportingDoc = await _db.tDropdownSupportingDocs.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync();
 
-        //        #region Full Project Details
-        //        int CurrentYear = (int)DateTime.UtcNow.Year;
-        //        var Doc = await _db.tProjectSupportingDocs.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
-        //        var SupportingDoc = await _db.tDropdownSupportingDocs.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync();
+                var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && x.RevisedNumber == RevisedNumber).ToListAsync();
+                var ComponentCostYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentCost.Select(a => a.ReferenceId).Contains(x.ParentId)).ToListAsync();
 
-        //        var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
-        //        var ComponentCostYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentCost.Select(a => a.ReferenceId).Contains(x.ParentId)).ToListAsync();
-
-        //        var MajorItemOfWork = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
-        //        HashSet<string> ItemParents = MajorItemOfWork.Select(x => x.ReferenceId).ToHashSet();
-        //        var MajorWorkLocation = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => ItemParents.Contains(x.ParentId)).ToListAsync();
+                var MajorItemOfWork = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && x.RevisedNumber == RevisedNumber).ToListAsync();
+                HashSet<string> ItemParents = MajorItemOfWork.Select(x => x.ReferenceId).ToHashSet();
+                var MajorWorkLocation = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => ItemParents.Contains(x.ParentId)).ToListAsync();
 
 
-        //        var Notes = await _db.tProjectNotes.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
-        //        var Funding = await _db.tProjectFundingProfile.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
-        //        var Transactions = await _db.tTransactionLog.AsNoTracking().Where(x => x.TransactionId == dto.ProjectId).ToListAsync();
-        //        #endregion
+                var Notes = await _db.tProjectNotes.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
+                var Funding = await _db.tProjectFundingProfile.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && x.RevisedNumber == RevisedNumber).ToListAsync();
+                var Transactions = await _db.tTransactionLog.AsNoTracking().Where(x => x.TransactionId == ProjectId).ToListAsync();
+                #endregion
 
-        //        #region Dropdowns
-        //        var ComponentType = await _db.tProjectComponentEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-        //        var Category = await _db.tProjectCategoryEnum.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync();
-        //        var Thrust = await _db.tProjectThrustLists.AsNoTracking().OrderBy(x => x.ThrustDescription).ToListAsync();
-        //        var Origin = await _db.tProjectOriginEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-        //        var Province = await _db.tOptionAdminAreaProvince.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-        //        var City = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-        //        var LD = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-        //        var IO = await _db.vAdminImplementingOffice.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-        //        var OperatingUnit = await _db.vAdminOperatingUnit.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-        //        var DEO = await _db.tOptionAdminAreaDistrictEngineeringOffice.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-        //        var Region = await _db.tOptionAdminAreaRegion.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-        //        var Feasib = await _db.tProjectLongFeasibilityEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-        //        var Agency = await _db.tProjectAgencyLists.AsNoTracking().OrderBy(x => x.AgencyName).ToListAsync();
-        //        var ImplementationMode = await _db.tProjectImplementModeEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-        //        var EmergencyMode = await _db.tProjectEmergencyModeEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                #region Dropdowns
+                var ComponentType = await _db.tProjectComponentEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var Category = await _db.tProjectCategoryEnum.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync();
+                var Thrust = await _db.tProjectThrustLists.AsNoTracking().OrderBy(x => x.ThrustDescription).ToListAsync();
+                var Origin = await _db.tProjectOriginEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var Province = await _db.tOptionAdminAreaProvince.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var City = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var LD = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var IO = await _db.vAdminImplementingOffice.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var OperatingUnit = await _db.vAdminOperatingUnit.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var DEO = await _db.tOptionAdminAreaDistrictEngineeringOffice.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var Region = await _db.tOptionAdminAreaRegion.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var Feasib = await _db.tProjectLongFeasibilityEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var Agency = await _db.tProjectAgencyLists.AsNoTracking().OrderBy(x => x.AgencyName).ToListAsync();
+                var ImplementationMode = await _db.tProjectImplementModeEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var EmergencyMode = await _db.tProjectEmergencyModeEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
 
-        //        var Agreement = await _db.tOptionFundingAgreement.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-        //        var Source = await _db.tOptionFundingSource.AsNoTracking().OrderBy(x => x.Organization == "GOP" ? 0 : 1).ThenBy(x => x.Name).ToListAsync();
+                var Agreement = await _db.tOptionFundingAgreement.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var Source = await _db.tOptionFundingSource.AsNoTracking().OrderBy(x => x.Organization == "GOP" ? 0 : 1).ThenBy(x => x.Name).ToListAsync();
 
-        //        var ScopeOfWork = await _db.tProjectScopeOfWorkEnum.AsNoTracking().OrderBy(x => x.WorkCategory).ToListAsync();
-        //        #endregion
+                var ScopeOfWork = await _db.tProjectScopeOfWorkEnum.AsNoTracking().OrderBy(x => x.WorkCategory).ToListAsync();
+                #endregion
 
-        //        return Ok(new
-        //        {
-        //            Header = SelectedType,
-        //            Category = SelectedCategory,
-        //            Reason = SelectedReason,
+                return Ok(new
+                {
+                    Header = SelectedType,
+                    Category = SelectedCategory,
+                    Reason = SelectedReason,
 
-        //            ProjectStatus = new
-        //            {
-        //                ConstructionStatus = ConStatus,
-        //                PackageStatus = PackedStatus
-        //            },
+                    ProjectStatus = new
+                    {
+                        ConstructionStatus = ConStatus,
+                        PackageStatus = PackedStatus
+                    },
 
-        //            Rules = SelectedRules,
-        //            ComponentsStatus = ProjectComponentsStatus,
+                    Rules = SelectedRules,
+                    ComponentsStatus = ProjectComponentsStatus,
 
-        //            IsActive = (CurrentProgramVersion.StageName == Project.StageName) ? true : false,
-        //            ProgramDetails = Program,
-        //            ProjectDetails = Project,
-        //            ComponentCosts = ComponentCost,
-        //            ComponentCostPerYear = ComponentCostYear,
-        //            MajorItemOfWorks = MajorItemOfWork,
-        //            MajorItemLocations = MajorWorkLocation,
-        //            ProjectNotes = Notes,
+                    IsActive = (CurrentProgramVersion.StageName == Project.StageName) ? true : false,
+                    ProgramDetails = Program,
+                    ProjectDetails = Project,
+                    ComponentCosts = ComponentCost,
+                    ComponentCostPerYear = ComponentCostYear,
+                    MajorItemOfWorks = MajorItemOfWork,
+                    MajorItemLocations = MajorWorkLocation,
+                    ProjectNotes = Notes,
 
-        //            Docs = Doc,
-        //            FundingProfile = Funding,
-        //            TransactionLogs = Transactions,
-        //            Dropdowns = new
-        //            {
-        //                //Project Details
-        //                Categories = Category,
-        //                Thrusts = Thrust,
-        //                Origins = Origin,
-        //                Cities = City,
-        //                Provinces = Province,
-        //                LDs = LD,
-        //                OperatingUnits = OperatingUnit,
-        //                IOs = IO,
-        //                DEOs = DEO,
-        //                Regions = Region,
-        //                Feasibility = Feasib,
-        //                Agencies = Agency,
-        //                ImplementationModes = ImplementationMode,
-        //                EmergencyModes = EmergencyMode,
+                    Docs = Doc,
+                    FundingProfile = Funding,
+                    TransactionLogs = Transactions,
+                    Dropdowns = new
+                    {
+                        //Project Details
+                        Categories = Category,
+                        Thrusts = Thrust,
+                        Origins = Origin,
+                        Cities = City,
+                        Provinces = Province,
+                        LDs = LD,
+                        OperatingUnits = OperatingUnit,
+                        IOs = IO,
+                        DEOs = DEO,
+                        Regions = Region,
+                        Feasibility = Feasib,
+                        Agencies = Agency,
+                        ImplementationModes = ImplementationMode,
+                        EmergencyModes = EmergencyMode,
 
-        //                //SupportingDocs
-        //                SupportingDocs = SupportingDoc,
+                        //SupportingDocs
+                        SupportingDocs = SupportingDoc,
 
-        //                //Component Cost
-        //                ComponentTypes = ComponentType,
+                        //Component Cost
+                        ComponentTypes = ComponentType,
 
-        //                //Major Item Of Work
-        //                ScopeOfWorks = ScopeOfWork,
+                        //Major Item Of Work
+                        ScopeOfWorks = ScopeOfWork,
 
-        //                //Funding Profile
-        //                Agreements = Agreement,
-        //                Sources = Source,
-        //            }
-        //        });
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return ExceptionHandler(ex);
-        //    }
-        //}
+                        //Funding Profile
+                        Agreements = Agreement,
+                        Sources = Source,
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
         [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ReviseProject([FromBody] ReviseProjectDTO dto)
@@ -503,6 +509,7 @@ namespace WebAPI.Controllers.Revision
                 }
                 bool hasUpdated = false;
                 DateTime CurrentDate = DateTime.UtcNow;
+                var NewFundingProfile = new List<ProjectFundingProfile>();
                 var NewComponent = new List<ProjectComponentCost>();
                 var NewComponentYear = new List<ProjectComponentCostYear>();
                 var NewMajorWorkItem = new List<ProjectMajorWorkItem>();
@@ -556,6 +563,51 @@ namespace WebAPI.Controllers.Revision
                     Project = ProjectDetailsRules.UpdateRevisionData(NewProjectRevision, Project);
                     Project.Id = 0;
                     Project.RevisionNumber = Project.RevisionNumber + 1;
+                }
+                #endregion
+                #region FundingProfile
+                var FundingProfile = await _db.tProjectFundingProfile.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId).ToListAsync();
+                var FundingProfileRules = jsonRules.FundingProfileRules.GetType()
+                .GetProperties()
+                .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
+                .Where(p => (bool?)p.GetValue(jsonRules.ComponentCostRules) == true)
+                .Select(p => p.Name)
+                .ToList();
+                var UpdateFundingProfile = dto.FundingProfile;
+                if (FundingProfile.Count > 0)
+                {
+                    foreach (var component in UpdateFundingProfile)
+                    {
+                        var ComponentId = component.Id;
+                        var SelectedComponent = FundingProfile.FirstOrDefault(x => x.Id == ComponentId);
+
+                        if (SelectedComponent != null)
+                        {
+                            hasUpdated = true;
+                            if (FundingProfileRules.Count > 0)
+                            {
+                                SelectedComponent = FundingProfileRules.UpdateRevisionData(component, SelectedComponent);
+                            }
+                            SelectedComponent.RevisedNumber = 1;
+                            SelectedComponent.Id = 0;
+                        }
+                    }
+                }
+                var NewFundingToInsert = UpdateFundingProfile.Where(x => x.Id == 0);
+                if (NewFundingToInsert.Count() > 0)
+                {
+                    NewFundingProfile.AddRange(NewFundingToInsert.Select(x => new ProjectFundingProfile
+                    {
+                        ProjectId = Project.ProjectId,
+                        Source = x.Source,
+                        Agreement = x.Agreement,
+                        Amount = x.Amount,
+                        Percentage = x.Percentage,
+                        StageName = ProjectStage.StageName,
+                        RevisedNumber = 1,
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    }));
                 }
                 #endregion
                 #region ComponentCosts
@@ -737,6 +789,10 @@ namespace WebAPI.Controllers.Revision
                 #endregion
                 if (hasUpdated)
                 {
+                    if (NewFundingProfile.Count > 0)
+                    {
+                        FundingProfile.AddRange(NewFundingProfile);
+                    }
                     if (NewComponent.Count > 0)
                     {
                         ComponentCost.AddRange(NewComponent);
@@ -768,6 +824,7 @@ namespace WebAPI.Controllers.Revision
                         IsPublished = true
                     };
                     await _db.tProjectStages.AddAsync(NewProjectStage);
+                    await _db.tProjectFundingProfile.AddRangeAsync(FundingProfile);
                     await _db.tProjectComponentCost.AddRangeAsync(ComponentCost);
                     await _db.tProjectComponentCostYear.AddRangeAsync(ComponentCostYear);
                     await _db.tProjectMajorWorkItem.AddRangeAsync(MajorWorkItem);

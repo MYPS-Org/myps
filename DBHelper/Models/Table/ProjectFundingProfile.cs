@@ -31,6 +31,8 @@ namespace DBHelper.Models.Table
         [MaxLength(10)]
         public string StageName { get; set; } = string.Empty;
         [Required]
+        public int RevisedNumber { get; set; }
+        [Required]
         public DateTime CreatedDate { get; set; }
         [MaxLength(100)]
         public string? UpdatedBy { get; set; }
