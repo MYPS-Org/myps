@@ -50,9 +50,13 @@ const ReviseDialog: React.FC<ReviseProjectDialogProps> = ({
     // Filter reasons based on RevisionGroupId and optionally by CategoryId
     const filteredReasons = useMemo(() => {
         if (!selectedRevisionGroupId) return [];
+
+        let filtered = reasons;
         
         // First filter by RevisionGroupId
-        let filtered = reasons.filter(reason => reason.RevisionGroupId === selectedRevisionGroupId);
+        if (!selectedCategory) {
+            filtered = reasons.filter(reason => reason.RevisionGroupId === selectedRevisionGroupId);
+        }
         
         // Special handling for Non-Implementable (RevisionGroupId: 8)
         // All reasons have null CategoryId, so show them all regardless of selected category
@@ -61,8 +65,10 @@ const ReviseDialog: React.FC<ReviseProjectDialogProps> = ({
         }
         
         // For other revision types, filter by CategoryId if a category is selected
-        if (showCategoryDropdown && selectedCategory) {
+        if (selectedCategory) {
             filtered = filtered.filter(reason => reason.CategoryId === selectedCategory);
+            console.log('Filtered reasons by category:', filtered);
+            console.log('Selected category:', selectedCategory);
         }
         
         return filtered;

@@ -498,8 +498,8 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
         // Get length from InfraId if available, otherwise use current value or 0
         // const infraLength = location.InfraId ? getInfraLength(location.InfraId) : '';
         const infraLength = location.StartChainage - location.EndChainage !== 0 ? Math.abs(location.EndChainage - location.StartChainage).toString() : '';
-        const currentLength = location.Length !== null && location.Length !== undefined ? location.Length.toString() : '';
-        const displayLength = currentLength || '0';
+        // const currentLength = location.Length !== null && location.Length !== undefined ? location.Length.toString() : '';
+        const displayLength = infraLength || '0';
         
         return (
           <div key={fieldName} className="space-y-2">

@@ -3,10 +3,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import ProjectForm from '../projectmodification/components/ProjectForm';
-import { getLabelField, fetchRevisionData } from '../Service';
-import { determinePCMAStatus, determinePackageStatus } from '../utils/pcmaStatusHelper';
+import { fetchRevisionData } from '../Service';
 import { useAPIIntegration } from '../hooks/useFieldPermissions';
-import type { RevisionProjectPayload } from '../Model';
+import type { RevisionProjectPayload, FieldRules } from '../Model';
 
 const ModifyProject: React.FC = () => {
     const { project } = useParams<{ project: string }>();
@@ -14,8 +13,7 @@ const ModifyProject: React.FC = () => {
     const id = useMemo(() => project?.split(':'), [project]);
     const [initialData, setInitialData] = useState<RevisionProjectPayload | undefined>(undefined);
     const [isLoading, setIsLoading] = useState(true);
-    const [fieldLabels, setFieldLabels] = useState<Record<string, any>>({});
-    const { setStatusFromAPI, setModificationContext } = useAPIIntegration();
+    const { setStatusFromAPI, setModificationContext, setFieldRules } = useAPIIntegration();
 
     // Get category and reason from navigation state
     const categoryDesc = location.state?.categoryDesc;
@@ -88,89 +86,75 @@ const ModifyProject: React.FC = () => {
             console.log('ComponentsStatus (if exists):', (data as any).ComponentsStatus);
             console.log('===============================');
 
-            // Process ComponentsStatus if available - check both possible property names
-            const componentsStatus = data.ComponentsStatus || data.ComponentsStatus;
-            
-            if (componentsStatus && componentsStatus.length > 0) {
-                console.log('=== PCMA STATUS DETERMINATION ===');
-                console.log('Raw Components Status from API:', componentsStatus);
+            // Get ProjectStatus directly from API response
+            if (data.ProjectStatus) {
+                console.log('=== PROJECT STATUS FROM API ===');
+                console.log('ProjectStatus:', data.ProjectStatus);
+                console.log('Construction Status:', data.ProjectStatus.ConstructionStatus);
+                console.log('Package Status:', data.ProjectStatus.PackageStatus);
                 
-                const pcmaStatus = determinePCMAStatus(componentsStatus);
-                const packageStatus = determinePackageStatus(componentsStatus);
-                
-                console.log('Determined PCMA Status:', pcmaStatus);
-                console.log('Determined Package Status:', packageStatus);
-                console.log('Expected Case: C (Completed + Packaged)');
-                
-                // Verify the determination
-                componentsStatus.forEach((comp: any, idx: number) => {
-                    console.log(`Component ${idx}:`, {
-                        ConstructionStatusName: comp.ConstructionStatusName,
-                        PackedStatusName: comp.PackedStatusName
-                    });
-                });
-
-                // Set the status to Jotai atoms
-                setStatusFromAPI(pcmaStatus, packageStatus);
-                console.log('Status set to Jotai atoms');
-                console.log('=================================');
+                // Set the status to Jotai atoms directly from API
+                setStatusFromAPI(
+                    data.ProjectStatus.ConstructionStatus,
+                    data.ProjectStatus.PackageStatus
+                );
+                console.log('Status set to Jotai atoms from API ProjectStatus');
+                console.log('===============================');
             } else {
-                console.warn('No ComponentsStatus found in response');
-                console.warn('componentsStatus value:', componentsStatus);
-                // Set default values
-                setStatusFromAPI('Not yet started', 'Not Packaged');
+                console.warn('No ProjectStatus found in response');
             }
 
-            // Note: Modification context is set once on mount, not here
+            // Parse and set field rules from API
+            if (data.Rules && data.Rules.Field) {
+                try {
+                    console.log('=== FIELD RULES FROM API ===');
+                    console.log('Raw Field string:', data.Rules.Field);
+                    console.log('Field string type:', typeof data.Rules.Field);
+                    console.log('Field string length:', data.Rules.Field.length);
+                    
+                    // Try to parse
+                    const parsedRules = JSON.parse(data.Rules.Field) as FieldRules;
+                    console.log('✓ Successfully parsed Field Rules');
+                    console.log('Parsed Field Rules:', parsedRules);
+                    console.log('Parsed keys:', Object.keys(parsedRules));
+                    
+                    setFieldRules(parsedRules);
+                    console.log('✓ Field rules set to Jotai atoms');
+                    console.log('===========================');
+                } catch (parseError) {
+                    console.error('❌ ERROR PARSING FIELD RULES JSON');
+                    console.error('Parse Error:', parseError);
+                    console.error('Error message:', (parseError as Error).message);
+                    console.error('Raw string that failed to parse:', data.Rules.Field);
+                    
+                    // Try to identify the issue
+                    if (data.Rules.Field) {
+                        const firstChar = data.Rules.Field.charAt(0);
+                        const lastChar = data.Rules.Field.charAt(data.Rules.Field.length - 1);
+                        console.error('First character:', firstChar, 'Code:', firstChar.charCodeAt(0));
+                        console.error('Last character:', lastChar, 'Code:', lastChar.charCodeAt(0));
+                        
+                        // Show a snippet around the error position if available
+                        const errorMatch = (parseError as Error).message.match(/position (\d+)/);
+                        if (errorMatch) {
+                            const pos = parseInt(errorMatch[1]);
+                            const start = Math.max(0, pos - 50);
+                            const end = Math.min(data.Rules.Field.length, pos + 50);
+                            console.error('Context around error position:', data.Rules.Field.substring(start, end));
+                        }
+                    }
+                }
+            } else {
+                console.warn('No Rules.Field found in response');
+                console.warn('data.Rules:', data.Rules);
+            }
 
         } catch (error) {
             console.error('Error fetching revision data:', error);
         } finally {
             setIsLoading(false);
         }
-    }, [selectedRevisionGroupId, selectedCategoryId, selectedReasonId, setStatusFromAPI]);
-
-    // Fetch label fields when project data and modification details are available
-    useEffect(() => {
-        const fetchLabelField = async () => {
-            if (!initialData || !categoryDesc || !reasonDesc) {
-                return;
-            }
-
-            const payload = {
-                categoryDesc,
-                reasonId: selectedReasonId,
-                projectId: initialData.ProjectDetails.ProjectId
-            };
-            
-            console.log('Fetching label field with payload:', payload);
-            
-            try {
-                const response = await getLabelField(payload);
-                console.log('Label field response:', response);
-                
-                // Parse the stringified JSON from response.Data
-                if (response.Data) {
-                    try {
-                        const parsedFields = typeof response.Data === 'string' 
-                            ? JSON.parse(response.Data) 
-                            : response.Data;
-                        setFieldLabels(parsedFields);
-                        console.log('Parsed field labels:', parsedFields);
-                    } catch (parseError) {
-                        console.error('Error parsing field labels JSON:', parseError);
-                        setFieldLabels({});
-                    }
-                } else {
-                    setFieldLabels({});
-                }
-            } catch (error) {
-                console.error('Error fetching label field:', error);
-            }
-        };
-
-        fetchLabelField();
-    }, [initialData, categoryDesc, reasonDesc]);
+    }, [selectedRevisionGroupId, selectedCategoryId, selectedReasonId, setStatusFromAPI, setFieldRules]);
     
     if (isLoading) {
         return (
@@ -189,7 +173,6 @@ const ModifyProject: React.FC = () => {
             reasonId={selectedReasonId}
             categoryId={selectedCategoryId}
             revisionGroupId={selectedRevisionGroupId}
-            fieldLabels={fieldLabels}
         />
     );
 };

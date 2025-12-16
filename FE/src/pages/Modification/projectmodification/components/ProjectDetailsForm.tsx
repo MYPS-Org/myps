@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import type { ProjectDetails, ProjectEnums } from "../../../Project/Model.d";
 import type { FormValidationError } from "../../../../utils/FormValidation";
+import type { FieldRules } from '../../Model';
 import { getDisabledClass, formatDropdownOptions } from '../../../../utils/GlobalFunctions';
 import SearchableDropdown from '../../../../components/ui/SearchableDropdown';
 
@@ -13,6 +14,10 @@ interface ProjectDetailsFormProps {
     errors?: FormValidationError<ProjectDetails>;
     disabled?: boolean;
     fieldPermissions?: any;
+    fieldRules?: FieldRules | null;
+    pcmaStatus?: string;
+    packageStatus?: string;
+    currentCase?: string;
     category?: string;
 }
 
@@ -24,6 +29,10 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
     errors = {},
     disabled = false,
     fieldPermissions,
+    fieldRules,
+    pcmaStatus,
+    packageStatus,
+    currentCase,
     category
 }) => {
     const [ filteredCities, setFilteredCities ] = useState<ProjectEnums['Cities']>([]);
@@ -32,17 +41,28 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
     const [ filteredIOs, setFilteredIOs ] = useState<ProjectEnums['IOs']>([]);
     const [ filteredOUs, setFilteredOUs ] = useState<ProjectEnums['OperatingUnits']>([]);
 
-    // Helper function to check if a field is editable based on fieldPermissions
+    // Helper function to check if a field is editable based on fieldRules from API
     const isFieldEditable = useCallback((fieldName: string) => {
-        if (!fieldPermissions) {
-            return !disabled;
-        }
-        // check if isEditable is true in fieldPermissions
-        const isEditable = fieldPermissions.editableFields?.includes(fieldName);
-        
-        return isEditable || !disabled;
+        // If form is globally disabled, nothing is editable
+        // if (disabled) {
+        //     return false;
+        // }
 
-    }, [fieldPermissions, disabled]);
+        // If no field rules, default to editable (for non-modification scenarios)
+        if (!fieldRules) {
+            return true;
+        }
+
+        // Check in all rule groups for the field
+        for (const rules of Object.values(fieldRules)) {
+            if (rules && fieldName in rules) {
+                return rules[fieldName] === true;
+            }
+        }
+
+        // If field not found in rules, default to not editable for safety
+        return false;
+    }, [fieldRules, disabled]);
 
     const updateFilteredData = useCallback(() => {
         if (!projectEnums) return;
@@ -276,7 +296,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
     return (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             {/* Field Permissions Information */}
-            {fieldPermissions && (
+            {(fieldPermissions || fieldRules) && (
                 <div className="mb-6 p-5 border border-blue-100 rounded-lg shadow-sm">
                     <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-2">
@@ -286,7 +306,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             <h4 className="text-base font-semibold text-gray-800">{category} Permissions</h4>
                         </div>
                         <span className="px-3 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded-full">
-                            {fieldPermissions.editableFields?.length || 0} Editable {fieldPermissions.editableFields?.length === 1 ? 'Field' : 'Fields'}
+                            {fieldPermissions?.editableFields?.length || 0} Editable {fieldPermissions?.editableFields?.length === 1 ? 'Field' : 'Fields'}
                         </span>
                     </div>
                     
@@ -294,24 +314,38 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     <div className="grid grid-cols-2 gap-3 mb-4">
                         <div className="bg-white p-3 border border-blue-50 rounded-md shadow-sm">
                             <p className="text-xs text-gray-500 mb-1">PCMA Status</p>
-                            <p className="text-sm font-semibold text-gray-800">{fieldPermissions.pcmaStatus || 'N/A'}</p>
+                            <p className="text-sm font-semibold text-gray-800">{pcmaStatus || 'N/A'}</p>
                         </div>
                         <div className="bg-white p-3 border border-blue-50 rounded-md shadow-sm">
                             <p className="text-xs text-gray-500 mb-1">Package Status</p>
-                            <p className="text-sm font-semibold text-gray-800">{fieldPermissions.packageStatus || 'N/A'}</p>
+                            <p className="text-sm font-semibold text-gray-800">{packageStatus || 'N/A'}</p>
                         </div>
                         <div className="bg-white p-3 border border-blue-50 rounded-md shadow-sm">
-                            <p className="text-xs text-gray-500 mb-1">Case</p>
-                            <p className="text-sm font-semibold text-gray-800">{fieldPermissions.case || 'N/A'}</p>
+                            <p className="text-xs text-gray-500 mb-1">Determined Case</p>
+                            <p className="text-sm font-semibold text-gray-800">{currentCase || 'N/A'}</p>
                         </div>
                         <div className="bg-white p-3 border border-blue-50 rounded-md shadow-sm">
                             <p className="text-xs text-gray-500 mb-1">Category</p>
-                            <p className="text-sm font-semibold text-gray-800">{fieldPermissions.category || category || 'N/A'}</p>
+                            <p className="text-sm font-semibold text-gray-800">{category || 'N/A'}</p>
                         </div>
                     </div>
+                    
+                    {/* Debug Info */}
+                    {fieldRules && (
+                        <div className="bg-gray-50 p-3 rounded-md shadow-sm mb-4">
+                            <p className="text-xs text-gray-500 mb-2 font-medium">API Field Rules (Debug):</p>
+                            <div className="text-xs text-gray-600 font-mono">
+                                {Object.entries(fieldRules).map(([group, rules]) => (
+                                    <div key={group} className="mb-2">
+                                        <span className="font-semibold">{group}:</span> {rules ? Object.keys(rules).length : 0} fields
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Editable Fields */}
-                    {fieldPermissions.editableFields && fieldPermissions.editableFields.length > 0 ? (
+                    {fieldPermissions?.editableFields && fieldPermissions.editableFields.length > 0 ? (
                         <div className="bg-white p-3 rounded-md shadow-sm">
                             <p className="text-xs text-gray-500 mb-2 font-medium">Editable Fields:</p>
                             <div className="flex flex-wrap gap-2">

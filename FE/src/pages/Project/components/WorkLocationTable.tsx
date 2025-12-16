@@ -394,7 +394,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
             </label>
             <input
               type="number"
-              value={location.EndChainage}
+              value={location.EndChainage ?? ''}
               onFocus={handleNumberFocus}
               onChange={(e) => handleFieldChange(index, 'EndChainage', e.target.value)}
               className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-right ${getDisabledClass(disabled)}`}
@@ -412,7 +412,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
             </label>
             <input
               type="number"
-              value={location.StartChainage}
+              value={location.StartChainage ?? ''}
               onFocus={handleNumberFocus}
               onChange={(e) => handleFieldChange(index, 'StartChainage', e.target.value)}
               className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-right ${getDisabledClass(disabled)}`}  

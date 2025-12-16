@@ -35,10 +35,13 @@ export const submitModificationRequest = async (
     try {
         // Determine endpoint based on user role
         // IO = Implementing Office, RO = Regional Office
-        const isIO = userRole?.toLowerCase().includes('implementing') || userRole?.toLowerCase().includes('io');
-        const endpoint = isIO ? '/IORevision/RequestRevision/' : '/RORevision/RequestRevision/';
+        // const isIO = userRole?.toLowerCase().includes('implementing') || userRole?.toLowerCase().includes('io');
+        // const endpoint = isIO ? '/IORevision/RequestRevision/' : '/RORevision/RequestRevision/';
         
-        const response = await httpClient.post(endpoint, payload, {
+        // const response = await httpClient.post(endpoint, payload, {
+        //     preloaderMessage: 'Requesting revision...'
+        // });
+        const response = await httpClient.post(`Revision/RequestRevision`, payload, {
             preloaderMessage: 'Requesting revision...'
         });
         return response;

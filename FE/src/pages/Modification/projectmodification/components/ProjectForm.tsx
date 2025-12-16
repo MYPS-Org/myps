@@ -187,8 +187,24 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     pcmaStatus,
     packageStatus,
     currentCase,
-    permissions: fieldPermissions,
+    permissions,
+    fieldRules
   } = useFieldPermissions();
+
+  // Log field permissions for debugging
+  useEffect(() => {
+    console.log('=== FIELD PERMISSIONS IN PROJECT FORM ===');
+    console.log('PCMA Status:', pcmaStatus);
+    console.log('Package Status:', packageStatus);
+    console.log('Current Case:', currentCase);
+    console.log('Permissions:', permissions);
+    console.log('Field Rules:', fieldRules);
+    if (permissions) {
+      console.log('Editable Fields Count:', permissions.editableFields?.length);
+      console.log('Editable Fields:', permissions.editableFields);
+    }
+    console.log('========================================');
+  }, [pcmaStatus, packageStatus, currentCase, permissions, fieldRules]);
 
   // #region GEOJSON DATA FOR MAP
     // Fetch GeoJSON data for map rendering
@@ -1037,7 +1053,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       {/* Revision Details */}
       <div className='bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl'>
         <RevisionForm
-          category={fieldPermissions?.category || modificationCategory}
+          category={permissions?.category || modificationCategory}
           reason={modificationReason}
           projectDetails={projectDetails}
           componentCosts={componentCosts}
@@ -1119,12 +1135,11 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                   mode={mode}
                   errors={errors}
                   disabled={isDisabled}
-                  fieldPermissions={{
-                    ...fieldPermissions,
-                    pcmaStatus,
-                    packageStatus,
-                    case: currentCase
-                  }}
+                  fieldPermissions={permissions}
+                  fieldRules={fieldRules}
+                  pcmaStatus={pcmaStatus}
+                  packageStatus={packageStatus}
+                  currentCase={currentCase}
                   category={modificationCategory}
                 />
               </div>
@@ -1180,7 +1195,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             initialData={initialData}
             maxAmountCost={maxAmountCost}
             disabled={isDisabled}
-            fieldPermissions={fieldPermissions}
+            fieldPermissions={permissions}
             category={modificationCategory}
             reason={modificationReason}
             reasonId={modificationReasonId}
@@ -1205,7 +1220,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             dropDowns={initialData?.Dropdowns?.ScopeOfWorks}
             programDetails={initialData?.ProgramDetails}
             disabled={isDisabled}
-            fieldPermissions={fieldPermissions}
+            fieldPermissions={permissions}
             reason={modificationReason}
           />
         </div>

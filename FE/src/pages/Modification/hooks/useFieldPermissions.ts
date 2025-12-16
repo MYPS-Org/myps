@@ -1,14 +1,15 @@
 import React from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
-import RuleManager from '../rules/RuleManager';
 import {
     pcmaStatusAtom,
     packageStatusAtom,
     modificationContextAtom,
     currentCaseAtom,
     fieldPermissionsAtom,
+    fieldRulesAtom,
     setModificationContextAtom,
     setStatusFromAPIAtom,
+    setFieldRulesAtom,
     resetStatusAtom,
     type ModificationContext,
     type FieldPermissions
@@ -16,7 +17,7 @@ import {
 
 /**
  * Hook to manage field permissions (READ-ONLY)
- * Status and context are set from API only
+ * Status and rules are set from API only
  */
 export const useFieldPermissions = () => {
     const pcmaStatus = useAtomValue(pcmaStatusAtom);
@@ -24,13 +25,15 @@ export const useFieldPermissions = () => {
     const context = useAtomValue(modificationContextAtom);
     const currentCase = useAtomValue(currentCaseAtom);
     const permissions = useAtomValue(fieldPermissionsAtom);
+    const fieldRules = useAtomValue(fieldRulesAtom);
 
     return {
         pcmaStatus,
         packageStatus,
         context,
         currentCase,
-        permissions
+        permissions,
+        fieldRules
     };
 };
 
@@ -39,15 +42,21 @@ export const useFieldPermissions = () => {
  * @param fieldName - The name of the field to check
  */
 export const useIsFieldEditable = (fieldName: string): boolean => {
-    const permissions = useAtomValue(fieldPermissionsAtom);
-    const currentCase = useAtomValue(currentCaseAtom);
-    const context = useAtomValue(modificationContextAtom);
+    const fieldRules = useAtomValue(fieldRulesAtom);
 
-    if (!permissions || !currentCase) {
-        return true; // Default to editable if no restrictions set
+    if (!fieldRules) {
+        return true; // Default to editable if no rules set
     }
 
-    return RuleManager.isFieldEditable(fieldName, currentCase, context.category, context.reason);
+    // Check in all rule groups for the field
+    for (const rules of Object.values(fieldRules)) {
+        if (rules && fieldName in rules) {
+            return rules[fieldName] === true;
+        }
+    }
+
+    // If field not found in rules, default to not editable for safety
+    return false;
 };
 
 /**
@@ -55,15 +64,26 @@ export const useIsFieldEditable = (fieldName: string): boolean => {
  * @param fieldName - The name of the field to check
  */
 export const useFieldEditStatus = (fieldName: string) => {
-    const permissions = useAtomValue(fieldPermissionsAtom);
-    const currentCase = useAtomValue(currentCaseAtom);
-    const context = useAtomValue(modificationContextAtom);
+    const fieldRules = useAtomValue(fieldRulesAtom);
 
-    if (!permissions || !currentCase) {
+    if (!fieldRules) {
         return { canEdit: true, reason: 'No restrictions' };
     }
 
-    return RuleManager.getFieldEditStatus(fieldName, currentCase, undefined, context.category, context.reason);
+    // Check in all rule groups for the field
+    for (const [ruleGroup, rules] of Object.entries(fieldRules)) {
+        if (rules && fieldName in rules) {
+            const canEdit = rules[fieldName] === true;
+            return {
+                canEdit,
+                reason: canEdit 
+                    ? 'Field is editable per API rules' 
+                    : `Field is not editable per ${ruleGroup}`
+            };
+        }
+    }
+
+    return { canEdit: false, reason: 'Field not found in API rules' };
 };
 
 /**
@@ -72,20 +92,26 @@ export const useFieldEditStatus = (fieldName: string) => {
  * @returns Object mapping field names to their editable state
  */
 export const useFieldsEditable = (fieldNames: string[]): Record<string, boolean> => {
-    const permissions = useAtomValue(fieldPermissionsAtom);
-    const currentCase = useAtomValue(currentCaseAtom);
-    const context = useAtomValue(modificationContextAtom);
+    const fieldRules = useAtomValue(fieldRulesAtom);
 
     return React.useMemo(() => {
-        if (!permissions || !currentCase) {
+        if (!fieldRules) {
             return fieldNames.reduce((acc, field) => ({ ...acc, [field]: true }), {});
         }
 
         return fieldNames.reduce((acc, fieldName) => {
-            acc[fieldName] = RuleManager.isFieldEditable(fieldName, currentCase, context.category, context.reason);
+            // Check in all rule groups for the field
+            for (const rules of Object.values(fieldRules)) {
+                if (rules && fieldName in rules) {
+                    acc[fieldName] = rules[fieldName] === true;
+                    return acc;
+                }
+            }
+            // If field not found, default to not editable
+            acc[fieldName] = false;
             return acc;
         }, {} as Record<string, boolean>);
-    }, [fieldNames, permissions, currentCase, context.category, context.reason]);
+    }, [fieldNames, fieldRules]);
 };
 
 /**
@@ -94,12 +120,10 @@ export const useFieldsEditable = (fieldNames: string[]): Record<string, boolean>
  * @returns Object mapping field names to their edit status with explanation
  */
 export const useFieldsEditStatus = (fieldNames: string[]): Record<string, { canEdit: boolean; reason: string }> => {
-    const permissions = useAtomValue(fieldPermissionsAtom);
-    const currentCase = useAtomValue(currentCaseAtom);
-    const context = useAtomValue(modificationContextAtom);
+    const fieldRules = useAtomValue(fieldRulesAtom);
 
     return React.useMemo(() => {
-        if (!permissions || !currentCase) {
+        if (!fieldRules) {
             return fieldNames.reduce((acc, field) => ({ 
                 ...acc, 
                 [field]: { canEdit: true, reason: 'No restrictions' } 
@@ -107,10 +131,23 @@ export const useFieldsEditStatus = (fieldNames: string[]): Record<string, { canE
         }
 
         return fieldNames.reduce((acc, fieldName) => {
-            acc[fieldName] = RuleManager.getFieldEditStatus(fieldName, currentCase, undefined, context.category, context.reason);
+            // Check in all rule groups for the field
+            for (const [ruleGroup, rules] of Object.entries(fieldRules)) {
+                if (rules && fieldName in rules) {
+                    const canEdit = rules[fieldName] === true;
+                    acc[fieldName] = {
+                        canEdit,
+                        reason: canEdit 
+                            ? 'Field is editable per API rules' 
+                            : `Field is not editable per ${ruleGroup}`
+                    };
+                    return acc;
+                }
+            }
+            acc[fieldName] = { canEdit: false, reason: 'Field not found in API rules' };
             return acc;
         }, {} as Record<string, { canEdit: boolean; reason: string }>);
-    }, [fieldNames, permissions, currentCase, context.category, context.reason]);
+    }, [fieldNames, fieldRules]);
 };
 
 /**
@@ -123,13 +160,15 @@ export const useFieldPermissionState = () => {
     const context = useAtomValue(modificationContextAtom);
     const currentCase = useAtomValue(currentCaseAtom);
     const permissions = useAtomValue(fieldPermissionsAtom);
+    const fieldRules = useAtomValue(fieldRulesAtom);
 
     return {
         pcmaStatus,
         packageStatus,
         context,
         currentCase,
-        permissions
+        permissions,
+        fieldRules
     };
 };
 
@@ -142,11 +181,12 @@ export const useDebugControls = () => {
 };
 
 /**
- * Hook for API integration - sets status and context from API
+ * Hook for API integration - sets status, context, and field rules from API
  */
 export const useAPIIntegration = () => {
     const setFromAPI = useSetAtom(setStatusFromAPIAtom);
     const setContext = useSetAtom(setModificationContextAtom);
+    const setRules = useSetAtom(setFieldRulesAtom);
 
     const setStatusFromAPI = React.useCallback((pcmaStatus: string, packageStatus: string) => {
         setFromAPI({ pcmaStatus, packageStatus });
@@ -156,9 +196,14 @@ export const useAPIIntegration = () => {
         setContext(context);
     }, [setContext]);
 
+    const setFieldRules = React.useCallback((fieldRules: any) => {
+        setRules(fieldRules);
+    }, [setRules]);
+
     return {
         setStatusFromAPI,
-        setModificationContext
+        setModificationContext,
+        setFieldRules
     };
 };
 

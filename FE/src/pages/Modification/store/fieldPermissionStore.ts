@@ -1,5 +1,5 @@
 import { atom } from 'jotai';
-import RuleManager from '../rules/RuleManager';
+import type { FieldRules } from '../Model';
 
 // ============================================================================
 // Type Definitions
@@ -26,21 +26,17 @@ export interface ModificationContext {
 
 /**
  * PCMA Status Atom
- * - For development: Set manually using debug buttons
- * - For production: Will be set from API response
- * 
+ * Set from API response
  * Possible values: 'On-going', 'Completed', 'Not yet started', 'Terminated'
  */
-export const pcmaStatusAtom = atom<string>(''); // Changed from atomWithStorage to regular atom
+export const pcmaStatusAtom = atom<string>('');
 
 /**
  * Package Status Atom
- * - For development: Set manually using debug buttons
- * - For production: Will be set from API response
- * 
+ * Set from API response
  * Possible values: 'packaged', 'not packaged'
  */
-export const packageStatusAtom = atom<string>(''); // Changed from atomWithStorage to regular atom
+export const packageStatusAtom = atom<string>('');
 
 /**
  * Modification Context Atom
@@ -52,92 +48,133 @@ export const modificationContextAtom = atom<ModificationContext>({
     reasonId: undefined
 });
 
+/**
+ * Field Rules Atom
+ * Stores the parsed field editability rules from API
+ * true = editable, false = not editable
+ */
+export const fieldRulesAtom = atom<FieldRules | null>(null);
+
 // ============================================================================
 // Derived Atoms
 // ============================================================================
 
 /**
  * Current Case Atom (Derived)
- * Automatically determines the case based on PCMA status and package status
+ * Determines the case based on PCMA status and package status
  * Returns: 'CaseA', 'CaseB', 'CaseC', or undefined if status not set
  */
 export const currentCaseAtom = atom((get) => {
     const pcmaStatus = get(pcmaStatusAtom);
     const packageStatus = get(packageStatusAtom);
-    const context = get(modificationContextAtom);
-
-    console.log('=== CURRENT CASE ATOM ===');
-    console.log('PCMA Status from atom:', pcmaStatus);
-    console.log('Package Status from atom:', packageStatus);
-    console.log('Context:', context);
 
     if (!pcmaStatus || !packageStatus) {
-        console.log('Status not set, returning undefined');
         return undefined;
     }
 
-    const determinedCase = RuleManager.determineCase(pcmaStatus, packageStatus, context.category);
-    console.log('Determined Case:', determinedCase);
-    console.log('========================');
+    // Normalize strings to lowercase for case-insensitive comparison
+    const normalizedPcmaStatus = pcmaStatus.toLowerCase();
+    const normalizedPackageStatus = packageStatus.toLowerCase();
     
-    return determinedCase;
+    // Case A: Not yet started AND not packaged
+    if (normalizedPcmaStatus === 'not yet started' && normalizedPackageStatus === 'not packaged') {
+        return 'CaseA';
+    }
+    
+    // Case B: (Not yet started AND packaged) OR (On-going AND packaged)
+    if ((normalizedPcmaStatus === 'not yet started' || normalizedPcmaStatus === 'on-going') && normalizedPackageStatus === 'packaged') {
+        return 'CaseB';
+    }
+    
+    // Case C: Completed OR Terminated (regardless of package status)
+    if (normalizedPcmaStatus === 'completed' || normalizedPcmaStatus === 'terminated') {
+        return 'CaseC';
+    }
+    
+    return 'CaseC'; // Default to most restrictive
 });
 
 /**
  * Field Permissions Atom (Derived)
- * Automatically calculates field permissions based on current state
+ * Automatically calculates field permissions based on API rules
  */
 export const fieldPermissionsAtom = atom((get) => {
     const pcmaStatus = get(pcmaStatusAtom);
     const packageStatus = get(packageStatusAtom);
-    const currentCase = get(currentCaseAtom);
     const context = get(modificationContextAtom);
+    const fieldRules = get(fieldRulesAtom);
+    const currentCase = get(currentCaseAtom);
+
+    console.log('=== FIELD PERMISSIONS ATOM CALCULATION ===');
+    console.log('PCMA Status:', pcmaStatus);
+    console.log('Package Status:', packageStatus);
+    console.log('Current Case:', currentCase);
+    console.log('Field Rules from atom:', fieldRules);
 
     // If status not set, return null
-    if (!pcmaStatus || !packageStatus || !currentCase) {
+    if (!pcmaStatus || !packageStatus) {
+        console.log('Status not set, returning null');
         return null;
     }
 
-    // Calculate editable fields
-    const editableFields = RuleManager.getEditableFieldsForCase(
-        currentCase,
-        context.category,
-        context.reason
-    );
+    // Collect all editable fields from API rules
+    const editableFields: string[] = [];
+    if (fieldRules) {
+        console.log('Processing field rules...');
+        Object.entries(fieldRules).forEach(([ruleGroup, rules]) => {
+            console.log(`Processing ${ruleGroup}:`, rules);
+            if (rules) {
+                Object.entries(rules).forEach(([fieldName, isEditable]) => {
+                    console.log(`  Field: ${fieldName}, Editable: ${isEditable}`);
+                    if (isEditable === true) {
+                        editableFields.push(fieldName);
+                        console.log(`    ✓ Added ${fieldName} to editable fields`);
+                    }
+                });
+            }
+        });
+        console.log('Total editable fields collected:', editableFields.length);
+        console.log('Editable fields:', editableFields);
+    } else {
+        console.warn('No field rules available');
+    }
 
     const permissions: FieldPermissions = {
         pcmaStatus,
         packageStatus,
-        case: currentCase,
+        case: currentCase || 'Unknown',
         category: context.category || 'modification',
         reason: context.reason,
         editableFields
     };
+
+    console.log('Final permissions object:', permissions);
+    console.log('=========================================');
 
     return permissions;
 });
 
 /**
  * Is Field Editable Atom (Derived - Factory)
- * Returns an atom that checks if a specific field is editable
+ * Returns an atom that checks if a specific field is editable based on API rules
  */
-export const isFieldEditableAtom = (fieldName: string, currentValue?: any) => {
+export const isFieldEditableAtom = (fieldName: string) => {
     return atom((get) => {
-        const permissions = get(fieldPermissionsAtom);
-        const currentCase = get(currentCaseAtom);
-        const context = get(modificationContextAtom);
+        const fieldRules = get(fieldRulesAtom);
 
-        if (!permissions || !currentCase) {
-            return true; // Default to editable if no restrictions set
+        if (!fieldRules) {
+            return true; // Default to editable if no rules set
         }
 
-        return RuleManager.isFieldEditableWithValue(
-            fieldName,
-            currentCase,
-            currentValue,
-            context.category,
-            context.reason
-        );
+        // Check in all rule groups for the field
+        for (const rules of Object.values(fieldRules)) {
+            if (rules && fieldName in rules) {
+                return rules[fieldName] === true;
+            }
+        }
+
+        // If field not found in rules, default to not editable for safety
+        return false;
     });
 };
 
@@ -145,23 +182,28 @@ export const isFieldEditableAtom = (fieldName: string, currentValue?: any) => {
  * Field Edit Status Atom (Derived - Factory)
  * Returns detailed status about why a field is or isn't editable
  */
-export const fieldEditStatusAtom = (fieldName: string, currentValue?: any) => {
+export const fieldEditStatusAtom = (fieldName: string) => {
     return atom((get) => {
-        const permissions = get(fieldPermissionsAtom);
-        const currentCase = get(currentCaseAtom);
-        const context = get(modificationContextAtom);
+        const fieldRules = get(fieldRulesAtom);
 
-        if (!permissions || !currentCase) {
+        if (!fieldRules) {
             return { canEdit: true, reason: 'No restrictions' };
         }
 
-        return RuleManager.getFieldEditStatus(
-            fieldName,
-            currentCase,
-            currentValue,
-            context.category,
-            context.reason
-        );
+        // Check in all rule groups for the field
+        for (const [ruleGroup, rules] of Object.entries(fieldRules)) {
+            if (rules && fieldName in rules) {
+                const canEdit = rules[fieldName] === true;
+                return {
+                    canEdit,
+                    reason: canEdit 
+                        ? 'Field is editable per API rules' 
+                        : `Field is not editable per ${ruleGroup}`
+                };
+            }
+        }
+
+        return { canEdit: false, reason: 'Field not found in API rules' };
     });
 };
 
@@ -195,6 +237,36 @@ export const setStatusFromAPIAtom = atom(
 );
 
 /**
+ * Set Field Rules From API Atom (Action)
+ * Sets the field editability rules from API response
+ * Called from API in ModificationDetails.tsx
+ */
+export const setFieldRulesAtom = atom(
+    null,
+    (_get, set, fieldRules: FieldRules) => {
+        console.log('=== SETTING FIELD RULES FROM API (ATOM) ===');
+        console.log('Field Rules received:', fieldRules);
+        console.log('Field Rules type:', typeof fieldRules);
+        console.log('Field Rules keys:', Object.keys(fieldRules || {}));
+        
+        // Log each rule group
+        if (fieldRules) {
+            Object.entries(fieldRules).forEach(([group, rules]) => {
+                console.log(`${group}:`, rules);
+                if (rules) {
+                    const editableCount = Object.values(rules).filter(v => v === true).length;
+                    console.log(`  - ${editableCount} editable fields out of ${Object.keys(rules).length}`);
+                }
+            });
+        }
+        
+        set(fieldRulesAtom, fieldRules);
+        console.log('Field rules set to atom successfully');
+        console.log('==========================================');
+    }
+);
+
+/**
  * Reset Status Atom (Action)
  * Clears all status and permission data
  */
@@ -203,6 +275,7 @@ export const resetStatusAtom = atom(
     (_get, set) => {
         set(pcmaStatusAtom, '');
         set(packageStatusAtom, '');
+        set(fieldRulesAtom, null);
         set(modificationContextAtom, {
             category: undefined,
             reason: undefined,

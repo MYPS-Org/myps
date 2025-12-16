@@ -41,12 +41,12 @@ export interface RevisionProjectPayload extends ProjectFormPayload{
     ModificationReason?: string; // Reason from database if modification is submitted
     ModificationReasonId?: number; // ReasonId from database if modification is submitted
     ComponentsStatus: ProjectComponentStatus[];
+    ProjectStatus: PackageStatus; // Overall project status from API
+    Rules: Rules; // Rules for field validation
 }
 
 // #additional region for pcma status
 export interface ProjectComponentStatus {
-    ProjectStatus: PackageStatus;
-    Rules: Rules
 	ProgramName: string;
 	ProjectId: string;
 	ProjectComponentId: string;
@@ -58,13 +58,23 @@ export interface ProjectComponentStatus {
 }
 
 export interface Rules {
-    Id: number,
-    Reason: string,
-    RevisionGroupId: number,
-    ReasonId: number,
-    PCMA_Status: string,
-    Package_Status: string,
-    Field: string,
+    Id: number;
+    Reason: string;
+    RevisionGroupId: number;
+    ReasonId: number;
+    PCMA_Status?: string;
+    Package_Status?: string;
+    Field: string; // JSON string containing field rules
+}
+
+// Parsed structure from Rules.Field JSON
+export interface FieldRules {
+    ProjectDetailsRules?: Record<string, boolean>;
+    ComponentCostRules?: Record<string, boolean>;
+    ComponentCostYearRules?: Record<string, boolean>;
+    MajorItemOfWorkRules?: Record<string, boolean>;
+    MajorItemLocationRules?: Record<string, boolean>;
+    FundingProfileRules?: Record<string, boolean>;
 }
 
 export interface PackageStatus {
