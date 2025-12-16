@@ -997,7 +997,8 @@ namespace WebAPI.Controllers.Revision
             var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                var RevisionDetails = await _db.vRevisionLists.AsNoTracking().FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId);
+                DateTime CurrentDate = DateTime.UtcNow;
+                var RevisionDetails = await _db.tRevisionDetails.AsNoTracking().FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId);
                 if(RevisionDetails == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Revision Transaction ID {dto.TransactionId} does not exist in revision requests", Title = "Transaction ID not found" });
@@ -1006,11 +1007,44 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = "Account usergroup is not allowed to submit Revision. Please contact administrator!", Title = "User Groups Missing" });
                 }
-                var user = _Session.UserGroups.Contains("");
+                bool isROUser = _Session.UserGroups.Contains("Regional Office");
+                bool isCOUser = _Session.UserGroups.Contains("Central Office");
+                if(!isCOUser && !isROUser)
+                {
+                    return new BadRequestObjectResult(new { Message = "Account usergroup is not allowed to update Revision. Please contact administrator!", Title = "Invalid User Group" });
+                }
+                if(isROUser)
+                {
+                    if(RevisionDetails.RegionApproveStatus != DBHelper.Models.Enums.EnumRevisionStatus.Pending)
+                    {
+                        return new BadRequestObjectResult(new { Message = "Regional Office has already processed this revision request.", Title = "Already Processed" });
+                    }
+                    RevisionDetails.RegionApproveStatus = dto.Status;
+                    RevisionDetails.RegionApprover = _Session.UserId;
+                    RevisionDetails.RegionApprovedDate = CurrentDate;
+                }
+                if(isCOUser)
+                {
+                    if(RevisionDetails.RegionApproveStatus != DBHelper.Models.Enums.EnumRevisionStatus.Approved)
+                    {
+                        return new BadRequestObjectResult(new { Message = "Central Office can only process revision requests that have been approved by Regional Office.", Title = "Invalid Revision Status" });
+                    }
+                    if (RevisionDetails.COApproveStatus != DBHelper.Models.Enums.EnumRevisionStatus.Pending)
+                    {
+                        return new BadRequestObjectResult(new { Message = "Central Office has already processed this revision request.", Title = "Already Processed" });
+                    }
+                    RevisionDetails.COApproveStatus = dto.Status;
+                    RevisionDetails.COApprover = _Session.UserId;
+                    RevisionDetails.COApprovedDate = CurrentDate;
+                }
+                _db.tRevisionDetails.Update(RevisionDetails);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
                 return Ok(new {});
             }
             catch (Exception ex)
             {
+                await transaction.RollbackAsync();
                 return ExceptionHandler(ex);
             }
         }
