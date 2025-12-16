@@ -348,7 +348,7 @@ const MapRenderer: React.FC<MapRendererProps> = ({
           padding: '20px',
           borderRadius: '8px',
           boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-          zIndex: 1000,
+          zIndex: 1,
           textAlign: 'center',
         }}>
           <p style={{ margin: 0, fontSize: '14px', color: '#666' }}>

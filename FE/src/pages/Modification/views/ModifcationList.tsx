@@ -1,93 +1,88 @@
 "use-client";
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import MagnifyingGlassIcon from '@heroicons/react/24/outline/MagnifyingGlassIcon';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
 import { Button } from '../../../components/tailwindui/button';
+import { Pagination, PaginationPrevious, PaginationNext, PaginationPage, PaginationList } from '../../../components/tailwindui/pagination';
 import { PlusIcon, XMarkIcon } from '@heroicons/react/20/solid';
-import ReviseProjectDialog from '../dialogs/RevisedProjectDialog';
-import { getModificationProjects, searchProjects, type ModificationProject } from '../mockData/ProjectData';
 import AddProjectDialog from '../dialogs/AddProjectDialog';
 import AdjustProjectDialog from '../dialogs/ModifiyProjectDialog';
-import { useSignalR } from '../../../hooks/useSignalR';
+import { fetchModificationList } from '../Service';
+import type { RevisionPagination, RevisionLists } from '../Model.d';
+import { useToast } from '../../../components/toaster/ToasterContext';
+
 
 interface RevisionState {
     projectId?: string;
     stageName?: string;
     revisionTypeId?: number;
     revisionTypeDescription?: string;
+    transactionId?: string;
 }
 
 const ModificationList: React.FC = () => {
     const location = useLocation();
     const state = location.state as RevisionState;
     const { projectId, stageName, revisionTypeId, revisionTypeDescription } = state || {};
+    const { showToast } = useToast();
 
     useEffect(() => {
         if(!state) return;
         console.log('Received state:', state);
     }, [projectId, stageName, revisionTypeId, revisionTypeDescription]);
 
-    const [ isLoading ] = useState<boolean>(false);
-    const [ isReviseDialogOpen, setIsReviseDialogOpen ] = useState<boolean>(false);
-    const [ selectedProject, setSelectedProject ] = useState<ModificationProject | null>(null);
-    const [ projects, setProjects ] = useState<ModificationProject[]>([]);
-    const [ filteredProjects, setFilteredProjects ] = useState<ModificationProject[]>([]);
+    const [ isLoading, setIsLoading ] = useState<boolean>(false);
     const [ isAddNewDialogOpen, setIsAddNewDialogOpen ] = useState<boolean>(false);
     const [ isAdjustDialogOpen, setIsAdjustDialogOpen ] = useState<boolean>(false);
-
-    const { isConnected, on, off, invoke } = useSignalR();
     const [ searchInput, setSearchInput ] = useState<string>('');
-    // Subscribe to SignalR events when connected
+
+    const navigate = useNavigate();
+
+    const [RevisionFilters, setRevisionFilters] = useState<RevisionPagination>({
+        filters: {
+            ProjectId: ''
+        },
+        sortField: '',
+        sortDirection: 1,
+        page: 1,
+        limit: 10
+    });
+
+    const [RevisionData, setRevisionData] = useState<PaginationResponse<RevisionLists>>({
+        total: 0,
+        page: 1,
+        limit: 10,
+        totalPages: 0,
+        lists: []
+    });
+
     useEffect(() => {
-        if (!isConnected) return;
-
-        // Handler when server pushes an updated project
-        const handleProjectUpdated = (updated: ModificationProject) => {
-            console.log('SignalR ProjectUpdated received', updated);
-            setProjects(prev => {
-                const exists = prev.some(p => p.id === updated.id);
-                if (exists) return prev.map(p => p.id === updated.id ? updated : p);
-                return [updated, ...prev];
-            });
-            setFilteredProjects(prev => {
-                const exists = prev.some(p => p.id === updated.id);
-                if (exists) return prev.map(p => p.id === updated.id ? updated : p);
-                return [updated, ...prev];
-            });
-        };
-
-        // General notification handler
-        const handleNotification = (payload: any) => {
-            console.log('SignalR NewNotification:', payload);
-        };
-
-        on('ProjectUpdated', handleProjectUpdated);
-        on('NewNotification', handleNotification);
-
-        return () => {
-            // the `off` implementation in our hook accepts the event name only
-            off('ProjectUpdated');
-            off('NewNotification');
-        };
-    }, [isConnected, on, off]);
-
-    // Export / Subscribe action should await the hub invoke and handle errors
-    const handleExportClick = async () => {
         try {
-            // invoke is provided by useSignalR and should ensure the connection is ready
-            const result = await invoke?.('SubscribeToOrder', 'user123');
-            console.log('Subscribed to notifications result:', result);
-        } catch (err) {
-            console.error('SignalR invoke failed:', err);
+            fetchRequests();
+        } catch (error) {
+            console.error('Error fetching modification list on mount:', error);
+        }
+        // setProjects(projectData);
+        // setFilteredProjects(projectData);
+    }, []);
+
+    const fetchRequests = async (filters?: RevisionPagination) => {
+        try {
+            setIsLoading(true);
+            const filtersToUse = filters || RevisionFilters;
+            const response = await fetchModificationList(filtersToUse);
+            console.log('API Response:', response.Data);
+            setRevisionData(response.Data);
+        } catch (error) {
+            showToast({
+                type: 'error',
+                message: 'Failed to fetch revision requests.'
+            });
+        } finally {
+            setIsLoading(false);
         }
     };
-
-    useEffect(() => {
-        const projectData = getModificationProjects();
-        setProjects(projectData);
-        setFilteredProjects(projectData);
-    }, []);
 
     useEffect(() => {
         if (state && state.revisionTypeId === 6) {
@@ -95,32 +90,63 @@ const ModificationList: React.FC = () => {
         }
     }, [state]);
 
-    const handleOpenDialog = (project: ModificationProject) => {
-        setSelectedProject(project);
-        setIsReviseDialogOpen(true);
-    } 
-
     const handleSearchChange = (value: string) => {
         setSearchInput(value);
     }
 
-    const handleSearchSubmit = () => {
-        if (searchInput.trim()) {
-            const results = searchProjects(searchInput);
-            setFilteredProjects(results);
-        } else {
-            setFilteredProjects(projects);
-        }
+    const handleSearchSubmit = async () => {
+        const updatedFilters = {
+            ...RevisionFilters,
+            filters: {
+                ...RevisionFilters.filters,
+                ProjectId: searchInput
+            },
+            page: 1
+        };
+        
+        setRevisionFilters(updatedFilters);
+        await fetchRequests(updatedFilters);
     }
 
-    const handleClearSearch = () => {
+    const handleClearSearch = async () => {
         setSearchInput('');
-        setFilteredProjects(projects);
+        const updatedFilters = {
+            ...RevisionFilters,
+            filters: {
+                ...RevisionFilters.filters,
+                ProjectId: ''
+            },
+            page: 1
+        };
+        
+        setRevisionFilters(updatedFilters);
+        await fetchRequests(updatedFilters);
+    }
+
+    const Paginate = async (page: number) => {
+        try {
+            const response = await fetchModificationList({
+                ...RevisionFilters,
+                page: page
+            });
+            setRevisionData(response.Data);
+        } catch (error) {
+            console.error('Error fetching revision requests:', error);
+            showToast({
+                type: 'error',
+                message: 'Failed to fetch revision requests.'
+            });
+        }
     }
 
     const handleAddProject = () => {
         setIsAddNewDialogOpen(true);
         console.log("Add Project Clicked");
+    }
+
+    const handleViewDetails = (transactionId: string) => {
+        console.log("View Details Clicked for Transaction ID:", transactionId);
+        navigate ('/modification/details', { state: { transactionId } });
     }
 
     return (
@@ -137,7 +163,7 @@ const ModificationList: React.FC = () => {
                 <div className="overflow-hidden">
                     <div className="px-6 py-4 border-b border-gray-200">
                         <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-medium text-gray-900">Modification List</h3>
+                            <h3 className="text-lg font-medium text-gray-900">Revision List</h3>
                             <div className="flex items-center space-x-3">
                                 <div className="flex items-center space-x-2">
                                 </div>
@@ -166,9 +192,9 @@ const ModificationList: React.FC = () => {
                                         <MagnifyingGlassIcon className="w-4 h-4 mr-1" />
                                         Search
                                     </Button>
-                                    {searchInput && (
+                                    {(searchInput || RevisionFilters.filters?.ProjectId) && (
                                         <Button 
-                                            color="red" 
+                                            color="zinc" 
                                             onClick={handleClearSearch}
                                             disabled={isLoading}
                                             className="text-xs px-3 py-1.5"
@@ -188,45 +214,47 @@ const ModificationList: React.FC = () => {
                 <Table className="px-5" striped>
                     <TableHead>
                         <TableRow>
-                            <TableHeader>Program Name</TableHeader>
+                            <TableHeader>Revision Type</TableHeader>
                             <TableHeader>Project ID</TableHeader>
-                            <TableHeader>Description</TableHeader>
+                            <TableHeader>Reason</TableHeader>
                             <TableHeader>Date</TableHeader>
                             <TableHeader>Revision Type</TableHeader>
                             <TableHeader>Action</TableHeader>
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {filteredProjects.length === 0 ? (
+                        {RevisionData.lists.length === 0 ? (
                             <TableRow>
                                 <TableCell colSpan={6} className="text-center text-gray-500 py-8">
-                                    No projects found
+                                    {isLoading ? 'Loading...' : 'No revision requests found'}
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            filteredProjects.map((project) => (
-                                <TableRow key={project.id}>
-                                    <TableCell className="font-medium">{project.programName}</TableCell>
-                                    <TableCell>{project.projectId}</TableCell>
-                                    <TableCell>{project.description}</TableCell>
-                                    <TableCell>{new Date(project.date).toLocaleDateString()}</TableCell>
+                            RevisionData.lists.map((revision) => (
+                                <TableRow key={revision.Id}>
+                                    <TableCell className="font-medium">{revision.RevisionName}</TableCell>
+                                    <TableCell>{revision.TransactionId}</TableCell>
+                                    <TableCell>{revision.Reason}</TableCell>
+                                    <TableCell>{revision.CreatedDate ? new Date(revision.CreatedDate).toLocaleDateString() : '-'}</TableCell>
                                     <TableCell>
                                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                            project.status === 'Active' ? 'bg-green-100 text-green-800' :
-                                            project.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-                                            'bg-gray-100 text-gray-800'
+                                            revision.IsRegionApproved === 1 ? 'bg-green-100 text-green-800' :
+                                            revision.IsCOApproved === 1 ? 'bg-blue-100 text-blue-800' :
+                                            'bg-yellow-100 text-yellow-800'
                                         }`}>
-                                            {project.revisionType}
+                                            {revision.IsRegionApproved === 1 ? 'Region Approved' : revision.IsCOApproved === 1 ? 'CO Approved' : 'Pending'}
                                         </span>
                                     </TableCell>
                                     <TableCell>
                                         <Button 
-                                            onClick={() => handleOpenDialog(project)} 
+                                            onClick={() => {
+                                                handleViewDetails(revision.TransactionId);
+                                            }} 
                                             disabled={isLoading} 
                                             color="blue" 
                                             className="text-xs px-3 py-1.5"
                                         >
-                                            Modify
+                                            View
                                         </Button>
                                     </TableCell>
                                 </TableRow>
@@ -234,6 +262,71 @@ const ModificationList: React.FC = () => {
                         )}
                     </TableBody>
                 </Table>
+                <Pagination className="my-6">
+                    {
+                        RevisionData.totalPages > 1 && (
+                            <>
+                                <PaginationPrevious 
+                                    onClick={async () => {
+                                        Paginate(1);
+                                    }}
+                                    disabled={RevisionData.page <= 1}
+                                >
+                                    First
+                                </PaginationPrevious>
+                                <PaginationList>
+                                    {Array.from({ length: Math.min(7, RevisionData.totalPages) }, (_, index) => {
+                                        const pageNum = Math.max(1, RevisionData.page - 3) + index;
+                                        if (pageNum > RevisionData.totalPages) return null;
+
+                                        if (pageNum === RevisionData.page) {
+                                            return (
+                                                <PaginationPage
+                                                    key={pageNum}
+                                                    current
+                                                >
+                                                    {pageNum}
+                                                </PaginationPage>
+                                            );
+                                        } else {
+                                            return (
+                                                <PaginationPage
+                                                    key={pageNum}
+                                                    onClick={() => {
+                                                        Paginate(pageNum);
+                                                    }}
+                                                >
+                                                    {pageNum}
+                                                </PaginationPage>
+                                            );
+                                        }
+                                    })}
+                                </PaginationList>
+                                <PaginationNext 
+                                    onClick={async () => {
+                                        Paginate(RevisionData.totalPages);
+                                    }}
+                                    disabled={RevisionData.page >= RevisionData.totalPages}
+                                >
+                                    Last
+                                </PaginationNext>
+                            </>
+                        )
+                    }
+                </Pagination>
+                <div className='mb-3.5'>
+                    {
+                        RevisionData.lists.length > 0 ? (
+                            <p className="text-sm text-gray-500">
+                                Showing {RevisionData.limit * (RevisionData.page - 1) + 1} to {Math.min(RevisionData.limit * RevisionData.page, RevisionData.total)} of {RevisionData.total} revision requests
+                            </p>
+                        ) : (
+                            <p className="text-sm text-gray-500">
+                                No revision requests found
+                            </p>
+                        )
+                    }
+                </div>
                 {/* <Pagination className="my-6">
                     {
                         ProgramData.totalPages > 1 && (

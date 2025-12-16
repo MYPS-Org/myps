@@ -1,5 +1,6 @@
 import { httpClient } from "../../services/httpClient";
 import type { ProjectDetails, ComponentCost, ComponentCostYear, MajorItemOfWork, MajorItemLocations, FundingProfile } from "../Project/Model.d";
+import type { RevisionLists, RevisionPagination, RevisionProjectPayload } from "./Model";
 
 // export const fetchRevDropdownData = async () => {
 //     try {
@@ -79,6 +80,26 @@ export const fetchRevisionData = async ( ProjectId: string, RevisionHeader: numb
         return response;
     } catch (error) {
         console.error('Error fetching revision data:', error);
+        throw error;
+    }
+}
+
+export const fetchModificationList = async (data: RevisionPagination) => {
+    try {
+        const response = await httpClient.post<PaginationResponse<RevisionLists>>(`/Revision/RevisionRequests/`, data);
+        return response;
+    } catch (error) {
+        console.error('Error fetching modification list:', error);
+        throw error;
+    }
+};
+
+export const fetchReviseProjectDetails = async (transactionId: string) => {
+    try {
+        const response = await httpClient.post<{ Data: RevisionProjectPayload }>(`/Revision/RevisionProjectDetails/`, { TransactionId: transactionId });
+        return response;
+    } catch (error) {
+        console.error('Error fetching revise project details:', error);
         throw error;
     }
 }

@@ -81,3 +81,38 @@ export interface PackageStatus {
     ConstructionStatus: string;
     PackageStatus: string;
 }
+
+export interface RevisionLists {
+    Id: number;
+	TransactionId: string;
+    CategoryId?: string;
+    CategoryName?: string;
+	Reason: string;
+	ReasonId: number;
+	RevisionName: string;
+	RevisionGroupId: number;
+	IsRegionApproved: number;
+	RegionApprover?: string;
+	RegionApprovedDate?: string;
+	IsCOApproved: number;
+	COApprover?: string;
+	COApprovedDate?: string;
+	CreatedBy?: string;
+	CreatedDate?: string;
+}
+
+export interface RevisionPagination extends PaginationParams {
+  filters?: RevisionFilter;
+  sortField?: string;
+  sortDirection?: 0 | 1;
+}
+
+export interface RevisionFilter {
+  TransactionId?: string;
+  ProjectId?: string;
+  RevisionGroupId?: number;
+  ReasonId?: number;
+  RegionApproveStatus?: number;
+  COApproveStatus?: number;
+}
+

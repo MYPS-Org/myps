@@ -1262,7 +1262,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         reasonId={modificationReasonId}
         categoryId={categoryId}
         revisionGroupId={revisionGroupId}
-        project={initialData?.ProjectDetails || projectDetails}
+        project={projectDetails}
         componentCosts={componentCosts}
         componentCostYear={componentCostsYear}
         majorItemOfWorks={majorItems.map(item => ({
