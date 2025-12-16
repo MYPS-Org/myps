@@ -1,7 +1,5 @@
 import { httpClient } from "../../services/httpClient";
-import type { ModificationCategory } from "./Model.d"
 import type { ProjectDetails, ComponentCost, ComponentCostYear, MajorItemOfWork, MajorItemLocations, FundingProfile } from "../Project/Model.d";
-import Project from "../Project/Views/Project";
 
 // export const fetchRevDropdownData = async () => {
 //     try {

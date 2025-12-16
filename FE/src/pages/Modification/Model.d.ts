@@ -45,6 +45,9 @@ export interface RevisionProjectPayload extends ProjectFormPayload{
 
 // #additional region for pcma status
 export interface ProjectComponentStatus {
+    ProjectStatus: string;
+    PackageStatus: string;
+    Rules: Rules
 	ProgramName: string;
 	ProjectId: string;
 	ProjectComponentId: string;
@@ -53,4 +56,14 @@ export interface ProjectComponentStatus {
 	ConstructionStatusName: string;
 	PackedStatusCode: boolean;
 	PackedStatusName: string;
+}
+
+export interface Rules {
+    Id: number,
+    Reason: string,
+    RevisionGroupId: number,
+    ReasonId: number,
+    PCMA_Status: string,
+    Package_Status: string,
+    Field: string,
 }

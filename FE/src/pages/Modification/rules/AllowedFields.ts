@@ -26,7 +26,6 @@ const projectComponentFields = [
     'ComponentDescription',
     'AddComponentCost',
     'DeleteComponentCost',
-    
     'ComponentType',
     'StartDate',
     'EndDate',
@@ -44,7 +43,6 @@ const majorItemOfWorkFields = [
 	'InfraType',
 	'TargetUnitId',
 	'TargetUnit'
-
 ];
 
 const physicalTargetFields = [
@@ -151,9 +149,35 @@ const getEditableFieldsForCase = (caseType: string) => {
                 'Description',
                 'EmergencyMode', 
                 'Origin',
+                // component cost fields
                 'ComponentCost',
-                'MajorItemOfWork',
-                'WorkLocation'
+                'ComponentDescription',
+                'AddComponentCost',
+                'DeleteComponentCost',
+                'ComponentType',
+                'StartDate',
+                'EndDate',
+                'Total',
+                // major item of work fields
+                'ReferenceId',
+                'YearOfWork',
+                'WorkTypeId',
+                'InfraType',
+                'TargetUnitId',
+                'TargetUnit',
+                'InfraId',
+                // work location fields
+                'PhysicalTarget',
+                'DetailedScope',
+                'StartX',
+                'StartY',
+                'EndX',
+                'EndY',
+                'TargetUnit',
+                'StartChainage',
+                'EndChainage',
+                'StartStationLimit',
+                'EndStationLimit'
             ];
             
         case 'CaseC':
