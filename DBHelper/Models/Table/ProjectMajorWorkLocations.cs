@@ -19,9 +19,7 @@ namespace DBHelper.Models.Table
         [Required]
         [MaxLength(50)]
         public string InfraId { get; set; } = string.Empty;
-        [Required]
-        [MaxLength(100)]
-        public string DetailedScope { get; set; } = string.Empty;
+        public string? DetailedScope { get; set; }
         [Required]
         public int TargetUnitId { get; set; }
         [Required]

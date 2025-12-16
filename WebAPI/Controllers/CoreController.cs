@@ -23,7 +23,7 @@ namespace WebAPI.Controllers
     public abstract class CoreController : Controller
     {
         public AppDbContext _db;
-        public Users _Session = new Users();
+        public DBHelper.Models.Views.Users _Session = new DBHelper.Models.Views.Users();
         private readonly IProducer<Null, string> _producer;
         public CoreController(AppDbContext db, IProducer<Null, string> producer)
         {
@@ -54,7 +54,7 @@ namespace WebAPI.Controllers
                 string userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
                 if (!hasAllowAnonymous || IsAuthenticated || !string.IsNullOrEmpty(userId))
                 {
-                    var user = _db.tUsers.FirstOrDefault(x => x.UserId == userId && x.IsActive == true);
+                    var user = _db.vUsers.FirstOrDefault(x => x.UserId == userId && x.IsActive == true);
                     if(user == null)
                     {
                         context.Result = UnauthorizedUser();

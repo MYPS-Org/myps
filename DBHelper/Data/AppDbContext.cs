@@ -85,6 +85,7 @@ namespace DBHelper.Data
         public DbSet<Models.Views.GetProjectCategoryVersions> vGetProjectCategoryVersions { get; set; }
         public DbSet<Models.Views.RevisionRules> vRevisionRules { get; set; }
         public DbSet<Models.Views.ProjectComponentStatus> vProjectComponentStatus { get; set; }
+        public DbSet<Models.Views.RevisionLists> vRevisionLists { get; set; }
         #endregion
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

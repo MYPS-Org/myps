@@ -94,9 +94,7 @@ namespace WebAPI.Controllers.Revision.ImplementingOffice
         [Required]
         [MaxLength(50)]
         public string InfraId { get; set; } = string.Empty;
-        [Required]
-        [MaxLength(100)]
-        public string DetailedScope { get; set; } = string.Empty;
+        public string? DetailedScope { get; set; }
         [Required]
         public int TargetUnitId { get; set; }
         [MaxLength(100)]
@@ -126,7 +124,8 @@ namespace WebAPI.Controllers.Revision.ImplementingOffice
         [Required]
         public string Source { get; set; } = string.Empty;
         [Required]
-        public int Agreement { get; set; }
+        [MaxLength(50)]
+        public string Agreement { get; set; } = string.Empty;
         [Required]
         public double Amount { get; set; }
         [Required]

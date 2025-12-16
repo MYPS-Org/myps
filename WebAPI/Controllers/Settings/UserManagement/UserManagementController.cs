@@ -173,7 +173,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 getUser.PlantillaOffice = dto.PlantillaOffice;
                 getUser.EmployeeId = dto.EmployeeId;
                 getUser.RegCode = dto.RegCode;
-                if (!string.IsNullOrEmpty(dto.UserGroups) && dto.UserGroups.Contains(","))
+                if (!string.IsNullOrEmpty(dto.UserGroups))
                 {
                     string[] groups = dto.UserGroups.Split(',');
                     string newUserId = dto.UserId;
@@ -198,7 +198,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                                     CreatedDate = DateTime.UtcNow
                                 }
                             ));
-                        }
+                        }   
                     }
                     else if(getUserGroups.Count() < 1 && getGroups.Count > 0)
                     {
