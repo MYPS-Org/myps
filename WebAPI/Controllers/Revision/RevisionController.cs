@@ -612,6 +612,7 @@ namespace WebAPI.Controllers.Revision
                 #endregion
                 #region ComponentCosts
                 var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId).ToListAsync();
+                var ComponentCostYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentCost.Select(c => c.ReferenceId).Contains(x.ParentId)).ToListAsync();
                 var ComponentCostRules = jsonRules.ComponentCostRules.GetType()
                 .GetProperties()
                 .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
@@ -635,6 +636,9 @@ namespace WebAPI.Controllers.Revision
                             }
                             SelectedComponent.RevisedNumber = 1;
                             SelectedComponent.Id = 0;
+                            var Component = ComponentCostYear.Where(x => x.ParentId == SelectedComponent.ReferenceId).ToList();
+                            SelectedComponent.ReferenceId = SelectedComponent.ProjectId + "-" + ("tCountSequence").GenerateCode();
+                            Component.ForEach(x => x.ParentId = SelectedComponent.ReferenceId);
                         }
                     }
                 }
@@ -657,7 +661,6 @@ namespace WebAPI.Controllers.Revision
                 }
                 #endregion
                 #region ComponentCostYear
-                var ComponentCostYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentCost.Select(c => c.ReferenceId).Contains(x.ParentId)).ToListAsync();
                 var ComponentCostYearRules = jsonRules.ComponentCostYearRules.GetType()
                 .GetProperties()
                 .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
@@ -696,6 +699,7 @@ namespace WebAPI.Controllers.Revision
                 #endregion
                 #region MajorWorkItem
                 var MajorWorkItem = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId).ToListAsync();
+                var MajorWorkLocations = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => MajorWorkItem.Select(c => c.ReferenceId).Contains(x.ParentId)).ToListAsync();
                 var MajorWorkItemRules = jsonRules.MajorItemOfWorkRules.GetType()
                 .GetProperties()
                 .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
@@ -717,6 +721,9 @@ namespace WebAPI.Controllers.Revision
                             }
                             UpdateMajorWorkItem.RevisedNumber = 1;
                             UpdateMajorWorkItem.Id = 0;
+                            var Locations = MajorWorkLocations.Where(x => x.ParentId == UpdateMajorWorkItem.ReferenceId).ToList();
+                            UpdateMajorWorkItem.ReferenceId = UpdateMajorWorkItem.ProjectId + "-" + ("tCountSequence").GenerateCode();
+                            Locations.ForEach(x => x.ParentId = UpdateMajorWorkItem.ReferenceId);
                         }
                     }
                 }
@@ -739,7 +746,6 @@ namespace WebAPI.Controllers.Revision
                 }
                 #endregion
                 #region MajorWorkLocations
-                var MajorWorkLocations = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => MajorWorkItem.Select(c => c.ReferenceId).Contains(x.ParentId)).ToListAsync();
                 var MajorItemLocationsRules = jsonRules.MajorItemLocationRules.GetType()
                 .GetProperties()
                 .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
