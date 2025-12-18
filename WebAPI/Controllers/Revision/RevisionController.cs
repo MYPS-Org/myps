@@ -49,7 +49,16 @@ namespace WebAPI.Controllers.Revision
                 if (dto.page < 1) dto.page = 1;
                 if (dto.limit < 1) dto.limit = 10;
 
+                var AllowedStatusForCO = new EnumRevisionStatus[] {
+                    EnumRevisionStatus.Approved,
+                    EnumRevisionStatus.Rejected
+                };
+                bool isCentralOffice = _Session.UserGroups.Contains("Central Office");
                 var baseQuery = _db.vRevisionLists.AsNoTracking();
+                if (isCentralOffice)
+                {
+                    baseQuery = _db.vRevisionLists.AsNoTracking().Where(x => AllowedStatusForCO.Contains(x.RegionStatus));
+                }
 
                 // Apply filters to base query
                 if (!string.IsNullOrEmpty(dto.Filters?.TransactionId))
