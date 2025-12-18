@@ -40,7 +40,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             setAuthState({
                 isAuthenticated: true,
                 isLoading: false,
-                user: { id: 'dev', name: 'Dev User', UserRole: 'admin' }
+                user: { id: 'dev', name: 'Dev User', UserGroup: 'admin' }
             });
             return;
         }
@@ -54,7 +54,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 user: {
                     id: 'dev-user',
                     name: 'Development User',
-                    UserRole: 'admin'
+                    UserGroup: 'admin'
                 }
             });
             return;
@@ -70,7 +70,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                         isAuthenticated: true,
                         isLoading: false,
                         user: { ...response.Data.Data.User,
-                            UserRole: 'Implementing Office'
+                            // UserGroup: response.Data.Data.User.UserGroup
                          }
                     });
                     if(window.location.pathname === '/login') {

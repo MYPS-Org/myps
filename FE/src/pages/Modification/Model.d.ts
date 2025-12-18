@@ -1,4 +1,4 @@
-import type { ProjectFormPayload } from "../Project/Model";
+import type { OptionRevisionCategory, OptionRevisionHeader, OptionRevisionReasons, ProjectFormPayload } from "../Project/Model";
 
 export interface ModificationList {
     Id: number;
@@ -37,12 +37,12 @@ export interface ModificationModel {
 }
 
 export interface RevisionProjectPayload extends ProjectFormPayload{
-    ModificationCategory?: string; // Category from database if modification is submitted
-    ModificationReason?: string; // Reason from database if modification is submitted
-    ModificationReasonId?: number; // ReasonId from database if modification is submitted
-    ComponentsStatus: ProjectComponentStatus[];
+    Header: OptionRevisionHeader;
+    Category: OptionRevisionCategory;
+    Reason: OptionRevisionReasons;
     ProjectStatus: PackageStatus; // Overall project status from API
     Rules: Rules; // Rules for field validation
+    ComponentsStatus: ProjectComponentStatus[];
 }
 
 // #additional region for pcma status
@@ -55,6 +55,27 @@ export interface ProjectComponentStatus {
 	ConstructionStatusName: string;
 	PackedStatusCode: boolean;
 	PackedStatusName: string;
+}
+
+export interface RevisionDetails {
+    Id: number;
+	TransactionId: string;
+	RevisionName: string;
+	RevisionGroupId: number;
+	CategoryName?: string;
+	CategoryId?: number;
+	Reason: string;
+	ReasonId: number;
+	RequestDocument?: string;
+	RegionStatus: number;
+	RegionApprover?: string;
+	RegionApprovedDate?: string;
+	COStatus: number;
+	COApprover?: string;
+	COApprovedDate?: string;
+	ApprovedDocument?: string;
+	CreatedBy?: string;
+	CreatedDate?: string;
 }
 
 export interface Rules {
@@ -85,18 +106,20 @@ export interface PackageStatus {
 export interface RevisionLists {
     Id: number;
 	TransactionId: string;
-    CategoryId?: string;
-    CategoryName?: string;
-	Reason: string;
-	ReasonId: number;
 	RevisionName: string;
 	RevisionGroupId: number;
-	IsRegionApproved: number;
+	CategoryName?: string;
+	CategoryId?: number;
+	Reason: string;
+	ReasonId: number;
+	RequestDocument?: string;
+	RegionStatus: number;
 	RegionApprover?: string;
 	RegionApprovedDate?: string;
-	IsCOApproved: number;
+	COStatus: number;
 	COApprover?: string;
 	COApprovedDate?: string;
+	ApprovedDocument?: string;
 	CreatedBy?: string;
 	CreatedDate?: string;
 }
@@ -114,5 +137,10 @@ export interface RevisionFilter {
   ReasonId?: number;
   RegionApproveStatus?: number;
   COApproveStatus?: number;
+}
+
+{
+  TransactionId: string;
+  Status: number;
 }
 

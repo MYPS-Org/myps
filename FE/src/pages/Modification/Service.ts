@@ -52,9 +52,9 @@ export const submitModificationRequest = async (
     }
 };
 
-export const updateRevisionRequestStatus = async (projectId: string, status: string) => {
+export const updateRevisionRequestStatus = async (transactionId: string, status: number) => {
     try {
-        const response = await httpClient.post(`/RORevision/UpdateRevisionStatus/`, { 'ProjectId': projectId, 'Status': status }, {
+        const response = await httpClient.post(`/Revision/UpdateRevisionStatus/`, { 'TransactionId': transactionId, 'Status': status }, {
             preloaderMessage: 'Requesting revision...'
         });
         return response;
@@ -96,7 +96,7 @@ export const fetchModificationList = async (data: RevisionPagination) => {
 
 export const fetchReviseProjectDetails = async (transactionId: string) => {
     try {
-        const response = await httpClient.post<{ Data: RevisionProjectPayload }>(`/Revision/RevisionProjectDetails/`, { TransactionId: transactionId });
+        const response = await httpClient.post<RevisionProjectPayload>(`/Revision/ViewReviseProject/`, { TransactionId: transactionId });
         return response;
     } catch (error) {
         console.error('Error fetching revise project details:', error);

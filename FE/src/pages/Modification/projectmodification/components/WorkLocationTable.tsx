@@ -361,7 +361,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
         return (
           <div key={fieldName} className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
-              Start Station (km)
+              Start Station
             </label>
             <input
               type="text"
@@ -378,7 +378,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
         return (
           <div key={fieldName} className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
-              End Station (km)
+              End Station
             </label>
             <input
               type="text"
@@ -395,7 +395,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
         return (
           <div key={fieldName} className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
-              End Chainage (km)
+              End Chainage (m)
             </label>
             <input
               type="number"
@@ -413,7 +413,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
         return (
           <div key={fieldName} className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
-              Start Chainage (km)
+              Start Chainage (m)
             </label>
             <input
               type="number"

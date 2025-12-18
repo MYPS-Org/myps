@@ -7,7 +7,7 @@ interface ProgramDetailsFormProps {
   programDetails: ProgramList;
   setProgramDetails: React.Dispatch<React.SetStateAction<ProgramList>>;
   onChange?: (updatedDetails: ProgramList) => void;
-  mode?: 'add' | 'edit';
+  mode?: 'add' | 'edit' | 'view';
   projectEnums?: ProjectEnums;
 }
 

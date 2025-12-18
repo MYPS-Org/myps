@@ -143,7 +143,7 @@ export const fieldPermissionsAtom = atom((get) => {
         pcmaStatus,
         packageStatus,
         case: currentCase || 'Unknown',
-        category: context.category || 'modification',
+        category: context.category || '',
         reason: context.reason,
         editableFields
     };

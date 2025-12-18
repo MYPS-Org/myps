@@ -5,6 +5,9 @@ import XMarkIcon from '@heroicons/react/24/outline/XMarkIcon';
 import CheckCircleIcon from '@heroicons/react/24/outline/CheckCircleIcon';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import type { ProjectDetails } from '../../Project/Model';
+import { useAtomValue } from 'jotai';
+import { transactionIdAtom } from '../store/routeContextStore';
+import { updateRevisionRequestStatus } from '../Service';
 
 interface ApproveModifyDialogProps {
     isOpen: boolean;
@@ -30,7 +33,9 @@ const ApproveModifyDialog: React.FC<ApproveModifyDialogProps> = ({
     const handleApprove = async () => {
         setIsSubmitting(true);
         
+        const transactionId = useAtomValue(transactionIdAtom); // Get transactionId from atom
         try {
+            await updateRevisionRequestStatus(transactionId, 2); // 2 = Approved
             await onApprove();
             
             showToast({

@@ -50,7 +50,7 @@ import type { RevisionProjectPayload } from '../../Model';
 
 interface ProjectFormProps {
   initialData?: RevisionProjectPayload;
-  mode?: 'add' | 'edit';
+  mode?: 'add' | 'edit' | 'view';
   initialProgramId?: string;
   category?: string;
   reason?: string;
@@ -85,29 +85,17 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   // If modification exists in database, use those values; otherwise use props from project module
   // Memoize these to prevent recreating on every render which causes infinite loops
   const modificationCategory = useMemo(() => 
-    initialData?.ModificationCategory || category,
-    [initialData?.ModificationCategory, category]
+    initialData?.Category.CategoryName || category,
+    [initialData?.Category.CategoryName, category]
   );
   const modificationReason = useMemo(() => 
-    initialData?.ModificationReason || reason,
-    [initialData?.ModificationReason, reason]
+    initialData?.Reason.Reason || reason,
+    [initialData?.Reason.Reason, reason]
   );
   const modificationReasonId = useMemo(() => 
-    initialData?.ModificationReasonId || reasonId,
-    [initialData?.ModificationReasonId, reasonId]
+    initialData?.Reason.ReasonId || reasonId,
+    [initialData?.Reason.ReasonId, reasonId]
   );
-
-  console.log('ProjectForm - Final values:', { 
-    modificationCategory, 
-    modificationReason, 
-    modificationReasonId,
-    fromInitialData: {
-      category: initialData?.ModificationCategory,
-      reason: initialData?.ModificationReason,
-      reasonId: initialData?.ModificationReasonId
-    },
-    fromProps: { category, reason, reasonId }
-  });
 
   // toggle state for Program Details section
   const [isProgramOpen, setIsProgramOpen] = useState<boolean>(true);
@@ -963,35 +951,35 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
               
             </div>
             <div className="flex space-x-3">
-                {mode === 'edit' && (user?.UserRole === 'Implementing Office' || user?.RegCode === initialData?.ProjectDetails.DEO ) && (
+                {mode === 'edit' && (user?.UserGroups === 'Implementing Office' ) && (
                   <>
                     <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify()} disabled={updateReviseProject}>
                       {updateReviseProject ? 'Submitting...' : 'Submit Modify Request to RO'}
                     </Button>
                   </>
                 )}
-                {mode === 'edit' && (user?.UserRole === 'Regional Office' || user?.RegCode === initialData?.ProjectDetails.DEO ) && (
+                {mode === 'edit' && (user?.UserGroups === 'Regional Office' ) && (
                   <>
                     <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify()} disabled={updateReviseProject}>
                       {updateReviseProject ? 'Submitting...' : 'Submit Modify Request CO'}
                     </Button>
                   </>
                 )}
-                {mode === 'edit' && user?.UserRole === 'Central Office' && (
+                {mode === 'edit' && user?.UserGroups === 'Central Office' && (
                   <>
                     <Button color="amber" className='cursor-pointer' onClick={() => setIsForReviewDialogOpen(true)} disabled={updateForReviewProject}>
                       {updateForReviewProject ? 'Initializing...' : 'For Review'}
                     </Button>
                   </>
                 )}
-                {mode === 'edit' && user?.UserRole === 'Regional Office' && (
+                {mode === 'edit' && user?.UserGroups === 'Regional Office' && (
                   <>
                     <Button color="amber" className='cursor-pointer' onClick={() => setIsForReviewDialogOpen(true)} disabled={updateForReviewProject}>
                       {updateForReviewProject ? 'Initializing...' : 'For Review'}
                     </Button>
                   </>
                 )}
-                {mode === 'edit' && user?.UserRole === 'Central Office' && (
+                {mode === 'edit' && user?.UserGroups === 'Central Office' && (
                   <>
                     <Button color="green" className='cursor-pointer' onClick={() => setIsApproveDialogOpen(true)} disabled={updateApproveProject}>
                       {updateApproveProject ? 'Approving...' : 'Approve'}

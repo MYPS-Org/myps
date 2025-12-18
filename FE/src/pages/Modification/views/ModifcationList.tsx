@@ -8,7 +8,7 @@ import { Pagination, PaginationPrevious, PaginationNext, PaginationPage, Paginat
 import { PlusIcon, XMarkIcon } from '@heroicons/react/20/solid';
 import AddProjectDialog from '../dialogs/AddProjectDialog';
 import AdjustProjectDialog from '../dialogs/ModifiyProjectDialog';
-import { fetchModificationList } from '../Service';
+import { fetchModificationList, fetchReviseProjectDetails } from '../Service';
 import type { RevisionPagination, RevisionLists } from '../Model.d';
 import { useToast } from '../../../components/toaster/ToasterContext';
 
@@ -146,9 +146,8 @@ const ModificationList: React.FC = () => {
 
     const handleViewDetails = (transactionId: string) => {
         console.log("View Details Clicked for Transaction ID:", transactionId);
-        navigate ('/modification/details', { state: { transactionId } });
+        navigate(`/revision/view/${transactionId}`, { state: { transactionId } });
     }
-
     return (
         
         <div className="max-w-10xl mx-auto p-6 space-y-6">
@@ -218,7 +217,7 @@ const ModificationList: React.FC = () => {
                             <TableHeader>Project ID</TableHeader>
                             <TableHeader>Reason</TableHeader>
                             <TableHeader>Date</TableHeader>
-                            <TableHeader>Revision Type</TableHeader>
+                            <TableHeader>Status</TableHeader>
                             <TableHeader>Action</TableHeader>
                         </TableRow>
                     </TableHead>
@@ -238,11 +237,11 @@ const ModificationList: React.FC = () => {
                                     <TableCell>{revision.CreatedDate ? new Date(revision.CreatedDate).toLocaleDateString() : '-'}</TableCell>
                                     <TableCell>
                                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                            revision.IsRegionApproved === 1 ? 'bg-green-100 text-green-800' :
-                                            revision.IsCOApproved === 1 ? 'bg-blue-100 text-blue-800' :
+                                            revision.RegionStatus === 1 ? 'bg-green-100 text-green-800' :
+                                            revision.COStatus === 1 ? 'bg-blue-100 text-blue-800' :
                                             'bg-yellow-100 text-yellow-800'
                                         }`}>
-                                            {revision.IsRegionApproved === 1 ? 'Region Approved' : revision.IsCOApproved === 1 ? 'CO Approved' : 'Pending'}
+                                            {revision.RegionStatus === 1 ? 'Region Approved' : revision.COStatus === 1 ? 'CO Approved' : 'Pending'}
                                         </span>
                                     </TableCell>
                                     <TableCell>
