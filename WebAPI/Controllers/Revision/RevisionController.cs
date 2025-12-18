@@ -1,19 +1,16 @@
-﻿using Confluent.Kafka;
+﻿using Castle.Components.DictionaryAdapter.Xml;
+using Confluent.Kafka;
 using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Extra;
 using DBHelper.Models.Table;
 using DBHelper.Models.Views;
 using Helpers;
-using JetBrains.Annotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using System.Reflection;
-using System.Threading.Tasks;
-using WebAPI.Controllers.Revision.ImplementingOffice;
-using WebAPI.Controllers.Revision.RegionalOffice;
 namespace WebAPI.Controllers.Revision
 {
     [ApiController]
@@ -23,7 +20,7 @@ namespace WebAPI.Controllers.Revision
         public Revision(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
         [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> RevisionRequests([FromBody] ShowMyRevisionDTO dto)
+        public async Task<IActionResult> RevisionRequests([FromBody] RevisionRequestsDTO dto)
         {
             try
             {
@@ -61,14 +58,17 @@ namespace WebAPI.Controllers.Revision
                 if (dto.Filters?.RevisionGroupId != null)
                     baseQuery = baseQuery.Where(e => e.RevisionGroupId == dto.Filters.RevisionGroupId);
 
+                if (dto.Filters?.CategoryId != null)
+                    baseQuery = baseQuery.Where(e => e.CategoryId == dto.Filters.CategoryId);
+
                 if (dto.Filters?.ReasonId != null)
                     baseQuery = baseQuery.Where(e => e.ReasonId == dto.Filters.ReasonId);
 
-                if (dto.Filters?.RegionApproveStatus != null)
-                    baseQuery = baseQuery.Where(e => e.IsRegionApproved == dto.Filters.RegionApproveStatus);
+                if (dto.Filters?.RegionStatus != null)
+                    baseQuery = baseQuery.Where(e => e.RegionStatus == dto.Filters.RegionStatus);
 
-                if (dto.Filters?.COApproveStatus != null)
-                    baseQuery = baseQuery.Where(e => e.IsCOApproved == dto.Filters.COApproveStatus);
+                if (dto.Filters?.COStatus != null)
+                    baseQuery = baseQuery.Where(e => e.COStatus == dto.Filters.COStatus);
 
                 // Get total count of filtered results (before pagination)
                 var totalRecords = await baseQuery.CountAsync();
@@ -243,6 +243,8 @@ namespace WebAPI.Controllers.Revision
                     Header = SelectedType,
                     Category = SelectedCategory,
                     Reason = SelectedReason,
+                    
+                    RevisionDetails = RevisionDetails,
 
                     ProjectStatus = new
                     {
@@ -498,7 +500,7 @@ namespace WebAPI.Controllers.Revision
         }
         [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> RequestRevision([FromBody] RequstRevisionsDTO dto)
+        public async Task<IActionResult> RequestRevision([FromBody] RequstRevisionsDTO dto)  
         {
             var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -516,8 +518,6 @@ namespace WebAPI.Controllers.Revision
                 var NewMajorWorkLocations = new List<ProjectMajorWorkLocations>();
                 #region Validations
                 var Project = await _db.tProjectRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectDetails.ProjectId && x.Id == dto.ProjectDetails.RevisionNumber);
-                Project.isRevised = true;
-                Project.RevisedNumber = (Project.RevisedNumber ?? 0) + 1;
                 if (Project == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Invalid Project" });
@@ -527,6 +527,12 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = "Project Stage not found!", Title = "Invalid Project Stage" });
                 }
+
+                if (!dto.RevisionDetails.ApprovedDocument.IsFileCorrupted())
+                {
+                    return new BadRequestObjectResult(new { Message = "Approved Document file is corrupted!", Title = "Invalid File" });
+                }
+
                 var RevisionRules = await _db.vRevisionRules.AsNoTracking().FirstOrDefaultAsync(x => x.ReasonId == dto.RevisionDetails.ReasonId);
                 if (RevisionRules == null)
                 {
@@ -538,8 +544,8 @@ namespace WebAPI.Controllers.Revision
                     return new BadRequestObjectResult(new { Message = "Revision category does not match with the selected revision reason!", Title = "Invalid Revision Category" });
                 }
                 var HasPendingModification = await _db.tRevisionDetails.AsNoTracking()
-                    .FirstOrDefaultAsync(x => x.TransactionId == dto.ProjectDetails.ProjectId);
-                if (HasPendingModification != null && (HasPendingModification.COApproveStatus == DBHelper.Models.Enums.EnumRevisionStatus.Pending || HasPendingModification.RegionApproveStatus == DBHelper.Models.Enums.EnumRevisionStatus.Pending))
+                    .FirstOrDefaultAsync(x => x.TransactionId.Contains(dto.ProjectDetails.ProjectId!) && x.COStatus != DBHelper.Models.Enums.EnumRevisionStatus.Approved);
+                if (HasPendingModification != null && (HasPendingModification.COStatus == DBHelper.Models.Enums.EnumRevisionStatus.Pending || HasPendingModification.RegionStatus == DBHelper.Models.Enums.EnumRevisionStatus.Pending))
                 {
                     return new BadRequestObjectResult(new { Message = "There is a pending modification request for this project. Please wait for the current request to be processed before submitting a new one.", Title = "Pending Modification Request" });
                 }
@@ -548,6 +554,8 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = $"Rules does not exist in {RevisionRules.Reason}! Please contact admin", Title = "No Rules Exists" });
                 }
+                Project.isRevised = true;
+                Project.RevisedNumber = (Project.RevisedNumber ?? 0) + 1;
                 #endregion
                 #region ProjectRevision
                 var ProjectDetailsRules = jsonRules.ProjectDetailsRules.GetType()
@@ -570,7 +578,7 @@ namespace WebAPI.Controllers.Revision
                 var FundingProfileRules = jsonRules.FundingProfileRules.GetType()
                 .GetProperties()
                 .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
-                .Where(p => (bool?)p.GetValue(jsonRules.ComponentCostRules) == true)
+                .Where(p => (bool?)p.GetValue(jsonRules.FundingProfileRules) == true)
                 .Select(p => p.Name)
                 .ToList();
                 var UpdateFundingProfile = dto.FundingProfile;
@@ -838,20 +846,35 @@ namespace WebAPI.Controllers.Revision
 
 
                     bool isROUser = _Session.UserGroups.Contains("Regional Office");
+                    string TransactionId = Project.ProjectId + "-" + Project.RevisedNumber;
                     await _db.tRevisionDetails.AddAsync(new RevisionDetails
                     {
-                        TransactionId = Project.ProjectId + "-" + Project.RevisedNumber,
-                        ModificationCategory = RevisionCategory.RevisionGroupId,
-                        ModificationReason = RevisionRules.ReasonId,
-                        RegionApproveStatus = isROUser ? DBHelper.Models.Enums.EnumRevisionStatus.Approved : DBHelper.Models.Enums.EnumRevisionStatus.Pending,
+                        TransactionId = TransactionId,
+                        RevisionGroupId = RevisionCategory.RevisionGroupId,
+                        CategoryId = dto.RevisionDetails.CategoryId,
+                        ReasonId = RevisionRules.ReasonId,
+                        RegionStatus = isROUser ? DBHelper.Models.Enums.EnumRevisionStatus.Approved : DBHelper.Models.Enums.EnumRevisionStatus.Pending,
                         RegionApprover = isROUser ? _Session.UserId : null,
                         RegionApprovedDate = isROUser ? CurrentDate : null,
-                        COApproveStatus = DBHelper.Models.Enums.EnumRevisionStatus.Pending,
+                        COStatus = DBHelper.Models.Enums.EnumRevisionStatus.Pending,
                         COApprover = null,
                         COApprovedDate = null,
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
+                    string DocumentName = dto.RevisionDetails.ApprovedDocument.Name;
+                    await _db.tRevisionDocuments.AddAsync(new RevisionDocuments
+                    {
+                        TransactionId = TransactionId,
+                        DocumentName = dto.RevisionDetails.ApprovedDocument.Name,
+                        IsApprovedDocument = false
+                    });
+                    string FilePath = Path.Combine(Appsetting.Resources.Revision.ImplementingOffice, dto.RevisionDetails.ApprovedDocument.Name);
+                    if (!dto.RevisionDetails.ApprovedDocument.UploadFile(FilePath))
+                    {
+                        await transaction.RollbackAsync();
+                        return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted!", Title = "File Corrupted" });
+                    }
                     await _db.SaveChangesAsync();
                     await transaction.CommitAsync();
                 }
@@ -1004,7 +1027,7 @@ namespace WebAPI.Controllers.Revision
             try
             {
                 DateTime CurrentDate = DateTime.UtcNow;
-                var RevisionDetails = await _db.tRevisionDetails.AsNoTracking().FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId);
+                var RevisionDetails = await _db.tRevisionDetails.AsNoTracking().FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId && (x.RegionStatus != EnumRevisionStatus.Rejected || x.COStatus != EnumRevisionStatus.Rejected));
                 if(RevisionDetails == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Revision Transaction ID {dto.TransactionId} does not exist in revision requests", Title = "Transaction ID not found" });
@@ -1019,34 +1042,73 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = "Account usergroup is not allowed to update Revision. Please contact administrator!", Title = "Invalid User Group" });
                 }
-                if(isROUser)
+                if (dto.Status == EnumRevisionStatus.ForCorrection)
                 {
-                    if(RevisionDetails.RegionApproveStatus != DBHelper.Models.Enums.EnumRevisionStatus.Pending)
+                    var existingCorrections = await _db.tRevisionForCorrectionDetails.AsNoTracking()
+                        .Where(x => x.TransactionId == dto.TransactionId
+                        && string.IsNullOrEmpty(x.ROComment)
+                        && !string.IsNullOrEmpty(x.COComment))
+                        .OrderByDescending(x => x.Id)
+                        .FirstOrDefaultAsync();
+                    if (existingCorrections != null)
                     {
-                        return new BadRequestObjectResult(new { Message = "Regional Office has already processed this revision request.", Title = "Already Processed" });
+                        if(isCOUser)
+                        {
+                            existingCorrections.COComment = dto.Remarks;
+                            existingCorrections.COForCorrectionDate = CurrentDate;
+                        }
+                        else
+                        {
+                            existingCorrections.ROComment = dto.Remarks;
+                            existingCorrections.ROForCorrectionDate = CurrentDate;
+                        }
+                        _db.tRevisionForCorrectionDetails.Update(existingCorrections);
                     }
-                    RevisionDetails.RegionApproveStatus = dto.Status;
-                    RevisionDetails.RegionApprover = _Session.UserId;
-                    RevisionDetails.RegionApprovedDate = CurrentDate;
+                    else
+                    {
+                        await _db.tRevisionForCorrectionDetails.AddAsync(new RevisionForCorrectionDetails
+                        {
+                            TransactionId = dto.TransactionId,
+                            ROComment = dto.Remarks,
+                            ROForCorrectionDate = CurrentDate
+                        });
+                    }
                 }
+                RevisionDetails.RegionStatus = (isROUser ? dto.Status : RevisionDetails.RegionStatus);
+                RevisionDetails.RegionApprover = (isROUser ? _Session.UserId : RevisionDetails.RegionApprover);
+                RevisionDetails.RegionApprovedDate = (isROUser ? CurrentDate : RevisionDetails.RegionApprovedDate);
                 if(isCOUser)
                 {
-                    if(RevisionDetails.RegionApproveStatus != DBHelper.Models.Enums.EnumRevisionStatus.Approved)
+                    if (RevisionDetails.RegionStatus != EnumRevisionStatus.Approved)
                     {
-                        return new BadRequestObjectResult(new { Message = "Central Office can only process revision requests that have been approved by Regional Office.", Title = "Invalid Revision Status" });
+                        return new BadRequestObjectResult(new { Message = "Revision is not yet approved by Regional Office", Title = "Pending For Approval" });
                     }
-                    if (RevisionDetails.COApproveStatus != DBHelper.Models.Enums.EnumRevisionStatus.Pending)
+                    if (dto.Status == EnumRevisionStatus.Approved)
                     {
-                        return new BadRequestObjectResult(new { Message = "Central Office has already processed this revision request.", Title = "Already Processed" });
+                        var RevisionDocument = await _db.tRevisionDocuments.AsNoTracking().FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId && x.IsApprovedDocument == false);
+                        if (RevisionDocument == null)
+                        {
+                            return new BadRequestObjectResult(new { Message = "Request document from IO is missing. Please contact Administrator!", Title = "Missing Document" });
+                        }
+                        if (RevisionDocument != null)
+                        {
+                            string FilePath = Path.Combine(Appsetting.Resources.Revision.CentralOffice, dto.Documents.Name);
+                            if (!dto.Documents.UploadFile(FilePath))
+                            {
+                                return new BadRequestObjectResult(new { Message = "Uploaded document is corrupted!", Title = "File Corrupted" });
+                            }
+                            RevisionDocument.IsApprovedDocument = true;
+                            _db.tRevisionDocuments.Update(RevisionDocument);
+                        }
                     }
-                    RevisionDetails.COApproveStatus = dto.Status;
+                    RevisionDetails.COStatus = dto.Status;
                     RevisionDetails.COApprover = _Session.UserId;
                     RevisionDetails.COApprovedDate = CurrentDate;
                 }
                 _db.tRevisionDetails.Update(RevisionDetails);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
-                return Ok(new {});
+                return Ok(new { Message = $"Revision Updated by {_Session.UserGroups}" });
             }
             catch (Exception ex)
             {

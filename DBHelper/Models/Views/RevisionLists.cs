@@ -13,16 +13,24 @@ namespace DBHelper.Models.Views
         [Key]
         public int Id { get; set; }
         public string TransactionId { get; set; } = string.Empty;
-        public string Reason { get; set; } = string.Empty;
-        public int ReasonId { get; set; }
         public string RevisionName { get; set; } = string.Empty;
         public int RevisionGroupId { get; set; }
-        public EnumRevisionStatus IsRegionApproved { get; set; }
+        public string? CategoryName { get; set; }
+        public int? CategoryId { get; set; }
+        public string Reason { get; set; } = string.Empty;
+        public int ReasonId { get; set; }
+        public string? RequestDocument { get; set; }
+        public EnumRevisionStatus RegionStatus { get; set; }
+        public string? ROComment { get; set; }
+        public DateTime? ROForCorrectionDate { get; set; }
         public string? RegionApprover { get; set; }
         public DateTime? RegionApprovedDate { get; set; }
-        public EnumRevisionStatus IsCOApproved { get; set; }
+        public EnumRevisionStatus COStatus { get; set; }
+        public string? COComment { get; set; }
+        public DateTime? COForCorrectionDate { get; set; }
         public string? COApprover { get; set; }
         public DateTime? COApprovedDate { get; set; }
+        public string? ApprovedDocument { get; set; }
         public string? CreatedBy { get; set; }
         public DateTime? CreatedDate { get; set; }
     }

@@ -68,9 +68,34 @@ namespace Helpers
                 "EXEC pGenerateUID @Table = @Table", param
             ).FirstOrDefault() ?? string.Empty;
         }
+        public static bool UploadFile(this FileUpload File, string FilePath)
+        {
+            if (!File.IsFileCorrupted())
+            {
+                return false;
+            }
+            string folder = Path.GetDirectoryName(FilePath)!;
+            if (!Directory.Exists(folder))
+            {
+                Directory.CreateDirectory(folder);
+            }
+            string base64Data = File.DataUrl.Contains(",")
+                ? File.DataUrl.Split(',')[1]
+                : File.DataUrl;
+            byte[] fileBytes = Convert.FromBase64String(base64Data);
+            System.IO.File.WriteAllBytes(FilePath, fileBytes);
+            return true;
+        }
         public static bool IsFileCorrupted(this FileUpload File)
         {
-
+            string base64Data = File.DataUrl.Contains(",")
+                ? File.DataUrl.Split(',')[1]
+                : File.DataUrl;
+            byte[] fileBytes = Convert.FromBase64String(base64Data);
+            if (fileBytes.Length == 0)
+            {
+                return false;
+            }
             string FileName = File.Name;
             string Extension = File.Extension;
             var AllowedPngs = new[] { "jpg", "jpeg", "png" };

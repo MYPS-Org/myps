@@ -10,16 +10,19 @@ namespace DBHelper.Models.Table
         [MaxLength(100)]
         public string TransactionId { get; set; } = string.Empty;
         [Required]
-        public int ModificationCategory { get; set; }
+        public int RevisionGroupId { get; set; }
+        public int? CategoryId { get; set; }
         [Required]
-        public int ModificationReason { get; set; }
-        public Enums.EnumRevisionStatus RegionApproveStatus { get; set; } = Enums.EnumRevisionStatus.Pending;
+        public int ReasonId { get; set; }
+        [Required]
+        public Enums.EnumRevisionStatus RegionStatus { get; set; } = Enums.EnumRevisionStatus.Pending;
         public string? RegionDescription { get; set; }
         [MaxLength(100)]
         public string? RegionApprover { get; set; }
         public DateTime? RegionApprovedDate { get; set; }
         public DateTime? RegionLastUpdatedDate { get; set; }
-        public Enums.EnumRevisionStatus COApproveStatus { get; set; } = Enums.EnumRevisionStatus.Pending;
+        [Required]
+        public Enums.EnumRevisionStatus COStatus { get; set; } = Enums.EnumRevisionStatus.Pending;
         public string? CODescription { get; set; }
         [MaxLength(100)]
         public string? COApprover { get; set; }

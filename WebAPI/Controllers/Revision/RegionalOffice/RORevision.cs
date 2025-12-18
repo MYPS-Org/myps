@@ -41,7 +41,7 @@ namespace WebAPI.Controllers.Revision.RegionalOffice
                 {
                     return new BadRequestObjectResult(new { Message = "Revision Details not found! Please contact administrator", Title = "Revision Details Missing" });
                 }
-                var SelectedReason = await _db.tOptionRevisionReasons.AsNoTracking().FirstOrDefaultAsync(x => x.ReasonId == RevisionDetails.ModificationReason);
+                var SelectedReason = await _db.tOptionRevisionReasons.AsNoTracking().FirstOrDefaultAsync(x => x.ReasonId == RevisionDetails.ReasonId);
                 if (SelectedReason == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Revision Reason not found! Please contact administrator", Title = "Revision Reason Missing" });
@@ -52,8 +52,8 @@ namespace WebAPI.Controllers.Revision.RegionalOffice
                     return new BadRequestObjectResult(new { Message = "Revision Category not found! Please contact administrator", Title = "Revision Category Missing" });
                 }
                 RevisionDetails.RegionApprover = _Session.UserId;
-                RevisionDetails.RegionApproveStatus = dto.Status;
-                RevisionDetails.RegionDescription = dto.Status == DBHelper.Models.Enums.EnumRevisionStatus.ForReview ? dto.Description : null;
+                RevisionDetails.RegionStatus = dto.Status;
+                RevisionDetails.RegionDescription = dto.Status == DBHelper.Models.Enums.EnumRevisionStatus.ForCorrection ? dto.Description : null;
                 RevisionDetails.RegionLastUpdatedDate = CurrentDate;
                 _db.tRevisionDetails.Update(RevisionDetails);
                 //await _db.SaveChangesAsync();

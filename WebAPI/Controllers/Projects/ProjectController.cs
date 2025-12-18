@@ -512,6 +512,7 @@ namespace WebAPI.Controllers.Projects
                 #region Update Project Details
                 if (Project.Description != dto.ProjectDetails?.Description)
                 {
+                    hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
                         TransactionId = Project.ProjectId!,
@@ -643,7 +644,6 @@ namespace WebAPI.Controllers.Projects
                         return new BadRequestObjectResult(new { Message = $"Selected Legislative District '{dto.ProjectDetails!.LegislativeDistrict}' is not valid!", Title = "Invalid Legislative District" });
                     }
                     var OldLD = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().FirstOrDefaultAsync(x => x.Code == Project.LegislativeDistrict);
-                    hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
                         TransactionId = Project.ProjectId!,
@@ -656,6 +656,7 @@ namespace WebAPI.Controllers.Projects
                         CreatedDate = CurrentDate
                     });
                     Project.LegislativeDistrict = dto.ProjectDetails!.LegislativeDistrict;
+                    hasUpdated = true;
                 }
                 if (Project.OperatingUnit != dto.ProjectDetails?.OperatingUnit)
                 {
@@ -944,6 +945,7 @@ namespace WebAPI.Controllers.Projects
                         .FirstOrDefaultAsync();
                     var NewRevision = new ProjectRevisions()
                     {
+                        ReferenceId = Project.ReferenceId,
                         ProjectId = Project.ProjectId!,
                         AlternateId = Project.AlternateId,
                         ExternalId = Project.ExternalId,
@@ -1879,33 +1881,16 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = "No file uploaded!", Title = "File Upload Error" });
                 }
-                if (dto.File.IsFileCorrupted())
+                string FilePath = Path.Combine(Appsetting.Resources.ProjectNotes, Project.ProjectId!, dto.File.Name);
+                if (!dto.File.UploadFile(FilePath))
                 {
                     return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted!", Title = "File Corrupted" });
                 }
-                string FileName = dto.File.Name;
-                string Extension = Path.GetExtension(FileName);
-                string PathDir = Path.Combine(Appsetting.Resources.ProjectNotes, Project.ProjectId!);
-                if (!Directory.Exists(PathDir))
-                {
-                    Directory.CreateDirectory(PathDir);
-                }
-                string FilePath = $"{PathDir}/{FileName}";
-
-                string base64Data = dto.File.DataUrl.Contains(",")
-                    ? dto.File.DataUrl.Split(',')[1]
-                    : dto.File.DataUrl;
-                byte[] fileBytes = Convert.FromBase64String(base64Data);
-                if (fileBytes.Length == 0)
-                {
-                    return new BadRequestObjectResult(new { Message = "Uploaded file is empty!", Title = "File Empty" });
-                }
-                await System.IO.File.WriteAllBytesAsync(Path.Combine(Appsetting.RootPath, FilePath), fileBytes);
                 var AddNotes = new ProjectNotes()
                 {
                     ProjectId = dto.ProjectId,
-                    FileName = FileName,
-                    FileExtension = Extension,
+                    FileName = dto.File.Name,
+                    FileExtension = dto.File.Extension,
                     FilePath = FilePath,
                     Description = Regex.Replace(dto.Description, @"\s+", " "),
                     CreatedBy = _Session.UserId,
@@ -1988,38 +1973,21 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = "No file uploaded!", Title = "File Upload Error" });
                 }
-                if (dto.File.IsFileCorrupted())
+                string FilePath = Path.Combine(Appsetting.Resources.SupportingDocs, Project.ProjectId!, dto.File.Name);
+                if (!dto.File.UploadFile(FilePath))
                 {
                     return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted!", Title = "File Corrupted" });
                 }
                 var type = dto.DocumentType.Split(":");
                 string docType = type[0];
                 string DocName = type[1].Replace("/", " or ");
-                string Extension = Path.GetExtension(dto.File.Name);
-                string FileName = $"{DocName}.{Extension}";
-                string PathDir = Path.Combine(Appsetting.Resources.SupportingDocs, Project.ProjectId!);
-                if (!Directory.Exists(PathDir))
-                {
-                    Directory.CreateDirectory(PathDir);
-                }
-                string FilePath = $"{PathDir}/{FileName}";
-
-                string base64Data = dto.File.DataUrl.Contains(",")
-                    ? dto.File.DataUrl.Split(',')[1]
-                    : dto.File.DataUrl;
-                byte[] fileBytes = Convert.FromBase64String(base64Data);
-                if (fileBytes.Length == 0)
-                {
-                    return new BadRequestObjectResult(new { Message = "Uploaded file is empty!", Title = "File Empty" });
-                }
-                await System.IO.File.WriteAllBytesAsync(Path.Combine(Appsetting.RootPath, FilePath), fileBytes);
                 var AddSupporting = new ProjectSupportingDocs()
                 {
                     StageName = dto.StageName,
                     DocumentType = docType,
                     ProjectId = dto.ProjectId,
-                    FileName = FileName,
-                    FileExtension = Extension,
+                    FileName = dto.File.Name,
+                    FileExtension = dto.File.Extension,
                     FilePath = FilePath,
                     Description = Regex.Replace(dto.Description, @"\s+", " "),
                     CreatedBy = _Session.UserId,

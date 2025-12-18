@@ -25,6 +25,7 @@ namespace WebAPI.Controllers.Revision.ImplementingOffice
     {
         //[Required]
         //public string RevisionName { get; set; } = string.Empty;
+        public int? CategoryId { get; set; }
         [Required]
         public int ReasonId { get; set; }
         [Required]
