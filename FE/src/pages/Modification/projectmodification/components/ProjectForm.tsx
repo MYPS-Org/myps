@@ -40,6 +40,7 @@ import ApproveModifyDialog from '../../dialogs/ApproveModifyDialog';
 import ForReviewModifyDialog from '../../dialogs/ForReviewModifyDialog';
 import TerminationDialog from '../../dialogs/TerminationDialog';
 import ExcessPrompt from '../../dialogs/ExcessPrompt';
+import RejectModifyDialog from '../../dialogs/RejectModifyDialog';
 
 import RevisionForm from './RevisionForm';
 import { checkExcessComponent } from '../../conditions/ExcessComponentAutomation';
@@ -72,6 +73,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const [projectEnums, setProjectEnums] = useState<ProjectEnums | null>(null);
   const [updateAllProject, setUpdateAllProject] = useState<boolean>(false);
   const [updateApproveProject] = useState<boolean>(false);
+  const [rejectDialogProject] = useState<boolean>(false);
   const [updateReviseProject] = useState<boolean>(false);
   const [updateForReviewProject] = useState<boolean>(false);
   // const [reviseProject, setReviseProject] = useState<boolean>(false);
@@ -104,6 +106,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   // set isRevisedProjectDialogOpen
   const [isRevisedProjectDialogOpen, setIsRevisedProjectDialogOpen] = useState<boolean>(false);
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState<boolean>(false);
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState<boolean>(false);
   const [isForReviewDialogOpen, setIsForReviewDialogOpen] = useState<boolean>(false);
   const [isTerminationDialogOpen, setIsTerminationDialogOpen] = useState<boolean>(false);
   const [isExcessPromptOpen, setIsExcessPromptOpen] = useState<boolean>(false);
@@ -921,6 +924,24 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     });
   }
 
+  const handleRejectModification = async (rejectionReason: string) => {
+    // TODO: Implement the actual rejection API call
+    console.log('Rejecting modification:', {
+      project: projectDetails,
+      category: modificationCategory,
+      reason: modificationReason,
+      rejectionReason: rejectionReason
+    });
+    
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    showToast({
+      type: 'success',
+      message: 'Modification rejected successfully'
+    });
+  }
+
   // Check if category is Termination and show dialog automatically
   useEffect(() => {
     const normalizedCategory = modificationCategory?.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
@@ -965,17 +986,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                     </Button>
                   </>
                 )}
-                {mode === 'edit' && user?.UserGroups === 'Central Office' && (
+                {mode === 'edit' && (user?.UserGroups === 'Central Office' || user?.UserGroups === 'Regional Office') && (
                   <>
                     <Button color="amber" className='cursor-pointer' onClick={() => setIsForReviewDialogOpen(true)} disabled={updateForReviewProject}>
-                      {updateForReviewProject ? 'Initializing...' : 'For Review'}
-                    </Button>
-                  </>
-                )}
-                {mode === 'edit' && user?.UserGroups === 'Regional Office' && (
-                  <>
-                    <Button color="amber" className='cursor-pointer' onClick={() => setIsForReviewDialogOpen(true)} disabled={updateForReviewProject}>
-                      {updateForReviewProject ? 'Initializing...' : 'For Review'}
+                      {updateForReviewProject ? 'Initializing...' : 'For Correction'}
                     </Button>
                   </>
                 )}
@@ -983,6 +997,13 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                   <>
                     <Button color="green" className='cursor-pointer' onClick={() => setIsApproveDialogOpen(true)} disabled={updateApproveProject}>
                       {updateApproveProject ? 'Approving...' : 'Approve'}
+                    </Button>
+                  </>
+                )}
+                {mode === 'edit' && (user?.UserGroups === 'Regional Office' || user?.UserGroups === 'Central Office') && (
+                  <>
+                    <Button color="red" className='cursor-pointer' onClick={() => setIsRejectDialogOpen(true)} disabled={rejectDialogProject}>
+                      {rejectDialogProject ? 'Rejecting...' : 'Reject'}
                     </Button>
                   </>
                 )}
@@ -1301,15 +1322,15 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         />
       )}
 
-      {/* Termination Modal */}
-      {isTerminationDialogOpen && (
-        <TerminationDialog
-          isOpen={isTerminationDialogOpen}
-          onClose={() => setIsTerminationDialogOpen(false)}
+      {/* Reject Modification Modal */}
+      {isRejectDialogOpen && (
+        <RejectModifyDialog
+          isOpen={isRejectDialogOpen}
+          onClose={() => setIsRejectDialogOpen(false)}
           project={initialData?.ProjectDetails || projectDetails}
           category={modificationCategory}
           reason={modificationReason}
-          onSubmitTermination={handleTerminationSubmit}
+          onReject={handleRejectModification}
         />
       )}
 

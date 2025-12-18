@@ -43,7 +43,7 @@ const ModificationList: React.FC = () => {
         filters: {
             ProjectId: ''
         },
-        sortField: '',
+        SortField: '',
         sortDirection: 1,
         page: 1,
         limit: 10
@@ -146,7 +146,7 @@ const ModificationList: React.FC = () => {
 
     const handleViewDetails = (transactionId: string) => {
         console.log("View Details Clicked for Transaction ID:", transactionId);
-        navigate(`/revision/view/${transactionId}`, { state: { transactionId } });
+        navigate(`/revision/view/${transactionId}`);
     }
     return (
         

@@ -125,9 +125,11 @@ export interface RevisionLists {
 }
 
 export interface RevisionPagination extends PaginationParams {
-  filters?: RevisionFilter;
-  sortField?: string;
-  sortDirection?: 0 | 1;
+    filters?: RevisionFilter;
+    limit: number,
+    page: number,
+    SortField: string,
+    sortDirection: number
 }
 
 export interface RevisionFilter {
@@ -137,10 +139,5 @@ export interface RevisionFilter {
   ReasonId?: number;
   RegionApproveStatus?: number;
   COApproveStatus?: number;
-}
-
-{
-  TransactionId: string;
-  Status: number;
 }
 

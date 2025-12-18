@@ -10,8 +10,7 @@ import { ArrowLeftIcon } from '@heroicons/react/20/solid';
 import ProjectForm from '../projectmodification/components/ProjectForm';
 import { useAPIIntegration } from '../hooks/useFieldPermissions';
 import type { FieldRules } from '../Model';
-import { useAtomValue } from 'jotai';
-import { transactionIdAtom } from '../store/routeContextStore';
+import { useTransactionId } from '../hooks/useTransactionId';
 
 const ViewRevision: React.FC = () => {
     const navigate = useNavigate();
@@ -20,10 +19,18 @@ const ViewRevision: React.FC = () => {
     const [revisionData, setRevisionData] = useState<RevisionProjectPayload | null>(null);
     const { setStatusFromAPI, setModificationContext, setFieldRules } = useAPIIntegration();
 
-    const transactionId = useAtomValue(transactionIdAtom);
+    const transactionId = useTransactionId();
 
     useEffect(() => {
-        if (!transactionId) return;
+        if (!transactionId) {
+            showToast({
+                type: 'error',
+                message: 'No transaction ID provided'
+            });
+            navigate('/modification/list');
+            return;
+        }
+        
         const fetchDetails = async () => {
             setIsLoading(true);
             try {

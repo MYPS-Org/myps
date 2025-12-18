@@ -5,6 +5,9 @@ import XMarkIcon from '@heroicons/react/24/outline/XMarkIcon';
 import ExclamationTriangleIcon from '@heroicons/react/24/outline/ExclamationTriangleIcon';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import type { ProjectDetails } from '../../Project/Model';
+import { updateRevisionRequestStatus } from '../Service';
+import { transactionIdAtom } from '../store/routeContextStore';
+import { useAtomValue } from 'jotai';
 
 interface ForReviewModifyDialogProps {
     isOpen: boolean;
@@ -26,6 +29,7 @@ const ForReviewModifyDialog: React.FC<ForReviewModifyDialogProps> = ({
     const { showToast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
     const [reviewComments, setReviewComments] = useState<string>('');
+    const transactionId = useAtomValue(transactionIdAtom);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -42,6 +46,7 @@ const ForReviewModifyDialog: React.FC<ForReviewModifyDialogProps> = ({
         setIsSubmitting(true);
         
         try {
+            await updateRevisionRequestStatus(transactionId, 3); // 3 = For Review
             await onSubmitForReview(reviewComments);
             
             showToast({
