@@ -11,13 +11,29 @@ namespace DBHelper.Models.Table
 {
     public class RuleComponentCost
     {
+        public FieldComponentCost Fields { get; set; } = new FieldComponentCost();
+        public CRUDComponentCost CRUD { get; set; } = new CRUDComponentCost();
+    }
+    public class FieldComponentCost
+    {
         public bool ComponentType { get; set; } = false;
         public bool ComponentId { get; set; } = false;
         public bool Description { get; set; } = false;
         public bool Total { get; set; } = false;
     }
+    public class CRUDComponentCost
+    {
+        public string Message { get; set; } = string.Empty;
+        public bool CanAdd { get; set; } = false;
+        public bool CanDelete { get; set; } = false;
+    }
 
     public class RuleComponentCostYear
+    {
+        public FieldComponentCostYear Fields { get; set; } = new FieldComponentCostYear();
+        public CRUDComponentCostYear CRUD { get; set; } = new CRUDComponentCostYear();
+    }
+    public class FieldComponentCostYear
     {
         public bool ParentId { get; set; } = false;
         public bool CostYear { get; set; } = false;
@@ -25,16 +41,57 @@ namespace DBHelper.Models.Table
         public bool StartDate { get; set; } = false;
         public bool EndDate { get; set; } = false;
     }
+    public class CRUDComponentCostYear
+    {
+        public string Message { get; set; } = string.Empty;
+        public bool CanAdd { get; set; } = false;
+        public bool CanDelete { get; set; } = false;
+    }
 
     public class RuleFundingProfile
+    {
+        public FieldFundingProfile Fields { get; set; } = new FieldFundingProfile();
+        public CRUDFundingProfile CRUD { get; set; } = new CRUDFundingProfile();
+    }
+    public class FieldFundingProfile
     {
         public bool Source { get; set; } = false;
         public bool Agreement { get; set; } = false;
         public bool Amount { get; set; } = false;
         public bool Percentage { get; set; } = false;
     }
+    public class CRUDFundingProfile
+    {
+        public string Message { get; set; } = string.Empty;
+        public bool CanAdd { get; set; } = false;
+        public bool CanDelete { get; set; } = false;
+    }
+
+    public class RuleMajorItemOfWork
+    {
+        public FieldMajorItemOfWork Fields { get; set; } = new FieldMajorItemOfWork();
+        public CRUDMajorItemOfWork CRUD { get; set; } = new CRUDMajorItemOfWork();
+    }
+    public class FieldMajorItemOfWork
+    {
+        public bool ComponentId { get; set; } = false;
+        public bool YearOfWork { get; set; } = false;
+        public bool WorkTypeId { get; set; } = false;
+        public bool InfraType { get; set; } = false;
+    }
+    public class CRUDMajorItemOfWork
+    {
+        public string Message { get; set; } = string.Empty;
+        public bool CanAdd { get; set; } = false;
+        public bool CanDelete { get; set; } = false;
+    }
 
     public class RuleMajorItemLocation
+    {
+        public FieldMajorItemLocation Fields { get; set; } = new FieldMajorItemLocation();
+        public CRUDMajorItemLocation CRUD { get; set; } = new CRUDMajorItemLocation();
+    }
+    public class FieldMajorItemLocation
     {
         public bool InfraId { get; set; } = false;
         public bool DetailedScope { get; set; } = false;
@@ -50,13 +107,11 @@ namespace DBHelper.Models.Table
         public bool From { get; set; } = false;
         public bool To { get; set; } = false;
     }
-
-    public class RuleMajorItemOfWork
+    public class CRUDMajorItemLocation
     {
-        public bool ComponentId { get; set; } = false;
-        public bool YearOfWork { get; set; } = false;
-        public bool WorkTypeId { get; set; } = false;
-        public bool InfraType { get; set; } = false;
+        public string Message { get; set; } = string.Empty;
+        public bool CanAdd { get; set; } = false;
+        public bool CanDelete { get; set; } = false;
     }
 
     public class RuleProjectDetails

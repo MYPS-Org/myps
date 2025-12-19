@@ -71,6 +71,7 @@ namespace WebAPI.Controllers.Revision
         public string? Description { get; set; } = string.Empty;
         [Required]
         public double Total { get; set; }
+        public bool IsDeleted { get; set; } = false;
     }
     public class RevisionComponentCostYearDTO
     {
@@ -83,6 +84,7 @@ namespace WebAPI.Controllers.Revision
         public double Cost { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
+        public bool IsDeleted { get; set; } = false;
     }
     public class RevisionMajorWorkItemDTO
     {
@@ -104,6 +106,7 @@ namespace WebAPI.Controllers.Revision
         [Required]
         [MaxLength(50)]
         public string InfraType { get; set; } = string.Empty;
+        public bool IsDeleted { get; set; } = false;
     }
     public class RevisionMajorWorkLocationsDTO
     {
@@ -136,6 +139,7 @@ namespace WebAPI.Controllers.Revision
         public string? EndStationLimit { get; set; }
         public double? EndChainage { get; set; }
         public double? StartChainage { get; set; }
+        public bool IsDeleted { get; set; } = false;
     }
     public class RevisionFundingProfileDTO
     {
@@ -151,6 +155,7 @@ namespace WebAPI.Controllers.Revision
         public double Amount { get; set; }
         [Required]
         public double Percentage { get; set; }
+        public bool IsDeleted { get; set; } = false;
     }
     #endregion
     public class UpdateRevisionStatusDTO
@@ -160,6 +165,6 @@ namespace WebAPI.Controllers.Revision
         [Required]
         public EnumRevisionStatus Status { get; set; }
         public string? Remarks { get; set; }
-        public FileUpload Documents { get; set; } = new FileUpload();
+        public FileUpload? Document { get; set; } = new FileUpload();
     }
 }

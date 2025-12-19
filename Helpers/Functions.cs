@@ -70,7 +70,7 @@ namespace Helpers
         }
         public static bool UploadFile(this FileUpload File, string FilePath)
         {
-            if (!File.IsFileCorrupted())
+            if (File.IsFileCorrupted())
             {
                 return false;
             }

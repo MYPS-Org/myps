@@ -70,6 +70,7 @@ namespace DBHelper.Data
         public DbSet<Models.Table.OptionRevisionHeader> tOptionRevisionHeader { get; set; }
         public DbSet<Models.Table.OptionRevisionReasons> tOptionRevisionReasons { get; set; }
         public DbSet<Models.Table.OptionRevisionCategory> tOptionRevisionCategory { get; set; }
+        public DbSet<Models.Table.OptionRevisionStatus> tOptionRevisionStatus { get; set; }
         #endregion
         #region Views
         public DbSet<Models.Views.Users> vUsers { get; set; }
