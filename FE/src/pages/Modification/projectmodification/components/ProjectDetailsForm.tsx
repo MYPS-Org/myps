@@ -770,7 +770,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <div className='w-2/3'>
                                     <SearchableDropdown
                                         options={formatDropdownOptions(projectEnums?.Agencies || [],
-                                            'Id',
+                                            'Code',
                                             'AgencyName',
                                         )}
                                         value={projectDetails?.Agency || ''}

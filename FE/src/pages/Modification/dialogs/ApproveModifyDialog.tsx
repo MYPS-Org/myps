@@ -8,6 +8,7 @@ import type { ProjectDetails } from '../../Project/Model';
 import { useAtomValue } from 'jotai';
 import { transactionIdAtom } from '../store/routeContextStore';
 import { updateRevisionRequestStatus } from '../Service';
+import { useNavigate } from 'react-router-dom';
 
 interface ApproveModifyDialogProps {
     isOpen: boolean;
@@ -16,6 +17,7 @@ interface ApproveModifyDialogProps {
     category?: string;
     reason?: string;
     onApprove: () => Promise<void>;
+    onSuccess?: () => void;
 }
 
 const ApproveModifyDialog: React.FC<ApproveModifyDialogProps> = ({ 
@@ -24,19 +26,22 @@ const ApproveModifyDialog: React.FC<ApproveModifyDialogProps> = ({
     project,
     category,
     reason,
-    onApprove
+    onApprove,
+    onSuccess
 }) => {
     const { showToast } = useToast();
+    const navigate = useNavigate();
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
     const [remarks, setRemarks] = useState<string>('');
+    const transactionId = useAtomValue(transactionIdAtom); // Get transactionId from atom
 
     const handleApprove = async () => {
         setIsSubmitting(true);
         
-        const transactionId = useAtomValue(transactionIdAtom); // Get transactionId from atom
+        console.log('Approving modification for Transaction ID:', transactionId);
         try {
-            await updateRevisionRequestStatus(transactionId, 2); // 2 = Approved
-            await onApprove();
+            await updateRevisionRequestStatus(transactionId, 1); // 2 = Approved
+            // await onApprove();
             
             showToast({
                 type: 'success',
@@ -44,6 +49,13 @@ const ApproveModifyDialog: React.FC<ApproveModifyDialogProps> = ({
             });
             
             onClose();
+            
+            // Call onSuccess callback if provided, otherwise navigate to list
+            if (onSuccess) {
+                onSuccess();
+            } else {
+                navigate('/modification/list');
+            }
         } catch (error) {
             console.error('Error approving modification request:', error);
             showToast({
@@ -88,7 +100,7 @@ const ApproveModifyDialog: React.FC<ApproveModifyDialogProps> = ({
                                 Are you sure you want to approve this revision?
                             </p>
                             <p className="text-sm text-green-700 mt-2">
-                                This will update the project in MYPS and will be published to PCMA and other applications.
+                                This will update the project to central office.
                             </p>
                         </div>
 
@@ -131,7 +143,7 @@ const ApproveModifyDialog: React.FC<ApproveModifyDialogProps> = ({
                         </div>
 
                         {/* Approval Remarks */}
-                        <div className="space-y-2">
+                        {/* <div className="space-y-2">
                             <label className="block text-sm font-medium text-gray-700">
                                 Approval Remarks (Optional)
                             </label>
@@ -143,7 +155,7 @@ const ApproveModifyDialog: React.FC<ApproveModifyDialogProps> = ({
                                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
                                 disabled={isSubmitting}
                             />
-                        </div>
+                        </div> */}
                     </div>
 
                     {/* Footer */}
@@ -154,7 +166,7 @@ const ApproveModifyDialog: React.FC<ApproveModifyDialogProps> = ({
                             onClick={handleApprove}
                             disabled={isSubmitting}
                         >
-                            {isSubmitting ? 'Approving...' : 'Approve Modification'}
+                            {isSubmitting ? 'Approving...' : 'Approve Revision'}
                         </Button>
                         <Button
                             type="button"

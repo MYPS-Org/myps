@@ -3,9 +3,12 @@ import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon, DocumentArrowUpIcon, DocumentIcon } from '@heroicons/react/24/outline';
 import type { ProjectDetails, ComponentCost, ComponentCostYear, MajorItemOfWork, MajorItemLocations, FundingProfile } from '../../Project/Model';
-import { submitModificationRequest } from '../Service';
+import { submitModificationRequest, updateRevisionRequestStatus } from '../Service';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { useAtomValue } from 'jotai';
+import { transactionIdAtom } from '../store/routeContextStore';
 
 interface ReviseProjectDialogProps {
     isOpen: boolean;
@@ -38,7 +41,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
     categoryId,
     revisionGroupId
 }) => {
-    
+    const navigate = useNavigate()
     const { showToast } = useToast();
     const { user } = useAuth(); // Get user from auth context
     const [approvalDate, setApprovalDate] = useState<string>('');
@@ -49,9 +52,12 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
         DataUrl: string;
     } | null>(null);
     const [revisionType] = useState<string>('modification');
+    const [isCertified, setIsCertified] = useState<boolean>(false);
 
     console.log('ReviseProjectDialog - Received IDs:', { categoryId, revisionGroupId, reasonId });
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+    const transactionId = useAtomValue(transactionIdAtom); // Get transactionId from atom
 
 
     // Reset form when modal opens
@@ -59,6 +65,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
         if (isOpen) {
             setApprovalDate('');
             setApprovalDocument(null);
+            setIsCertified(false);
         }
     }, [isOpen]);
 
@@ -108,6 +115,15 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
             return;
         }
 
+        // Only require certification if user is from Implementing Office
+        if (user?.UserGroups === 'Implementing Office' && !isCertified) {
+            showToast({
+                type: 'error',
+                message: 'Please certify that the attached document is accurate and aligned with the revisions.'
+            });
+            return;
+        }
+
         setIsSubmitting(true);
 
         try {
@@ -134,18 +150,52 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
 
             console.log('Submitting modification request with payload:', payload);
 
-            await submitModificationRequest(payload, user?.UserRole);
+            let response;
 
-            showToast({
-                type: 'success',
-                message: 'Modification request submitted successfully.'
-            });
+            if (user?.UserGroups === 'Implementing Office') {
+                // Implementing Office: Submit new modification request
+                response = await submitModificationRequest(payload);
+                
+                showToast({
+                    type: 'success',
+                    message: 'Modification request submitted successfully.'
+                });
 
-            // Reset form
-            setApprovalDate('');
-            setApprovalDocument(null);
+                // Reset form
+                setApprovalDate('');
+                setApprovalDocument(null);
+                setIsCertified(false);
 
-            onClose();
+                onClose();
+                // Navigate to the newly created revision view
+                navigate('/revision/view/' + (response?.Data?.TransactionId || ''));
+            } else {
+                // Non-Implementing Office: Approve existing revision
+                await updateRevisionRequestStatus(
+                    transactionId, 
+                    1,
+                    {
+                        Name: approvalDocument.Name,
+                        Extension: approvalDocument.Extension,
+                        ContentType: approvalDocument.ContentType,
+                        DataUrl: approvalDocument.DataUrl
+                    }
+                ); // 1 = Approved
+                
+                showToast({
+                    type: 'success',
+                    message: 'Revision approved successfully.'
+                });
+
+                // Reset form
+                setApprovalDate('');
+                setApprovalDocument(null);
+                setIsCertified(false);
+
+                onClose();
+                // Navigate back to modification list
+                navigate('/modification/list');
+            }
         } catch (error) {
             console.error('Error submitting modification request:', error);
             showToast({
@@ -224,6 +274,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
 
                     {/* Revision Details */}
                     <div className='space-y-2'>
+                        
                         <div className='flex justify-between gap-5 items-center'>
                             <label className='w-1/3 block text-sm font-medium text-gray-700'>
                                 *Date of Approval :
@@ -270,11 +321,29 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
                             </div>
                         </div>
                     </div>
+
+                    {/* Certification Checkbox */}
+                    {user?.UserGroups === 'Implementing Office' && (
+                    <div className='bg-amber-50 border border-amber-200 p-4 rounded-lg'>
+                        <label className='flex items-start gap-3 cursor-pointer'>
+                            <input 
+                                type="checkbox"
+                                checked={isCertified}
+                                onChange={(e) => setIsCertified(e.target.checked)}
+                                className='mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500'
+                            />
+                            <span className='text-sm text-gray-700 flex-1'>
+                                I hereby certify that the attached approval document is accurate, complete, and aligned with the revisions being submitted for this project.
+                            </span>
+                        </label>
+                    </div>
+                    )}
+
                     <div className='pt-4 border border-gray-100 rounded-2xl px-4 flex justify-end gap-5'>
                         <Button
                             type="submit"
                             color="blue"
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || (user?.UserGroups === 'Implementing Office' && !isCertified)}
                         >
                             {isSubmitting ? 'Submitting...' : 'Submit'}
                         </Button>

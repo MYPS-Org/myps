@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useParams, useLocation } from 'react-router-dom';
 import ProjectForm from '../projectmodification/components/ProjectForm';
 import { fetchRevisionData } from '../Service';
@@ -14,6 +15,7 @@ const ModifyProject: React.FC = () => {
     const [initialData, setInitialData] = useState<RevisionProjectPayload | undefined>(undefined);
     const [isLoading, setIsLoading] = useState(true);
     const { setStatusFromAPI, setModificationContext, setFieldRules } = useAPIIntegration();
+    const navigate = useNavigate();
 
     // Get category and reason from navigation state
     const categoryDesc = location.state?.categoryDesc;
@@ -150,7 +152,9 @@ const ModifyProject: React.FC = () => {
             }
 
         } catch (error) {
-            console.error('Error fetching revision data:', error);
+            setTimeout(() => {
+                navigate('/revision');
+            }, 3000);
         } finally {
             setIsLoading(false);
         }

@@ -61,7 +61,7 @@ const ViewRevision: React.FC = () => {
                 if (response.Data.Rules?.Field) {
                     try {
                         const parsedRules = JSON.parse(response.Data.Rules.Field) as FieldRules;
-                        setFieldRules(parsedRules);
+                        // setFieldRules(parsedRules);
                     } catch (error) {
                         console.error('Error parsing field rules:', error);
                     }
@@ -81,6 +81,11 @@ const ViewRevision: React.FC = () => {
     }, [transactionId]);
 
     const handleBack = () => {
+        navigate('/modification/list');
+    };
+
+    const handleActionSuccess = () => {
+        // Navigate back to list after successful approve/reject/for review
         navigate('/modification/list');
     };
 
@@ -136,6 +141,7 @@ const ViewRevision: React.FC = () => {
                 reasonId={revisionData.Reason.ReasonId}
                 categoryId={revisionData.Category.CategoryId}
                 revisionGroupId={revisionData.Rules?.RevisionGroupId}
+                onActionSuccess={handleActionSuccess}
             />
         </div>
     );

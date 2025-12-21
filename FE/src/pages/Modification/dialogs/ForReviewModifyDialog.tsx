@@ -8,6 +8,7 @@ import type { ProjectDetails } from '../../Project/Model';
 import { updateRevisionRequestStatus } from '../Service';
 import { transactionIdAtom } from '../store/routeContextStore';
 import { useAtomValue } from 'jotai';
+import { useNavigate } from 'react-router-dom';
 
 interface ForReviewModifyDialogProps {
     isOpen: boolean;
@@ -16,6 +17,7 @@ interface ForReviewModifyDialogProps {
     category?: string;
     reason?: string;
     onSubmitForReview: (reviewComments: string) => Promise<void>;
+    onSuccess?: () => void;
 }
 
 const ForReviewModifyDialog: React.FC<ForReviewModifyDialogProps> = ({ 
@@ -24,9 +26,11 @@ const ForReviewModifyDialog: React.FC<ForReviewModifyDialogProps> = ({
     project,
     category,
     reason,
-    onSubmitForReview
+    onSubmitForReview,
+    onSuccess
 }) => {
     const { showToast } = useToast();
+    const navigate = useNavigate();
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
     const [reviewComments, setReviewComments] = useState<string>('');
     const transactionId = useAtomValue(transactionIdAtom);
@@ -56,6 +60,13 @@ const ForReviewModifyDialog: React.FC<ForReviewModifyDialogProps> = ({
             
             setReviewComments('');
             onClose();
+            
+            // Call onSuccess callback if provided, otherwise navigate to list
+            if (onSuccess) {
+                onSuccess();
+            } else {
+                navigate('/modification/list');
+            }
         } catch (error) {
             console.error('Error submitting for review:', error);
             showToast({

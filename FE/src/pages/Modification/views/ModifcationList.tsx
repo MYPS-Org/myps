@@ -8,7 +8,7 @@ import { Pagination, PaginationPrevious, PaginationNext, PaginationPage, Paginat
 import { PlusIcon, XMarkIcon } from '@heroicons/react/20/solid';
 import AddProjectDialog from '../dialogs/AddProjectDialog';
 import AdjustProjectDialog from '../dialogs/ModifiyProjectDialog';
-import { fetchModificationList, fetchReviseProjectDetails } from '../Service';
+import { fetchModificationList } from '../Service';
 import type { RevisionPagination, RevisionLists } from '../Model.d';
 import { useToast } from '../../../components/toaster/ToasterContext';
 
@@ -236,13 +236,16 @@ const ModificationList: React.FC = () => {
                                     <TableCell>{revision.Reason}</TableCell>
                                     <TableCell>{revision.CreatedDate ? new Date(revision.CreatedDate).toLocaleDateString() : '-'}</TableCell>
                                     <TableCell>
-                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                            revision.RegionStatus === 1 ? 'bg-green-100 text-green-800' :
-                                            revision.COStatus === 1 ? 'bg-blue-100 text-blue-800' :
-                                            'bg-yellow-100 text-yellow-800'
-                                        }`}>
-                                            {revision.RegionStatus === 1 ? 'Region Approved' : revision.COStatus === 1 ? 'CO Approved' : 'Pending'}
-                                        </span>
+                                        {revision.COStatus == null && (
+                                            <span className="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                                {revision.RegionStatusName}
+                                            </span>
+                                        )}
+                                        {revision.RegionStatus != null && revision.COStatus != null && (
+                                            <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 ml-2">
+                                                {revision.COStatusName}
+                                            </span>
+                                        )}
                                     </TableCell>
                                     <TableCell>
                                         <Button 

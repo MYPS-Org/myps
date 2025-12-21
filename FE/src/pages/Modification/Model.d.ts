@@ -43,7 +43,10 @@ export interface RevisionProjectPayload extends ProjectFormPayload{
     ProjectStatus: PackageStatus; // Overall project status from API
     Rules: Rules; // Rules for field validation
     ComponentsStatus: ProjectComponentStatus[];
+    RevisionDetails?: RevisionDetails;
 }
+
+
 
 // #additional region for pcma status
 export interface ProjectComponentStatus {
@@ -89,13 +92,24 @@ export interface Rules {
 }
 
 // Parsed structure from Rules.Field JSON
+export interface CRUDRules {
+    Message: string;
+    CanAdd: string;
+    CanDelete: string;
+}
+
+export interface FieldRuleSection {
+    Fields: Record<string, boolean>;
+    CRUD: CRUDRules;
+}
+
 export interface FieldRules {
     ProjectDetailsRules?: Record<string, boolean>;
-    ComponentCostRules?: Record<string, boolean>;
-    ComponentCostYearRules?: Record<string, boolean>;
-    MajorItemOfWorkRules?: Record<string, boolean>;
-    MajorItemLocationRules?: Record<string, boolean>;
-    FundingProfileRules?: Record<string, boolean>;
+    ComponentCostRules?: FieldRuleSection;
+    ComponentCostYearRules?: FieldRuleSection;
+    MajorItemOfWorkRules?: FieldRuleSection;
+    MajorItemLocationRules?: FieldRuleSection;
+    FundingProfileRules?: FieldRuleSection;
 }
 
 export interface PackageStatus {
@@ -114,9 +128,11 @@ export interface RevisionLists {
 	ReasonId: number;
 	RequestDocument?: string;
 	RegionStatus: number;
+    RegionStatusName: string;
 	RegionApprover?: string;
 	RegionApprovedDate?: string;
 	COStatus: number;
+    COStatusName: string;
 	COApprover?: string;
 	COApprovedDate?: string;
 	ApprovedDocument?: string;

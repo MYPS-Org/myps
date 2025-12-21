@@ -31,7 +31,7 @@ export const submitModificationRequest = async (
         MajorItemLocations: MajorItemLocations[];
         FundingProfile: FundingProfile[];
     },
-    userRole?: string
+    // userRole?: string
 ) => {
     try {
         // Determine endpoint based on user role
@@ -42,7 +42,7 @@ export const submitModificationRequest = async (
         // const response = await httpClient.post(endpoint, payload, {
         //     preloaderMessage: 'Requesting revision...'
         // });
-        const response = await httpClient.post(`Revision/RequestRevision`, payload, {
+        const response = await httpClient.post<{TransactionId: string}>(`Revision/RequestRevision`, payload, {
             preloaderMessage: 'Requesting revision...'
         });
         return response;
@@ -52,9 +52,9 @@ export const submitModificationRequest = async (
     }
 };
 
-export const updateRevisionRequestStatus = async (transactionId: string, status: number) => {
+export const updateRevisionRequestStatus = async (transactionId: string, status: number, ApprovedDocument?: any) => {
     try {
-        const response = await httpClient.post(`/Revision/UpdateRevisionStatus/`, { 'TransactionId': transactionId, 'Status': status }, {
+        const response = await httpClient.post(`/Revision/UpdateRevisionStatus/`, { 'Document': ApprovedDocument, 'TransactionId': transactionId, 'Status': status }, {
             preloaderMessage: 'Requesting revision...'
         });
         return response;
@@ -79,7 +79,7 @@ export const fetchRevisionData = async ( ProjectId: string, RevisionHeader: numb
         const response = await httpClient.post(`/Revision/ReviseProject/`, { ProjectId, RevisionHeader, RevisionCategory, RevisionReason });
         return response;
     } catch (error) {
-        console.error('Error fetching revision data:', error);
+        console.error('Rine', error);
         throw error;
     }
 }

@@ -22,6 +22,7 @@ import CodeTables from './pages/CodeTables/Views/CodeTables';
 import { ModalProvider } from './components/Modal/ModalContext';
 import GlobalModal from './components/Modal/Modal';
 import { ToasterProvider } from './components/toaster/ToasterContext';
+import { HttpClientSetup } from './components/HttpClientSetup';
 import Rbia from './pages/Rbia/Views/Rbia';
 import ModificationList from './pages/Modification/views/ModifcationList';
 import MultiYear from './pages/MultiYear/views/MultiYear';
@@ -37,6 +38,7 @@ function App() {
 		<>
 		    <ModalProvider>
 				<ToasterProvider>
+					<HttpClientSetup />
 				<ThemeProvider>
 					<AuthProvider>
 					<Router>

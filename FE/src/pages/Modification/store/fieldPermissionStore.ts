@@ -124,7 +124,10 @@ export const fieldPermissionsAtom = atom((get) => {
         Object.entries(fieldRules).forEach(([ruleGroup, rules]) => {
             console.log(`Processing ${ruleGroup}:`, rules);
             if (rules) {
-                Object.entries(rules).forEach(([fieldName, isEditable]) => {
+                // Handle both old format (Record<string, boolean>) and new format (FieldRuleSection)
+                const fields = typeof rules === 'object' && 'Fields' in rules ? rules.Fields : rules;
+                
+                Object.entries(fields).forEach(([fieldName, isEditable]) => {
                     console.log(`  Field: ${fieldName}, Editable: ${isEditable}`);
                     if (isEditable === true) {
                         editableFields.push(fieldName);
@@ -168,8 +171,13 @@ export const isFieldEditableAtom = (fieldName: string) => {
 
         // Check in all rule groups for the field
         for (const rules of Object.values(fieldRules)) {
-            if (rules && fieldName in rules) {
-                return rules[fieldName] === true;
+            if (rules) {
+                // Handle both old format and new format with Fields property
+                const fields = typeof rules === 'object' && 'Fields' in rules ? rules.Fields : rules;
+                
+                if (fieldName in fields) {
+                    return fields[fieldName] === true;
+                }
             }
         }
 
@@ -192,20 +200,27 @@ export const fieldEditStatusAtom = (fieldName: string) => {
 
         // Check in all rule groups for the field
         for (const [ruleGroup, rules] of Object.entries(fieldRules)) {
-            if (rules && fieldName in rules) {
-                const canEdit = rules[fieldName] === true;
-                return {
-                    canEdit,
-                    reason: canEdit 
-                        ? 'Field is editable per API rules' 
-                        : `Field is not editable per ${ruleGroup}`
-                };
+            if (rules) {
+                // Handle both old format and new format with Fields property
+                const fields = typeof rules === 'object' && 'Fields' in rules ? rules.Fields : rules;
+                
+                if (fieldName in fields) {
+                    const canEdit = fields[fieldName] === true;
+                    return {
+                        canEdit,
+                        reason: canEdit 
+                            ? 'Field is editable per API rules' 
+                            : `Field is restricted by ${ruleGroup}`,
+                        ruleGroup
+                    };
+                }
             }
         }
 
-        return { canEdit: false, reason: 'Field not found in API rules' };
+        return { canEdit: false, reason: 'Field not found in rules', ruleGroup: undefined };
     });
-};
+}; 
+                      
 
 // ============================================================================
 // Action Atoms (Write-only)
@@ -254,8 +269,18 @@ export const setFieldRulesAtom = atom(
             Object.entries(fieldRules).forEach(([group, rules]) => {
                 console.log(`${group}:`, rules);
                 if (rules) {
-                    const editableCount = Object.values(rules).filter(v => v === true).length;
-                    console.log(`  - ${editableCount} editable fields out of ${Object.keys(rules).length}`);
+                    // Handle both old format and new format
+                    const fields = typeof rules === 'object' && 'Fields' in rules ? rules.Fields : rules;
+                    const editableCount = Object.values(fields).filter(v => v === true).length;
+                    console.log(`  - ${editableCount} editable fields out of ${Object.keys(fields).length}`);
+                    
+                    // Log CRUD rules if present
+                    if (typeof rules === 'object' && 'CRUD' in rules) {
+                        console.log(`  - CRUD: CanAdd=${rules.CRUD.CanAdd}, CanDelete=${rules.CRUD.CanDelete}`);
+                        if (rules.CRUD.Message) {
+                            console.log(`  - Message: ${rules.CRUD.Message}`);
+                        }
+                    }
                 }
             });
         }
@@ -283,3 +308,58 @@ export const resetStatusAtom = atom(
         });
     }
 );
+
+/**
+ * CRUD Rules Atom (Derived - Factory)
+ * Returns the CRUD rules for a specific section
+ */
+export const crudRulesAtom = (section: 'ComponentCostRules' | 'ComponentCostYearRules' | 'MajorItemOfWorkRules' | 'MajorItemLocationRules' | 'FundingProfileRules') => {
+    return atom((get) => {
+        const fieldRules = get(fieldRulesAtom);
+        
+        if (!fieldRules || !fieldRules[section]) {
+            return null;
+        }
+        
+        const sectionRules = fieldRules[section];
+        
+        // Check if it has CRUD property (new format)
+        if (typeof sectionRules === 'object' && 'CRUD' in sectionRules) {
+            return sectionRules.CRUD;
+        }
+        
+        return null;
+    });
+};
+
+/**
+ * Can Add Item Atom (Derived - Factory)
+ * Checks if items can be added to a specific section
+ */
+export const canAddItemAtom = (section: 'ComponentCostRules' | 'ComponentCostYearRules' | 'MajorItemOfWorkRules' | 'MajorItemLocationRules' | 'FundingProfileRules') => {
+    return atom((get) => {
+        const crud = get(crudRulesAtom(section));
+        
+        if (!crud) {
+            return true; // Default to allowing add if no rules
+        }
+        
+        return crud.CanAdd !== 'false' && crud.CanAdd !== '0';
+    });
+};
+
+/**
+ * Can Delete Item Atom (Derived - Factory)
+ * Checks if items can be deleted from a specific section
+ */
+export const canDeleteItemAtom = (section: 'ComponentCostRules' | 'ComponentCostYearRules' | 'MajorItemOfWorkRules' | 'MajorItemLocationRules' | 'FundingProfileRules') => {
+    return atom((get) => {
+        const crud = get(crudRulesAtom(section));
+        
+        if (!crud) {
+            return true; // Default to allowing delete if no rules
+        }
+        
+        return crud.CanDelete !== 'false' && crud.CanDelete !== '0';
+    });
+};

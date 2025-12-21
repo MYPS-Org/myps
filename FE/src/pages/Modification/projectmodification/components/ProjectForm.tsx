@@ -59,9 +59,10 @@ interface ProjectFormProps {
   categoryId?: number;
   revisionGroupId?: number;
   fieldLabels?: Record<string, any>;
+  onActionSuccess?: () => void;
 }
 
-const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', initialProgramId, category, reason, reasonId, categoryId, revisionGroupId, fieldLabels: _fieldLabels }) => {
+const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', initialProgramId, category, reason, reasonId, categoryId, revisionGroupId, fieldLabels: _fieldLabels, onActionSuccess }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -972,21 +973,36 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
               
             </div>
             <div className="flex space-x-3">
-                {mode === 'edit' && (user?.UserGroups === 'Implementing Office' ) && (
+                {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus === 0 && (user?.UserGroups === 'Implementing Office' ) && (
                   <>
                     <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify()} disabled={updateReviseProject}>
                       {updateReviseProject ? 'Submitting...' : 'Submit Modify Request to RO'}
                     </Button>
                   </>
                 )}
-                {mode === 'edit' && (user?.UserGroups === 'Regional Office' ) && (
+                {/* need refactor here */}
+                {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus === 0 && (user?.UserGroups === 'Implementing Office' ) && (
                   <>
-                    <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify()} disabled={updateReviseProject}>
+                    <Button color="yellow" className='cursor-pointer' disabled={updateReviseProject}>
+                      {updateReviseProject ? 'Submitting...' : 'Pending RO Approval'}
+                    </Button>
+                  </>
+                )}
+                {mode === 'edit' && (initialData?.RevisionDetails?.COStatus === 0 && initialData?.RevisionDetails?.RegionStatus === 1) && (user?.UserGroups === 'Implementing Office' ) && (
+                  <>
+                    <Button color="yellow" className='cursor-pointer' disabled={updateReviseProject}>
+                      {updateReviseProject ? 'Submitting...' : 'Pending CO Approval'}
+                    </Button>
+                  </>
+                )}
+                {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus === 0 && (user?.UserGroups === 'Regional Office' ) && (
+                  <>
+                    <Button color="green" className='cursor-pointer' onClick={() => setIsApproveDialogOpen(true)} disabled={updateReviseProject}>
                       {updateReviseProject ? 'Submitting...' : 'Submit Modify Request CO'}
                     </Button>
                   </>
                 )}
-                {mode === 'edit' && (user?.UserGroups === 'Central Office' || user?.UserGroups === 'Regional Office') && (
+                {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus === 0 && user?.UserGroups === 'Regional Office' && (
                   <>
                     <Button color="amber" className='cursor-pointer' onClick={() => setIsForReviewDialogOpen(true)} disabled={updateForReviewProject}>
                       {updateForReviewProject ? 'Initializing...' : 'For Correction'}
@@ -995,15 +1011,30 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                 )}
                 {mode === 'edit' && user?.UserGroups === 'Central Office' && (
                   <>
-                    <Button color="green" className='cursor-pointer' onClick={() => setIsApproveDialogOpen(true)} disabled={updateApproveProject}>
+                    <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify()} disabled={updateApproveProject}>
                       {updateApproveProject ? 'Approving...' : 'Approve'}
                     </Button>
                   </>
                 )}
-                {mode === 'edit' && (user?.UserGroups === 'Regional Office' || user?.UserGroups === 'Central Office') && (
+                {mode === 'edit' && initialData?.RevisionDetails?.COStatus === 0 && user?.UserGroups === 'Central Office' && (
+                  <>
+                    <Button color="amber" className='cursor-pointer' onClick={() => setIsForReviewDialogOpen(true)} disabled={updateForReviewProject}>
+                      {updateForReviewProject ? 'Initializing...' : 'For Correction'}
+                    </Button>
+                  </>
+                )}
+                
+                {mode === 'edit' && initialData?.RevisionDetails?.COStatus === 0 && user?.UserGroups === 'Central Office' && (
                   <>
                     <Button color="red" className='cursor-pointer' onClick={() => setIsRejectDialogOpen(true)} disabled={rejectDialogProject}>
-                      {rejectDialogProject ? 'Rejecting...' : 'Reject'}
+                      {rejectDialogProject ? 'Rejecting...' : 'Disapprove'}
+                    </Button>
+                  </>
+                )}
+                {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus === 0 && user?.UserGroups === 'Regional Office' && (
+                  <>
+                    <Button color="red" className='cursor-pointer' onClick={() => setIsRejectDialogOpen(true)} disabled={rejectDialogProject}>
+                      {rejectDialogProject ? 'Rejecting...' : 'Disapprove'}
                     </Button>
                   </>
                 )}
@@ -1307,6 +1338,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           category={modificationCategory}
           reason={modificationReason}
           onApprove={handleApproveModification}
+          onSuccess={onActionSuccess}
         />
       )}
 
@@ -1319,6 +1351,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           category={modificationCategory}
           reason={modificationReason}
           onSubmitForReview={handleForReviewModification}
+          onSuccess={onActionSuccess}
         />
       )}
 
@@ -1331,6 +1364,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           category={modificationCategory}
           reason={modificationReason}
           onReject={handleRejectModification}
+          onSuccess={onActionSuccess}
         />
       )}
 
@@ -1344,6 +1378,15 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           projectCost={programDetails.Cost || 0}
           totalComponentCost={componentCosts.reduce((sum, cost) => sum + (cost.Total || 0), 0)}
           excessAmount={excessComponentData.excessAmount}
+        />
+      )}
+      {/* Termination Dialog */}
+      {isTerminationDialogOpen && (
+        <TerminationDialog
+          isOpen={isTerminationDialogOpen}
+          onClose={() => setIsTerminationDialogOpen(false)}
+          project={initialData?.ProjectDetails || projectDetails}
+          onSubmitTermination={handleTerminationSubmit}
         />
       )}
     </div>

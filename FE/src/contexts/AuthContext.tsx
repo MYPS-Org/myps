@@ -65,6 +65,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 const response = await authService.validateSession();
                 console.log('rine => ', response);
                 if (response.Data.Data.Authenticated) {
+                    localStorage.setItem('currentPath', window.location.pathname);
                     // console.log('✅ Valid session found', response);
                     setAuthState({
                         isAuthenticated: true,

@@ -1,6 +1,6 @@
 import axios from 'axios';
 import type { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
-import { useModal } from '../components/Modal/ModalContext';
+
 export interface PreloaderState {
     loading: boolean;
     progress: number;
@@ -25,6 +25,7 @@ export interface RequestConfig extends AxiosRequestConfig {
 class HttpClient {
     private client: AxiosInstance;
     private preloaderCallbacks: ((state: PreloaderState) => void)[] = [];
+    private toastCallback: ((options: { type: 'success' | 'error' | 'info' | 'warning'; message: string }) => void) | null = null;
 
     constructor() {
         this.client = axios.create({
@@ -88,20 +89,28 @@ class HttpClient {
                         Title: error.response?.data?.Title || 'Not Found',
                         Status: 404
                     };
+
+                    if (this.toastCallback) {
+                        this.toastCallback({
+                            type: 'error',
+                            message: errorResponse.Message || 'An unknown error occurred. Please try again later.'
+                        });
+                    }
                     
-                    const { showModal } = useModal();
-                    await showModal({
-                        icon: 'error',
-                        Title: errorResponse.Title || 'Unknown Error occurred',
-                        Message: errorResponse.Message || 'An unknown error occurred. Please try again later.',
-                        button: ['Close'],
-                        type: 'alert' // optional, defaults to 'confirm' if not provided. types are 'confirm' and 'alert'
-                    });
+                    // const { showModal } = useModal();
+                    // await showModal({
+                    //     icon: 'error',
+                    //     Title: errorResponse.Title || 'Unknown Error occurred',
+                    //     Message: errorResponse.Message || 'An unknown error occurred. Please try again later.',
+                    //     button: ['Close'],
+                    //     type: 'alert' // optional, defaults to 'confirm' if not provided. types are 'confirm' and 'alert'
+                    // });
                     throw errorResponse;
                 }
 
                 // Handle other errors
                 if (error.response?.data?.Message) {
+                    // console.log('API Error Message:', error);
                     throw new Error(error.response.data.Message);
                 }
 
@@ -123,6 +132,10 @@ class HttpClient {
         if (index > -1) {
             this.preloaderCallbacks.splice(index, 1);
         }
+    }
+
+    setToastCallback(callback: (options: { type: 'success' | 'error' | 'info' | 'warning'; message: string }) => void) {
+        this.toastCallback = callback;
     }
 
     async post<T>(url: string, data?: any, config?: RequestConfig): Promise<ApiResponse<T>> {

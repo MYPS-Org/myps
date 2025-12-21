@@ -11,6 +11,9 @@ import {
     setStatusFromAPIAtom,
     setFieldRulesAtom,
     resetStatusAtom,
+    crudRulesAtom,
+    canAddItemAtom,
+    canDeleteItemAtom,
     type ModificationContext,
     type FieldPermissions
 } from '../store/fieldPermissionStore';
@@ -50,8 +53,13 @@ export const useIsFieldEditable = (fieldName: string): boolean => {
 
     // Check in all rule groups for the field
     for (const rules of Object.values(fieldRules)) {
-        if (rules && fieldName in rules) {
-            return rules[fieldName] === true;
+        if (rules) {
+            // Handle both old format and new format with Fields property
+            const fields = typeof rules === 'object' && 'Fields' in rules ? rules.Fields : rules;
+            
+            if (fieldName in fields) {
+                return fields[fieldName] === true;
+            }
         }
     }
 
@@ -72,14 +80,19 @@ export const useFieldEditStatus = (fieldName: string) => {
 
     // Check in all rule groups for the field
     for (const [ruleGroup, rules] of Object.entries(fieldRules)) {
-        if (rules && fieldName in rules) {
-            const canEdit = rules[fieldName] === true;
-            return {
-                canEdit,
-                reason: canEdit 
-                    ? 'Field is editable per API rules' 
-                    : `Field is not editable per ${ruleGroup}`
-            };
+        if (rules) {
+            // Handle both old format and new format with Fields property
+            const fields = typeof rules === 'object' && 'Fields' in rules ? rules.Fields : rules;
+            
+            if (fieldName in fields) {
+                const canEdit = fields[fieldName] === true;
+                return {
+                    canEdit,
+                    reason: canEdit 
+                        ? 'Field is editable per API rules' 
+                        : `Field is not editable per ${ruleGroup}`
+                };
+            }
         }
     }
 
@@ -102,9 +115,14 @@ export const useFieldsEditable = (fieldNames: string[]): Record<string, boolean>
         return fieldNames.reduce((acc, fieldName) => {
             // Check in all rule groups for the field
             for (const rules of Object.values(fieldRules)) {
-                if (rules && fieldName in rules) {
-                    acc[fieldName] = rules[fieldName] === true;
-                    return acc;
+                if (rules) {
+                    // Handle both old format and new format with Fields property
+                    const fields = typeof rules === 'object' && 'Fields' in rules ? rules.Fields : rules;
+                    
+                    if (fieldName in fields) {
+                        acc[fieldName] = fields[fieldName] === true;
+                        return acc;
+                    }
                 }
             }
             // If field not found, default to not editable
@@ -133,15 +151,20 @@ export const useFieldsEditStatus = (fieldNames: string[]): Record<string, { canE
         return fieldNames.reduce((acc, fieldName) => {
             // Check in all rule groups for the field
             for (const [ruleGroup, rules] of Object.entries(fieldRules)) {
-                if (rules && fieldName in rules) {
-                    const canEdit = rules[fieldName] === true;
-                    acc[fieldName] = {
-                        canEdit,
-                        reason: canEdit 
-                            ? 'Field is editable per API rules' 
-                            : `Field is not editable per ${ruleGroup}`
-                    };
-                    return acc;
+                if (rules) {
+                    // Handle both old format and new format with Fields property
+                    const fields = typeof rules === 'object' && 'Fields' in rules ? rules.Fields : rules;
+                    
+                    if (fieldName in fields) {
+                        const canEdit = fields[fieldName] === true;
+                        acc[fieldName] = {
+                            canEdit,
+                            reason: canEdit 
+                                ? 'Field is editable per API rules' 
+                                : `Field is not editable per ${ruleGroup}`
+                        };
+                        return acc;
+                    }
                 }
             }
             acc[fieldName] = { canEdit: false, reason: 'Field not found in API rules' };
@@ -205,6 +228,30 @@ export const useAPIIntegration = () => {
         setModificationContext,
         setFieldRules
     };
+};
+
+/**
+ * Hook to get CRUD rules for a specific section
+ * @param section - The section name (ComponentCostRules, etc.)
+ */
+export const useCrudRules = (section: 'ComponentCostRules' | 'ComponentCostYearRules' | 'MajorItemOfWorkRules' | 'MajorItemLocationRules' | 'FundingProfileRules') => {
+    return useAtomValue(crudRulesAtom(section));
+};
+
+/**
+ * Hook to check if items can be added to a section
+ * @param section - The section name
+ */
+export const useCanAddItem = (section: 'ComponentCostRules' | 'ComponentCostYearRules' | 'MajorItemOfWorkRules' | 'MajorItemLocationRules' | 'FundingProfileRules') => {
+    return useAtomValue(canAddItemAtom(section));
+};
+
+/**
+ * Hook to check if items can be deleted from a section
+ * @param section - The section name
+ */
+export const useCanDeleteItem = (section: 'ComponentCostRules' | 'ComponentCostYearRules' | 'MajorItemOfWorkRules' | 'MajorItemLocationRules' | 'FundingProfileRules') => {
+    return useAtomValue(canDeleteItemAtom(section));
 };
 
 // Re-export types for convenience

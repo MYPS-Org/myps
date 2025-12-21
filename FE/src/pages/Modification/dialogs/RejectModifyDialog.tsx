@@ -8,6 +8,7 @@ import type { ProjectDetails } from '../../Project/Model';
 import { updateRevisionRequestStatus } from '../Service';
 import { transactionIdAtom } from '../store/routeContextStore';
 import { useAtomValue } from 'jotai';
+import { useNavigate } from 'react-router-dom';
 
 interface RejectModifyDialogProps {
     isOpen: boolean;
@@ -16,6 +17,7 @@ interface RejectModifyDialogProps {
     category?: string;
     reason?: string;
     onReject: (rejectionReason: string) => Promise<void>;
+    onSuccess?: () => void;
 }
 
 const RejectModifyDialog: React.FC<RejectModifyDialogProps> = ({ 
@@ -24,9 +26,11 @@ const RejectModifyDialog: React.FC<RejectModifyDialogProps> = ({
     project,
     category,
     reason,
-    onReject
+    onReject,
+    onSuccess
 }) => {
     const { showToast } = useToast();
+    const navigate = useNavigate();
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
     const [rejectionReason, setRejectionReason] = useState<string>('');
     const transactionId = useAtomValue(transactionIdAtom);
@@ -56,6 +60,13 @@ const RejectModifyDialog: React.FC<RejectModifyDialogProps> = ({
             
             setRejectionReason('');
             onClose();
+            
+            // Call onSuccess callback if provided, otherwise navigate to list
+            if (onSuccess) {
+                onSuccess();
+            } else {
+                navigate('/modification/list');
+            }
         } catch (error) {
             console.error('Error rejecting modification:', error);
             showToast({

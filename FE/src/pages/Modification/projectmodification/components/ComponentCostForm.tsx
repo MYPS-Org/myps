@@ -287,7 +287,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
                         onClick={() => handleOpenEditModal(index)}
                         className={`text-blue-600 hover:text-blue-800 ${!isFieldEditable('EditComponentCost') ? getDisabledClass(disabled) : ''}`}
                         title="Edit"
-                        disabled={!isFieldEditable('EditComponentCost')}
+                        // disabled={!isFieldEditable('EditComponentCost')}
                       >
                         <PencilIcon className="w-4 h-4" />
                       </button>
