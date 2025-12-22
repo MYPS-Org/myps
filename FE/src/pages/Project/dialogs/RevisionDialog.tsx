@@ -5,6 +5,7 @@ import XMarkIcon from '@heroicons/react/24/outline/XMarkIcon';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import { useNavigate } from 'react-router-dom';
 import type { OptionRevisionCategory, OptionRevisionReasons, OptionRevisionHeader } from '../Model.d';
+import { getRevisionNavigationPath } from '../../Modification/utils/revisionNavigation';
 
 interface ReviseProjectDialogProps {
     isOpen: boolean;
@@ -131,57 +132,17 @@ const ReviseDialog: React.FC<ReviseProjectDialogProps> = ({
             console.log('Selected reason:', reasonName);
             console.log('Revision Group ID:', selectedRevisionGroupId);
 
-            // Determine navigation route based on RevisionGroupId
-            let navigationPath = '';
-            let revisionTypeId = selectedRevHeaderId || 0;
-
-            // Map Id to routes based on RevisionTypes
-            switch (selectedRevHeaderId) {
-                case 1: // Additional Funding
-                    navigationPath = `/revision/additional-funding/${projectId}:${stageName}`;
-                    break;
-                case 2: // Adjustment
-                    navigationPath = `/revision/adjustment-details/${projectId}:${stageName}`;
-                    break;
-                case 3: // Change in Authority to Implement
-                    navigationPath = `/revision/change-in-authority/${projectId}:${stageName}`;
-                    break;
-                case 4: // Change in Funding
-                    navigationPath = `/revision/change-in-funding/${projectId}:${stageName}`;
-                    break;
-                case 5: // Change of Creditor
-                    navigationPath = `/revision/change-of-creditor/${projectId}:${stageName}`;
-                    break;
-                case 6: // Expired Funding
-                    navigationPath = `/revision/expired-funding/${projectId}:${stageName}`;
-                    break;
-                case 7: // For Savings - Partial Unutilized Balance
-                    navigationPath = `/revision/for-saving/${projectId}:${stageName}`;
-                    break;
-                case 8: // Mode of Implementation
-                    navigationPath = `/revision/mode-of-implementation/${projectId}:${stageName}`;
-                    break;
-                case 9: // Modification
-                    navigationPath = `/revision/modification-details/${projectId}:${stageName}`;
-                    break;
-                case 10: // Multi-Year Costing Changes
-                    navigationPath = `/revision/multi-year-costing-changes/${projectId}:${stageName}`;
-                    break;
-                case 11: // Non-Implementable
-                    navigationPath = `/revision/non-implementable/${projectId}:${stageName}`;
-                    break;
-                case 12: // Termination
-                    navigationPath = `/revision/termination/${projectId}:${stageName}`;
-                    break;
-                default: // Fallback
-                    navigationPath = `/revision/modification-details/${projectId}:${stageName}`;
-                    break;
-            }
+            // Get navigation path using utility function
+            const navigationPath = getRevisionNavigationPath(
+                selectedRevisionGroupId || 0,
+                projectId || '',
+                stageName || ''
+            );
 
             console.log('Navigating to:', navigationPath);
             console.log('Navigation state being passed:', {
                 stageName, 
-                revisionTypeId, 
+                revisionTypeId: selectedRevHeaderId,
                 revisionGroupId: selectedRevisionGroupId,
                 revisionTypeDescription: revisionTypeName,
                 categoryDesc: categoryToSend,
@@ -194,7 +155,7 @@ const ReviseDialog: React.FC<ReviseProjectDialogProps> = ({
             navigate(navigationPath, { 
                 state: { 
                     stageName, 
-                    revisionTypeId,
+                    revisionTypeId: selectedRevHeaderId,
                     revisionGroupId: selectedRevisionGroupId,
                     revisionTypeDescription: revisionTypeName,
                     categoryDesc: categoryToSend,

@@ -11,6 +11,7 @@ import AdjustProjectDialog from '../dialogs/ModifiyProjectDialog';
 import { fetchModificationList } from '../Service';
 import type { RevisionPagination, RevisionLists } from '../Model.d';
 import { useToast } from '../../../components/toaster/ToasterContext';
+import { getRevisionNavigationPath, parseTransactionId } from '../utils/revisionNavigation';
 
 
 interface RevisionState {
@@ -144,9 +145,39 @@ const ModificationList: React.FC = () => {
         console.log("Add Project Clicked");
     }
 
-    const handleViewDetails = (transactionId: string) => {
-        console.log("View Details Clicked for Transaction ID:", transactionId);
-        navigate(`/revision/view/${transactionId}`);
+    const handleViewDetails = (revision: RevisionLists) => {
+        console.log("View Details Clicked for:", revision);
+        
+        // Parse transaction ID to get project info
+        const { projectId, stageName } = parseTransactionId(revision.TransactionId);
+        
+        // Get the navigation path based on RevisionGroupId
+        const navigationPath = getRevisionNavigationPath(
+            revision.RevisionGroupId,
+            projectId,
+            stageName
+        );
+        
+        console.log('Navigating to:', navigationPath);
+        
+        // Use category name if available, otherwise use revision name
+        const categoryToSend = revision.CategoryName || revision.RevisionName;
+        
+        // Navigate with state
+        navigate(navigationPath, {
+            state: {
+                stageName,
+                revisionTypeId: revision.RevisionGroupId,
+                revisionGroupId: revision.RevisionGroupId,
+                revisionTypeDescription: revision.RevisionName,
+                categoryDesc: categoryToSend,
+                reasonDesc: revision.Reason,
+                categoryId: revision.CategoryId || null,
+                reasonId: revision.ReasonId,
+                transactionId: revision.TransactionId,
+                isViewMode: true // Flag to indicate this is view mode
+            }
+        });
     }
     return (
         
@@ -250,7 +281,7 @@ const ModificationList: React.FC = () => {
                                     <TableCell>
                                         <Button 
                                             onClick={() => {
-                                                handleViewDetails(revision.TransactionId);
+                                                handleViewDetails(revision);
                                             }} 
                                             disabled={isLoading} 
                                             color="blue" 

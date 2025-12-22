@@ -224,25 +224,25 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     }, [mode, initialData?.ProjectDetails?.ProjectId, initialData?.ProgramDetails?.ProgramId]);
     // #endregion
 
-  useEffect(() => {
-    // Load project enums
-    const loadProjectEnums = async () => {
-      try {
-        const response = await getProjectEnums();
-        console.log('Project Enums:', response.Data);
-        setProjectEnums(response.Data);
-      } catch (error) {
-        console.error('Error loading project enums:', error);
-      }
-    };
-    loadProjectEnums();
-    // loadInfrastructureData();
+  // useEffect(() => {
+  //   // Load project enums
+  //   const loadProjectEnums = async () => {
+  //     try {
+  //       const response = await getProjectEnums();
+  //       console.log('Project Enums:', response.Data);
+  //       setProjectEnums(response.Data);
+  //     } catch (error) {
+  //       console.error('Error loading project enums:', error);
+  //     }
+  //   };
+  //   loadProjectEnums();
+  //   // loadInfrastructureData();
 
-    // Set program details if in edit mode and initialData is present
-    if (mode === 'edit' && initialData?.ProgramDetails) {
-      setProgramDetails(initialData.ProgramDetails);
-    }
-  }, [mode, initialData]);
+  //   // Set program details if in edit mode and initialData is present
+  //   if (mode === 'edit' && initialData?.ProgramDetails) {
+  //     setProgramDetails(initialData.ProgramDetails);
+  //   }
+  // }, [mode, initialData]);
 
   // Separate useEffect to handle initialProgramId
   useEffect(() => {
