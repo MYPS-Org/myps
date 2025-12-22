@@ -528,6 +528,18 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = "Account usergroup is not allowed to submit Revision. Please contact administrator!", Title = "User Groups Missing" });
                 }
+                if(dto.RevisionDetails.ApprovedDocument == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Approved Document is required!", Title = "Missing Approved Document" });
+                }
+                if (dto.RevisionDetails.ApprovedDocument.IsPdfCorrupted()) { 
+                    return new BadRequestObjectResult(new { Message = "Approved Document file is corrupted or not a valid PDF!", Title = "Invalid File" });
+                }
+                if (!dto.RevisionDetails.ApprovedDocument.ValidateFileSize(50))
+                {
+                    return new BadRequestObjectResult(new { Message = "Approved Document file size exceeds the maximum limit of 50 MB!", Title = "File Size Exceeded" });
+                }
+
                 string TransactionId = string.Empty;
                 bool hasUpdated = false;
                 DateTime CurrentDate = DateTime.UtcNow;
@@ -953,7 +965,8 @@ namespace WebAPI.Controllers.Revision
                         DocumentName = dto.RevisionDetails.ApprovedDocument.Name,
                         IsApprovedDocument = false
                     });
-                    string FilePath = Path.Combine(Appsetting.Resources.Revision.ImplementingOffice, TransactionId, dto.RevisionDetails.ApprovedDocument.Name);
+                    string Name = "";
+                    string FilePath = Path.Combine(Appsetting.Resources.Revision.ImplementingOffice, dto.RevisionDetails.ApprovedDocument.Name);
                     if (!dto.RevisionDetails.ApprovedDocument.UploadFile(FilePath))
                     {
                         await transaction.RollbackAsync();

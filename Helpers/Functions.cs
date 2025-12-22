@@ -68,6 +68,25 @@ namespace Helpers
                 "EXEC pGenerateUID @Table = @Table", param
             ).FirstOrDefault() ?? string.Empty;
         }
+        public static bool ValidateFileSize(this FileUpload file, int maxFileSizeInMB)
+        {
+            const long MB = 1024L * 1024L;
+            long maxBytes = maxFileSizeInMB * MB;
+
+            string base64Data = file.DataUrl.Contains(",")
+                ? file.DataUrl.Split(',')[1]
+                : file.DataUrl;
+
+            // Fast reject (approximate, before decode)
+            long estimatedBytes = (base64Data.Length * 3L) / 4L;
+            if (estimatedBytes > maxBytes)
+                return false;
+
+            // Exact check
+            byte[] fileBytes = Convert.FromBase64String(base64Data);
+            return fileBytes.LongLength <= maxBytes;
+        }
+
         public static bool UploadFile(this FileUpload File, string FilePath)
         {
             if (File.IsFileCorrupted())
