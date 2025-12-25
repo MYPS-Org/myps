@@ -52,6 +52,10 @@ namespace WebAPI.Controllers.Revision
         public DateTime ApprovalDate { get; set; } = DateTime.UtcNow;
         [Required]
         public FileUpload ApprovedDocument { get; set; } = new FileUpload();
+        [Required]
+        public string ConstructionStatus { get; set; } = string.Empty;
+        [Required]
+        public string PackageStatus { get; set; } = string.Empty;
     }
     public class RevisionComponentCostDTO
     {

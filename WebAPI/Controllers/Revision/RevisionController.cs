@@ -55,7 +55,7 @@ namespace WebAPI.Controllers.Revision
                     .Where(x => x.Enum == EnumRevisionStatus.Pending || x.Enum == EnumRevisionStatus.Approved)
                     .Select(x => (EnumRevisionStatus?)x.Enum)
                     .ToListAsync();
-                bool isCentralOffice = _Session.UserGroups.Contains("Central Office");
+                bool isCentralOffice = _Session.UserGroups.Contains("AUC");
                 var baseQuery = _db.vRevisionLists.AsNoTracking();
                 if (isCentralOffice)
                 {
@@ -195,6 +195,7 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = "Revision Reason not found!", Title = "Invalid Revision Reason" });
                 }
+                var RevisionDoc = await _db.tRevisionDocuments.AsNoTracking().Where(x => x.TransactionId == dto.TransactionId).ToListAsync();
                 #endregion
 
                 #region Program Validation
@@ -258,7 +259,7 @@ namespace WebAPI.Controllers.Revision
                     Reason = SelectedReason,
                     
                     RevisionDetails = RevisionDetails,
-
+                    RevisionDocs = RevisionDoc,
                     ProjectStatus = new
                     {
                         ConstructionStatus = ConStatus,
@@ -340,7 +341,6 @@ namespace WebAPI.Controllers.Revision
                     return new BadRequestObjectResult(new { Message = $"There is a pending {HasPendingModification.RevisionName} request for this project. Please wait for the current request to be processed before submitting a new one.", Title = "Pending Modification Request" });
                 }
                 #region Validate PCMA Status
-                var SelectedRules = await _db.vRevisionRules.FirstOrDefaultAsync(x => x.ReasonId == dto.RevisionReason && x.RevisionGroupId == dto.RevisionHeader);
                 var ProjectComponentsStatus = await _db.vProjectComponentStatus.AsNoTracking().Where(x => x.ProjectId == dto.ProjectId).ToListAsync();
                 if(ProjectComponentsStatus == null)
                 {
@@ -372,6 +372,8 @@ namespace WebAPI.Controllers.Revision
                     "Not Packaged" :
                     "Packaged";
                 #endregion
+
+                var SelectedRules = await _db.vRevisionRules.FirstOrDefaultAsync(x => x.ReasonId == dto.RevisionReason && x.RevisionGroupId == dto.RevisionHeader && x.PCMA_Status == ConStatus && x.Package_Status == PackedStatus);
                 #endregion
 
                 #region Validate Selected Revision Details
@@ -565,15 +567,21 @@ namespace WebAPI.Controllers.Revision
                     return new BadRequestObjectResult(new { Message = "Approved Document file is corrupted!", Title = "Invalid File" });
                 }
 
-                var RevisionRules = await _db.vRevisionRules.AsNoTracking().FirstOrDefaultAsync(x => x.ReasonId == dto.RevisionDetails.ReasonId);
+                var RevisionRules = await _db.vRevisionRules.AsNoTracking().FirstOrDefaultAsync(x => x.ReasonId == dto.RevisionDetails.ReasonId && x.PCMA_Status == dto.RevisionDetails.ConstructionStatus && x.Package_Status == dto.RevisionDetails.PackageStatus);
                 if (RevisionRules == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Revision type does not exist!", Title = "Invalid Revision Type" });
+                    return new BadRequestObjectResult(new { Message = $"Revision type does not exist in PCMA_Status: {dto.RevisionDetails.ConstructionStatus} Package_Status: {dto.RevisionDetails.PackageStatus}!", Title = "Invalid Revision Type" });
                 }
                 var RevisionCategory = await _db.tOptionRevisionHeader.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionGroupId == RevisionRules.RevisionGroupId);
                 if (RevisionCategory == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Revision category does not match with the selected revision reason!", Title = "Invalid Revision Category" });
+                }
+                var DocumentNaming = await _db.tRevisionDocumentsNaming.AsNoTracking().FirstOrDefaultAsync(x => (x.CategoryId != null && x.CategoryId == dto.RevisionDetails.CategoryId) || x.RevisionGroupId == RevisionCategory.RevisionGroupId);
+                if (DocumentNaming == null)
+                {
+                    await transaction.RollbackAsync();
+                    return new BadRequestObjectResult(new { Message = "Document naming convention not found for the selected revision reason! Please contact Administrator", Title = "Missing Document Naming" });
                 }
                 var HasPendingModification = await _db.vRevisionLists.AsNoTracking()
                     .FirstOrDefaultAsync(x => x.TransactionId.Contains(dto.ProjectDetails.ProjectId!) && x.COStatus != EnumRevisionStatus.Approved);
@@ -940,8 +948,7 @@ namespace WebAPI.Controllers.Revision
                     await _db.tProjectMajorWorkItem.AddRangeAsync(MajorWorkItem);
                     await _db.tProjectMajorWorkLocations.AddRangeAsync(MajorWorkLocations);
 
-
-                    bool isROUser = _Session.UserGroups.Contains("Regional Office");
+                    bool isROUser = _Session.UserGroups.Contains("RPC");
                     TransactionId = Project.ProjectId + "-" + Project.RevisedNumber;
                     await _db.tRevisionDetails.AddAsync(new RevisionDetails
                     {
@@ -958,15 +965,15 @@ namespace WebAPI.Controllers.Revision
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
-                    string DocumentName = dto.RevisionDetails.ApprovedDocument.Name;
+                    string DocumentName = $"{TransactionId}_{DocumentNaming.SecondSegmentName}_{CurrentDate.ToString("MM-dd-yyyy")}";
+                    //projectid_typengreason_m-d-yyyy
                     await _db.tRevisionDocuments.AddAsync(new RevisionDocuments
                     {
                         TransactionId = TransactionId,
-                        DocumentName = dto.RevisionDetails.ApprovedDocument.Name,
+                        DocumentName = DocumentName,
                         IsApprovedDocument = false
                     });
-                    string Name = "";
-                    string FilePath = Path.Combine(Appsetting.Resources.Revision.ImplementingOffice, dto.RevisionDetails.ApprovedDocument.Name);
+                    string FilePath = Path.Combine(Appsetting.Resources.Revision.ImplementingOffice, DocumentName);
                     if (!dto.RevisionDetails.ApprovedDocument.UploadFile(FilePath))
                     {
                         await transaction.RollbackAsync();
@@ -1134,8 +1141,8 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = "Account usergroup is not allowed to submit Revision. Please contact administrator!", Title = "User Groups Missing" });
                 }
-                bool isROUser = _Session.UserGroups.Contains("Regional Office");
-                bool isCOUser = _Session.UserGroups.Contains("Central Office");
+                bool isROUser = _Session.UserGroups.Contains("RPC");
+                bool isCOUser = _Session.UserGroups.Contains("AUC");
                 if(!isCOUser && !isROUser)
                 {
                     return new BadRequestObjectResult(new { Message = "Account usergroup is not allowed to update Revision. Please contact administrator!", Title = "Invalid User Group" });

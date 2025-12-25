@@ -13,6 +13,8 @@ namespace DBHelper.Models.Table
         [MaxLength(200)]
         public string DocumentName { get; set; } = string.Empty;
         [Required]
+        public string DocumentPath { get; set; } = string.Empty;
+        [Required]
         public bool IsApprovedDocument { get; set; }
     }
 }
