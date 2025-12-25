@@ -128,14 +128,6 @@ function App() {
 									} 
 								/>
 								<Route 
-									path="/revision/view/:transactionId" 
-									element={
-										<ProtectedRoute>
-											<ViewRevision />
-										</ProtectedRoute>
-									} 
-								/>
-								<Route 
 									path="/revision" 
 									element={
 										<ProtectedRoute>
@@ -143,19 +135,21 @@ function App() {
 										</ProtectedRoute>
 									} 
 								/>
+								{/* View existing revisions - uses transactionId */}
 								<Route 
-									path="/revision/:modificationType/:project" 
-									element={<ProtectedRoute>
-										<ModificationDetails />
-										</ProtectedRoute>}
-								/>
-								<Route 
-									path="/revision/details/:transactionId" 
+									path="/revision/view/:modificationType/:transactionId" 
 									element={
 										<ProtectedRoute>
 											<ViewRevision />
 										</ProtectedRoute>
 									} 
+								/>
+								{/* Edit/Create new modification (from project module) - uses project:stage */}
+								<Route 
+									path="/revision/:modificationType/:project" 
+									element={<ProtectedRoute>
+										<ModificationDetails />
+										</ProtectedRoute>}
 								/>
 								<Route 
 									path="/project-groups" 

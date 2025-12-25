@@ -973,7 +973,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
               
             </div>
             <div className="flex space-x-3">
-                {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus === 0 && (user?.UserGroups === 'Implementing Office' ) && (
+                {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus !== 1 && (user?.UserGroups === 'Implementing Office' ) && (
                   <>
                     <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify()} disabled={updateReviseProject}>
                       {updateReviseProject ? 'Submitting...' : 'Submit Modify Request to RO'}
@@ -1093,39 +1093,39 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       {/* Revision Details */}
       <div className='bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl'>
         <RevisionForm
-          // category={permissions?.category || modificationCategory}
+          category={permissions?.category || modificationCategory}
           reason={modificationReason}
-          projectDetails={projectDetails}
-          componentCosts={componentCosts}
-          componentCostYear={componentCostsYear}
-          majorItemOfWorks={majorItems.map(item => ({
-            Id: item.Id,
-            ProjectId: item.ProjectId,
-            StageName: initialData?.ProgramDetails.StageName || '',
-            ComponentId: item.ComponentId,
-            ReferenceId: item.ReferenceId,
-            YearOfWork: item.YearOfWork,
-            WorkTypeId: item.WorkTypeId,
-            InfraType: item.InfraType,
-            TargetUnitId: item.TargetUnitId,
-            TargetUnit: item.TargetUnit,
-            CreatedBy: item.CreatedBy
-          }))}
-          majorItemLocations={majorItems.flatMap(item => 
-            (item.MajorItemLocations || []).map(location => ({
-              ...location,
-              ParentId: item.ReferenceId,
-              ProjectId: item.ProjectId || '',
-              StageName: initialData?.ProgramDetails.StageName || ''
-            }))
-          )}
-          fundingProfile={fundingProfiles}
+          // projectDetails={projectDetails}
+          // componentCosts={componentCosts}
+          // componentCostYear={componentCostsYear}
+          // majorItemOfWorks={majorItems.map(item => ({
+          //   Id: item.Id,
+          //   ProjectId: item.ProjectId,
+          //   StageName: initialData?.ProgramDetails.StageName || '',
+          //   ComponentId: item.ComponentId,
+          //   ReferenceId: item.ReferenceId,
+          //   YearOfWork: item.YearOfWork,
+          //   WorkTypeId: item.WorkTypeId,
+          //   InfraType: item.InfraType,
+          //   TargetUnitId: item.TargetUnitId,
+          //   TargetUnit: item.TargetUnit,
+          //   CreatedBy: item.CreatedBy
+          // }))}
+          // majorItemLocations={majorItems.flatMap(item => 
+          //   (item.MajorItemLocations || []).map(location => ({
+          //     ...location,
+          //     ParentId: item.ReferenceId,
+          //     ProjectId: item.ProjectId || '',
+          //     StageName: initialData?.ProgramDetails.StageName || ''
+          //   }))
+          // )}
+          // fundingProfile={fundingProfiles}
           fieldPermissions={permissions}
           fieldRules={fieldRules}
           pcmaStatus={pcmaStatus}
           packageStatus={packageStatus}
           currentCase={currentCase}
-          category={modificationCategory}
+          // category={modificationCategory}
         />
       </div>
 

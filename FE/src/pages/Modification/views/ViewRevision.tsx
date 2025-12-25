@@ -1,7 +1,7 @@
 "use-client";
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { fetchReviseProjectDetails } from '../Service';
 import type { RevisionProjectPayload } from '../Model.d';
 import { useToast } from '../../../components/toaster/ToasterContext';
@@ -10,16 +10,14 @@ import { ArrowLeftIcon } from '@heroicons/react/20/solid';
 import ProjectForm from '../projectmodification/components/ProjectForm';
 import { useAPIIntegration } from '../hooks/useFieldPermissions';
 import type { FieldRules } from '../Model';
-import { useTransactionId } from '../hooks/useTransactionId';
 
 const ViewRevision: React.FC = () => {
     const navigate = useNavigate();
     const { showToast } = useToast();
+    const { transactionId } = useParams<{ transactionId: string }>();
     const [isLoading, setIsLoading] = useState(false);
     const [revisionData, setRevisionData] = useState<RevisionProjectPayload | null>(null);
     const { setStatusFromAPI, setModificationContext, setFieldRules } = useAPIIntegration();
-
-    const transactionId = useTransactionId();
 
     useEffect(() => {
         if (!transactionId) {
@@ -60,10 +58,43 @@ const ViewRevision: React.FC = () => {
                 // Set field rules if available
                 if (response.Data.Rules?.Field) {
                     try {
-                        const parsedRules = JSON.parse(response.Data.Rules.Field) as FieldRules;
-                        // setFieldRules(parsedRules);
+                        console.log('=== FIELD RULES FROM API ===');
+                        console.log('Raw Field string:', response.Data.Rules.Field);
+                        
+                        // Try to parse
+                        let parsedRules: FieldRules;
+                        try {
+                            parsedRules = JSON.parse(response.Data.Rules.Field) as FieldRules;
+                        } catch (firstParseError) {
+                            console.warn('⚠️ First parse attempt failed, trying to repair JSON...');
+                            
+                            // Common issue: Missing closing braces
+                            let repairedJson = response.Data.Rules.Field.trim();
+                            
+                            // Count opening and closing braces
+                            const openBraces = (repairedJson.match(/{/g) || []).length;
+                            const closeBraces = (repairedJson.match(/}/g) || []).length;
+                            
+                            console.log('Open braces:', openBraces, 'Close braces:', closeBraces);
+                            
+                            // Add missing closing braces
+                            if (openBraces > closeBraces) {
+                                const missingBraces = openBraces - closeBraces;
+                                console.log(`Adding ${missingBraces} missing closing brace(s)`);
+                                repairedJson += '}'.repeat(missingBraces);
+                            }
+                            
+                            // Try parsing the repaired JSON
+                            console.log('Attempting to parse repaired JSON...');
+                            parsedRules = JSON.parse(repairedJson) as FieldRules;
+                            console.log('✓ Successfully parsed repaired JSON');
+                        }
+                        
+                        setFieldRules(parsedRules);
+                        console.log('✓ Field rules set to Jotai atoms');
+                        console.log('===========================');
                     } catch (error) {
-                        console.error('Error parsing field rules:', error);
+                        console.error('❌ Error parsing field rules (even after repair):', error);
                     }
                 }
                 

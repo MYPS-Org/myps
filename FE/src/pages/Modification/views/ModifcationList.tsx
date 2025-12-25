@@ -148,15 +148,22 @@ const ModificationList: React.FC = () => {
     const handleViewDetails = (revision: RevisionLists) => {
         console.log("View Details Clicked for:", revision);
         
-        // Parse transaction ID to get project info
+        // Parse transaction ID to get project info for the base path
         const { projectId, stageName } = parseTransactionId(revision.TransactionId);
         
-        // Get the navigation path based on RevisionGroupId
-        const navigationPath = getRevisionNavigationPath(
+        // Get the base navigation path based on RevisionGroupId
+        const basePath = getRevisionNavigationPath(
             revision.RevisionGroupId,
             projectId,
             stageName
         );
+        
+        // Replace the base path pattern with view pattern using transactionId
+        // From: /revision/adjustment-details/PROJECT:STAGE
+        // To: /revision/view/adjustment-details/TRANSACTIONID
+        const pathParts = basePath.split('/');
+        const modificationType = pathParts[2]; // e.g., 'adjustment-details'
+        const navigationPath = `/revision/view/${modificationType}/${revision.TransactionId}`;
         
         console.log('Navigating to:', navigationPath);
         
