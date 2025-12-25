@@ -4,6 +4,7 @@ import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import type { ComponentCost, ScopeOfWorkEnum } from '../../Project/Model.d';
 import type { ProgramList } from '../../Program/Model';
+import { useFieldPermissionState } from '../hooks/useFieldPermissions';
 
 interface AddMajorItemDialogProps {
   isOpen: boolean;
@@ -49,6 +50,42 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
 
   const [availableWorkTypes, setAvailableWorkTypes] = useState<ScopeOfWorkEnum[]>([]);
 
+  // Get field permissions state
+  const permissionState = useFieldPermissionState();
+
+  // Field permission logic - when adding new major item, all fields are editable
+  // When editing, apply field rules from API
+  const fieldsEditable = React.useMemo(() => {
+    // When adding a new major item, all fields must be editable
+    if (mode === 'add') {
+      return {
+        ComponentId: true,
+        YearOfWork: true,
+        WorkTypeId: true,
+        InfraType: true,
+      };
+    }
+    
+    // When editing, apply the field rules from the API
+    const majorItemRules = permissionState.fieldRules?.MajorItemOfWorkRules?.Fields;
+    
+    if (!majorItemRules) {
+      return {
+        ComponentId: true,
+        YearOfWork: true,
+        WorkTypeId: true,
+        InfraType: true,
+      };
+    }
+    
+    return {
+      ComponentId: majorItemRules?.ComponentId ?? false,
+      YearOfWork: majorItemRules?.YearOfWork ?? false,
+      WorkTypeId: majorItemRules?.WorkTypeId ?? false,
+      InfraType: majorItemRules?.InfraType ?? false,
+    };
+  }, [permissionState.fieldRules, mode]);
+
   // Initialize form data
   useEffect(() => {
     if (mode === 'edit' && initialData) {
@@ -61,7 +98,7 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
         InfraType: ''
       });
     }
-  }, [mode, initialData, isOpen]);
+  }, [mode, initialData, isOpen, programDetails]);
 
   // Update available work types when InfraType changes
   useEffect(() => {
@@ -80,7 +117,7 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
       setAvailableWorkTypes([]);
       setFormData(prev => ({ ...prev, WorkTypeId: 0 }));
     }
-  }, [formData.InfraType, dropDowns]);
+  }, [formData.InfraType, formData.WorkTypeId, dropDowns]);
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -176,11 +213,15 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Component <span className="text-red-500">*</span>
+                <span className="text-xs text-gray-500 ml-2">{fieldsEditable.ComponentId ? '✓ Editable' : '✗ Not Editable'}</span>
               </label>
               <select
                 value={formData.ComponentId}
                 onChange={(e) => handleInputChange('ComponentId', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 text-sm"
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 text-sm ${
+                  !fieldsEditable.ComponentId ? 'bg-gray-100 cursor-not-allowed' : ''
+                }`}
+                disabled={!fieldsEditable.ComponentId}
                 required
               >
                 <option value="">Select Component</option>
@@ -201,12 +242,16 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Year of Work <span className="text-red-500">*</span>
+                <span className="text-xs text-gray-500 ml-2">{fieldsEditable.YearOfWork ? '✓ Editable' : '✗ Not Editable'}</span>
               </label>
               <input
                 type="number"
                 value={formData.YearOfWork}
                 onChange={(e) => handleInputChange('YearOfWork', parseInt(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 text-sm"
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 text-sm ${
+                  !fieldsEditable.YearOfWork ? 'bg-gray-100 cursor-not-allowed' : ''
+                }`}
+                disabled={!fieldsEditable.YearOfWork}
                 min={programDetails?.YearStart}
                 max="2100"
                 required
@@ -217,11 +262,15 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Infrastructure Type <span className="text-red-500">*</span>
+                <span className="text-xs text-gray-500 ml-2">{fieldsEditable.InfraType ? '✓ Editable' : '✗ Not Editable'}</span>
               </label>
               <select
                 value={formData.InfraType}
                 onChange={(e) => handleInputChange('InfraType', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 text-sm"
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 text-sm ${
+                  !fieldsEditable.InfraType ? 'bg-gray-100 cursor-not-allowed' : ''
+                }`}
+                disabled={!fieldsEditable.InfraType}
                 required
               >
                 <option value="">Select Infrastructure Type</option>
@@ -237,12 +286,15 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Type of Work <span className="text-red-500">*</span>
+                <span className="text-xs text-gray-500 ml-2">{fieldsEditable.WorkTypeId ? '✓ Editable' : '✗ Not Editable'}</span>
               </label>
               <select
                 value={formData.WorkTypeId}
                 onChange={(e) => handleInputChange('WorkTypeId', parseInt(e.target.value) || 0)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 text-sm"
-                disabled={!formData.InfraType}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 text-sm ${
+                  !fieldsEditable.WorkTypeId || !formData.InfraType ? 'bg-gray-100 cursor-not-allowed' : ''
+                }`}
+                disabled={!fieldsEditable.WorkTypeId || !formData.InfraType}
                 required
               >
                 <option value={0}>

@@ -976,7 +976,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                 {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus !== 1 && (user?.UserGroups === 'Implementing Office' ) && (
                   <>
                     <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify()} disabled={updateReviseProject}>
-                      {updateReviseProject ? 'Submitting...' : 'Submit Modify Request to RO'}
+                      {updateReviseProject ? 'Submitting...' : 'Submit Revision Request to RO'}
                     </Button>
                   </>
                 )}
@@ -998,7 +998,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                 {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus === 0 && (user?.UserGroups === 'Regional Office' ) && (
                   <>
                     <Button color="green" className='cursor-pointer' onClick={() => setIsApproveDialogOpen(true)} disabled={updateReviseProject}>
-                      {updateReviseProject ? 'Submitting...' : 'Submit Modify Request CO'}
+                      {updateReviseProject ? 'Submitting...' : 'Submit Revision Request CO'}
                     </Button>
                   </>
                 )}
