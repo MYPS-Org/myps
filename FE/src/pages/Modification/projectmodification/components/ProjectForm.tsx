@@ -224,25 +224,25 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     }, [mode, initialData?.ProjectDetails?.ProjectId, initialData?.ProgramDetails?.ProgramId]);
     // #endregion
 
-  // useEffect(() => {
-  //   // Load project enums
-  //   const loadProjectEnums = async () => {
-  //     try {
-  //       const response = await getProjectEnums();
-  //       console.log('Project Enums:', response.Data);
-  //       setProjectEnums(response.Data);
-  //     } catch (error) {
-  //       console.error('Error loading project enums:', error);
-  //     }
-  //   };
-  //   loadProjectEnums();
-  //   // loadInfrastructureData();
+  useEffect(() => {
+    // Load project enums
+    const loadProjectEnums = async () => {
+      try {
+        const response = await getProjectEnums();
+        console.log('Project Enums:', response.Data);
+        setProjectEnums(response.Data);
+      } catch (error) {
+        console.error('Error loading project enums:', error);
+      }
+    };
+    loadProjectEnums();
+    // loadInfrastructureData();
 
-  //   // Set program details if in edit mode and initialData is present
-  //   if (mode === 'edit' && initialData?.ProgramDetails) {
-  //     setProgramDetails(initialData.ProgramDetails);
-  //   }
-  // }, [mode, initialData]);
+    // Set program details if in edit mode and initialData is present
+    if (mode === 'edit' && initialData?.ProgramDetails) {
+      setProgramDetails(initialData.ProgramDetails);
+    }
+  }, [mode, initialData]);
 
   // Separate useEffect to handle initialProgramId
   useEffect(() => {
@@ -1093,7 +1093,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       {/* Revision Details */}
       <div className='bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl'>
         <RevisionForm
-          category={permissions?.category || modificationCategory}
+          // category={permissions?.category || modificationCategory}
           reason={modificationReason}
           projectDetails={projectDetails}
           componentCosts={componentCosts}
@@ -1120,6 +1120,12 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             }))
           )}
           fundingProfile={fundingProfiles}
+          fieldPermissions={permissions}
+          fieldRules={fieldRules}
+          pcmaStatus={pcmaStatus}
+          packageStatus={packageStatus}
+          currentCase={currentCase}
+          category={modificationCategory}
         />
       </div>
 

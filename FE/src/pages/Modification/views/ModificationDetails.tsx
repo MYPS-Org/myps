@@ -115,7 +115,34 @@ const ModifyProject: React.FC = () => {
                     console.log('Field string length:', data.Rules.Field.length);
                     
                     // Try to parse
-                    const parsedRules = JSON.parse(data.Rules.Field) as FieldRules;
+                    let parsedRules: FieldRules;
+                    try {
+                        parsedRules = JSON.parse(data.Rules.Field) as FieldRules;
+                    } catch (firstParseError) {
+                        console.warn('⚠️ First parse attempt failed, trying to repair JSON...');
+                        
+                        // Common issue: Missing closing braces
+                        let repairedJson = data.Rules.Field.trim();
+                        
+                        // Count opening and closing braces
+                        const openBraces = (repairedJson.match(/{/g) || []).length;
+                        const closeBraces = (repairedJson.match(/}/g) || []).length;
+                        
+                        console.log('Open braces:', openBraces, 'Close braces:', closeBraces);
+                        
+                        // Add missing closing braces
+                        if (openBraces > closeBraces) {
+                            const missingBraces = openBraces - closeBraces;
+                            console.log(`Adding ${missingBraces} missing closing brace(s)`);
+                            repairedJson += '}'.repeat(missingBraces);
+                        }
+                        
+                        // Try parsing the repaired JSON
+                        console.log('Attempting to parse repaired JSON...');
+                        parsedRules = JSON.parse(repairedJson) as FieldRules;
+                        console.log('✓ Successfully parsed repaired JSON');
+                    }
+                    
                     console.log('✓ Successfully parsed Field Rules');
                     console.log('Parsed Field Rules:', parsedRules);
                     console.log('Parsed keys:', Object.keys(parsedRules));
@@ -124,7 +151,7 @@ const ModifyProject: React.FC = () => {
                     console.log('✓ Field rules set to Jotai atoms');
                     console.log('===========================');
                 } catch (parseError) {
-                    console.error('❌ ERROR PARSING FIELD RULES JSON');
+                    console.error('❌ ERROR PARSING FIELD RULES JSON (even after repair attempt)');
                     console.error('Parse Error:', parseError);
                     console.error('Error message:', (parseError as Error).message);
                     console.error('Raw string that failed to parse:', data.Rules.Field);

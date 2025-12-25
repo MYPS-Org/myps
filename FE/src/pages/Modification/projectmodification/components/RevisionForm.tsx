@@ -8,6 +8,7 @@ import type {
     MajorItemLocations,
     FundingProfile
 } from '../../../Project/Model.d';
+import type { FieldRules } from '../../Model';
 
 interface RevisionFormProps {
     category?: string;
@@ -18,15 +19,52 @@ interface RevisionFormProps {
     majorItemOfWorks?: MajorItemOfWork[];
     majorItemLocations?: MajorItemLocations[];
     fundingProfile?: FundingProfile[];
+
+    // added for pcma status and editable fields
+    packageStatus?: string;
+    fieldPermissions?: any;
+    fieldRules?: FieldRules | null;
+    pcmaStatus?: string;
+    currentCase?: string;
 }
 
 const RevisionForm: React.FC<RevisionFormProps> = ({ 
     category, 
     reason,
     projectDetails,
+    fieldPermissions,
+    fieldRules,
+    pcmaStatus,
+    packageStatus,
+    currentCase
 }) => {
     
-    console.log('RevisionForm - Received props:', { category, reason });
+    console.log('RevisionForm - Received props:', { category, reason, fieldRules });
+    
+    // Helper function to get editable fields from a rule group
+    const getEditableFields = (rules: Record<string, boolean> | undefined) => {
+        if (!rules) return [];
+        return Object.entries(rules)
+            .filter(([_, isEditable]) => isEditable === true)
+            .map(([fieldName, _]) => fieldName);
+    };
+
+    // Helper function to get non-editable fields from a rule group
+    const getNonEditableFields = (rules: Record<string, boolean> | undefined) => {
+        if (!rules) return [];
+        return Object.entries(rules)
+            .filter(([_, isEditable]) => isEditable === false)
+            .map(([fieldName, _]) => fieldName);
+    };
+
+    // Helper function to format field name for display
+    const formatFieldName = (fieldName: string) => {
+        // Convert camelCase to Title Case with spaces
+        return fieldName
+            .replace(/([A-Z])/g, ' $1')
+            .replace(/^./, (str) => str.toUpperCase())
+            .trim();
+    };
     
     return (
         <div className="p-6">
@@ -57,6 +95,405 @@ const RevisionForm: React.FC<RevisionFormProps> = ({
                             <input className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 bg-gray-100 rounded-md truncate' value={projectDetails?.ProjectId} readOnly />
                         </div>
                     </div>
+                </div>
+
+                {/* Field Permissions and Rules Information */}
+                <div className="mb-6 p-6 border border-blue-200 rounded-lg shadow-md bg-gradient-to-br from-blue-50 to-white">
+                    <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                            <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                            </svg>
+                            <h4 className="text-lg font-bold text-gray-900">Field Modification Permissions</h4>
+                        </div>
+                    </div>
+                    
+                    {/* Status Information Grid */}
+                    <div className="grid grid-cols-4 gap-3 mb-6">
+                        <div className="bg-white p-4 border border-blue-100 rounded-lg shadow-sm">
+                            <p className="text-xs text-gray-500 mb-1 uppercase tracking-wide">PCMA Status</p>
+                            <p className="text-sm font-bold text-gray-900">{pcmaStatus || 'N/A'}</p>
+                        </div>
+                        <div className="bg-white p-4 border border-blue-100 rounded-lg shadow-sm">
+                            <p className="text-xs text-gray-500 mb-1 uppercase tracking-wide">Package Status</p>
+                            <p className="text-sm font-bold text-gray-900">{packageStatus || 'N/A'}</p>
+                        </div>
+                        <div className="bg-white p-4 border border-blue-100 rounded-lg shadow-sm">
+                            <p className="text-xs text-gray-500 mb-1 uppercase tracking-wide">Determined Case</p>
+                            <p className="text-sm font-bold text-gray-900">{currentCase || 'N/A'}</p>
+                        </div>
+                        <div className="bg-white p-4 border border-blue-100 rounded-lg shadow-sm">
+                            <p className="text-xs text-gray-500 mb-1 uppercase tracking-wide">Category</p>
+                            <p className="text-sm font-bold text-gray-900">{category || 'N/A'}</p>
+                        </div>
+                    </div>
+
+                    {/* Detailed Field Rules */}
+                    {fieldRules ? (
+                        <div className="space-y-4">
+                            {/* Project Details Rules */}
+                            {fieldRules.ProjectDetailsRules && (
+                                <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                                    <h5 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                                        <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                        Project Details Rules
+                                    </h5>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <p className="text-xs font-semibold text-green-700 mb-2">✓ Editable Fields ({getEditableFields(fieldRules.ProjectDetailsRules).length})</p>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {getEditableFields(fieldRules.ProjectDetailsRules).length > 0 ? (
+                                                    getEditableFields(fieldRules.ProjectDetailsRules).map((field, idx) => (
+                                                        <span key={idx} className="px-2 py-1 text-xs font-medium text-green-800 bg-green-100 border border-green-300 rounded">
+                                                            {formatFieldName(field)}
+                                                        </span>
+                                                    ))
+                                                ) : (
+                                                    <span className="text-xs text-gray-500 italic">None</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-semibold text-gray-600 mb-2">✗ Non-Editable Fields ({getNonEditableFields(fieldRules.ProjectDetailsRules).length})</p>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {getNonEditableFields(fieldRules.ProjectDetailsRules).length > 0 ? (
+                                                    getNonEditableFields(fieldRules.ProjectDetailsRules).map((field, idx) => (
+                                                        <span key={idx} className="px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded">
+                                                            {formatFieldName(field)}
+                                                        </span>
+                                                    ))
+                                                ) : (
+                                                    <span className="text-xs text-gray-500 italic">None</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Component Cost Rules */}
+                            {fieldRules.ComponentCostRules && (
+                                <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                                    <h5 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                                        <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        Component Cost Rules
+                                    </h5>
+                                    <div className="space-y-3">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <p className="text-xs font-semibold text-green-700 mb-2">✓ Editable Fields ({getEditableFields(fieldRules.ComponentCostRules.Fields).length})</p>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {getEditableFields(fieldRules.ComponentCostRules.Fields).length > 0 ? (
+                                                        getEditableFields(fieldRules.ComponentCostRules.Fields).map((field, idx) => (
+                                                            <span key={idx} className="px-2 py-1 text-xs font-medium text-green-800 bg-green-100 border border-green-300 rounded">
+                                                                {formatFieldName(field)}
+                                                            </span>
+                                                        ))
+                                                    ) : (
+                                                        <span className="text-xs text-gray-500 italic">None</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-semibold text-gray-600 mb-2">✗ Non-Editable Fields ({getNonEditableFields(fieldRules.ComponentCostRules.Fields).length})</p>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {getNonEditableFields(fieldRules.ComponentCostRules.Fields).length > 0 ? (
+                                                        getNonEditableFields(fieldRules.ComponentCostRules.Fields).map((field, idx) => (
+                                                            <span key={idx} className="px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded">
+                                                                {formatFieldName(field)}
+                                                            </span>
+                                                        ))
+                                                    ) : (
+                                                        <span className="text-xs text-gray-500 italic">None</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {fieldRules.ComponentCostRules.CRUD && (
+                                            <div className="pt-2 border-t border-gray-200">
+                                                <p className="text-xs font-semibold text-blue-700 mb-2">CRUD Permissions</p>
+                                                <div className="flex gap-3 text-xs">
+                                                    <span className={`px-2 py-1 rounded ${fieldRules.ComponentCostRules.CRUD.CanAdd ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                        Add: {fieldRules.ComponentCostRules.CRUD.CanAdd ? '✓ Allowed' : '✗ Denied'}
+                                                    </span>
+                                                    <span className={`px-2 py-1 rounded ${fieldRules.ComponentCostRules.CRUD.CanDelete ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                        Delete: {fieldRules.ComponentCostRules.CRUD.CanDelete ? '✓ Allowed' : '✗ Denied'}
+                                                    </span>
+                                                    {fieldRules.ComponentCostRules.CRUD.Message && (
+                                                        <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded">
+                                                            Note: {fieldRules.ComponentCostRules.CRUD.Message}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Component Cost Year Rules */}
+                            {fieldRules.ComponentCostYearRules && (
+                                <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                                    <h5 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                                        <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                        Component Cost Year Rules
+                                    </h5>
+                                    <div className="space-y-3">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <p className="text-xs font-semibold text-green-700 mb-2">✓ Editable Fields ({getEditableFields(fieldRules.ComponentCostYearRules.Fields).length})</p>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {getEditableFields(fieldRules.ComponentCostYearRules.Fields).length > 0 ? (
+                                                        getEditableFields(fieldRules.ComponentCostYearRules.Fields).map((field, idx) => (
+                                                            <span key={idx} className="px-2 py-1 text-xs font-medium text-green-800 bg-green-100 border border-green-300 rounded">
+                                                                {formatFieldName(field)}
+                                                            </span>
+                                                        ))
+                                                    ) : (
+                                                        <span className="text-xs text-gray-500 italic">None</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-semibold text-gray-600 mb-2">✗ Non-Editable Fields ({getNonEditableFields(fieldRules.ComponentCostYearRules.Fields).length})</p>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {getNonEditableFields(fieldRules.ComponentCostYearRules.Fields).length > 0 ? (
+                                                        getNonEditableFields(fieldRules.ComponentCostYearRules.Fields).map((field, idx) => (
+                                                            <span key={idx} className="px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded">
+                                                                {formatFieldName(field)}
+                                                            </span>
+                                                        ))
+                                                    ) : (
+                                                        <span className="text-xs text-gray-500 italic">None</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {fieldRules.ComponentCostYearRules.CRUD && (
+                                            <div className="pt-2 border-t border-gray-200">
+                                                <p className="text-xs font-semibold text-blue-700 mb-2">CRUD Permissions</p>
+                                                <div className="flex gap-3 text-xs">
+                                                    <span className={`px-2 py-1 rounded ${fieldRules.ComponentCostYearRules.CRUD.CanAdd ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                        Add: {fieldRules.ComponentCostYearRules.CRUD.CanAdd ? '✓ Allowed' : '✗ Denied'}
+                                                    </span>
+                                                    <span className={`px-2 py-1 rounded ${fieldRules.ComponentCostYearRules.CRUD.CanDelete ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                        Delete: {fieldRules.ComponentCostYearRules.CRUD.CanDelete ? '✓ Allowed' : '✗ Denied'}
+                                                    </span>
+                                                    {fieldRules.ComponentCostYearRules.CRUD.Message && (
+                                                        <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded">
+                                                            Note: {fieldRules.ComponentCostYearRules.CRUD.Message}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Major Item of Work Rules */}
+                            {fieldRules.MajorItemOfWorkRules && (
+                                <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                                    <h5 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                                        <svg className="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                        </svg>
+                                        Major Item of Work Rules
+                                    </h5>
+                                    <div className="space-y-3">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <p className="text-xs font-semibold text-green-700 mb-2">✓ Editable Fields ({getEditableFields(fieldRules.MajorItemOfWorkRules.Fields).length})</p>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {getEditableFields(fieldRules.MajorItemOfWorkRules.Fields).length > 0 ? (
+                                                        getEditableFields(fieldRules.MajorItemOfWorkRules.Fields).map((field, idx) => (
+                                                            <span key={idx} className="px-2 py-1 text-xs font-medium text-green-800 bg-green-100 border border-green-300 rounded">
+                                                                {formatFieldName(field)}
+                                                            </span>
+                                                        ))
+                                                    ) : (
+                                                        <span className="text-xs text-gray-500 italic">None</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-semibold text-gray-600 mb-2">✗ Non-Editable Fields ({getNonEditableFields(fieldRules.MajorItemOfWorkRules.Fields).length})</p>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {getNonEditableFields(fieldRules.MajorItemOfWorkRules.Fields).length > 0 ? (
+                                                        getNonEditableFields(fieldRules.MajorItemOfWorkRules.Fields).map((field, idx) => (
+                                                            <span key={idx} className="px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded">
+                                                                {formatFieldName(field)}
+                                                            </span>
+                                                        ))
+                                                    ) : (
+                                                        <span className="text-xs text-gray-500 italic">None</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {fieldRules.MajorItemOfWorkRules.CRUD && (
+                                            <div className="pt-2 border-t border-gray-200">
+                                                <p className="text-xs font-semibold text-blue-700 mb-2">CRUD Permissions</p>
+                                                <div className="flex gap-3 text-xs">
+                                                    <span className={`px-2 py-1 rounded ${fieldRules.MajorItemOfWorkRules.CRUD.CanAdd ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                        Add: {fieldRules.MajorItemOfWorkRules.CRUD.CanAdd ? '✓ Allowed' : '✗ Denied'}
+                                                    </span>
+                                                    <span className={`px-2 py-1 rounded ${fieldRules.MajorItemOfWorkRules.CRUD.CanDelete ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                        Delete: {fieldRules.MajorItemOfWorkRules.CRUD.CanDelete ? '✓ Allowed' : '✗ Denied'}
+                                                    </span>
+                                                    {fieldRules.MajorItemOfWorkRules.CRUD.Message && (
+                                                        <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded">
+                                                            Note: {fieldRules.MajorItemOfWorkRules.CRUD.Message}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Major Item Location Rules */}
+                            {fieldRules.MajorItemLocationRules && (
+                                <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                                    <h5 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                                        <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        </svg>
+                                        Major Item Location Rules
+                                    </h5>
+                                    <div className="space-y-3">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <p className="text-xs font-semibold text-green-700 mb-2">✓ Editable Fields ({getEditableFields(fieldRules.MajorItemLocationRules.Fields).length})</p>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {getEditableFields(fieldRules.MajorItemLocationRules.Fields).length > 0 ? (
+                                                        getEditableFields(fieldRules.MajorItemLocationRules.Fields).map((field, idx) => (
+                                                            <span key={idx} className="px-2 py-1 text-xs font-medium text-green-800 bg-green-100 border border-green-300 rounded">
+                                                                {formatFieldName(field)}
+                                                            </span>
+                                                        ))
+                                                    ) : (
+                                                        <span className="text-xs text-gray-500 italic">None</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-semibold text-gray-600 mb-2">✗ Non-Editable Fields ({getNonEditableFields(fieldRules.MajorItemLocationRules.Fields).length})</p>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {getNonEditableFields(fieldRules.MajorItemLocationRules.Fields).length > 0 ? (
+                                                        getNonEditableFields(fieldRules.MajorItemLocationRules.Fields).map((field, idx) => (
+                                                            <span key={idx} className="px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded">
+                                                                {formatFieldName(field)}
+                                                            </span>
+                                                        ))
+                                                    ) : (
+                                                        <span className="text-xs text-gray-500 italic">None</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {fieldRules.MajorItemLocationRules.CRUD && (
+                                            <div className="pt-2 border-t border-gray-200">
+                                                <p className="text-xs font-semibold text-blue-700 mb-2">CRUD Permissions</p>
+                                                <div className="flex gap-3 text-xs">
+                                                    <span className={`px-2 py-1 rounded ${fieldRules.MajorItemLocationRules.CRUD.CanAdd ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                        Add: {fieldRules.MajorItemLocationRules.CRUD.CanAdd ? '✓ Allowed' : '✗ Denied'}
+                                                    </span>
+                                                    <span className={`px-2 py-1 rounded ${fieldRules.MajorItemLocationRules.CRUD.CanDelete ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                        Delete: {fieldRules.MajorItemLocationRules.CRUD.CanDelete ? '✓ Allowed' : '✗ Denied'}
+                                                    </span>
+                                                    {fieldRules.MajorItemLocationRules.CRUD.Message && (
+                                                        <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded">
+                                                            Note: {fieldRules.MajorItemLocationRules.CRUD.Message}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Funding Profile Rules */}
+                            {fieldRules.FundingProfileRules && (
+                                <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                                    <h5 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                                        <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        Funding Profile Rules
+                                    </h5>
+                                    <div className="space-y-3">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <p className="text-xs font-semibold text-green-700 mb-2">✓ Editable Fields ({getEditableFields(fieldRules.FundingProfileRules.Fields).length})</p>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {getEditableFields(fieldRules.FundingProfileRules.Fields).length > 0 ? (
+                                                        getEditableFields(fieldRules.FundingProfileRules.Fields).map((field, idx) => (
+                                                            <span key={idx} className="px-2 py-1 text-xs font-medium text-green-800 bg-green-100 border border-green-300 rounded">
+                                                                {formatFieldName(field)}
+                                                            </span>
+                                                        ))
+                                                    ) : (
+                                                        <span className="text-xs text-gray-500 italic">None</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-semibold text-gray-600 mb-2">✗ Non-Editable Fields ({getNonEditableFields(fieldRules.FundingProfileRules.Fields).length})</p>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {getNonEditableFields(fieldRules.FundingProfileRules.Fields).length > 0 ? (
+                                                        getNonEditableFields(fieldRules.FundingProfileRules.Fields).map((field, idx) => (
+                                                            <span key={idx} className="px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded">
+                                                                {formatFieldName(field)}
+                                                            </span>
+                                                        ))
+                                                    ) : (
+                                                        <span className="text-xs text-gray-500 italic">None</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {fieldRules.FundingProfileRules.CRUD && (
+                                            <div className="pt-2 border-t border-gray-200">
+                                                <p className="text-xs font-semibold text-blue-700 mb-2">CRUD Permissions</p>
+                                                <div className="flex gap-3 text-xs">
+                                                    <span className={`px-2 py-1 rounded ${fieldRules.FundingProfileRules.CRUD.CanAdd ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                        Add: {fieldRules.FundingProfileRules.CRUD.CanAdd ? '✓ Allowed' : '✗ Denied'}
+                                                    </span>
+                                                    <span className={`px-2 py-1 rounded ${fieldRules.FundingProfileRules.CRUD.CanDelete ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                        Delete: {fieldRules.FundingProfileRules.CRUD.CanDelete ? '✓ Allowed' : '✗ Denied'}
+                                                    </span>
+                                                    {fieldRules.FundingProfileRules.CRUD.Message && (
+                                                        <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded">
+                                                            Note: {fieldRules.FundingProfileRules.CRUD.Message}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                            <p className="text-sm text-amber-800 flex items-center gap-2">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                                No field rules available. All fields may be restricted.
+                            </p>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
