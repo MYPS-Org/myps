@@ -86,6 +86,8 @@ export interface RevisionDetails {
 	ApprovedDocument?: string;
 	CreatedBy?: string;
 	CreatedDate?: string;
+    ConstructionStatus?: string;
+    PackageStatus?: string;
 }
 
 export interface Rules {

@@ -973,7 +973,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
               
             </div>
             <div className="flex space-x-3">
-                {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus !== 1 && (user?.UserGroups === 'Implementing Office' ) && (
+                {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus !== 1 && (user?.UserGroups === 'DPC' ) && (
                   <>
                     <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify()} disabled={updateReviseProject}>
                       {updateReviseProject ? 'Submitting...' : 'Submit Revision Request to RO'}
@@ -981,42 +981,42 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                   </>
                 )}
                 {/* need refactor here */}
-                {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus === 0 && (user?.UserGroups === 'Implementing Office' ) && (
+                {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus === 0 && (user?.UserGroups === 'DPC' ) && (
                   <>
                     <Button color="yellow" className='cursor-pointer' disabled={updateReviseProject}>
                       {updateReviseProject ? 'Submitting...' : 'Pending RO Approval'}
                     </Button>
                   </>
                 )}
-                {mode === 'edit' && (initialData?.RevisionDetails?.COStatus === 0 && initialData?.RevisionDetails?.RegionStatus === 1) && (user?.UserGroups === 'Implementing Office' ) && (
+                {mode === 'edit' && (initialData?.RevisionDetails?.COStatus === 0 && initialData?.RevisionDetails?.RegionStatus === 1) && (user?.UserGroups === 'DPC' ) && (
                   <>
                     <Button color="yellow" className='cursor-pointer' disabled={updateReviseProject}>
                       {updateReviseProject ? 'Submitting...' : 'Pending CO Approval'}
                     </Button>
                   </>
                 )}
-                {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus === 0 && (user?.UserGroups === 'Regional Office' ) && (
+                {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus === 0 && (user?.UserGroups === 'RPC' ) && (
                   <>
                     <Button color="green" className='cursor-pointer' onClick={() => setIsApproveDialogOpen(true)} disabled={updateReviseProject}>
                       {updateReviseProject ? 'Submitting...' : 'Submit Revision Request CO'}
                     </Button>
                   </>
                 )}
-                {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus === 0 && user?.UserGroups === 'Regional Office' && (
+                {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus === 0 && user?.UserGroups === 'RPC' && (
                   <>
                     <Button color="amber" className='cursor-pointer' onClick={() => setIsForReviewDialogOpen(true)} disabled={updateForReviewProject}>
                       {updateForReviewProject ? 'Initializing...' : 'For Correction'}
                     </Button>
                   </>
                 )}
-                {mode === 'edit' && user?.UserGroups === 'Central Office' && (
+                {mode === 'edit' && user?.UserGroups === 'UPC' && (
                   <>
                     <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify()} disabled={updateApproveProject}>
                       {updateApproveProject ? 'Approving...' : 'Approve'}
                     </Button>
                   </>
                 )}
-                {mode === 'edit' && initialData?.RevisionDetails?.COStatus === 0 && user?.UserGroups === 'Central Office' && (
+                {mode === 'edit' && initialData?.RevisionDetails?.COStatus === 0 && user?.UserGroups === 'UPC' && (
                   <>
                     <Button color="amber" className='cursor-pointer' onClick={() => setIsForReviewDialogOpen(true)} disabled={updateForReviewProject}>
                       {updateForReviewProject ? 'Initializing...' : 'For Correction'}
@@ -1024,14 +1024,14 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                   </>
                 )}
                 
-                {mode === 'edit' && initialData?.RevisionDetails?.COStatus === 0 && user?.UserGroups === 'Central Office' && (
+                {mode === 'edit' && initialData?.RevisionDetails?.COStatus === 0 && user?.UserGroups === 'UPC' && (
                   <>
                     <Button color="red" className='cursor-pointer' onClick={() => setIsRejectDialogOpen(true)} disabled={rejectDialogProject}>
                       {rejectDialogProject ? 'Rejecting...' : 'Disapprove'}
                     </Button>
                   </>
                 )}
-                {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus === 0 && user?.UserGroups === 'Regional Office' && (
+                {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus === 0 && user?.UserGroups === 'RPC' && (
                   <>
                     <Button color="red" className='cursor-pointer' onClick={() => setIsRejectDialogOpen(true)} disabled={rejectDialogProject}>
                       {rejectDialogProject ? 'Rejecting...' : 'Disapprove'}
@@ -1303,6 +1303,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
       {/* Modify Project Modal */}
       {isRevisedProjectDialogOpen && (<ReviseProjectDialog
+        projectStatus={initialData?.ProjectStatus}
         isOpen={isRevisedProjectDialogOpen}
         onClose={() => setIsRevisedProjectDialogOpen(false)}
         revisionCategory={modificationCategory}

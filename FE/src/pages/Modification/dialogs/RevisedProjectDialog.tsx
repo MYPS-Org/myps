@@ -24,6 +24,7 @@ interface ReviseProjectDialogProps {
     reasonId?: number;
     categoryId?: number;
     revisionGroupId?: number;
+    projectStatus?: any;
 }
 
 const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({ 
@@ -39,7 +40,8 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
     revisionReason,
     reasonId,
     categoryId,
-    revisionGroupId
+    revisionGroupId,
+    projectStatus
 }) => {
     const navigate = useNavigate()
     const { showToast } = useToast();
@@ -138,7 +140,9 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
                         Extension: approvalDocument.Extension,
                         ContentType: approvalDocument.ContentType,
                         DataUrl: approvalDocument.DataUrl
-                    }
+                    },
+                    PackageStatus: projectStatus?.PackageStatus,
+                    ConstructionStatus: projectStatus?.ConstructionStatus
                 },
                 ProjectDetails: project,
                 ComponentCosts: componentCosts,
@@ -152,7 +156,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
 
             let response;
 
-            if (user?.UserGroups === 'Implementing Office') {
+            if (user?.UserGroups === 'DPC') {
                 // Implementing Office: Submit new modification request
                 response = await submitModificationRequest(payload);
                 

@@ -93,27 +93,22 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
 
   // Check if delete button should be enabled for a specific component cost
   const canDelete = useCallback((cost: ComponentCost) => {
-    // Check CRUD permission first
+    // Exception: If component is NOT from database (newly added), always allow delete
+    if (!isFromDatabase(cost)) {
+      return true;
+    }
+    
+    // For components from database, check CRUD permission
     const hasCRUDPermission = fieldRules?.ComponentCostRules?.CRUD?.CanDelete ?? false;
     
-    // If user has CRUD permission, they can delete anything
+    // If user has CRUD permission, they can delete even database items
     if (hasCRUDPermission) {
       return true;
     }
     
-    // If field is not editable due to permissions, can't delete
-    if (!isFieldEditable('ComponentCost')) {
-      return false;
-    }
-    
-    // If component is from database, can't delete (unless has CRUD permission)
-    if (isFromDatabase(cost)) {
-      return false;
-    }
-    
-    // Otherwise, can delete (newly added component)
-    return true;
-  }, [isFieldEditable, isFromDatabase, fieldRules]);
+    // Database items cannot be deleted without CRUD permission
+    return false;
+  }, [isFromDatabase, fieldRules]);
 
   const handleSaveCost = (cost: ComponentCost, costYear?: ComponentCostYear) => {
     // Validate if adding/editing would exceed max amount cost
