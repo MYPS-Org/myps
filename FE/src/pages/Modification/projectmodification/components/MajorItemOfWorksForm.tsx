@@ -12,6 +12,7 @@ import type {
   MajorItemLocations,
 } from '../../../Project/Model.d';
 import type { ProgramList } from '../../../Program/Model.d';
+import type { FieldRules } from '../../Model';
 import { getDisabledClass } from '../../../../utils/GlobalFunctions';
 
 interface MajorItemOfWorksFormProps {
@@ -26,6 +27,7 @@ interface MajorItemOfWorksFormProps {
   dropDowns?: ScopeOfWorkEnum[];
   disabled?: boolean;
   fieldPermissions?: any;
+  fieldRules?: FieldRules | null;
   reason?: string;
 }
 
@@ -41,6 +43,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
   disabled = false,
   dropDowns,
   fieldPermissions,
+  fieldRules,
   reason
 }) => {
   const [majorItemDialogOpen, setMajorItemDialogOpen] = useState(false);
@@ -108,6 +111,21 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
       return isEditable || !disabled;
 
   }, [fieldPermissions, disabled]);
+
+  // Check CRUD permissions from fieldRules
+  const canAddMajorItem = useCallback(() => {
+    if (!fieldRules?.MajorItemOfWorkRules?.CRUD) {
+      return !disabled; // Fallback to disabled prop if no rules
+    }
+    return fieldRules.MajorItemOfWorkRules.CRUD.CanAdd;
+  }, [fieldRules, disabled]);
+
+  const canDeleteMajorItem = useCallback(() => {
+    if (!fieldRules?.MajorItemOfWorkRules?.CRUD) {
+      return !disabled; // Fallback to disabled prop if no rules
+    }
+    return fieldRules.MajorItemOfWorkRules.CRUD.CanDelete;
+  }, [fieldRules, disabled]);
 
   const handleAddMajorItem = () => {
     setIsAddingNewMajorItem(true);
@@ -245,7 +263,12 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-semibold text-gray-900">Major Item of Work</h2>
-        <Button color="blue" onClick={handleAddMajorItem} disabled={!isFieldEditable('AddMajorItemOfWork')}>
+        <Button 
+          color="blue" 
+          onClick={handleAddMajorItem} 
+          disabled={!canAddMajorItem()}
+          className={getDisabledClass(!canAddMajorItem())}
+        >
           <PlusIcon className="w-4 h-4 mr-1" />
           Add Major Item
         </Button>
@@ -314,16 +337,15 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                       <Button
                         color="blue"
                         onClick={() => handleEditMajorItem(index)}
-                        className={`text-xs px-2 py-1 ${getDisabledClass(!isFieldEditable('EditMajorItemOfWork'))}`}
-                        disabled={!isFieldEditable('EditMajorItemOfWork')}
+                        className="text-xs px-2 py-1"
                       >
                         <PencilIcon className="w-3 h-3" />
                       </Button>
                       <Button
                         color="red"
                         onClick={() => onDelete(index)}
-                        className={`text-xs px-2 py-1 ${getDisabledClass(!isFieldEditable('DeleteMajorItemOfWork'))}`}
-                        disabled={!isFieldEditable('DeleteMajorItemOfWork')}
+                        className={`text-xs px-2 py-1 ${getDisabledClass(!canDeleteMajorItem())}`}
+                        disabled={!canDeleteMajorItem()}
                       >
                         <TrashIcon className="w-3 h-3" />
                       </Button>
