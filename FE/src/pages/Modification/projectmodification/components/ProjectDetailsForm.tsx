@@ -28,12 +28,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
     mode = '',
     errors = {},
     disabled = false,
-    fieldPermissions,
     fieldRules,
-    pcmaStatus,
-    packageStatus,
-    currentCase,
-    category
 }) => {
     const [ filteredCities, setFilteredCities ] = useState<ProjectEnums['Cities']>([]);
     const [ filteredLegislativeDistricts, setFilteredLegislativeDistricts ] = useState<ProjectEnums['LDs']>([]);

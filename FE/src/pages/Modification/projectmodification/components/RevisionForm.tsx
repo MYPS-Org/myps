@@ -8,7 +8,7 @@ import type {
     MajorItemLocations,
     FundingProfile
 } from '../../../Project/Model.d';
-import type { FieldRules } from '../../Model';
+import type { FieldRules, RevisionDoc } from '../../Model';
 
 interface RevisionFormProps {
     category?: string;
@@ -19,6 +19,7 @@ interface RevisionFormProps {
     majorItemOfWorks?: MajorItemOfWork[];
     majorItemLocations?: MajorItemLocations[];
     fundingProfile?: FundingProfile[];
+    revisionDocs?: RevisionDoc[];
 
     // added for pcma status and editable fields
     packageStatus?: string;
@@ -32,11 +33,11 @@ const RevisionForm: React.FC<RevisionFormProps> = ({
     category, 
     reason,
     projectDetails,
-    fieldPermissions,
     fieldRules,
     pcmaStatus,
     packageStatus,
-    currentCase
+    currentCase,
+    revisionDocs
 }) => {
     
     console.log('RevisionForm - Received props:', { category, reason, fieldRules });
@@ -95,6 +96,98 @@ const RevisionForm: React.FC<RevisionFormProps> = ({
                             <input className='flex-2/3 mt-1 px-3 py-2 border border-gray-300 bg-gray-100 rounded-md truncate' value={projectDetails?.ProjectId} readOnly />
                         </div>
                     </div>
+                </div>
+
+                {/* Document Section */}
+                <div className="mb-6 p-6 border border-green-200 rounded-lg shadow-md bg-gradient-to-br from-green-50 to-white">
+                    <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                            <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <h4 className="text-lg font-bold text-gray-900">Revision Documents</h4>
+                        </div>
+                    </div>
+
+                    {revisionDocs && revisionDocs.length > 0 ? (
+                        <div className="grid grid-cols-2 gap-4">
+                            {/* Request Documents */}
+                            <div className="bg-white border border-blue-200 rounded-lg p-4 shadow-sm">
+                                <h5 className="text-sm font-bold text-blue-800 mb-3 flex items-center gap-2">
+                                    <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                    </svg>
+                                    Request Documents
+                                </h5>
+                                <div className="space-y-2">
+                                    {revisionDocs.filter(doc => !doc.IsApprovedDocument).length > 0 ? (
+                                        revisionDocs.filter(doc => !doc.IsApprovedDocument).map((doc) => (
+                                            <div key={doc.Id} className="flex items-center justify-between p-2 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100 transition-colors">
+                                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                    <svg className="w-4 h-4 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                    </svg>
+                                                    <span className="text-sm text-gray-700 truncate" title={doc.DocumentName}>
+                                                        {doc.DocumentName}
+                                                    </span>
+                                                </div>
+                                                <a
+                                                    href={doc.DocumentPath}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="flex-shrink-0 ml-2 px-3 py-1 text-xs font-medium text-blue-700 bg-blue-100 border border-blue-300 rounded hover:bg-blue-200 transition-colors"
+                                                >
+                                                    View
+                                                </a>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <p className="text-sm text-gray-500 italic text-center py-4">No request documents available</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Approved Documents */}
+                            <div className="bg-white border border-green-200 rounded-lg p-4 shadow-sm">
+                                <h5 className="text-sm font-bold text-green-800 mb-3 flex items-center gap-2">
+                                    <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    Approved Documents
+                                </h5>
+                                <div className="space-y-2">
+                                    {revisionDocs.filter(doc => doc.IsApprovedDocument).length > 0 ? (
+                                        revisionDocs.filter(doc => doc.IsApprovedDocument).map((doc) => (
+                                            <div key={doc.Id} className="flex items-center justify-between p-2 bg-green-50 border border-green-200 rounded hover:bg-green-100 transition-colors">
+                                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                    <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                    </svg>
+                                                    <span className="text-sm text-gray-700 truncate" title={doc.DocumentName}>
+                                                        {doc.DocumentName}
+                                                    </span>
+                                                </div>
+                                                <a
+                                                    href={doc.DocumentPath}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="flex-shrink-0 ml-2 px-3 py-1 text-xs font-medium text-green-700 bg-green-100 border border-green-300 rounded hover:bg-green-200 transition-colors"
+                                                >
+                                                    View
+                                                </a>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <p className="text-sm text-gray-500 italic text-center py-4">No approved documents available</p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                            <p className="text-sm text-gray-600 text-center">No documents available for this revision</p>
+                        </div>
+                    )}
                 </div>
 
                 {/* Field Permissions and Rules Information */}

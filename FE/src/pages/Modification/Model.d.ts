@@ -44,9 +44,16 @@ export interface RevisionProjectPayload extends ProjectFormPayload{
     Rules: Rules; // Rules for field validation
     ComponentsStatus: ProjectComponentStatus[];
     RevisionDetails?: RevisionDetails;
+    RevisionDocs?: RevisionDoc[];
 }
 
-
+export interface RevisionDoc {
+    Id: number;
+	TransactionId: string;
+	DocumentName: string;
+	DocumentPath: string;
+	IsApprovedDocument: boolean;
+}
 
 // #additional region for pcma status
 export interface ProjectComponentStatus {
