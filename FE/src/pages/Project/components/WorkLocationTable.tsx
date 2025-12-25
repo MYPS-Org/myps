@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button } from '../../../components/tailwindui/button';
-import { PlusIcon, TrashIcon, PencilIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, TrashIcon, PencilIcon, DocumentDuplicateIcon } from '@heroicons/react/24/outline';
 import AddInfraDialog from '../dialogs/AddInfraDialog';
 import { mockInfraData } from '../dialogs/mockInfraData';
 import { generateInfraId, shouldAutoGenerateInfraId, getInfraTypePrefix } from '../../../utils/infraIdGenerator';
@@ -92,6 +92,26 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
       EndStationLimit: '',
     };
     onAdd(newWorkLocation);
+  };
+
+  const handleCopyWorkLocation = (index: number) => {
+    const locationToCopy = workLocations[index];
+    
+    // Create a copy with new ID and potentially modified InfraId
+    const copiedLocation: MajorItemLocations = {
+      ...locationToCopy,
+      Id: 0, // New temporary ID
+      // Generate new InfraId if auto-generated type, otherwise keep the same
+      InfraId: shouldAutoGenerateInfraId(infraType) 
+        ? generateInfraId(infraType) 
+        : locationToCopy.InfraId,
+      // Append "(Copy)" to detailed scope to indicate it's a duplicate
+      DetailedScope: locationToCopy.DetailedScope 
+        ? `${locationToCopy.DetailedScope} (Copy)`
+        : '(Copy)',
+    };
+    
+    onAdd(copiedLocation);
   };
 
   const handleEditWorkLocation = (index: number) => {
@@ -572,15 +592,27 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
                       </span>
                     )}
                   </h5>
-                  <Button
-                    color="red"
-                    onClick={() => onDelete(index)}
-                    className={`flex items-center px-3 py-1 text-xs ${getDisabledClass(disabled)}`}
-                    disabled={disabled}
-                  >
-                    <TrashIcon className="w-3 h-3 mr-1" />
-                    Remove
-                  </Button>
+                  <div className="flex space-x-2">
+                    <Button
+                      color="blue"
+                      onClick={() => handleCopyWorkLocation(index)}
+                      className={`flex items-center px-3 py-1 text-xs ${getDisabledClass(disabled)}`}
+                      disabled={disabled}
+                      title="Duplicate this location"
+                    >
+                      <DocumentDuplicateIcon className="w-3 h-3 mr-1" />
+                      Copy
+                    </Button>
+                    <Button
+                      color="red"
+                      onClick={() => onDelete(index)}
+                      className={`flex items-center px-3 py-1 text-xs ${getDisabledClass(disabled)}`}
+                      disabled={disabled}
+                    >
+                      <TrashIcon className="w-3 h-3 mr-1" />
+                      Remove
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
