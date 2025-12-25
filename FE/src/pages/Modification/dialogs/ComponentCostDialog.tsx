@@ -82,7 +82,20 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   
   // For ComponentCostDialog, we need to check ComponentCostRules specifically
   // Using a custom check to avoid conflicts with ProjectDetailsRules
+  // EXCEPTION: When adding new component (mode === 'add'), all fields should be editable
   const fieldsEditable = React.useMemo(() => {
+    // When adding a new component, all fields must be editable to create the component
+    if (mode === 'add') {
+      return {
+        StartDate: true,
+        EndDate: true,
+        Total: true,
+        Description: true,
+        ComponentType: true,
+      };
+    }
+    
+    // When editing, apply the field rules from the API
     const componentCostRules = permissionState.fieldRules?.ComponentCostRules?.Fields;
     const componentCostYearRules = permissionState.fieldRules?.ComponentCostYearRules?.Fields;
     
@@ -97,7 +110,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
       Description: componentCostRules?.Description ?? false,
       ComponentType: componentCostRules?.ComponentType ?? false,
     };
-  }, [permissionState.fieldRules, fieldNames]);
+  }, [permissionState.fieldRules, fieldNames, mode]);
   
   const fieldsEditStatus = useFieldsEditStatus(fieldNames);
 
