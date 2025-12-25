@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from "react";
 import type { ComponentCost, ComponentCostWithYears, ComponentCostYear } from "../../../Project/Model.d";
+import type { FieldRules } from "../../Model";
 import { Button } from "../../../../components/tailwindui/button";
 import { PlusIcon, TrashIcon, PencilIcon } from "@heroicons/react/24/outline";
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from "../../../../components/tailwindui/table";
@@ -15,6 +16,7 @@ interface ComponentCostFormProps {
   maxAmountCost?: number;
   disabled?: boolean;
   fieldPermissions?: any;
+  fieldRules?: FieldRules;
   category?: string;
   reason?: string;
   reasonId?: number;
@@ -30,6 +32,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
   maxAmountCost,
   disabled = false,
   fieldPermissions,
+  fieldRules,
   category,
   reason,
   reasonId,
@@ -83,19 +86,34 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
     return true; // Default to assuming it's from DB to be safe
   }, []);
 
+  // Check if user can add component cost
+  const canAddComponentCost = useCallback(() => {
+    return fieldRules?.ComponentCostRules?.CRUD?.CanAdd ?? true;
+  }, [fieldRules]);
+
   // Check if delete button should be enabled for a specific component cost
   const canDelete = useCallback((cost: ComponentCost) => {
+    // Check CRUD permission first
+    const hasCRUDPermission = fieldRules?.ComponentCostRules?.CRUD?.CanDelete ?? false;
+    
+    // If user has CRUD permission, they can delete anything
+    if (hasCRUDPermission) {
+      return true;
+    }
+    
     // If field is not editable due to permissions, can't delete
     if (!isFieldEditable('ComponentCost')) {
       return false;
     }
-    // If component is from database, can't delete
+    
+    // If component is from database, can't delete (unless has CRUD permission)
     if (isFromDatabase(cost)) {
       return false;
     }
+    
     // Otherwise, can delete (newly added component)
     return true;
-  }, [isFieldEditable, isFromDatabase]);
+  }, [isFieldEditable, isFromDatabase, fieldRules]);
 
   const handleSaveCost = (cost: ComponentCost, costYear?: ComponentCostYear) => {
     // Validate if adding/editing would exceed max amount cost
@@ -174,7 +192,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold text-gray-900">Component Cost</h2>
-            <Button color="blue" onClick={handleOpenAddModal} disabled={!isFieldEditable('AddComponentCost')}>
+            <Button color="blue" onClick={handleOpenAddModal} disabled={!canAddComponentCost()}>
                 <PlusIcon className="w-4 h-4 mr-1" />
                 Add Cost
             </Button>
@@ -285,9 +303,8 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
                     <div className="flex space-x-2">
                       <button
                         onClick={() => handleOpenEditModal(index)}
-                        className={`text-blue-600 hover:text-blue-800 ${!isFieldEditable('EditComponentCost') ? getDisabledClass(disabled) : ''}`}
+                        className="text-blue-600 hover:text-blue-800"
                         title="Edit"
-                        // disabled={!isFieldEditable('EditComponentCost')}
                       >
                         <PencilIcon className="w-4 h-4" />
                       </button>

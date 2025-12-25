@@ -1242,6 +1242,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             maxAmountCost={maxAmountCost}
             disabled={isDisabled}
             fieldPermissions={permissions}
+            fieldRules={fieldRules ?? undefined}
             category={modificationCategory}
             reason={modificationReason}
             reasonId={modificationReasonId}
