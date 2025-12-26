@@ -10,6 +10,8 @@ import { ArrowLeftIcon } from '@heroicons/react/20/solid';
 import ProjectForm from '../projectmodification/components/ProjectForm';
 import { useAPIIntegration } from '../hooks/useFieldPermissions';
 import type { FieldRules } from '../Model';
+import { useSetAtom } from 'jotai';
+import { transactionIdAtom } from '../store/routeContextStore';
 
 const ViewRevision: React.FC = () => {
     const navigate = useNavigate();
@@ -18,6 +20,7 @@ const ViewRevision: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [revisionData, setRevisionData] = useState<RevisionProjectPayload | null>(null);
     const { setStatusFromAPI, setModificationContext, setFieldRules } = useAPIIntegration();
+    const setTransactionIdAtom = useSetAtom(transactionIdAtom);
 
     useEffect(() => {
         if (!transactionId) {
@@ -28,6 +31,10 @@ const ViewRevision: React.FC = () => {
             navigate('/modification/list');
             return;
         }
+        
+        // Set the transactionId in the atom so dialogs can access it
+        setTransactionIdAtom(transactionId);
+        console.log('Set transactionId atom to:', transactionId);
         
         const fetchDetails = async () => {
             setIsLoading(true);

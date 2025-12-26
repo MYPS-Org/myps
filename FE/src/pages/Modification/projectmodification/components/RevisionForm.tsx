@@ -117,7 +117,7 @@ const RevisionForm: React.FC<RevisionFormProps> = ({
                                     <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                                     </svg>
-                                    Request Documents
+                                    Requested Documents
                                 </h5>
                                 <div className="space-y-2">
                                     {revisionDocs.filter(doc => !doc.IsApprovedDocument).length > 0 ? (
@@ -132,7 +132,7 @@ const RevisionForm: React.FC<RevisionFormProps> = ({
                                                     </span>
                                                 </div>
                                                 <a
-                                                    href={doc.DocumentPath}
+                                                    href={'https://2639m87p-44331.asse.devtunnels.ms/api' + doc.DocumentPath}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className="flex-shrink-0 ml-2 px-3 py-1 text-xs font-medium text-blue-700 bg-blue-100 border border-blue-300 rounded hover:bg-blue-200 transition-colors"

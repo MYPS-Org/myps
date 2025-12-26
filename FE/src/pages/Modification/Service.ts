@@ -52,9 +52,25 @@ export const submitModificationRequest = async (
     }
 };
 
-export const updateRevisionRequestStatus = async (transactionId: string, status: number, ApprovedDocument?: any) => {
+export const updateRevisionRequestStatus = async (transactionId: string, status: number, ApprovedDocument?: any, ApprovalDate?: string) => {
     try {
-        const response = await httpClient.post(`/Revision/UpdateRevisionStatus/`, { 'Document': ApprovedDocument, 'TransactionId': transactionId, 'Status': status }, {
+        console.log('=== updateRevisionRequestStatus Parameters ===');
+        console.log('transactionId:', transactionId);
+        console.log('status:', status);
+        console.log('ApprovedDocument:', ApprovedDocument);
+        console.log('ApprovalDate:', ApprovalDate);
+        
+        const payload = {
+            TransactionId: transactionId,
+            Status: status,
+            Document: ApprovedDocument,
+            ApprovalDate: ApprovalDate
+        };
+        
+        console.log('=== Payload being sent ===');
+        console.log(JSON.stringify(payload, null, 2));
+        
+        const response = await httpClient.post(`/Revision/UpdateRevisionStatus/`, payload, {
             preloaderMessage: 'Requesting revision...'
         });
         return response;

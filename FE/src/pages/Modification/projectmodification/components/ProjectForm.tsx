@@ -973,7 +973,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
               
             </div>
             <div className="flex space-x-3">
-                {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus !== 1 && (user?.UserGroups === 'DPC' ) && (
+                {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus == null && (user?.UserGroups === 'DPC' ) && (
                   <>
                     <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify()} disabled={updateReviseProject}>
                       {updateReviseProject ? 'Submitting...' : 'Submit Revision Request to RO'}
@@ -1009,14 +1009,14 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                     </Button>
                   </>
                 )}
-                {mode === 'edit' && user?.UserGroups === 'UPC' && (
+                {mode === 'edit' && user?.UserGroups === 'AUC' && initialData?.RevisionDetails?.COStatus == 0 && (
                   <>
                     <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify()} disabled={updateApproveProject}>
                       {updateApproveProject ? 'Approving...' : 'Approve'}
                     </Button>
                   </>
                 )}
-                {mode === 'edit' && initialData?.RevisionDetails?.COStatus === 0 && user?.UserGroups === 'UPC' && (
+                {mode === 'edit' && initialData?.RevisionDetails?.COStatus == 0 && user?.UserGroups === 'AUC' && (
                   <>
                     <Button color="amber" className='cursor-pointer' onClick={() => setIsForReviewDialogOpen(true)} disabled={updateForReviewProject}>
                       {updateForReviewProject ? 'Initializing...' : 'For Correction'}
@@ -1024,7 +1024,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                   </>
                 )}
                 
-                {mode === 'edit' && initialData?.RevisionDetails?.COStatus === 0 && user?.UserGroups === 'UPC' && (
+                {mode === 'edit' && initialData?.RevisionDetails?.COStatus == 0 && user?.UserGroups === 'AUC' && (
                   <>
                     <Button color="red" className='cursor-pointer' onClick={() => setIsRejectDialogOpen(true)} disabled={rejectDialogProject}>
                       {rejectDialogProject ? 'Rejecting...' : 'Disapprove'}
@@ -1120,6 +1120,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           //   }))
           // )}
           // fundingProfile={fundingProfiles}
+          revisionDocs={initialData?.RevisionDocs}
           fieldPermissions={permissions}
           fieldRules={fieldRules}
           pcmaStatus={pcmaStatus}

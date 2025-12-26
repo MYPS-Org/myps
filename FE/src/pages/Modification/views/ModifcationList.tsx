@@ -273,14 +273,24 @@ const ModificationList: React.FC = () => {
                                     <TableCell>{revision.TransactionId}</TableCell>
                                     <TableCell>{revision.Reason}</TableCell>
                                     <TableCell>{revision.CreatedDate ? new Date(revision.CreatedDate).toLocaleDateString() : '-'}</TableCell>
-                                    <TableCell>
-                                        {revision.COStatus == null && (
+                                    <TableCell className="flex items-center">
+                                        {revision.COStatus == 0 && revision.RegionStatus == 0 &&(
                                             <span className="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
                                                 {revision.RegionStatusName}
                                             </span>
                                         )}
-                                        {revision.RegionStatus != null && revision.COStatus != null && (
-                                            <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 ml-2">
+                                        {revision.RegionStatus == 2 &&(
+                                            <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                                                {revision.RegionStatusName}
+                                            </span>
+                                        )}
+                                        {revision.RegionStatus == 3 &&(
+                                            <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                                                {revision.RegionStatusName}
+                                            </span>
+                                        )}
+                                        {revision.RegionStatus == 1 && revision.COStatus != null && (
+                                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${revision.COStatusName == 'Approved' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'} ml-2`}>
                                                 {revision.COStatusName}
                                             </span>
                                         )}

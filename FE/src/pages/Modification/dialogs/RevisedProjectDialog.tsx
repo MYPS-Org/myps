@@ -53,7 +53,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
         ContentType: string;
         DataUrl: string;
     } | null>(null);
-    const [revisionType] = useState<string>('modification');
+    const [revisionType] = useState<string>('');
     const [isCertified, setIsCertified] = useState<boolean>(false);
 
     console.log('ReviseProjectDialog - Received IDs:', { categoryId, revisionGroupId, reasonId });
@@ -172,9 +172,15 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
 
                 onClose();
                 // Navigate to the newly created revision view
-                navigate('/revision/view/' + (response?.Data?.TransactionId || ''));
+                // navigate('/revision/view/' + (response?.Data?.TransactionId || ''));
+                navigate('/revision');
             } else {
                 // Non-Implementing Office: Approve existing revision
+                // console.log('=== Calling updateRevisionRequestStatus ===');
+                // console.log('transactionId:', transactionId);
+                // console.log('approvalDate:', approvalDate);
+                // console.log('approvalDocument:', approvalDocument);
+                
                 await updateRevisionRequestStatus(
                     transactionId, 
                     1,
@@ -183,7 +189,8 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
                         Extension: approvalDocument.Extension,
                         ContentType: approvalDocument.ContentType,
                         DataUrl: approvalDocument.DataUrl
-                    }
+                    },
+                    approvalDate
                 ); // 1 = Approved
                 
                 showToast({
@@ -222,7 +229,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
                     <div>
                         <DialogTitle className="text-lg font-semibold text-gray-900">
-                            Modify Project
+                            Revise Project
                         </DialogTitle>
                         <p className="text-sm text-gray-600 mt-1">
                             {project.ProjectId}
@@ -254,7 +261,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
                             </div>
                         </div>
                     </div>
-
+                    
                     {/* Modification Details */}
                     {(revisionCategory || revisionReason) && (
                         <div className='bg-blue-50 p-4 rounded-lg space-y-2'>
@@ -327,7 +334,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
                     </div>
 
                     {/* Certification Checkbox */}
-                    {user?.UserGroups === 'Implementing Office' && (
+                    {(user?.UserGroups === 'AUC' || user?.UserGroups === 'DPC') && approvalDocument && (
                     <div className='bg-amber-50 border border-amber-200 p-4 rounded-lg'>
                         <label className='flex items-start gap-3 cursor-pointer'>
                             <input 
@@ -347,7 +354,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
                         <Button
                             type="submit"
                             color="blue"
-                            disabled={isSubmitting || (user?.UserGroups === 'Implementing Office' && !isCertified)}
+                            disabled={isSubmitting || (user?.UserGroups === 'DPC' && !isCertified)}
                         >
                             {isSubmitting ? 'Submitting...' : 'Submit'}
                         </Button>

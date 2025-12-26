@@ -70,20 +70,21 @@ export interface ProjectComponentStatus {
 export interface RevisionDetails {
     Id: number;
 	TransactionId: string;
-	RevisionName: string;
 	RevisionGroupId: number;
-	CategoryName?: string;
 	CategoryId?: number;
-	Reason: string;
 	ReasonId: number;
-	RequestDocument?: string;
+	IODocApprovalDate?: string;
 	RegionStatus: number;
+	RegionDescription?: string;
 	RegionApprover?: string;
 	RegionApprovedDate?: string;
+	RegionLastUpdatedDate?: string;
 	COStatus: number;
+	CODocApprovalDate?: string;
+	CODescription?: string;
 	COApprover?: string;
 	COApprovedDate?: string;
-	ApprovedDocument?: string;
+	COLastUpdatedDate?: string;
 	CreatedBy?: string;
 	CreatedDate?: string;
     ConstructionStatus?: string;

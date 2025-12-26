@@ -54,7 +54,7 @@ const ApproveModifyDialog: React.FC<ApproveModifyDialogProps> = ({
             if (onSuccess) {
                 onSuccess();
             } else {
-                navigate('/modification/list');
+                navigate('/revision');
             }
         } catch (error) {
             console.error('Error approving modification request:', error);

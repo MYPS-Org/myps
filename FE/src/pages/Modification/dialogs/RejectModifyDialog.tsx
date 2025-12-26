@@ -91,7 +91,7 @@ const RejectModifyDialog: React.FC<RejectModifyDialogProps> = ({
                         <div className="flex items-center gap-3">
                             <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
                             <DialogTitle className="text-lg font-semibold text-gray-900">
-                                Reject Modification Request
+                                Disapproval Modification Request
                             </DialogTitle>
                         </div>
                         <button
@@ -109,10 +109,10 @@ const RejectModifyDialog: React.FC<RejectModifyDialogProps> = ({
                             {/* Warning Message */}
                             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                                 <p className="text-sm text-red-800 font-medium">
-                                    You are about to reject this modification request.
+                                    You are about to Disapprove this modification request.
                                 </p>
                                 <p className="text-sm text-red-700 mt-2">
-                                    This action will decline the proposed changes and notify the requester. Please provide a clear reason for rejection.
+                                    This action will decline the proposed changes and notify the requester. Please provide a clear reason for disapproval.
                                 </p>
                             </div>
 
