@@ -1,9 +1,10 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import type { ProjectDetails, ProjectEnums } from "../../../Project/Model.d";
 import type { FormValidationError } from "../../../../utils/FormValidation";
 import type { FieldRules } from '../../Model';
 import { getDisabledClass, formatDropdownOptions } from '../../../../utils/GlobalFunctions';
 import SearchableDropdown from '../../../../components/ui/SearchableDropdown';
+import { EditableField } from '../../../../components/ui/EditableField';
 
 interface ProjectDetailsFormProps {
     projectDetails: ProjectDetails;
@@ -13,7 +14,6 @@ interface ProjectDetailsFormProps {
     initialData?: any;
     errors?: FormValidationError<ProjectDetails>;
     disabled?: boolean;
-    fieldPermissions?: any;
     fieldRules?: FieldRules | null;
     pcmaStatus?: string;
     packageStatus?: string;
@@ -37,27 +37,30 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
     const [ filteredOUs, setFilteredOUs ] = useState<ProjectEnums['OperatingUnits']>([]);
 
     // Helper function to check if a field is editable based on fieldRules from API
-    const isFieldEditable = useCallback((fieldName: string) => {
-        // If form is globally disabled, nothing is editable
-        // if (disabled) {
-        //     return false;
-        // }
+    const fieldPermissions = useMemo(() => {
+        if (!fieldRules) return {};
 
-        // If no field rules, default to editable (for non-modification scenarios)
-        if (!fieldRules) {
-            return true;
-        }
+        const permissions: Record<string, boolean> = {};
 
-        // Check in all rule groups for the field
-        for (const rules of Object.values(fieldRules)) {
-            if (rules && fieldName in rules) {
-                return rules[fieldName] === true;
+        // Root-level fields
+        for (const [key, value] of Object.entries(fieldRules)) {
+            if (typeof value === 'boolean') {
+            permissions[key] = value;
             }
         }
 
-        // If field not found in rules, default to not editable for safety
-        return false;
-    }, [fieldRules, disabled]);
+        // Nested rules with Fields
+        for (const rules of Object.values(fieldRules)) {
+            if (typeof rules === 'object' && rules?.Fields) {
+            Object.assign(permissions, rules.Fields);
+            }
+        }
+
+        return permissions;
+    }, [fieldRules]);
+
+    // Function to check if a specific field is editable
+    const isFieldEditable = (field: string) => fieldPermissions[field] === true;
 
     const updateFilteredData = useCallback(() => {
         if (!projectEnums) return;
@@ -423,7 +426,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.Thrust ? 'text-red-500' : 'text-gray-600'}`}>*Sub-Category:</label>
-                                <div className='w-2/3'>
+                                <div className='w-2/3 min-w-0'>
                                     <SearchableDropdown
                                         options={formatDropdownOptions(
                                             projectEnums?.Thrusts?.filter(x => x.ValidFromDate < new Date().getFullYear() && x.ValidToDate > new Date().getFullYear() || x.ValidToDate === 0) || [],
@@ -461,14 +464,18 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                         <div className='w-full flex text-left gap-2'>
                             <label className={`w-1/9 ${errors.Description ? 'text-red-500' : 'text-gray-600'}`}>*Description:</label>
                             <div className="w-8/9">
+                            <EditableField field="Description" isFieldEditable={isFieldEditable}>
+                                {(editable) => (
                                 <textarea
                                     value={projectDetails?.Description}
                                     onChange={(e) => handleInputChange('Description', e.target.value)}
                                     className={`w-full mt-1 px-3 py-2 border ${errors.Description ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(!isFieldEditable('Description'))} rounded-md`}
                                     placeholder="Enter project description"
                                     rows={3}
-                                    disabled={!isFieldEditable('Description')}
+                                    disabled={!editable}
                                 />
+                                )}
+                            </EditableField>
                             </div>
                         </div>
                     </div>

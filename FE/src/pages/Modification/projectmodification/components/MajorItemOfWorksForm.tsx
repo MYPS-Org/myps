@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '../../../../components/tailwindui/button';
 import { PlusIcon, TrashIcon, PencilIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { Table, TableHead, TableRow, TableHeader, TableBody, TableCell } from '../../../../components/tailwindui/table';
@@ -25,10 +25,7 @@ interface MajorItemOfWorksFormProps {
   onEdit: (index: number, updatedItem: MajorItemOfWorksWithDropdown) => void;
   onDelete: (index: number) => void;
   dropDowns?: ScopeOfWorkEnum[];
-  disabled?: boolean;
-  fieldPermissions?: any;
   fieldRules?: FieldRules | null;
-  reason?: string;
 }
 
 const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
@@ -40,11 +37,8 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
   onAdd,
   onEdit,
   onDelete,
-  disabled = false,
   dropDowns,
-  fieldPermissions,
   fieldRules,
-  reason
 }) => {
   const [majorItemDialogOpen, setMajorItemDialogOpen] = useState(false);
   const [editingMajorItemIndex, setEditingMajorItemIndex] = useState<number | null>(null);
@@ -101,31 +95,62 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     }
   }, [majorItems, dropDowns, onEdit]);
 
-  const isFieldEditable = useCallback((fieldName: string) => {
-      if (!fieldPermissions) {
-          return !disabled;
-      }
-      // check if isEditable is true in fieldPermissions
-      const isEditable = fieldPermissions.editableFields?.includes(fieldName);
-      
-      return isEditable || !disabled;
+  // Helper function to check if a field is editable based on fieldRules from API
+  const fieldPermissionsMap = useMemo(() => {
+    if (!fieldRules) return {};
 
-  }, [fieldPermissions, disabled]);
+    const permissions: Record<string, boolean> = {};
+
+    // Root-level fields
+    for (const [key, value] of Object.entries(fieldRules)) {
+      if (typeof value === 'boolean') {
+        permissions[key] = value;
+      }
+    }
+
+    // Nested rules with Fields
+    for (const rules of Object.values(fieldRules)) {
+      if (typeof rules === 'object' && rules?.Fields) {
+        Object.assign(permissions, rules.Fields);
+      }
+    }
+
+    return permissions;
+  }, [fieldRules]);
+
+  // Function to check if a specific field is editable
+  const isFieldEditable = useCallback((field: string) => {
+    return fieldPermissionsMap[field] === true;
+  }, [fieldPermissionsMap]);
 
   // Check CRUD permissions from fieldRules
   const canAddMajorItem = useCallback(() => {
-    if (!fieldRules?.MajorItemOfWorkRules?.CRUD) {
-      return !disabled; // Fallback to disabled prop if no rules
-    }
-    return fieldRules.MajorItemOfWorkRules.CRUD.CanAdd;
-  }, [fieldRules, disabled]);
+    // If no fieldRules, default to denying add
+    if (!fieldRules) return false;
+    
+    // If MajorItemOfWorkRules doesn't exist, default to denying add
+    if (!fieldRules.MajorItemOfWorkRules) return false;
+    
+    // If CRUD doesn't exist, default to denying add
+    if (!fieldRules.MajorItemOfWorkRules.CRUD) return false;
+    
+    // Return the CanAdd value, defaulting to false if undefined or null
+    return fieldRules.MajorItemOfWorkRules.CRUD.CanAdd ?? false;
+  }, [fieldRules]);
 
   const canDeleteMajorItem = useCallback(() => {
-    if (!fieldRules?.MajorItemOfWorkRules?.CRUD) {
-      return !disabled; // Fallback to disabled prop if no rules
-    }
-    return fieldRules.MajorItemOfWorkRules.CRUD.CanDelete;
-  }, [fieldRules, disabled]);
+    // If no fieldRules, default to denying delete
+    if (!fieldRules) return false;
+    
+    // If MajorItemOfWorkRules doesn't exist, default to denying delete
+    if (!fieldRules.MajorItemOfWorkRules) return false;
+    
+    // If CRUD doesn't exist, default to denying delete
+    if (!fieldRules.MajorItemOfWorkRules.CRUD) return false;
+    
+    // Return the CanDelete value, defaulting to false if undefined or null
+    return fieldRules.MajorItemOfWorkRules.CRUD.CanDelete ?? false;
+  }, [fieldRules]);
 
   const handleAddMajorItem = () => {
     setIsAddingNewMajorItem(true);
@@ -405,7 +430,6 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
         } : undefined}
         existingMajorItems={majorItems.map(item => ({ ComponentId: item.ComponentId }))}
         programDetails={programDetails}
-        reason={reason}
       />
     </div>
   );

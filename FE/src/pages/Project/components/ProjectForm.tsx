@@ -18,9 +18,6 @@ import type {
   MajorItemOfWork,
   MajorItemLocations,
   ProjectSupportingDocs,
-  OptionRevisionCategory,
-  OptionRevisionHeader,
-  OptionRevisionReasons 
 } from '../Model.d';
 
 import { Button } from '../../../components/tailwindui/button';
@@ -75,10 +72,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const [ isRevisionOpen, setIsRevisionOpen ] = useState<boolean>(false);
   const [ selectedRevHeaderId, setSelectedRevHeaderId ] = useState<number>(0);
 
-  // Revision Dropdown Data
-  const [ revHeaderData, setRevHeaderData ] = useState<OptionRevisionHeader[]>([]);
-  const [ revCategoryData, setRevCategoryData ] = useState<OptionRevisionCategory[]>([]);
-  const [ reasonData, setReasonData ] = useState<OptionRevisionReasons[]>([]);
   
   // SetMaxAmount in ComponentCostForm
   const [maxAmountCost, setMaxAmountCost] = useState<number>(0);

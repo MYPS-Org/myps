@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
@@ -26,7 +26,6 @@ interface AddMajorItemDialogProps {
     InfraType: string;
   };
   existingMajorItems?: Array<{ ComponentId: string }>;
-  reason?: string;
 }
 
 const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
@@ -39,7 +38,6 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
   mode,
   initialData,
   existingMajorItems = [],
-  reason
 }) => {
   const [formData, setFormData] = useState({
     ComponentId: '',
@@ -53,10 +51,9 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
   // Get field permissions state
   const permissionState = useFieldPermissionState();
 
-  // Field permission logic - when adding new major item, all fields are editable
-  // When editing, apply field rules from API
-  const fieldsEditable = React.useMemo(() => {
-    // When adding a new major item, all fields must be editable
+  // Helper function to check if a field is editable based on fieldRules from API
+  const fieldPermissionsMap = useMemo(() => {
+    // EXCEPTION: When adding new major item (mode === 'add'), all fields should be editable
     if (mode === 'add') {
       return {
         ComponentId: true,
@@ -65,26 +62,24 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
         InfraType: true,
       };
     }
-    
-    // When editing, apply the field rules from the API
-    const majorItemRules = permissionState.fieldRules?.MajorItemOfWorkRules?.Fields;
-    
-    if (!majorItemRules) {
-      return {
-        ComponentId: true,
-        YearOfWork: true,
-        WorkTypeId: true,
-        InfraType: true,
-      };
+
+    if (!permissionState.fieldRules) return {};
+
+    const permissions: Record<string, boolean> = {};
+
+    // Get MajorItemOfWorkRules fields
+    const majorItemFields = permissionState.fieldRules.MajorItemOfWorkRules?.Fields;
+    if (majorItemFields) {
+      Object.assign(permissions, majorItemFields);
     }
-    
-    return {
-      ComponentId: majorItemRules?.ComponentId ?? false,
-      YearOfWork: majorItemRules?.YearOfWork ?? false,
-      WorkTypeId: majorItemRules?.WorkTypeId ?? false,
-      InfraType: majorItemRules?.InfraType ?? false,
-    };
+
+    return permissions;
   }, [permissionState.fieldRules, mode]);
+
+  // Function to check if a specific field is editable
+  const isFieldEditable = useCallback((field: string) => {
+    return fieldPermissionsMap[field] === true;
+  }, [fieldPermissionsMap]);
 
   // Initialize form data
   useEffect(() => {
@@ -213,15 +208,15 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Component <span className="text-red-500">*</span>
-                <span className="text-xs text-gray-500 ml-2">{fieldsEditable.ComponentId ? '✓ Editable' : '✗ Not Editable'}</span>
+                <span className="text-xs text-gray-500 ml-2">{isFieldEditable('ComponentId') ? '✓ Editable' : '✗ Not Editable'}</span>
               </label>
               <select
                 value={formData.ComponentId}
                 onChange={(e) => handleInputChange('ComponentId', e.target.value)}
                 className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 text-sm ${
-                  !fieldsEditable.ComponentId ? 'bg-gray-100 cursor-not-allowed' : ''
+                  !isFieldEditable('ComponentId') ? 'bg-gray-100 cursor-not-allowed' : ''
                 }`}
-                disabled={!fieldsEditable.ComponentId}
+                disabled={!isFieldEditable('ComponentId')}
                 required
               >
                 <option value="">Select Component</option>
@@ -242,16 +237,16 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Year of Work <span className="text-red-500">*</span>
-                <span className="text-xs text-gray-500 ml-2">{fieldsEditable.YearOfWork ? '✓ Editable' : '✗ Not Editable'}</span>
+                <span className="text-xs text-gray-500 ml-2">{isFieldEditable('YearOfWork') ? '✓ Editable' : '✗ Not Editable'}</span>
               </label>
               <input
                 type="number"
                 value={formData.YearOfWork}
                 onChange={(e) => handleInputChange('YearOfWork', parseInt(e.target.value))}
                 className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 text-sm ${
-                  !fieldsEditable.YearOfWork ? 'bg-gray-100 cursor-not-allowed' : ''
+                  !isFieldEditable('YearOfWork') ? 'bg-gray-100 cursor-not-allowed' : ''
                 }`}
-                disabled={!fieldsEditable.YearOfWork}
+                disabled={!isFieldEditable('YearOfWork')}
                 min={programDetails?.YearStart}
                 max="2100"
                 required
@@ -262,15 +257,15 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Infrastructure Type <span className="text-red-500">*</span>
-                <span className="text-xs text-gray-500 ml-2">{fieldsEditable.InfraType ? '✓ Editable' : '✗ Not Editable'}</span>
+                <span className="text-xs text-gray-500 ml-2">{isFieldEditable('InfraType') ? '✓ Editable' : '✗ Not Editable'}</span>
               </label>
               <select
                 value={formData.InfraType}
                 onChange={(e) => handleInputChange('InfraType', e.target.value)}
                 className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 text-sm ${
-                  !fieldsEditable.InfraType ? 'bg-gray-100 cursor-not-allowed' : ''
+                  !isFieldEditable('InfraType') ? 'bg-gray-100 cursor-not-allowed' : ''
                 }`}
-                disabled={!fieldsEditable.InfraType}
+                disabled={!isFieldEditable('InfraType')}
                 required
               >
                 <option value="">Select Infrastructure Type</option>
@@ -286,15 +281,15 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Type of Work <span className="text-red-500">*</span>
-                <span className="text-xs text-gray-500 ml-2">{fieldsEditable.WorkTypeId ? '✓ Editable' : '✗ Not Editable'}</span>
+                <span className="text-xs text-gray-500 ml-2">{isFieldEditable('WorkTypeId') ? '✓ Editable' : '✗ Not Editable'}</span>
               </label>
               <select
                 value={formData.WorkTypeId}
                 onChange={(e) => handleInputChange('WorkTypeId', parseInt(e.target.value) || 0)}
                 className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 text-sm ${
-                  !fieldsEditable.WorkTypeId || !formData.InfraType ? 'bg-gray-100 cursor-not-allowed' : ''
+                  !isFieldEditable('WorkTypeId') || !formData.InfraType ? 'bg-gray-100 cursor-not-allowed' : ''
                 }`}
-                disabled={!fieldsEditable.WorkTypeId || !formData.InfraType}
+                disabled={!isFieldEditable('WorkTypeId') || !formData.InfraType}
                 required
               >
                 <option value={0}>

@@ -5,7 +5,6 @@ import { Button } from "../../../../components/tailwindui/button";
 import { PlusIcon, TrashIcon, PencilIcon } from "@heroicons/react/24/outline";
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from "../../../../components/tailwindui/table";
 import ComponentCostDialog from "../../dialogs/ComponentCostDialog";
-import { getDisabledClass } from "../../../../utils/GlobalFunctions";
 
 interface ComponentCostFormProps {
   componentCosts: ComponentCostWithYears[];
@@ -14,8 +13,6 @@ interface ComponentCostFormProps {
   onDelete: (index: number) => void;
   initialData?: any;
   maxAmountCost?: number;
-  disabled?: boolean;
-  fieldPermissions?: any;
   fieldRules?: FieldRules;
   category?: string;
   reason?: string;
@@ -30,8 +27,6 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
   onDelete,
   initialData,
   maxAmountCost,
-  disabled = false,
-  fieldPermissions,
   fieldRules,
   category,
   reason,
@@ -62,16 +57,6 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
     setEditingIndex(null);
   };
 
-  const isFieldEditable = useCallback((fieldName: string) => {
-      if (!fieldPermissions) {
-          return !disabled;
-      }
-      
-      const isEditable = fieldPermissions.editableFields?.includes(fieldName);
-      
-      return isEditable && disabled; // Fixed: should be !disabled, not disabled
-  }, [fieldPermissions, disabled]);
-
   // Check if a component cost is from database (has real Id > 0) or newly added (Id = 0 or temp ReferenceId)
   const isFromDatabase = useCallback((cost: ComponentCost) => {
     // If Id > 0, it's from database
@@ -88,7 +73,17 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
 
   // Check if user can add component cost
   const canAddComponentCost = useCallback(() => {
-    return fieldRules?.ComponentCostRules?.CRUD?.CanAdd ?? true;
+    // If no fieldRules, default to denying add
+    if (!fieldRules) return false;
+    
+    // If ComponentCostRules doesn't exist, default to denying add
+    if (!fieldRules.ComponentCostRules) return false;
+    
+    // If CRUD doesn't exist, default to denying add
+    if (!fieldRules.ComponentCostRules.CRUD) return false;
+    
+    // Return the CanAdd value, defaulting to false if undefined or null
+    return fieldRules.ComponentCostRules.CRUD.CanAdd ?? false;
   }, [fieldRules]);
 
   // Check if delete button should be enabled for a specific component cost
@@ -98,16 +93,20 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
       return true;
     }
     
+    // If no fieldRules, default to not allowing delete of database items
+    if (!fieldRules) return false;
+    
+    // If ComponentCostRules doesn't exist, default to not allowing delete
+    if (!fieldRules.ComponentCostRules) return false;
+    
+    // If CRUD doesn't exist, default to not allowing delete
+    if (!fieldRules.ComponentCostRules.CRUD) return false;
+    
     // For components from database, check CRUD permission
-    const hasCRUDPermission = fieldRules?.ComponentCostRules?.CRUD?.CanDelete ?? false;
+    const hasCRUDPermission = fieldRules.ComponentCostRules.CRUD.CanDelete ?? false;
     
-    // If user has CRUD permission, they can delete even database items
-    if (hasCRUDPermission) {
-      return true;
-    }
-    
-    // Database items cannot be deleted without CRUD permission
-    return false;
+    // Return the permission value
+    return hasCRUDPermission;
   }, [isFromDatabase, fieldRules]);
 
   const handleSaveCost = (cost: ComponentCost, costYear?: ComponentCostYear) => {

@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Dialog, DialogTitle, DialogPanel } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import type { ComponentCost, ComponentCostYear, ComponentCostWithYears, ComponentTypeEnum } from '../../Project/Model';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { handleCurrencyBlur, handleCurrencyChange } from '../../../utils/GlobalFunctions';
-import { useFieldsEditable, useFieldsEditStatus, useFieldPermissionState } from '../hooks/useFieldPermissions';
+import { useFieldPermissionState } from '../hooks/useFieldPermissions';
 
 interface ComponentCostDialogProps {
   isOpen: boolean;
@@ -58,33 +58,12 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
 
   const [displayValue, setDisplayValue] = useState('');
 
-  // Get field permissions state for debugging
+  // Get field permissions state
   const permissionState = useFieldPermissionState();
 
-  // Debug logging
-  useEffect(() => {
-    if (isOpen) {
-      console.log('ComponentCostDialog - Permission State:', {
-        pcmaStatus: permissionState.pcmaStatus,
-        packageStatus: permissionState.packageStatus,
-        currentCase: permissionState.currentCase,
-        category: permissionState.context.category,
-        reason: permissionState.context.reason,
-        reasonId: permissionState.context.reasonId,
-        editableFields: permissionState.permissions?.editableFields,
-        fieldRules: permissionState.fieldRules
-      });
-    }
-  }, [isOpen, permissionState]);
-
-  // Get field permissions from Jotai store - Check multiple fields at once
-  const fieldNames = ['StartDate', 'EndDate', 'Total', 'Description', 'ComponentType'];
-  
-  // For ComponentCostDialog, we need to check ComponentCostRules specifically
-  // Using a custom check to avoid conflicts with ProjectDetailsRules
-  // EXCEPTION: When adding new component (mode === 'add'), all fields should be editable
-  const fieldsEditable = React.useMemo(() => {
-    // When adding a new component, all fields must be editable to create the component
+  // Helper function to check if a field is editable based on fieldRules from API
+  const fieldPermissionsMap = useMemo(() => {
+    // EXCEPTION: When adding new component (mode === 'add'), all fields should be editable
     if (mode === 'add') {
       return {
         StartDate: true,
@@ -94,54 +73,30 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         ComponentType: true,
       };
     }
-    
-    // When editing, apply the field rules from the API
-    const componentCostRules = permissionState.fieldRules?.ComponentCostRules?.Fields;
-    const componentCostYearRules = permissionState.fieldRules?.ComponentCostYearRules?.Fields;
-    
-    if (!componentCostRules && !componentCostYearRules) {
-      return fieldNames.reduce((acc, field) => ({ ...acc, [field]: true }), {} as Record<string, boolean>);
+
+    if (!permissionState.fieldRules) return {};
+
+    const permissions: Record<string, boolean> = {};
+
+    // Get ComponentCostRules fields
+    const componentCostFields = permissionState.fieldRules.ComponentCostRules?.Fields;
+    if (componentCostFields) {
+      Object.assign(permissions, componentCostFields);
     }
-    
-    return {
-      StartDate: componentCostYearRules?.StartDate ?? false,
-      EndDate: componentCostYearRules?.EndDate ?? false,
-      Total: componentCostRules?.Total ?? false,
-      Description: componentCostRules?.Description ?? false,
-      ComponentType: componentCostRules?.ComponentType ?? false,
-    };
-  }, [permissionState.fieldRules, fieldNames, mode]);
-  
-  const fieldsEditStatus = useFieldsEditStatus(fieldNames);
 
-  // Destructure for cleaner usage
-  const {
-    StartDate: isStartDateEditable,
-    EndDate: isEndDateEditable,
-    Total: isCostEditable,
-    Description: isDescriptionEditable,
-    ComponentType: isComponentTypeEditable
-  } = fieldsEditable;
+    // Get ComponentCostYearRules fields
+    const componentCostYearFields = permissionState.fieldRules.ComponentCostYearRules?.Fields;
+    if (componentCostYearFields) {
+      Object.assign(permissions, componentCostYearFields);
+    }
 
-  // Debug field editable results
-  // useEffect(() => {
-  //   if (isOpen) {
-  //     console.log('====== ComponentCostDialog - Field Permission Debug ======');
-  //     console.log('Field Rules from Store:', permissionState.fieldRules);
-  //     console.log('ComponentCostRules:', permissionState.fieldRules?.ComponentCostRules);
-  //     console.log('ComponentCostRules.Fields:', permissionState.fieldRules?.ComponentCostRules?.Fields);
-  //     console.log('Fields being checked:', fieldNames);
-  //     console.log('Fields Editable Results:', fieldsEditable);
-  //     console.log('Fields Edit Status:', fieldsEditStatus);
-  //     console.log('isDescriptionEditable value:', isDescriptionEditable);
-  //     console.log('=========================================================');
-  //   }
-  // }, [isOpen, fieldsEditable, fieldsEditStatus, permissionState.fieldRules, isDescriptionEditable]);
+    return permissions;
+  }, [permissionState.fieldRules, mode]);
 
-  const {
-    StartDate: startDateStatus,
-    EndDate: endDateStatus
-  } = fieldsEditStatus;
+  // Function to check if a specific field is editable
+  const isFieldEditable = useCallback((field: string) => {
+    return fieldPermissionsMap[field] === true;
+  }, [fieldPermissionsMap]);
 
   // Calculate remaining budget for validation
   const calculateRemainingBudget = () => {
@@ -355,16 +310,16 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Component Type <span className="text-xs text-gray-500">{isComponentTypeEditable ? '✓ Editable' : '✗ Not Editable'}</span>
+                        Component Type <span className="text-xs text-gray-500">{isFieldEditable('ComponentType') ? '✓ Editable' : '✗ Not Editable'}</span>
                     </label>
                     <select 
                         className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500${
-                          !isComponentTypeEditable
+                          !isFieldEditable('ComponentType')
                             ? ' bg-gray-100 cursor-not-allowed' 
                             : ''
                           }`}
                         value={formData.ComponentType}
-                        disabled={!isComponentTypeEditable}
+                        disabled={!isFieldEditable('ComponentType')}
                         onChange={(e) => { 
                             const value = e.target.value; 
                             handleChange('ComponentType', value);
@@ -409,21 +364,21 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                 {/* Description */}
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Description <span className="text-xs text-gray-500">{isDescriptionEditable ? '✓ Editable' : '✗ Not Editable'}</span>
+                    Description <span className="text-xs text-gray-500">{isFieldEditable('Description') ? '✓ Editable' : '✗ Not Editable'}</span>
                     </label>
                     <textarea
                     value={formData.Description}
                     onChange={(e) => handleChange('Description', e.target.value)}
                     rows={3}
                     className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      !isDescriptionEditable
+                      !isFieldEditable('Description')
                         ? 'bg-gray-100 cursor-not-allowed' 
                         : ''
                     }`}
-                    disabled={!isDescriptionEditable}
+                    disabled={!isFieldEditable('Description')}
                     placeholder="Enter description..."
                     required
-                    title={`Description field is ${isDescriptionEditable ? 'editable' : 'not editable'}`}
+                    title={`Description field is ${isFieldEditable('Description') ? 'editable' : 'not editable'}`}
                     />
                 </div>
 
@@ -431,7 +386,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                 <div className="grid grid-cols-3 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Total Cost <span className="text-xs text-gray-500">{isCostEditable ? '✓ Editable' : '✗ Not Editable'}</span>
+                            Total Cost <span className="text-xs text-gray-500">{isFieldEditable('Total') ? '✓ Editable' : '✗ Not Editable'}</span>
                         </label>
                         <input
                             type="text"
@@ -443,13 +398,13 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                               remainingBudget !== null && formData.Total > remainingBudget 
                                 ? 'border-red-300 focus:ring-red-500' 
                                 : 'border-gray-300 focus:ring-blue-500'
-                            } ${!isCostEditable
+                            } ${!isFieldEditable('Total')
                                     ? 'bg-gray-100 cursor-not-allowed' 
                                     : ''}
                             `}
                             placeholder="₱0.00"
                             min="0"
-                            disabled={!isCostEditable}
+                            disabled={!isFieldEditable('Total')}
                         />
                         {remainingBudget !== null && (
                           <div className="mt-1">
@@ -488,42 +443,34 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                     </div> */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Planned Start Date <span className="text-xs text-gray-500">{isStartDateEditable ? '✓ Editable' : '✗ Not Editable'}</span>
-                            {/* {!startDateStatus.canEdit && formData.StartDate && (
-                                <span className="text-xs text-gray-500 ml-2">({startDateStatus.reason})</span>
-                            )} */}
+                            Planned Start Date <span className="text-xs text-gray-500">{isFieldEditable('StartDate') ? '✓ Editable' : '✗ Not Editable'}</span>
                         </label>
                         <input
                             type="date"
                             value={formData.StartDate.split('T')[0]}
                             onChange={(e) => handleChange('StartDate', e.target.value)}
-                            disabled={!isStartDateEditable}
+                            disabled={!isFieldEditable('StartDate')}
                             className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                                !isStartDateEditable
+                                !isFieldEditable('StartDate')
                                     ? 'bg-gray-100 cursor-not-allowed' 
                                     : ''
                             }`}
-                            title={!isStartDateEditable ? startDateStatus.reason : ''}
                         />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Planned End Date <span className="text-xs text-gray-500">{isEndDateEditable ? '✓ Editable' : '✗ Not Editable'}</span>
-                            {/* {!endDateStatus.canEdit && formData.EndDate && (
-                                <span className="text-xs text-gray-500 ml-2">({endDateStatus.reason})</span>
-                            )} */}
+                            Planned End Date <span className="text-xs text-gray-500">{isFieldEditable('EndDate') ? '✓ Editable' : '✗ Not Editable'}</span>
                         </label>
                         <input
                             type="date"
                             value={formData.EndDate.split('T')[0]}
                             onChange={(e) => handleChange('EndDate', e.target.value)}
-                            disabled={!isEndDateEditable}
+                            disabled={!isFieldEditable('EndDate')}
                             className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                                !isEndDateEditable
+                                !isFieldEditable('EndDate')
                                     ? 'bg-gray-100 cursor-not-allowed' 
                                     : ''
                             }`}
-                            title={!isEndDateEditable ? endDateStatus.reason : ''}
                         />
                     </div>
                 </div>

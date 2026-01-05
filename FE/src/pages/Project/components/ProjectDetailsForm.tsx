@@ -393,7 +393,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.Thrust ? 'text-red-500' : 'text-gray-600'}`}>*Sub-Category:</label>
-                                <div className='w-2/3'>
+                                <div className='w-2/3 min-w-0'>
                                     <SearchableDropdown
                                         options={formatDropdownOptions(
                                             projectEnums?.Thrusts?.filter(x => x.ValidFromDate < new Date().getFullYear() && x.ValidToDate > new Date().getFullYear() || x.ValidToDate === 0) || [],

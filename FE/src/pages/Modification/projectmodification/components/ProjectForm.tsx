@@ -973,6 +973,13 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
               
             </div>
             <div className="flex space-x-3">
+                {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus == null && (user?.UserGroups === 'AUC' ) && (
+                  <>
+                    <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify()} disabled={updateReviseProject}>
+                      {updateReviseProject ? 'Submitting...' : 'Submit Revision Request to CO'}
+                    </Button>
+                  </>
+                )}
                 {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus == null && (user?.UserGroups === 'DPC' ) && (
                   <>
                     <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify()} disabled={updateReviseProject}>
@@ -1121,7 +1128,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           // )}
           // fundingProfile={fundingProfiles}
           revisionDocs={initialData?.RevisionDocs}
-          fieldPermissions={permissions}
           fieldRules={fieldRules}
           pcmaStatus={pcmaStatus}
           packageStatus={packageStatus}
@@ -1182,7 +1188,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                   mode={mode}
                   errors={errors}
                   disabled={isDisabled}
-                  fieldPermissions={permissions}
                   fieldRules={fieldRules}
                   pcmaStatus={pcmaStatus}
                   packageStatus={packageStatus}
@@ -1241,8 +1246,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             onDelete={handleDeleteComponentCost}
             initialData={initialData}
             maxAmountCost={maxAmountCost}
-            disabled={isDisabled}
-            fieldPermissions={permissions}
             fieldRules={fieldRules ?? undefined}
             category={modificationCategory}
             reason={modificationReason}
@@ -1267,10 +1270,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             onDelete={handleDeleteMajorItem}
             dropDowns={initialData?.Dropdowns?.ScopeOfWorks}
             programDetails={initialData?.ProgramDetails}
-            disabled={isDisabled}
-            fieldPermissions={permissions}
             fieldRules={fieldRules}
-            reason={modificationReason}
           />
         </div>
       </div>

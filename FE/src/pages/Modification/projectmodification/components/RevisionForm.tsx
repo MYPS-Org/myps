@@ -23,7 +23,6 @@ interface RevisionFormProps {
 
     // added for pcma status and editable fields
     packageStatus?: string;
-    fieldPermissions?: any;
     fieldRules?: FieldRules | null;
     pcmaStatus?: string;
     currentCase?: string;
