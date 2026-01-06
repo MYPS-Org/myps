@@ -61,7 +61,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const { showToast } = useToast();
   // DisableFields if status === approved
   // const isDisabled = Number(initialData?.ProgramDetails?.Status) === 1;
-  const isDisabled = initialData?.IsActive === false;
+  const isDisabled = Boolean(
+    (initialData?.IsActive === false) ||
+    Number(initialData?.ProgramDetails?.StageId) === 10
+  );
 
   // toggle state for Program Details section
   const [isProgramOpen, setIsProgramOpen] = useState<boolean>(true);
@@ -912,6 +915,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
         {/* Project Details */}
         <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
+        
+            {JSON.stringify(initialData?.IsActive)}
+            {JSON.stringify(initialData?.ProgramDetails?.StageId == 10)}
           <div
             className="flex justify-between items-center px-4 py-4 cursor-pointer border-b"
             onClick={() => setIsProjectOpen(!isProjectOpen)}

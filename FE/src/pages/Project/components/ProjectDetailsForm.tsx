@@ -20,7 +20,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
     projectEnums,
     mode = '',
     errors = {},
-    disabled = false
+    disabled = false,
 }) => {
     const [ filteredCities, setFilteredCities ] = useState<ProjectEnums['Cities']>([]);
     const [ filteredLegislativeDistricts, setFilteredLegislativeDistricts ] = useState<ProjectEnums['LDs']>([]);
