@@ -213,6 +213,11 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     
     try {
         // Validate if the total would exceed max amount cost
+        if (formData.Total < 0 || formData.Total <= 0) {
+          alert('Total cost cannot be negative.');
+          return;
+        }
+
         if (maxAmountCost && maxAmountCost > 0) {
           let currentTotalCost = componentCosts.reduce((sum, cost) => sum + (cost.Total || 0), 0);
           

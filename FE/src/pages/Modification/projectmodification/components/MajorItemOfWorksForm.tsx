@@ -399,7 +399,8 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                         minAmount={getMinMaxAmounts(item.WorkTypeId).min}
                         parentId={item.ReferenceId}
                         dropDowns={dropDowns}
-                        disabled={!isFieldEditable('MajorItemOfWork')}
+                        disabled={false}
+                        fieldRules={fieldRules}
                       />
                     </TableCell>
                   </TableRow>

@@ -118,7 +118,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
         }
 
         // Only require certification if user is from Implementing Office
-        if (user?.UserGroups === 'Implementing Office' && !isCertified) {
+        if ((user?.UserGroups === 'DPC' && !isCertified) || (user?.UserGroups === 'AUC' && !isCertified)) {
             showToast({
                 type: 'error',
                 message: 'Please certify that the attached document is accurate and aligned with the revisions.'
@@ -155,8 +155,8 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
             console.log('Submitting modification request with payload:', payload);
 
             let response;
-
-            if (user?.UserGroups === 'DPC') {
+            //adjust this later
+            if (user?.UserGroups === 'DPC' || user?.UserGroups === 'AUC') {
                 // Implementing Office: Submit new modification request
                 response = await submitModificationRequest(payload);
                 
@@ -205,7 +205,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
 
                 onClose();
                 // Navigate back to modification list
-                navigate('/modification/list');
+                navigate('/revision');
             }
         } catch (error) {
             console.error('Error submitting modification request:', error);

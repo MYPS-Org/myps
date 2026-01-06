@@ -915,9 +915,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
         {/* Project Details */}
         <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
-        
-            {JSON.stringify(initialData?.IsActive)}
-            {JSON.stringify(initialData?.ProgramDetails?.StageId == 10)}
           <div
             className="flex justify-between items-center px-4 py-4 cursor-pointer border-b"
             onClick={() => setIsProjectOpen(!isProjectOpen)}

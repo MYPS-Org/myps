@@ -48,6 +48,8 @@ import { checkExcessComponent } from '../../conditions/ExcessComponentAutomation
 import { useAuth } from '../../../../contexts/AuthContext';
 import { useFieldPermissions } from '../../hooks/useFieldPermissions';
 import type { RevisionProjectPayload } from '../../Model';
+import { updateRevisionRequestStatus } from '../../Service';
+import ResubmitRevisionDialog from '../../dialogs/ResubmitRevisionDialog';
 
 interface ProjectFormProps {
   initialData?: RevisionProjectPayload;
@@ -76,6 +78,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const [updateApproveProject] = useState<boolean>(false);
   const [rejectDialogProject] = useState<boolean>(false);
   const [updateReviseProject] = useState<boolean>(false);
+  const [updateResubmitRevision] = useState<boolean>(false);
   const [updateForReviewProject] = useState<boolean>(false);
   // const [reviseProject, setReviseProject] = useState<boolean>(false);
   const [errors, setErrors] = useState<FormValidationError<ProjectDetails>>({});
@@ -106,6 +109,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const [isMapOpen, setIsMapOpen] = useState<boolean>(true);
   // set isRevisedProjectDialogOpen
   const [isRevisedProjectDialogOpen, setIsRevisedProjectDialogOpen] = useState<boolean>(false);
+  const [isResubmitRevisionDialogOpen, setIsResubmitRevisionDialogOpen] = useState<boolean>(false);
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState<boolean>(false);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState<boolean>(false);
   const [isForReviewDialogOpen, setIsForReviewDialogOpen] = useState<boolean>(false);
@@ -841,7 +845,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     }
   };
 
-  const handleSubmitModify = () => {
+  const handleSubmitModify = (type: string) => {
   // Check for excess component condition before submitting
     const totalComponentCost = componentCosts.reduce((sum, cost) => sum + (cost.Total || 0), 0);
     const projectCost = programDetails.Cost || 0;
@@ -858,9 +862,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       // We'll open the ReviseProjectDialog after user confirms
       return;
     }
-    
     // If no excess or not applicable, proceed directly
-    setIsRevisedProjectDialogOpen(true);
+    (type === 'new' || type === 'approved') ? setIsRevisedProjectDialogOpen(true) : setIsResubmitRevisionDialogOpen(true);
   }
 
   const handleApproveModification = async () => {
@@ -880,27 +883,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     showToast({
       type: 'success',
       message: 'Modification approved successfully'
-    });
-  }
-
-  const handleForReviewModification = async (reviewComments: string) => {
-    // TODO: Implement the actual review request API call
-    console.log('Sending for review:', {
-      project: projectDetails,
-      category: modificationCategory,
-      reason: modificationReason,
-      comments: reviewComments
-    });
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Here you would call your actual API service
-    // await sendForReviewModificationRequest(projectDetails.ProjectId, reviewComments);
-    
-    showToast({
-      type: 'success',
-      message: 'Request sent for review successfully'
     });
   }
 
@@ -975,14 +957,21 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             <div className="flex space-x-3">
                 {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus == null && (user?.UserGroups === 'AUC' ) && (
                   <>
-                    <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify()} disabled={updateReviseProject}>
+                    <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify('new')} disabled={updateReviseProject}>
                       {updateReviseProject ? 'Submitting...' : 'Submit Revision Request to CO'}
+                    </Button>
+                  </>
+                )}
+                {mode === 'edit' && (initialData?.RevisionDetails?.RegionStatus == 3 && initialData?.RevisionDetails?.COStatus == 0) && (user?.UserGroups === 'DPC' ) && (
+                  <>
+                    <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify('resubmit')} disabled={updateResubmitRevision}>
+                      {updateReviseProject ? 'Submitting...' : 'Re-Submit Revision'}
                     </Button>
                   </>
                 )}
                 {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus == null && (user?.UserGroups === 'DPC' ) && (
                   <>
-                    <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify()} disabled={updateReviseProject}>
+                    <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify('new')} disabled={updateReviseProject}>
                       {updateReviseProject ? 'Submitting...' : 'Submit Revision Request to RO'}
                     </Button>
                   </>
@@ -1018,7 +1007,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                 )}
                 {mode === 'edit' && user?.UserGroups === 'AUC' && initialData?.RevisionDetails?.COStatus == 0 && (
                   <>
-                    <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify()} disabled={updateApproveProject}>
+                    <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify('approve')} disabled={updateApproveProject}>
                       {updateApproveProject ? 'Approving...' : 'Approve'}
                     </Button>
                   </>
@@ -1339,6 +1328,43 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         fundingProfile={fundingProfiles}
       />)}
 
+      {/* Modify Project Modal */}
+      {isResubmitRevisionDialogOpen && (<ResubmitRevisionDialog
+        projectStatus={initialData?.ProjectStatus}
+        isOpen={isResubmitRevisionDialogOpen}
+        onClose={() => setIsResubmitRevisionDialogOpen(false)}
+        revisionCategory={modificationCategory}
+        revisionReason={modificationReason}
+        reasonId={modificationReasonId}
+        categoryId={categoryId}
+        revisionGroupId={revisionGroupId}
+        project={projectDetails}
+        componentCosts={componentCosts}
+        componentCostYear={componentCostsYear}
+        majorItemOfWorks={majorItems.map(item => ({
+          Id: item.Id,
+          ProjectId: item.ProjectId,
+          StageName: initialData?.ProgramDetails.StageName || '',
+          ComponentId: item.ComponentId,
+          ReferenceId: item.ReferenceId,
+          YearOfWork: item.YearOfWork,
+          WorkTypeId: item.WorkTypeId,
+          InfraType: item.InfraType,
+          TargetUnitId: item.TargetUnitId,
+          TargetUnit: item.TargetUnit,
+          CreatedBy: item.CreatedBy
+        }))}
+        majorItemLocations={majorItems.flatMap(item => 
+          (item.MajorItemLocations || []).map(location => ({
+            ...location,
+            ParentId: item.ReferenceId,
+            ProjectId: item.ProjectId || '',
+            StageName: initialData?.ProgramDetails.StageName || ''
+          }))
+        )}
+        fundingProfile={fundingProfiles}
+      />)}
+
       {/* Approve Modification Modal */}
       {isApproveDialogOpen && (
         <ApproveModifyDialog
@@ -1360,7 +1386,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           project={initialData?.ProjectDetails || projectDetails}
           category={modificationCategory}
           reason={modificationReason}
-          onSubmitForReview={handleForReviewModification}
           onSuccess={onActionSuccess}
         />
       )}

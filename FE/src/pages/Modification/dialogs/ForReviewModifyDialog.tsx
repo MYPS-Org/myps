@@ -16,7 +16,6 @@ interface ForReviewModifyDialogProps {
     project: ProjectDetails;
     category?: string;
     reason?: string;
-    onSubmitForReview: (reviewComments: string) => Promise<void>;
     onSuccess?: () => void;
 }
 
@@ -26,7 +25,6 @@ const ForReviewModifyDialog: React.FC<ForReviewModifyDialogProps> = ({
     project,
     category,
     reason,
-    onSubmitForReview,
     onSuccess
 }) => {
     const { showToast } = useToast();
@@ -50,8 +48,7 @@ const ForReviewModifyDialog: React.FC<ForReviewModifyDialogProps> = ({
         setIsSubmitting(true);
         
         try {
-            await updateRevisionRequestStatus(transactionId, 3); // 3 = For Review
-            await onSubmitForReview(reviewComments);
+            await updateRevisionRequestStatus(transactionId, 3, undefined, undefined, reviewComments);
             
             showToast({
                 type: 'success',

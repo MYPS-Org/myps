@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Button } from '../../../../components/tailwindui/button';
 import { PlusIcon, TrashIcon, PencilIcon } from '@heroicons/react/24/outline';
 import AddInfraDialog from '../../../Project/dialogs/AddInfraDialog';
@@ -6,8 +6,8 @@ import { mockInfraData } from '../../../Project/dialogs/mockInfraData';
 import { generateInfraId, shouldAutoGenerateInfraId, getInfraTypePrefix } from '../../../../utils/infraIdGenerator';
 import type { MajorItemLocations, InfraData, ScopeOfWorkEnum, MajorItemOfWork } from '../../../Project/Model.d';
 import type { ProgramList } from '../../../Program/Model';
+import type { FieldRules } from '../../Model';
 import { getDisabledClass } from '../../../../utils/GlobalFunctions';
-import { useFieldsEditable, useFieldsEditStatus, useIsFieldEditable } from '../../hooks/useFieldPermissions';
 
 interface WorkLocationTableProps {
   majorItemOfWorks: MajorItemOfWork;
@@ -25,6 +25,7 @@ interface WorkLocationTableProps {
   minAmount?: number;
   parentId: string; // Add parentId prop
   disabled?: boolean;
+  fieldRules?: FieldRules | null;
 }
 
 const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
@@ -42,50 +43,60 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
   parentId,
   dropDowns,
   disabled = false,
+  fieldRules,
 }) => {
   const infraType = majorItemOfWorks.InfraType || '';
   const [infraDialogOpen, setInfraDialogOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [isAddingNew, setIsAddingNew] = useState(false);
 
-  // Get field permissions from Jotai store - Check all possible fields at once
-  const fieldNames = [
-    'InfraId',
-    'DetailedScope',
-    'TargetUnit',
-    'PhysicalTarget',
-    'StartStationLimit',
-    'EndStationLimit',
-    'StartChainage',
-    'EndChainage',
-    'StartX',
-    'StartY',
-    'EndX',
-    'EndY',
-    'Length'
-  ];
-  const fieldsEditable = useFieldsEditable(fieldNames);
-  const fieldsEditStatus = useFieldsEditStatus(fieldNames);
+  // Helper function to build field permissions map from fieldRules
+  const fieldPermissionsMap = useMemo(() => {
+    if (!fieldRules) return {};
 
-  // Destructure for cleaner usage throughout the component
-  const {
-    InfraId: isInfraIdEditable,
-    DetailedScope: isDetailedScopeEditable,
-    TargetUnit: isTargetUnitEditable,
-    StartStationLimit: isStartStationLimitEditable,
-    EndStationLimit: isEndStationLimitEditable,
-    StartChainage: isStartChainageEditable,
-    EndChainage: isEndChainageEditable,
-    StartX: isStartXEditable,
-    StartY: isStartYEditable,
-    EndX: isEndXEditable,
-    EndY: isEndYEditable,
-    Length: isLengthEditable
-  } = fieldsEditable;
+    const permissions: Record<string, boolean> = {};
 
-  const { 
-    PhysicalTarget: isPhysicalTargetEditable,
-  } = fieldsEditStatus;
+    // Root-level fields
+    for (const [key, value] of Object.entries(fieldRules)) {
+      if (typeof value === 'boolean') {
+        permissions[key] = value;
+      }
+    }
+
+    // Check MajorItemLocationRules specifically for work location fields
+    if (fieldRules.MajorItemLocationRules) {
+      const locationRules = fieldRules.MajorItemLocationRules as any;
+      
+      // Get fields from MajorItemLocationRules.Fields
+      if (locationRules.Fields) {
+        Object.assign(permissions, locationRules.Fields);
+      }
+    }
+
+    console.log('WorkLocationTable - Field Permissions Map:', permissions);
+    console.log('WorkLocationTable - MajorItemLocationRules:', fieldRules.MajorItemLocationRules);
+    return permissions;
+  }, [fieldRules]);
+
+  // Function to check if a specific field is editable (matching MajorItemOfWorksForm pattern)
+  const isFieldEditable = useCallback((field: string) => {
+    return fieldPermissionsMap[field] === true;
+  }, [fieldPermissionsMap]);
+
+  // Individual field editability checks for cleaner usage
+  const isInfraIdEditable = isFieldEditable('InfraId');
+  const isDetailedScopeEditable = isFieldEditable('DetailedScope');
+  const isTargetUnitEditable = isFieldEditable('TargetUnit');
+  const isPhysicalTargetEditable = isFieldEditable('PhysicalTarget');
+  const isStartStationLimitEditable = isFieldEditable('StartStationLimit');
+  const isEndStationLimitEditable = isFieldEditable('EndStationLimit');
+  const isStartChainageEditable = isFieldEditable('StartChainage');
+  const isEndChainageEditable = isFieldEditable('EndChainage');
+  const isStartXEditable = isFieldEditable('StartX');
+  const isStartYEditable = isFieldEditable('StartY');
+  const isEndXEditable = isFieldEditable('EndX');
+  const isEndYEditable = isFieldEditable('EndY');
+  const isLengthEditable = isFieldEditable('Length');
 
   // Helper function to get target unit name from workTypeId when targetUnit prop is empty
   const getTargetUnitName = (workTypeId: number): string => {
@@ -331,6 +342,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
             <input
               type="number"
               value={location.PhysicalTarget !== null && location.PhysicalTarget !== undefined ? location.PhysicalTarget : ''}
+              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(!isPhysicalTargetEditable || disabled)}`}
               onChange={(e) => {
                 const value = Number(e.target.value);
                 // Validate against min/max bounds
