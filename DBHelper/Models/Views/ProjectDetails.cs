@@ -39,6 +39,8 @@ namespace DBHelper.Models.Views
         public bool? RowAvailable { get; set; }
         public int RegionWide { get; set; } = 0;
         public int Tier { get; set; } = 0;
+        public bool? isRevised { get; set; } = false;
+        public int? RevisedNumber { get; set; }
         public string? CreatedBy { get; set; }
         public DateTime? CreatedDate { get; set; }
         public string? UpdatedBy { get; set; }

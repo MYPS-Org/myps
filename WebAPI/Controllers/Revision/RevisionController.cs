@@ -52,14 +52,14 @@ namespace WebAPI.Controllers.Revision
 
                 var AllowedStatusForCO = await _db.tOptionRevisionStatus
                     .AsNoTracking()
-                    .Where(x => x.Enum == EnumRevisionStatus.Pending || x.Enum == EnumRevisionStatus.Approved)
+                    .Where(x => x.Enum == EnumRevisionStatus.Approved)
                     .Select(x => (EnumRevisionStatus?)x.Enum)
                     .ToListAsync();
                 bool isCentralOffice = _Session.UserGroups.Contains("AUC");
                 var baseQuery = _db.vRevisionLists.AsNoTracking();
                 if (isCentralOffice)
                 {
-                    baseQuery = _db.vRevisionLists.AsNoTracking().Where(x => x.COStatus != null && AllowedStatusForCO.Contains(x.COStatus));
+                    baseQuery = _db.vRevisionLists.AsNoTracking().Where(x => AllowedStatusForCO.Contains(x.RegionStatus));
                 }
 
                 // Apply filters to base query
@@ -139,7 +139,6 @@ namespace WebAPI.Controllers.Revision
                     return new BadRequestObjectResult(new { Message = "Revision details not found!", Title = "Invalid Revision" });
                 }
                 #region Validate PCMA Status
-                var SelectedRules = await _db.vRevisionRules.FirstOrDefaultAsync(x => x.ReasonId == RevisionDetails.ReasonId && x.RevisionGroupId == RevisionDetails.RevisionGroupId);
                 var ProjectComponentsStatus = await _db.vProjectComponentStatus.AsNoTracking().Where(x => x.ProjectId == ProjectId).ToListAsync();
                 if (ProjectComponentsStatus == null)
                 {
@@ -171,6 +170,11 @@ namespace WebAPI.Controllers.Revision
                     "Not Packaged" :
                     "Packaged";
                 #endregion
+                RevisionRules SelectedRules = new();
+                if (RevisionDetails.CreatedBy == _Session.UserId || RevisionDetails.RegionStatus == EnumRevisionStatus.ForCorrection || RevisionDetails.COStatus == EnumRevisionStatus.ForCorrection)
+                {
+                    SelectedRules = await _db.vRevisionRules.FirstOrDefaultAsync(x => x.ReasonId == RevisionDetails.ReasonId && x.RevisionGroupId == RevisionDetails.RevisionGroupId && x.PCMA_Status == ConStatus && x.Package_Status == PackedStatus);
+                }
                 #endregion
 
                 #region Validate Selected Revision Details
@@ -605,16 +609,17 @@ namespace WebAPI.Controllers.Revision
                 .Select(p => p.Name)
                 .ToList();
                 var NewProjectRevision = dto.ProjectDetails;
+                Project.Id = 0;
+                Project.RevisionNumber = Project.RevisionNumber + 1;
                 if (ProjectDetailsRules.Count > 0)
                 {
                     hasUpdated = true;
                     Project = ProjectDetailsRules.UpdateRevisionData(NewProjectRevision, Project);
-                    Project.Id = 0;
-                    Project.RevisionNumber = Project.RevisionNumber + 1;
                 }
                 #endregion
                 #region FundingProfile
-                var FundingProfile = await _db.tProjectFundingProfile.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId).ToListAsync();
+                var FundingIds = dto.FundingProfile.Where(x => x.Id != 0).Select(x => x.Id);
+                var FundingProfile = await _db.tProjectFundingProfile.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && FundingIds.Contains(x.Id)).ToListAsync();
                 var FundingProfileRules = jsonRules.FundingProfileRules.Fields.GetType()
                 .GetProperties()
                 .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
@@ -636,7 +641,7 @@ namespace WebAPI.Controllers.Revision
                             {
                                 SelectedComponent = FundingProfileRules.UpdateRevisionData(component, SelectedComponent);
                             }
-                            SelectedComponent.RevisedNumber = 1;
+                            SelectedComponent.RevisedNumber = Project.RevisedNumber;
                             SelectedComponent.Id = 0;
                         }
                     }
@@ -654,7 +659,7 @@ namespace WebAPI.Controllers.Revision
                             Amount = x.Amount,
                             Percentage = x.Percentage,
                             StageName = ProjectStage.StageName,
-                            RevisedNumber = 1,
+                            RevisedNumber = Project.RevisedNumber,
                             CreatedBy = _Session.UserId,
                             CreatedDate = CurrentDate
                         }));
@@ -671,7 +676,8 @@ namespace WebAPI.Controllers.Revision
                 }
                 #endregion
                 #region ComponentCosts
-                var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId).ToListAsync();
+                var CostIds = dto.ComponentCosts.Where(x => x.Id != 0).Select(x => x.Id).ToList();
+                var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && CostIds.Contains(x.Id)).ToListAsync();
                 var ComponentCostYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentCost.Select(c => c.ReferenceId).Contains(x.ParentId)).ToListAsync();
                 var ComponentCostRules = jsonRules.ComponentCostRules.Fields.GetType()
                 .GetProperties()
@@ -694,7 +700,7 @@ namespace WebAPI.Controllers.Revision
                             {
                                 SelectedComponent = ComponentCostRules.UpdateRevisionData(component, SelectedComponent);
                             }
-                            SelectedComponent.RevisedNumber = 1;
+                            SelectedComponent.RevisedNumber = Project.RevisedNumber;
                             SelectedComponent.Id = 0;
                             var Component = ComponentCostYear.Where(x => x.ParentId == SelectedComponent.ReferenceId).ToList();
                             SelectedComponent.ReferenceId = SelectedComponent.ProjectId + "-" + ("tCountSequence").GenerateCode();
@@ -716,7 +722,7 @@ namespace WebAPI.Controllers.Revision
                             Description = x.Description,
                             Total = x.Total,
                             StageName = ProjectStage.StageName,
-                            RevisedNumber = 1,
+                            RevisedNumber = Project.RevisedNumber,
                             CreatedBy = _Session.UserId,
                             CreatedDate = CurrentDate
                         }));
@@ -784,7 +790,8 @@ namespace WebAPI.Controllers.Revision
                 }
                 #endregion
                 #region MajorWorkItem
-                var MajorWorkItem = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId).ToListAsync();
+                var MajorItemIds = dto.MajorItemOfWorks.Where(x => x.Id != 0).Select(x => x.Id);
+                var MajorWorkItem = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && MajorItemIds.Contains(x.Id)).ToListAsync();
                 var MajorWorkLocations = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => MajorWorkItem.Select(c => c.ReferenceId).Contains(x.ParentId)).ToListAsync();
                 var MajorWorkItemRules = jsonRules.MajorItemOfWorkRules.Fields.GetType()
                 .GetProperties()
@@ -805,7 +812,7 @@ namespace WebAPI.Controllers.Revision
                             {
                                 UpdateMajorWorkItem = MajorWorkItemRules.UpdateRevisionData(item, UpdateMajorWorkItem);
                             }
-                            UpdateMajorWorkItem.RevisedNumber = 1;
+                            UpdateMajorWorkItem.RevisedNumber = Project.RevisedNumber;
                             UpdateMajorWorkItem.Id = 0;
                             var Locations = MajorWorkLocations.Where(x => x.ParentId == UpdateMajorWorkItem.ReferenceId).ToList();
                             UpdateMajorWorkItem.ReferenceId = UpdateMajorWorkItem.ProjectId + "-" + ("tCountSequence").GenerateCode();
@@ -827,7 +834,7 @@ namespace WebAPI.Controllers.Revision
                             WorkTypeId = x.WorkTypeId,
                             InfraType = x.InfraType,
                             StageName = ProjectStage.StageName,
-                            RevisedNumber = 1,
+                            RevisedNumber = Project.RevisedNumber,
                             CreatedBy = _Session.UserId,
                             CreatedDate = CurrentDate
                         }));
@@ -928,7 +935,6 @@ namespace WebAPI.Controllers.Revision
                         MajorWorkLocations.AddRange(NewMajorWorkLocations);
                     }
 
-
                     await _db.tProjectRevisions.AddAsync(Project);
                     await _db.SaveChangesAsync();
                     var NewProjectStage = new ProjectStages()
@@ -956,6 +962,7 @@ namespace WebAPI.Controllers.Revision
                         RevisionGroupId = RevisionCategory.RevisionGroupId,
                         CategoryId = dto.RevisionDetails.CategoryId,
                         ReasonId = RevisionRules.ReasonId,
+                        IODocApprovalDate = dto.RevisionDetails.ApprovalDate,
                         RegionStatus = isROUser ? EnumRevisionStatus.Approved : EnumRevisionStatus.Pending,
                         RegionApprover = isROUser ? _Session.UserId : null,
                         RegionApprovedDate = isROUser ? CurrentDate : null,
@@ -965,20 +972,20 @@ namespace WebAPI.Controllers.Revision
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
-                    string DocumentName = $"{TransactionId}_{DocumentNaming.SecondSegmentName}_{CurrentDate.ToString("MM-dd-yyyy")}";
-                    //projectid_typengreason_m-d-yyyy
-                    await _db.tRevisionDocuments.AddAsync(new RevisionDocuments
-                    {
-                        TransactionId = TransactionId,
-                        DocumentName = DocumentName,
-                        IsApprovedDocument = false
-                    });
-                    string FilePath = Path.Combine(Appsetting.Resources.Revision.ImplementingOffice, DocumentName);
+                    string DocumentName = $"{TransactionId}_{DocumentNaming.SecondSegmentName}_{CurrentDate.ToString("MM-dd-yyyy")}.{dto.RevisionDetails.ApprovedDocument.Extension}";
+                    string FilePath = Path.Combine("/", Appsetting.Resources.Revision.ImplementingOffice, DocumentName);
                     if (!dto.RevisionDetails.ApprovedDocument.UploadFile(FilePath))
                     {
                         await transaction.RollbackAsync();
                         return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted!", Title = "File Corrupted" });
                     }
+                    await _db.tRevisionDocuments.AddAsync(new RevisionDocuments
+                    {
+                        TransactionId = TransactionId,
+                        DocumentPath = FilePath,
+                        DocumentName = DocumentName,
+                        IsApprovedDocument = false
+                    });
                     await _db.SaveChangesAsync();
                     await transaction.CommitAsync();
                 }
@@ -1190,6 +1197,16 @@ namespace WebAPI.Controllers.Revision
                     }
                     if (dto.Status == EnumRevisionStatus.Approved)
                     {
+                        var DocumentNaming = await _db.tRevisionDocumentsNaming.AsNoTracking().FirstOrDefaultAsync(x => (x.CategoryId != null && x.CategoryId == RevisionDetails.CategoryId) || x.RevisionGroupId == RevisionDetails.RevisionGroupId);
+                        if (DocumentNaming == null)
+                        {
+                            await transaction.RollbackAsync();
+                            return new BadRequestObjectResult(new { Message = "Document naming convention not found for the selected revision reason! Please contact Administrator", Title = "Missing Document Naming" });
+                        }
+                        if (dto.ApprovalDate == null)
+                        {
+                            return new BadRequestObjectResult(new { Message = "Approved document date required before approving!", Title = "Signed Document Date Required" });
+                        }
                         if(dto.Document == null)
                         {
                             return new BadRequestObjectResult(new { Message = "Approved document needs to be attached before approving!", Title = "Signed Document Required" });
@@ -1201,12 +1218,21 @@ namespace WebAPI.Controllers.Revision
                         }
                         if (RevisionDocument != null)
                         {
-                            string FilePath = Path.Combine(Appsetting.Resources.Revision.CentralOffice, dto.TransactionId, dto.Document.Name);
+                            string DocumentName = $"{dto.TransactionId}_{DocumentNaming.SecondSegmentName}_{CurrentDate.ToString("MM-dd-yyyy")}.{dto.Document.Extension}";
+                            string FilePath = Path.Combine("/",Appsetting.Resources.Revision.CentralOffice, dto.TransactionId, dto.Document.Name);
                             if (!dto.Document.UploadFile(FilePath))
                             {
                                 return new BadRequestObjectResult(new { Message = "Uploaded document is corrupted!", Title = "File Corrupted" });
                             }
-                            RevisionDocument.IsApprovedDocument = true;
+
+                            await _db.tRevisionDocuments.AddAsync(new RevisionDocuments
+                            {
+                                TransactionId = dto.TransactionId,
+                                DocumentPath = FilePath,
+                                DocumentName = DocumentName,
+                                IsApprovedDocument = true
+                            });
+                            RevisionDetails.CODocApprovalDate = dto.ApprovalDate;
                             _db.tRevisionDocuments.Update(RevisionDocument);
                         }
                     }

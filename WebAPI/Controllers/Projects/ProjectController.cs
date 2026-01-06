@@ -55,6 +55,9 @@ namespace WebAPI.Controllers.Projects
 
                 var baseQuery = _db.vProjects.AsNoTracking();
 
+                // Apply sorting and pagination
+                dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "Id";
+
                 // Apply filters to base query
                 if (!string.IsNullOrEmpty(dto.Filters?.ProgramId))
                     baseQuery = baseQuery.Where(e => e.ProgramId!.Contains(dto.Filters.ProgramId));
@@ -65,19 +68,21 @@ namespace WebAPI.Controllers.Projects
                 // Get total count of filtered results (before pagination)
                 var totalRecords = await baseQuery.CountAsync();
 
-                // Apply sorting and pagination
-                dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "Id";
-                var sortedQuery = dto.sortDirection == sortDirectionList.ASC
+                IOrderedQueryable<DBHelper.Models.Views.Projects> sortedQuery = dto.sortDirection == sortDirectionList.ASC
                         ? baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField))
                         : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField));
 
                 // Apply pagination and execute query
-                 List<DBHelper.Models.Views.Projects> permissionLists = await sortedQuery
-                    .Skip((dto.page - 1) * dto.limit)
-                    .Take(dto.limit)
-                    .ToListAsync();
+                List<DBHelper.Models.Views.Projects> permissionLists = await sortedQuery
+                   .Skip((dto.page - 1) * dto.limit)
+                   .Take(dto.limit)
+                   .ToListAsync();
+
+
+                //var pageRows = await ordered.Take(dto.limit).ToListAsync();
 
                 var totalPages = (int)Math.Ceiling((double)totalRecords / dto.limit);
+                //var lastRow = pageRows.Count > 0 ? pageRows[^1] : null;
 
                 var response = new
                 {
@@ -85,7 +90,12 @@ namespace WebAPI.Controllers.Projects
                     dto.page,
                     dto.limit,
                     total = totalRecords,
-                    totalPages
+                    totalPages,
+                    //nextCursor = lastRow == null ? null : new
+                    //{
+                    //    lastSortValue = EF.Property<object>(lastRow, dto.SortField),
+                    //    lastId = lastRow.Id
+                    //}
                 };
 
                 return Ok(response); // Remove the extra wrapper
@@ -384,16 +394,16 @@ namespace WebAPI.Controllers.Projects
                 var SupportingDoc = await _db.tDropdownSupportingDocs.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync();
 
                 var ComponentType = await _db.tProjectComponentEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-                var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
+                var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && x.RevisedNumber == Project.RevisedNumber).ToListAsync();
                 var ComponentCostYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentCost.Select(a => a.ReferenceId).Contains(x.ParentId)).ToListAsync();
 
-                var MajorItemOfWork = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
+                var MajorItemOfWork = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && x.RevisedNumber == Project.RevisedNumber).ToListAsync();
                 HashSet<string> ItemParents = MajorItemOfWork.Select(x => x.ReferenceId).ToHashSet();
                 var MajorWorkLocation = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => ItemParents.Contains(x.ParentId)).ToListAsync();
 
 
                 var Notes = await _db.tProjectNotes.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
-                var Funding = await _db.tProjectFundingProfile.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
+                var Funding = await _db.tProjectFundingProfile.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && x.RevisedNumber == Project.RevisedNumber).ToListAsync();
 
                 var Category = await _db.tProjectCategoryEnum.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync();
                 var Thrust = await _db.tProjectThrustLists.AsNoTracking().OrderBy(x => x.ThrustDescription).ToListAsync();

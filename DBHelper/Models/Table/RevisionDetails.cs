@@ -14,6 +14,7 @@ namespace DBHelper.Models.Table
         public int? CategoryId { get; set; }
         [Required]
         public int ReasonId { get; set; }
+        public DateTime? IODocApprovalDate { get; set; }
         [Required]
         public Enums.EnumRevisionStatus RegionStatus { get; set; } = Enums.EnumRevisionStatus.Pending;
         public string? RegionDescription { get; set; }
@@ -23,6 +24,7 @@ namespace DBHelper.Models.Table
         public DateTime? RegionLastUpdatedDate { get; set; }
         [Required]
         public Enums.EnumRevisionStatus COStatus { get; set; } = Enums.EnumRevisionStatus.Pending;
+        public DateTime? CODocApprovalDate { get; set; }
         public string? CODescription { get; set; }
         [MaxLength(100)]
         public string? COApprover { get; set; }

@@ -168,6 +168,7 @@ namespace WebAPI.Controllers.Revision
         public string TransactionId { get; set; } = string.Empty;
         [Required]
         public EnumRevisionStatus Status { get; set; }
+        public DateTime? ApprovalDate { get; set; }
         public string? Remarks { get; set; }
         public FileUpload? Document { get; set; } = new FileUpload();
     }
