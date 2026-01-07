@@ -24,6 +24,7 @@ interface RevisionFormProps {
     forCorrectionsDetails?: ForCorrectionsDetails[];
 
     // added for pcma status and editable fields
+    statusName?: string;
     packageStatus?: string;
     fieldRules?: FieldRules | null;
     pcmaStatus?: string;
@@ -39,7 +40,8 @@ const RevisionForm: React.FC<RevisionFormProps> = ({
     packageStatus,
     currentCase,
     revisionDocs,
-    forCorrectionsDetails
+    forCorrectionsDetails,
+    statusName,
 }) => {
     
     console.log('RevisionForm - Received props:', { category, reason, fieldRules });
@@ -73,9 +75,6 @@ const RevisionForm: React.FC<RevisionFormProps> = ({
         <div className="p-6">
             <h2 className="text-lg font-medium text-gray-900 mb-4">Revision Details</h2>
             <div className="space-y-4">
-                <h3 className="text-lg text-left font-semibold text-gray-800 border-t-2 pt-2 border-blue-500 pb-2">
-                    Location Details:
-                </h3>
                 
                 <div className="grid grid-cols-3 gap-5">
                     <div className='w-full flex flex-col text-left gap-2'>
@@ -101,7 +100,7 @@ const RevisionForm: React.FC<RevisionFormProps> = ({
                 </div>
 
                 {/* Document Section */}
-                <div className="mb-6 p-6 border border-green-200 rounded-lg shadow-md bg-gradient-to-br from-green-50 to-white">
+                <div className="mb-6 p-6 border border-gray-200 rounded-lg shadow-md bg-gradient-to-br from-gray-50 to-white">
                     <div className="flex items-start justify-between mb-4">
                         <div className="flex items-center gap-3">
                             <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -193,7 +192,7 @@ const RevisionForm: React.FC<RevisionFormProps> = ({
                 </div>
 
                 {/* For Corrections History Section */}
-                <div className="mb-6 p-6 border border-orange-200 rounded-lg shadow-md bg-gradient-to-br from-orange-50 to-white">
+                <div className="mb-6 p-6 border border-gray-200 rounded-lg shadow-md bg-gradient-to-br from-gray-50 to-white">
                     <div className="flex items-start justify-between mb-4">
                         <div className="flex items-center gap-3">
                             <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -206,7 +205,7 @@ const RevisionForm: React.FC<RevisionFormProps> = ({
                     {forCorrectionsDetails && forCorrectionsDetails.length > 0 ? (
                         <div className="space-y-4">
                             {forCorrectionsDetails.map((correction, index) => (
-                                <div key={correction.Id} className="bg-white border border-orange-200 rounded-lg p-4 shadow-sm">
+                                <div key={correction.Id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
                                     <div className="flex items-center gap-2 mb-3">
                                         <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -251,22 +250,22 @@ const RevisionForm: React.FC<RevisionFormProps> = ({
                                         </div>
 
                                         {/* Central Office Comments */}
-                                        <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                                        <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
                                             <div className="flex items-center gap-2 mb-2">
-                                                <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
                                                 </svg>
-                                                <h6 className="text-xs font-bold text-purple-800 uppercase tracking-wide">Central Office</h6>
+                                                <h6 className="text-xs font-bold text-gray-800 uppercase tracking-wide">Central Office</h6>
                                             </div>
                                             <div className="space-y-2">
                                                 <div>
-                                                    <p className="text-xs text-purple-700 font-medium mb-1">Comment:</p>
-                                                    <p className="text-sm text-gray-800 bg-white p-2 rounded border border-purple-100">
+                                                    <p className="text-xs text-orange-700 font-medium mb-1">Comment:</p>
+                                                    <p className="text-sm text-gray-800 bg-white p-2 rounded border border-orange-100">
                                                         {correction.COComment || 'No comment provided'}
                                                     </p>
                                                 </div>
                                                 <div>
-                                                    <p className="text-xs text-purple-700 font-medium mb-1">Date:</p>
+                                                    <p className="text-xs text-orange-700 font-medium mb-1">Date:</p>
                                                     <p className="text-sm text-gray-800 font-mono">
                                                         {correction.COForCorrectionDate ? 
                                                             new Date(correction.COForCorrectionDate).toLocaleDateString('en-US', {
@@ -298,7 +297,7 @@ const RevisionForm: React.FC<RevisionFormProps> = ({
                 </div>
 
                 {/* Field Permissions and Rules Information */}
-                <div className="mb-6 p-6 border border-blue-200 rounded-lg shadow-md bg-gradient-to-br from-blue-50 to-white">
+                <div className="mb-6 p-6 border border-gray-200 rounded-lg shadow-md bg-gradient-to-br from-gray-50 to-white">
                     <div className="flex items-start justify-between mb-4">
                         <div className="flex items-center gap-3">
                             <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -319,8 +318,8 @@ const RevisionForm: React.FC<RevisionFormProps> = ({
                             <p className="text-sm font-bold text-gray-900">{packageStatus || 'N/A'}</p>
                         </div>
                         <div className="bg-white p-4 border border-blue-100 rounded-lg shadow-sm">
-                            <p className="text-xs text-gray-500 mb-1 uppercase tracking-wide">Determined Case</p>
-                            <p className="text-sm font-bold text-gray-900">{currentCase || 'N/A'}</p>
+                            <p className="text-xs text-gray-500 mb-1 uppercase tracking-wide">Status</p>
+                            <p className="text-sm font-bold text-gray-900">{statusName || 'N/A'}</p>
                         </div>
                         <div className="bg-white p-4 border border-blue-100 rounded-lg shadow-sm">
                             <p className="text-xs text-gray-500 mb-1 uppercase tracking-wide">Category</p>

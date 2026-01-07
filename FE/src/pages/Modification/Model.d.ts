@@ -135,6 +135,7 @@ export interface FieldRules {
 export interface PackageStatus {
     ConstructionStatus: string;
     PackageStatus: string;
+    RevisionStatus: string;
 }
 
 export interface RevisionLists {

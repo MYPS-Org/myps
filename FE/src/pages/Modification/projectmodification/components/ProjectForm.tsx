@@ -68,8 +68,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const navigate = useNavigate();
   const { user } = useAuth();
 
-
-
   console.log('ProjectForm - Received props:', { category, reason, reasonId, categoryId, revisionGroupId });
 
   const [savingSection, setSavingSection] = useState<string | null>(null);
@@ -116,6 +114,11 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const [isTerminationDialogOpen, setIsTerminationDialogOpen] = useState<boolean>(false);
   const [isExcessPromptOpen, setIsExcessPromptOpen] = useState<boolean>(false);
   const [excessComponentData, setExcessComponentData] = useState<{ excessAmount: number; message: string } | null>(null);
+
+  // get the status of Revision
+  // #region Revision Status Text
+  const revisionStatus = initialData?.ProjectStatus?.RevisionStatus;
+  // #endregion
 
   // set GeoJSON data for map
   const [geoJsonData, setGeoJsonData] = useState<GeoJSON.FeatureCollection | null>(null);
@@ -1091,37 +1094,13 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         <RevisionForm
           category={permissions?.category || modificationCategory}
           reason={modificationReason}
-          // projectDetails={projectDetails}
-          // componentCosts={componentCosts}
-          // componentCostYear={componentCostsYear}
-          // majorItemOfWorks={majorItems.map(item => ({
-          //   Id: item.Id,
-          //   ProjectId: item.ProjectId,
-          //   StageName: initialData?.ProgramDetails.StageName || '',
-          //   ComponentId: item.ComponentId,
-          //   ReferenceId: item.ReferenceId,
-          //   YearOfWork: item.YearOfWork,
-          //   WorkTypeId: item.WorkTypeId,
-          //   InfraType: item.InfraType,
-          //   TargetUnitId: item.TargetUnitId,
-          //   TargetUnit: item.TargetUnit,
-          //   CreatedBy: item.CreatedBy
-          // }))}
-          // majorItemLocations={majorItems.flatMap(item => 
-          //   (item.MajorItemLocations || []).map(location => ({
-          //     ...location,
-          //     ParentId: item.ReferenceId,
-          //     ProjectId: item.ProjectId || '',
-          //     StageName: initialData?.ProgramDetails.StageName || ''
-          //   }))
-          // )}
-          // fundingProfile={fundingProfiles}
           revisionDocs={initialData?.RevisionDocs}
           forCorrectionsDetails={initialData?.ForCorrectionsDetails}
           fieldRules={fieldRules}
           pcmaStatus={pcmaStatus}
           packageStatus={packageStatus}
           currentCase={currentCase}
+          statusName={revisionStatus}
           // category={modificationCategory}
         />
       </div>
