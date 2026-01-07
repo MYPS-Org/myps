@@ -156,7 +156,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       UACS: '',
       MYCAApprovalDate: '',
       IslandCode: '',
-      RevisionNumber: 0,
+      RevisionId: 0,
       Description: '',
       Category: 0,
       Thrust: 0,
@@ -863,7 +863,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       return;
     }
     // If no excess or not applicable, proceed directly
-    (type === 'new' || type === 'approved') ? setIsRevisedProjectDialogOpen(true) : setIsResubmitRevisionDialogOpen(true);
+    (type === 'new' || type === 'approve') ? setIsRevisedProjectDialogOpen(true) : setIsResubmitRevisionDialogOpen(true);
   }
 
   const handleApproveModification = async () => {
@@ -1117,6 +1117,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           // )}
           // fundingProfile={fundingProfiles}
           revisionDocs={initialData?.RevisionDocs}
+          forCorrectionsDetails={initialData?.ForCorrectionsDetails}
           fieldRules={fieldRules}
           pcmaStatus={pcmaStatus}
           packageStatus={packageStatus}

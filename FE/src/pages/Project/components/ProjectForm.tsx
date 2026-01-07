@@ -112,7 +112,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       UACS: '',
       // MYCAApprovalDate: '',
       IslandCode: '',
-      RevisionNumber: 0,
+      RevisionId: 0,
       Description: '',
       Category: 0,
       Thrust: 0,

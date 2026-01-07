@@ -6,8 +6,9 @@ import type {
     ComponentCostYear,
     MajorItemOfWork,
     MajorItemLocations,
-    FundingProfile
+    FundingProfile,
 } from '../../../Project/Model.d';
+import type { ForCorrectionsDetails } from '../../Model';
 import type { FieldRules, RevisionDoc } from '../../Model';
 
 interface RevisionFormProps {
@@ -20,6 +21,7 @@ interface RevisionFormProps {
     majorItemLocations?: MajorItemLocations[];
     fundingProfile?: FundingProfile[];
     revisionDocs?: RevisionDoc[];
+    forCorrectionsDetails?: ForCorrectionsDetails[];
 
     // added for pcma status and editable fields
     packageStatus?: string;
@@ -36,7 +38,8 @@ const RevisionForm: React.FC<RevisionFormProps> = ({
     pcmaStatus,
     packageStatus,
     currentCase,
-    revisionDocs
+    revisionDocs,
+    forCorrectionsDetails
 }) => {
     
     console.log('RevisionForm - Received props:', { category, reason, fieldRules });
@@ -185,6 +188,111 @@ const RevisionForm: React.FC<RevisionFormProps> = ({
                     ) : (
                         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                             <p className="text-sm text-gray-600 text-center">No documents available for this revision</p>
+                        </div>
+                    )}
+                </div>
+
+                {/* For Corrections History Section */}
+                <div className="mb-6 p-6 border border-orange-200 rounded-lg shadow-md bg-gradient-to-br from-orange-50 to-white">
+                    <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                            <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <h4 className="text-lg font-bold text-gray-900">For Corrections History</h4>
+                        </div>
+                    </div>
+
+                    {forCorrectionsDetails && forCorrectionsDetails.length > 0 ? (
+                        <div className="space-y-4">
+                            {forCorrectionsDetails.map((correction, index) => (
+                                <div key={correction.Id} className="bg-white border border-orange-200 rounded-lg p-4 shadow-sm">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        <h5 className="text-sm font-bold text-gray-800">Correction #{index + 1}</h5>
+                                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                                            Transaction ID: {correction.TransactionId}
+                                        </span>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {/* Regional Office Comments */}
+                                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                                </svg>
+                                                <h6 className="text-xs font-bold text-blue-800 uppercase tracking-wide">Regional Office</h6>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <div>
+                                                    <p className="text-xs text-blue-700 font-medium mb-1">Comment:</p>
+                                                    <p className="text-sm text-gray-800 bg-white p-2 rounded border border-blue-100">
+                                                        {correction.ROComment || 'No comment provided'}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-blue-700 font-medium mb-1">Date:</p>
+                                                    <p className="text-sm text-gray-800 font-mono">
+                                                        {correction.ROForCorrectionDate ? 
+                                                            new Date(correction.ROForCorrectionDate).toLocaleDateString('en-US', {
+                                                                year: 'numeric',
+                                                                month: 'short',
+                                                                day: 'numeric',
+                                                                hour: '2-digit',
+                                                                minute: '2-digit'
+                                                            }) : 'Not specified'
+                                                        }
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Central Office Comments */}
+                                        <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
+                                                </svg>
+                                                <h6 className="text-xs font-bold text-purple-800 uppercase tracking-wide">Central Office</h6>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <div>
+                                                    <p className="text-xs text-purple-700 font-medium mb-1">Comment:</p>
+                                                    <p className="text-sm text-gray-800 bg-white p-2 rounded border border-purple-100">
+                                                        {correction.COComment || 'No comment provided'}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-purple-700 font-medium mb-1">Date:</p>
+                                                    <p className="text-sm text-gray-800 font-mono">
+                                                        {correction.COForCorrectionDate ? 
+                                                            new Date(correction.COForCorrectionDate).toLocaleDateString('en-US', {
+                                                                year: 'numeric',
+                                                                month: 'short',
+                                                                day: 'numeric',
+                                                                hour: '2-digit',
+                                                                minute: '2-digit'
+                                                            }) : 'Not specified'
+                                                        }
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                            <p className="text-sm text-gray-600 text-center flex items-center justify-center gap-2">
+                                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                No correction history available for this revision
+                            </p>
                         </div>
                     )}
                 </div>

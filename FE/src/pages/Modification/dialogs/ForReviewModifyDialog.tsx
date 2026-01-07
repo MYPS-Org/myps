@@ -123,7 +123,7 @@ const ForReviewModifyDialog: React.FC<ForReviewModifyDialogProps> = ({
                                     </div>
                                     <div>
                                         <span className="font-medium text-gray-700">Revision Number:</span>
-                                        <p className="text-gray-600">{project.RevisionNumber}</p>
+                                        <p className="text-gray-600">{transactionId}</p>
                                     </div>
                                     <div className="col-span-2">
                                         <span className="font-medium text-gray-700">Description:</span>

@@ -99,7 +99,7 @@ export interface ProjectDetails {
 	UACS?: string;
 	MYCAApprovalDate?: string;
 	IslandCode?: string;
-	RevisionNumber?: number;
+	RevisionId?: number;
 	Description?: string;
 	Category?: number;
 	Thrust?: number;

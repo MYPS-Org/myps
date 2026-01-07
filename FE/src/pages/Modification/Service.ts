@@ -121,3 +121,30 @@ export const fetchReviseProjectDetails = async (transactionId: string) => {
         throw error;
     }
 }
+
+export const ResubmitRevisionRequest = async (
+    payload: {
+        TransactionId: string;
+        ProjectStatus: {
+            ConstructionStatus: string;
+            PackageStatus: string;
+        },
+        ProjectDetails: ProjectDetails;
+        ComponentCosts: ComponentCost[];
+        ComponentCostYear: ComponentCostYear[];
+        MajorItemOfWorks: MajorItemOfWork[];
+        MajorItemLocations: MajorItemLocations[];
+        FundingProfile: FundingProfile[];
+    },
+    // userRole?: string
+) => {
+    try {
+        const response = await httpClient.post<{TransactionId: string}>(`Revision/ResubmitRevision`, payload, {
+            preloaderMessage: 'Requesting revision...'
+        });
+        return response;
+    } catch (ErrorResponse) {
+        console.error('Error requesting revision:', ErrorResponse);
+        throw ErrorResponse;
+    }
+};

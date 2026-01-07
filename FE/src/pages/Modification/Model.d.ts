@@ -44,7 +44,17 @@ export interface RevisionProjectPayload extends ProjectFormPayload{
     Rules: Rules; // Rules for field validation
     ComponentsStatus: ProjectComponentStatus[];
     RevisionDetails?: RevisionDetails;
+    ForCorrectionsDetails?: ForCorrectionsDetails[];
     RevisionDocs?: RevisionDoc[];
+}
+
+export interface ForCorrectionsDetails {
+    Id: number,
+    TransactionId: string,
+    ROComment: string,
+    ROForCorrectionDate: string,
+    COComment: string,
+    COForCorrectionDate: string
 }
 
 export interface RevisionDoc {

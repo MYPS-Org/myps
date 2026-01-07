@@ -156,7 +156,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
 
             let response;
             //adjust this later
-            if (user?.UserGroups === 'DPC' || user?.UserGroups === 'AUC') {
+            if (user?.UserGroups === 'DPC') {
                 // Implementing Office: Submit new modification request
                 response = await submitModificationRequest(payload);
                 

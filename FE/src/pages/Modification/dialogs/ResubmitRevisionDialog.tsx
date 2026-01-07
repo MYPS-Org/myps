@@ -3,7 +3,7 @@ import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon, DocumentArrowUpIcon, DocumentIcon } from '@heroicons/react/24/outline';
 import type { ProjectDetails, ComponentCost, ComponentCostYear, MajorItemOfWork, MajorItemLocations, FundingProfile } from '../../Project/Model';
-import { submitModificationRequest, updateRevisionRequestStatus } from '../Service';
+import { ResubmitRevisionRequest, submitModificationRequest, updateRevisionRequestStatus } from '../Service';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -99,48 +99,13 @@ const ResubmitRevisionDialog: React.FC<ReviseProjectDialogProps> = ({
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        
-        // Validation
-        if (!approvalDate) {
-            showToast({
-                type: 'error',
-                message: 'Please select an approval date.'
-            });
-            return;
-        }
-
-        if (!approvalDocument) {
-            showToast({
-                type: 'error',
-                message: 'Please upload an approval document.'
-            });
-            return;
-        }
-
-        // Only require certification if user is from Implementing Office
-        if ((user?.UserGroups === 'DPC' && !isCertified) || (user?.UserGroups === 'AUC' && !isCertified)) {
-            showToast({
-                type: 'error',
-                message: 'Please certify that the attached document is accurate and aligned with the revisions.'
-            });
-            return;
-        }
-
         setIsSubmitting(true);
 
         try {
             // Prepare the payload
             const payload = {
-                RevisionDetails: {
-                    RevisionCategory: revisionCategory || revisionType,
-                    ReasonId:  reasonId || 0,
-                    ApprovalDate: approvalDate,
-                    ApprovedDocument: {
-                        Name: approvalDocument.Name,
-                        Extension: approvalDocument.Extension,
-                        ContentType: approvalDocument.ContentType,
-                        DataUrl: approvalDocument.DataUrl
-                    },
+                TransactionId: transactionId,
+                ProjectStatus: {
                     PackageStatus: projectStatus?.PackageStatus,
                     ConstructionStatus: projectStatus?.ConstructionStatus
                 },
@@ -156,19 +121,14 @@ const ResubmitRevisionDialog: React.FC<ReviseProjectDialogProps> = ({
 
             let response;
             //adjust this later
-            if (user?.UserGroups === 'DPC' || user?.UserGroups === 'AUC') {
+            if (user?.UserGroups === 'DPC') {
                 // Implementing Office: Submit new modification request
-                response = await submitModificationRequest(payload);
+                response = await ResubmitRevisionRequest(payload);
                 
                 showToast({
                     type: 'success',
                     message: 'Modification request submitted successfully.'
                 });
-
-                // Reset form
-                setApprovalDate('');
-                setApprovalDocument(null);
-                setIsCertified(false);
 
                 onClose();
                 // Navigate to the newly created revision view
@@ -197,7 +157,7 @@ const ResubmitRevisionDialog: React.FC<ReviseProjectDialogProps> = ({
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
                     <div>
                         <DialogTitle className="text-lg font-semibold text-gray-900">
-                            Revise Project
+                            Resubmit Project
                         </DialogTitle>
                         <p className="text-sm text-gray-600 mt-1">
                             {project.ProjectId}
