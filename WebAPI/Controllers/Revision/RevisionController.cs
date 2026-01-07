@@ -224,7 +224,7 @@ namespace WebAPI.Controllers.Revision
                 var Doc = await _db.tProjectSupportingDocs.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
                 var SupportingDoc = await _db.tDropdownSupportingDocs.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync();
 
-                var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && x.RevisedNumber == RevisedNumber).ToListAsync();
+                var ComponentCost = await _db.vProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && x.RevisedNumber == RevisedNumber).ToListAsync();
                 var ComponentCostYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentCost.Select(a => a.ReferenceId).Contains(x.ParentId)).ToListAsync();
 
                 var MajorItemOfWork = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && x.RevisedNumber == RevisedNumber).ToListAsync();
@@ -428,7 +428,7 @@ namespace WebAPI.Controllers.Revision
                 var Doc = await _db.tProjectSupportingDocs.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
                 var SupportingDoc = await _db.tDropdownSupportingDocs.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync();
 
-                var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
+                var ComponentCost = await _db.vProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
                 var ComponentCostYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentCost.Select(a => a.ReferenceId).Contains(x.ParentId)).ToListAsync();
 
                 var MajorItemOfWork = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
@@ -556,7 +556,7 @@ namespace WebAPI.Controllers.Revision
                 bool hasUpdated = false;
                 DateTime CurrentDate = DateTime.UtcNow;
                 var NewFundingProfile = new List<ProjectFundingProfile>();
-                var NewComponent = new List<ProjectComponentCost>();
+                var NewComponent = new List<DBHelper.Models.Table.ProjectComponentCost>();
                 var NewComponentYear = new List<ProjectComponentCostYear>();
                 var NewMajorWorkItem = new List<ProjectMajorWorkItem>();
                 var NewMajorWorkLocations = new List<ProjectMajorWorkLocations>();
@@ -719,7 +719,7 @@ namespace WebAPI.Controllers.Revision
                 {
                     if (NewComponentToInsert.Count() > 0)
                     {
-                        NewComponent.AddRange(NewComponentToInsert.Select(x => new ProjectComponentCost
+                        NewComponent.AddRange(NewComponentToInsert.Select(x => new DBHelper.Models.Table.ProjectComponentCost
                         {
                             ProjectId = Project.ProjectId,
                             ReferenceId = x.ReferenceId,
@@ -975,8 +975,9 @@ namespace WebAPI.Controllers.Revision
                         CreatedDate = CurrentDate
                     });
                     string DocumentName = $"{TransactionId}_{DocumentNaming.SecondSegmentName}_{CurrentDate.ToString("MM-dd-yyyy")}.{dto.RevisionDetails.ApprovedDocument.Extension}";
-                    string FilePath = Path.Combine("/", Appsetting.Resources.Revision.ImplementingOffice, DocumentName);
-                    if (!dto.RevisionDetails.ApprovedDocument.UploadFile(FilePath))
+                    string FilePath = Path.Combine(Appsetting.Resources.Revision.ImplementingOffice, DocumentName);
+                    string ResourcePath = Path.Combine(Directory.GetCurrentDirectory(), FilePath);
+                    if (!dto.RevisionDetails.ApprovedDocument.UploadFile(ResourcePath))
                     {
                         await transaction.RollbackAsync();
                         return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted!", Title = "File Corrupted" });
@@ -1202,7 +1203,11 @@ namespace WebAPI.Controllers.Revision
                 RevisionDetails.RegionStatus = (isROUser ? dto.Status : RevisionDetails.RegionStatus);
                 RevisionDetails.RegionApprover = (isROUser ? _Session.UserId : RevisionDetails.RegionApprover);
                 RevisionDetails.RegionApprovedDate = (isROUser ? CurrentDate : RevisionDetails.RegionApprovedDate);
-                if(isCOUser)
+
+                RevisionDetails.COStatus = (isCOUser ? dto.Status : RevisionDetails.COStatus);
+                RevisionDetails.COApprover = (isCOUser ? _Session.UserId : RevisionDetails.COApprover);
+                RevisionDetails.COApprovedDate = (isCOUser ? CurrentDate : RevisionDetails.COApprovedDate);
+                if (isCOUser && dto.Status == EnumRevisionStatus.ForCorrection)
                 {
                     if (RevisionDetails.RegionStatus != EnumRevisionStatus.Approved)
                     {
@@ -1232,8 +1237,9 @@ namespace WebAPI.Controllers.Revision
                         if (RevisionDocument != null)
                         {
                             string DocumentName = $"{dto.TransactionId}_{DocumentNaming.SecondSegmentName}_{CurrentDate.ToString("MM-dd-yyyy")}.{dto.Document.Extension}";
-                            string FilePath = Path.Combine("/",Appsetting.Resources.Revision.CentralOffice, dto.TransactionId, dto.Document.Name);
-                            if (!dto.Document.UploadFile(FilePath))
+                            string FilePath = Path.Combine(Appsetting.Resources.Revision.CentralOffice, DocumentName);
+                            string ResourcePath = Path.Combine(Directory.GetCurrentDirectory(), FilePath);
+                            if (!dto.Document.UploadFile(ResourcePath))
                             {
                                 return new BadRequestObjectResult(new { Message = "Uploaded document is corrupted!", Title = "File Corrupted" });
                             }
@@ -1275,7 +1281,7 @@ namespace WebAPI.Controllers.Revision
                 bool hasUpdated = false;
                 DateTime CurrentDate = DateTime.UtcNow;
                 var NewFundingProfile = new List<ProjectFundingProfile>();
-                var NewComponent = new List<ProjectComponentCost>();
+                var NewComponent = new List<DBHelper.Models.Table.ProjectComponentCost>();
                 var NewComponentYear = new List<ProjectComponentCostYear>();
                 var NewMajorWorkItem = new List<ProjectMajorWorkItem>();
                 var NewMajorWorkLocations = new List<ProjectMajorWorkLocations>();
@@ -1427,7 +1433,7 @@ namespace WebAPI.Controllers.Revision
                 {
                     if (NewComponentToInsert.Count() > 0)
                     {
-                        NewComponent.AddRange(NewComponentToInsert.Select(x => new ProjectComponentCost
+                        NewComponent.AddRange(NewComponentToInsert.Select(x => new DBHelper.Models.Table.ProjectComponentCost
                         {
                             ProjectId = Project.ProjectId,
                             ReferenceId = x.ReferenceId,

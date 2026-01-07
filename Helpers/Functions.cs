@@ -89,21 +89,28 @@ namespace Helpers
 
         public static bool UploadFile(this FileUpload File, string FilePath)
         {
-            if (File.IsFileCorrupted())
+            try
+            {
+                if (File.IsFileCorrupted())
+                {
+                    return false;
+                }
+                string folder = Path.GetDirectoryName(FilePath)!;
+                if (!Directory.Exists(folder))
+                {
+                    Directory.CreateDirectory(folder);
+                }
+                string base64Data = File.DataUrl.Contains(",")
+                    ? File.DataUrl.Split(',')[1]
+                    : File.DataUrl;
+                byte[] fileBytes = Convert.FromBase64String(base64Data);
+                System.IO.File.WriteAllBytes(FilePath, fileBytes);
+                return true;
+            }
+            catch
             {
                 return false;
             }
-            string folder = Path.GetDirectoryName(FilePath)!;
-            if (!Directory.Exists(folder))
-            {
-                Directory.CreateDirectory(folder);
-            }
-            string base64Data = File.DataUrl.Contains(",")
-                ? File.DataUrl.Split(',')[1]
-                : File.DataUrl;
-            byte[] fileBytes = Convert.FromBase64String(base64Data);
-            System.IO.File.WriteAllBytes(FilePath, fileBytes);
-            return true;
         }
         public static bool IsFileCorrupted(this FileUpload File)
         {

@@ -628,11 +628,11 @@ namespace WebAPI.Controllers.Programs
                     {
                         string FirstSegment = checkStageType.Name.GenerateProjec1stSegment();
                         #region Component Costs
-                        List<ProjectComponentCost> NewComponent = new List<ProjectComponentCost>();
+                        List<DBHelper.Models.Table.ProjectComponentCost> NewComponent = new List<DBHelper.Models.Table.ProjectComponentCost>();
                         List<ProjectComponentCostYear> NewComponentPerYear = new List<ProjectComponentCostYear>();
                         if (Components.Count() > 0)
                         {
-                            NewComponent.AddRange(Components.Select(x => new ProjectComponentCost()
+                            NewComponent.AddRange(Components.Select(x => new DBHelper.Models.Table.ProjectComponentCost()
                             {
                                 ProjectId = x.ProjectId.Replace("BP", FirstSegment),
                                 ReferenceId = x.ReferenceId.UpdateReferenceId(FirstSegment),

@@ -1245,7 +1245,7 @@ namespace WebAPI.Controllers.Projects
                             children.ForEach(x => x.ParentId = location.ReferenceId);
                         }
                     }
-                    var SaveNewComponent = NewComponentCostData.Select((item, index) => new ProjectComponentCost
+                    var SaveNewComponent = NewComponentCostData.Select((item, index) => new DBHelper.Models.Table.ProjectComponentCost
                     {
                         StageName = Project.StageName,
                         ProjectId = Project.ProjectId!,
