@@ -139,6 +139,8 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = "Revision details not found!", Title = "Invalid Revision" });
                 }
+                string ProjectRevisionStatus = (RevisionDetails.RegionStatus == EnumRevisionStatus.ForCorrection) ? RevisionDetails.RegionStatusName : RevisionDetails.COStatusName;
+
                 #region Validate PCMA Status
                 var ProjectComponentsStatus = await _db.vProjectComponentStatus.AsNoTracking().Where(x => x.ProjectId == ProjectId).ToListAsync();
                 if (ProjectComponentsStatus == null)
@@ -270,7 +272,8 @@ namespace WebAPI.Controllers.Revision
                     ProjectStatus = new
                     {
                         ConstructionStatus = ConStatus,
-                        PackageStatus = PackedStatus
+                        PackageStatus = PackedStatus,
+                        RevisionStatus = ProjectRevisionStatus
                     },
 
                     Rules = SelectedRules,
