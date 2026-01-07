@@ -4,7 +4,6 @@ import { Button } from '../../../../components/tailwindui/button';
 import { XMarkIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { useToast } from '../../../../components/toaster/ToasterContext';
 import { useAtom, useAtomValue } from 'jotai';
-import type { MajorItemOfWorksWithDropdown } from '../../../Project/Model';
 import {
   deleteMajorItemDialogOpenAtom,
   selectedMajorItemForDeleteAtom,
@@ -29,10 +28,10 @@ const DeleteMajorItemDialog: React.FC<DeleteMajorItemDialogProps> = ({
 }) => {
   // Atoms
   const canShowDialog = useAtomValue(canShowDeleteMajorItemDialogAtom);
-  const [isOpen, setIsOpen] = useAtom(deleteMajorItemDialogOpenAtom);
+  const [isOpen] = useAtom(deleteMajorItemDialogOpenAtom);
   const selectedMajorItem = useAtomValue(selectedMajorItemForDeleteAtom);
   const deleteIndex = useAtomValue(deleteMajorItemIndexAtom);
-  const [isDeleting, setIsDeleting] = useAtom(deletingMajorItemAtom);
+  const [isDeleting] = useAtom(deletingMajorItemAtom);
   const [, closeDialog] = useAtom(closeDeleteMajorItemDialogAtom);
   const [, setDeletingState] = useAtom(setDeletingMajorItemStateAtom);
   const { showToast } = useToast();

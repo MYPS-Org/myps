@@ -2,6 +2,8 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { Button } from '../../../../components/tailwindui/button';
 import { PlusIcon, TrashIcon, PencilIcon } from '@heroicons/react/24/outline';
 import AddInfraDialog from '../../../Project/dialogs/AddInfraDialog';
+import DeleteWorkLocationDialog from '../../dialogs/deleteDialog/DeleteWorkLocationDialog';
+import { useDeleteWorkLocationDialog } from '../../hooks/useDeleteWorkLocationDialog';
 import { mockInfraData } from '../../../Project/dialogs/mockInfraData';
 import { generateInfraId, shouldAutoGenerateInfraId, getInfraTypePrefix } from '../../../../utils/infraIdGenerator';
 import type { MajorItemLocations, InfraData, ScopeOfWorkEnum, MajorItemOfWork } from '../../../Project/Model.d';
@@ -49,6 +51,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
   const [infraDialogOpen, setInfraDialogOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [isAddingNew, setIsAddingNew] = useState(false);
+  const { openDeleteDialog } = useDeleteWorkLocationDialog();
 
   // Helper function to build field permissions map from fieldRules
   const fieldPermissionsMap = useMemo(() => {
@@ -580,7 +583,13 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
                   </h5>
                   <Button
                     color="red"
-                    onClick={() => onDelete(index)}
+                    onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (!disabled) {
+                        openDeleteDialog(location, index);
+                      }
+                    }}
                     className={`flex items-center px-3 py-1 text-xs ${getDisabledClass(disabled)}`}
                     disabled={disabled}
                   >
@@ -669,6 +678,12 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
           mode="add"
         />
       )}
+      
+      {/* Delete Work Location Confirmation Dialog */}
+      <DeleteWorkLocationDialog
+        onConfirmDelete={onDelete}
+        infraType={infraType}
+      />
     </div>
   );
 };
