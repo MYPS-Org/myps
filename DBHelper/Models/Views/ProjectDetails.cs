@@ -17,7 +17,7 @@ namespace DBHelper.Models.Views
         public string? UACS { get; set; }
         public DateTime? MYCAApprovalDate { get; set; }
         public string? IslandCode { get; set; }
-        public int? RevisionNumber { get; set; }
+        public int? RevisionId { get; set; }
         public string? Description { get; set; }
         public int Category { get; set; }
         public int? Thrust { get; set; }

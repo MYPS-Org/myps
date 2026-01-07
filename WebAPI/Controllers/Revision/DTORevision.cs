@@ -172,4 +172,23 @@ namespace WebAPI.Controllers.Revision
         public string? Remarks { get; set; }
         public FileUpload? Document { get; set; } = new FileUpload();
     }
+    public class ResubmitRevisionDTO
+    {
+        [Required]
+        public string TransactionId { get; set; } = string.Empty;
+        public ProjectStatusDTO ProjectStatus { get; set; } = new ProjectStatusDTO();
+        public ProjectDetails ProjectDetails { get; set; } = new ProjectDetails();
+        public List<RevisionComponentCostDTO> ComponentCosts { get; set; } = new List<RevisionComponentCostDTO>();
+        public List<RevisionComponentCostYearDTO> ComponentCostYear { get; set; } = new List<RevisionComponentCostYearDTO>();
+        public List<RevisionMajorWorkItemDTO> MajorItemOfWorks { get; set; } = new List<RevisionMajorWorkItemDTO>();
+        public List<RevisionMajorWorkLocationsDTO> MajorItemLocations { get; set; } = new List<RevisionMajorWorkLocationsDTO>();
+        public List<RevisionFundingProfileDTO> FundingProfile { get; set; } = new List<RevisionFundingProfileDTO>();
+    }
+    public class ProjectStatusDTO
+    {
+        [Required]
+        public string ConstructionStatus { get; set; } = string.Empty;
+        [Required]
+        public string PackageStatus { get; set; } = string.Empty;
+    }
 }

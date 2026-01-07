@@ -59,8 +59,9 @@ namespace WebAPI.Controllers.Revision
                 var baseQuery = _db.vRevisionLists.AsNoTracking();
                 if (isCentralOffice)
                 {
-                    baseQuery = _db.vRevisionLists.AsNoTracking().Where(x => AllowedStatusForCO.Contains(x.RegionStatus));
+                    baseQuery = baseQuery.Where(x => AllowedStatusForCO.Contains(x.RegionStatus) || x.CreatedBy == _Session.UserId);
                 }
+
 
                 // Apply filters to base query
                 if (!string.IsNullOrEmpty(dto.Filters?.TransactionId))
@@ -124,11 +125,11 @@ namespace WebAPI.Controllers.Revision
             {
                 var RevisionTransation = dto.TransactionId.Split('-');
                 string ProjectId = RevisionTransation[0];
-                int RevisedNumber = int.Parse(RevisionTransation[1]);
                 var Project = await _db.vProjectDetails
                 .FromSqlInterpolated($"SELECT * FROM fProjectsPerStage({ProjectId}) fp WHERE fp.StageName = 'GAA-R' AND fp.ProjectId = {ProjectId}")
                 .AsNoTracking()
                 .FirstOrDefaultAsync();
+                int? RevisedNumber = Project.RevisedNumber;
                 if (Project == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found or not in GAA-R stage!", Title = "Invalid Project" });
@@ -171,7 +172,7 @@ namespace WebAPI.Controllers.Revision
                     "Packaged";
                 #endregion
                 RevisionRules SelectedRules = new();
-                if (RevisionDetails.CreatedBy == _Session.UserId || RevisionDetails.RegionStatus == EnumRevisionStatus.ForCorrection || RevisionDetails.COStatus == EnumRevisionStatus.ForCorrection)
+                if (RevisionDetails.CreatedBy == _Session.UserId && (RevisionDetails.RegionStatus == EnumRevisionStatus.ForCorrection || RevisionDetails.COStatus == EnumRevisionStatus.ForCorrection))
                 {
                     SelectedRules = await _db.vRevisionRules.FirstOrDefaultAsync(x => x.ReasonId == RevisionDetails.ReasonId && x.RevisionGroupId == RevisionDetails.RevisionGroupId && x.PCMA_Status == ConStatus && x.Package_Status == PackedStatus);
                 }
@@ -200,6 +201,7 @@ namespace WebAPI.Controllers.Revision
                     return new BadRequestObjectResult(new { Message = "Revision Reason not found!", Title = "Invalid Revision Reason" });
                 }
                 var RevisionDoc = await _db.tRevisionDocuments.AsNoTracking().Where(x => x.TransactionId == dto.TransactionId).ToListAsync();
+                var ForCorrections = await _db.tRevisionForCorrectionDetails.Where(x => x.TransactionId == dto.TransactionId).ToListAsync();
                 #endregion
 
                 #region Program Validation
@@ -263,6 +265,7 @@ namespace WebAPI.Controllers.Revision
                     Reason = SelectedReason,
                     
                     RevisionDetails = RevisionDetails,
+                    ForCorrectionsDetails = ForCorrections,
                     RevisionDocs = RevisionDoc,
                     ProjectStatus = new
                     {
@@ -555,12 +558,12 @@ namespace WebAPI.Controllers.Revision
                 var NewMajorWorkItem = new List<ProjectMajorWorkItem>();
                 var NewMajorWorkLocations = new List<ProjectMajorWorkLocations>();
                 #region Validations
-                var Project = await _db.tProjectRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectDetails.ProjectId && x.Id == dto.ProjectDetails.RevisionNumber);
+                var Project = await _db.tProjectRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectDetails.ProjectId && x.Id == dto.ProjectDetails.RevisionId);
                 if (Project == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Invalid Project" });
                 }
-                var ProjectStage = await _db.tProjectStages.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionId == dto.ProjectDetails.RevisionNumber);
+                var ProjectStage = await _db.tProjectStages.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionId == dto.ProjectDetails.RevisionId);
                 if (ProjectStage == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Project Stage not found!", Title = "Invalid Project Stage" });
@@ -626,7 +629,7 @@ namespace WebAPI.Controllers.Revision
                 .Where(p => (bool?)p.GetValue(jsonRules.FundingProfileRules.Fields) == true)
                 .Select(p => p.Name)
                 .ToList();
-                var UpdateFundingProfile = dto.FundingProfile;
+                var UpdateFundingProfile = dto.FundingProfile.Where(x => x.Id != 0);
                 if (FundingProfile.Count > 0)
                 {
                     foreach (var component in UpdateFundingProfile)
@@ -648,7 +651,7 @@ namespace WebAPI.Controllers.Revision
                 }
                 if (jsonRules.FundingProfileRules.CRUD.CanAdd)
                 {
-                    var NewFundingToInsert = UpdateFundingProfile.Where(x => x.Id == 0);
+                    var NewFundingToInsert = dto.FundingProfile.Where(x => x.Id == 0);
                     if (NewFundingToInsert.Count() > 0)
                     {
                         NewFundingProfile.AddRange(NewFundingToInsert.Select(x => new ProjectFundingProfile
@@ -667,7 +670,7 @@ namespace WebAPI.Controllers.Revision
                 }
                 if(jsonRules.FundingProfileRules.CRUD.CanDelete)
                 {
-                    var DeletedFundings = UpdateFundingProfile.Where(x => x.IsDeleted && x.Id != 0).ToList();
+                    var DeletedFundings = UpdateFundingProfile.ToList();
                     if (DeletedFundings.Count > 0)
                     {
                         var DeletedFundingIds = DeletedFundings.Select(x => x.Id).ToList();
@@ -677,7 +680,7 @@ namespace WebAPI.Controllers.Revision
                 #endregion
                 #region ComponentCosts
                 var CostIds = dto.ComponentCosts.Where(x => x.Id != 0).Select(x => x.Id).ToList();
-                var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && CostIds.Contains(x.Id)).ToListAsync();
+                var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && CostIds.Contains(x.Id) && x.StageName == "GAA-R").ToListAsync();
                 var ComponentCostYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentCost.Select(c => c.ReferenceId).Contains(x.ParentId)).ToListAsync();
                 var ComponentCostRules = jsonRules.ComponentCostRules.Fields.GetType()
                 .GetProperties()
@@ -685,7 +688,7 @@ namespace WebAPI.Controllers.Revision
                 .Where(p => (bool?)p.GetValue(jsonRules.ComponentCostRules.Fields) == true)
                 .Select(p => p.Name)
                 .ToList();
-                var UpdateComponentCost = dto.ComponentCosts;
+                var UpdateComponentCost = dto.ComponentCosts.Where(x => x.Id != 0);
                 if (ComponentCost.Count > 0)
                 {
                     foreach (var component in UpdateComponentCost)
@@ -708,7 +711,7 @@ namespace WebAPI.Controllers.Revision
                         }
                     }
                 }
-                var NewComponentToInsert = UpdateComponentCost.Where(x => x.Id == 0);
+                var NewComponentToInsert = dto.ComponentCosts.Where(x => x.Id == 0);
                 if (jsonRules.ComponentCostRules.CRUD.CanAdd)
                 {
                     if (NewComponentToInsert.Count() > 0)
@@ -730,13 +733,11 @@ namespace WebAPI.Controllers.Revision
                 }
                 if(jsonRules.ComponentCostRules.CRUD.CanDelete)
                 {
-                    var DeletedComponents = UpdateComponentCost.Where(x => x.IsDeleted && x.Id != 0).ToList();
+                    var DeletedComponents = ComponentCost.Where(x => !UpdateComponentCost.Select(a => a.Id).Contains(x.Id)).ToList();
                     if(DeletedComponents.Count > 0)
                     {
-                        var DeletedComponentIds = DeletedComponents.Select(x => x.Id).ToList();
-                        ComponentCost = ComponentCost.Where(x => !DeletedComponentIds.Contains(x.Id)).ToList();
-                        var DeletedComponentReferenceIds = DeletedComponents.Select(x => x.ReferenceId).ToList();
-                        ComponentCostYear = ComponentCostYear.Where(x => !DeletedComponentReferenceIds.Contains(x.ParentId)).ToList();
+                        ComponentCost = DeletedComponents;
+                        ComponentCostYear = ComponentCostYear.Where(x => !DeletedComponents.Select(x => x.ReferenceId).Contains(x.ParentId)).ToList();
                     }
                 }
                 #endregion
@@ -747,7 +748,7 @@ namespace WebAPI.Controllers.Revision
                 .Where(p => (bool?)p.GetValue(jsonRules.ComponentCostYearRules.Fields) == true)
                 .Select(p => p.Name)
                 .ToList();
-                var UpdateComponentCostYear = dto.ComponentCostYear;
+                var UpdateComponentCostYear = dto.ComponentCostYear.Where(x => x.Id != 0);
                 if (ComponentCostYear.Count > 0)
                 {
                     foreach (var year in UpdateComponentCostYear)
@@ -766,7 +767,7 @@ namespace WebAPI.Controllers.Revision
                 }
                 if (jsonRules.ComponentCostYearRules.CRUD.CanAdd)
                 {
-                    var NewComponentYearToInsert = UpdateComponentCostYear.Where(x => NewComponentToInsert.Select(c => c.ReferenceId).Contains(x.ParentId));
+                    var NewComponentYearToInsert = dto.ComponentCostYear.Where(x => NewComponentToInsert.Select(c => c.ReferenceId).Contains(x.ParentId));
                     if (NewComponentYearToInsert.Count() > 0)
                     {
                         NewComponentYear.AddRange(NewComponentYearToInsert.Select(x => new ProjectComponentCostYear
@@ -781,11 +782,10 @@ namespace WebAPI.Controllers.Revision
                 }
                 if(jsonRules.ComponentCostYearRules.CRUD.CanDelete)
                 {
-                    var DeletedComponentYears = UpdateComponentCostYear.Where(x => x.IsDeleted && x.Id != 0).ToList();
-                    if (DeletedComponentYears.Count > 0)
+                    var DeletedComponentCostYear = ComponentCostYear.Where(x => !dto.ComponentCostYear.Select(c => c.Id).Contains(x.Id)).ToList();
+                    if (DeletedComponentCostYear.Count > 0)
                     {
-                        var DeletedComponentYearIds = DeletedComponentYears.Select(x => x.Id).ToList();
-                        ComponentCostYear = ComponentCostYear.Where(x => !DeletedComponentYearIds.Contains(x.Id)).ToList();
+                        ComponentCostYear = DeletedComponentCostYear;
                     }
                 }
                 #endregion
@@ -799,7 +799,7 @@ namespace WebAPI.Controllers.Revision
                 .Where(p => (bool?)p.GetValue(jsonRules.MajorItemOfWorkRules.Fields) == true)
                 .Select(p => p.Name)
                 .ToList();
-                var UpdateMajorItemOfWorks = dto.MajorItemOfWorks;
+                var UpdateMajorItemOfWorks = dto.MajorItemOfWorks.Where(x => x.Id != 0);
                 if (MajorWorkItem.Count > 0)
                 {
                     foreach (var item in UpdateMajorItemOfWorks)
@@ -820,7 +820,7 @@ namespace WebAPI.Controllers.Revision
                         }
                     }
                 }
-                var NewMajorItemOfWorksToInsert = UpdateMajorItemOfWorks.Where(x => x.Id == 0);
+                var NewMajorItemOfWorksToInsert = dto.MajorItemOfWorks.Where(x => x.Id == 0);
                 if (jsonRules.MajorItemOfWorkRules.CRUD.CanAdd)
                 {
                     if (NewMajorItemOfWorksToInsert.Count() > 0)
@@ -842,11 +842,10 @@ namespace WebAPI.Controllers.Revision
                 }
                 if(jsonRules.MajorItemOfWorkRules.CRUD.CanDelete)
                 {
-                    var DeletedMajorItems = UpdateMajorItemOfWorks.Where(x => x.IsDeleted && x.Id != 0).ToList();
+                    var DeletedMajorItems = MajorWorkItem.Where(x => !UpdateMajorItemOfWorks.Select(a => a.Id).Contains(x.Id)).ToList();
                     if (DeletedMajorItems.Count > 0)
-                    {
-                        var DeletedMajorItemIds = DeletedMajorItems.Select(x => x.Id).ToList();
-                        MajorWorkItem = MajorWorkItem.Where(x => !DeletedMajorItemIds.Contains(x.Id)).ToList();
+                    {;
+                        MajorWorkItem = DeletedMajorItems;
                         var DeletedMajorItemReferenceIds = DeletedMajorItems.Select(x => x.ReferenceId).ToList();
                         MajorWorkLocations = MajorWorkLocations.Where(x => !DeletedMajorItemReferenceIds.Contains(x.ParentId)).ToList();
                     }
@@ -859,7 +858,7 @@ namespace WebAPI.Controllers.Revision
                 .Where(p => (bool?)p.GetValue(jsonRules.MajorItemLocationRules.Fields) == true)
                 .Select(p => p.Name)
                 .ToList();
-                var UpdateMajorWorkLocations = dto.MajorItemLocations;
+                var UpdateMajorWorkLocations = dto.MajorItemLocations.Where(x => x.Id != 0);
                 if (MajorWorkLocations.Count > 0)
                 {
                     foreach (var location in UpdateMajorWorkLocations)
@@ -878,7 +877,7 @@ namespace WebAPI.Controllers.Revision
                 }
                 if (jsonRules.MajorItemLocationRules.CRUD.CanAdd)
                 {
-                    var NewMajorWorkLocationsToInsert = UpdateMajorWorkLocations.Where(x => NewMajorItemOfWorksToInsert.Select(c => c.ReferenceId).Contains(x.ParentId));
+                    var NewMajorWorkLocationsToInsert = dto.MajorItemLocations.Where(x => NewMajorItemOfWorksToInsert.Select(c => c.ReferenceId).Contains(x.ParentId));
                     if (NewMajorWorkLocationsToInsert.Count() > 0)
                     {
                         NewMajorWorkLocations.AddRange(NewMajorWorkLocationsToInsert.Select(x => new ProjectMajorWorkLocations
@@ -904,11 +903,10 @@ namespace WebAPI.Controllers.Revision
                 }
                 if(jsonRules.MajorItemLocationRules.CRUD.CanDelete)
                 {
-                    var DeletedMajorWorkLocations = UpdateMajorWorkLocations.Where(x => x.IsDeleted && x.Id != 0).ToList();
+                    var DeletedMajorWorkLocations = MajorWorkLocations.Where(x => !UpdateMajorWorkLocations.Select(a => a.Id).Contains(x.Id)).ToList();
                     if (DeletedMajorWorkLocations.Count > 0)
                     {
-                        var DeletedMajorWorkLocationIds = DeletedMajorWorkLocations.Select(x => x.Id).ToList();
-                        MajorWorkLocations = MajorWorkLocations.Where(x => !DeletedMajorWorkLocationIds.Contains(x.Id)).ToList();
+                        MajorWorkLocations = DeletedMajorWorkLocations;
                     }
                 }
                 #endregion
@@ -955,6 +953,7 @@ namespace WebAPI.Controllers.Revision
                     await _db.tProjectMajorWorkLocations.AddRangeAsync(MajorWorkLocations);
 
                     bool isROUser = _Session.UserGroups.Contains("RPC");
+                    bool isCOUser = _Session.UserGroups.Contains("AUC");
                     TransactionId = Project.ProjectId + "-" + Project.RevisedNumber;
                     await _db.tRevisionDetails.AddAsync(new RevisionDetails
                     {
@@ -963,10 +962,10 @@ namespace WebAPI.Controllers.Revision
                         CategoryId = dto.RevisionDetails.CategoryId,
                         ReasonId = RevisionRules.ReasonId,
                         IODocApprovalDate = dto.RevisionDetails.ApprovalDate,
-                        RegionStatus = isROUser ? EnumRevisionStatus.Approved : EnumRevisionStatus.Pending,
+                        RegionStatus = (isROUser || isCOUser) ? EnumRevisionStatus.Approved : EnumRevisionStatus.Pending,
                         RegionApprover = isROUser ? _Session.UserId : null,
                         RegionApprovedDate = isROUser ? CurrentDate : null,
-                        COStatus = EnumRevisionStatus.Pending,
+                        COStatus = isCOUser ? EnumRevisionStatus.Approved : EnumRevisionStatus.Pending,
                         COApprover = null,
                         COApprovedDate = null,
                         CreatedBy = _Session.UserId,
@@ -1157,33 +1156,44 @@ namespace WebAPI.Controllers.Revision
                 if (dto.Status == EnumRevisionStatus.ForCorrection)
                 {
                     var existingCorrections = await _db.tRevisionForCorrectionDetails.AsNoTracking()
-                        .Where(x => x.TransactionId == dto.TransactionId
-                        && string.IsNullOrEmpty(x.ROComment)
-                        && !string.IsNullOrEmpty(x.COComment))
+                        .Where(x => x.TransactionId == dto.TransactionId)
                         .OrderByDescending(x => x.Id)
                         .FirstOrDefaultAsync();
                     if (existingCorrections != null)
                     {
-                        if(isCOUser)
+                        if(isCOUser && string.IsNullOrEmpty(existingCorrections.COComment))
                         {
                             existingCorrections.COComment = dto.Remarks;
                             existingCorrections.COForCorrectionDate = CurrentDate;
+                            _db.tRevisionForCorrectionDetails.Update(existingCorrections);
                         }
-                        else
+                        else if(string.IsNullOrEmpty(existingCorrections.ROComment))
                         {
                             existingCorrections.ROComment = dto.Remarks;
                             existingCorrections.ROForCorrectionDate = CurrentDate;
+                            _db.tRevisionForCorrectionDetails.Update(existingCorrections);
                         }
-                        _db.tRevisionForCorrectionDetails.Update(existingCorrections);
                     }
                     else
                     {
-                        await _db.tRevisionForCorrectionDetails.AddAsync(new RevisionForCorrectionDetails
+                        if (isCOUser)
                         {
-                            TransactionId = dto.TransactionId,
-                            ROComment = dto.Remarks,
-                            ROForCorrectionDate = CurrentDate
-                        });
+                            await _db.tRevisionForCorrectionDetails.AddAsync(new RevisionForCorrectionDetails
+                            {
+                                TransactionId = dto.TransactionId,
+                                COComment = dto.Remarks,
+                                COForCorrectionDate = CurrentDate
+                            });
+                        }
+                        else
+                        {
+                            await _db.tRevisionForCorrectionDetails.AddAsync(new RevisionForCorrectionDetails
+                            {
+                                TransactionId = dto.TransactionId,
+                                ROComment = dto.Remarks,
+                                ROForCorrectionDate = CurrentDate
+                            });
+                        }
                     }
                 }
                 RevisionDetails.RegionStatus = (isROUser ? dto.Status : RevisionDetails.RegionStatus);
@@ -1249,6 +1259,557 @@ namespace WebAPI.Controllers.Revision
             {
                 await transaction.RollbackAsync();
                 return ExceptionHandler(ex);
+            }
+        }
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> ResubmitRevision([FromBody] ResubmitRevisionDTO dto)
+        {
+            var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                string TransactionId = string.Empty;
+                bool hasUpdated = false;
+                DateTime CurrentDate = DateTime.UtcNow;
+                var NewFundingProfile = new List<ProjectFundingProfile>();
+                var NewComponent = new List<ProjectComponentCost>();
+                var NewComponentYear = new List<ProjectComponentCostYear>();
+                var NewMajorWorkItem = new List<ProjectMajorWorkItem>();
+                var NewMajorWorkLocations = new List<ProjectMajorWorkLocations>();
+                var TransactionLog = new List<RevisionTransactionLog>();
+                #region Validations
+                var RevisionDetails = await _db.tRevisionDetails.AsNoTracking().FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId && (x.RegionStatus == EnumRevisionStatus.ForCorrection || x.COStatus == EnumRevisionStatus.ForCorrection));
+                if(RevisionDetails == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Revision details not found!", Title = "Invalid Revision" });
+                }
+                var Project = await _db.tProjectRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectDetails.ProjectId && x.Id == dto.ProjectDetails.RevisionId);
+                if (Project == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Invalid Project" });
+                }
+                var ProjectStage = await _db.tProjectStages.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionId == dto.ProjectDetails.RevisionId);
+                if (ProjectStage == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Project Stage not found!", Title = "Invalid Project Stage" });
+                }
+
+                var RevisionRules = await _db.vRevisionRules.AsNoTracking().FirstOrDefaultAsync(x => x.ReasonId == RevisionDetails.ReasonId && x.PCMA_Status == dto.ProjectStatus.ConstructionStatus && x.Package_Status == dto.ProjectStatus.PackageStatus);
+                if (RevisionRules == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Revision type does not exist in PCMA_Status: {dto.ProjectStatus.ConstructionStatus} Package_Status: {dto.ProjectStatus.PackageStatus}!", Title = "Invalid Revision Type" });
+                }
+                var RevisionCategory = await _db.tOptionRevisionHeader.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionGroupId == RevisionRules.RevisionGroupId);
+                if (RevisionCategory == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Revision category does not match with the selected revision reason!", Title = "Invalid Revision Category" });
+                }
+                var jsonRules = JsonConvert.DeserializeObject<ModificationRules>(RevisionRules.Field);
+                if (jsonRules == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Rules does not exist in {RevisionRules.Reason}! Please contact admin", Title = "No Rules Exists" });
+                }
+                Project.isRevised = true;
+                Project.RevisedNumber = (Project.RevisedNumber ?? 0) + 1;
+                #endregion
+                #region ProjectRevision
+                var ProjectDetailsRules = jsonRules.ProjectDetailsRules.GetType()
+                .GetProperties()
+                .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
+                .Where(p => (bool?)p.GetValue(jsonRules.ProjectDetailsRules) == true)
+                .Select(p => p.Name)
+                .ToList();
+                var NewProjectRevision = dto.ProjectDetails;
+                Project.Id = 0;
+                Project.RevisionNumber = Project.RevisionNumber + 1;
+                if (ProjectDetailsRules.Count > 0)
+                {
+                    hasUpdated = true;
+                    Project = ProjectDetailsRules.UpdateRevisionData(NewProjectRevision, Project);
+                }
+                #endregion
+                #region FundingProfile
+                var FundingIds = dto.FundingProfile.Where(x => x.Id != 0).Select(x => x.Id);
+                var FundingProfile = await _db.tProjectFundingProfile.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && FundingIds.Contains(x.Id)).ToListAsync();
+                var FundingProfileRules = jsonRules.FundingProfileRules.Fields.GetType()
+                .GetProperties()
+                .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
+                .Where(p => (bool?)p.GetValue(jsonRules.FundingProfileRules.Fields) == true)
+                .Select(p => p.Name)
+                .ToList();
+                var UpdateFundingProfile = dto.FundingProfile.Where(x => x.Id != 0);
+                if (FundingProfile.Count > 0)
+                {
+                    foreach (var component in UpdateFundingProfile)
+                    {
+                        var ComponentId = component.Id;
+                        var SelectedComponent = FundingProfile.FirstOrDefault(x => x.Id == ComponentId);
+
+                        if (SelectedComponent != null)
+                        {
+                            hasUpdated = true;
+                            if (FundingProfileRules.Count > 0)
+                            {
+                                SelectedComponent = FundingProfileRules.UpdateRevisionData(component, SelectedComponent);
+                            }
+                            SelectedComponent.RevisedNumber = Project.RevisedNumber;
+                            SelectedComponent.Id = 0;
+                        }
+                    }
+                }
+                if (jsonRules.FundingProfileRules.CRUD.CanAdd)
+                {
+                    var NewFundingToInsert = dto.FundingProfile.Where(x => x.Id == 0);
+                    if (NewFundingToInsert.Count() > 0)
+                    {
+                        NewFundingProfile.AddRange(NewFundingToInsert.Select(x => new ProjectFundingProfile
+                        {
+                            ProjectId = Project.ProjectId,
+                            Source = x.Source,
+                            Agreement = x.Agreement,
+                            Amount = x.Amount,
+                            Percentage = x.Percentage,
+                            StageName = ProjectStage.StageName,
+                            RevisedNumber = Project.RevisedNumber,
+                            CreatedBy = _Session.UserId,
+                            CreatedDate = CurrentDate
+                        }));
+                    }
+                }
+                if (jsonRules.FundingProfileRules.CRUD.CanDelete)
+                {
+                    var DeletedFundings = UpdateFundingProfile.ToList();
+                    if (DeletedFundings.Count > 0)
+                    {
+                        var DeletedFundingIds = DeletedFundings.Select(x => x.Id).ToList();
+                        FundingProfile = FundingProfile.Where(x => !DeletedFundingIds.Contains(x.Id)).ToList();
+                    }
+                }
+                #endregion
+                #region ComponentCosts
+                var CostIds = dto.ComponentCosts.Where(x => x.Id != 0).Select(x => x.Id).ToList();
+                var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && CostIds.Contains(x.Id) && x.StageName == "GAA-R").ToListAsync();
+                var ComponentCostYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentCost.Select(c => c.ReferenceId).Contains(x.ParentId)).ToListAsync();
+                var ComponentCostRules = jsonRules.ComponentCostRules.Fields.GetType()
+                .GetProperties()
+                .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
+                .Where(p => (bool?)p.GetValue(jsonRules.ComponentCostRules.Fields) == true)
+                .Select(p => p.Name)
+                .ToList();
+                var UpdateComponentCost = dto.ComponentCosts.Where(x => x.Id != 0);
+                if (ComponentCost.Count > 0)
+                {
+                    foreach (var component in UpdateComponentCost)
+                    {
+                        var ComponentId = component.Id;
+                        var SelectedComponent = ComponentCost.FirstOrDefault(x => x.Id == ComponentId);
+
+                        if (SelectedComponent != null)
+                        {
+                            hasUpdated = true;
+                            if (ComponentCostRules.Count > 0)
+                            {
+                                SelectedComponent = ComponentCostRules.UpdateRevisionData(component, SelectedComponent);
+                            }
+                            SelectedComponent.RevisedNumber = Project.RevisedNumber;
+                            SelectedComponent.Id = 0;
+                            var Component = ComponentCostYear.Where(x => x.ParentId == SelectedComponent.ReferenceId).ToList();
+                            SelectedComponent.ReferenceId = SelectedComponent.ProjectId + "-" + ("tCountSequence").GenerateCode();
+                            Component.ForEach(x => x.ParentId = SelectedComponent.ReferenceId);
+                        }
+                    }
+                }
+                var NewComponentToInsert = dto.ComponentCosts.Where(x => x.Id == 0);
+                if (jsonRules.ComponentCostRules.CRUD.CanAdd)
+                {
+                    if (NewComponentToInsert.Count() > 0)
+                    {
+                        NewComponent.AddRange(NewComponentToInsert.Select(x => new ProjectComponentCost
+                        {
+                            ProjectId = Project.ProjectId,
+                            ReferenceId = x.ReferenceId,
+                            ComponentType = x.ComponentType,
+                            ComponentId = x.ComponentId,
+                            Description = x.Description,
+                            Total = x.Total,
+                            StageName = ProjectStage.StageName,
+                            RevisedNumber = Project.RevisedNumber,
+                            CreatedBy = _Session.UserId,
+                            CreatedDate = CurrentDate
+                        }));
+                    }
+                }
+                if (jsonRules.ComponentCostRules.CRUD.CanDelete)
+                {
+                    var DeletedComponents = ComponentCost.Where(x => !UpdateComponentCost.Select(a => a.Id).Contains(x.Id)).ToList();
+                    if (DeletedComponents.Count > 0)
+                    {
+                        ComponentCost = DeletedComponents;
+                        ComponentCostYear = ComponentCostYear.Where(x => !DeletedComponents.Select(x => x.ReferenceId).Contains(x.ParentId)).ToList();
+                    }
+                }
+                #endregion
+                #region ComponentCostYear
+                var ComponentCostYearRules = jsonRules.ComponentCostYearRules.Fields.GetType()
+                .GetProperties()
+                .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
+                .Where(p => (bool?)p.GetValue(jsonRules.ComponentCostYearRules.Fields) == true)
+                .Select(p => p.Name)
+                .ToList();
+                var UpdateComponentCostYear = dto.ComponentCostYear.Where(x => x.Id != 0);
+                if (ComponentCostYear.Count > 0)
+                {
+                    foreach (var year in UpdateComponentCostYear)
+                    {
+                        var UpdateCostYear = ComponentCostYear.FirstOrDefault(x => x.Id == year.Id);
+                        if (UpdateCostYear != null)
+                        {
+                            hasUpdated = true;
+                            if (ComponentCostYearRules.Count > 0)
+                            {
+                                UpdateCostYear = ComponentCostYearRules.UpdateRevisionData(year, UpdateCostYear);
+                            }
+                            UpdateCostYear.Id = 0;
+                        }
+                    }
+                }
+                if (jsonRules.ComponentCostYearRules.CRUD.CanAdd)
+                {
+                    var NewComponentYearToInsert = dto.ComponentCostYear.Where(x => NewComponentToInsert.Select(c => c.ReferenceId).Contains(x.ParentId));
+                    if (NewComponentYearToInsert.Count() > 0)
+                    {
+                        NewComponentYear.AddRange(NewComponentYearToInsert.Select(x => new ProjectComponentCostYear
+                        {
+                            ParentId = x.ParentId,
+                            CostYear = x.CostYear,
+                            Cost = x.Cost,
+                            StartDate = x.StartDate,
+                            EndDate = x.EndDate,
+                        }));
+                    }
+                }
+                if (jsonRules.ComponentCostYearRules.CRUD.CanDelete)
+                {
+                    var DeletedComponentCostYear = ComponentCostYear.Where(x => !dto.ComponentCostYear.Select(c => c.Id).Contains(x.Id)).ToList();
+                    if (DeletedComponentCostYear.Count > 0)
+                    {
+                        ComponentCostYear = DeletedComponentCostYear;
+                    }
+                }
+                #endregion
+                #region MajorWorkItem
+                var MajorItemIds = dto.MajorItemOfWorks.Where(x => x.Id != 0).Select(x => x.Id);
+                var MajorWorkItem = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && MajorItemIds.Contains(x.Id)).ToListAsync();
+                var MajorWorkLocations = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => MajorWorkItem.Select(c => c.ReferenceId).Contains(x.ParentId)).ToListAsync();
+                var MajorWorkItemRules = jsonRules.MajorItemOfWorkRules.Fields.GetType()
+                .GetProperties()
+                .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
+                .Where(p => (bool?)p.GetValue(jsonRules.MajorItemOfWorkRules.Fields) == true)
+                .Select(p => p.Name)
+                .ToList();
+                var UpdateMajorItemOfWorks = dto.MajorItemOfWorks.Where(x => x.Id != 0);
+                if (MajorWorkItem.Count > 0)
+                {
+                    foreach (var item in UpdateMajorItemOfWorks)
+                    {
+                        var UpdateMajorWorkItem = MajorWorkItem.FirstOrDefault(x => x.Id == item.Id);
+                        if (UpdateMajorWorkItem != null)
+                        {
+                            hasUpdated = true;
+                            if (MajorWorkItemRules.Count > 0)
+                            {
+                                UpdateMajorWorkItem = MajorWorkItemRules.UpdateRevisionData(item, UpdateMajorWorkItem);
+                            }
+                            UpdateMajorWorkItem.RevisedNumber = Project.RevisedNumber;
+                            UpdateMajorWorkItem.Id = 0;
+                            var Locations = MajorWorkLocations.Where(x => x.ParentId == UpdateMajorWorkItem.ReferenceId).ToList();
+                            UpdateMajorWorkItem.ReferenceId = UpdateMajorWorkItem.ProjectId + "-" + ("tCountSequence").GenerateCode();
+                            Locations.ForEach(x => x.ParentId = UpdateMajorWorkItem.ReferenceId);
+                        }
+                    }
+                }
+                var NewMajorItemOfWorksToInsert = dto.MajorItemOfWorks.Where(x => x.Id == 0);
+                if (jsonRules.MajorItemOfWorkRules.CRUD.CanAdd)
+                {
+                    if (NewMajorItemOfWorksToInsert.Count() > 0)
+                    {
+                        NewMajorWorkItem.AddRange(NewMajorItemOfWorksToInsert.Select(x => new ProjectMajorWorkItem
+                        {
+                            ProjectId = Project.ProjectId,
+                            ReferenceId = x.ReferenceId,
+                            ComponentId = x.ComponentId,
+                            YearOfWork = x.YearOfWork,
+                            WorkTypeId = x.WorkTypeId,
+                            InfraType = x.InfraType,
+                            StageName = ProjectStage.StageName,
+                            RevisedNumber = Project.RevisedNumber,
+                            CreatedBy = _Session.UserId,
+                            CreatedDate = CurrentDate
+                        }));
+                    }
+                }
+                if (jsonRules.MajorItemOfWorkRules.CRUD.CanDelete)
+                {
+                    var DeletedMajorItems = MajorWorkItem.Where(x => !UpdateMajorItemOfWorks.Select(a => a.Id).Contains(x.Id)).ToList();
+                    if (DeletedMajorItems.Count > 0)
+                    {
+                        ;
+                        MajorWorkItem = DeletedMajorItems;
+                        var DeletedMajorItemReferenceIds = DeletedMajorItems.Select(x => x.ReferenceId).ToList();
+                        MajorWorkLocations = MajorWorkLocations.Where(x => !DeletedMajorItemReferenceIds.Contains(x.ParentId)).ToList();
+                    }
+                }
+                #endregion
+                #region MajorWorkLocations
+                var MajorItemLocationsRules = jsonRules.MajorItemLocationRules.Fields.GetType()
+                .GetProperties()
+                .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
+                .Where(p => (bool?)p.GetValue(jsonRules.MajorItemLocationRules.Fields) == true)
+                .Select(p => p.Name)
+                .ToList();
+                var UpdateMajorWorkLocations = dto.MajorItemLocations.Where(x => x.Id != 0);
+                if (MajorWorkLocations.Count > 0)
+                {
+                    foreach (var location in UpdateMajorWorkLocations)
+                    {
+                        var UpdateMajorWorkLocation = MajorWorkLocations.FirstOrDefault(x => x.Id == location.Id);
+                        if (UpdateMajorWorkLocation != null)
+                        {
+                            if (MajorWorkItemRules.Count > 0)
+                            {
+                                UpdateMajorWorkLocation = MajorItemLocationsRules.UpdateRevisionData(location, UpdateMajorWorkLocation);
+                            }
+                            hasUpdated = true;
+                            UpdateMajorWorkLocation.Id = 0;
+                        }
+                    }
+                }
+                if (jsonRules.MajorItemLocationRules.CRUD.CanAdd)
+                {
+                    var NewMajorWorkLocationsToInsert = dto.MajorItemLocations.Where(x => NewMajorItemOfWorksToInsert.Select(c => c.ReferenceId).Contains(x.ParentId));
+                    if (NewMajorWorkLocationsToInsert.Count() > 0)
+                    {
+                        NewMajorWorkLocations.AddRange(NewMajorWorkLocationsToInsert.Select(x => new ProjectMajorWorkLocations
+                        {
+                            ParentId = x.ParentId,
+                            InfraId = x.InfraId,
+                            DetailedScope = x.DetailedScope,
+                            TargetUnitId = x.TargetUnitId,
+                            TargetUnit = x.TargetUnit,
+                            StartX = x.StartX,
+                            StartY = x.StartY,
+                            EndX = x.EndX,
+                            EndY = x.EndY,
+                            PhysicalTarget = x.PhysicalTarget,
+                            StartStationLimit = x.StartStationLimit,
+                            EndStationLimit = x.EndStationLimit,
+                            EndChainage = x.EndChainage,
+                            StartChainage = x.StartChainage,
+                            CreatedBy = _Session.UserId,
+                            CreatedDate = CurrentDate
+                        }));
+                    }
+                }
+                if (jsonRules.MajorItemLocationRules.CRUD.CanDelete)
+                {
+                    var DeletedMajorWorkLocations = MajorWorkLocations.Where(x => !UpdateMajorWorkLocations.Select(a => a.Id).Contains(x.Id)).ToList();
+                    if (DeletedMajorWorkLocations.Count > 0)
+                    {
+                        MajorWorkLocations = DeletedMajorWorkLocations;
+                    }
+                }
+                #endregion
+                if (hasUpdated)
+                {
+                    if (NewFundingProfile.Count > 0 && jsonRules.FundingProfileRules.CRUD.CanAdd)
+                    {
+                        FundingProfile.AddRange(NewFundingProfile);
+                    }
+                    if (NewComponent.Count > 0 && jsonRules.ComponentCostRules.CRUD.CanAdd)
+                    {
+                        ComponentCost.AddRange(NewComponent);
+                    }
+                    if (NewComponentYear.Count > 0 && jsonRules.ComponentCostYearRules.CRUD.CanAdd)
+                    {
+                        ComponentCostYear.AddRange(NewComponentYear);
+                    }
+                    if (NewMajorWorkItem.Count > 0 && jsonRules.MajorItemOfWorkRules.CRUD.CanAdd)
+                    {
+                        MajorWorkItem.AddRange(NewMajorWorkItem);
+                    }
+                    if (NewMajorWorkLocations.Count > 0 && jsonRules.MajorItemLocationRules.CRUD.CanAdd)
+                    {
+                        MajorWorkLocations.AddRange(NewMajorWorkLocations);
+                    }
+
+                    await _db.tProjectRevisions.AddAsync(Project);
+                    await _db.SaveChangesAsync();
+                    var NewProjectStage = new ProjectStages()
+                    {
+                        ProgramId = ProjectStage.ProgramId,
+                        RevisionId = Project.Id,
+                        StageId = ProjectStage.StageId,
+                        StageName = ProjectStage.StageName,
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate,
+                        IsPublished = true
+                    };
+                    await _db.tProjectStages.AddAsync(NewProjectStage);
+                    await _db.tProjectFundingProfile.AddRangeAsync(FundingProfile);
+                    await _db.tProjectComponentCost.AddRangeAsync(ComponentCost);
+                    await _db.tProjectComponentCostYear.AddRangeAsync(ComponentCostYear);
+                    await _db.tProjectMajorWorkItem.AddRangeAsync(MajorWorkItem);
+                    await _db.tProjectMajorWorkLocations.AddRangeAsync(MajorWorkLocations);
+                    RevisionDetails.RegionStatus = EnumRevisionStatus.Pending;
+                    RevisionDetails.RegionApprover = null;
+                    RevisionDetails.RegionApprovedDate = null;
+                    RevisionDetails.COStatus = EnumRevisionStatus.Pending;
+                    RevisionDetails.COApprover = null;
+                    RevisionDetails.COApprovedDate = null;
+                    _db.tRevisionDetails.Update(RevisionDetails);
+                    await _db.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                }
+                string loc = System.IO.File.ReadAllText(SMTPClass.PathEmailTemplate);
+                string Body = $@"
+        <h3>Revision Information:</h3>
+        <table style='margin: auto; min-width: 300px; max-width: 100%; border-collapse: collapse; color: #333; border-top-left-radius: 10px; border-top-right-radius: 10px; overflow: hidden; border: 1px solid #ddd;'>
+            <tbody>
+                <tr style='border-top: none; background: #00148b; color: #fff;'>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Revision Category</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Revision Reason</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Requested by</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Requested on</th>
+                </tr>
+                <tr style='border-top: 1px solid #ddd; border-bottom: 1px solid #ddd; background-color: #f5f9fc;'>
+                        <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
+                            {RevisionCategory.RevisionName}
+                        </td>
+                        <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd
+                            {RevisionRules.Reason}
+                        </td>
+                        <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
+                            {_Session.UserId}
+                        </td>
+                        <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
+                            {CurrentDate}
+                        </td>
+                    </tr>
+                </tbody>
+        </table>
+        <h3>Project Details Information:</h3>
+        <table style='margin: auto; min-width: 300px; max-width: 100%; border-collapse: collapse; color: #333; border-top-left-radius: 10px; border-top-right-radius: 10px; overflow: hidden; border: 1px solid #ddd;'>
+            <tbody>
+                <tr style='border-top: none; background: #00148b; color: #fff;'>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Program Id</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Program Name</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Stage</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Reference Id</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Project Id</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Alternate Id</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>External Id</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>MY Id</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>UACS</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>MYCA Approval Date</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Island Code</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Revision #</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Description</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Category</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Thrust</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Origin</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>City</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Province</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Legislative District</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Operating Unit</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Implementing Office</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>DEO</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Region</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Agency</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Implementation Mode</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Emergency Mode</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Feasibility</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Feasibility Date</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Detailed Design</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Detailed Design Date</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>ROW Available</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Region Wide</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Tier</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Created By</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Created Date</th>
+                </tr>
+
+                <tr style='border-top: 1px solid #ddd; border-bottom: 1px solid #ddd; background-color: #f5f9fc;'>
+                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{dto.ProjectDetails.ProgramId}</td>
+                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{dto.ProjectDetails.ProgramName}</td>
+                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{dto.ProjectDetails.StageName}</td>
+                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.ReferenceId}</td>
+                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.ProjectId}</td>
+                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.AlternateId}</td>
+                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.ExternalId}</td>
+                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.MYId}</td>
+                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.UACS}</td>
+                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.MYCAApprovalDate}</td>
+                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.IslandCode}</td>
+                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.RevisionNumber}</td>
+                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Description}</td>
+                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Category}</td>
+                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Thrust}</td>
+                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Origin}</td>
+                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.City}</td>
+                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Province}</td>
+                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.LegislativeDistrict}</td>
+                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.OperatingUnit}</td>
+                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.ImplementingOffice}</td>
+                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.DEO}</td>
+                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Region}</td>
+                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Agency}</td>
+                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.ImplementationMode}</td>
+                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.EmergencyMode}</td>
+                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Feasibility}</td>
+                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.FeasibilityDate}</td>
+                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.DetailedDesign}</td>
+                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.DetailedDesignDate}</td>
+                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.RowAvailable}</td>
+                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.RegionWide}</td>
+                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Tier}</td>
+                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.CreatedBy}</td>
+                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.CreatedDate}</td>
+                </tr>
+
+            </tbody>
+        </table>""";
+                loc = loc.Replace("{Title}", "Project Revision <b><u>Request</u></b>");
+                loc = loc.Replace("{Body}", Body);
+                loc = loc.Replace("{Footer}", $"For more information click <a href='{Appsetting.RootPath}/Batch'>HERE</a>");
+                loc = loc.Replace("{From}", "");
+                string To = "";
+                SMTPModel EmailConfig = new SMTPModel
+                {
+                    Recipient = "mf102798@gmail.com",
+                    CCAddress = "yabutgerard@gmail.com",
+                    Subject = "Request for Revision",
+                    Body = loc
+                };
+                //EmailConfig.SendEmail();
+                return Ok(
+                    new
+                    {
+                        Message = "Revision request submitted successfully.",
+                        Title = "Success",
+                        TransactionId = TransactionId
+                    }
+                );
+            }
+            catch (DbUpdateException ex)
+            {
+                var sqlEx = ex.GetBaseException(); // usually SqlException
+                return BadRequest(new
+                {
+                    Message = "Save failed",
+                    Error = sqlEx.Message,
+                    Details = ex.InnerException?.Message,
+                    Stack = ex.StackTrace
+                });
             }
         }
     }
