@@ -5,6 +5,8 @@ import { Button } from "../../../../components/tailwindui/button";
 import { PlusIcon, TrashIcon, PencilIcon } from "@heroicons/react/24/outline";
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from "../../../../components/tailwindui/table";
 import ComponentCostDialog from "../../dialogs/ComponentCostDialog";
+import DeleteComponentDialog from "../../dialogs/deleteDialog/DeleteComponentDialog";
+import { useDeleteComponentDialog } from "../../hooks/useDeleteComponentDialog";
 
 interface ComponentCostFormProps {
   componentCosts: ComponentCostWithYears[];
@@ -35,6 +37,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
+  const { openDeleteDialog } = useDeleteComponentDialog();
   const formatCurrency = (amount: number) => {
     return amount.toLocaleString('en-PH');
   };
@@ -303,9 +306,13 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
                         <PencilIcon className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => onDelete(index)}
+                        onClick={() => {
+                          if (canDelete(cost)) {
+                            openDeleteDialog(cost, index);
+                          }
+                        }}
                         className={`text-red-600 hover:text-red-800 ${!canDelete(cost) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        title={isFromDatabase(cost) ? "Cannot delete component from database" : "Delete"}
+                        title={canDelete(cost) ? "Delete component" : "Cannot delete component"}
                         disabled={!canDelete(cost)}
                       >
                         <TrashIcon className="w-4 h-4" />
@@ -332,6 +339,12 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
           categoryDesc={category}
           reasonDesc={reason}
           reasonId={reasonId}
+        />
+        
+        {/* Delete Confirmation Dialog */}
+        <DeleteComponentDialog
+          onConfirmDelete={onDelete}
+          projectId={initialData?.ProjectDetails?.ProjectId}
         />
       </div>
   );
