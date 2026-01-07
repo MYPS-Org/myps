@@ -271,14 +271,24 @@ export interface ComponentCostFormType
 
 // #region fetch data interfaces
 export interface ComponentCost {
+	// Base identifiers
 	Id: number;
-	StageName?: string;
 	ProjectId: string;
 	ReferenceId: string;
 	ComponentType: string;
 	ComponentId: string;
-	Description: string;
+	// Descriptive
+	Description?: string;
+	StageName?: string;
+	// Financial
 	Total: number;
+	// Revision / status
+	RevisedNumber?: number;
+	ConstructionStatusCode?: number;
+	ConstructionStatusName?: string;
+	PackedStatusCode?: boolean;
+	PackedStatusName?: string;
+	// Audit
 	CreatedBy?: string;
 	CreatedDate?: string;
 	UpdatedBy?: string;

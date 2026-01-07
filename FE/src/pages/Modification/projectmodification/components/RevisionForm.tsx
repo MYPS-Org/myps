@@ -38,7 +38,7 @@ const RevisionForm: React.FC<RevisionFormProps> = ({
     fieldRules,
     pcmaStatus,
     packageStatus,
-    currentCase,
+    // currentCase,
     revisionDocs,
     forCorrectionsDetails,
     statusName,

@@ -48,7 +48,7 @@ import { checkExcessComponent } from '../../conditions/ExcessComponentAutomation
 import { useAuth } from '../../../../contexts/AuthContext';
 import { useFieldPermissions } from '../../hooks/useFieldPermissions';
 import type { RevisionProjectPayload } from '../../Model';
-import { updateRevisionRequestStatus } from '../../Service';
+// import { updateRevisionRequestStatus } from '../../Service'; 
 import ResubmitRevisionDialog from '../../dialogs/ResubmitRevisionDialog';
 
 interface ProjectFormProps {

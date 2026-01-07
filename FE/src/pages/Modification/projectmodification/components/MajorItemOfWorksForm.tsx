@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '../../../../components/tailwindui/button';
 import { PlusIcon, TrashIcon, PencilIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { Table, TableHead, TableRow, TableHeader, TableBody, TableCell } from '../../../../components/tailwindui/table';
@@ -97,34 +97,6 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
       }
     }
   }, [majorItems, dropDowns, onEdit]);
-
-  // Helper function to check if a field is editable based on fieldRules from API
-  const fieldPermissionsMap = useMemo(() => {
-    if (!fieldRules) return {};
-
-    const permissions: Record<string, boolean> = {};
-
-    // Root-level fields
-    for (const [key, value] of Object.entries(fieldRules)) {
-      if (typeof value === 'boolean') {
-        permissions[key] = value;
-      }
-    }
-
-    // Nested rules with Fields
-    for (const rules of Object.values(fieldRules)) {
-      if (typeof rules === 'object' && rules?.Fields) {
-        Object.assign(permissions, rules.Fields);
-      }
-    }
-
-    return permissions;
-  }, [fieldRules]);
-
-  // Function to check if a specific field is editable
-  const isFieldEditable = useCallback((field: string) => {
-    return fieldPermissionsMap[field] === true;
-  }, [fieldPermissionsMap]);
 
   // Check CRUD permissions from fieldRules
   const canAddMajorItem = useCallback(() => {

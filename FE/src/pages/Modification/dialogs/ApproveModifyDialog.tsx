@@ -26,13 +26,13 @@ const ApproveModifyDialog: React.FC<ApproveModifyDialogProps> = ({
     project,
     category,
     reason,
-    onApprove,
+    // onApprove,
     onSuccess
 }) => {
     const { showToast } = useToast();
     const navigate = useNavigate();
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-    const [remarks, setRemarks] = useState<string>('');
+    // const [remarks, setRemarks] = useState<string>('');
     const transactionId = useAtomValue(transactionIdAtom); // Get transactionId from atom
 
     const handleApprove = async () => {

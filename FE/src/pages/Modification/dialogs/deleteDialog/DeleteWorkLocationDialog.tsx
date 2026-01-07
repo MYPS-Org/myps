@@ -4,7 +4,6 @@ import { Button } from '../../../../components/tailwindui/button';
 import { XMarkIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { useToast } from '../../../../components/toaster/ToasterContext';
 import { useAtom, useAtomValue } from 'jotai';
-import type { MajorItemLocations } from '../../../Project/Model';
 import {
   deleteWorkLocationDialogOpenAtom,
   selectedWorkLocationForDeleteAtom,
@@ -28,10 +27,10 @@ const DeleteWorkLocationDialog: React.FC<DeleteWorkLocationDialogProps> = ({
   
   // Atoms
   const canShowDialog = useAtomValue(canShowDeleteWorkLocationDialogAtom);
-  const [isOpen, setIsOpen] = useAtom(deleteWorkLocationDialogOpenAtom);
+  const [isOpen] = useAtom(deleteWorkLocationDialogOpenAtom);
   const selectedWorkLocation = useAtomValue(selectedWorkLocationForDeleteAtom);
   const deleteIndex = useAtomValue(deleteWorkLocationIndexAtom);
-  const [isDeleting, setIsDeleting] = useAtom(deletingWorkLocationAtom);
+  const [isDeleting] = useAtom(deletingWorkLocationAtom);
   const [, closeDialog] = useAtom(closeDeleteWorkLocationDialogAtom);
   const [, setDeletingState] = useAtom(setDeletingWorkLocationStateAtom);
 

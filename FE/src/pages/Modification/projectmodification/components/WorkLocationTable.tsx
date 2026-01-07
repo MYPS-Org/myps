@@ -89,7 +89,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
   // Individual field editability checks for cleaner usage
   const isInfraIdEditable = isFieldEditable('InfraId');
   const isDetailedScopeEditable = isFieldEditable('DetailedScope');
-  const isTargetUnitEditable = isFieldEditable('TargetUnit');
+  // const isTargetUnitEditable = isFieldEditable('TargetUnit');
   const isPhysicalTargetEditable = isFieldEditable('PhysicalTarget');
   const isStartStationLimitEditable = isFieldEditable('StartStationLimit');
   const isEndStationLimitEditable = isFieldEditable('EndStationLimit');

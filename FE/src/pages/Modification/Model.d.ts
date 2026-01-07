@@ -178,3 +178,6 @@ export interface RevisionFilter {
   COApproveStatus?: number;
 }
 
+export interface ComponentCostWithYears extends ComponentCost {
+    
+}

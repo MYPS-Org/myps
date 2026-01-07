@@ -241,10 +241,10 @@ const ModificationList: React.FC = () => {
                                         </Button>
                                     )}
                                 </div>
-                                <Button color="blue" onClick={() => handleAddProject()} disabled={isLoading} className="text-xs px-3 py-1.5">
+                                {/* <Button color="blue" onClick={() => handleAddProject()} disabled={isLoading} className="text-xs px-3 py-1.5">
                                     <PlusIcon className="w-4 h-4 mr-1" />
                                     {isLoading ? 'Loading...' : 'Add Project'}
-                                </Button>
+                                </Button> */}
                             </div>
                         </div>
                     </div>
@@ -483,12 +483,12 @@ const ModificationList: React.FC = () => {
             />
             )} */}
             {/* Add Revise Dialog */}
-            {isAddNewDialogOpen && (
+            {/* {isAddNewDialogOpen && (
                 <AddProjectDialog
                     isOpen={isAddNewDialogOpen}
                     onClose={() => setIsAddNewDialogOpen(false)}
                 />
-            )}
+            )} */}
         </div>
     );
 };
