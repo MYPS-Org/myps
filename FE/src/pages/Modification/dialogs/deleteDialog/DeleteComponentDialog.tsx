@@ -4,7 +4,6 @@ import { Button } from '../../../../components/tailwindui/button';
 import { XMarkIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { useToast } from '../../../../components/toaster/ToasterContext';
 import { useAtom, useAtomValue } from 'jotai';
-import type { ComponentCostWithYears } from '../../../Project/Model';
 import {
   deleteDialogOpenAtom,
   selectedComponentForDeleteAtom,
@@ -22,14 +21,13 @@ interface DeleteComponentDialogProps {
 
 const DeleteComponentDialog: React.FC<DeleteComponentDialogProps> = ({
   onConfirmDelete,
-  projectId
 }) => {
   // Atoms
   const canShowDialog = useAtomValue(canShowDeleteDialogAtom);
-  const [isOpen, setIsOpen] = useAtom(deleteDialogOpenAtom);
+  const [isOpen] = useAtom(deleteDialogOpenAtom);
   const selectedComponent = useAtomValue(selectedComponentForDeleteAtom);
   const deleteIndex = useAtomValue(deleteIndexAtom);
-  const [isDeleting, setIsDeleting] = useAtom(deletingComponentAtom);
+  const [isDeleting] = useAtom(deletingComponentAtom);
   const [, closeDialog] = useAtom(closeDeleteDialogAtom);
   const [, setDeletingState] = useAtom(setDeletingStateAtom);
 

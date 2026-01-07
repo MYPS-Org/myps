@@ -3,7 +3,9 @@ import { Button } from '../../../../components/tailwindui/button';
 import { PlusIcon, TrashIcon, PencilIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { Table, TableHead, TableRow, TableHeader, TableBody, TableCell } from '../../../../components/tailwindui/table';
 import AddMajorItemDialog from '../../dialogs/AddMajorItemDialog';
+import DeleteMajorItemDialog from '../../dialogs/deleteDialog/DeleteMajorItemDialog';
 import WorkLocationTable from './WorkLocationTable';
+import { useDeleteMajorItemDialog } from '../../hooks/useDeleteMajorItemDialog';
 import type { 
   MajorItemOfWorksWithDropdown, 
   ComponentCost, 
@@ -44,6 +46,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
   const [editingMajorItemIndex, setEditingMajorItemIndex] = useState<number | null>(null);
   const [isAddingNewMajorItem, setIsAddingNewMajorItem] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+  const { openDeleteDialog } = useDeleteMajorItemDialog();
 
   // Debug: Monitor when majorItems prop changes
   useEffect(() => {
@@ -368,7 +371,16 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                       </Button>
                       <Button
                         color="red"
-                        onClick={() => onDelete(index)}
+                        onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          console.log('Delete button clicked for major item:', item, 'index:', index);
+                          console.log('Can delete major item:', canDeleteMajorItem());
+                          if (canDeleteMajorItem()) {
+                            console.log('Opening delete dialog...');
+                            openDeleteDialog(item, index);
+                          }
+                        }}
                         className={`text-xs px-2 py-1 ${getDisabledClass(!canDeleteMajorItem())}`}
                         disabled={!canDeleteMajorItem()}
                       >
@@ -431,6 +443,14 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
         } : undefined}
         existingMajorItems={majorItems.map(item => ({ ComponentId: item.ComponentId }))}
         programDetails={programDetails}
+      />
+      
+      {/* Delete Confirmation Dialog */}
+      <DeleteMajorItemDialog
+        onConfirmDelete={onDelete}
+        projectId={projectId}
+        getWorkTypeDescription={getWorkTypeDescription}
+        getComponentDescription={getComponentDescription}
       />
     </div>
   );
