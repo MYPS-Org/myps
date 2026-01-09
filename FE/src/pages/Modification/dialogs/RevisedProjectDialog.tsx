@@ -100,6 +100,19 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         
+        // Calculate totals for validation
+        const totalComponentCost = componentCosts.reduce((sum, cost) => sum + (cost.Total || 0), 0);
+        const totalFundingAmount = fundingProfile.reduce((sum, funding) => sum + (funding.Amount || 0), 0);
+        
+        // Validation: Check if funding profile total matches component costs total
+        if (Math.abs(totalFundingAmount - totalComponentCost) > 0.01) { // Allow for small floating point differences
+            showToast({
+                type: 'error',
+                message: `Funding profile total (₱${totalFundingAmount.toLocaleString()}) must equal component costs total (₱${totalComponentCost.toLocaleString()}).`
+            });
+            return;
+        }
+        
         // Validation
         if (!approvalDate) {
             showToast({
@@ -229,7 +242,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
                     <div>
                         <DialogTitle className="text-lg font-semibold text-gray-900">
-                            Revise Project
+                            {revisionCategory} Project
                         </DialogTitle>
                         <p className="text-sm text-gray-600 mt-1">
                             {project.ProjectId}
@@ -354,7 +367,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
                         <Button
                             type="submit"
                             color="blue"
-                            disabled={isSubmitting || (user?.UserGroups === 'DPC' && !isCertified)}
+                            disabled={isSubmitting || ((user?.UserGroups === 'DPC' || user?.UserGroups === 'AUC') && !isCertified)}
                         >
                             {isSubmitting ? 'Submitting...' : 'Submit'}
                         </Button>

@@ -1,5 +1,3 @@
-
-
 import type { 
     ProjectDetails, 
     ComponentCost, 
@@ -133,7 +131,7 @@ const RevisionForm: React.FC<RevisionFormProps> = ({
                                                     </span>
                                                 </div>
                                                 <a
-                                                    href={'https://2639m87p-44331.asse.devtunnels.ms/api' + doc.DocumentPath}
+                                                    href={import.meta.env.VITE_API_BASE_URL?.replace('api', '/') + '/' + doc.DocumentPath}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className="flex-shrink-0 ml-2 px-3 py-1 text-xs font-medium text-blue-700 bg-blue-100 border border-blue-300 rounded hover:bg-blue-200 transition-colors"

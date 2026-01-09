@@ -965,13 +965,20 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                     </Button>
                   </>
                 )}
-                {mode === 'edit' && (initialData?.RevisionDetails?.RegionStatus == 3 && initialData?.RevisionDetails?.COStatus == 0) && (user?.UserGroups === 'DPC' ) && (
+                {mode === 'edit' && (initialData?.RevisionDetails?.RegionStatus == 3 || initialData?.RevisionDetails?.COStatus == 3) && (user?.UserGroups === 'DPC' ) && (
                   <>
                     <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify('resubmit')} disabled={updateResubmitRevision}>
                       {updateReviseProject ? 'Submitting...' : 'Re-Submit Revision'}
                     </Button>
                   </>
                 )}
+                {/* {mode === 'edit' && (initialData?.RevisionDetails?.COStatus == 3 && initialData?.RevisionDetails.RegionStatus !== 3) && (user?.UserGroups === 'RPC' ) && (
+                  <>
+                    <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify('resubmit')} disabled={updateResubmitRevision}>
+                      {updateReviseProject ? 'Submitting...' : 'Re-Submit Revision'}
+                    </Button>
+                  </>
+                )} */}
                 {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus == null && (user?.UserGroups === 'DPC' ) && (
                   <>
                     <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify('new')} disabled={updateReviseProject}>
@@ -1276,7 +1283,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         projectStatus={initialData?.ProjectStatus}
         isOpen={isRevisedProjectDialogOpen}
         onClose={() => setIsRevisedProjectDialogOpen(false)}
-        revisionCategory={modificationCategory}
+        revisionCategory={permissions?.category || modificationCategory}
         revisionReason={modificationReason}
         reasonId={modificationReasonId}
         categoryId={categoryId}
@@ -1313,7 +1320,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         projectStatus={initialData?.ProjectStatus}
         isOpen={isResubmitRevisionDialogOpen}
         onClose={() => setIsResubmitRevisionDialogOpen(false)}
-        revisionCategory={modificationCategory}
+        revisionCategory={permissions?.category || modificationCategory}
         revisionReason={modificationReason}
         reasonId={modificationReasonId}
         categoryId={categoryId}
@@ -1351,7 +1358,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           isOpen={isApproveDialogOpen}
           onClose={() => setIsApproveDialogOpen(false)}
           project={initialData?.ProjectDetails || projectDetails}
-          category={modificationCategory}
+          category={permissions?.category || modificationCategory}
           reason={modificationReason}
           onApprove={handleApproveModification}
           onSuccess={onActionSuccess}
@@ -1364,7 +1371,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           isOpen={isForReviewDialogOpen}
           onClose={() => setIsForReviewDialogOpen(false)}
           project={initialData?.ProjectDetails || projectDetails}
-          category={modificationCategory}
+          category={permissions?.category || modificationCategory}
           reason={modificationReason}
           onSuccess={onActionSuccess}
         />
@@ -1376,7 +1383,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           isOpen={isRejectDialogOpen}
           onClose={() => setIsRejectDialogOpen(false)}
           project={initialData?.ProjectDetails || projectDetails}
-          category={modificationCategory}
+          category={permissions?.category || modificationCategory}
           reason={modificationReason}
           onReject={handleRejectModification}
           onSuccess={onActionSuccess}

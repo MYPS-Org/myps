@@ -88,7 +88,7 @@ const ForReviewModifyDialog: React.FC<ForReviewModifyDialogProps> = ({
                         <div className="flex items-center gap-3">
                             <ExclamationTriangleIcon className="h-6 w-6 text-amber-600" />
                             <DialogTitle className="text-lg font-semibold text-gray-900">
-                                Request Changes for Modification
+                                Request Changes for {category}
                             </DialogTitle>
                         </div>
                         <button
@@ -134,7 +134,7 @@ const ForReviewModifyDialog: React.FC<ForReviewModifyDialogProps> = ({
 
                             {/* Modification Details */}
                             <div className="bg-blue-50 p-4 rounded-lg space-y-3">
-                                <h4 className="text-sm font-semibold text-gray-900">Modification Details</h4>
+                                <h4 className="text-sm font-semibold text-gray-900">{category} Details</h4>
                                 <div className="grid grid-cols-2 gap-4 text-sm">
                                     {category && (
                                         <div>

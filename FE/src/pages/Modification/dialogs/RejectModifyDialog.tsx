@@ -42,7 +42,7 @@ const RejectModifyDialog: React.FC<RejectModifyDialogProps> = ({
         if (!rejectionReason.trim()) {
             showToast({
                 type: 'error',
-                message: 'Please provide a reason for rejecting this modification request.'
+                message: `Please provide a reason for rejecting this ${category} request.`
             });
             return;
         }
@@ -55,7 +55,7 @@ const RejectModifyDialog: React.FC<RejectModifyDialogProps> = ({
             
             showToast({
                 type: 'success',
-                message: 'Modification request has been rejected. The requester will be notified.'
+                message: `${category} request has been rejected. The requester will be notified.`
             });
             
             setRejectionReason('');
@@ -65,13 +65,13 @@ const RejectModifyDialog: React.FC<RejectModifyDialogProps> = ({
             if (onSuccess) {
                 onSuccess();
             } else {
-                navigate('/modification/list');
+                navigate('/revision');
             }
         } catch (error) {
-            console.error('Error rejecting modification:', error);
+            console.error(`Error rejecting ${category}:`, error);
             showToast({
                 type: 'error',
-                message: 'Failed to reject modification request.'
+                message: `Failed to reject ${category} request.`
             });
         } finally {
             setIsSubmitting(false);
@@ -91,7 +91,7 @@ const RejectModifyDialog: React.FC<RejectModifyDialogProps> = ({
                         <div className="flex items-center gap-3">
                             <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
                             <DialogTitle className="text-lg font-semibold text-gray-900">
-                                Disapproval Modification Request
+                                Disapproval {category} Request
                             </DialogTitle>
                         </div>
                         <button
@@ -109,7 +109,7 @@ const RejectModifyDialog: React.FC<RejectModifyDialogProps> = ({
                             {/* Warning Message */}
                             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                                 <p className="text-sm text-red-800 font-medium">
-                                    You are about to Disapprove this modification request.
+                                    You are about to Disapprove this {category} request.
                                 </p>
                                 <p className="text-sm text-red-700 mt-2">
                                     This action will decline the proposed changes and notify the requester. Please provide a clear reason for disapproval.
@@ -137,7 +137,7 @@ const RejectModifyDialog: React.FC<RejectModifyDialogProps> = ({
 
                             {/* Modification Details */}
                             <div className="bg-blue-50 p-4 rounded-lg space-y-3">
-                                <h4 className="text-sm font-semibold text-gray-900">Modification Details</h4>
+                                <h4 className="text-sm font-semibold text-gray-900">{category} Details</h4>
                                 <div className="grid grid-cols-2 gap-4 text-sm">
                                     {category && (
                                         <div>
@@ -162,7 +162,7 @@ const RejectModifyDialog: React.FC<RejectModifyDialogProps> = ({
                                 <textarea
                                     value={rejectionReason}
                                     onChange={(e) => setRejectionReason(e.target.value)}
-                                    placeholder="Explain why this modification request is being rejected..."
+                                    placeholder={`Explain why this ${category} request is being rejected...`}
                                     rows={5}
                                     required
                                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -176,7 +176,7 @@ const RejectModifyDialog: React.FC<RejectModifyDialogProps> = ({
                             {/* Confirmation Warning */}
                             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                                 <p className="text-xs text-yellow-800">
-                                    <strong>Note:</strong> Once rejected, the requester will need to submit a new modification request if changes are still needed.
+                                    <strong>Note:</strong> Once rejected, the requester will need to submit a new {category} request if changes are still needed.
                                 </p>
                             </div>
                         </div>

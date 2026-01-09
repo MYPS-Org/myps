@@ -27,7 +27,6 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
     projectEnums,
     mode = '',
     errors = {},
-    disabled = false,
     fieldRules,
 }) => {
     const [ filteredCities, setFilteredCities ] = useState<ProjectEnums['Cities']>([]);
@@ -40,22 +39,24 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
     const fieldPermissions = useMemo(() => {
         if (!fieldRules) return {};
 
+        console.log('Processing fieldRules:', fieldRules);
+
         const permissions: Record<string, boolean> = {};
 
-        // Root-level fields
+        // Extract ProjectDetailsRules specifically (these are at root level in that section)
+        if (fieldRules.ProjectDetailsRules && typeof fieldRules.ProjectDetailsRules === 'object') {
+            Object.assign(permissions, fieldRules.ProjectDetailsRules);
+            console.log('Extracted ProjectDetailsRules:', fieldRules.ProjectDetailsRules);
+        }
+
+        // If there are any other root-level boolean fields, include them
         for (const [key, value] of Object.entries(fieldRules)) {
             if (typeof value === 'boolean') {
-            permissions[key] = value;
+                permissions[key] = value;
             }
         }
 
-        // Nested rules with Fields
-        for (const rules of Object.values(fieldRules)) {
-            if (typeof rules === 'object' && rules?.Fields) {
-            Object.assign(permissions, rules.Fields);
-            }
-        }
-
+        console.log('Final fieldPermissions:', permissions);
         return permissions;
     }, [fieldRules]);
 
@@ -307,6 +308,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                 ))}
             </div>
             <div className="space-y-8 text-sm">
+                {JSON.stringify(fieldPermissions)}
                 
                 {/* General Information Section */}
                 <div className="space-y-4">
@@ -331,26 +333,34 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.MYId ? 'text-red-500' : 'text-gray-600'}`}>Multi Year ID:</label>
-                                <input 
-                                    type="text" 
-                                    value={projectDetails?.MYId || ''}
-                                    onChange={(e) => handleInputChange('MYId', e.target.value)}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.MYId ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
-                                    disabled={disabled}
-                                />
+                                <EditableField field="MYId" isFieldEditable={isFieldEditable}>
+                                    {(editable) => (
+                                    <input 
+                                        type="text" 
+                                        value={projectDetails?.MYId || ''}
+                                        onChange={(e) => handleInputChange('MYId', e.target.value)}
+                                        className={`w-2/3 mt-1 px-3 py-2 border ${errors.MYId ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(!editable)} rounded-md truncate`}
+                                        disabled={!editable}
+                                    />
+                                    )}
+                                </EditableField>
                             </div>
                         </div>
 
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.AlternateId ? 'text-red-500' : 'text-gray-600'}`}>Alternate ID:</label>
-                                <input 
-                                    type="text" 
-                                    value={projectDetails?.AlternateId || ''}
-                                    onChange={(e) => handleInputChange('AlternateId', e.target.value)}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.AlternateId ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
-                                    disabled={disabled}
-                                />
+                                <EditableField field="AlternateId" isFieldEditable={isFieldEditable}>
+                                    {(editable) => (
+                                    <input 
+                                        type="text" 
+                                        value={projectDetails?.AlternateId || ''}
+                                        onChange={(e) => handleInputChange('AlternateId', e.target.value)}
+                                        className={`w-2/3 mt-1 px-3 py-2 border ${errors.AlternateId ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(!editable)} rounded-md truncate`}
+                                        disabled={!editable}
+                                    />
+                                    )}
+                                </EditableField>
                             </div>
                         </div>
                     </div>
@@ -360,40 +370,52 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.ExternalId ? 'text-red-500' : 'text-gray-600'}`}>External ID:</label>
-                                <input 
-                                    type="text"
-                                    value={projectDetails?.ExternalId || ''}
-                                    onChange={(e) => handleInputChange('ExternalId', e.target.value)}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.ExternalId ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
-                                    disabled={disabled}
-                                />
+                                <EditableField field="ExternalId" isFieldEditable={isFieldEditable}>
+                                    {(editable) => (
+                                    <input 
+                                        type="text"
+                                        value={projectDetails?.ExternalId || ''}
+                                        onChange={(e) => handleInputChange('ExternalId', e.target.value)}
+                                        className={`w-2/3 mt-1 px-3 py-2 border ${errors.ExternalId ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(!editable)} rounded-md truncate`}
+                                        disabled={!editable}
+                                    />
+                                    )}
+                                </EditableField>
                             </div>
                         </div>
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.UACS ? 'text-red-500' : 'text-gray-600'}`}>OA Project Code (UACS):</label>
-                                <input 
-                                    type="text" 
-                                    value={projectDetails?.UACS || ''}
-                                    onChange={(e) => handleInputChange('UACS', e.target.value)}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.UACS ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
-                                    disabled={disabled}
-                                />
+                                <EditableField field="UACS" isFieldEditable={isFieldEditable}>
+                                    {(editable) => (
+                                    <input 
+                                        type="text" 
+                                        value={projectDetails?.UACS || ''}
+                                        onChange={(e) => handleInputChange('UACS', e.target.value)}
+                                        className={`w-2/3 mt-1 px-3 py-2 border ${errors.UACS ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(!editable)} rounded-md truncate`}
+                                        disabled={!editable}
+                                    />
+                                    )}
+                                </EditableField>
                             </div>
                         </div>
 
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className='flex flex-row gap-5 items-center'>
                                 <label className={`w-1/3 ${errors.Tier ? 'text-red-500' : 'text-gray-600'}`}>Tier</label>
-                                <select
-                                    value={projectDetails?.Tier}
-                                    onChange={(e) => handleInputChange('Tier', parseInt(e.target.value))}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.Tier ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
-                                    disabled={disabled}
-                                >
-                                    <option value={1}>Tier I</option>
-                                    <option value={2}>Tier II</option>
-                                </select>
+                                <EditableField field="Tier" isFieldEditable={isFieldEditable}>
+                                    {(editable) => (
+                                    <select
+                                        value={projectDetails?.Tier}
+                                        onChange={(e) => handleInputChange('Tier', parseInt(e.target.value))}
+                                        className={`w-2/3 mt-1 px-3 py-2 border ${errors.Tier ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(!editable)} rounded-md truncate`}
+                                        disabled={!editable}
+                                    >
+                                        <option value={1}>Tier I</option>
+                                        <option value={2}>Tier II</option>
+                                    </select>
+                                    )}
+                                </EditableField>
                             </div>
                         </div>
 
@@ -404,21 +426,25 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.Category ? 'text-red-500' : 'text-gray-600'}`}>*Category:</label>
                                 <div className="w-2/3 min-w-0">
-                                    <SearchableDropdown
-                                        options={formatDropdownOptions(
-                                            projectEnums?.Categories?.filter(x => x.ValidUntil === 0 || x.ValidUntil > new Date().getFullYear()) || [], 
-                                            'Enum', 
-                                            'Name', 
-                                            'Id'
+                                    <EditableField field="Category" isFieldEditable={isFieldEditable}>
+                                        {(editable) => (
+                                        <SearchableDropdown
+                                            options={formatDropdownOptions(
+                                                projectEnums?.Categories?.filter(x => x.ValidUntil === 0 || x.ValidUntil > new Date().getFullYear()) || [], 
+                                                'Enum', 
+                                                'Name', 
+                                                'Id'
+                                            )}
+                                            value={projectDetails?.Category || ''}
+                                            onChange={(value) => handleInputChange('Category', value === '' ? undefined : parseInt(value.toString()))}
+                                            placeholder="Select Category"
+                                            disabled={!editable}
+                                            error={!!errors.Category}
+                                            allowClear={true}
+                                            searchPlaceholder="Search categories..."
+                                        />
                                         )}
-                                        value={projectDetails?.Category || ''}
-                                        onChange={(value) => handleInputChange('Category', value === '' ? undefined : parseInt(value.toString()))}
-                                        placeholder="Select Category"
-                                        disabled={disabled}
-                                        error={!!errors.Category}
-                                        allowClear={true}
-                                        searchPlaceholder="Search categories..."
-                                    />
+                                    </EditableField>
                                 </div>
                             </div>
                         </div>
@@ -427,21 +453,25 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.Thrust ? 'text-red-500' : 'text-gray-600'}`}>*Sub-Category:</label>
                                 <div className='w-2/3 min-w-0'>
-                                    <SearchableDropdown
-                                        options={formatDropdownOptions(
-                                            projectEnums?.Thrusts?.filter(x => x.ValidFromDate < new Date().getFullYear() && x.ValidToDate > new Date().getFullYear() || x.ValidToDate === 0) || [],
-                                            'PAPKey',
-                                            'ThrustDescription',
-                                            'Id'
+                                    <EditableField field="Thrust" isFieldEditable={isFieldEditable}>
+                                        {(editable) => (
+                                        <SearchableDropdown
+                                            options={formatDropdownOptions(
+                                                projectEnums?.Thrusts?.filter(x => x.ValidFromDate < new Date().getFullYear() && x.ValidToDate > new Date().getFullYear() || x.ValidToDate === 0) || [],
+                                                'PAPKey',
+                                                'ThrustDescription',
+                                                'Id'
+                                            )}
+                                            value={projectDetails?.Thrust || ''}
+                                            onChange={(value) => handleInputChange('Thrust', value === '' ? undefined : parseInt(value.toString()))}
+                                            placeholder="Select Sub-Category"
+                                            disabled={!editable}
+                                            error={!!errors.Thrust}
+                                            allowClear={true}
+                                            searchPlaceholder="Search sub-categories..."
+                                        />
                                         )}
-                                        value={projectDetails?.Thrust || ''}
-                                        onChange={(value) => handleInputChange('Thrust', value === '' ? undefined : parseInt(value.toString()))}
-                                        placeholder="Select Sub-Category"
-                                        disabled={disabled}
-                                        error={!!errors.Thrust}
-                                        allowClear={true}
-                                        searchPlaceholder="Search sub-categories..."
-                                    />
+                                    </EditableField>
                                 </div>
                             </div>
                         </div>
@@ -449,13 +479,17 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                         <div className="w-full flex flex-col text-left gap-2">
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.MYCAApprovalDate ? 'text-red-500' : 'text-gray-600'}`}>MYCA Approval Date:</label>
-                                <input 
-                                    type="date"
-                                    value={projectDetails?.MYCAApprovalDate ? new Date(projectDetails?.MYCAApprovalDate).toISOString().split('T')[0] : ''}
-                                    onChange={(e) => handleInputChange('MYCAApprovalDate', e.target.value ? new Date(e.target.value).toISOString() : null)}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.MYCAApprovalDate ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(!isFieldEditable('MYCAApprovalDate'))} rounded-md truncate`}
-                                    disabled={!isFieldEditable('MYCAApprovalDate')}
-                                />
+                                <EditableField field='MYCAApprovalDate' isFieldEditable={isFieldEditable}>
+                                    {(editable) => (
+                                        <input 
+                                            type="date"
+                                            value={projectDetails?.MYCAApprovalDate ? new Date(projectDetails?.MYCAApprovalDate).toISOString().split('T')[0] : ''}
+                                            onChange={(e) => handleInputChange('MYCAApprovalDate', e.target.value ? new Date(e.target.value).toISOString() : null)}
+                                            className={`w-2/3 mt-1 px-3 py-2 border ${errors.MYCAApprovalDate ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(!isFieldEditable('MYCAApprovalDate'))} rounded-md truncate`}
+                                            disabled={!editable}
+                                        />
+                                    )}
+                                </EditableField>
                             </div>
                         </div>
                     </div>
@@ -492,16 +526,20 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             <div className="flex flex-row gap-5 items-center">
                                 <label className="w-1/3 text-gray-600">Province:</label>
                                 <div className="w-2/3">
-                                    <SearchableDropdown
-                                        options={formatDropdownOptions(projectEnums?.Provinces || [], 'GdbId', 'Name', 'Id')}
-                                        value={projectDetails?.Province || ''}
-                                        onChange={(value) => handleInputChange('Province', value === '' ? undefined : value.toString())}
-                                        placeholder="Select Province"
-                                        disabled={disabled}
-                                        error={!!errors.Province}
-                                        allowClear={true}
-                                        searchPlaceholder="Search provinces..."
-                                    />
+                                    <EditableField field="Province" isFieldEditable={isFieldEditable}>
+                                        {(editable) => (
+                                        <SearchableDropdown
+                                            options={formatDropdownOptions(projectEnums?.Provinces || [], 'GdbId', 'Name', 'Id')}
+                                            value={projectDetails?.Province || ''}
+                                            onChange={(value) => handleInputChange('Province', value === '' ? undefined : value.toString())}
+                                            placeholder="Select Province"
+                                            disabled={!editable}
+                                            error={!!errors.Province}
+                                            allowClear={true}
+                                            searchPlaceholder="Search provinces..."
+                                        />
+                                        )}
+                                    </EditableField>
                                 </div>
                             </div>
                         </div>
@@ -510,16 +548,20 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.City ? 'text-red-500' : 'text-gray-600'}`}>*City/Municipality:</label>
                                 <div className="w-2/3">
-                                    <SearchableDropdown
-                                        options={formatDropdownOptions(filteredCities || [], 'GdbId', 'Name', 'Id')}
-                                        value={projectDetails?.City || ''}
-                                        onChange={(value) => handleInputChange('City', value === '' ? undefined : value.toString())}
-                                        placeholder="Select City/Municipality"
-                                        disabled={!isFieldEditable('City')}
-                                        error={!!errors.City}
-                                        allowClear={true}
-                                        searchPlaceholder="Search cities/municipalities..."
-                                    />
+                                    <EditableField field="City" isFieldEditable={isFieldEditable}>
+                                        {(editable) => (
+                                        <SearchableDropdown
+                                            options={formatDropdownOptions(filteredCities || [], 'GdbId', 'Name', 'Id')}
+                                            value={projectDetails?.City || ''}
+                                            onChange={(value) => handleInputChange('City', value === '' ? undefined : value.toString())}
+                                            placeholder="Select City/Municipality"
+                                            disabled={!editable}
+                                            error={!!errors.City}
+                                            allowClear={true}
+                                            searchPlaceholder="Search cities/municipalities..."
+                                        />
+                                        )}
+                                    </EditableField>
                                 </div>
                             </div>
                         </div>
@@ -528,16 +570,20 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.LegislativeDistrict ? 'text-red-500' : 'text-gray-600'}`}>*Legislative District:</label>
                                 <div className="w-2/3">
-                                    <SearchableDropdown
-                                        options={formatDropdownOptions(filteredLegislativeDistricts || [], 'GdbId', 'Name', 'Id')}
-                                        value={projectDetails?.LegislativeDistrict || ''}
-                                        onChange={(value) => handleInputChange('LegislativeDistrict', value === '' ? undefined : value.toString())}
-                                        placeholder="Select Legislative District"
-                                        disabled={!isFieldEditable('LegislativeDistrict')}
-                                        error={!!errors.LegislativeDistrict}
-                                        allowClear={true}
-                                        searchPlaceholder="Search legislative districts..."
-                                    />
+                                    <EditableField field="LegislativeDistrict" isFieldEditable={isFieldEditable}>
+                                        {(editable) => (
+                                        <SearchableDropdown
+                                            options={formatDropdownOptions(filteredLegislativeDistricts || [], 'GdbId', 'Name', 'Id')}
+                                            value={projectDetails?.LegislativeDistrict || ''}
+                                            onChange={(value) => handleInputChange('LegislativeDistrict', value === '' ? undefined : value.toString())}
+                                            placeholder="Select Legislative District"
+                                            disabled={!editable}
+                                            error={!!errors.LegislativeDistrict}
+                                            allowClear={true}
+                                            searchPlaceholder="Search legislative districts..."
+                                        />
+                                        )}
+                                    </EditableField>
                                 </div>
                             </div>
                         </div>
@@ -556,16 +602,20 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.DEO ? 'text-red-500' : 'text-gray-600'}`}>*District Engineering Office:</label>
                                 <div className='w-2/3'>
-                                    <SearchableDropdown
-                                        options={formatDropdownOptions(filteredDEOs || [], 'ParticipantId', 'Name')}
-                                        value={projectDetails?.DEO || ''}
-                                        onChange={(value) => handleInputChange('DEO', value === '' ? undefined : value.toString())}
-                                        placeholder="Select District Engineering Office"
-                                        disabled={mode === 'edit' || !isFieldEditable('DEO')}
-                                        error={!!errors.DEO}
-                                        allowClear={true}
-                                        searchPlaceholder="Search district engineering offices..."
-                                    />
+                                    <EditableField field="DEO" isFieldEditable={isFieldEditable}>
+                                        {(editable) => (
+                                        <SearchableDropdown
+                                            options={formatDropdownOptions(filteredDEOs || [], 'ParticipantId', 'Name')}
+                                            value={projectDetails?.DEO || ''}
+                                            onChange={(value) => handleInputChange('DEO', value === '' ? undefined : value.toString())}
+                                            placeholder="Select District Engineering Office"
+                                            disabled={mode === 'edit' || !editable}
+                                            error={!!errors.DEO}
+                                            allowClear={true}
+                                            searchPlaceholder="Search district engineering offices..."
+                                        />
+                                        )}
+                                    </EditableField>
                                 </div>
                             </div>
                         </div>
@@ -574,21 +624,25 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.Region ? 'text-red-500' : 'text-gray-600'}`}>Region:</label>
                                 <div className='w-2/3'>
-                                    <SearchableDropdown
-                                        options={formatDropdownOptions(
-                                            projectEnums?.DEOs?.filter(x => x.ParticipantId === projectDetails?.DEO) || [],
-                                            'RegionParticipantId',
-                                            'RegionName',
-                                            'Id'
+                                    <EditableField field="Region" isFieldEditable={isFieldEditable}>
+                                        {(editable) => (
+                                        <SearchableDropdown
+                                            options={formatDropdownOptions(
+                                                projectEnums?.DEOs?.filter(x => x.ParticipantId === projectDetails?.DEO) || [],
+                                                'RegionParticipantId',
+                                                'RegionName',
+                                                'Id'
+                                            )}
+                                            value={projectDetails?.Region || ''}
+                                            onChange={(value) => handleInputChange('Region', value === '' ? undefined : value.toString())}
+                                            placeholder="Select Regional Office"
+                                            disabled={mode === 'edit' || !editable}
+                                            error={!!errors.Region}
+                                            allowClear={true}
+                                            searchPlaceholder="Search regional offices..."
+                                        />
                                         )}
-                                        value={projectDetails?.Region || ''}
-                                        onChange={(value) => handleInputChange('Region', value === '' ? undefined : value.toString())}
-                                        placeholder="Select Regional Office"
-                                        disabled={mode === 'edit' || disabled}
-                                        error={!!errors.Region}
-                                        allowClear={true}
-                                        searchPlaceholder="Search regional offices..."
-                                    />
+                                    </EditableField>
                                 </div>
                             </div>
                         </div>
@@ -599,19 +653,23 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.ImplementingOffice ? 'text-red-500' : 'text-gray-600'}`}>*Implementing Office:</label>
                                 <div className="w-2/3">
-                                    <SearchableDropdown
-                                        options={formatDropdownOptions( filteredIOs || [], 
-                                            'ParticipantId', 
-                                            'Name',
+                                    <EditableField field="ImplementingOffice" isFieldEditable={isFieldEditable}>
+                                        {(editable) => (
+                                        <SearchableDropdown
+                                            options={formatDropdownOptions( filteredIOs || [], 
+                                                'ParticipantId', 
+                                                'Name',
+                                            )}
+                                            value={projectDetails?.ImplementingOffice || ''}
+                                            onChange={(value) => handleInputChange('ImplementingOffice', value === '' ? undefined : value.toString())}
+                                            placeholder="Select Implementing Office"
+                                            disabled={!editable}
+                                            error={!!errors.ImplementingOffice}
+                                            allowClear={true}
+                                            searchPlaceholder="Search implementing offices..."
+                                        />
                                         )}
-                                        value={projectDetails?.ImplementingOffice || ''}
-                                        onChange={(value) => handleInputChange('ImplementingOffice', value === '' ? undefined : value.toString())}
-                                        placeholder="Select Implementing Office"
-                                        disabled={!isFieldEditable('ImplementingOffice')}
-                                        error={!!errors.ImplementingOffice}
-                                        allowClear={true}
-                                        searchPlaceholder="Search implementing offices..."
-                                    />
+                                    </EditableField>
                                 </div>
                             </div>
                         </div>
@@ -620,16 +678,20 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.OperatingUnit ? 'text-red-500' : 'text-gray-600'}`}>*Operating Unit:</label>
                                 <div className="w-2/3">
-                                    <SearchableDropdown
-                                        options={formatDropdownOptions(filteredOUs || [], 'ParticipantId', 'Name')}
-                                        value={projectDetails?.OperatingUnit || ''}
-                                        onChange={(value) => handleInputChange('OperatingUnit', value === '' ? undefined : value.toString())}
-                                        placeholder="Select Operating Unit"
-                                        disabled={!isFieldEditable('OperatingUnit')}
-                                        error={!!errors.OperatingUnit}
-                                        allowClear={true}
-                                        searchPlaceholder="Search operating units..."
-                                    />
+                                    <EditableField field="OperatingUnit" isFieldEditable={isFieldEditable}>
+                                        {(editable) => (
+                                        <SearchableDropdown
+                                            options={formatDropdownOptions(filteredOUs || [], 'ParticipantId', 'Name')}
+                                            value={projectDetails?.OperatingUnit || ''}
+                                            onChange={(value) => handleInputChange('OperatingUnit', value === '' ? undefined : value.toString())}
+                                            placeholder="Select Operating Unit"
+                                            disabled={!editable}
+                                            error={!!errors.OperatingUnit}
+                                            allowClear={true}
+                                            searchPlaceholder="Search operating units..."
+                                        />
+                                        )}
+                                    </EditableField>
                                 </div>
                             </div>
                         </div>
@@ -639,24 +701,23 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.RegionWide ? 'text-red-500' : 'text-gray-600'}`}>Region Wide:</label>
-                                <select 
-                                    value={projectDetails?.RegionWide} 
-                                    onChange={(e) => handleInputChange('RegionWide', e.target.value ? parseInt(e.target.value) : undefined)}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.RegionWide ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
-                                    disabled={disabled}
-                                >
-                                 <option value={0}>Select Region Wide</option>
-                                    {/* {projectEnums?.RegionWide?.map((region) => (
-                                        <option key={region.Id} value={region.Enum}>
-                                            {region.Name}
-                                        </option>
-                                    ))}  */}
-                                    {regionWideData.map((region) => (
-                                        <option key={region.id} value={region.enum}>
-                                            {region.name}
-                                        </option>
-                                    ))}
-                                </select>
+                                <EditableField field="RegionWide" isFieldEditable={isFieldEditable}>
+                                    {(editable) => (
+                                    <select 
+                                        value={projectDetails?.RegionWide} 
+                                        onChange={(e) => handleInputChange('RegionWide', e.target.value ? parseInt(e.target.value) : undefined)}
+                                        className={`w-2/3 mt-1 px-3 py-2 border ${errors.RegionWide ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(!editable)} rounded-md truncate`}
+                                        disabled={!editable}
+                                    >
+                                     <option value={0}>Select Region Wide</option>
+                                        {regionWideData.map((region) => (
+                                            <option key={region.id} value={region.enum}>
+                                                {region.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    )}
+                                </EditableField>
                             </div>
                         </div>
                     </div>
@@ -673,20 +734,24 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.Origin ? 'text-red-500' : 'text-gray-600'}`}>Origin:</label>
                                 <div className='w-2/3'>
-                                    <SearchableDropdown
-                                        options={formatDropdownOptions(projectEnums?.Origins || [],
-                                            'Enum',
-                                            'Name',
-                                            'Id'
+                                    <EditableField field="Origin" isFieldEditable={isFieldEditable}>
+                                        {(editable) => (
+                                        <SearchableDropdown
+                                            options={formatDropdownOptions(projectEnums?.Origins || [],
+                                                'Enum',
+                                                'Name',
+                                                'Id'
+                                            )}
+                                            value={projectDetails?.Origin || ''}
+                                            onChange={(value) => handleInputChange('Origin', value === '' ? undefined : parseInt(value.toString()))}
+                                            placeholder="Select Origin"
+                                            disabled={!editable}
+                                            error={!!errors.Origin}
+                                            allowClear={true}
+                                            searchPlaceholder="Search origins..."
+                                        />
                                         )}
-                                        value={projectDetails?.Origin || ''}
-                                        onChange={(value) => handleInputChange('Origin', value === '' ? undefined : parseInt(value.toString()))}
-                                        placeholder="Select Origin"
-                                        disabled={!isFieldEditable('Origin')}
-                                        error={!!errors.Origin}
-                                        allowClear={true}
-                                        searchPlaceholder="Search origins..."
-                                    />
+                                    </EditableField>
                                 </div>
                             </div>
                         </div>
@@ -695,19 +760,23 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.Agency ? 'text-red-500' : 'text-gray-600'}`}>Originating Agency:</label>
                                 <div className='w-2/3'>
-                                    <SearchableDropdown
-                                        options={formatDropdownOptions(projectEnums?.Agencies || [],
-                                            'Code',
-                                            'AgencyName',
+                                    <EditableField field="Agency" isFieldEditable={isFieldEditable}>
+                                        {(editable) => (
+                                        <SearchableDropdown
+                                            options={formatDropdownOptions(projectEnums?.Agencies || [],
+                                                'Code',
+                                                'AgencyName',
+                                            )}
+                                            value={projectDetails?.Agency || ''}
+                                            onChange={(value) => handleInputChange('Agency', value === '' ? undefined : parseInt(value.toString()))}
+                                            placeholder="Select Originating Agency"
+                                            disabled={!editable}
+                                            error={!!errors.Agency}
+                                            allowClear={true}
+                                            searchPlaceholder="Search agencies..."
+                                        />
                                         )}
-                                        value={projectDetails?.Agency || ''}
-                                        onChange={(value) => handleInputChange('Agency', value === '' ? undefined : parseInt(value.toString()))}
-                                        placeholder="Select Originating Agency"
-                                        disabled={!isFieldEditable('Agency')}
-                                        error={!!errors.Agency}
-                                        allowClear={true}
-                                        searchPlaceholder="Search agencies..."
-                                    />
+                                    </EditableField>
                                 </div>
                             </div>
                         </div>
@@ -724,51 +793,63 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.ImplementationMode ? 'text-red-500' : 'text-gray-600'}`}>Implementation Mode:</label>
-                                <select
-                                    value={projectDetails?.ImplementationMode}
-                                    onChange={(e) => handleInputChange('ImplementationMode', parseInt(e.target.value))}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.ImplementationMode ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
-                                    disabled={disabled}
-                                >
-                                    <option value="">Select Implementation Mode</option>
-                                    {projectEnums?.ImplementationModes?.map((mode) => (
-                                        <option key={mode.Id} value={mode.Enum}>
-                                            {mode.Name}
-                                        </option>
-                                    ))}
-                                </select>
+                                <EditableField field="ImplementationMode" isFieldEditable={isFieldEditable}>
+                                    {(editable) => (
+                                    <select
+                                        value={projectDetails?.ImplementationMode}
+                                        onChange={(e) => handleInputChange('ImplementationMode', parseInt(e.target.value))}
+                                        className={`w-2/3 mt-1 px-3 py-2 border ${errors.ImplementationMode ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(!editable)} rounded-md truncate`}
+                                        disabled={!editable}
+                                    >
+                                        <option value="">Select Implementation Mode</option>
+                                        {projectEnums?.ImplementationModes?.map((mode) => (
+                                            <option key={mode.Id} value={mode.Enum}>
+                                                {mode.Name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    )}
+                                </EditableField>
                             </div>
                         </div>
 
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.EmergencyMode ? 'text-red-500' : 'text-gray-600'}`}>Emergency Mode:</label>
-                                <select 
-                                    name="EmergencyCode" 
-                                    id="EmergencyCode" 
-                                    value={projectDetails?.EmergencyMode ? 'true' : 'false'} 
-                                    onChange={(e) => handleInputChange('EmergencyMode', e.target.value === 'true')} 
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.EmergencyMode ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(!isFieldEditable('EmergencyMode'))} rounded-md truncate`}
-                                    disabled={!isFieldEditable('EmergencyMode')}
-                                >
-                                    <option value="false">No</option>
-                                    <option value="true">Yes</option>
-                                </select>
+                                <EditableField field="EmergencyMode" isFieldEditable={isFieldEditable}>
+                                    {(editable) => (
+                                    <select 
+                                        name="EmergencyCode" 
+                                        id="EmergencyCode" 
+                                        value={projectDetails?.EmergencyMode ? 'true' : 'false'} 
+                                        onChange={(e) => handleInputChange('EmergencyMode', e.target.value === 'true')} 
+                                        className={`w-2/3 mt-1 px-3 py-2 border ${errors.EmergencyMode ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(!editable)} rounded-md truncate`}
+                                        disabled={!editable}
+                                    >
+                                        <option value="false">No</option>
+                                        <option value="true">Yes</option>
+                                    </select>
+                                    )}
+                                </EditableField>
                             </div>
                         </div>
 
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`flex-1/3 ${errors.RowAvailable ? 'text-red-500' : 'text-gray-600'}`}>ROW Available:</label>
-                                <select 
-                                    value={projectDetails?.RowAvailable ? 'true' : 'false'} 
-                                    onChange={(e) => handleInputChange('RowAvailable', e.target.value === 'true')}
-                                    className={`flex-2/3 mt-1 px-3 py-2 border ${errors.RowAvailable ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md`}
-                                    disabled={disabled}
-                                >
-                                    <option value="false">No</option>
-                                    <option value="true">Yes</option>
-                                </select>
+                                <EditableField field="RowAvailable" isFieldEditable={isFieldEditable}>
+                                    {(editable) => (
+                                    <select 
+                                        value={projectDetails?.RowAvailable ? 'true' : 'false'} 
+                                        onChange={(e) => handleInputChange('RowAvailable', e.target.value === 'true')}
+                                        className={`flex-2/3 mt-1 px-3 py-2 border ${errors.RowAvailable ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(!editable)} rounded-md`}
+                                        disabled={!editable}
+                                    >
+                                        <option value="false">No</option>
+                                        <option value="true">Yes</option>
+                                    </select>
+                                    )}
+                                </EditableField>
                             </div>
                         </div>
                     </div>
@@ -782,32 +863,40 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                         <div className="w-full flex flex-col text-left gap-2">
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.Feasibility ? 'text-red-500' : 'text-gray-600'}`}>Feasibility Study:</label>
-                                <select 
-                                    value={projectDetails?.Feasibility || ''} 
-                                    onChange={(e) => handleInputChange('Feasibility', e.target.value ? parseInt(e.target.value) : undefined)}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.Feasibility ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
-                                    disabled={disabled}
-                                >
-                                    <option value="">Select Feasibility Study</option>
-                                    {projectEnums?.Feasibility?.map((feasibility) => (
-                                        <option key={feasibility.Id} value={feasibility.Enum}>
-                                            {feasibility.Name}
-                                        </option>
-                                    ))}
-                                </select>
+                                <EditableField field="Feasibility" isFieldEditable={isFieldEditable}>
+                                    {(editable) => (
+                                    <select 
+                                        value={projectDetails?.Feasibility || ''} 
+                                        onChange={(e) => handleInputChange('Feasibility', e.target.value ? parseInt(e.target.value) : undefined)}
+                                        className={`w-2/3 mt-1 px-3 py-2 border ${errors.Feasibility ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(!editable)} rounded-md truncate`}
+                                        disabled={!editable}
+                                    >
+                                        <option value="">Select Feasibility Study</option>
+                                        {projectEnums?.Feasibility?.map((feasibility) => (
+                                            <option key={feasibility.Id} value={feasibility.Enum}>
+                                                {feasibility.Name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    )}
+                                </EditableField>
                             </div>
                         </div>
 
                         <div className="w-full flex flex-col text-left gap-2">
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.FeasibilityDate ? 'text-red-500' : 'text-gray-600'}`}>Feasibility Date:</label>
-                                <input 
-                                    type="date"
-                                    value={projectDetails?.FeasibilityDate ? new Date(projectDetails?.FeasibilityDate).toISOString().split('T')[0] : ''}
-                                    onChange={(e) => handleInputChange('FeasibilityDate', e.target.value ? new Date(e.target.value).toISOString() : null)}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.FeasibilityDate ? 'border-red-500' : 'border-gray-300'} ${!(projectDetails?.Feasibility === 1) ? 'bg-gray-100 cursor-not-allowed' : ''} ${getDisabledClass(disabled)} rounded-md truncate`}
-                                    disabled={!(projectDetails?.Feasibility === 1) || disabled}
-                                />
+                                <EditableField field="FeasibilityDate" isFieldEditable={isFieldEditable}>
+                                    {(editable) => (
+                                    <input 
+                                        type="date"
+                                        value={projectDetails?.FeasibilityDate ? new Date(projectDetails?.FeasibilityDate).toISOString().split('T')[0] : ''}
+                                        onChange={(e) => handleInputChange('FeasibilityDate', e.target.value ? new Date(e.target.value).toISOString() : null)}
+                                        className={`w-2/3 mt-1 px-3 py-2 border ${errors.FeasibilityDate ? 'border-red-500' : 'border-gray-300'} ${!(projectDetails?.Feasibility === 1) ? 'bg-gray-100 cursor-not-allowed' : ''} ${getDisabledClass(!editable)} rounded-md truncate`}
+                                        disabled={!(projectDetails?.Feasibility === 1) || !editable}
+                                    />
+                                    )}
+                                </EditableField>
                             </div>
                         </div>
                     </div>
@@ -816,28 +905,36 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.DetailedDesign ? 'text-red-500' : 'text-gray-600'}`}>Detailed Design:</label>
-                                <select 
-                                    value={projectDetails?.DetailedDesign ? 'true' : 'false'} 
-                                    onChange={(e) => handleInputChange('DetailedDesign', e.target.value === 'true')}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.DetailedDesign ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
-                                    disabled={disabled}
-                                >
-                                    <option value="false">No</option>
-                                    <option value="true">Yes</option>
-                                </select>
+                                <EditableField field="DetailedDesign" isFieldEditable={isFieldEditable}>
+                                    {(editable) => (
+                                    <select 
+                                        value={projectDetails?.DetailedDesign ? 'true' : 'false'} 
+                                        onChange={(e) => handleInputChange('DetailedDesign', e.target.value === 'true')}
+                                        className={`w-2/3 mt-1 px-3 py-2 border ${errors.DetailedDesign ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(!editable)} rounded-md truncate`}
+                                        disabled={!editable}
+                                    >
+                                        <option value="false">No</option>
+                                        <option value="true">Yes</option>
+                                    </select>
+                                    )}
+                                </EditableField>
                             </div>
                         </div>
 
                         <div className="w-full flex flex-col text-left gap-2">
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.DetailedDesignDate ? 'text-red-500' : 'text-gray-600'}`}>Detailed Design Date:</label>
-                                <input 
-                                    type="date"
-                                    value={projectDetails?.DetailedDesignDate ? new Date(projectDetails?.DetailedDesignDate).toISOString().split('T')[0] : ''}
-                                    onChange={(e) => handleInputChange('DetailedDesignDate', e.target.value ? new Date(e.target.value).toISOString() : null)}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.DetailedDesignDate ? 'border-red-500' : 'border-gray-300'} ${!(projectDetails?.DetailedDesign) ? 'bg-gray-100 cursor-not-allowed' : ''} ${getDisabledClass(disabled)} rounded-md truncate`}
-                                    disabled={!(projectDetails?.DetailedDesign) || disabled}
-                                />
+                                <EditableField field="DetailedDesignDate" isFieldEditable={isFieldEditable}>
+                                    {(editable) => (
+                                    <input 
+                                        type="date"
+                                        value={projectDetails?.DetailedDesignDate ? new Date(projectDetails?.DetailedDesignDate).toISOString().split('T')[0] : ''}
+                                        onChange={(e) => handleInputChange('DetailedDesignDate', e.target.value ? new Date(e.target.value).toISOString() : null)}
+                                        className={`w-2/3 mt-1 px-3 py-2 border ${errors.DetailedDesignDate ? 'border-red-500' : 'border-gray-300'} ${!(projectDetails?.DetailedDesign) ? 'bg-gray-100 cursor-not-allowed' : ''} ${getDisabledClass(!editable)} rounded-md truncate`}
+                                        disabled={!(projectDetails?.DetailedDesign) || !editable}
+                                    />
+                                    )}
+                                </EditableField>
                             </div>
                         </div>
 
