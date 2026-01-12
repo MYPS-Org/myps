@@ -54,13 +54,6 @@ export const submitModificationRequest = async (
 
 export const updateRevisionRequestStatus = async (transactionId: string, status: number, ApprovedDocument?: any, ApprovalDate?: string, remarks?: string) => {
     try {
-        console.log('=== updateRevisionRequestStatus Parameters ===');
-        console.log('transactionId:', transactionId);
-        console.log('status:', status);
-        console.log('ApprovedDocument:', ApprovedDocument);
-        console.log('ApprovalDate:', ApprovalDate);
-        console.log('remarks:', remarks);
-        
         const payload = {
             TransactionId: transactionId,
             Status: status,

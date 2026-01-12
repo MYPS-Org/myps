@@ -50,7 +50,7 @@ const RejectModifyDialog: React.FC<RejectModifyDialogProps> = ({
         setIsSubmitting(true);
         
         try {
-            await updateRevisionRequestStatus(transactionId, 2); // 2 = Rejected
+            await updateRevisionRequestStatus(transactionId, 2, undefined, undefined, rejectionReason); // 2 = Rejected
             await onReject(rejectionReason);
             
             showToast({

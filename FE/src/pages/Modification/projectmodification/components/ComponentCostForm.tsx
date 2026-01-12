@@ -6,27 +6,29 @@ import { PlusIcon, TrashIcon, PencilIcon } from "@heroicons/react/24/outline";
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from "../../../../components/tailwindui/table";
 import ComponentCostDialog from "../../dialogs/ComponentCostDialog";
 import DeleteComponentDialog from "../../dialogs/deleteDialog/DeleteComponentDialog";
-import { useDeleteComponentDialog } from "../../hooks/useDeleteComponentDialog";
+
+import { useAtom } from "jotai";
+import { componentCostsWithYearsAtom } from "../../atoms/componentCosts.atom";
+import { useComponentCosts } from "../../hooks/useComponentCosts";
 
 interface ComponentCostFormProps {
-  componentCosts: ComponentCostWithYears[];
-  onAdd: (cost: ComponentCost, costYear?: ComponentCostYear) => void;
-  onEdit: (index: number, updatedCost: ComponentCost) => void;
-  onDelete: (index: number) => void;
+  componentCosts?: ComponentCostWithYears[];
+  onAdd?: (cost: ComponentCost, costYear?: ComponentCostYear) => void;
+  onEdit?: (index: number, updatedCost: ComponentCost) => void;
+  onDelete?: (index: number) => void;
   initialData?: any;
   maxAmountCost?: number;
   fieldRules?: FieldRules;
   category?: string;
   reason?: string;
   reasonId?: number;
-  // Removed: currentCase, pcmaStatus, packageStatus - now from Jotai in ComponentCostDialog
 }
 
-const ComponentCostForm: React.FC<ComponentCostFormProps> = ({ 
-  componentCosts, 
-  onAdd, 
-  onEdit, 
-  onDelete,
+const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
+  componentCosts: _componentCostsProp,
+  onAdd: _onAdd,
+  onEdit: _onEdit,
+  onDelete: _onDelete,
   initialData,
   maxAmountCost,
   fieldRules,
@@ -34,18 +36,25 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
   reason,
   reasonId,
 }) => {
+  // Read-only derived costs from atom
+  const [componentCosts] = useAtom(componentCostsWithYearsAtom);
+  // Mutations via hook (encapsulates atom setters)
+  const { add, update, remove } = useComponentCosts();
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
-  const { openDeleteDialog } = useDeleteComponentDialog();
-  const formatCurrency = (amount: number) => {
-    return amount.toLocaleString('en-PH');
-  };
-    // console.log('Rine => ', initialData)
+
+  // Local delete dialog state (replaces store/hook)
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
+  const [selectedForDelete, setSelectedForDelete] = useState<ComponentCostWithYears | null>(null);
+
+  const formatCurrency = (amount: number) => amount.toLocaleString('en-PH');
+
   const handleOpenAddModal = () => {
     setModalMode('add');
     setEditingIndex(null);
-    // console.log('componentTypes:', initialData?.Dropdowns?.ComponentTypes);
     setIsModalOpen(true);
   };
 
@@ -60,68 +69,40 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
     setEditingIndex(null);
   };
 
-  // Check if a component cost is from database (has real Id > 0) or newly added (Id = 0 or temp ReferenceId)
   const isFromDatabase = useCallback((cost: ComponentCost) => {
-    // If Id > 0, it's from database
-    if (cost.Id && cost.Id > 0) {
-      return true;
-    }
-    // If ReferenceId doesn't start with 'temp' or is a timestamp string, it might be from DB
-    // Newly added items have ReferenceId like: Date.now().toString() or 'temp_...'
-    if (cost.ReferenceId && (cost.ReferenceId.startsWith('temp_') || /^\d+$/.test(cost.ReferenceId))) {
-      return false; // This is a newly added item
-    }
-    return true; // Default to assuming it's from DB to be safe
+    if (cost.Id && cost.Id > 0) return true;
+    if (cost.ReferenceId && (cost.ReferenceId.startsWith('temp_') || /^\d+$/.test(String(cost.ReferenceId)))) return false;
+    return true;
   }, []);
 
-  // Check if user can add component cost
   const canAddComponentCost = useCallback(() => {
-    // If no fieldRules, default to denying add
     if (!fieldRules) return false;
-    
-    // If ComponentCostRules doesn't exist, default to denying add
     if (!fieldRules.ComponentCostRules) return false;
-    
-    // If CRUD doesn't exist, default to denying add
     if (!fieldRules.ComponentCostRules.CRUD) return false;
-    
-    // Return the CanAdd value, defaulting to false if undefined or null
     return fieldRules.ComponentCostRules.CRUD.CanAdd ?? false;
   }, [fieldRules]);
 
-  // Check if delete button should be enabled for a specific component cost
   const canDelete = useCallback((cost: ComponentCost) => {
-    // Exception: If component is NOT from database (newly added), always allow delete
-    if (!isFromDatabase(cost)) {
-      return true;
-    }
-    
-    // If no fieldRules, default to not allowing delete of database items
+    if (!isFromDatabase(cost)) return true;
     if (!fieldRules) return false;
-    
-    // If ComponentCostRules doesn't exist, default to not allowing delete
     if (!fieldRules.ComponentCostRules) return false;
-    
-    // If CRUD doesn't exist, default to not allowing delete
     if (!fieldRules.ComponentCostRules.CRUD) return false;
-    
-    // For components from database, check CRUD permission
-    const hasCRUDPermission = fieldRules.ComponentCostRules.CRUD.CanDelete ?? false;
-    
-    // Return the permission value
-    return hasCRUDPermission;
+    return fieldRules.ComponentCostRules.CRUD.CanDelete ?? false;
   }, [isFromDatabase, fieldRules]);
 
+  const ensureReferenceId = (cost: ComponentCost) => {
+    if (cost.ReferenceId && String(cost.ReferenceId).length > 0) return cost.ReferenceId;
+    return Date.now().toString();
+  };
+
   const handleSaveCost = (cost: ComponentCost, costYear?: ComponentCostYear) => {
-    // Validate if adding/editing would exceed max amount cost
+    // Budget validation
     if (maxAmountCost && maxAmountCost > 0) {
       let newTotalCost = 0;
-      
+
       if (modalMode === 'add') {
-        // For add mode, calculate total with the new cost added
         newTotalCost = componentCosts.reduce((sum, existingCost) => sum + (existingCost.Total || 0), 0) + (cost.Total || 0);
       } else if (modalMode === 'edit' && editingIndex !== null) {
-        // For edit mode, replace the existing cost with the new one
         newTotalCost = componentCosts.reduce((sum, existingCost, index) => {
           if (index === editingIndex) {
             return sum + (cost.Total || 0);
@@ -133,39 +114,54 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
       if (newTotalCost > maxAmountCost) {
         const exceeded = newTotalCost - maxAmountCost;
         const confirmMessage = `This action will exceed the maximum budget by ₱${formatCurrency(exceeded)}.\n\nTotal cost: ₱${formatCurrency(newTotalCost)}\nMax allowed: ₱${formatCurrency(maxAmountCost)}\n\nDo you want to proceed anyway?`;
-        
-        if (!window.confirm(confirmMessage)) {
-          return; // Don't save if user cancels
-        }
+        if (!window.confirm(confirmMessage)) return;
       }
     }
 
     if (modalMode === 'add') {
-      onAdd(cost, costYear);
+      const refId = ensureReferenceId(cost);
+      const costWithRef = { ...cost, ReferenceId: refId };
+      const yearWithParent = costYear ? { ...costYear, ParentId: refId } : undefined;
+      add(costWithRef, yearWithParent);
     } else if (modalMode === 'edit' && editingIndex !== null) {
-      onEdit(editingIndex, cost);
-      // TODO: Handle costYear updates for edit mode
+      const existingRef = componentCosts[editingIndex]?.ReferenceId;
+      const refId = cost.ReferenceId || existingRef || Date.now().toString();
+      const updated = { ...cost, ReferenceId: refId };
+      update(String(refId), updated);
     }
+
     handleCloseModal();
   };
 
+  // open local delete dialog
+  const openDeleteModal = (component: ComponentCostWithYears, index: number) => {
+    setSelectedForDelete(component);
+    setDeleteIndex(index);
+    setIsDeleteOpen(true);
+  };
+
+  const closeDeleteModal = () => {
+    setIsDeleteOpen(false);
+    setSelectedForDelete(null);
+    setDeleteIndex(null);
+  };
+
+  const handleDeleteConfirm = (index: number) => {
+    const ref = componentCosts[index]?.ReferenceId;
+    if (ref) remove(String(ref));
+    closeDeleteModal();
+  };
 
   const calculateTotalCosts = () => {
     const totalCost = componentCosts.reduce((sum, cost) => sum + (cost.Total || 0), 0);
-
-    return {
-      totalCost,
-    };
+    return { totalCost };
   };
 
   const totalCosts = calculateTotalCosts();
-  
-  // Calculate budget status for visual feedback
+
   const getBudgetStatus = () => {
     if (!maxAmountCost || maxAmountCost <= 0) return 'normal';
-    
     const percentage = (totalCosts.totalCost / maxAmountCost) * 100;
-    
     if (percentage > 100) return 'exceeded';
     if (percentage === 100) return 'reach';
     if (percentage >= 90) return 'warning';
@@ -174,7 +170,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
   };
 
   const budgetStatus = getBudgetStatus();
-  
+
   const getBudgetStatusColor = () => {
     switch (budgetStatus) {
       case 'exceeded': return 'bg-red-50 text-red-600';
@@ -187,168 +183,130 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Component Cost</h2>
-            <Button color="blue" onClick={handleOpenAddModal} disabled={!canAddComponentCost()}>
-                <PlusIcon className="w-4 h-4 mr-1" />
-                Add Cost
-            </Button>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-lg font-semibold text-gray-900">Component Cost</h2>
+        <Button color="blue" onClick={handleOpenAddModal} disabled={!canAddComponentCost()}>
+          <PlusIcon className="w-4 h-4 mr-1" />
+          Add Cost
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className={`p-4 rounded-lg text-center ${getBudgetStatusColor()}`}>
+          <div className="text-sm text-gray-600">Total Cost</div>
+          <div className="text-lg font-semibold">₱{formatCurrency(totalCosts.totalCost)}</div>
+          {budgetStatus === 'exceeded' && (
+            <div className="text-xs text-red-500 mt-1">
+              Exceeds budget by ₱{formatCurrency(totalCosts.totalCost - (maxAmountCost || 0))}
+            </div>
+          )}
+          {budgetStatus === 'reach' && (
+            <div className="text-xs text-green-500 mt-1">Budget limit reached</div>
+          )}
+          {budgetStatus === 'warning' && (
+            <div className="text-xs text-orange-500 mt-1">Near budget limit</div>
+          )}
+          {budgetStatus === 'caution' && (
+            <div className="text-xs text-yellow-500 mt-1">Approaching budget limit</div>
+          )}
         </div>
 
-        {/* Cost Summary Cards */}
-        <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className={`p-4 rounded-lg text-center ${getBudgetStatusColor()}`}>
-                <div className="text-sm text-gray-600">Total Cost</div>
-                <div className="text-lg font-semibold">₱{formatCurrency(totalCosts.totalCost)}</div>
-                {budgetStatus === 'exceeded' && (
-                  <div className="text-xs text-red-500 mt-1">
-                    Exceeds budget by ₱{formatCurrency(totalCosts.totalCost - (maxAmountCost || 0))}
-                  </div>  
-                )}
-                {budgetStatus === 'reach' && (
-                  <div className="text-xs text-green-500 mt-1">
-                    Budget limit reached
-                  </div>
-                )}
-                {budgetStatus === 'warning' && (
-                  <div className="text-xs text-orange-500 mt-1">
-                    Near budget limit
-                  </div>
-                )}
-                {budgetStatus === 'caution' && (
-                  <div className="text-xs text-yellow-500 mt-1">
-                    Approaching budget limit
-                  </div>
-                )}
+        <div className="bg-green-50 p-4 rounded-lg text-center">
+          <div className="text-sm text-gray-600">Max Cost</div>
+          <div className="text-lg font-semibold text-green-600">{maxAmountCost && maxAmountCost > 0 ? `₱${formatCurrency(maxAmountCost)}` : ""}</div>
+          {maxAmountCost && maxAmountCost > 0 ? (
+            <div className="text-xs text-gray-500 mt-1">
+              Remaining: ₱{formatCurrency(Math.max(0, maxAmountCost - totalCosts.totalCost))}
             </div>
-            {/* <div className="bg-blue-50 p-4 rounded-lg text-center">
-                <div className="text-sm text-gray-600">Total Cost (2025)</div>
-                <div className="text-lg font-semibold text-blue-600">₱{formatCurrency(totalCosts.totalCost)}</div>
-            </div> */}
-            <div className="bg-green-50 p-4 rounded-lg text-center">
-                <div className="text-sm text-gray-600">Max Cost</div>
-                <div className="text-lg font-semibold text-green-600">{maxAmountCost && maxAmountCost > 0 ? `₱${formatCurrency(maxAmountCost)}` : ""}</div>
-                {maxAmountCost && maxAmountCost > 0  ? (
-                  <div className="text-xs text-gray-500 mt-1">
-                    Remaining: ₱{formatCurrency(Math.max(0, maxAmountCost - totalCosts.totalCost))}
-                  </div>
-                ) : (
-                  <div className="text-xs text-gray-500 mt-1">
-                    No remaining budget
-                  </div>
-                )}
-            </div>
+          ) : (
+            <div className="text-xs text-gray-500 mt-1">No remaining budget</div>
+          )}
         </div>
+      </div>
 
-        {/* Budget Progress Bar */}
-        {/* {maxAmountCost && maxAmountCost > 0 && (
-          <div className="mb-6">
-            <div className="flex justify-between text-sm text-gray-600 mb-2">
-              <span>Budget Usage</span>
-              <span>{Math.min(100, Math.round((totalCosts.totalCost / maxAmountCost) * 100))}%</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-3">
-              <div 
-                className={`h-3 rounded-full transition-all duration-300 ${
-                  budgetStatus === 'exceeded' ? 'bg-red-500' :
-                  budgetStatus === 'warning' ? 'bg-orange-500' :
-                  budgetStatus === 'caution' ? 'bg-yellow-500' :
-                  'bg-blue-500'
-                }`}
-                style={{ 
-                  width: `${Math.min(100, (totalCosts.totalCost / maxAmountCost) * 100)}%` 
-                }}
-              ></div>
-            </div>
-          </div>
-        )} */}
-
-        {/* Component Cost Table */}
-        <Table>
-          <TableHead>
+      <Table>
+        <TableHead>
+          <TableRow>
+            <TableHeader>Component ID</TableHeader>
+            <TableHeader>Component Type</TableHeader>
+            <TableHeader>Description</TableHeader>
+            <TableHeader>Total Cost</TableHeader>
+            <TableHeader>Created By</TableHeader>
+            <TableHeader>Created Date</TableHeader>
+            <TableHeader>PCMA Status</TableHeader>
+            <TableHeader>Actions</TableHeader>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {componentCosts.length === 0 ? (
             <TableRow>
-              <TableHeader>Component ID</TableHeader>
-              <TableHeader>Component Type</TableHeader>
-              <TableHeader>Description</TableHeader>
-              <TableHeader>Total Cost</TableHeader>
-              <TableHeader>Created By</TableHeader>
-              <TableHeader>Created Date</TableHeader>
-              <TableHeader>PCMA Status</TableHeader>
-              <TableHeader>Actions</TableHeader>
+              <TableCell colSpan={7} className="text-center text-gray-500 py-8">
+                No component costs added yet. Click "Add Cost" to get started.
+              </TableCell>
             </TableRow>
-          </TableHead>
-          <TableBody>
-            {componentCosts.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center text-gray-500 py-8">
-                  No component costs added yet. Click "Add Cost" to get started.
+          ) : (
+            componentCosts.map((cost, index) => (
+              <TableRow key={cost.Id || cost.ReferenceId || index}>
+                <TableCell className="font-medium">{cost.ComponentId}</TableCell>
+                <TableCell>{cost.ComponentType}</TableCell>
+                <TableCell>
+                  <div className="max-w-xs truncate" title={cost.Description}>
+                    {cost.Description}
+                  </div>
+                </TableCell>
+                <TableCell>₱{formatCurrency(cost.Total || 0)}</TableCell>
+                <TableCell>{cost.CreatedBy || '-'}</TableCell>
+                <TableCell>{cost.CreatedDate ? new Date(cost.CreatedDate).toLocaleDateString() : '-'}</TableCell>
+                <TableCell>{cost.ConstructionStatusName}</TableCell>
+                <TableCell>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleOpenEditModal(index)}
+                      className="text-blue-600 hover:text-blue-800"
+                      title="Edit"
+                    >
+                      <PencilIcon className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => { if (canDelete(cost)) openDeleteModal(cost, index); }}
+                      className={`text-red-600 hover:text-red-800 ${!canDelete(cost) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      title={canDelete(cost) ? "Delete component" : "Cannot delete component"}
+                      disabled={!canDelete(cost)}
+                    >
+                      <TrashIcon className="w-4 h-4" />
+                    </button>
+                  </div>
                 </TableCell>
               </TableRow>
-            ) : (
-              componentCosts.map((cost, index) => (
-                <TableRow key={cost.Id}>
-                  <TableCell className="font-medium">{cost.ComponentId}</TableCell>
-                  <TableCell>{cost.ComponentType}</TableCell>
-                  <TableCell>
-                    <div className="max-w-xs truncate" title={cost.Description}>
-                      {cost.Description}
-                    </div>
-                  </TableCell>
-                  <TableCell>₱{formatCurrency(cost.Total || 0)}</TableCell>
-                  <TableCell>{cost.CreatedBy || '-'}</TableCell>
-                  <TableCell>{cost.CreatedDate ? new Date(cost.CreatedDate).toLocaleDateString() : '-'}</TableCell>
-                  <TableCell>{cost.ConstructionStatusName}</TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => handleOpenEditModal(index)}
-                        className="text-blue-600 hover:text-blue-800"
-                        title="Edit"
-                      >
-                        <PencilIcon className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (canDelete(cost)) {
-                            openDeleteDialog(cost, index);
-                          }
-                        }}
-                        className={`text-red-600 hover:text-red-800 ${!canDelete(cost) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        title={canDelete(cost) ? "Delete component" : "Cannot delete component"}
-                        disabled={!canDelete(cost)}
-                      >
-                        <TrashIcon className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+            ))
+          )}
+        </TableBody>
+      </Table>
 
-        {/* Dialog */}
-        <ComponentCostDialog
-          isOpen={isModalOpen}
-          onClose={handleCloseModal}
-          onSave={handleSaveCost}
-          editingCost={editingIndex !== null ? componentCosts[editingIndex] : undefined}
-          mode={modalMode}
-          componentTypes={initialData?.Dropdowns?.ComponentTypes}
-          componentCosts={componentCosts}
-          ProjectId={initialData?.ProjectDetails?.ProjectId}
-          maxAmountCost={maxAmountCost}
-          categoryDesc={category}
-          reasonDesc={reason}
-          reasonId={reasonId}
-        />
-        
-        {/* Delete Confirmation Dialog */}
-        <DeleteComponentDialog
-          onConfirmDelete={onDelete}
-          projectId={initialData?.ProjectDetails?.ProjectId}
-        />
-      </div>
+      <ComponentCostDialog
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        onSave={handleSaveCost}
+        editingCost={editingIndex !== null ? componentCosts[editingIndex] : undefined}
+        mode={modalMode}
+        componentTypes={initialData?.Dropdowns?.ComponentTypes}
+        componentCosts={componentCosts}
+        ProjectId={initialData?.ProjectDetails?.ProjectId}
+        maxAmountCost={maxAmountCost}
+        categoryDesc={category}
+        reasonDesc={reason}
+        reasonId={reasonId}
+      />
+
+      <DeleteComponentDialog
+        isOpen={isDeleteOpen}
+        component={selectedForDelete}
+        index={deleteIndex}
+        onClose={closeDelete}
+        onConfirmDelete={async () => { await confirmDelete(); }}
+        projectId={initialData?.ProjectDetails?.ProjectId}
+      />
+    </div>
   );
 };
 

@@ -49,12 +49,11 @@ export interface RevisionProjectPayload extends ProjectFormPayload{
 }
 
 export interface ForCorrectionsDetails {
-    Id: number,
-    TransactionId: string,
-    ROComment: string,
-    ROForCorrectionDate: string,
-    COComment: string,
-    COForCorrectionDate: string
+    Id?: number;
+	TransactionId?: string;
+	CorrectionReason?: string;
+	ForCorrectionDate?: string;
+	IsCentralOffice?: boolean;
 }
 
 export interface RevisionDoc {
@@ -176,8 +175,4 @@ export interface RevisionFilter {
   ReasonId?: number;
   RegionApproveStatus?: number;
   COApproveStatus?: number;
-}
-
-export interface ComponentCostWithYears extends ComponentCost {
-    
 }

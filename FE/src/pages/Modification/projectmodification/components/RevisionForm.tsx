@@ -215,58 +215,26 @@ const RevisionForm: React.FC<RevisionFormProps> = ({
                                     </div>
                                     
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {/* Regional Office Comments */}
+                                        {/* Centralized Comments for correction*/}
                                         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                                             <div className="flex items-center gap-2 mb-2">
                                                 <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                                                 </svg>
-                                                <h6 className="text-xs font-bold text-blue-800 uppercase tracking-wide">Regional Office</h6>
+                                                <h6 className="text-xs font-bold text-blue-800 uppercase tracking-wide">{correction.IsCentralOffice ? 'Central Office' : 'Regional Office'}</h6>
                                             </div>
                                             <div className="space-y-2">
                                                 <div>
                                                     <p className="text-xs text-blue-700 font-medium mb-1">Comment:</p>
                                                     <p className="text-sm text-gray-800 bg-white p-2 rounded border border-blue-100">
-                                                        {correction.ROComment || 'No comment provided'}
+                                                        {correction.CorrectionReason || 'No comment provided'}
                                                     </p>
                                                 </div>
                                                 <div>
                                                     <p className="text-xs text-blue-700 font-medium mb-1">Date:</p>
                                                     <p className="text-sm text-gray-800 font-mono">
-                                                        {correction.ROForCorrectionDate ? 
-                                                            new Date(correction.ROForCorrectionDate).toLocaleDateString('en-US', {
-                                                                year: 'numeric',
-                                                                month: 'short',
-                                                                day: 'numeric',
-                                                                hour: '2-digit',
-                                                                minute: '2-digit'
-                                                            }) : 'Not specified'
-                                                        }
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Central Office Comments */}
-                                        <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
-                                                </svg>
-                                                <h6 className="text-xs font-bold text-gray-800 uppercase tracking-wide">Central Office</h6>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <div>
-                                                    <p className="text-xs text-orange-700 font-medium mb-1">Comment:</p>
-                                                    <p className="text-sm text-gray-800 bg-white p-2 rounded border border-orange-100">
-                                                        {correction.COComment || 'No comment provided'}
-                                                    </p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-xs text-orange-700 font-medium mb-1">Date:</p>
-                                                    <p className="text-sm text-gray-800 font-mono">
-                                                        {correction.COForCorrectionDate ? 
-                                                            new Date(correction.COForCorrectionDate).toLocaleDateString('en-US', {
+                                                        {correction.ForCorrectionDate ? 
+                                                            new Date(correction.ForCorrectionDate).toLocaleDateString('en-US', {
                                                                 year: 'numeric',
                                                                 month: 'short',
                                                                 day: 'numeric',

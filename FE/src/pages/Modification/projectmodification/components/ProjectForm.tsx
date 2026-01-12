@@ -51,6 +51,14 @@ import type { RevisionProjectPayload } from '../../Model';
 // import { updateRevisionRequestStatus } from '../../Service'; 
 import ResubmitRevisionDialog from '../../dialogs/ResubmitRevisionDialog';
 
+import { useAtom } from 'jotai';
+import {
+  componentCostsAtom,
+  componentCostsYearAtom,
+  componentCostsWithYearsAtom,
+  componentCostsActionsAtom
+} from '../../atoms/componentCosts.atom';
+
 interface ProjectFormProps {
   initialData?: RevisionProjectPayload;
   mode?: 'add' | 'edit' | 'view';
@@ -214,8 +222,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             const response = await fetchProjectGeoJSON(
               initialData.ProjectDetails.ProjectId,
               initialData.ProgramDetails.ProgramId
-              // 'P00906380VS',
-              // 'P_CO-PS-635_01302025_100232'
             );
             if (response.Data) {
               setGeoJsonData(response.Data);
@@ -243,7 +249,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       }
     };
     loadProjectEnums();
-    // loadInfrastructureData();
 
     // Set program details if in edit mode and initialData is present
     if (mode === 'edit' && initialData?.ProgramDetails) {
@@ -270,28 +275,24 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     }
   }, [initialProgramId, projectEnums?.Programs]);
 
-  const [componentCosts, setComponentCosts] = useState<ComponentCost[]>(
-    initialData?.ComponentCosts || []
-  );
+  // === Component Costs: use Jotai atoms instead of local state ===
+  const [componentCosts, setComponentCosts] = useAtom(componentCostsAtom);
+  const [componentCostsYear, setComponentCostsYear] = useAtom(componentCostsYearAtom);
+  const [componentCostsWithYears] = useAtom(componentCostsWithYearsAtom);
+  const [, dispatchComponentCosts] = useAtom(componentCostsActionsAtom);
 
-   const [componentCostsYear, setComponentCostsYear] = useState<ComponentCostYear[]>(
-    initialData?.ComponentCostPerYear || []
-  );
-
-  // Combine componentCosts and componentCostsYear for UI - using useMemo to ensure proper recalculation
-  const componentCostsWithYears = React.useMemo(() => {
-    console.log('Recalculating componentCostsWithYears:', { componentCosts, componentCostsYear });
-    return (componentCosts || []).map(cost => ({
-      ...cost,
-      CostPerYear: (componentCostsYear || []).filter(year => year.ParentId === cost.ReferenceId)
-    }));
-  }, [componentCosts, componentCostsYear]);
-
-  // Debug effect to monitor componentCosts state changes
+  // Seed atoms from initialData when editing an existing revision
   useEffect(() => {
-    console.log('ComponentCosts state changed:', componentCosts);
-    console.log('ComponentCostsWithYears recalculated:', componentCostsWithYears);
-  }, [componentCosts, componentCostsYear]); // componentCostsWithYears is derived, don't include it
+    if (mode === 'edit' && initialData) {
+      setComponentCosts(initialData.ComponentCosts || []);
+      setComponentCostsYear(initialData.ComponentCostPerYear || []);
+    }
+  }, [mode, initialData, setComponentCosts, setComponentCostsYear]);
+
+  useEffect(() => {
+    console.log('ComponentCosts (atom) changed:', componentCosts);
+    console.log('ComponentCostsWithYears (derived):', componentCostsWithYears);
+  }, [componentCosts, componentCostsYear]);
 
   const [majorItems, setMajorItems] = useState<MajorItemOfWorksWithDropdown[]>(() => {
     if (!initialData?.MajorItemOfWorks) return [];
@@ -315,9 +316,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     });
   });
 
-  // const [notes, setNotes] = useState<ProjectNote[]>(
+  // const [notes, setNotes] = useState<ProjectNote[]>((
   //   initialData?.ProjectNotes || []
-  // );
+  // ));
   const [docs, setDocs] = useState<ProjectSupportingDocs[]>(
     initialData?.Docs || []
   );
@@ -372,22 +373,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     initialData?.TransactionLogs || []
   );
 
-  // Sample project location (you can update this based on your project data)
-  // Commented out as it's not currently used but may be needed for future map functionality
-  // const getProjectLocation = () => {
-  //   // You can map city codes or project data to coordinates later
-  //   // For now, return a sample location in Metro Manila
-  //   return {
-  //     lat: 14.6091,
-  //     lng: 121.0223,
-  //     name: projectDetails.Description || "Project Location"
-  //   };
-  // };
-
-  // const handleGoBack = () => {
-  //   navigate('/projects');
-  // };
-
   const handleProjectDetailsChange = (field: keyof ProjectDetails, value: any) => {
     setProjectDetails(prev => ({ ...prev, [field]: value }));
     
@@ -405,100 +390,28 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     setProjectDetails(prev => ({
       ...prev,
       ProgramId: updatedProgramDetails.ProgramId,
-      // You can add other program-related fields here if needed
     }));
     console.log('Project details updated with ProgramId:', updatedProgramDetails.ProgramId);
   };
 
-  // #region Component Costs
+  // #region Component Costs handlers (now using atoms)
   const handleAddComponentCost = (newCost: ComponentCost, newCostYear?: ComponentCostYear) => {
-    console.log('=== ADDING COMPONENT COST ===');
-    console.log('New cost:', newCost);
-    console.log('New cost year:', newCostYear);
-    console.log('Current componentCosts before add:', componentCosts);
-
-    // // Check for excess component condition before adding
-    // const newTotalComponentCost = componentCosts.reduce((sum, cost) => sum + (cost.Total || 0), 0) + (newCost.Total || 0);
-    // const projectCost = programDetails.Cost || 0;
-    
-    // const excessCheck = checkExcessComponent(modificationCategory, projectCost, newTotalComponentCost);
-    
-    // if (excessCheck && excessCheck.shouldPrompt) {
-    //   // Store the new cost temporarily and show prompt
-    //   setExcessComponentData({
-    //     excessAmount: excessCheck.excessAmount,
-    //     message: excessCheck.message
-    //   });
-    //   setIsExcessPromptOpen(true);
-    //   // We'll handle the actual addition after user confirmation
-    //   return;
-    // }
-    
-    // Generate a temporary ID for new cost (will be replaced when saved)
-    const tempId = Date.now().toString(); // Simple temp ID
+    const tempId = Date.now().toString();
     const costWithId = { ...newCost, ReferenceId: tempId };
-    
-    setComponentCosts(prev => {
-      const updated = [...prev, costWithId];
-      console.log('Updated componentCosts:', updated);
-      return updated;
-    });
-    
-    // If ComponentCostYear data is provided, add it to the componentCostsYear array
-    if (newCostYear) {
-      const costYearWithParentId = { 
-        ...newCostYear, 
-        ParentId: tempId, // Link to the component cost
-        Id: Date.now() + 1 // Ensure unique ID
-      };
-      setComponentCostsYear(prev => {
-        const updated = [...prev, costYearWithParentId];
-        console.log('Updated componentCostsYear:', updated);
-        return updated;
-      });
-      console.log('Added component cost year to staging:', costYearWithParentId);
-    }
-    
-    console.log('Added component cost to staging:', costWithId);
+    const yearWithParent = newCostYear ? { ...newCostYear, ParentId: tempId, Id: Date.now() + 1 } : undefined;
+    dispatchComponentCosts({ type: 'add', payload: { cost: costWithId, costYear: yearWithParent } });
   };
 
   const handleEditComponentCost = (index: number, updatedCost: ComponentCost) => {
-    console.log('=== EDITING COMPONENT COST ===');
-    console.log('Index:', index);
-    console.log('Updated cost:', updatedCost);
-    console.log('Current componentCosts before edit:', componentCosts);
-    
-    setComponentCosts(prev => {
-      const updated = prev.map((cost, i) => i === index ? updatedCost : cost);
-      console.log('Updated componentCosts after edit:', updated);
-      return updated;
-    });
-    console.log('Updated component cost in staging:', updatedCost);
+    dispatchComponentCosts({ type: 'edit', payload: { index, updated: updatedCost } });
   };
 
   const handleDeleteComponentCost = (index: number) => {
-    console.log('=== DELETING COMPONENT COST ===');
-    console.log('Index:', index);
-    console.log('Current componentCosts before delete:', componentCosts);
-    
-    const costToDelete = componentCosts[index];
-    if (costToDelete) {
-      setComponentCosts(prev => {
-        const updated = prev.filter((_, i) => i !== index);
-        console.log('Updated componentCosts after delete:', updated);
-        return updated;
-      });
-      // Also remove related ComponentCostYear entries
-      setComponentCostsYear(prev => {
-        const updated = prev.filter(year => year.ParentId !== costToDelete.ReferenceId);
-        console.log('Updated componentCostsYear after delete:', updated);
-        return updated;
-      });
-      console.log('Deleted component cost from staging:', costToDelete);
-    }
+    dispatchComponentCosts({ type: 'delete', payload: { index } });
   };
+  // #endregion
 
-    // #region Excess Component Handling
+  // #region Excess Component Handling
   const handleExcessPromptConfirm = () => {
     // User confirmed - create EXC component
     if (excessComponentData) {
@@ -514,7 +427,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         Total: excessComponentData.excessAmount,
       };
 
-      setComponentCosts(prev => [...prev, excComponent]);
+      // add via dispatch so years linkage is preserved if needed later
+      dispatchComponentCosts({ type: 'add', payload: { cost: excComponent } });
+
       console.log('Created EXC component:', excComponent);
       
       showToast({
@@ -535,23 +450,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       message: 'Component addition cancelled'
     });
   };
-  // #endregion
-
-  // Handlers for ComponentCostYear (these will be used when we implement year-by-year cost breakdown)
-  // const handleAddComponentCostYear = (parentId: number, newCostYear: ComponentCostYear) => {
-  //   setComponentCostsYear(prev => [...prev, { ...newCostYear, ParentId: parentId }]);
-  //   console.log('Added component cost year to staging:', newCostYear);
-  // };
-
-  // const handleEditComponentCostYear = (costYearId: number, updatedCostYear: ComponentCostYear) => {
-  //   setComponentCostsYear(prev => prev.map(year => year.Id === costYearId ? updatedCostYear : year));
-  //   console.log('Updated component cost year in staging:', updatedCostYear);
-  // };
-
-  // const handleDeleteComponentCostYear = (costYearId: number) => {
-  //   setComponentCostsYear(prev => prev.filter(year => year.Id !== costYearId));
-  //   console.log('Deleted component cost year from staging:', costYearId);
-  // };
   // #endregion
 
   // #region Major Items of Work
@@ -578,14 +476,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   };
 
   const handleEditMajorItem = (index: number, updatedItem: MajorItemOfWorksWithDropdown) => {
-    // console.log('ProjectForm: Editing major item at index', index);
-    // console.log('ProjectForm: Updated item received:', updatedItem);
     setMajorItems(prev => {
       const newItems = prev.map((item, i) => i === index ? updatedItem : item);
-      // console.log('ProjectForm: New majorItems state:', newItems);
       return newItems;
     });
-    // console.log('Updated major item in staging:', updatedItem);
   };
 
   const handleDeleteMajorItem = (index: number) => {
@@ -593,9 +487,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     setMajorItems(prev => prev.filter((_, i) => i !== index));
     console.log('Deleted major item from staging:', itemToDelete);
   };
-// #endregion
+  // #endregion
 
-// #region Docs
+  // #region Docs
   const handleAddDoc = (newDoc: ProjectSupportingDocs) => {
     console.log('ProjectForm: Adding doc:', newDoc);
     console.log('ProjectForm: Current docs before:', docs);
@@ -613,9 +507,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const handleDeleteDoc = (doc: ProjectSupportingDocs) => {
     setDocs(prev => prev.filter(selected => selected.Id !== doc.Id));
   };
-// #endregion
+  // #endregion
 
-// #region Funding Profiles
+  // #region Funding Profiles
   const handleAddFundingProfile = () => {
     const newProfile: FundingProfile = {
       Id: 0, // Temporary ID
@@ -648,11 +542,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     setFundingProfiles(prev => prev.filter((_, i) => i !== index));
     console.log('Deleted funding profile from staging:', profileToDelete);
   };
-// #endregion
+  // #endregion
 
-
-
-  // Handler for adding new project (only for 'add' mode)
   const handleSaveProjectDetails = async () => {
     if (mode !== 'add') return; // Only allow saving new projects in add mode
     
@@ -810,7 +701,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         })),
         MajorItemOfWorks: majorItemsForPayload,
         MajorItemLocations: workLocationsForPayload,
-        // ProjectNotes: notes, // Include ProjectNotes as it's in the expected payload
         FundingProfile: fundingProfiles.map(profile => ({
           ...profile, StageName: initialData?.ProgramDetails?.StageName || '',
         }))
@@ -826,8 +716,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           message: 'Project updated successfully.'
       });
 
-      // Backend only returns success message, not the updated data
-      // So we keep the current state as is after successful update
       console.log('=== PROJECT UPDATE SUCCESSFUL ===');
       console.log('Keeping current state after successful update');
       console.log('Current Component Costs:', componentCosts);
@@ -840,16 +728,12 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           type: 'error',
           message: 'Failed to fetch projects.'
       });
-      
-      // Don't use alert() - use proper error state instead
-      // console.error('Update failed with error:', errorMessage);
     } finally {
       setUpdateAllProject(false);
     }
   };
 
   const handleSubmitModify = (type: string) => {
-  // Check for excess component condition before submitting
     const totalComponentCost = componentCosts.reduce((sum, cost) => sum + (cost.Total || 0), 0);
     const projectCost = programDetails.Cost || 0;
     
@@ -865,23 +749,17 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       // We'll open the ReviseProjectDialog after user confirms
       return;
     }
-    // If no excess or not applicable, proceed directly
     (type === 'new' || type === 'approve') ? setIsRevisedProjectDialogOpen(true) : setIsResubmitRevisionDialogOpen(true);
   }
 
   const handleApproveModification = async () => {
-    // TODO: Implement the actual approval API call
     console.log('Approving modification for:', {
       project: projectDetails,
       category: modificationCategory,
       reason: modificationReason
     });
     
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Here you would call your actual API service
-    // await approveModificationRequest(projectDetails.ProjectId, modificationCategory, modificationReason);
     
     showToast({
       type: 'success',
@@ -890,7 +768,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   }
 
   const handleTerminationSubmit = async (hasUnfinishedWork: boolean) => {
-    // TODO: Implement the actual termination API call
     console.log('Termination submitted:', {
       project: projectDetails,
       category: modificationCategory,
@@ -898,10 +775,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       hasUnfinishedWork: hasUnfinishedWork
     });
     
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
     
-    // Alert the result for now
     alert(`Termination request submitted!\n\nHas Unfinished Work Balance: ${hasUnfinishedWork ? 'Yes' : 'No'}\n\nProject: ${projectDetails.ProjectId}\nCategory: ${modificationCategory}\nReason: ${modificationReason}`);
     
     showToast({
@@ -911,7 +786,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   }
 
   const handleRejectModification = async (rejectionReason: string) => {
-    // TODO: Implement the actual rejection API call
     console.log('Rejecting modification:', {
       project: projectDetails,
       category: modificationCategory,
@@ -919,7 +793,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       rejectionReason: rejectionReason
     });
     
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     showToast({
@@ -928,7 +801,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     });
   }
 
-  // Check if category is Termination and show dialog automatically
   useEffect(() => {
     const normalizedCategory = modificationCategory?.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
     if (normalizedCategory === 'termination' && mode === 'edit') {
@@ -937,129 +809,103 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   }, [modificationCategory, mode]);
 
   return (
-    
     <div className="overflow-hidden max-w-10xl mx-auto p-6 space-y-6">
-        <div className='flex items-center justify-between mb-6'>
-            {/* Breadcrumb */}
-            {/* <nav className="flex items-center text-sm text-left text-gray-500">
-                <span>MYPS Admin</span>
-                <span className="mx-2">&gt;</span>
-                <span 
-                className="text-blue-600 hover:text-blue-800 cursor-pointer"
-                onClick={handleGoBack}
-                >
-                Project Revision
-                </span>
-                <span className="mx-2">&gt;</span>
-                <span>{mode === 'add' ? 'Add Project' : 'Edit Project'}</span>
-                <span className="mx-2">&gt;</span>
-            </nav> */}
-            <div>
-              
-            </div>
-            <div className="flex space-x-3">
-                {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus == null && (user?.UserGroups === 'AUC' ) && (
-                  <>
-                    <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify('new')} disabled={updateReviseProject}>
-                      {updateReviseProject ? 'Submitting...' : 'Submit Revision Request to CO'}
-                    </Button>
-                  </>
-                )}
-                {mode === 'edit' && (initialData?.RevisionDetails?.RegionStatus == 3 || initialData?.RevisionDetails?.COStatus == 3) && (user?.UserGroups === 'DPC' ) && (
-                  <>
-                    <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify('resubmit')} disabled={updateResubmitRevision}>
-                      {updateReviseProject ? 'Submitting...' : 'Re-Submit Revision'}
-                    </Button>
-                  </>
-                )}
-                {/* {mode === 'edit' && (initialData?.RevisionDetails?.COStatus == 3 && initialData?.RevisionDetails.RegionStatus !== 3) && (user?.UserGroups === 'RPC' ) && (
-                  <>
-                    <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify('resubmit')} disabled={updateResubmitRevision}>
-                      {updateReviseProject ? 'Submitting...' : 'Re-Submit Revision'}
-                    </Button>
-                  </>
-                )} */}
-                {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus == null && (user?.UserGroups === 'DPC' ) && (
-                  <>
-                    <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify('new')} disabled={updateReviseProject}>
-                      {updateReviseProject ? 'Submitting...' : 'Submit Revision Request to RO'}
-                    </Button>
-                  </>
-                )}
-                {/* need refactor here */}
-                {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus === 0 && (user?.UserGroups === 'DPC' ) && (
-                  <>
-                    <Button color="yellow" className='cursor-pointer' disabled={updateReviseProject}>
-                      {updateReviseProject ? 'Submitting...' : 'Pending RO Approval'}
-                    </Button>
-                  </>
-                )}
-                {mode === 'edit' && (initialData?.RevisionDetails?.COStatus === 0 && initialData?.RevisionDetails?.RegionStatus === 1) && (user?.UserGroups === 'DPC' ) && (
-                  <>
-                    <Button color="yellow" className='cursor-pointer' disabled={updateReviseProject}>
-                      {updateReviseProject ? 'Submitting...' : 'Pending CO Approval'}
-                    </Button>
-                  </>
-                )}
-                {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus === 0 && (user?.UserGroups === 'RPC' ) && (
-                  <>
-                    <Button color="green" className='cursor-pointer' onClick={() => setIsApproveDialogOpen(true)} disabled={updateReviseProject}>
-                      {updateReviseProject ? 'Submitting...' : 'Submit Revision Request CO'}
-                    </Button>
-                  </>
-                )}
-                {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus === 0 && user?.UserGroups === 'RPC' && (
-                  <>
-                    <Button color="amber" className='cursor-pointer' onClick={() => setIsForReviewDialogOpen(true)} disabled={updateForReviewProject}>
-                      {updateForReviewProject ? 'Initializing...' : 'For Correction'}
-                    </Button>
-                  </>
-                )}
-                {mode === 'edit' && user?.UserGroups === 'AUC' && initialData?.RevisionDetails?.COStatus == 0 && (
-                  <>
-                    <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify('approve')} disabled={updateApproveProject}>
-                      {updateApproveProject ? 'Approving...' : 'Approve'}
-                    </Button>
-                  </>
-                )}
-                {mode === 'edit' && initialData?.RevisionDetails?.COStatus == 0 && user?.UserGroups === 'AUC' && (
-                  <>
-                    <Button color="amber" className='cursor-pointer' onClick={() => setIsForReviewDialogOpen(true)} disabled={updateForReviewProject}>
-                      {updateForReviewProject ? 'Initializing...' : 'For Correction'}
-                    </Button>
-                  </>
-                )}
-                
-                {mode === 'edit' && initialData?.RevisionDetails?.COStatus == 0 && user?.UserGroups === 'AUC' && (
-                  <>
-                    <Button color="red" className='cursor-pointer' onClick={() => setIsRejectDialogOpen(true)} disabled={rejectDialogProject}>
-                      {rejectDialogProject ? 'Rejecting...' : 'Disapprove'}
-                    </Button>
-                  </>
-                )}
-                {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus === 0 && user?.UserGroups === 'RPC' && (
-                  <>
-                    <Button color="red" className='cursor-pointer' onClick={() => setIsRejectDialogOpen(true)} disabled={rejectDialogProject}>
-                      {rejectDialogProject ? 'Rejecting...' : 'Disapprove'}
-                    </Button>
-                  </>
-                )}
-                {mode === 'edit' && initialData?.IsActive === true && initialData?.ProgramDetails?.StageId !== 10 && (
-                  <>
-                    <Button color="orange" className='cursor-pointer' onClick={handleUpdateProject} disabled={updateAllProject}>
-                      {updateAllProject ? 'Updating...' : 'Update Project'}
-                    </Button>
-                  </>
-                )}
-                {mode === 'edit' && initialData?.IsActive === true && initialData?.IsModify === true && (
-                  <>
-                    <Button color="orange" className='cursor-pointer' onClick={handleUpdateProject} disabled={updateAllProject}>
-                      {updateAllProject ? 'Updating...' : 'Update Project'}
-                    </Button>
-                  </>
-                )}
-            </div>
+      <div className='flex items-center justify-between mb-6'>
+        <div></div>
+        <div className="flex space-x-3">
+          {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus == null && (user?.UserGroups === 'AUC' ) && (
+            <>
+              <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify('new')} disabled={updateReviseProject}>
+                {updateReviseProject ? 'Submitting...' : 'Submit Revision Request to CO'}
+              </Button>
+            </>
+          )}
+          {mode === 'edit' && (initialData?.RevisionDetails?.RegionStatus == 3 || initialData?.RevisionDetails?.COStatus == 3) && (user?.UserGroups === 'DPC' ) && (
+            <>
+              <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify('resubmit')} disabled={updateResubmitRevision}>
+                {updateReviseProject ? 'Submitting...' : 'Re-Submit Revision'}
+              </Button>
+            </>
+          )}
+          {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus == null && (user?.UserGroups === 'DPC' ) && (
+            <>
+              <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify('new')} disabled={updateReviseProject}>
+                {updateReviseProject ? 'Submitting...' : 'Submit Revision Request to RO'}
+              </Button>
+            </>
+          )}
+          {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus === 0 && (user?.UserGroups === 'DPC' ) && (
+            <>
+              <Button color="yellow" className='cursor-pointer' disabled={updateReviseProject}>
+                {updateReviseProject ? 'Submitting...' : 'Pending RO Approval'}
+              </Button>
+            </>
+          )}
+          {mode === 'edit' && (initialData?.RevisionDetails?.COStatus === 0 && initialData?.RevisionDetails?.RegionStatus === 1) && (user?.UserGroups === 'DPC' ) && (
+            <>
+              <Button color="yellow" className='cursor-pointer' disabled={updateReviseProject}>
+                {updateReviseProject ? 'Submitting...' : 'Pending CO Approval'}
+              </Button>
+            </>
+          )}
+          {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus === 0 && (user?.UserGroups === 'RPC' ) && (
+            <>
+              <Button color="green" className='cursor-pointer' onClick={() => setIsApproveDialogOpen(true)} disabled={updateReviseProject}>
+                {updateReviseProject ? 'Submitting...' : 'Submit Revision Request CO'}
+              </Button>
+            </>
+          )}
+          {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus === 0 && user?.UserGroups === 'RPC' && (
+            <>
+              <Button color="amber" className='cursor-pointer' onClick={() => setIsForReviewDialogOpen(true)} disabled={updateForReviewProject}>
+                {updateForReviewProject ? 'Initializing...' : 'For Correction'}
+              </Button>
+            </>
+          )}
+          {mode === 'edit' && user?.UserGroups === 'AUC' && initialData?.RevisionDetails?.COStatus == 0 && (
+            <>
+              <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify('approve')} disabled={updateApproveProject}>
+                {updateApproveProject ? 'Approving...' : 'Approve'}
+              </Button>
+            </>
+          )}
+          {mode === 'edit' && initialData?.RevisionDetails?.COStatus == 0 && user?.UserGroups === 'AUC' && (
+            <>
+              <Button color="amber" className='cursor-pointer' onClick={() => setIsForReviewDialogOpen(true)} disabled={updateForReviewProject}>
+                {updateForReviewProject ? 'Initializing...' : 'For Correction'}
+              </Button>
+            </>
+          )}
+          {mode === 'edit' && initialData?.RevisionDetails?.COStatus == 0 && user?.UserGroups === 'AUC' && (
+            <>
+              <Button color="red" className='cursor-pointer' onClick={() => setIsRejectDialogOpen(true)} disabled={rejectDialogProject}>
+                {rejectDialogProject ? 'Rejecting...' : 'Disapprove'}
+              </Button>
+            </>
+          )}
+          {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus === 0 && user?.UserGroups === 'RPC' && (
+            <>
+              <Button color="red" className='cursor-pointer' onClick={() => setIsRejectDialogOpen(true)} disabled={rejectDialogProject}>
+                {rejectDialogProject ? 'Rejecting...' : 'Disapprove'}
+              </Button>
+            </>
+          )}
+          {mode === 'edit' && initialData?.IsActive === true && initialData?.ProgramDetails?.StageId !== 10 && (
+            <>
+              <Button color="orange" className='cursor-pointer' onClick={handleUpdateProject} disabled={updateAllProject}>
+                {updateAllProject ? 'Updating...' : 'Update Project'}
+              </Button>
+            </>
+          )}
+          {mode === 'edit' && initialData?.IsActive === true && initialData?.IsModify === true && (
+            <>
+              <Button color="orange" className='cursor-pointer' onClick={handleUpdateProject} disabled={updateAllProject}>
+                {updateAllProject ? 'Updating...' : 'Update Project'}
+              </Button>
+            </>
+          )}
         </div>
+      </div>
 
       {/* Map Section */}
       <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
@@ -1087,6 +933,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           </div>
         )}
       </div>
+
       <div>
         {category && reasonId && (
           <div className="text-sm text-gray-600">
@@ -1108,7 +955,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           packageStatus={packageStatus}
           currentCase={currentCase}
           statusName={revisionStatus}
-          // category={modificationCategory}
         />
       </div>
 
@@ -1190,95 +1036,93 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
       {mode === 'edit' && (
         <>
-      {/* Funding Profile Section */}
-        <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
-          <div className="px-4 py-6 sm:p-8">
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold leading-7 text-gray-900">Funding Profiles</h3>
+          {/* Funding Profile Section */}
+          <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
+            <div className="px-4 py-6 sm:p-8">
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold leading-7 text-gray-900">Funding Profiles</h3>
+              </div>
+              <FundingProfileForm
+                fundingProfiles={fundingProfiles}
+                onAdd={handleAddFundingProfile}
+                onEdit={handleEditFundingProfile}
+                onDelete={handleDeleteFundingProfile}
+                initialData={initialData ? { ...initialData, Dropdowns } : undefined}
+                onTotalAmountChange={setMaxAmountCost}
+                disabled={isDisabled}
+              />
             </div>
-            <FundingProfileForm
-              fundingProfiles={fundingProfiles}
-              onAdd={handleAddFundingProfile}
-              onEdit={handleEditFundingProfile}
-              onDelete={handleDeleteFundingProfile}
-              initialData={initialData ? { ...initialData, Dropdowns } : undefined}
-              onTotalAmountChange={setMaxAmountCost}
-              disabled={isDisabled}
-            />
           </div>
-        </div>
 
-      {/* Component Cost Section - Fill this first to populate Major Items */}
-      <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
-        <div className="px-4 py-6 sm:p-8">
-          <div className="mb-4">
-            <h3 className="text-lg font-semibold leading-7 text-gray-900">Component Costs</h3>
-            <p className="text-sm text-blue-600 font-medium">⚠️ Add component costs first - they are required for Major Items of Work</p>
-          </div>
-          <ComponentCostForm
-            componentCosts={componentCostsWithYears}
-            onAdd={handleAddComponentCost}
-            onEdit={handleEditComponentCost}
-            onDelete={handleDeleteComponentCost}
-            initialData={initialData}
-            maxAmountCost={maxAmountCost}
-            fieldRules={fieldRules ?? undefined}
-            category={modificationCategory}
-            reason={modificationReason}
-            reasonId={modificationReasonId}
-          />
-        </div>
-      </div>
-
-      {/* Major Item of Work Section */}
-      <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
-        <div className="px-4 py-6 sm:p-8">
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold leading-7 text-gray-900">Major Items of Work</h3>
-          </div>
-          <MajorItemOfWorksForm
-            majorItems={majorItems}
-            projectId={initialData?.ProjectDetails.ProjectId || ''}
-            componentCosts={componentCosts}
-            infraData={infraData}
-            onAdd={handleAddMajorItem}
-            onEdit={handleEditMajorItem}
-            onDelete={handleDeleteMajorItem}
-            dropDowns={initialData?.Dropdowns?.ScopeOfWorks}
-            programDetails={initialData?.ProgramDetails}
-            fieldRules={fieldRules}
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-6">
-        {/* Notes Section */}
-        <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
-          <div className="px-4 py-6 sm:p-8">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-semibold leading-7 text-gray-900">Supporting Documents</h3>
+          {/* Component Cost Section - Fill this first to populate Major Items */}
+          <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
+            <div className="px-4 py-6 sm:p-8">
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold leading-7 text-gray-900">Component Costs</h3>
+                <p className="text-sm text-blue-600 font-medium">⚠️ Add component costs first - they are required for Major Items of Work</p>
+              </div>
+              <ComponentCostForm
+                componentCosts={componentCostsWithYears}
+                onAdd={handleAddComponentCost}
+                onEdit={handleEditComponentCost}
+                onDelete={handleDeleteComponentCost}
+                initialData={initialData}
+                maxAmountCost={maxAmountCost}
+                fieldRules={fieldRules ?? undefined}
+                category={modificationCategory}
+                reason={modificationReason}
+                reasonId={modificationReasonId}
+              />
             </div>
-            <NotesForm
-              docs={docs}
-              onAdd={handleAddDoc}
-              onEdit={handleEditDoc}
-              onDelete={handleDeleteDoc}
-              initialData={initialData}
-              dropDownOptions={initialData?.Dropdowns?.SupportingDocs}
-              disabled={isDisabled}
-            />
           </div>
-        </div>
 
-        
-      </div>
+          {/* Major Item of Work Section */}
+          <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
+            <div className="px-4 py-6 sm:p-8">
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold leading-7 text-gray-900">Major Items of Work</h3>
+              </div>
+              <MajorItemOfWorksForm
+                majorItems={majorItems}
+                projectId={initialData?.ProjectDetails.ProjectId || ''}
+                componentCosts={componentCosts}
+                infraData={infraData}
+                onAdd={handleAddMajorItem}
+                onEdit={handleEditMajorItem}
+                onDelete={handleDeleteMajorItem}
+                dropDowns={initialData?.Dropdowns?.ScopeOfWorks}
+                programDetails={initialData?.ProgramDetails}
+                fieldRules={fieldRules}
+              />
+            </div>
+          </div>
 
-      {/* Activities Section */}
-      <ActivitySection activities={activities} transactionLogs={transactionLogs} />
-      </>
+          <div className="grid grid-cols-1 gap-6">
+            {/* Notes Section */}
+            <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
+              <div className="px-4 py-6 sm:p-8">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-lg font-semibold leading-7 text-gray-900">Supporting Documents</h3>
+                </div>
+                <NotesForm
+                  docs={docs}
+                  onAdd={handleAddDoc}
+                  onEdit={handleEditDoc}
+                  onDelete={handleDeleteDoc}
+                  initialData={initialData}
+                  dropDownOptions={initialData?.Dropdowns?.SupportingDocs}
+                  disabled={isDisabled}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Activities Section */}
+          <ActivitySection activities={activities} transactionLogs={transactionLogs} />
+        </>
       )}
 
-      {/* Modify Project Modal */}
+      {/* Modals and Dialogs */}
       {isRevisedProjectDialogOpen && (<ReviseProjectDialog
         projectStatus={initialData?.ProjectStatus}
         isOpen={isRevisedProjectDialogOpen}
@@ -1315,7 +1159,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         fundingProfile={fundingProfiles}
       />)}
 
-      {/* Modify Project Modal */}
       {isResubmitRevisionDialogOpen && (<ResubmitRevisionDialog
         projectStatus={initialData?.ProjectStatus}
         isOpen={isResubmitRevisionDialogOpen}
@@ -1352,7 +1195,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         fundingProfile={fundingProfiles}
       />)}
 
-      {/* Approve Modification Modal */}
       {isApproveDialogOpen && (
         <ApproveModifyDialog
           isOpen={isApproveDialogOpen}
@@ -1365,7 +1207,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         />
       )}
 
-      {/* For Review Modification Modal */}
       {isForReviewDialogOpen && (
         <ForReviewModifyDialog
           isOpen={isForReviewDialogOpen}
@@ -1377,7 +1218,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         />
       )}
 
-      {/* Reject Modification Modal */}
       {isRejectDialogOpen && (
         <RejectModifyDialog
           isOpen={isRejectDialogOpen}
@@ -1390,7 +1230,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         />
       )}
 
-      {/* Excess Component Prompt */}
       {isExcessPromptOpen && excessComponentData && (
         <ExcessPrompt
           isOpen={isExcessPromptOpen}
@@ -1402,7 +1241,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           excessAmount={excessComponentData.excessAmount}
         />
       )}
-      {/* Termination Dialog */}
+
       {isTerminationDialogOpen && (
         <TerminationDialog
           isOpen={isTerminationDialogOpen}

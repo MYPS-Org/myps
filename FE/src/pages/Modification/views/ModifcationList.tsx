@@ -5,8 +5,7 @@ import MagnifyingGlassIcon from '@heroicons/react/24/outline/MagnifyingGlassIcon
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
 import { Button } from '../../../components/tailwindui/button';
 import { Pagination, PaginationPrevious, PaginationNext, PaginationPage, PaginationList } from '../../../components/tailwindui/pagination';
-import { PlusIcon, XMarkIcon } from '@heroicons/react/20/solid';
-import AddProjectDialog from '../dialogs/AddProjectDialog';
+import { XMarkIcon } from '@heroicons/react/20/solid';
 import AdjustProjectDialog from '../dialogs/ModifiyProjectDialog';
 import { fetchModificationList } from '../Service';
 import type { RevisionPagination, RevisionLists } from '../Model.d';
@@ -34,7 +33,6 @@ const ModificationList: React.FC = () => {
     }, [projectId, stageName, revisionTypeId, revisionTypeDescription]);
 
     const [ isLoading, setIsLoading ] = useState<boolean>(false);
-    const [ isAddNewDialogOpen, setIsAddNewDialogOpen ] = useState<boolean>(false);
     const [ isAdjustDialogOpen, setIsAdjustDialogOpen ] = useState<boolean>(false);
     const [ searchInput, setSearchInput ] = useState<string>('');
 
@@ -138,11 +136,6 @@ const ModificationList: React.FC = () => {
                 message: 'Failed to fetch revision requests.'
             });
         }
-    }
-
-    const handleAddProject = () => {
-        setIsAddNewDialogOpen(true);
-        console.log("Add Project Clicked");
     }
 
     const handleViewDetails = (revision: RevisionLists) => {
