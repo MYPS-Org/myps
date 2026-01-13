@@ -760,8 +760,20 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
   useEffect(() => {
     const normalizedCategory = modificationCategory?.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
-    if (normalizedCategory === 'termination' && mode === 'edit') {
+    
+    if (normalizedCategory !== 'termination') return;
+
+    const hasTerminatedComponent = 
+      initialData?.ComponentCosts?.some(comp => 
+        comp.ConstructionStatusName
+          ?.toLowerCase()
+          .trim() === 'terminated'
+      ) || false;
+
+    if (hasTerminatedComponent) {
       setIsTerminationDialogOpen(true);
+    } else {
+      navigate(-1); // Go back to previous page /project
     }
   }, [modificationCategory, mode]);
 
