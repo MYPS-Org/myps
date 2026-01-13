@@ -213,8 +213,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     
     try {
         // Validate if the total would exceed max amount cost
-        if (formData.Total < 0 || formData.Total <= 0) {
-          alert('Total cost cannot be negative.');
+        if (mode === 'add' && formData.Total <= 0) {
+          alert('Total cost must be greater than zero when adding a new component.');
           return;
         }
 
@@ -247,8 +247,6 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
           ParentId: componentCostData.ReferenceId, // Will be linked after ComponentCost is saved
           CostYear: new Date().getFullYear(), // Default to current year
           Cost: componentCostData.Total, // Use the same cost value
-          // ApprovalDate: ApprovalDate || undefined,
-          // PAPCode: PAPCode || '',
           StartDate: StartDate || new Date().toISOString(),
           EndDate: EndDate || new Date().toISOString()
         };

@@ -1,6 +1,5 @@
 import { atom } from 'jotai';
 import type {
-    MajorItemOfWorksWithDropdown,
     MajorItemOfWork,
     MajorItemLocations,
     ScopeOfWorkEnum

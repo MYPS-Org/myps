@@ -42,8 +42,6 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
   const { 
     add, 
     update, 
-    remove, 
-    removeByIndex,
     // Delete dialog state & actions from hook
     isDeleteOpen,
     selectedForDelete,
@@ -222,6 +220,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
             <TableHeader>Created By</TableHeader>
             <TableHeader>Created Date</TableHeader>
             <TableHeader>PCMA Status</TableHeader>
+            <TableHeader>Package Type</TableHeader>
             <TableHeader>Actions</TableHeader>
           </TableRow>
         </TableHead>
@@ -246,6 +245,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
                 <TableCell>{cost.CreatedBy || '-'}</TableCell>
                 <TableCell>{cost.CreatedDate ? new Date(cost.CreatedDate).toLocaleDateString() : '-'}</TableCell>
                 <TableCell>{cost.ConstructionStatusName}</TableCell>
+                <TableCell>{cost.PackedStatusName}</TableCell>
                 <TableCell>
                   <div className="flex space-x-2">
                     <button
