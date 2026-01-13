@@ -39,16 +39,23 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
   // Read-only derived costs from atom
   const [componentCosts] = useAtom(componentCostsWithYearsAtom);
   // Mutations via hook (encapsulates atom setters)
-  const { add, update, remove } = useComponentCosts();
+  const { 
+    add, 
+    update, 
+    remove, 
+    removeByIndex,
+    // Delete dialog state & actions from hook
+    isDeleteOpen,
+    selectedForDelete,
+    deleteIndex,
+    openDelete,
+    closeDelete,
+    confirmDelete
+  } = useComponentCosts();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
-
-  // Local delete dialog state (replaces store/hook)
-  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
-  const [selectedForDelete, setSelectedForDelete] = useState<ComponentCostWithYears | null>(null);
 
   const formatCurrency = (amount: number) => amount.toLocaleString('en-PH');
 
@@ -131,25 +138,6 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
     }
 
     handleCloseModal();
-  };
-
-  // open local delete dialog
-  const openDeleteModal = (component: ComponentCostWithYears, index: number) => {
-    setSelectedForDelete(component);
-    setDeleteIndex(index);
-    setIsDeleteOpen(true);
-  };
-
-  const closeDeleteModal = () => {
-    setIsDeleteOpen(false);
-    setSelectedForDelete(null);
-    setDeleteIndex(null);
-  };
-
-  const handleDeleteConfirm = (index: number) => {
-    const ref = componentCosts[index]?.ReferenceId;
-    if (ref) remove(String(ref));
-    closeDeleteModal();
   };
 
   const calculateTotalCosts = () => {
@@ -268,7 +256,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
                       <PencilIcon className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => { if (canDelete(cost)) openDeleteModal(cost, index); }}
+                      onClick={() => { if (canDelete(cost)) openDelete(cost, index); }}
                       className={`text-red-600 hover:text-red-800 ${!canDelete(cost) ? 'opacity-50 cursor-not-allowed' : ''}`}
                       title={canDelete(cost) ? "Delete component" : "Cannot delete component"}
                       disabled={!canDelete(cost)}
@@ -303,7 +291,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
         component={selectedForDelete}
         index={deleteIndex}
         onClose={closeDelete}
-        onConfirmDelete={async () => { await confirmDelete(); }}
+        onConfirmDelete={confirmDelete}
         projectId={initialData?.ProjectDetails?.ProjectId}
       />
     </div>

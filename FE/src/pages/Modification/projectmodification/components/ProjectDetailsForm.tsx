@@ -308,7 +308,6 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                 ))}
             </div>
             <div className="space-y-8 text-sm">
-                {JSON.stringify(fieldPermissions)}
                 
                 {/* General Information Section */}
                 <div className="space-y-4">

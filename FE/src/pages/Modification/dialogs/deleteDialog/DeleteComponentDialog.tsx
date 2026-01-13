@@ -3,34 +3,26 @@ import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../../components/tailwindui/button';
 import { XMarkIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { useToast } from '../../../../components/toaster/ToasterContext';
-import { useAtom, useAtomValue } from 'jotai';
-import {
-  deleteDialogOpenAtom,
-  selectedComponentForDeleteAtom,
-  deleteIndexAtom,
-  deletingComponentAtom,
-  canShowDeleteDialogAtom,
-  closeDeleteDialogAtom,
-  setDeletingStateAtom
-} from '../../store/deleteDialogStore';
+import { useState } from 'react';
+import type { ComponentCostWithYears } from '../../../Project/Model';
 
 interface DeleteComponentDialogProps {
-  onConfirmDelete: (index: number) => void;
+  isOpen: boolean;
+  component: ComponentCostWithYears | null;
+  index: number | null;
   projectId?: string;
+  onClose: () => void;
+  onConfirmDelete: (index?: number) => Promise<void> | void;
 }
 
 const DeleteComponentDialog: React.FC<DeleteComponentDialogProps> = ({
+  isOpen,
+  component: selectedComponent,
+  index: deleteIndex,
+  onClose: closeDialog,
   onConfirmDelete,
 }) => {
-  // Atoms
-  const canShowDialog = useAtomValue(canShowDeleteDialogAtom);
-  const [isOpen] = useAtom(deleteDialogOpenAtom);
-  const selectedComponent = useAtomValue(selectedComponentForDeleteAtom);
-  const deleteIndex = useAtomValue(deleteIndexAtom);
-  const [isDeleting] = useAtom(deletingComponentAtom);
-  const [, closeDialog] = useAtom(closeDeleteDialogAtom);
-  const [, setDeletingState] = useAtom(setDeletingStateAtom);
-
+  const [isDeleting, setIsDeleting] = useState(false);
   const { showToast } = useToast();
 
   const formatCurrency = (amount: number) => {
@@ -47,33 +39,29 @@ const DeleteComponentDialog: React.FC<DeleteComponentDialogProps> = ({
     if (!selectedComponent || deleteIndex === null || isDeleting) return;
 
     try {
-      setDeletingState(true);
+      setIsDeleting(true);
+      await onConfirmDelete(deleteIndex);
 
-      // Just remove from local componentCosts array
-      // The save operation will handle persistence to database
-      onConfirmDelete(deleteIndex);
-      
       showToast({
         type: 'success',
         message: 'Component cost removed successfully'
       });
-      
-      // Close dialog
+
       closeDialog();
 
     } catch (error: any) {
       console.error('Error removing component cost:', error);
-      
+
       showToast({
         type: 'error',
         message: 'Failed to remove component cost. Please try again.'
       });
     } finally {
-      setDeletingState(false);
+      setIsDeleting(false);
     }
   };
 
-  if (!canShowDialog || !selectedComponent || deleteIndex === null) {
+  if (!isOpen || !selectedComponent || deleteIndex === null) {
     return null;
   }
 

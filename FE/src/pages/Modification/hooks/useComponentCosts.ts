@@ -51,6 +51,11 @@ export function useComponentCosts() {
     setYears(prev => prev.filter(y => String(y.ParentId) !== String(referenceId)));
   }, [setCosts, setYears]);
 
+  const removeByIndex = useCallback((index: number) => {
+    const ref = costs?.[index]?.ReferenceId;
+    if (ref) remove(String(ref));
+  }, [costs, remove]);
+
   const addYear = useCallback((parentId: string, year: ComponentCostYear) => {
     const newYear = { ...year, ParentId: parentId, Id: year.Id || Date.now() + Math.floor(Math.random() * 1000) };
     setYears(prev => [...prev, newYear]);
@@ -101,6 +106,7 @@ export function useComponentCosts() {
     add,
     update,
     remove,
+    removeByIndex,
     addYear,
     editYear,
     removeYear,

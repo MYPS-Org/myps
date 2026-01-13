@@ -55,9 +55,9 @@ import { useAtom } from 'jotai';
 import {
   componentCostsAtom,
   componentCostsYearAtom,
-  componentCostsWithYearsAtom,
-  componentCostsActionsAtom
+  componentCostsWithYearsAtom
 } from '../../atoms/componentCosts.atom';
+import { useComponentCosts } from '../../hooks/useComponentCosts';
 
 interface ProjectFormProps {
   initialData?: RevisionProjectPayload;
@@ -279,7 +279,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const [componentCosts, setComponentCosts] = useAtom(componentCostsAtom);
   const [componentCostsYear, setComponentCostsYear] = useAtom(componentCostsYearAtom);
   const [componentCostsWithYears] = useAtom(componentCostsWithYearsAtom);
-  const [, dispatchComponentCosts] = useAtom(componentCostsActionsAtom);
+  const { add: addComponentCost, update: updateComponentCost, removeByIndex: deleteComponentCost } = useComponentCosts();
 
   // Seed atoms from initialData when editing an existing revision
   useEffect(() => {
@@ -399,15 +399,18 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     const tempId = Date.now().toString();
     const costWithId = { ...newCost, ReferenceId: tempId };
     const yearWithParent = newCostYear ? { ...newCostYear, ParentId: tempId, Id: Date.now() + 1 } : undefined;
-    dispatchComponentCosts({ type: 'add', payload: { cost: costWithId, costYear: yearWithParent } });
+    addComponentCost(costWithId, yearWithParent);
   };
 
   const handleEditComponentCost = (index: number, updatedCost: ComponentCost) => {
-    dispatchComponentCosts({ type: 'edit', payload: { index, updated: updatedCost } });
+    const existingCost = componentCosts[index];
+    if (existingCost?.ReferenceId) {
+      updateComponentCost(String(existingCost.ReferenceId), updatedCost);
+    }
   };
 
   const handleDeleteComponentCost = (index: number) => {
-    dispatchComponentCosts({ type: 'delete', payload: { index } });
+    deleteComponentCost(index);
   };
   // #endregion
 
@@ -427,8 +430,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         Total: excessComponentData.excessAmount,
       };
 
-      // add via dispatch so years linkage is preserved if needed later
-      dispatchComponentCosts({ type: 'add', payload: { cost: excComponent } });
+      // add via hook method so years linkage is preserved if needed later
+      addComponentCost(excComponent);
 
       console.log('Created EXC component:', excComponent);
       
