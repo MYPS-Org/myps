@@ -241,214 +241,137 @@ const ModificationList: React.FC = () => {
                             </div>
                         </div>
                     </div>
-                <Table className="px-5" striped>
-                    <TableHead>
-                        <TableRow>
-                            <TableHeader>Revision Type</TableHeader>
-                            <TableHeader>Project ID</TableHeader>
-                            <TableHeader>Reason</TableHeader>
-                            <TableHeader>Date</TableHeader>
-                            <TableHeader>Status</TableHeader>
-                            <TableHeader>Action</TableHeader>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {RevisionData.lists.length === 0 ? (
+                    <Table className="px-5" striped>
+                        <TableHead>
                             <TableRow>
-                                <TableCell colSpan={6} className="text-center text-gray-500 py-8">
-                                    {isLoading ? 'Loading...' : 'No revision requests found'}
-                                </TableCell>
+                                <TableHeader>Revision Type</TableHeader>
+                                <TableHeader>Project ID</TableHeader>
+                                <TableHeader>Reason</TableHeader>
+                                <TableHeader>Date</TableHeader>
+                                <TableHeader>Status</TableHeader>
+                                <TableHeader>Action</TableHeader>
                             </TableRow>
-                        ) : (
-                            RevisionData.lists.map((revision) => (
-                                <TableRow key={revision.Id}>
-                                    <TableCell className="font-medium">{revision.RevisionName}</TableCell>
-                                    <TableCell>{revision.TransactionId}</TableCell>
-                                    <TableCell>{revision.Reason}</TableCell>
-                                    <TableCell>{revision.CreatedDate ? new Date(revision.CreatedDate).toLocaleDateString() : '-'}</TableCell>
-                                    <TableCell className="flex items-center">
-                                        {revision.COStatus == 0 && revision.RegionStatus == 0 &&(
-                                            <span className="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                                {revision.RegionStatusName}
-                                            </span>
-                                        )}
-                                        {revision.RegionStatus == 2 &&(
-                                            <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
-                                                {revision.RegionStatusName}
-                                            </span>
-                                        )}
-                                        {revision.RegionStatus == 3 &&(
-                                            <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
-                                                {revision.RegionStatusName}
-                                            </span>
-                                        )}
-                                        {revision.RegionStatus == 1 && revision.COStatus != null && (
-                                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${revision.COStatusName == 'Approved' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
-                                                {revision.COStatusName}
-                                            </span>
-                                        )}
-                                    </TableCell>
-                                    <TableCell>
-                                        <Button 
-                                            onClick={() => {
-                                                handleViewDetails(revision);
-                                            }} 
-                                            disabled={isLoading} 
-                                            color="blue" 
-                                            className="text-xs px-3 py-1.5"
-                                        >
-                                            View
-                                        </Button>
+                        </TableHead>
+                        <TableBody>
+                            {RevisionData.lists.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={6} className="text-center text-gray-500 py-8">
+                                        {isLoading ? 'Loading...' : 'No revision requests found'}
                                     </TableCell>
                                 </TableRow>
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
-                <Pagination className="my-6">
-                    {
-                        RevisionData.totalPages > 1 && (
-                            <>
-                                <PaginationPrevious 
-                                    onClick={async () => {
-                                        Paginate(1);
-                                    }}
-                                    disabled={RevisionData.page <= 1}
-                                >
-                                    First
-                                </PaginationPrevious>
-                                <PaginationList>
-                                    {Array.from({ length: Math.min(7, RevisionData.totalPages) }, (_, index) => {
-                                        const pageNum = Math.max(1, RevisionData.page - 3) + index;
-                                        if (pageNum > RevisionData.totalPages) return null;
+                            ) : (
+                                RevisionData.lists.map((revision) => (
+                                    <TableRow key={revision.Id}>
+                                        <TableCell className="font-medium">{revision.RevisionName}</TableCell>
+                                        <TableCell>{revision.TransactionId}</TableCell>
+                                        <TableCell>{revision.Reason}</TableCell>
+                                        <TableCell>{revision.CreatedDate ? new Date(revision.CreatedDate).toLocaleDateString() : '-'}</TableCell>
+                                        <TableCell className="flex items-center">
+                                            {revision.COStatus == 0 && revision.RegionStatus == 0 &&(
+                                                <span className="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                                    {revision.RegionStatusName}
+                                                </span>
+                                            )}
+                                            {revision.RegionStatus == 2 &&(
+                                                <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                                                    {revision.RegionStatusName}
+                                                </span>
+                                            )}
+                                            {revision.RegionStatus == 3 &&(
+                                                <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                                                    {revision.RegionStatusName}
+                                                </span>
+                                            )}
+                                            {revision.RegionStatus == 1 && revision.COStatus != null && (
+                                                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${revision.COStatusName == 'Approved' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-red-800'}`}>
+                                                    {revision.COStatusName}
+                                                </span>
+                                            )}
+                                        </TableCell>
+                                        <TableCell>
+                                            <Button 
+                                                onClick={() => {
+                                                    handleViewDetails(revision);
+                                                }} 
+                                                disabled={isLoading} 
+                                                color="blue" 
+                                                className="text-xs px-3 py-1.5"
+                                            >
+                                                View
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
+                    <Pagination className="my-6">
+                        {
+                            RevisionData.totalPages > 1 && (
+                                <>
+                                    <PaginationPrevious 
+                                        onClick={async () => {
+                                            Paginate(1);
+                                        }}
+                                        disabled={RevisionData.page <= 1}
+                                    >
+                                        First
+                                    </PaginationPrevious>
+                                    <PaginationList>
+                                        {Array.from({ length: Math.min(7, RevisionData.totalPages) }, (_, index) => {
+                                            const pageNum = Math.max(1, RevisionData.page - 3) + index;
+                                            if (pageNum > RevisionData.totalPages) return null;
 
-                                        if (pageNum === RevisionData.page) {
-                                            return (
-                                                <PaginationPage
-                                                    key={pageNum}
-                                                    current
-                                                >
-                                                    {pageNum}
-                                                </PaginationPage>
-                                            );
-                                        } else {
-                                            return (
-                                                <PaginationPage
-                                                    key={pageNum}
-                                                    onClick={() => {
-                                                        Paginate(pageNum);
-                                                    }}
-                                                >
-                                                    {pageNum}
-                                                </PaginationPage>
-                                            );
-                                        }
-                                    })}
-                                </PaginationList>
-                                <PaginationNext 
-                                    onClick={async () => {
-                                        Paginate(RevisionData.totalPages);
-                                    }}
-                                    disabled={RevisionData.page >= RevisionData.totalPages}
-                                >
-                                    Last
-                                </PaginationNext>
-                            </>
-                        )
-                    }
-                </Pagination>
-                <div className='mb-3.5'>
-                    {
-                        RevisionData.lists.length > 0 ? (
-                            <p className="text-sm text-gray-500">
-                                Showing {RevisionData.limit * (RevisionData.page - 1) + 1} to {Math.min(RevisionData.limit * RevisionData.page, RevisionData.total)} of {RevisionData.total} revision requests
-                            </p>
-                        ) : (
-                            <p className="text-sm text-gray-500">
-                                No revision requests found
-                            </p>
-                        )
-                    }
-                </div>
-                {/* <Pagination className="my-6">
-                    {
-                        ProgramData.totalPages > 1 && (
-                            <>
-                                <PaginationPrevious 
-                                    onClick={async () => {
-                                        Paginate(1);
-                                    }}
-                                    disabled={ProgramData.page <= 1}
-                                >
-                                    First
-                                </PaginationPrevious>
-                                <PaginationList>
-                                    {Array.from({ length: Math.min(7, ProgramData.totalPages) }, (_, index) => {
-                                        const pageNum = Math.max(1, ProgramData.page - 3) + index;
-                                        if (pageNum > ProgramData.totalPages) return null;
-
-                                        if (pageNum === ProgramData.page) {
-                                            return (
-                                                <PaginationPage
-                                                    key={pageNum}
-                                                    current
-                                                >
-                                                    {pageNum}
-                                                </PaginationPage>
-                                            );
-                                        } else {
-                                            return (
-                                                <PaginationPage
-                                                    key={pageNum}
-                                                    onClick={() => {
-                                                        Paginate(pageNum);
-                                                    }}
-                                                >
-                                                    {pageNum}
-                                                </PaginationPage>
-                                            );
-                                        }
-                                    })}
-                                </PaginationList>
-                                <PaginationNext 
-                                    onClick={async () => {
-                                        Paginate(ProgramData.totalPages);
-                                    }}
-                                    disabled={ProgramData.page >= ProgramData.totalPages}
-                                >
-                                    Last
-                                </PaginationNext>
-                            </>
-                        )
-                    }
-                </Pagination>
+                                            if (pageNum === RevisionData.page) {
+                                                return (
+                                                    <PaginationPage
+                                                        key={pageNum}
+                                                        current
+                                                    >
+                                                        {pageNum}
+                                                    </PaginationPage>
+                                                );
+                                            } else {
+                                                return (
+                                                    <PaginationPage
+                                                        key={pageNum}
+                                                        onClick={() => {
+                                                            Paginate(pageNum);
+                                                        }}
+                                                    >
+                                                        {pageNum}
+                                                    </PaginationPage>
+                                                );
+                                            }
+                                        })}
+                                    </PaginationList>
+                                    <PaginationNext 
+                                        onClick={async () => {
+                                            Paginate(RevisionData.totalPages);
+                                        }}
+                                        disabled={RevisionData.page >= RevisionData.totalPages}
+                                    >
+                                        Last
+                                    </PaginationNext>
+                                </>
+                            )
+                        }
+                    </Pagination>
                     <div className='mb-3.5'>
                         {
-                            ProgramData.lists.length > 0 ? (
+                            RevisionData.lists.length > 0 ? (
                                 <p className="text-sm text-gray-500">
-                                    Showing {ProgramData.limit * (ProgramData.page - 1) + 1} to {Math.min(ProgramData.limit * ProgramData.page, ProgramData.total)} of {ProgramData.total} programs
+                                    Showing {RevisionData.limit * (RevisionData.page - 1) + 1} to {Math.min(RevisionData.limit * RevisionData.page, RevisionData.total)} of {RevisionData.total} revision requests
                                 </p>
                             ) : (
                                 <p className="text-sm text-gray-500">
-                                    No programs found
+                                    No revision requests found
                                 </p>
                             )
                         }
-                    </div> */}
+                    </div>
                 </div>
             </div>
-
-            {/* Modify Dialog */}
-            {/* {selectedProject && (
-                <ReviseProjectDialog
-                    isOpen={isReviseDialogOpen}
-                    onClose={() => {
-                        setIsReviseDialogOpen(false);
-                        setSelectedProject(null);
-                    }}
-                    project={selectedProject}
-                />
-            )} */}
             {/* Adjust Project Dialog */}
             {state && state.revisionTypeId === 6 && (
                 <AdjustProjectDialog
@@ -460,28 +383,6 @@ const ModificationList: React.FC = () => {
                     stageName={state?.stageName || ''}
                 />
             )}
-            {/* Delete Program Dialog */}
-            {/* {selectedProgram && (
-                <DeleteProgramDialog
-                    isOpen={isDeleteProgramOpen}
-                    onClose={() => setIsDeleteProgramOpen(false)}
-                    program={ProgramData.lists?.find((program: any) => program.ProgramId === selectedProgram) as any} // Cast to match expected type
-                    onSubmit={(programId: any) => {
-                        setProgramData(prev => ({
-                            ...prev,
-                            lists: prev.lists.filter(program => program.ProgramId !== programId),
-                            total: prev.total - 1
-                        }));
-                    }}
-            />
-            )} */}
-            {/* Add Revise Dialog */}
-            {/* {isAddNewDialogOpen && (
-                <AddProjectDialog
-                    isOpen={isAddNewDialogOpen}
-                    onClose={() => setIsAddNewDialogOpen(false)}
-                />
-            )} */}
         </div>
     );
 };
