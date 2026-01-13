@@ -39,12 +39,14 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
   initialData,
   existingMajorItems = [],
 }) => {
-  const [formData, setFormData] = useState({
+  const defaultFormData = {
     ComponentId: '',
     YearOfWork: programDetails?.YearStart || new Date().getFullYear(),
     WorkTypeId: 0,
-    InfraType: ''
-  });
+    InfraType: '',
+  };
+
+  const [formData, setFormData] = useState(defaultFormData);
 
   const [availableWorkTypes, setAvailableWorkTypes] = useState<ScopeOfWorkEnum[]>([]);
 
@@ -86,12 +88,7 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
     if (mode === 'edit' && initialData) {
       setFormData(initialData);
     } else {
-      setFormData({
-        ComponentId: '',
-        YearOfWork: programDetails ? programDetails.YearStart : new Date().getFullYear(),
-        WorkTypeId: 0,
-        InfraType: ''
-      });
+      setFormData(defaultFormData);
     }
   }, [mode, initialData, isOpen, programDetails]);
 
@@ -119,12 +116,7 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
   };
 
   const handleClose = () => {
-    setFormData({
-      ComponentId: '',
-      YearOfWork: new Date().getFullYear(),
-      WorkTypeId: 0,
-      InfraType: ''
-    });
+    setFormData(defaultFormData);
     onClose();
   };
 

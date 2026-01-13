@@ -14,7 +14,6 @@ import type {
   Dropdowns,
   ComponentCostYear,
   InfraData,
-  MajorItemOfWorksWithDropdown,
   MajorItemOfWork,
   MajorItemLocations,
   ProjectSupportingDocs
@@ -58,6 +57,9 @@ import {
   componentCostsWithYearsAtom
 } from '../../atoms/componentCosts.atom';
 import { useComponentCosts } from '../../hooks/useComponentCosts';
+
+import { useMajorItemOfWorks } from '../../hooks/useMajorItemOfWorks';
+
 
 interface ProjectFormProps {
   initialData?: RevisionProjectPayload;
@@ -275,7 +277,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     }
   }, [initialProgramId, projectEnums?.Programs]);
 
-  // === Component Costs: use Jotai atoms instead of local state ===
+  // #region State and Handlers
+  // Component Costs: use Jotai atoms instead of local state ===
   const [componentCosts, setComponentCosts] = useAtom(componentCostsAtom);
   const [componentCostsYear, setComponentCostsYear] = useAtom(componentCostsYearAtom);
   const [componentCostsWithYears] = useAtom(componentCostsWithYearsAtom);
@@ -294,31 +297,19 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     console.log('ComponentCostsWithYears (derived):', componentCostsWithYears);
   }, [componentCosts, componentCostsYear]);
 
-  const [majorItems, setMajorItems] = useState<MajorItemOfWorksWithDropdown[]>(() => {
-    if (!initialData?.MajorItemOfWorks) return [];
-    
-    // Transform backend MajorItemOfWork[] to MajorItemOfWorksWithDropdown[]
-    // Combine with MajorItemLocations from the separate array
-    return initialData.MajorItemOfWorks.map(item => {
-      // Find MajorItemLocations that belong to this MajorItem via ParentId matching ReferenceId
-      const itemWorkLocations = (initialData.MajorItemLocations || []).filter(
-        location => location.ParentId === item.ReferenceId
-      );
-      
-      return {
-        ...item,
-        // Ensure required fields exist
-        TargetUnitId: item.TargetUnitId || 0,
-        TargetUnit: item.TargetUnit || '',
-        MajorItemLocations: itemWorkLocations, // Combine WorkLocations from separate array
-        DropdownData: initialData?.Dropdowns?.ScopeOfWorks?.filter(scope => scope.InfraType === item.InfraType) || []
-      };
-    });
-  });
+  // Major Items of Work: use Jotai atoms instead of local state ===
+  const {
+    majorItems,
+    seedFromInitialData,
+    addMajorItem,
+    editMajorItem,
+    deleteMajorItem
+  } = useMajorItemOfWorks();
 
-  // const [notes, setNotes] = useState<ProjectNote[]>((
-  //   initialData?.ProjectNotes || []
-  // ));
+  useEffect(() => {
+    seedFromInitialData(initialData);
+  }, [initialData]);
+
   const [docs, setDocs] = useState<ProjectSupportingDocs[]>(
     initialData?.Docs || []
   );
@@ -454,44 +445,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     });
   };
   // #endregion
-
-  // #region Major Items of Work
-  const handleAddMajorItem = () => {
-    // Generate a unique temporary ReferenceId for linking WorkLocations
-    const tempReferenceId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    const newItem: MajorItemOfWorksWithDropdown = {
-      Id: 0, // Temporary ID
-      ProjectId: '',
-      ReferenceId: tempReferenceId, // Use generated temp ID
-      ComponentId: '',
-      YearOfWork: 0,
-      WorkTypeId: 0,
-      InfraType: '',
-      TargetUnitId: 0,
-      TargetUnit: '',
-      CreatedBy: '',
-      MajorItemLocations: [], // Initialize empty work locations
-      DropdownData: []
-    };
-    setMajorItems(prev => [...prev, newItem]);
-    console.log('Added major item to staging:', newItem);
-  };
-
-  const handleEditMajorItem = (index: number, updatedItem: MajorItemOfWorksWithDropdown) => {
-    setMajorItems(prev => {
-      const newItems = prev.map((item, i) => i === index ? updatedItem : item);
-      return newItems;
-    });
-  };
-
-  const handleDeleteMajorItem = (index: number) => {
-    const itemToDelete = majorItems[index];
-    setMajorItems(prev => prev.filter((_, i) => i !== index));
-    console.log('Deleted major item from staging:', itemToDelete);
-  };
-  // #endregion
-
+  
   // #region Docs
   const handleAddDoc = (newDoc: ProjectSupportingDocs) => {
     console.log('ProjectForm: Adding doc:', newDoc);
@@ -1090,11 +1044,11 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                 projectId={initialData?.ProjectDetails.ProjectId || ''}
                 componentCosts={componentCosts}
                 infraData={infraData}
-                onAdd={handleAddMajorItem}
-                onEdit={handleEditMajorItem}
-                onDelete={handleDeleteMajorItem}
-                dropDowns={initialData?.Dropdowns?.ScopeOfWorks}
+                onAdd={addMajorItem}
+                onEdit={editMajorItem}
+                onDelete={deleteMajorItem}
                 programDetails={initialData?.ProgramDetails}
+                dropDowns={initialData?.Dropdowns?.ScopeOfWorks}
                 fieldRules={fieldRules}
               />
             </div>

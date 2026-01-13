@@ -1,100 +1,87 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../../components/tailwindui/button';
 import { XMarkIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { useToast } from '../../../../components/toaster/ToasterContext';
-import { useAtom, useAtomValue } from 'jotai';
-import {
-  deleteMajorItemDialogOpenAtom,
-  selectedMajorItemForDeleteAtom,
-  deleteMajorItemIndexAtom,
-  deletingMajorItemAtom,
-  canShowDeleteMajorItemDialogAtom,
-  closeDeleteMajorItemDialogAtom,
-  setDeletingMajorItemStateAtom
-} from '../../store/deleteMajorItemDialogStore';
+import { useMajorItemOfWorks } from '../../hooks/useMajorItemOfWorks';
 
 interface DeleteMajorItemDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
   onConfirmDelete: (index: number) => void;
-  projectId?: string;
-  getWorkTypeDescription?: (workTypeId: number) => string;
-  getComponentDescription?: (componentId: string) => string;
+  majorItem: {
+    ComponentId: string;
+    WorkTypeId: number;
+    YearOfWork: string | number;
+    InfraType: string;
+    TargetUnit: string;
+    MajorItemLocations?: any[];
+  } | null;
+  deleteIndex: number | null;
 }
 
 const DeleteMajorItemDialog: React.FC<DeleteMajorItemDialogProps> = ({
+  isOpen,
+  onClose,
   onConfirmDelete,
-  getWorkTypeDescription,
-  getComponentDescription
+  majorItem,
+  deleteIndex
 }) => {
-  // Atoms
-  const canShowDialog = useAtomValue(canShowDeleteMajorItemDialogAtom);
-  const [isOpen] = useAtom(deleteMajorItemDialogOpenAtom);
-  const selectedMajorItem = useAtomValue(selectedMajorItemForDeleteAtom);
-  const deleteIndex = useAtomValue(deleteMajorItemIndexAtom);
-  const [isDeleting] = useAtom(deletingMajorItemAtom);
-  const [, closeDialog] = useAtom(closeDeleteMajorItemDialogAtom);
-  const [, setDeletingState] = useAtom(setDeletingMajorItemStateAtom);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { showToast } = useToast();
-
-  // Debug logging
-  console.log('DeleteMajorItemDialog render:', { 
-    canShowDialog, 
-    isOpen, 
-    selectedMajorItem: selectedMajorItem?.ComponentId, 
-    deleteIndex 
-  });
+  const { deleteMajorItem } = useMajorItemOfWorks();
 
   const handleClose = () => {
     if (!isDeleting) {
-      closeDialog();
+      onClose();
     }
   };
 
   const handleConfirmDelete = async () => {
-    if (!selectedMajorItem || deleteIndex === null || isDeleting) return;
+    if (!majorItem || deleteIndex === null || isDeleting) return;
 
     try {
-      setDeletingState(true);
+      setIsDeleting(true);
 
-      // Just remove from local majorItems array
-      // The save operation will handle persistence to database
-      onConfirmDelete(deleteIndex);
+      // Use the hook to delete the major item (handles locations cleanup)
+      deleteMajorItem(deleteIndex);
       
+      // Also call the parent callback if provided
+      onConfirmDelete(deleteIndex);
+
       showToast({
         type: 'success',
-        message: 'Major item of work removed successfully'
+        message: 'Major item of work removed successfully',
       });
-      
-      // Close dialog
-      closeDialog();
 
+      // Close dialog
+      onClose();
     } catch (error: any) {
       console.error('Error removing major item of work:', error);
-      
+
       showToast({
         type: 'error',
-        message: 'Failed to remove major item of work. Please try again.'
+        message: 'Failed to remove major item of work. Please try again.',
       });
     } finally {
-      setDeletingState(false);
+      setIsDeleting(false);
     }
   };
 
-  if (!canShowDialog || !selectedMajorItem || deleteIndex === null) {
+  if (!isOpen || !majorItem || deleteIndex === null) {
     return null;
   }
 
-  const workTypeDesc = getWorkTypeDescription ? getWorkTypeDescription(selectedMajorItem.WorkTypeId) : selectedMajorItem.WorkTypeId.toString();
-  const componentDesc = getComponentDescription ? getComponentDescription(selectedMajorItem.ComponentId) : selectedMajorItem.ComponentId;
-  const workLocationCount = selectedMajorItem.MajorItemLocations?.length || 0;
+  const workTypeDesc = majorItem.WorkTypeId.toString();
+  const componentDesc = majorItem.ComponentId;
+  const workLocationCount = majorItem.MajorItemLocations?.length || 0;
 
   return (
     <Dialog open={isOpen} onClose={handleClose} className="relative z-50">
       <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
-      
+
       <div className="fixed inset-0 flex w-screen items-center justify-center p-4">
         <DialogPanel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-          
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center">
@@ -105,7 +92,7 @@ const DeleteMajorItemDialog: React.FC<DeleteMajorItemDialogProps> = ({
                 Delete Major Item of Work
               </DialogTitle>
             </div>
-            
+
             <button
               type="button"
               className="text-gray-400 hover:text-gray-500 disabled:cursor-not-allowed"
@@ -123,7 +110,7 @@ const DeleteMajorItemDialog: React.FC<DeleteMajorItemDialogProps> = ({
               <p className="text-sm text-gray-500 mb-4">
                 Are you sure you want to remove this major item of work? This will remove it from the current form. Changes will be saved when you save the form.
               </p>
-              
+
               {/* Major Item Details */}
               <div className="bg-gray-50 rounded-lg p-4 mb-4">
                 <h4 className="font-medium text-gray-900 mb-2">Major Item Details:</h4>
@@ -134,7 +121,7 @@ const DeleteMajorItemDialog: React.FC<DeleteMajorItemDialogProps> = ({
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Year of Work:</span>
-                    <span className="font-medium">{selectedMajorItem.YearOfWork}</span>
+                    <span className="font-medium">{majorItem.YearOfWork}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Type of Work:</span>
@@ -142,11 +129,11 @@ const DeleteMajorItemDialog: React.FC<DeleteMajorItemDialogProps> = ({
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Infrastructure Type:</span>
-                    <span className="font-medium">{selectedMajorItem.InfraType}</span>
+                    <span className="font-medium">{majorItem.InfraType}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Target Unit:</span>
-                    <span className="font-medium">{selectedMajorItem.TargetUnit}</span>
+                    <span className="font-medium">{majorItem.TargetUnit}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Work Locations:</span>
@@ -174,20 +161,10 @@ const DeleteMajorItemDialog: React.FC<DeleteMajorItemDialogProps> = ({
 
           {/* Actions */}
           <div className="mt-6 flex justify-end space-x-3">
-            <Button
-              type="button"
-              color="white"
-              onClick={handleClose}
-              disabled={isDeleting}
-            >
+            <Button type="button" color="white" onClick={handleClose} disabled={isDeleting}>
               Cancel
             </Button>
-            <Button
-              type="button"
-              color="red"
-              onClick={handleConfirmDelete}
-              disabled={isDeleting}
-            >
+            <Button type="button" color="red" onClick={handleConfirmDelete} disabled={isDeleting}>
               {isDeleting ? (
                 <div className="flex items-center">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
