@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
+using System;
 using System.Linq;
 using System.Reflection;
 namespace WebAPI.Controllers.Revision
@@ -224,8 +225,8 @@ namespace WebAPI.Controllers.Revision
                 var Doc = await _db.tProjectSupportingDocs.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
                 var SupportingDoc = await _db.tDropdownSupportingDocs.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync();
 
-                var ComponentCost = await _db.vProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && x.RevisedNumber == RevisedNumber).ToListAsync();
-                var ComponentCostYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentCost.Select(a => a.ReferenceId).Contains(x.ParentId)).ToListAsync();
+                var ComponentCost = await _db.vRevisionProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.TransactionId == dto.TransactionId).ToListAsync();
+                //var ComponentCostYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentCost.Select(a => a.ReferenceId).Contains(x.ParentId)).ToListAsync();
 
                 var MajorItemOfWork = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && x.RevisedNumber == RevisedNumber).ToListAsync();
                 HashSet<string> ItemParents = MajorItemOfWork.Select(x => x.ReferenceId).ToHashSet();
@@ -283,7 +284,7 @@ namespace WebAPI.Controllers.Revision
                     ProgramDetails = Program,
                     ProjectDetails = Project,
                     ComponentCosts = ComponentCost,
-                    ComponentCostPerYear = ComponentCostYear,
+                    //ComponentCostPerYear = ComponentCostYear,
                     MajorItemOfWorks = MajorItemOfWork,
                     MajorItemLocations = MajorWorkLocation,
                     ProjectNotes = Notes,
@@ -428,8 +429,8 @@ namespace WebAPI.Controllers.Revision
                 var Doc = await _db.tProjectSupportingDocs.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
                 var SupportingDoc = await _db.tDropdownSupportingDocs.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync();
 
-                var ComponentCost = await _db.vProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
-                var ComponentCostYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentCost.Select(a => a.ReferenceId).Contains(x.ParentId)).ToListAsync();
+                var ComponentCost = await _db.vRevisionProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
+                //var ComponentCostYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentCost.Select(a => a.ReferenceId).Contains(x.ParentId)).ToListAsync();
 
                 var MajorItemOfWork = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
                 HashSet<string> ItemParents = MajorItemOfWork.Select(x => x.ReferenceId).ToHashSet();
@@ -483,7 +484,7 @@ namespace WebAPI.Controllers.Revision
                     ProgramDetails = Program,
                     ProjectDetails = Project,
                     ComponentCosts = ComponentCost,
-                    ComponentCostPerYear = ComponentCostYear,
+                    //ComponentCostPerYear = ComponentCostYear,
                     MajorItemOfWorks = MajorItemOfWork,
                     MajorItemLocations = MajorWorkLocation,
                     ProjectNotes = Notes,
@@ -551,15 +552,14 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = "Approved Document file size exceeds the maximum limit of 50 MB!", Title = "File Size Exceeded" });
                 }
-
-                string TransactionId = string.Empty;
-                bool hasUpdated = false;
                 DateTime CurrentDate = DateTime.UtcNow;
-                var NewFundingProfile = new List<ProjectFundingProfile>();
-                var NewComponent = new List<DBHelper.Models.Table.ProjectComponentCost>();
-                var NewComponentYear = new List<ProjectComponentCostYear>();
-                var NewMajorWorkItem = new List<ProjectMajorWorkItem>();
-                var NewMajorWorkLocations = new List<ProjectMajorWorkLocations>();
+                var NewRevisionProject = new RevisionProjects();
+
+                var NewFundingProfile = new List<RevisionProjectFundingProfile>();
+                var NewComponent = new List<DBHelper.Models.Table.RevisionProjectComponentCost>();
+                var TransactionLog = new List<RevisionTransactionLog>();
+                var NewMajorWorkItem = new List<RevisionProjectMajorWorkItem>();
+                var NewMajorWorkLocations = new List<RevisionProjectMajorWorkLocations>();
                 #region Validations
                 var Project = await _db.tProjectRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectDetails.ProjectId && x.Id == dto.ProjectDetails.RevisionId);
                 if (Project == null)
@@ -572,9 +572,10 @@ namespace WebAPI.Controllers.Revision
                     return new BadRequestObjectResult(new { Message = "Project Stage not found!", Title = "Invalid Project Stage" });
                 }
 
-                if (dto.RevisionDetails.ApprovedDocument.IsFileCorrupted())
+                var ProgramDetails = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == ProjectStage.ProgramId && x.StageName == ProjectStage.StageName);
+                if(ProgramDetails == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Approved Document file is corrupted!", Title = "Invalid File" });
+                    return new BadRequestObjectResult(new { Message = "Project Program ID not found!", Title = "No Program ID Found" });
                 }
 
                 var RevisionRules = await _db.vRevisionRules.AsNoTracking().FirstOrDefaultAsync(x => x.ReasonId == dto.RevisionDetails.ReasonId && x.PCMA_Status == dto.RevisionDetails.ConstructionStatus && x.Package_Status == dto.RevisionDetails.PackageStatus);
@@ -587,7 +588,7 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = "Revision category does not match with the selected revision reason!", Title = "Invalid Revision Category" });
                 }
-                var DocumentNaming = await _db.tRevisionDocumentsNaming.AsNoTracking().FirstOrDefaultAsync(x => (x.CategoryId != null && x.CategoryId == dto.RevisionDetails.CategoryId) || x.RevisionGroupId == RevisionCategory.RevisionGroupId);
+                var DocumentNaming = await _db.tOptionRevisionDocuments.AsNoTracking().FirstOrDefaultAsync(x => (x.CategoryId != null && x.CategoryId == dto.RevisionDetails.CategoryId) || x.RevisionGroupId == RevisionCategory.RevisionGroupId);
                 if (DocumentNaming == null)
                 {
                     await transaction.RollbackAsync();
@@ -606,6 +607,8 @@ namespace WebAPI.Controllers.Revision
                 }
                 Project.isRevised = true;
                 Project.RevisedNumber = (Project.RevisedNumber ?? 0) + 1;
+                string TransactionId = string.Empty;
+                TransactionId = Project.ProjectId + "-" + Project.RevisedNumber;
                 #endregion
                 #region ProjectRevision
                 var ProjectDetailsRules = jsonRules.ProjectDetailsRules.GetType()
@@ -615,12 +618,27 @@ namespace WebAPI.Controllers.Revision
                 .Select(p => p.Name)
                 .ToList();
                 var NewProjectRevision = dto.ProjectDetails;
-                Project.Id = 0;
-                Project.RevisionNumber = Project.RevisionNumber + 1;
                 if (ProjectDetailsRules.Count > 0)
                 {
-                    hasUpdated = true;
-                    Project = ProjectDetailsRules.UpdateRevisionData(NewProjectRevision, Project);
+                    var RevisionProject = ProjectDetailsRules.UpdateRevisionData(NewProjectRevision, Project);
+                    NewRevisionProject.TransactionId = TransactionId;
+                    NewRevisionProject.ProjectId = RevisionProject.ProjectId;
+                    NewRevisionProject.MYId = RevisionProject.MYId;
+                    NewRevisionProject.UACS = RevisionProject.UACS;
+                    NewRevisionProject.MYCAApprovalDate = RevisionProject.MYCAApprovalDate;
+                    NewRevisionProject.Description = RevisionProject.Description;
+                    NewRevisionProject.Category = RevisionProject.Category;
+                    NewRevisionProject.Thrust = RevisionProject.Thrust;
+                    NewRevisionProject.Origin = RevisionProject.Origin;
+                    NewRevisionProject.City = RevisionProject.City;
+                    NewRevisionProject.LegislativeDistrict = RevisionProject.LegislativeDistrict;
+                    NewRevisionProject.OperatingUnit = RevisionProject.OperatingUnit;
+                    NewRevisionProject.ImplementingOffice = RevisionProject.ImplementingOffice;
+                    NewRevisionProject.DEO = RevisionProject.DEO;
+                    NewRevisionProject.ImplementationMode = RevisionProject.ImplementationMode;
+                    NewRevisionProject.EmergencyMode = RevisionProject.EmergencyMode;
+                    
+
                 }
                 #endregion
                 #region FundingProfile
@@ -642,49 +660,53 @@ namespace WebAPI.Controllers.Revision
 
                         if (SelectedComponent != null)
                         {
-                            hasUpdated = true;
                             if (FundingProfileRules.Count > 0)
                             {
                                 SelectedComponent = FundingProfileRules.UpdateRevisionData(component, SelectedComponent);
                             }
-                            SelectedComponent.RevisedNumber = Project.RevisedNumber;
-                            SelectedComponent.Id = 0;
+                            NewFundingProfile.Add(new RevisionProjectFundingProfile
+                            {
+                                Id = SelectedComponent.Id,
+                                TransactionId = TransactionId,
+                                ProjectId = SelectedComponent.ProjectId,
+                                Source = SelectedComponent.Source,
+                                Agreement = SelectedComponent.Agreement,
+                                Amount = SelectedComponent.Amount,
+                                Percentage = SelectedComponent.Percentage
+                            });
                         }
                     }
+                }
+                if (jsonRules.FundingProfileRules.CRUD.CanDelete)
+                {
+                    var DeletedFundingIds = UpdateFundingProfile.Select(x => x.Id).ToList();
+                    NewFundingProfile = NewFundingProfile.Where(x => !DeletedFundingIds.Contains(x.Id)).Select(x =>
+                    {
+                        x.Id = 0; // reset PK for insert
+                        return x;
+                    }).ToList();
                 }
                 if (jsonRules.FundingProfileRules.CRUD.CanAdd)
                 {
                     var NewFundingToInsert = dto.FundingProfile.Where(x => x.Id == 0);
                     if (NewFundingToInsert.Count() > 0)
                     {
-                        NewFundingProfile.AddRange(NewFundingToInsert.Select(x => new ProjectFundingProfile
+                        NewFundingProfile.AddRange(NewFundingToInsert.Select(x => new RevisionProjectFundingProfile
                         {
-                            ProjectId = Project.ProjectId,
+                            TransactionId = TransactionId,
+                            ProjectId = x.ProjectId,
                             Source = x.Source,
                             Agreement = x.Agreement,
                             Amount = x.Amount,
-                            Percentage = x.Percentage,
-                            StageName = ProjectStage.StageName,
-                            RevisedNumber = Project.RevisedNumber,
-                            CreatedBy = _Session.UserId,
-                            CreatedDate = CurrentDate
+                            Percentage = x.Percentage
                         }));
-                    }
-                }
-                if(jsonRules.FundingProfileRules.CRUD.CanDelete)
-                {
-                    var DeletedFundings = UpdateFundingProfile.ToList();
-                    if (DeletedFundings.Count > 0)
-                    {
-                        var DeletedFundingIds = DeletedFundings.Select(x => x.Id).ToList();
-                        FundingProfile = FundingProfile.Where(x => !DeletedFundingIds.Contains(x.Id)).ToList();
                     }
                 }
                 #endregion
                 #region ComponentCosts
                 var CostIds = dto.ComponentCosts.Where(x => x.Id != 0).Select(x => x.Id).ToList();
                 var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && CostIds.Contains(x.Id) && x.StageName == "GAA-R").ToListAsync();
-                var ComponentCostYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentCost.Select(c => c.ReferenceId).Contains(x.ParentId)).ToListAsync();
+                //var ComponentCostYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentCost.Select(c => c.ReferenceId).Contains(x.ParentId)).ToListAsync();
                 var ComponentCostRules = jsonRules.ComponentCostRules.Fields.GetType()
                 .GetProperties()
                 .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
@@ -701,94 +723,47 @@ namespace WebAPI.Controllers.Revision
 
                         if (SelectedComponent != null)
                         {
-                            hasUpdated = true;
                             if (ComponentCostRules.Count > 0)
                             {
                                 SelectedComponent = ComponentCostRules.UpdateRevisionData(component, SelectedComponent);
                             }
-                            SelectedComponent.RevisedNumber = Project.RevisedNumber;
-                            SelectedComponent.Id = 0;
-                            var Component = ComponentCostYear.Where(x => x.ParentId == SelectedComponent.ReferenceId).ToList();
-                            SelectedComponent.ReferenceId = SelectedComponent.ProjectId + "-" + ("tCountSequence").GenerateCode();
-                            Component.ForEach(x => x.ParentId = SelectedComponent.ReferenceId);
+                            NewComponent.AddRange(new List<DBHelper.Models.Table.RevisionProjectComponentCost> {
+                                new DBHelper.Models.Table.RevisionProjectComponentCost
+                                {
+                                    Id = SelectedComponent.Id,
+                                    TransactionId = TransactionId,
+                                    ProjectId = SelectedComponent.ProjectId,
+                                    ComponentType = SelectedComponent.ComponentType,
+                                    ComponentId = SelectedComponent.ComponentId,
+                                    Description = SelectedComponent.Description,
+                                    Amount = SelectedComponent.Amount
+                                }
+                            });
                         }
                     }
                 }
                 var NewComponentToInsert = dto.ComponentCosts.Where(x => x.Id == 0);
+                if (jsonRules.ComponentCostRules.CRUD.CanDelete)
+                {
+                    NewComponent = NewComponent.Where(x => !UpdateComponentCost.Select(a => a.Id).Contains(x.Id)).Select(x =>
+                    {
+                        x.Id = 0; // reset PK for insert
+                        return x;
+                    }).ToList();
+                }
                 if (jsonRules.ComponentCostRules.CRUD.CanAdd)
                 {
                     if (NewComponentToInsert.Count() > 0)
                     {
-                        NewComponent.AddRange(NewComponentToInsert.Select(x => new DBHelper.Models.Table.ProjectComponentCost
+                        NewComponent.AddRange(NewComponentToInsert.Select(x => new DBHelper.Models.Table.RevisionProjectComponentCost
                         {
+                            TransactionId = TransactionId,
                             ProjectId = Project.ProjectId,
-                            ReferenceId = x.ReferenceId,
                             ComponentType = x.ComponentType,
                             ComponentId = x.ComponentId,
                             Description = x.Description,
-                            Total = x.Total,
-                            StageName = ProjectStage.StageName,
-                            RevisedNumber = Project.RevisedNumber,
-                            CreatedBy = _Session.UserId,
-                            CreatedDate = CurrentDate
+                            Amount = x.Amount,
                         }));
-                    }
-                }
-                if(jsonRules.ComponentCostRules.CRUD.CanDelete)
-                {
-                    var DeletedComponents = ComponentCost.Where(x => !UpdateComponentCost.Select(a => a.Id).Contains(x.Id)).ToList();
-                    if(DeletedComponents.Count > 0)
-                    {
-                        ComponentCost = DeletedComponents;
-                        ComponentCostYear = ComponentCostYear.Where(x => !DeletedComponents.Select(x => x.ReferenceId).Contains(x.ParentId)).ToList();
-                    }
-                }
-                #endregion
-                #region ComponentCostYear
-                var ComponentCostYearRules = jsonRules.ComponentCostYearRules.Fields.GetType()
-                .GetProperties()
-                .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
-                .Where(p => (bool?)p.GetValue(jsonRules.ComponentCostYearRules.Fields) == true)
-                .Select(p => p.Name)
-                .ToList();
-                var UpdateComponentCostYear = dto.ComponentCostYear.Where(x => x.Id != 0);
-                if (ComponentCostYear.Count > 0)
-                {
-                    foreach (var year in UpdateComponentCostYear)
-                    {
-                        var UpdateCostYear = ComponentCostYear.FirstOrDefault(x => x.Id == year.Id);
-                        if (UpdateCostYear != null)
-                        {
-                            hasUpdated = true;
-                            if (ComponentCostYearRules.Count > 0)
-                            {
-                                UpdateCostYear = ComponentCostYearRules.UpdateRevisionData(year, UpdateCostYear);
-                            }
-                            UpdateCostYear.Id = 0;
-                        }
-                    }
-                }
-                if (jsonRules.ComponentCostYearRules.CRUD.CanAdd)
-                {
-                    var NewComponentYearToInsert = dto.ComponentCostYear.Where(x => NewComponentToInsert.Select(c => c.ReferenceId).Contains(x.ParentId));
-                    if (NewComponentYearToInsert.Count() > 0)
-                    {
-                        NewComponentYear.AddRange(NewComponentYearToInsert.Select(x => new ProjectComponentCostYear
-                        {
-                            ParentId = x.ParentId,
-                            CostYear = x.CostYear,
-                            Cost = x.Cost,
-                            StartDate = x.StartDate,
-                            EndDate = x.EndDate,
-                        }));
-                    }
-                }
-                if(jsonRules.ComponentCostYearRules.CRUD.CanDelete)
-                {
-                    var DeletedComponentCostYear = ComponentCostYear.Where(x => !dto.ComponentCostYear.Select(c => c.Id).Contains(x.Id)).ToList();
-                    if (DeletedComponentCostYear.Count > 0)
-                    {
-                        ComponentCostYear = DeletedComponentCostYear;
                     }
                 }
                 #endregion
@@ -810,7 +785,6 @@ namespace WebAPI.Controllers.Revision
                         var UpdateMajorWorkItem = MajorWorkItem.FirstOrDefault(x => x.Id == item.Id);
                         if (UpdateMajorWorkItem != null)
                         {
-                            hasUpdated = true;
                             if (MajorWorkItemRules.Count > 0)
                             {
                                 UpdateMajorWorkItem = MajorWorkItemRules.UpdateRevisionData(item, UpdateMajorWorkItem);
@@ -823,34 +797,58 @@ namespace WebAPI.Controllers.Revision
                         }
                     }
                 }
+                if (jsonRules.MajorItemOfWorkRules.CRUD.CanDelete)
+                {
+                    var DeletedMajorItems = NewMajorWorkItem.Where(x => !UpdateMajorItemOfWorks.Select(a => a.Id).Contains(x.Id)).Select(x =>
+                    {
+                        x.Id = 0; // reset PK for insert
+                        return x;
+                    }).ToList();
+                    if (DeletedMajorItems.Count > 0)
+                    {
+                        NewMajorWorkItem = DeletedMajorItems;
+                        var DeletedMajorItemReferenceIds = DeletedMajorItems.Select(x => x.ReferenceId).ToList();
+                        NewMajorWorkLocations = NewMajorWorkLocations.Where(x => !DeletedMajorItemReferenceIds.Contains(x.ParentId)).Select(x =>
+                        {
+                            x.Id = 0; // reset PK for insert
+                            return x;
+                        }).ToList();
+                        NewMajorWorkLocations.AddRange(MajorWorkLocations.Where(x => !DeletedMajorItemReferenceIds.Contains(x.ParentId)).Select(x => new RevisionProjectMajorWorkLocations
+                        {
+                            TransactionId = TransactionId,
+                            ParentId = x.ParentId,
+                            InfraId = x.InfraId,
+                            DetailedScope = x.DetailedScope,
+                            TargetUnitId = x.TargetUnitId,
+                            TargetUnit = x.TargetUnit,
+                            StartX = x.StartX,
+                            StartY = x.StartY,
+                            EndX = x.EndX,
+                            EndY = x.EndY,
+                            PhysicalTarget = x.PhysicalTarget,
+                            StartStationLimit = x.StartStationLimit,
+                            EndStationLimit = x.EndStationLimit,
+                            EndChainage = x.EndChainage,
+                            StartChainage = x.StartChainage
+                        }));
+                    }
+                }
                 var NewMajorItemOfWorksToInsert = dto.MajorItemOfWorks.Where(x => x.Id == 0);
                 if (jsonRules.MajorItemOfWorkRules.CRUD.CanAdd)
                 {
                     if (NewMajorItemOfWorksToInsert.Count() > 0)
                     {
-                        NewMajorWorkItem.AddRange(NewMajorItemOfWorksToInsert.Select(x => new ProjectMajorWorkItem
+                        NewMajorWorkItem.AddRange(NewMajorItemOfWorksToInsert.Select(x => new RevisionProjectMajorWorkItem
                         {
-                            ProjectId = Project.ProjectId,
+                            Id = x.Id,
+                            TransactionId = TransactionId,
+                            ProjectId = x.ProjectId,
                             ReferenceId = x.ReferenceId,
                             ComponentId = x.ComponentId,
                             YearOfWork = x.YearOfWork,
                             WorkTypeId = x.WorkTypeId,
                             InfraType = x.InfraType,
-                            StageName = ProjectStage.StageName,
-                            RevisedNumber = Project.RevisedNumber,
-                            CreatedBy = _Session.UserId,
-                            CreatedDate = CurrentDate
                         }));
-                    }
-                }
-                if(jsonRules.MajorItemOfWorkRules.CRUD.CanDelete)
-                {
-                    var DeletedMajorItems = MajorWorkItem.Where(x => !UpdateMajorItemOfWorks.Select(a => a.Id).Contains(x.Id)).ToList();
-                    if (DeletedMajorItems.Count > 0)
-                    {;
-                        MajorWorkItem = DeletedMajorItems;
-                        var DeletedMajorItemReferenceIds = DeletedMajorItems.Select(x => x.ReferenceId).ToList();
-                        MajorWorkLocations = MajorWorkLocations.Where(x => !DeletedMajorItemReferenceIds.Contains(x.ParentId)).ToList();
                     }
                 }
                 #endregion
@@ -873,18 +871,44 @@ namespace WebAPI.Controllers.Revision
                             {
                                 UpdateMajorWorkLocation = MajorItemLocationsRules.UpdateRevisionData(location, UpdateMajorWorkLocation);
                             }
-                            hasUpdated = true;
-                            UpdateMajorWorkLocation.Id = 0;
+                            NewMajorWorkLocations.Add(new RevisionProjectMajorWorkLocations
+                            {
+                                Id = UpdateMajorWorkLocation.Id,
+                                TransactionId = TransactionId,
+                                ParentId = UpdateMajorWorkLocation.ParentId,
+                                InfraId = UpdateMajorWorkLocation.InfraId,
+                                DetailedScope = UpdateMajorWorkLocation.DetailedScope,
+                                TargetUnitId = UpdateMajorWorkLocation.TargetUnitId,
+                                TargetUnit = UpdateMajorWorkLocation.TargetUnit,
+                                StartX = UpdateMajorWorkLocation.StartX,
+                                StartY = UpdateMajorWorkLocation.StartY,
+                                EndX = UpdateMajorWorkLocation.EndX,
+                                EndY = UpdateMajorWorkLocation.EndY,
+                                PhysicalTarget = UpdateMajorWorkLocation.PhysicalTarget,
+                                StartStationLimit = UpdateMajorWorkLocation.StartStationLimit,
+                                EndStationLimit = UpdateMajorWorkLocation.EndStationLimit,
+                                EndChainage = UpdateMajorWorkLocation.EndChainage,
+                                StartChainage = UpdateMajorWorkLocation.StartChainage
+                            });
                         }
                     }
+                }
+                if (jsonRules.MajorItemLocationRules.CRUD.CanDelete)
+                {
+                    NewMajorWorkLocations = NewMajorWorkLocations.Where(x => !UpdateMajorWorkLocations.Select(a => a.Id).Contains(x.Id)).Select(x =>
+                    {
+                        x.Id = 0; // reset PK for insert
+                        return x;
+                    }).ToList();
                 }
                 if (jsonRules.MajorItemLocationRules.CRUD.CanAdd)
                 {
                     var NewMajorWorkLocationsToInsert = dto.MajorItemLocations.Where(x => NewMajorItemOfWorksToInsert.Select(c => c.ReferenceId).Contains(x.ParentId));
                     if (NewMajorWorkLocationsToInsert.Count() > 0)
                     {
-                        NewMajorWorkLocations.AddRange(NewMajorWorkLocationsToInsert.Select(x => new ProjectMajorWorkLocations
+                        NewMajorWorkLocations.AddRange(NewMajorWorkLocationsToInsert.Select(x => new RevisionProjectMajorWorkLocations
                         {
+                            TransactionId = TransactionId,
                             ParentId = x.ParentId,
                             InfraId = x.InfraId,
                             DetailedScope = x.DetailedScope,
@@ -898,100 +922,52 @@ namespace WebAPI.Controllers.Revision
                             StartStationLimit = x.StartStationLimit,
                             EndStationLimit = x.EndStationLimit,
                             EndChainage = x.EndChainage,
-                            StartChainage = x.StartChainage,
-                            CreatedBy = _Session.UserId,
-                            CreatedDate = CurrentDate
+                            StartChainage = x.StartChainage
                         }));
                     }
                 }
-                if(jsonRules.MajorItemLocationRules.CRUD.CanDelete)
-                {
-                    var DeletedMajorWorkLocations = MajorWorkLocations.Where(x => !UpdateMajorWorkLocations.Select(a => a.Id).Contains(x.Id)).ToList();
-                    if (DeletedMajorWorkLocations.Count > 0)
-                    {
-                        MajorWorkLocations = DeletedMajorWorkLocations;
-                    }
-                }
                 #endregion
-                if (hasUpdated)
+                _db.tProjectRevisions.Update(Project);
+                await _db.tRevisionProjects.AddAsync(NewRevisionProject);
+                await _db.tRevisionProjectFundingProfile.AddRangeAsync(NewFundingProfile);
+                await _db.tRevisionProjectComponentCost.AddRangeAsync(NewComponent);
+                await _db.tRevisionProjectMajorWorkItem.AddRangeAsync(NewMajorWorkItem);
+                await _db.tRevisionProjectMajorWorkLocations.AddRangeAsync(NewMajorWorkLocations);
+
+                bool isROUser = _Session.UserGroups.Contains("RPC");
+                bool isCOUser = _Session.UserGroups.Contains("AUC");
+                await _db.tRevisionDetails.AddAsync(new RevisionDetails
                 {
-                    if (NewFundingProfile.Count > 0 && jsonRules.FundingProfileRules.CRUD.CanAdd)
-                    {
-                        FundingProfile.AddRange(NewFundingProfile);
-                    }
-                    if (NewComponent.Count > 0 && jsonRules.ComponentCostRules.CRUD.CanAdd)
-                    {
-                        ComponentCost.AddRange(NewComponent);
-                    }
-                    if (NewComponentYear.Count > 0 && jsonRules.ComponentCostYearRules.CRUD.CanAdd)
-                    {
-                        ComponentCostYear.AddRange(NewComponentYear);
-                    }
-                    if (NewMajorWorkItem.Count > 0 && jsonRules.MajorItemOfWorkRules.CRUD.CanAdd)
-                    {
-                        MajorWorkItem.AddRange(NewMajorWorkItem);
-                    }
-                    if (NewMajorWorkLocations.Count > 0 && jsonRules.MajorItemLocationRules.CRUD.CanAdd)
-                    {
-                        MajorWorkLocations.AddRange(NewMajorWorkLocations);
-                    }
-
-                    await _db.tProjectRevisions.AddAsync(Project);
-                    await _db.SaveChangesAsync();
-                    var NewProjectStage = new ProjectStages()
-                    {
-                        ProgramId = ProjectStage.ProgramId,
-                        RevisionId = Project.Id,
-                        StageId = ProjectStage.StageId,
-                        StageName = ProjectStage.StageName,
-                        CreatedBy = _Session.UserId,
-                        CreatedDate = CurrentDate,
-                        IsPublished = true
-                    };
-                    await _db.tProjectStages.AddAsync(NewProjectStage);
-                    await _db.tProjectFundingProfile.AddRangeAsync(FundingProfile);
-                    await _db.tProjectComponentCost.AddRangeAsync(ComponentCost);
-                    await _db.tProjectComponentCostYear.AddRangeAsync(ComponentCostYear);
-                    await _db.tProjectMajorWorkItem.AddRangeAsync(MajorWorkItem);
-                    await _db.tProjectMajorWorkLocations.AddRangeAsync(MajorWorkLocations);
-
-                    bool isROUser = _Session.UserGroups.Contains("RPC");
-                    bool isCOUser = _Session.UserGroups.Contains("AUC");
-                    TransactionId = Project.ProjectId + "-" + Project.RevisedNumber;
-                    await _db.tRevisionDetails.AddAsync(new RevisionDetails
-                    {
-                        TransactionId = TransactionId,
-                        RevisionGroupId = RevisionCategory.RevisionGroupId,
-                        CategoryId = dto.RevisionDetails.CategoryId,
-                        ReasonId = RevisionRules.ReasonId,
-                        IODocApprovalDate = dto.RevisionDetails.ApprovalDate,
-                        RegionStatus = (isROUser || isCOUser) ? EnumRevisionStatus.Approved : EnumRevisionStatus.Pending,
-                        RegionApprover = isROUser ? _Session.UserId : null,
-                        RegionApprovedDate = isROUser ? CurrentDate : null,
-                        COStatus = isCOUser ? EnumRevisionStatus.Approved : EnumRevisionStatus.Pending,
-                        COApprover = null,
-                        COApprovedDate = null,
-                        CreatedBy = _Session.UserId,
-                        CreatedDate = CurrentDate
-                    });
-                    string DocumentName = $"{TransactionId}_{DocumentNaming.SecondSegmentName}_{CurrentDate.ToString("MM-dd-yyyy")}.{dto.RevisionDetails.ApprovedDocument.Extension}";
-                    string FilePath = Path.Combine(Appsetting.Resources.Revision.ImplementingOffice, DocumentName);
-                    string ResourcePath = Path.Combine(Directory.GetCurrentDirectory(), FilePath);
-                    if (!dto.RevisionDetails.ApprovedDocument.UploadFile(ResourcePath))
-                    {
-                        await transaction.RollbackAsync();
-                        return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted!", Title = "File Corrupted" });
-                    }
-                    await _db.tRevisionDocuments.AddAsync(new RevisionDocuments
-                    {
-                        TransactionId = TransactionId,
-                        DocumentPath = FilePath,
-                        DocumentName = DocumentName,
-                        IsApprovedDocument = false
-                    });
-                    await _db.SaveChangesAsync();
-                    await transaction.CommitAsync();
+                    TransactionId = TransactionId,
+                    RevisionGroupId = RevisionCategory.RevisionGroupId,
+                    CategoryId = dto.RevisionDetails.CategoryId,
+                    ReasonId = RevisionRules.ReasonId,
+                    IODocApprovalDate = dto.RevisionDetails.ApprovalDate,
+                    RegionStatus = (isROUser || isCOUser) ? EnumRevisionStatus.Approved : EnumRevisionStatus.Pending,
+                    RegionApprover = isROUser ? _Session.UserId : null,
+                    RegionApprovedDate = isROUser ? CurrentDate : null,
+                    COStatus = isCOUser ? EnumRevisionStatus.Approved : EnumRevisionStatus.Pending,
+                    COApprover = null,
+                    COApprovedDate = null,
+                    CreatedBy = _Session.UserId,
+                    CreatedDate = CurrentDate
+                });
+                string DocumentName = $"{TransactionId}_{DocumentNaming.SecondSegmentName}_{CurrentDate.ToString("MM-dd-yyyy")}.{dto.RevisionDetails.ApprovedDocument.Extension}";
+                string FilePath = Path.Combine(Appsetting.Resources.Revision.ImplementingOffice, DocumentName);
+                string ResourcePath = Path.Combine(Directory.GetCurrentDirectory(), FilePath);
+                if (!dto.RevisionDetails.ApprovedDocument.UploadFile(ResourcePath))
+                {
+                    return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted!", Title = "File Corrupted" });
                 }
+                await _db.tRevisionDocuments.AddAsync(new RevisionDocuments
+                {
+                    TransactionId = TransactionId,
+                    DocumentPath = FilePath,
+                    DocumentName = DocumentName,
+                    IsApprovedDocument = false
+                });
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
                 string loc = System.IO.File.ReadAllText(SMTPClass.PathEmailTemplate);
                 string Body = $@"
         <h3>Revision Information:</h3>
@@ -1019,6 +995,84 @@ namespace WebAPI.Controllers.Revision
                     </tr>
                 </tbody>
         </table>
+        <h3>Program Information:</h3>
+        <table style='margin: auto; min-width: 300px; max-width: 100%; border-collapse: collapse; color: #333; border-top-left-radius: 10px; border-top-right-radius: 10px; overflow: hidden; border: 1px solid #ddd;'>
+            <tbody>
+                <tr style='border-top: none; background: #00148b; color: #fff;'>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Program Name</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Start Year</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Program Type</th>
+                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Program Stage</th>
+                </tr>
+                <tr style='border-top: 1px solid #ddd; border-bottom: 1px solid #ddd; background-color: #f5f9fc;'>
+                        <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
+                            {ProgramDetails.Name}
+                        </td>
+                        <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd
+                            {ProgramDetails.YearStart}
+                        </td>
+                        <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
+                            {ProgramDetails.Type}
+                        </td>
+                        <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
+                            {ProgramDetails.StageName}
+                        </td>
+                    </tr>
+                </tbody>
+        </table>
+        <h3 style='margin:0 0 12px 0; font-family:Segoe UI, Arial, sans-serif; color:#1F2A37;'>
+            Project General Information:
+        </h3>
+
+        <table style='margin:auto; min-width:300px; max-width:100%; border-collapse:collapse; color:#1F2A37;
+            font-family:Segoe UI, Arial, sans-serif; border-top-left-radius:10px; border-top-right-radius:10px;
+            overflow:hidden; border:1px solid #D8E1EA; box-shadow:0 2px 10px rgba(0,0,0,.05);'>
+            <tbody>
+
+            <!-- Header -->
+            <tr style='border-top:none; background:#013261; color:#ffffff;'>
+                <th style='padding:.6em 1em; text-align:left; border:1px solid #013261; border-bottom:2px solid #9DC4FE;'>Project ID</th>
+                <th style='padding:.6em 1em; text-align:left; border:1px solid #013261; border-bottom:2px solid #9DC4FE;'>MY ID</th>
+                <th style='padding:.6em 1em; text-align:left; border:1px solid #013261; border-bottom:2px solid #9DC4FE;'>Alternate ID</th>
+                <th style='padding:.6em 1em; text-align:left; border:1px solid #013261; border-bottom:2px solid #9DC4FE;'>External ID</th>
+                <th style='padding:.6em 1em; text-align:left; border:1px solid #013261; border-bottom:2px solid #9DC4FE;'>OA Project Code (UACS)</th>
+                <th style='padding:.6em 1em; text-align:left; border:1px solid #013261; border-bottom:2px solid #9DC4FE;'>Tier</th>
+                <th style='padding:.6em 1em; text-align:left; border:1px solid #013261; border-bottom:2px solid #9DC4FE;'>Category</th>
+                <th style='padding:.6em 1em; text-align:left; border:1px solid #013261; border-bottom:2px solid #9DC4FE;'>Sub-Category</th>
+                <th style='padding:.6em 1em; text-align:left; border:1px solid #013261; border-bottom:2px solid #9DC4FE;'>MYCA Approval date</th>
+            </tr>
+
+            <!-- Data row -->
+            <tr style='border-top:1px solid #D8E1EA; border-bottom:1px solid #D8E1EA; background-color:#F3F7FF;'>
+                <td style='padding:.6em 1em; text-align:left; border:1px solid #D8E1EA;'>{{Project.ProjectId}}</td>
+                <td style='padding:.6em 1em; text-align:left; border:1px solid #D8E1EA;'>{{Project.MYId}}</td>
+                <td style='padding:.6em 1em; text-align:left; border:1px solid #D8E1EA;'>{{Project.AlternateId}}</td>
+                <td style='padding:.6em 1em; text-align:left; border:1px solid #D8E1EA;'>{{Project.ExternalId}}</td>
+                <td style='padding:.6em 1em; text-align:left; border:1px solid #D8E1EA;'>{{Project.UACS}}</td>
+                <td style='padding:.6em 1em; text-align:left; border:1px solid #D8E1EA;'>{{Project.Tier}}</td>
+                <td style='padding:.6em 1em; text-align:left; border:1px solid #D8E1EA;'>{{Project.Category}}</td>
+                <td style='padding:.6em 1em; text-align:left; border:1px solid #D8E1EA;'>{{Project.Thrust}}</td>
+                <td style='padding:.6em 1em; text-align:left; border:1px solid #D8E1EA;'>{{Project.MYCAApprovalDate}}</td>
+            </tr>
+
+            <!-- Description header -->
+            <tr style='border-top:none; background:#013261; color:#ffffff;'>
+                <th colspan='9' style='padding:.6em 1em; text-align:left; border:1px solid #013261; border-bottom:2px solid #9DC4FE;'>
+                Description
+                </th>
+            </tr>
+
+            <!-- Description body -->
+            <tr style='border-top:1px solid #D8E1EA; border-bottom:1px solid #D8E1EA; background-color:#F3F7FF;'>
+                <td colspan='9' style='padding:.6em 1em; text-align:left; border:1px solid #D8E1EA;'>
+                {{Project.Description}}
+                </td>
+            </tr>
+
+            </tbody>
+        </table>
+
+
         <h3>Project Details Information:</h3>
         <table style='margin: auto; min-width: 300px; max-width: 100%; border-collapse: collapse; color: #333; border-top-left-radius: 10px; border-top-right-radius: 10px; overflow: hidden; border: 1px solid #ddd;'>
             <tbody>
@@ -1157,109 +1211,141 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = "Account usergroup is not allowed to update Revision. Please contact administrator!", Title = "Invalid User Group" });
                 }
-                if (dto.Status == EnumRevisionStatus.ForCorrection)
+                #region Commented
+                if ((dto.Status == EnumRevisionStatus.Rejected || dto.Status == EnumRevisionStatus.ForCorrection) && string.IsNullOrEmpty(dto.Remarks))
                 {
-                    var existingCorrections = await _db.tRevisionForCorrectionDetails.AsNoTracking()
-                        .Where(x => x.TransactionId == dto.TransactionId)
-                        .OrderByDescending(x => x.Id)
-                        .FirstOrDefaultAsync();
-                    if (existingCorrections != null)
+                    string RevisionStatusMessage = dto.Status == EnumRevisionStatus.Rejected ? "rejectin revision request" : "sending revision for correction";
+                    return new BadRequestObjectResult(new { Message = $"Reason is required when {RevisionStatusMessage}", Title = "Reason Required" });
+                }
+                if (dto.Status == EnumRevisionStatus.Approved || dto.Status == EnumRevisionStatus.Rejected)
+                {
+                    if (isROUser)
                     {
-                        if(isCOUser && string.IsNullOrEmpty(existingCorrections.COComment))
-                        {
-                            existingCorrections.COComment = dto.Remarks;
-                            existingCorrections.COForCorrectionDate = CurrentDate;
-                            _db.tRevisionForCorrectionDetails.Update(existingCorrections);
-                        }
-                        else if(string.IsNullOrEmpty(existingCorrections.ROComment))
-                        {
-                            existingCorrections.ROComment = dto.Remarks;
-                            existingCorrections.ROForCorrectionDate = CurrentDate;
-                            _db.tRevisionForCorrectionDetails.Update(existingCorrections);
-                        }
+                        RevisionDetails.RegionStatus = dto.Status;
+                        RevisionDetails.RegionApprover = _Session.UserId;
+                        RevisionDetails.RegionApprovedDate = CurrentDate;
                     }
                     else
                     {
-                        if (isCOUser)
-                        {
-                            await _db.tRevisionForCorrectionDetails.AddAsync(new RevisionForCorrectionDetails
-                            {
-                                TransactionId = dto.TransactionId,
-                                COComment = dto.Remarks,
-                                COForCorrectionDate = CurrentDate
-                            });
-                        }
-                        else
-                        {
-                            await _db.tRevisionForCorrectionDetails.AddAsync(new RevisionForCorrectionDetails
-                            {
-                                TransactionId = dto.TransactionId,
-                                ROComment = dto.Remarks,
-                                ROForCorrectionDate = CurrentDate
-                            });
-                        }
+                        RevisionDetails.COStatus = dto.Status;
+                        RevisionDetails.COApprover = _Session.UserId;
+                        RevisionDetails.COApprovedDate = CurrentDate;
                     }
+                    _db.tRevisionDetails.Update(RevisionDetails);
                 }
-                RevisionDetails.RegionStatus = (isROUser ? dto.Status : RevisionDetails.RegionStatus);
-                RevisionDetails.RegionApprover = (isROUser ? _Session.UserId : RevisionDetails.RegionApprover);
-                RevisionDetails.RegionApprovedDate = (isROUser ? CurrentDate : RevisionDetails.RegionApprovedDate);
-
-                RevisionDetails.COStatus = (isCOUser ? dto.Status : RevisionDetails.COStatus);
-                RevisionDetails.COApprover = (isCOUser ? _Session.UserId : RevisionDetails.COApprover);
-                RevisionDetails.COApprovedDate = (isCOUser ? CurrentDate : RevisionDetails.COApprovedDate);
-                if (isCOUser && dto.Status == EnumRevisionStatus.ForCorrection)
+                else if (dto.Status == EnumRevisionStatus.ForCorrection)
                 {
-                    if (RevisionDetails.RegionStatus != EnumRevisionStatus.Approved)
+                    if (isROUser)
                     {
-                        return new BadRequestObjectResult(new { Message = "Revision is not yet approved by Regional Office", Title = "Pending For Approval" });
+                        await _db.tRevisionForCorrectionDetails.AddAsync(new RevisionForCorrectionDetails
+                        {
+                            TransactionId = dto.TransactionId,
+                            CorrectionReason = dto.Remarks,
+                            ForCorrectionDate = CurrentDate,
+                            IsCentralOffice = false
+                        });
                     }
-                    if (dto.Status == EnumRevisionStatus.Approved)
+                    else
                     {
-                        var DocumentNaming = await _db.tRevisionDocumentsNaming.AsNoTracking().FirstOrDefaultAsync(x => (x.CategoryId != null && x.CategoryId == RevisionDetails.CategoryId) || x.RevisionGroupId == RevisionDetails.RevisionGroupId);
-                        if (DocumentNaming == null)
+                        await _db.tRevisionForCorrectionDetails.AddAsync(new RevisionForCorrectionDetails
                         {
-                            await transaction.RollbackAsync();
-                            return new BadRequestObjectResult(new { Message = "Document naming convention not found for the selected revision reason! Please contact Administrator", Title = "Missing Document Naming" });
-                        }
-                        if (dto.ApprovalDate == null)
-                        {
-                            return new BadRequestObjectResult(new { Message = "Approved document date required before approving!", Title = "Signed Document Date Required" });
-                        }
-                        if(dto.Document == null)
-                        {
-                            return new BadRequestObjectResult(new { Message = "Approved document needs to be attached before approving!", Title = "Signed Document Required" });
-                        }
-                        var RevisionDocument = await _db.tRevisionDocuments.AsNoTracking().FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId && x.IsApprovedDocument == false);
-                        if (RevisionDocument == null)
-                        {
-                            return new BadRequestObjectResult(new { Message = "Request document from IO is missing. Please contact Administrator!", Title = "Missing Document" });
-                        }
-                        if (RevisionDocument != null)
-                        {
-                            string DocumentName = $"{dto.TransactionId}_{DocumentNaming.SecondSegmentName}_{CurrentDate.ToString("MM-dd-yyyy")}.{dto.Document.Extension}";
-                            string FilePath = Path.Combine(Appsetting.Resources.Revision.CentralOffice, DocumentName);
-                            string ResourcePath = Path.Combine(Directory.GetCurrentDirectory(), FilePath);
-                            if (!dto.Document.UploadFile(ResourcePath))
-                            {
-                                return new BadRequestObjectResult(new { Message = "Uploaded document is corrupted!", Title = "File Corrupted" });
-                            }
-
-                            await _db.tRevisionDocuments.AddAsync(new RevisionDocuments
-                            {
-                                TransactionId = dto.TransactionId,
-                                DocumentPath = FilePath,
-                                DocumentName = DocumentName,
-                                IsApprovedDocument = true
-                            });
-                            RevisionDetails.CODocApprovalDate = dto.ApprovalDate;
-                            _db.tRevisionDocuments.Update(RevisionDocument);
-                        }
+                            TransactionId = dto.TransactionId,
+                            CorrectionReason = dto.Remarks,
+                            ForCorrectionDate = CurrentDate,
+                            IsCentralOffice = true
+                        });
                     }
-                    RevisionDetails.COStatus = dto.Status;
-                    RevisionDetails.COApprover = _Session.UserId;
-                    RevisionDetails.COApprovedDate = CurrentDate;
                 }
-                _db.tRevisionDetails.Update(RevisionDetails);
+                #endregion
+                #region Old Code
+                //if (dto.Status == EnumRevisionStatus.ForCorrection)
+                //{
+                //    if(string.IsNullOrEmpty(dto.Remarks))
+                //    {
+                //        return new BadRequestObjectResult(new { Message = "Reason is required when sending revision for correction", Title = "Reason Required" });
+                //    }
+                //    if (isCOUser)
+                //    {
+                //        await _db.tRevisionForCorrectionDetails.AddAsync(new RevisionForCorrectionDetails
+                //        {
+                //            TransactionId = dto.TransactionId,
+                //            CorrectionReason = dto.Remarks,
+                //            ForCorrectionDate = CurrentDate,
+                //            IsCentralOffice = true
+                //        });
+                //    }
+                //    else
+                //    {
+                //        await _db.tRevisionForCorrectionDetails.AddAsync(new RevisionForCorrectionDetails
+                //        {
+                //            TransactionId = dto.TransactionId,
+                //            CorrectionReason = dto.Remarks,
+                //            ForCorrectionDate = CurrentDate,
+                //            IsCentralOffice = false
+                //        });
+                //    }
+                //}
+                //RevisionDetails.RegionStatus = (isROUser ? dto.Status : RevisionDetails.RegionStatus);
+                //RevisionDetails.RegionApprover = (isROUser ? _Session.UserId : RevisionDetails.RegionApprover);
+                //RevisionDetails.RegionApprovedDate = (isROUser ? CurrentDate : RevisionDetails.RegionApprovedDate);
+
+                //RevisionDetails.COStatus = (isCOUser ? dto.Status : RevisionDetails.COStatus);
+                //RevisionDetails.COApprover = (isCOUser ? _Session.UserId : RevisionDetails.COApprover);
+                //RevisionDetails.COApprovedDate = (isCOUser ? CurrentDate : RevisionDetails.COApprovedDate);
+                //if (isCOUser && dto.Status == EnumRevisionStatus.ForCorrection)
+                //{
+                //    if (RevisionDetails.RegionStatus != EnumRevisionStatus.Approved)
+                //    {
+                //        return new BadRequestObjectResult(new { Message = "Revision is not yet approved by Regional Office", Title = "Pending For Approval" });
+                //    }
+                //    if (dto.Status == EnumRevisionStatus.Approved)
+                //    {
+                //        var DocumentNaming = await _db.tOptionRevisionDocuments.AsNoTracking().FirstOrDefaultAsync(x => (x.CategoryId != null && x.CategoryId == RevisionDetails.CategoryId) || x.RevisionGroupId == RevisionDetails.RevisionGroupId);
+                //        if (DocumentNaming == null)
+                //        {
+                //            await transaction.RollbackAsync();
+                //            return new BadRequestObjectResult(new { Message = "Document naming convention not found for the selected revision reason! Please contact Administrator", Title = "Missing Document Naming" });
+                //        }
+                //        if (dto.ApprovalDate == null)
+                //        {
+                //            return new BadRequestObjectResult(new { Message = "Approved document date required before approving!", Title = "Signed Document Date Required" });
+                //        }
+                //        if (dto.Document == null)
+                //        {
+                //            return new BadRequestObjectResult(new { Message = "Approved document needs to be attached before approving!", Title = "Signed Document Required" });
+                //        }
+                //        var RevisionDocument = await _db.tRevisionDocuments.AsNoTracking().FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId && x.IsApprovedDocument == false);
+                //        if (RevisionDocument == null)
+                //        {
+                //            return new BadRequestObjectResult(new { Message = "Request document from IO is missing. Please contact Administrator!", Title = "Missing Document" });
+                //        }
+                //        if (RevisionDocument != null)
+                //        {
+                //            string DocumentName = $"{dto.TransactionId}_{DocumentNaming.SecondSegmentName}_{CurrentDate.ToString("MM-dd-yyyy")}.{dto.Document.Extension}";
+                //            string FilePath = Path.Combine(Appsetting.Resources.Revision.CentralOffice, DocumentName);
+                //            string ResourcePath = Path.Combine(Directory.GetCurrentDirectory(), FilePath);
+                //            if (!dto.Document.UploadFile(ResourcePath))
+                //            {
+                //                return new BadRequestObjectResult(new { Message = "Uploaded document is corrupted!", Title = "File Corrupted" });
+                //            }
+
+                //            await _db.tRevisionDocuments.AddAsync(new RevisionDocuments
+                //            {
+                //                TransactionId = dto.TransactionId,
+                //                DocumentPath = FilePath,
+                //                DocumentName = DocumentName,
+                //                IsApprovedDocument = true
+                //            });
+                //            RevisionDetails.CODocApprovalDate = dto.ApprovalDate;
+                //            _db.tRevisionDocuments.Update(RevisionDocument);
+                //        }
+                //    }
+                //    RevisionDetails.COStatus = dto.Status;
+                //    RevisionDetails.COApprover = _Session.UserId;
+                //    RevisionDetails.COApprovedDate = CurrentDate;
+                //}
+                //_db.tRevisionDetails.Update(RevisionDetails);
+                #endregion
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
                 return Ok(new { Message = $"Revision Updated by {_Session.UserGroups}", Title = "Updated Successfully" });
@@ -1277,49 +1363,90 @@ namespace WebAPI.Controllers.Revision
             var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                string TransactionId = string.Empty;
-                bool hasUpdated = false;
-                DateTime CurrentDate = DateTime.UtcNow;
-                var NewFundingProfile = new List<ProjectFundingProfile>();
-                var NewComponent = new List<DBHelper.Models.Table.ProjectComponentCost>();
-                var NewComponentYear = new List<ProjectComponentCostYear>();
-                var NewMajorWorkItem = new List<ProjectMajorWorkItem>();
-                var NewMajorWorkLocations = new List<ProjectMajorWorkLocations>();
-                var TransactionLog = new List<RevisionTransactionLog>();
-                #region Validations
-                var RevisionDetails = await _db.tRevisionDetails.AsNoTracking().FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId && (x.RegionStatus == EnumRevisionStatus.ForCorrection || x.COStatus == EnumRevisionStatus.ForCorrection));
-                if(RevisionDetails == null)
+                if (string.IsNullOrEmpty(_Session.UserGroups))
                 {
-                    return new BadRequestObjectResult(new { Message = "Revision details not found!", Title = "Invalid Revision" });
+                    return new BadRequestObjectResult(new { Message = "Account usergroup is not allowed to submit Revision. Please contact administrator!", Title = "User Groups Missing" });
                 }
-                var Project = await _db.tProjectRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectDetails.ProjectId && x.Id == dto.ProjectDetails.RevisionId);
+                if (dto.RevisionDetails.ApprovedDocument == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Approved Document is required!", Title = "Missing Approved Document" });
+                }
+                if (dto.RevisionDetails.ApprovedDocument.IsPdfCorrupted())
+                {
+                    return new BadRequestObjectResult(new { Message = "Approved Document file is corrupted or not a valid PDF!", Title = "Invalid File" });
+                }
+                if (!dto.RevisionDetails.ApprovedDocument.ValidateFileSize(50))
+                {
+                    return new BadRequestObjectResult(new { Message = "Approved Document file size exceeds the maximum limit of 50 MB!", Title = "File Size Exceeded" });
+                }
+                DateTime CurrentDate = DateTime.UtcNow;
+                var TransactionLog = new List<RevisionTransactionLog>();
+                string RevisionTransactionId = ("tCountRevisionSequence").GenerateCode();
+                #region Validating Created Revision Project Data
+                var ExistingRevision = await _db.tRevisionDetails.AsNoTracking().FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId && (x.RegionStatus == EnumRevisionStatus.ForCorrection || x.COStatus == EnumRevisionStatus.ForCorrection));
+                if(ExistingRevision == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"For Correction revision status does not exist in revision requests,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Transaction ID not found" });
+                }
+                var ExistingRevisionProject = await _db.tRevisionProjects.FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId);
+                if(ExistingRevisionProject == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Revision project details not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision Project not found" });
+                }
+                var ExistingFundingProfile = await _db.tRevisionProjectFundingProfile.Where(x => x.TransactionId == dto.TransactionId).ToListAsync();
+                if(ExistingFundingProfile == null) {
+                    return new BadRequestObjectResult(new { Message = $"Revision funding profile not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision Funding Profile not found" });
+                }
+                var ExistingComponent = await _db.tRevisionProjectComponentCost.Where(x => x.TransactionId == dto.TransactionId).ToListAsync();
+                if(ExistingComponent == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Revision component cost not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision Component Cost not found" });
+                }
+                var ExistingMajorWorkItem = await _db.tRevisionProjectMajorWorkItem.Where(x => x.TransactionId == dto.TransactionId).ToListAsync();
+                if(ExistingMajorWorkItem == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Revision major work item not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision Major Work Item not found" });
+                }
+                var ExistingMajorWorkLocations = await _db.tRevisionProjectMajorWorkLocations.Where(x => x.TransactionId == dto.TransactionId).ToListAsync();
+                if (ExistingMajorWorkLocations == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Revision major work locations not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision Major Work Locations not found" });
+                }
+                #endregion
+                #region Validations
+                var Project = await _db.tProjectRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectDetails.ProjectId && x.isRevised == true);
                 if (Project == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Invalid Project" });
                 }
-                var ProjectStage = await _db.tProjectStages.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionId == dto.ProjectDetails.RevisionId);
-                if (ProjectStage == null)
-                {
-                    return new BadRequestObjectResult(new { Message = "Project Stage not found!", Title = "Invalid Project Stage" });
-                }
 
-                var RevisionRules = await _db.vRevisionRules.AsNoTracking().FirstOrDefaultAsync(x => x.ReasonId == RevisionDetails.ReasonId && x.PCMA_Status == dto.ProjectStatus.ConstructionStatus && x.Package_Status == dto.ProjectStatus.PackageStatus);
+                var RevisionRules = await _db.vRevisionRules.AsNoTracking().FirstOrDefaultAsync(x => x.ReasonId == dto.RevisionDetails.ReasonId && x.PCMA_Status == dto.RevisionDetails.ConstructionStatus && x.Package_Status == dto.RevisionDetails.PackageStatus);
                 if (RevisionRules == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Revision type does not exist in PCMA_Status: {dto.ProjectStatus.ConstructionStatus} Package_Status: {dto.ProjectStatus.PackageStatus}!", Title = "Invalid Revision Type" });
+                    return new BadRequestObjectResult(new { Message = $"Revision type does not exist in PCMA_Status: {dto.RevisionDetails.ConstructionStatus} Package_Status: {dto.RevisionDetails.PackageStatus}!", Title = "Invalid Revision Type" });
                 }
                 var RevisionCategory = await _db.tOptionRevisionHeader.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionGroupId == RevisionRules.RevisionGroupId);
                 if (RevisionCategory == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Revision category does not match with the selected revision reason!", Title = "Invalid Revision Category" });
                 }
+                var DocumentNaming = await _db.tOptionRevisionDocuments.AsNoTracking().FirstOrDefaultAsync(x => (x.CategoryId != null && x.CategoryId == dto.RevisionDetails.CategoryId) || x.RevisionGroupId == RevisionCategory.RevisionGroupId);
+                if (DocumentNaming == null)
+                {
+                    await transaction.RollbackAsync();
+                    return new BadRequestObjectResult(new { Message = "Document naming convention not found for the selected revision reason! Please contact Administrator", Title = "Missing Document Naming" });
+                }
+                var HasPendingModification = await _db.vRevisionLists.AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.TransactionId.Contains(dto.ProjectDetails.ProjectId!) && x.COStatus != EnumRevisionStatus.Approved);
+                if (HasPendingModification != null && (HasPendingModification.COStatus == EnumRevisionStatus.Pending || HasPendingModification.RegionStatus == EnumRevisionStatus.Pending))
+                {
+                    return new BadRequestObjectResult(new { Message = $"There is a pending {HasPendingModification.RevisionName} request for this project. Please wait for the current request to be processed before submitting a new one.", Title = "Pending Modification Request" });
+                }
                 var jsonRules = JsonConvert.DeserializeObject<ModificationRules>(RevisionRules.Field);
                 if (jsonRules == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Rules does not exist in {RevisionRules.Reason}! Please contact admin", Title = "No Rules Exists" });
                 }
-                Project.isRevised = true;
-                Project.RevisedNumber = (Project.RevisedNumber ?? 0) + 1;
                 #endregion
                 #region ProjectRevision
                 var ProjectDetailsRules = jsonRules.ProjectDetailsRules.GetType()
@@ -1329,17 +1456,246 @@ namespace WebAPI.Controllers.Revision
                 .Select(p => p.Name)
                 .ToList();
                 var NewProjectRevision = dto.ProjectDetails;
-                Project.Id = 0;
-                Project.RevisionNumber = Project.RevisionNumber + 1;
                 if (ProjectDetailsRules.Count > 0)
                 {
-                    hasUpdated = true;
-                    Project = ProjectDetailsRules.UpdateRevisionData(NewProjectRevision, Project);
+                    var RevisionProject = ProjectDetailsRules.UpdateRevisionData(NewProjectRevision, Project);
+                    if (ExistingRevisionProject.MYId != RevisionProject.MYId)
+                    {
+                        TransactionLog.Add(new RevisionTransactionLog
+                        {
+                            TransactionId = RevisionTransactionId,
+                            ReferenceId = dto.TransactionId,
+                            TypeOfTransaction = "Update",
+                            AffectedTable = "tRevisionProjects",
+                            AffectedColumn = "MYId",
+                            OldValue = ExistingRevisionProject.MYId,
+                            NewValue = RevisionProject.MYId,
+                            CreatedBy = _Session.UserId,
+                            CreatedDate = CurrentDate
+                        });
+                        ExistingRevisionProject.MYId = RevisionProject.MYId;
+                    }
+                    if (ExistingRevisionProject.UACS != RevisionProject.UACS)
+                    {
+                        TransactionLog.Add(new RevisionTransactionLog
+                        {
+                            TransactionId = RevisionTransactionId,
+                            ReferenceId = dto.TransactionId,
+                            TypeOfTransaction = "Update",
+                            AffectedTable = "tRevisionProjects",
+                            AffectedColumn = "UACS",
+                            OldValue = ExistingRevisionProject.UACS,
+                            NewValue = RevisionProject.UACS,
+                            CreatedBy = _Session.UserId,
+                            CreatedDate = CurrentDate
+                        });
+                        ExistingRevisionProject.UACS = RevisionProject.UACS;
+                    }
+                    if (ExistingRevisionProject.MYCAApprovalDate != RevisionProject.MYCAApprovalDate)
+                    {
+                        TransactionLog.Add(new RevisionTransactionLog
+                        {
+                            TransactionId = RevisionTransactionId,
+                            ReferenceId = dto.TransactionId,
+                            TypeOfTransaction = "Update",
+                            AffectedTable = "tRevisionProjects",
+                            AffectedColumn = "MYCAApprovalDate",
+                            OldValue = ExistingRevisionProject.MYCAApprovalDate?.ToString("dd-MM-yyyy"),
+                            NewValue = RevisionProject.MYCAApprovalDate?.ToString("dd-MM-yyyy"),
+                            CreatedBy = _Session.UserId,
+                            CreatedDate = CurrentDate
+                        });
+                        ExistingRevisionProject.MYCAApprovalDate = RevisionProject.MYCAApprovalDate;
+                    }
+                    if (ExistingRevisionProject.Description != RevisionProject.Description)
+                    {
+                        TransactionLog.Add(new RevisionTransactionLog
+                        {
+                            TransactionId = RevisionTransactionId,
+                            ReferenceId = dto.TransactionId,
+                            TypeOfTransaction = "Update",
+                            AffectedTable = "tRevisionProjects",
+                            AffectedColumn = "Description",
+                            OldValue = ExistingRevisionProject.Description,
+                            NewValue = RevisionProject.Description,
+                            CreatedBy = _Session.UserId,
+                            CreatedDate = CurrentDate
+                        });
+                        ExistingRevisionProject.Description = RevisionProject.Description;
+                    }
+                    if (ExistingRevisionProject.Category != RevisionProject.Category)
+                    {
+                        TransactionLog.Add(new RevisionTransactionLog
+                        {
+                            TransactionId = RevisionTransactionId,
+                            ReferenceId = dto.TransactionId,
+                            TypeOfTransaction = "Update",
+                            AffectedTable = "tRevisionProjects",
+                            AffectedColumn = "Category",
+                            OldValue = ExistingRevisionProject.Category.ToString(),
+                            NewValue = RevisionProject.Category.ToString(),
+                            CreatedBy = _Session.UserId,
+                            CreatedDate = CurrentDate
+                        });
+                        ExistingRevisionProject.Category = RevisionProject.Category;
+                    }
+                    if (ExistingRevisionProject.Thrust != RevisionProject.Thrust)
+                    {
+                        TransactionLog.Add(new RevisionTransactionLog
+                        {
+                            TransactionId = RevisionTransactionId,
+                            ReferenceId = dto.TransactionId,
+                            TypeOfTransaction = "Update",
+                            AffectedTable = "tRevisionProjects",
+                            AffectedColumn = "Thrust",
+                            OldValue = ExistingRevisionProject.Thrust.ToString(),
+                            NewValue = RevisionProject.Thrust.ToString(),
+                            CreatedBy = _Session.UserId,
+                            CreatedDate = CurrentDate
+                        });
+                        ExistingRevisionProject.Thrust = RevisionProject.Thrust;
+                    }
+                    if (ExistingRevisionProject.Origin != RevisionProject.Origin)
+                    {
+                        //var OldOrigin = await _db.tProjectOriginEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == ExistingRevisionProject.Origin);
+                        //if(OldOrigin == null)
+                        //{
+                        //    return new BadRequestObjectResult(new { Message = "Old Project Source Origin data not found! Please contact admin", Title = "Invalid Origin Data" });
+                        //}
+                        //var ExistingOrigin = await _db.tProjectOriginEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == RevisionProject.Origin);
+                        //if(ExistingOrigin == null)
+                        //{
+                        //    return new BadRequestObjectResult(new { Message = "Project Source Origin data not found! Please contact admin", Title = "Invalid Origin Data" });
+                        //}
+                        TransactionLog.Add(new RevisionTransactionLog
+                        {
+                            TransactionId = RevisionTransactionId,
+                            ReferenceId = dto.TransactionId,
+                            TypeOfTransaction = "Update",
+                            AffectedTable = "tRevisionProjects",
+                            AffectedColumn = "Origin",
+                            OldValue = ExistingRevisionProject.Origin.ToString(),
+                            NewValue = RevisionProject.Origin.ToString(),
+                            CreatedBy = _Session.UserId,
+                            CreatedDate = CurrentDate
+                        });
+                        ExistingRevisionProject.Origin = RevisionProject.Origin;
+                    }
+                    if (ExistingRevisionProject.City != RevisionProject.City)
+                    {
+                        TransactionLog.Add(new RevisionTransactionLog
+                        {
+                            TransactionId = RevisionTransactionId,
+                            ReferenceId = dto.TransactionId,
+                            TypeOfTransaction = "Update",
+                            AffectedTable = "tRevisionProjects",
+                            AffectedColumn = "City",
+                            OldValue = ExistingRevisionProject.City,
+                            NewValue = RevisionProject.City,
+                            CreatedBy = _Session.UserId,
+                            CreatedDate = CurrentDate
+                        });
+                        ExistingRevisionProject.City = RevisionProject.City;
+                    }
+                    if (ExistingRevisionProject.LegislativeDistrict != RevisionProject.LegislativeDistrict)
+                    {
+                        TransactionLog.Add(new RevisionTransactionLog
+                        {
+                            TransactionId = RevisionTransactionId,
+                            ReferenceId = dto.TransactionId,
+                            TypeOfTransaction = "Update",
+                            AffectedTable = "tRevisionProjects",
+                            AffectedColumn = "LegislativeDistrict",
+                            OldValue = ExistingRevisionProject.LegislativeDistrict,
+                            NewValue = RevisionProject.LegislativeDistrict,
+                            CreatedBy = _Session.UserId,
+                            CreatedDate = CurrentDate
+                        });
+                        ExistingRevisionProject.LegislativeDistrict = RevisionProject.LegislativeDistrict;
+                    }
+                    if (ExistingRevisionProject.OperatingUnit != RevisionProject.OperatingUnit)
+                    {
+                        TransactionLog.Add(new RevisionTransactionLog
+                        {
+                            TransactionId = RevisionTransactionId,
+                            ReferenceId = dto.TransactionId,
+                            TypeOfTransaction = "Update",
+                            AffectedTable = "tRevisionProjects",
+                            AffectedColumn = "OperatingUnit",
+                            OldValue = ExistingRevisionProject.OperatingUnit,
+                            NewValue = RevisionProject.OperatingUnit,
+                            CreatedBy = _Session.UserId,
+                            CreatedDate = CurrentDate
+                        });
+                        ExistingRevisionProject.OperatingUnit = RevisionProject.OperatingUnit;
+                    }
+                    if (ExistingRevisionProject.ImplementingOffice != RevisionProject.ImplementingOffice)
+                    {
+                        TransactionLog.Add(new RevisionTransactionLog
+                        {
+                            TransactionId = RevisionTransactionId,
+                            ReferenceId = dto.TransactionId,
+                            TypeOfTransaction = "Update",
+                            AffectedTable = "tRevisionProjects",
+                            AffectedColumn = "ImplementingOffice",
+                            OldValue = ExistingRevisionProject.ImplementingOffice,
+                            NewValue = RevisionProject.ImplementingOffice,
+                            CreatedBy = _Session.UserId,
+                            CreatedDate = CurrentDate
+                        });
+                        ExistingRevisionProject.ImplementingOffice = RevisionProject.ImplementingOffice;
+                    }
+                    if (ExistingRevisionProject.DEO != RevisionProject.DEO)
+                    {
+                        TransactionLog.Add(new RevisionTransactionLog
+                        {
+                            TransactionId = RevisionTransactionId,
+                            ReferenceId = dto.TransactionId,
+                            TypeOfTransaction = "Update",
+                            AffectedTable = "tRevisionProjects",
+                            AffectedColumn = "DEO",
+                            OldValue = ExistingRevisionProject.DEO,
+                            NewValue = RevisionProject.DEO,
+                            CreatedBy = _Session.UserId,
+                            CreatedDate = CurrentDate
+                        });
+                        ExistingRevisionProject.DEO = RevisionProject.DEO;
+                    }
+                    if (ExistingRevisionProject.ImplementationMode != RevisionProject.ImplementationMode)
+                    {
+                        TransactionLog.Add(new RevisionTransactionLog
+                        {
+                            TransactionId = RevisionTransactionId,
+                            ReferenceId = dto.TransactionId,
+                            TypeOfTransaction = "Update",
+                            AffectedTable = "tRevisionProjects",
+                            AffectedColumn = "ImplementationMode",
+                            OldValue = ExistingRevisionProject.ImplementationMode.ToString(),
+                            NewValue = RevisionProject.ImplementationMode.ToString(),
+                            CreatedBy = _Session.UserId,
+                            CreatedDate = CurrentDate
+                        });
+                        ExistingRevisionProject.ImplementationMode = RevisionProject.ImplementationMode;
+                    }
+                    if (ExistingRevisionProject.EmergencyMode != RevisionProject.EmergencyMode)
+                    {
+                        TransactionLog.Add(new RevisionTransactionLog
+                        {
+                            TransactionId = RevisionTransactionId,
+                            ReferenceId = dto.TransactionId,
+                            TypeOfTransaction = "Update",
+                            AffectedTable = "tRevisionProjects",
+                            AffectedColumn = "EmergencyMode",
+                            OldValue = ExistingRevisionProject.EmergencyMode.ToString(),
+                            NewValue = RevisionProject.EmergencyMode.ToString(),
+                            CreatedBy = _Session.UserId,
+                            CreatedDate = CurrentDate
+                        });
+                        ExistingRevisionProject.EmergencyMode = RevisionProject.EmergencyMode;
+                    }
                 }
                 #endregion
                 #region FundingProfile
-                var FundingIds = dto.FundingProfile.Where(x => x.Id != 0).Select(x => x.Id);
-                var FundingProfile = await _db.tProjectFundingProfile.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && FundingIds.Contains(x.Id)).ToListAsync();
                 var FundingProfileRules = jsonRules.FundingProfileRules.Fields.GetType()
                 .GetProperties()
                 .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
@@ -1347,58 +1703,125 @@ namespace WebAPI.Controllers.Revision
                 .Select(p => p.Name)
                 .ToList();
                 var UpdateFundingProfile = dto.FundingProfile.Where(x => x.Id != 0);
-                if (FundingProfile.Count > 0)
+                if (ExistingFundingProfile.Count > 0)
                 {
                     foreach (var component in UpdateFundingProfile)
                     {
                         var ComponentId = component.Id;
-                        var SelectedComponent = FundingProfile.FirstOrDefault(x => x.Id == ComponentId);
-
-                        if (SelectedComponent != null)
+                        var SelectedComponent = ExistingFundingProfile.FirstOrDefault(x => x.Id == ComponentId);
+                        var OldSelectedFunding = new RevisionProjectFundingProfile
                         {
-                            hasUpdated = true;
+                            Id = SelectedComponent.Id,
+                            TransactionId = SelectedComponent.TransactionId,
+                            ProjectId = SelectedComponent.ProjectId,
+                            Source = SelectedComponent.Source,
+                            Agreement = SelectedComponent.Agreement,
+                            Amount = SelectedComponent.Amount,
+                            Percentage = SelectedComponent.Percentage
+                        };
+                        if (OldSelectedFunding != null)
+                        {
                             if (FundingProfileRules.Count > 0)
                             {
                                 SelectedComponent = FundingProfileRules.UpdateRevisionData(component, SelectedComponent);
+                                if (OldSelectedFunding.Source != SelectedComponent.Source)
+                                {
+                                    TransactionLog.Add(new RevisionTransactionLog
+                                    {
+                                        TransactionId = RevisionTransactionId,
+                                        ReferenceId = dto.TransactionId,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tRevisionProjectFundingProfile",
+                                        AffectedColumn = "Source",
+                                        OldValue = OldSelectedFunding.Source,
+                                        NewValue = SelectedComponent.Source,
+                                        CreatedBy = _Session.UserId,
+                                        CreatedDate = CurrentDate
+                                    });
+                                }
+                                if (OldSelectedFunding.Agreement != SelectedComponent.Agreement)
+                                {
+                                    TransactionLog.Add(new RevisionTransactionLog
+                                    {
+                                        TransactionId = RevisionTransactionId,
+                                        ReferenceId = dto.TransactionId,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tRevisionProjectFundingProfile",
+                                        AffectedColumn = "Agreement",
+                                        OldValue = OldSelectedFunding.Agreement,
+                                        NewValue = SelectedComponent.Agreement,
+                                        CreatedBy = _Session.UserId,
+                                        CreatedDate = CurrentDate
+                                    });
+                                }
+                                if (OldSelectedFunding.Amount != SelectedComponent.Amount)
+                                {
+                                    TransactionLog.Add(new RevisionTransactionLog
+                                    {
+                                        TransactionId = RevisionTransactionId,
+                                        ReferenceId = dto.TransactionId,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tRevisionProjectFundingProfile",
+                                        AffectedColumn = "Amount",
+                                        OldValue = OldSelectedFunding.Amount.ToString(),
+                                        NewValue = SelectedComponent.Amount.ToString(),
+                                        CreatedBy = _Session.UserId,
+                                        CreatedDate = CurrentDate
+                                    });
+                                }
+                                if (OldSelectedFunding.Percentage != SelectedComponent.Percentage)
+                                {
+                                    TransactionLog.Add(new RevisionTransactionLog
+                                    {
+                                        TransactionId = RevisionTransactionId,
+                                        ReferenceId = dto.TransactionId,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tRevisionProjectFundingProfile",
+                                        AffectedColumn = "Percentage",
+                                        OldValue = OldSelectedFunding.Percentage.ToString(),
+                                        NewValue = SelectedComponent.Percentage.ToString(),
+                                        CreatedBy = _Session.UserId,
+                                        CreatedDate = CurrentDate
+                                    });
+                                }
                             }
-                            SelectedComponent.RevisedNumber = Project.RevisedNumber;
-                            SelectedComponent.Id = 0;
+                        }
+                    }
+                    if (jsonRules.FundingProfileRules.CRUD.CanDelete)
+                    {
+                        var DeletedFunding = UpdateFundingProfile.Where(x => x.IsDeleted == true).ToList();
+                        if (DeletedFunding.Count > 0)
+                        {
+                            ExistingFundingProfile = ExistingFundingProfile.Where(x => !DeletedFunding.Select(x => x.Id).Contains(x.Id)).ToList();
+                            TransactionLog.AddRange(DeletedFunding.Select(x => new RevisionTransactionLog
+                            {
+                                TransactionId = RevisionTransactionId,
+                                ReferenceId = dto.TransactionId,
+                                TypeOfTransaction = "Delete",
+                                AffectedTable = "tRevisionProjectFundingProfile",
+                                AffectedColumn = "Row",
+                                OldValue = JsonConvert.SerializeObject(x),
+                                NewValue = null,
+                                CreatedBy = _Session.UserId,
+                                CreatedDate = CurrentDate
+                            }));
                         }
                     }
                 }
                 if (jsonRules.FundingProfileRules.CRUD.CanAdd)
                 {
-                    var NewFundingToInsert = dto.FundingProfile.Where(x => x.Id == 0);
-                    if (NewFundingToInsert.Count() > 0)
+                    ExistingFundingProfile.AddRange(dto.FundingProfile.Where(x => x.Id == 0).Select(x => new RevisionProjectFundingProfile
                     {
-                        NewFundingProfile.AddRange(NewFundingToInsert.Select(x => new ProjectFundingProfile
-                        {
-                            ProjectId = Project.ProjectId,
-                            Source = x.Source,
-                            Agreement = x.Agreement,
-                            Amount = x.Amount,
-                            Percentage = x.Percentage,
-                            StageName = ProjectStage.StageName,
-                            RevisedNumber = Project.RevisedNumber,
-                            CreatedBy = _Session.UserId,
-                            CreatedDate = CurrentDate
-                        }));
-                    }
-                }
-                if (jsonRules.FundingProfileRules.CRUD.CanDelete)
-                {
-                    var DeletedFundings = UpdateFundingProfile.ToList();
-                    if (DeletedFundings.Count > 0)
-                    {
-                        var DeletedFundingIds = DeletedFundings.Select(x => x.Id).ToList();
-                        FundingProfile = FundingProfile.Where(x => !DeletedFundingIds.Contains(x.Id)).ToList();
-                    }
+                        TransactionId = dto.TransactionId,
+                        ProjectId = x.ProjectId,
+                        Source = x.Source,
+                        Agreement = x.Agreement,
+                        Amount = x.Amount,
+                        Percentage = x.Percentage
+                    }));
                 }
                 #endregion
                 #region ComponentCosts
-                var CostIds = dto.ComponentCosts.Where(x => x.Id != 0).Select(x => x.Id).ToList();
-                var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && CostIds.Contains(x.Id) && x.StageName == "GAA-R").ToListAsync();
-                var ComponentCostYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentCost.Select(c => c.ReferenceId).Contains(x.ParentId)).ToListAsync();
                 var ComponentCostRules = jsonRules.ComponentCostRules.Fields.GetType()
                 .GetProperties()
                 .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
@@ -1406,104 +1829,156 @@ namespace WebAPI.Controllers.Revision
                 .Select(p => p.Name)
                 .ToList();
                 var UpdateComponentCost = dto.ComponentCosts.Where(x => x.Id != 0);
-                if (ComponentCost.Count > 0)
+                if (ExistingComponent.Count > 0)
                 {
                     foreach (var component in UpdateComponentCost)
                     {
                         var ComponentId = component.Id;
-                        var SelectedComponent = ComponentCost.FirstOrDefault(x => x.Id == ComponentId);
-
+                        var SelectedComponent = ExistingComponent.FirstOrDefault(x => x.Id == ComponentId);
+                        var OldSelectedComponent = new DBHelper.Models.Table.RevisionProjectComponentCost
+                        {
+                            Id = SelectedComponent.Id,
+                            TransactionId = SelectedComponent.TransactionId,
+                            ProjectId = SelectedComponent.ProjectId,
+                            ComponentType = SelectedComponent.ComponentType,
+                            ComponentId = SelectedComponent.ComponentId,
+                            Description = SelectedComponent.Description,
+                            Amount = SelectedComponent.Amount,
+                            StartDate = SelectedComponent.StartDate,
+                            EndDate = SelectedComponent.EndDate,
+                            IsDeleted = SelectedComponent.IsDeleted
+                        };
                         if (SelectedComponent != null)
                         {
-                            hasUpdated = true;
                             if (ComponentCostRules.Count > 0)
                             {
                                 SelectedComponent = ComponentCostRules.UpdateRevisionData(component, SelectedComponent);
                             }
-                            SelectedComponent.RevisedNumber = Project.RevisedNumber;
-                            SelectedComponent.Id = 0;
-                            var Component = ComponentCostYear.Where(x => x.ParentId == SelectedComponent.ReferenceId).ToList();
-                            SelectedComponent.ReferenceId = SelectedComponent.ProjectId + "-" + ("tCountSequence").GenerateCode();
-                            Component.ForEach(x => x.ParentId = SelectedComponent.ReferenceId);
+                            if (OldSelectedComponent.ComponentType != SelectedComponent.ComponentType)
+                            {
+                                TransactionLog.Add(new RevisionTransactionLog
+                                {
+                                    TransactionId = RevisionTransactionId,
+                                    ReferenceId = dto.TransactionId,
+                                    TypeOfTransaction = "Update",
+                                    AffectedTable = "tRevisionProjectComponentCost",
+                                    AffectedColumn = "ComponentType",
+                                    OldValue = OldSelectedComponent.ComponentType,
+                                    NewValue = SelectedComponent.ComponentType,
+                                    CreatedBy = _Session.UserId,
+                                    CreatedDate = CurrentDate
+                                });
+                            }
+                            if (OldSelectedComponent.ComponentId != SelectedComponent.ComponentId)
+                            {
+                                TransactionLog.Add(new RevisionTransactionLog
+                                {
+                                    TransactionId = RevisionTransactionId,
+                                    ReferenceId = dto.TransactionId,
+                                    TypeOfTransaction = "Update",
+                                    AffectedTable = "tRevisionProjectComponentCost",
+                                    AffectedColumn = "ComponentId",
+                                    OldValue = OldSelectedComponent.ComponentId,
+                                    NewValue = SelectedComponent.ComponentId,
+                                    CreatedBy = _Session.UserId,
+                                    CreatedDate = CurrentDate
+                                });
+                            }
+                            if (OldSelectedComponent.Description != SelectedComponent.Description)
+                            {
+                                TransactionLog.Add(new RevisionTransactionLog
+                                {
+                                    TransactionId = RevisionTransactionId,
+                                    ReferenceId = dto.TransactionId,
+                                    TypeOfTransaction = "Update",
+                                    AffectedTable = "tRevisionProjectComponentCost",
+                                    AffectedColumn = "Description",
+                                    OldValue = OldSelectedComponent.Description,
+                                    NewValue = SelectedComponent.Description,
+                                    CreatedBy = _Session.UserId,
+                                    CreatedDate = CurrentDate
+                                });
+                            }
+                            if (OldSelectedComponent.Amount != SelectedComponent.Amount)
+                            {
+                                TransactionLog.Add(new RevisionTransactionLog
+                                {
+                                    TransactionId = RevisionTransactionId,
+                                    ReferenceId = dto.TransactionId,
+                                    TypeOfTransaction = "Update",
+                                    AffectedTable = "tRevisionProjectComponentCost",
+                                    AffectedColumn = "Amount",
+                                    OldValue = OldSelectedComponent.Amount.ToString(),
+                                    NewValue = SelectedComponent.Amount.ToString(),
+                                    CreatedBy = _Session.UserId,
+                                    CreatedDate = CurrentDate
+                                });
+                            }
+                            if (OldSelectedComponent.StartDate != SelectedComponent.StartDate)
+                            {
+                                TransactionLog.Add(new RevisionTransactionLog
+                                {
+                                    TransactionId = RevisionTransactionId,
+                                    ReferenceId = dto.TransactionId,
+                                    TypeOfTransaction = "Update",
+                                    AffectedTable = "tRevisionProjectComponentCost",
+                                    AffectedColumn = "StartDate",
+                                    OldValue = OldSelectedComponent.StartDate?.ToString("MM-dd-yyyy"),
+                                    NewValue = SelectedComponent.StartDate?.ToString("MM-dd-yyyy"),
+                                    CreatedBy = _Session.UserId,
+                                    CreatedDate = CurrentDate
+                                });
+                            }
+                            if (OldSelectedComponent.EndDate != SelectedComponent.EndDate)
+                            {
+                                TransactionLog.Add(new RevisionTransactionLog
+                                {
+                                    TransactionId = RevisionTransactionId,
+                                    ReferenceId = dto.TransactionId,
+                                    TypeOfTransaction = "Update",
+                                    AffectedTable = "tRevisionProjectComponentCost",
+                                    AffectedColumn = "EndDate",
+                                    OldValue = OldSelectedComponent.EndDate?.ToString("MM-dd-yyyy"),
+                                    NewValue = SelectedComponent.EndDate?.ToString("MM-dd-yyyy"),
+                                    CreatedBy = _Session.UserId,
+                                    CreatedDate = CurrentDate
+                                });
+                            }
                         }
                     }
-                }
-                var NewComponentToInsert = dto.ComponentCosts.Where(x => x.Id == 0);
-                if (jsonRules.ComponentCostRules.CRUD.CanAdd)
-                {
-                    if (NewComponentToInsert.Count() > 0)
+                    if (jsonRules.ComponentCostRules.CRUD.CanDelete)
                     {
-                        NewComponent.AddRange(NewComponentToInsert.Select(x => new DBHelper.Models.Table.ProjectComponentCost
+                        var DeletedFunding = UpdateComponentCost.Where(x => x.IsDeleted == true).ToList();
+
+                        ExistingComponent = ExistingComponent.Where(x => !DeletedFunding.Select(x => x.Id).Contains(x.Id)).ToList();
+                        TransactionLog.AddRange(DeletedFunding.Select(x => new RevisionTransactionLog
                         {
-                            ProjectId = Project.ProjectId,
-                            ReferenceId = x.ReferenceId,
-                            ComponentType = x.ComponentType,
-                            ComponentId = x.ComponentId,
-                            Description = x.Description,
-                            Total = x.Total,
-                            StageName = ProjectStage.StageName,
-                            RevisedNumber = Project.RevisedNumber,
+                            TransactionId = RevisionTransactionId,
+                            ReferenceId = dto.TransactionId,
+                            TypeOfTransaction = "Delete",
+                            AffectedTable = "tRevisionProjectFundingProfile",
+                            AffectedColumn = "Row",
+                            OldValue = JsonConvert.SerializeObject(x),
+                            NewValue = null,
                             CreatedBy = _Session.UserId,
                             CreatedDate = CurrentDate
                         }));
                     }
                 }
-                if (jsonRules.ComponentCostRules.CRUD.CanDelete)
+                if (jsonRules.ComponentCostRules.CRUD.CanAdd)
                 {
-                    var DeletedComponents = ComponentCost.Where(x => !UpdateComponentCost.Select(a => a.Id).Contains(x.Id)).ToList();
-                    if (DeletedComponents.Count > 0)
+                    ExistingComponent.AddRange(dto.ComponentCosts.Where(x => x.Id == 0).Select(x => new DBHelper.Models.Table.RevisionProjectComponentCost
                     {
-                        ComponentCost = DeletedComponents;
-                        ComponentCostYear = ComponentCostYear.Where(x => !DeletedComponents.Select(x => x.ReferenceId).Contains(x.ParentId)).ToList();
-                    }
-                }
-                #endregion
-                #region ComponentCostYear
-                var ComponentCostYearRules = jsonRules.ComponentCostYearRules.Fields.GetType()
-                .GetProperties()
-                .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
-                .Where(p => (bool?)p.GetValue(jsonRules.ComponentCostYearRules.Fields) == true)
-                .Select(p => p.Name)
-                .ToList();
-                var UpdateComponentCostYear = dto.ComponentCostYear.Where(x => x.Id != 0);
-                if (ComponentCostYear.Count > 0)
-                {
-                    foreach (var year in UpdateComponentCostYear)
-                    {
-                        var UpdateCostYear = ComponentCostYear.FirstOrDefault(x => x.Id == year.Id);
-                        if (UpdateCostYear != null)
-                        {
-                            hasUpdated = true;
-                            if (ComponentCostYearRules.Count > 0)
-                            {
-                                UpdateCostYear = ComponentCostYearRules.UpdateRevisionData(year, UpdateCostYear);
-                            }
-                            UpdateCostYear.Id = 0;
-                        }
-                    }
-                }
-                if (jsonRules.ComponentCostYearRules.CRUD.CanAdd)
-                {
-                    var NewComponentYearToInsert = dto.ComponentCostYear.Where(x => NewComponentToInsert.Select(c => c.ReferenceId).Contains(x.ParentId));
-                    if (NewComponentYearToInsert.Count() > 0)
-                    {
-                        NewComponentYear.AddRange(NewComponentYearToInsert.Select(x => new ProjectComponentCostYear
-                        {
-                            ParentId = x.ParentId,
-                            CostYear = x.CostYear,
-                            Cost = x.Cost,
-                            StartDate = x.StartDate,
-                            EndDate = x.EndDate,
-                        }));
-                    }
-                }
-                if (jsonRules.ComponentCostYearRules.CRUD.CanDelete)
-                {
-                    var DeletedComponentCostYear = ComponentCostYear.Where(x => !dto.ComponentCostYear.Select(c => c.Id).Contains(x.Id)).ToList();
-                    if (DeletedComponentCostYear.Count > 0)
-                    {
-                        ComponentCostYear = DeletedComponentCostYear;
-                    }
+                        TransactionId = dto.TransactionId,
+                        ProjectId = Project.ProjectId,
+                        ComponentType = x.ComponentType,
+                        ComponentId = x.ComponentId,
+                        Description = x.Description,
+                        Amount = x.Amount,
+                        StartDate = x.StartDate,
+                        EndDate = x.EndDate,
+                        IsDeleted = false
+                    }));
                 }
                 #endregion
                 #region MajorWorkItem
@@ -1524,7 +1999,6 @@ namespace WebAPI.Controllers.Revision
                         var UpdateMajorWorkItem = MajorWorkItem.FirstOrDefault(x => x.Id == item.Id);
                         if (UpdateMajorWorkItem != null)
                         {
-                            hasUpdated = true;
                             if (MajorWorkItemRules.Count > 0)
                             {
                                 UpdateMajorWorkItem = MajorWorkItemRules.UpdateRevisionData(item, UpdateMajorWorkItem);
@@ -1537,35 +2011,58 @@ namespace WebAPI.Controllers.Revision
                         }
                     }
                 }
+                if (jsonRules.MajorItemOfWorkRules.CRUD.CanDelete)
+                {
+                    var DeletedMajorItems = NewMajorWorkItem.Where(x => !UpdateMajorItemOfWorks.Select(a => a.Id).Contains(x.Id)).Select(x =>
+                    {
+                        x.Id = 0; // reset PK for insert
+                        return x;
+                    }).ToList();
+                    if (DeletedMajorItems.Count > 0)
+                    {
+                        NewMajorWorkItem = DeletedMajorItems;
+                        var DeletedMajorItemReferenceIds = DeletedMajorItems.Select(x => x.ReferenceId).ToList();
+                        NewMajorWorkLocations = NewMajorWorkLocations.Where(x => !DeletedMajorItemReferenceIds.Contains(x.ParentId)).Select(x =>
+                        {
+                            x.Id = 0; // reset PK for insert
+                            return x;
+                        }).ToList();
+                        NewMajorWorkLocations.AddRange(MajorWorkLocations.Where(x => !DeletedMajorItemReferenceIds.Contains(x.ParentId)).Select(x => new RevisionProjectMajorWorkLocations
+                        {
+                            TransactionId = TransactionId,
+                            ParentId = x.ParentId,
+                            InfraId = x.InfraId,
+                            DetailedScope = x.DetailedScope,
+                            TargetUnitId = x.TargetUnitId,
+                            TargetUnit = x.TargetUnit,
+                            StartX = x.StartX,
+                            StartY = x.StartY,
+                            EndX = x.EndX,
+                            EndY = x.EndY,
+                            PhysicalTarget = x.PhysicalTarget,
+                            StartStationLimit = x.StartStationLimit,
+                            EndStationLimit = x.EndStationLimit,
+                            EndChainage = x.EndChainage,
+                            StartChainage = x.StartChainage
+                        }));
+                    }
+                }
                 var NewMajorItemOfWorksToInsert = dto.MajorItemOfWorks.Where(x => x.Id == 0);
                 if (jsonRules.MajorItemOfWorkRules.CRUD.CanAdd)
                 {
                     if (NewMajorItemOfWorksToInsert.Count() > 0)
                     {
-                        NewMajorWorkItem.AddRange(NewMajorItemOfWorksToInsert.Select(x => new ProjectMajorWorkItem
+                        NewMajorWorkItem.AddRange(NewMajorItemOfWorksToInsert.Select(x => new RevisionProjectMajorWorkItem
                         {
-                            ProjectId = Project.ProjectId,
+                            Id = x.Id,
+                            TransactionId = TransactionId,
+                            ProjectId = x.ProjectId,
                             ReferenceId = x.ReferenceId,
                             ComponentId = x.ComponentId,
                             YearOfWork = x.YearOfWork,
                             WorkTypeId = x.WorkTypeId,
                             InfraType = x.InfraType,
-                            StageName = ProjectStage.StageName,
-                            RevisedNumber = Project.RevisedNumber,
-                            CreatedBy = _Session.UserId,
-                            CreatedDate = CurrentDate
                         }));
-                    }
-                }
-                if (jsonRules.MajorItemOfWorkRules.CRUD.CanDelete)
-                {
-                    var DeletedMajorItems = MajorWorkItem.Where(x => !UpdateMajorItemOfWorks.Select(a => a.Id).Contains(x.Id)).ToList();
-                    if (DeletedMajorItems.Count > 0)
-                    {
-                        ;
-                        MajorWorkItem = DeletedMajorItems;
-                        var DeletedMajorItemReferenceIds = DeletedMajorItems.Select(x => x.ReferenceId).ToList();
-                        MajorWorkLocations = MajorWorkLocations.Where(x => !DeletedMajorItemReferenceIds.Contains(x.ParentId)).ToList();
                     }
                 }
                 #endregion
@@ -1588,18 +2085,44 @@ namespace WebAPI.Controllers.Revision
                             {
                                 UpdateMajorWorkLocation = MajorItemLocationsRules.UpdateRevisionData(location, UpdateMajorWorkLocation);
                             }
-                            hasUpdated = true;
-                            UpdateMajorWorkLocation.Id = 0;
+                            NewMajorWorkLocations.Add(new RevisionProjectMajorWorkLocations
+                            {
+                                Id = UpdateMajorWorkLocation.Id,
+                                TransactionId = TransactionId,
+                                ParentId = UpdateMajorWorkLocation.ParentId,
+                                InfraId = UpdateMajorWorkLocation.InfraId,
+                                DetailedScope = UpdateMajorWorkLocation.DetailedScope,
+                                TargetUnitId = UpdateMajorWorkLocation.TargetUnitId,
+                                TargetUnit = UpdateMajorWorkLocation.TargetUnit,
+                                StartX = UpdateMajorWorkLocation.StartX,
+                                StartY = UpdateMajorWorkLocation.StartY,
+                                EndX = UpdateMajorWorkLocation.EndX,
+                                EndY = UpdateMajorWorkLocation.EndY,
+                                PhysicalTarget = UpdateMajorWorkLocation.PhysicalTarget,
+                                StartStationLimit = UpdateMajorWorkLocation.StartStationLimit,
+                                EndStationLimit = UpdateMajorWorkLocation.EndStationLimit,
+                                EndChainage = UpdateMajorWorkLocation.EndChainage,
+                                StartChainage = UpdateMajorWorkLocation.StartChainage
+                            });
                         }
                     }
+                }
+                if (jsonRules.MajorItemLocationRules.CRUD.CanDelete)
+                {
+                    NewMajorWorkLocations = NewMajorWorkLocations.Where(x => !UpdateMajorWorkLocations.Select(a => a.Id).Contains(x.Id)).Select(x =>
+                    {
+                        x.Id = 0; // reset PK for insert
+                        return x;
+                    }).ToList();
                 }
                 if (jsonRules.MajorItemLocationRules.CRUD.CanAdd)
                 {
                     var NewMajorWorkLocationsToInsert = dto.MajorItemLocations.Where(x => NewMajorItemOfWorksToInsert.Select(c => c.ReferenceId).Contains(x.ParentId));
                     if (NewMajorWorkLocationsToInsert.Count() > 0)
                     {
-                        NewMajorWorkLocations.AddRange(NewMajorWorkLocationsToInsert.Select(x => new ProjectMajorWorkLocations
+                        NewMajorWorkLocations.AddRange(NewMajorWorkLocationsToInsert.Select(x => new RevisionProjectMajorWorkLocations
                         {
+                            TransactionId = TransactionId,
                             ParentId = x.ParentId,
                             InfraId = x.InfraId,
                             DetailedScope = x.DetailedScope,
@@ -1613,193 +2136,52 @@ namespace WebAPI.Controllers.Revision
                             StartStationLimit = x.StartStationLimit,
                             EndStationLimit = x.EndStationLimit,
                             EndChainage = x.EndChainage,
-                            StartChainage = x.StartChainage,
-                            CreatedBy = _Session.UserId,
-                            CreatedDate = CurrentDate
+                            StartChainage = x.StartChainage
                         }));
                     }
                 }
-                if (jsonRules.MajorItemLocationRules.CRUD.CanDelete)
-                {
-                    var DeletedMajorWorkLocations = MajorWorkLocations.Where(x => !UpdateMajorWorkLocations.Select(a => a.Id).Contains(x.Id)).ToList();
-                    if (DeletedMajorWorkLocations.Count > 0)
-                    {
-                        MajorWorkLocations = DeletedMajorWorkLocations;
-                    }
-                }
                 #endregion
-                if (hasUpdated)
-                {
-                    if (NewFundingProfile.Count > 0 && jsonRules.FundingProfileRules.CRUD.CanAdd)
-                    {
-                        FundingProfile.AddRange(NewFundingProfile);
-                    }
-                    if (NewComponent.Count > 0 && jsonRules.ComponentCostRules.CRUD.CanAdd)
-                    {
-                        ComponentCost.AddRange(NewComponent);
-                    }
-                    if (NewComponentYear.Count > 0 && jsonRules.ComponentCostYearRules.CRUD.CanAdd)
-                    {
-                        ComponentCostYear.AddRange(NewComponentYear);
-                    }
-                    if (NewMajorWorkItem.Count > 0 && jsonRules.MajorItemOfWorkRules.CRUD.CanAdd)
-                    {
-                        MajorWorkItem.AddRange(NewMajorWorkItem);
-                    }
-                    if (NewMajorWorkLocations.Count > 0 && jsonRules.MajorItemLocationRules.CRUD.CanAdd)
-                    {
-                        MajorWorkLocations.AddRange(NewMajorWorkLocations);
-                    }
+                _db.tProjectRevisions.Update(Project);
+                await _db.tRevisionProjects.AddAsync(NewRevisionProject);
+                await _db.tRevisionProjectFundingProfile.AddRangeAsync(NewFundingProfile);
+                await _db.tRevisionProjectComponentCost.AddRangeAsync(NewComponent);
+                await _db.tRevisionProjectMajorWorkItem.AddRangeAsync(NewMajorWorkItem);
+                await _db.tRevisionProjectMajorWorkLocations.AddRangeAsync(NewMajorWorkLocations);
 
-                    await _db.tProjectRevisions.AddAsync(Project);
-                    await _db.SaveChangesAsync();
-                    var NewProjectStage = new ProjectStages()
-                    {
-                        ProgramId = ProjectStage.ProgramId,
-                        RevisionId = Project.Id,
-                        StageId = ProjectStage.StageId,
-                        StageName = ProjectStage.StageName,
-                        CreatedBy = _Session.UserId,
-                        CreatedDate = CurrentDate,
-                        IsPublished = true
-                    };
-                    await _db.tProjectStages.AddAsync(NewProjectStage);
-                    await _db.tProjectFundingProfile.AddRangeAsync(FundingProfile);
-                    await _db.tProjectComponentCost.AddRangeAsync(ComponentCost);
-                    await _db.tProjectComponentCostYear.AddRangeAsync(ComponentCostYear);
-                    await _db.tProjectMajorWorkItem.AddRangeAsync(MajorWorkItem);
-                    await _db.tProjectMajorWorkLocations.AddRangeAsync(MajorWorkLocations);
-                    RevisionDetails.RegionStatus = EnumRevisionStatus.Pending;
-                    RevisionDetails.RegionApprover = null;
-                    RevisionDetails.RegionApprovedDate = null;
-                    RevisionDetails.COStatus = EnumRevisionStatus.Pending;
-                    RevisionDetails.COApprover = null;
-                    RevisionDetails.COApprovedDate = null;
-                    _db.tRevisionDetails.Update(RevisionDetails);
-                    await _db.SaveChangesAsync();
-                    await transaction.CommitAsync();
+                bool isROUser = _Session.UserGroups.Contains("RPC");
+                bool isCOUser = _Session.UserGroups.Contains("AUC");
+                await _db.tRevisionDetails.AddAsync(new RevisionDetails
+                {
+                    TransactionId = TransactionId,
+                    RevisionGroupId = RevisionCategory.RevisionGroupId,
+                    CategoryId = dto.RevisionDetails.CategoryId,
+                    ReasonId = RevisionRules.ReasonId,
+                    IODocApprovalDate = dto.RevisionDetails.ApprovalDate,
+                    RegionStatus = (isROUser || isCOUser) ? EnumRevisionStatus.Approved : EnumRevisionStatus.Pending,
+                    RegionApprover = isROUser ? _Session.UserId : null,
+                    RegionApprovedDate = isROUser ? CurrentDate : null,
+                    COStatus = isCOUser ? EnumRevisionStatus.Approved : EnumRevisionStatus.Pending,
+                    COApprover = null,
+                    COApprovedDate = null,
+                    CreatedBy = _Session.UserId,
+                    CreatedDate = CurrentDate
+                });
+                string DocumentName = $"{TransactionId}_{DocumentNaming.SecondSegmentName}_{CurrentDate.ToString("MM-dd-yyyy")}.{dto.RevisionDetails.ApprovedDocument.Extension}";
+                string FilePath = Path.Combine(Appsetting.Resources.Revision.ImplementingOffice, DocumentName);
+                string ResourcePath = Path.Combine(Directory.GetCurrentDirectory(), FilePath);
+                if (!dto.RevisionDetails.ApprovedDocument.UploadFile(ResourcePath))
+                {
+                    return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted!", Title = "File Corrupted" });
                 }
-                string loc = System.IO.File.ReadAllText(SMTPClass.PathEmailTemplate);
-                string Body = $@"
-        <h3>Revision Information:</h3>
-        <table style='margin: auto; min-width: 300px; max-width: 100%; border-collapse: collapse; color: #333; border-top-left-radius: 10px; border-top-right-radius: 10px; overflow: hidden; border: 1px solid #ddd;'>
-            <tbody>
-                <tr style='border-top: none; background: #00148b; color: #fff;'>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Revision Category</th>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Revision Reason</th>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Requested by</th>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Requested on</th>
-                </tr>
-                <tr style='border-top: 1px solid #ddd; border-bottom: 1px solid #ddd; background-color: #f5f9fc;'>
-                        <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
-                            {RevisionCategory.RevisionName}
-                        </td>
-                        <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd
-                            {RevisionRules.Reason}
-                        </td>
-                        <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
-                            {_Session.UserId}
-                        </td>
-                        <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
-                            {CurrentDate}
-                        </td>
-                    </tr>
-                </tbody>
-        </table>
-        <h3>Project Details Information:</h3>
-        <table style='margin: auto; min-width: 300px; max-width: 100%; border-collapse: collapse; color: #333; border-top-left-radius: 10px; border-top-right-radius: 10px; overflow: hidden; border: 1px solid #ddd;'>
-            <tbody>
-                <tr style='border-top: none; background: #00148b; color: #fff;'>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Program Id</th>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Program Name</th>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Stage</th>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Reference Id</th>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Project Id</th>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Alternate Id</th>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>External Id</th>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>MY Id</th>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>UACS</th>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>MYCA Approval Date</th>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Island Code</th>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Revision #</th>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Description</th>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Category</th>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Thrust</th>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Origin</th>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>City</th>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Province</th>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Legislative District</th>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Operating Unit</th>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Implementing Office</th>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>DEO</th>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Region</th>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Agency</th>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Implementation Mode</th>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Emergency Mode</th>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Feasibility</th>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Feasibility Date</th>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Detailed Design</th>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Detailed Design Date</th>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>ROW Available</th>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Region Wide</th>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Tier</th>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Created By</th>
-                    <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Created Date</th>
-                </tr>
-
-                <tr style='border-top: 1px solid #ddd; border-bottom: 1px solid #ddd; background-color: #f5f9fc;'>
-                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{dto.ProjectDetails.ProgramId}</td>
-                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{dto.ProjectDetails.ProgramName}</td>
-                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{dto.ProjectDetails.StageName}</td>
-                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.ReferenceId}</td>
-                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.ProjectId}</td>
-                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.AlternateId}</td>
-                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.ExternalId}</td>
-                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.MYId}</td>
-                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.UACS}</td>
-                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.MYCAApprovalDate}</td>
-                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.IslandCode}</td>
-                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.RevisionNumber}</td>
-                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Description}</td>
-                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Category}</td>
-                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Thrust}</td>
-                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Origin}</td>
-                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.City}</td>
-                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Province}</td>
-                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.LegislativeDistrict}</td>
-                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.OperatingUnit}</td>
-                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.ImplementingOffice}</td>
-                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.DEO}</td>
-                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Region}</td>
-                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Agency}</td>
-                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.ImplementationMode}</td>
-                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.EmergencyMode}</td>
-                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Feasibility}</td>
-                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.FeasibilityDate}</td>
-                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.DetailedDesign}</td>
-                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.DetailedDesignDate}</td>
-                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.RowAvailable}</td>
-                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.RegionWide}</td>
-                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Tier}</td>
-                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.CreatedBy}</td>
-                    <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.CreatedDate}</td>
-                </tr>
-
-            </tbody>
-        </table>""";
-                loc = loc.Replace("{Title}", "Project Revision <b><u>Request</u></b>");
-                loc = loc.Replace("{Body}", Body);
-                loc = loc.Replace("{Footer}", $"For more information click <a href='{Appsetting.RootPath}/Batch'>HERE</a>");
-                loc = loc.Replace("{From}", "");
-                string To = "";
-                SMTPModel EmailConfig = new SMTPModel
+                await _db.tRevisionDocuments.AddAsync(new RevisionDocuments
                 {
-                    Recipient = "mf102798@gmail.com",
-                    CCAddress = "yabutgerard@gmail.com",
-                    Subject = "Request for Revision",
-                    Body = loc
-                };
-                //EmailConfig.SendEmail();
+                    TransactionId = TransactionId,
+                    DocumentPath = FilePath,
+                    DocumentName = DocumentName,
+                    IsApprovedDocument = false
+                });
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
                 return Ok(
                     new
                     {

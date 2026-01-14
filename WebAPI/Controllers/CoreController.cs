@@ -10,7 +10,9 @@ using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Linq.Expressions;
 using System.Reflection;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
@@ -144,6 +146,18 @@ namespace WebAPI.Controllers
 
             };
             return Unauthorized(responseObj);
+        }
+        private static readonly ConcurrentDictionary<string, LambdaExpression> _orderLambdaCache = new(StringComparer.OrdinalIgnoreCase);
+        // Builds (T e) => e.<SortField> with proper underlying type (no object boxing)
+        public static LambdaExpression GetOrderByLambda<T>(string sortField)
+        {
+            return _orderLambdaCache.GetOrAdd($"{typeof(T).FullName}.{sortField}", _ =>
+            {
+                var param = Expression.Parameter(typeof(T), "e");
+                var body = Expression.PropertyOrField(param, sortField);
+                var delegateType = typeof(Func<,>).MakeGenericType(typeof(T), body.Type);
+                return Expression.Lambda(delegateType, body, param);
+            });
         }
     }
 }

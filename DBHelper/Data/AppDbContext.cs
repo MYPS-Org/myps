@@ -39,7 +39,7 @@ namespace DBHelper.Data
         public DbSet<Models.Table.ProjectLongFeasibilityEnum> tProjectLongFeasibilityEnum { get; set; }
         public DbSet<Models.Table.ProjectComponentEnum> tProjectComponentEnum { get; set; }
         public DbSet<Models.Table.ProjectComponentCost> tProjectComponentCost { get; set; }
-        public DbSet<Models.Table.ProjectComponentCostYear> tProjectComponentCostYear { get; set; }
+        //public DbSet<Models.Table.ProjectComponentCostYear> tProjectComponentCostYear { get; set; }
         public DbSet<Models.Table.TransactionLog> tTransactionLog { get; set; }
         public DbSet<Models.Table.ProjectScopeOfWorkEnum> tProjectScopeOfWorkEnum { get; set; }
         public DbSet<Models.Table.ProjectMajorWorkItem> tProjectMajorWorkItem { get; set; }
@@ -71,8 +71,13 @@ namespace DBHelper.Data
         public DbSet<Models.Table.OptionRevisionReasons> tOptionRevisionReasons { get; set; }
         public DbSet<Models.Table.OptionRevisionCategory> tOptionRevisionCategory { get; set; }
         public DbSet<Models.Table.OptionRevisionStatus> tOptionRevisionStatus { get; set; }
-        public DbSet<Models.Table.RevisionDocumentsNaming> tRevisionDocumentsNaming { get; set; }
+        public DbSet<Models.Table.OptionRevisionDocuments> tOptionRevisionDocuments { get; set; }
         public DbSet<Models.Table.RevisionTransactionLog> tRevisionTransactionLog { get; set; }
+        public DbSet<Models.Table.RevisionProjects> tRevisionProjects { get; set; }
+        public DbSet<Models.Table.RevisionProjectFundingProfile> tRevisionProjectFundingProfile { get; set; }
+        public DbSet<Models.Table.RevisionProjectComponentCost> tRevisionProjectComponentCost { get; set; }
+        public DbSet<Models.Table.RevisionProjectMajorWorkItem> tRevisionProjectMajorWorkItem { get; set; }
+        public DbSet<Models.Table.RevisionProjectMajorWorkLocations> tRevisionProjectMajorWorkLocations { get; set; }
         #endregion
         #region Views
         public DbSet<Models.Views.Users> vUsers { get; set; }
@@ -91,6 +96,7 @@ namespace DBHelper.Data
         public DbSet<Models.Views.ProjectComponentStatus> vProjectComponentStatus { get; set; }
         public DbSet<Models.Views.RevisionLists> vRevisionLists { get; set; }
         public DbSet<Models.Views.ProjectComponentCost> vProjectComponentCost { get; set; }
+        public DbSet<Models.Views.RevisionProjectComponentCost> vRevisionProjectComponentCost { get; set; }
         #endregion
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

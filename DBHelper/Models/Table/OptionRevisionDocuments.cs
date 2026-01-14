@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace DBHelper.Models.Table
 {
-    public class RevisionDocumentsNaming
+    public class OptionRevisionDocuments
     {
         [Key]
         public int Id { get; set; }

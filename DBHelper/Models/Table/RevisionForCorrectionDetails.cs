@@ -15,11 +15,11 @@ namespace DBHelper.Models.Table
         [Required]
         [MaxLength(100)]
         public string TransactionId { get; set; } = string.Empty;
+        [Required]
         [MaxLength(500)]
-        public string? ROComment { get; set; }
-        public DateTime? ROForCorrectionDate { get; set; }
-        [MaxLength(500)]
-        public string? COComment { get; set; }
-        public DateTime? COForCorrectionDate { get; set; }
+        public string CorrectionReason { get; set; } = string.Empty;
+        [Required]
+        public DateTime ForCorrectionDate { get; set; }
+        public bool IsCentralOffice { get; set; } = false;
     }
 }

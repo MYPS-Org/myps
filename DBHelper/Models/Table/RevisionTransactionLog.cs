@@ -15,6 +15,9 @@ namespace DBHelper.Models.Table
         [MaxLength(100)]
         public string TransactionId { get; set; } = string.Empty;
         [Required]
+        [MaxLength(100)]
+        public string ReferenceId { get; set; } = string.Empty;
+        [Required]
         [MaxLength(50)]
         public string TypeOfTransaction { get; set; } = string.Empty;
         [Required]

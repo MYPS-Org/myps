@@ -612,8 +612,8 @@ namespace WebAPI.Controllers.Programs
                     var ProjectRevisions = await _db.tProjectRevisions.AsNoTracking().Where(x => RevisionIds.Contains(x.Id)).ToListAsync();
 
                     var Components = await _db.tProjectComponentCost.AsNoTracking().Where(x => projectIds.Contains(x.ProjectId) && x.StageName == checkStage.StageName).ToListAsync();
-                    HashSet<string> ComponentsRefs = Components.Select(pr => pr.ReferenceId).ToHashSet();
-                    var ComponentsPerYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentsRefs.Contains(x.ParentId)).ToListAsync();
+                    //HashSet<string> ComponentsRefs = Components.Select(pr => pr.ReferenceId).ToHashSet();
+                    //var ComponentsPerYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentsRefs.Contains(x.ParentId)).ToListAsync();
 
                     var MajorItems = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => projectIds.Contains(x.ProjectId) && x.StageName == checkStage.StageName).ToListAsync();
                     HashSet<string> MajorItemsRefs = MajorItems.Select(pr => pr.ReferenceId).ToHashSet();
@@ -635,25 +635,26 @@ namespace WebAPI.Controllers.Programs
                             NewComponent.AddRange(Components.Select(x => new DBHelper.Models.Table.ProjectComponentCost()
                             {
                                 ProjectId = x.ProjectId.Replace("BP", FirstSegment),
-                                ReferenceId = x.ReferenceId.UpdateReferenceId(FirstSegment),
+                                //ReferenceId = x.ReferenceId.UpdateReferenceId(FirstSegment),
                                 ComponentType = x.ComponentType,
                                 ComponentId = x.ComponentId,
                                 Description = x.Description,
-                                Total = x.Total,
+                                Amount = x.Amount,
+                                //Total = x.Total,
                                 StageName = checkStageType.Name,
                                 CreatedBy = x.CreatedBy,
                                 CreatedDate = x.CreatedDate
                             }));
-                            NewComponentPerYear.AddRange(ComponentsPerYear.Select(x => new ProjectComponentCostYear()
-                            {
-                                ParentId = x.ParentId.UpdateReferenceId(FirstSegment),
-                                CostYear = x.CostYear,
-                                Cost = x.Cost,
-                                StartDate = x.StartDate,
-                                EndDate = x.EndDate
-                            }));
+                            //NewComponentPerYear.AddRange(ComponentsPerYear.Select(x => new ProjectComponentCostYear()
+                            //{
+                            //    ParentId = x.ParentId.UpdateReferenceId(FirstSegment),
+                            //    CostYear = x.CostYear,
+                            //    Cost = x.Cost,
+                            //    StartDate = x.StartDate,
+                            //    EndDate = x.EndDate
+                            //}));
                             await _db.tProjectComponentCost.AddRangeAsync(NewComponent);
-                            await _db.tProjectComponentCostYear.AddRangeAsync(NewComponentPerYear);
+                            //await _db.tProjectComponentCostYear.AddRangeAsync(NewComponentPerYear);
                         }
                         #endregion
                         #region Major Items

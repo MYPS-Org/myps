@@ -33,12 +33,17 @@ namespace WebAPI.Controllers.Revision
     #region RequstRevisions
     public class RequstRevisionsDTO
     {
+        [Required]
         public RevisionDetailsDTO RevisionDetails { get; set; } = new RevisionDetailsDTO();
+        [Required]
         public ProjectDetails ProjectDetails { get; set; } = new ProjectDetails();
+        [Required]
         public List<RevisionComponentCostDTO> ComponentCosts { get; set; } = new List<RevisionComponentCostDTO>();
-        public List<RevisionComponentCostYearDTO> ComponentCostYear { get; set; } = new List<RevisionComponentCostYearDTO>();
+        [Required]
         public List<RevisionMajorWorkItemDTO> MajorItemOfWorks { get; set; } = new List<RevisionMajorWorkItemDTO>();
+        [Required]
         public List<RevisionMajorWorkLocationsDTO> MajorItemLocations { get; set; } = new List<RevisionMajorWorkLocationsDTO>();
+        [Required]
         public List<RevisionFundingProfileDTO> FundingProfile { get; set; } = new List<RevisionFundingProfileDTO>();
     }
     public class RevisionDetailsDTO
@@ -59,35 +64,33 @@ namespace WebAPI.Controllers.Revision
     }
     public class RevisionComponentCostDTO
     {
+        [Key]
+        public int Id { get; set; }
         [Required]
-        public long Id { get; set; }
-        [Required]
+        [MaxLength(100)]
         public string ProjectId { get; set; } = string.Empty;
-        [Required]
-        [MaxLength(200)]
-        public string ReferenceId { get; set; } = string.Empty;
         [Required]
         [MaxLength(100)]
         public string ComponentType { get; set; } = string.Empty;
         [Required]
         [MaxLength(10)]
         public string ComponentId { get; set; } = string.Empty;
-        public string? Description { get; set; } = string.Empty;
+        public string? Description { get; set; }
         [Required]
-        public double Total { get; set; }
-        public bool IsDeleted { get; set; } = false;
-    }
-    public class RevisionComponentCostYearDTO
-    {
-        [Required]
-        public long Id { get; set; }
-        public string ParentId { get; set; } = string.Empty;
-        [Required]
-        public int CostYear { get; set; }
-        [Required]
-        public double Cost { get; set; }
+        public Double Amount { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
+        [Required]
+        [MaxLength(10)]
+        public string StageName { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(100)]
+        public string CreatedBy { get; set; } = string.Empty;
+        [Required]
+        public DateTime CreatedDate { get; set; }
+        [MaxLength(100)]
+        public string? UpdatedBy { get; set; }
+        public DateTime? UpdatedDate { get; set; }
         public bool IsDeleted { get; set; } = false;
     }
     public class RevisionMajorWorkItemDTO
@@ -176,12 +179,17 @@ namespace WebAPI.Controllers.Revision
     {
         [Required]
         public string TransactionId { get; set; } = string.Empty;
-        public ProjectStatusDTO ProjectStatus { get; set; } = new ProjectStatusDTO();
+        [Required]
+        public RevisionDetailsDTO RevisionDetails { get; set; } = new RevisionDetailsDTO();
+        [Required]
         public ProjectDetails ProjectDetails { get; set; } = new ProjectDetails();
+        [Required]
         public List<RevisionComponentCostDTO> ComponentCosts { get; set; } = new List<RevisionComponentCostDTO>();
-        public List<RevisionComponentCostYearDTO> ComponentCostYear { get; set; } = new List<RevisionComponentCostYearDTO>();
+        [Required]
         public List<RevisionMajorWorkItemDTO> MajorItemOfWorks { get; set; } = new List<RevisionMajorWorkItemDTO>();
+        [Required]
         public List<RevisionMajorWorkLocationsDTO> MajorItemLocations { get; set; } = new List<RevisionMajorWorkLocationsDTO>();
+        [Required]
         public List<RevisionFundingProfileDTO> FundingProfile { get; set; } = new List<RevisionFundingProfileDTO>();
     }
     public class ProjectStatusDTO

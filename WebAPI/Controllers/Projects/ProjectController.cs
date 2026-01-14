@@ -105,6 +105,7 @@ namespace WebAPI.Controllers.Projects
                 return ExceptionHandler(ex);
             }
         }
+
         [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ShowProjectStages([FromBody] ShowProjectStagesDTO dto)
