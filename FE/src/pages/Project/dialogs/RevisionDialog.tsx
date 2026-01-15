@@ -134,7 +134,7 @@ const ReviseDialog: React.FC<ReviseProjectDialogProps> = ({
 
             // Get navigation path using utility function
             const navigationPath = getRevisionNavigationPath(
-                selectedRevisionGroupId || 0,
+                selectedRevHeaderId || 0,
                 projectId || '',
                 stageName || ''
             );

@@ -59,6 +59,7 @@ import {
 import { useComponentCosts } from '../../hooks/useComponentCosts';
 
 import { useMajorItemOfWorks } from '../../hooks/useMajorItemOfWorks';
+import { RevisionActionButtons } from '../../../../components/actionButtons/RevisionActionButtons';
 
 
 interface ProjectFormProps {
@@ -755,6 +756,28 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       <div className='flex items-center justify-between mb-6'>
         <div></div>
         <div className="flex space-x-3">
+          <RevisionActionButtons
+            mode={mode}
+            userGroup={user?.UserGroups}
+            initialData={initialData}
+            loading={{
+              revise: updateReviseProject,
+              resubmit: updateResubmitRevision,
+              approve: updateApproveProject,
+              review: updateForReviewProject,
+              reject: rejectDialogProject,
+              update: updateAllProject,
+            }}
+            actions={{
+              submit: handleSubmitModify,
+              update: handleUpdateProject,
+              openApprove: () => setIsApproveDialogOpen(true),
+              openReview: () => setIsForReviewDialogOpen(true),
+              openReject: () => setIsRejectDialogOpen(true),
+            }}
+          />
+        </div>
+        {/* <div className="flex space-x-3">
           {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus == null && (user?.UserGroups === 'AUC' ) && (
             <>
               <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify('new')} disabled={updateReviseProject}>
@@ -846,7 +869,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
               </Button>
             </>
           )}
-        </div>
+        </div> */}
       </div>
 
       {/* Map Section */}
