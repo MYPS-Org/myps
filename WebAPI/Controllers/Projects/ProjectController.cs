@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.EntityFrameworkCore.Scaffolding.Metadata;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
+using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 namespace WebAPI.Controllers.Projects
@@ -128,7 +129,7 @@ namespace WebAPI.Controllers.Projects
                     Category = _db.tProjectCategoryEnum.FirstOrDefault(a => a.Enum == x.Category)!.Name ?? x.Category.ToString(),
                     City = _db.tOptionAdminAreaCityMunicipality.FirstOrDefault(a => a.Code == x.City)!.Name ?? x.City.ToString(),
                     LegislativeDistrict = _db.tOptionAdminAreaCongressionalDistrict.FirstOrDefault(a => a.Code == x.LegislativeDistrict)!.Name ?? x.LegislativeDistrict.ToString(),
-                    Cost = _db.tProjectComponentCost.Where(a => a.ReferenceId == x.ReferenceId).Sum(a => a.Total),
+                    Cost = _db.tProjectComponentCost.Where(a => a.ProjectId == x.ReferenceId && a.StageName == x.StageName).Sum(a => a.Amount),
                     CreatedBy = x.CreatedBy,
                     CreatedDate = x.CreatedDate,
 
@@ -395,8 +396,8 @@ namespace WebAPI.Controllers.Projects
                 var SupportingDoc = await _db.tDropdownSupportingDocs.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync();
 
                 var ComponentType = await _db.tProjectComponentEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-                var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && x.RevisedNumber == Project.RevisedNumber).ToListAsync();
-                var ComponentCostYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentCost.Select(a => a.ReferenceId).Contains(x.ParentId)).ToListAsync();
+                var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
+                //var ComponentCostYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentCost.Select(a => a.ReferenceId).Contains(x.ParentId)).ToListAsync();
 
                 var MajorItemOfWork = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && x.RevisedNumber == Project.RevisedNumber).ToListAsync();
                 HashSet<string> ItemParents = MajorItemOfWork.Select(x => x.ReferenceId).ToHashSet();
@@ -441,7 +442,7 @@ namespace WebAPI.Controllers.Projects
                     ProgramDetails = Program,
                     ProjectDetails = Project,
                     ComponentCosts = ComponentCost,
-                    ComponentCostPerYear = ComponentCostYear,
+                    //ComponentCostPerYear = ComponentCostYear,
                     MajorItemOfWorks = MajorItemOfWork,
                     MajorItemLocations = MajorWorkLocation,
                     ProjectNotes = Notes,
@@ -1000,37 +1001,22 @@ namespace WebAPI.Controllers.Projects
                 }
                 #endregion
                 #region Update Component Cost
-                var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId).ToListAsync();
+                var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
                 var NewComponentCostData = dto.ComponentCosts.Where(x => x.Id == 0);
                 if (ComponentCost.Count > 0)
                 {
-                    HashSet<string> CurrentComponentCost = new HashSet<string>(ComponentCost.Select(x => x.ReferenceId));
-                    HashSet<string> NewComponentCost = new HashSet<string>(NewComponentCostData.Select(x => x.ReferenceId));
                     #region Delete Component Cost and Year
-                    var DeletedComponentCost = CurrentComponentCost.Except(dto.ComponentCosts.Select(x => x.ReferenceId)).ToList();
+                    var DeletedComponentCost = ComponentCost.Select(x => (int)x.Id).Except(dto.ComponentCosts.Select(x => x.Id)).ToList();
                     if (DeletedComponentCost.Count > 0)
                     {
                         HasCostUpdate = true;
-                        var DeletedItems = await _db.tProjectComponentCost.Where(x => DeletedComponentCost.Contains(x.ReferenceId)).ToListAsync();
-                        var DeleteCostPerYear = await _db.tProjectComponentCostYear.Where(x => DeletedComponentCost.Contains(x.ParentId)).ToListAsync();
+                        var DeletedItems = await _db.tProjectComponentCost.Where(x => DeletedComponentCost.Contains(x.Id)).ToListAsync();
                         _db.tProjectComponentCost.RemoveRange(DeletedItems);
-                        _db.tProjectComponentCostYear.RemoveRange(DeleteCostPerYear);
                         transactionLogs.AddRange(DeletedItems.Select(item => new TransactionLog
                         {
                             TransactionId = Project.ProjectId!,
                             TypeOfTransaction = "Delete",
                             AffectedTable = "tProjectComponentCost",
-                            AffectedColumn = "Row",
-                            NewValue = "",
-                            OldValue = JsonConvert.SerializeObject(item),
-                            CreatedBy = _Session.UserId,
-                            CreatedDate = CurrentDate
-                        }));
-                        transactionLogs.AddRange(DeleteCostPerYear.Select(item => new TransactionLog
-                        {
-                            TransactionId = Project.ProjectId!,
-                            TypeOfTransaction = "Delete",
-                            AffectedTable = "tProjectComponentCostYear",
                             AffectedColumn = "Row",
                             NewValue = "",
                             OldValue = JsonConvert.SerializeObject(item),
@@ -1083,7 +1069,7 @@ namespace WebAPI.Controllers.Projects
                     //}
                     #endregion
                     #region Update Component Cost and Year
-                    var UpdateComponentCost = dto.ComponentCosts.Where(x => CurrentComponentCost.Contains(x.ReferenceId)).ToList();
+                    var UpdateComponentCost = dto.ComponentCosts.Where(x => ComponentCost.Select(a => a.Id).Contains(x.Id)).ToList();
                     if (UpdateComponentCost.Count > 0)
                     {
                         HasCostUpdate = true;
@@ -1131,7 +1117,7 @@ namespace WebAPI.Controllers.Projects
                                     });
                                     ExistingItem.Description = item.Description ?? "";
                                 }
-                                if (ExistingItem.Total != item.Total)
+                                if (ExistingItem.Amount != item.Amount)
                                 {
                                     ComponentUpdate = true;
                                     transactionLogs.Add(new TransactionLog
@@ -1139,83 +1125,13 @@ namespace WebAPI.Controllers.Projects
                                         TransactionId = Project.ProjectId!,
                                         TypeOfTransaction = "Update",
                                         AffectedTable = "tProjectComponentCost",
-                                        AffectedColumn = "Total",
-                                        NewValue = item.Total.ToString(),
-                                        OldValue = ExistingItem.Total.ToString(),
+                                        AffectedColumn = "Amount",
+                                        NewValue = item.Amount.ToString(),
+                                        OldValue = ExistingItem.Amount.ToString(),
                                         CreatedBy = _Session.UserId,
                                         CreatedDate = CurrentDate
                                     });
-                                    ExistingItem.Total = item.Total;
-                                }
-                                var ComponentCostYear = await _db.tProjectComponentCostYear.Where(x => x.ParentId == item.ReferenceId).ToListAsync();
-                                HashSet<string> currentCostIds = new HashSet<string>(ComponentCostYear.Select(x => x.ParentId));
-                                HashSet<string> incomingCostIds = new HashSet<string>(dto.ComponentCostYear.Select(x => x.ParentId));
-
-                                var NewComponentCostYear = dto.ComponentCostYear.Where(x => !currentCostIds.Contains(x.ParentId)).ToList();
-
-                                var deletedComponentCostYearIds = currentCostIds.Except(incomingCostIds).ToList();
-                                var UpdateCostYearIds = currentCostIds.Intersect(incomingCostIds).ToHashSet();
-
-                                var UpdateCostYear = ComponentCostYear
-                                    .Where(x => UpdateCostYearIds.Contains(x.ParentId))
-                                    .ToList();
-                                bool hasYearUpdate = false;
-                                foreach (var yearItem in UpdateCostYear)
-                                {
-                                    var SelectedYear = dto.ComponentCostYear.FirstOrDefault(x => x.Id == yearItem.Id);
-                                    if (SelectedYear == null) { break; }
-                                    if (yearItem.Cost != SelectedYear.Cost)
-                                    {
-                                        hasYearUpdate = true;
-                                        transactionLogs.Add(new TransactionLog
-                                        {
-                                            TransactionId = Project.ProjectId!,
-                                            TypeOfTransaction = "Update",
-                                            AffectedTable = "tProjectComponentCostYear",
-                                            AffectedColumn = "Cost",
-                                            NewValue = SelectedYear.Cost.ToString(),
-                                            OldValue = yearItem.Cost.ToString(),
-                                            CreatedBy = _Session.UserId,
-                                            CreatedDate = CurrentDate
-                                        });
-                                        yearItem.Cost = SelectedYear.Cost;
-                                    }
-                                    if (yearItem.StartDate != SelectedYear.StartDate)
-                                    {
-                                        hasYearUpdate = true;
-                                        transactionLogs.Add(new TransactionLog
-                                        {
-                                            TransactionId = Project.ProjectId!,
-                                            TypeOfTransaction = "Update",
-                                            AffectedTable = "tProjectComponentCostYear",
-                                            AffectedColumn = "StartDate",
-                                            NewValue = SelectedYear.StartDate?.ToString("MM/dd/yyyy mm:ss t") ?? "",
-                                            OldValue = yearItem.StartDate?.ToString("MM/dd/yyyy mm:ss t") ?? "",
-                                            CreatedBy = _Session.UserId,
-                                            CreatedDate = CurrentDate
-                                        });
-                                        yearItem.StartDate = SelectedYear.StartDate;
-                                    }
-                                    if (yearItem.EndDate != SelectedYear.EndDate)
-                                    {
-                                        hasYearUpdate = true;
-                                        transactionLogs.Add(new TransactionLog
-                                        {
-                                            TransactionId = Project.ProjectId!,
-                                            TypeOfTransaction = "Update",
-                                            AffectedTable = "tProjectComponentCostYear",
-                                            AffectedColumn = "EndDate",
-                                            NewValue = SelectedYear.EndDate?.ToString("MM/dd/yyyy mm:ss t") ?? "",
-                                            OldValue = yearItem.EndDate?.ToString("MM/dd/yyyy mm:ss t") ?? "",
-                                            CreatedBy = _Session.UserId,
-                                            CreatedDate = CurrentDate
-                                        });
-                                        yearItem.EndDate = SelectedYear.EndDate;
-                                    }
-                                }
-                                if (hasYearUpdate)
-                                {
-                                    _db.tProjectComponentCostYear.UpdateRange(UpdateCostYear);
+                                    ExistingItem.Amount = item.Amount;
                                 }
                                 if (ComponentUpdate)
                                 {
@@ -1231,43 +1147,22 @@ namespace WebAPI.Controllers.Projects
                 if (NewComponentCostData.Count() > 0)
                 {
                     HasCostUpdate = true;
-                    var NewCostIds = NewComponentCostData.Select(x => x.ReferenceId).ToHashSet<string>();
-                    var NewCostYears = dto.ComponentCostYear.Where(x => NewCostIds.Contains(x.ParentId)).ToHashSet();
-                    var CostLookup = NewCostYears
-                    .GroupBy(x => x.ParentId)
-                    .ToDictionary(g => g.Key, g => g.ToList());
+                    var NewCostIds = NewComponentCostData.Select(x => (int)x.Id).ToHashSet<int>();
 
-                    foreach (var location in NewComponentCostData)
-                    {
-                        string oldId = location.ReferenceId;
-                        location.ReferenceId = Project.ProjectId + "-" + ("tCountComponentCost").GenerateCode();
-                        if (CostLookup.TryGetValue(oldId, out var children))
-                        {
-                            children.ForEach(x => x.ParentId = location.ReferenceId);
-                        }
-                    }
                     var SaveNewComponent = NewComponentCostData.Select((item, index) => new DBHelper.Models.Table.ProjectComponentCost
                     {
                         StageName = Project.StageName,
                         ProjectId = Project.ProjectId!,
-                        ReferenceId = item.ReferenceId,
                         ComponentId = item.ComponentId,
                         ComponentType = item.ComponentType,
+                        StartDate = item.StartDate,
+                        EndDate = item.EndDate,
                         Description = item.Description,
-                        Total = item.Total,
+                        Amount = item.Amount,
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
                     await _db.tProjectComponentCost.AddRangeAsync(SaveNewComponent);
-                    var SaveNewComponentYear = NewCostYears.Select(year => new ProjectComponentCostYear
-                    {
-                        ParentId = year.ParentId,
-                        CostYear = year.CostYear,
-                        Cost = year.Cost,
-                        StartDate = year.StartDate,
-                        EndDate = year.EndDate
-                    });
-                    await _db.tProjectComponentCostYear.AddRangeAsync(SaveNewComponentYear);
                 }
                 #endregion
                 #region Update Major Item of Works

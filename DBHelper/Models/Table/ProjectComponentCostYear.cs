@@ -8,18 +8,19 @@ using System.Threading.Tasks;
 
 namespace DBHelper.Models.Table
 {
-    public class ProjectComponentCostYear
-    {
-        [Key]
-        public int Id { get; set; }
-        [Required]
-        [MaxLength(200)]
-        public string ParentId { get; set; } = string.Empty;
-        [Required]
-        public int CostYear { get; set; }
-        [Required]
-        public Double Cost { get; set; }
-        public DateTime? StartDate { get; set; }
-        public DateTime? EndDate { get; set; }
-    }
+    //public class ProjectComponentCostYear
+    //{
+    //    [Key]
+    //    public int Id { get; set; }
+    //    [Required]
+    //    [MaxLength(200)]
+    //    public string ParentId { get; set; } = string.Empty;
+    //    [Required]
+    //    public int CostYear { get; set; }
+    //    [Required]
+    //    public Double Cost { get; set; }
+    //    public DateTime? StartDate { get; set; }
+    //    public DateTime? EndDate { get; set; }
+    //    public bool IsDeleted { get; set; } = false;
+    //}
 }

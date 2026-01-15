@@ -10,7 +10,7 @@ namespace DBHelper.Models.Views
         public EnumProgramStage StageId { get; set; }
         public string StageName { get; set; } = string.Empty;
         public string ReferenceId { get; set; } = string.Empty;
-        public string? ProjectId { get; set; }
+        public string ProjectId { get; set; } = string.Empty;
         public string? AlternateId { get; set; }
         public string? ExternalId { get; set; }
         public string? MYId { get; set; }

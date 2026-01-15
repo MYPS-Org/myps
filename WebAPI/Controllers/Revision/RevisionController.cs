@@ -637,8 +637,6 @@ namespace WebAPI.Controllers.Revision
                     NewRevisionProject.DEO = RevisionProject.DEO;
                     NewRevisionProject.ImplementationMode = RevisionProject.ImplementationMode;
                     NewRevisionProject.EmergencyMode = RevisionProject.EmergencyMode;
-                    
-
                 }
                 #endregion
                 #region FundingProfile
@@ -653,6 +651,7 @@ namespace WebAPI.Controllers.Revision
                 var UpdateFundingProfile = dto.FundingProfile.Where(x => x.Id != 0);
                 if (FundingProfile.Count > 0)
                 {
+                    bool CanDelete = jsonRules.FundingProfileRules.CRUD.CanDelete;
                     foreach (var component in UpdateFundingProfile)
                     {
                         var ComponentId = component.Id;
@@ -666,25 +665,25 @@ namespace WebAPI.Controllers.Revision
                             }
                             NewFundingProfile.Add(new RevisionProjectFundingProfile
                             {
-                                Id = SelectedComponent.Id,
                                 TransactionId = TransactionId,
                                 ProjectId = SelectedComponent.ProjectId,
                                 Source = SelectedComponent.Source,
                                 Agreement = SelectedComponent.Agreement,
                                 Amount = SelectedComponent.Amount,
-                                Percentage = SelectedComponent.Percentage
+                                Percentage = SelectedComponent.Percentage,
+                                IsDeleted = CanDelete ? component.IsDeleted : false
                             });
                         }
                     }
-                }
-                if (jsonRules.FundingProfileRules.CRUD.CanDelete)
-                {
-                    var DeletedFundingIds = UpdateFundingProfile.Where(x => x.IsDeleted == true).Select(x => x.Id).ToList();
-                    NewFundingProfile = NewFundingProfile.Where(x => !DeletedFundingIds.Contains(x.Id)).Select(x =>
-                    {
-                        x.Id = 0; // reset PK for insert
-                        return x;
-                    }).ToList();
+                    //if (jsonRules.FundingProfileRules.CRUD.CanDelete)
+                    //{
+                    //    var DeletedFundingIds = UpdateFundingProfile.Where(x => x.IsDeleted == true).Select(x => x.Id).ToList();
+                    //    NewFundingProfile = NewFundingProfile.Where(x => !DeletedFundingIds.Contains(x.Id)).Select(x =>
+                    //    {
+                    //        x.Id = 0; // reset PK for insert
+                    //        return x;
+                    //    }).ToList();
+                    //}
                 }
                 if (jsonRules.FundingProfileRules.CRUD.CanAdd)
                 {
@@ -712,6 +711,7 @@ namespace WebAPI.Controllers.Revision
                 var UpdateComponentCost = dto.ComponentCosts.Where(x => x.Id != 0);
                 if (ComponentCost.Count > 0)
                 {
+                    bool CanDelete = jsonRules.ComponentCostRules.CRUD.CanDelete;
                     foreach (var component in UpdateComponentCost)
                     {
                         var ComponentId = component.Id;
@@ -726,25 +726,25 @@ namespace WebAPI.Controllers.Revision
                             NewComponent.AddRange(new List<DBHelper.Models.Table.RevisionProjectComponentCost> {
                                 new DBHelper.Models.Table.RevisionProjectComponentCost
                                 {
-                                    Id = SelectedComponent.Id,
                                     TransactionId = TransactionId,
                                     ProjectId = SelectedComponent.ProjectId,
                                     ComponentType = SelectedComponent.ComponentType,
                                     ComponentId = SelectedComponent.ComponentId,
                                     Description = SelectedComponent.Description,
-                                    Amount = SelectedComponent.Amount
+                                    Amount = SelectedComponent.Amount,
+                                    IsDeleted = CanDelete ? component.IsDeleted : false
                                 }
                             });
                         }
                     }
-                    if (jsonRules.ComponentCostRules.CRUD.CanDelete)
-                    {
-                        NewComponent = NewComponent.Where(x => !UpdateComponentCost.Where(x => x.IsDeleted == true).Select(a => a.Id).Contains(x.Id)).Select(x =>
-                        {
-                            x.Id = 0; // reset PK for insert
-                            return x;
-                        }).ToList();
-                    }
+                    //if (jsonRules.ComponentCostRules.CRUD.CanDelete)
+                    //{
+                    //    NewComponent = NewComponent.Where(x => !UpdateComponentCost.Where(x => x.IsDeleted == true).Select(a => a.Id).Contains(x.Id)).Select(x =>
+                    //    {
+                    //        x.Id = 0; // reset PK for insert
+                    //        return x;
+                    //    }).ToList();
+                    //}
                 }
                 if (jsonRules.ComponentCostRules.CRUD.CanAdd)
                 {
@@ -756,6 +756,7 @@ namespace WebAPI.Controllers.Revision
                         ComponentId = x.ComponentId,
                         Description = x.Description,
                         Amount = x.Amount,
+                        IsDeleted = false
                     }));
                 }
                 #endregion
@@ -772,6 +773,7 @@ namespace WebAPI.Controllers.Revision
                 var UpdateMajorItemOfWorks = dto.MajorItemOfWorks.Where(x => x.Id != 0);
                 if (MajorWorkItem.Count > 0)
                 {
+                    bool CanDelete = jsonRules.MajorItemOfWorkRules.CRUD.CanDelete;
                     foreach (var item in UpdateMajorItemOfWorks)
                     {
                         var UpdateMajorWorkItem = MajorWorkItem.FirstOrDefault(x => x.Id == item.Id);
@@ -781,6 +783,18 @@ namespace WebAPI.Controllers.Revision
                             {
                                 UpdateMajorWorkItem = MajorWorkItemRules.UpdateRevisionData(item, UpdateMajorWorkItem);
                             }
+
+                            var OldSelectedComponent = new RevisionProjectMajorWorkItem
+                            {
+                                TransactionId = TransactionId,
+                                ProjectId = UpdateMajorWorkItem.ProjectId,
+                                ComponentId = UpdateMajorWorkItem.ComponentId,
+                                ReferenceId = UpdateMajorWorkItem.ReferenceId,
+                                YearOfWork = UpdateMajorWorkItem.YearOfWork,
+                                WorkTypeId = UpdateMajorWorkItem.WorkTypeId,
+                                InfraType = UpdateMajorWorkItem.InfraType,
+                                IsDeleted = (CanDelete) ? UpdateMajorWorkItem.IsDeleted : false
+                            };
                             UpdateMajorWorkItem.RevisedNumber = Project.RevisedNumber;
                             UpdateMajorWorkItem.Id = 0;
                             var Locations = MajorWorkLocations.Where(x => x.ParentId == UpdateMajorWorkItem.ReferenceId).ToList();
@@ -1980,70 +1994,105 @@ namespace WebAPI.Controllers.Revision
                 var UpdateMajorItemOfWorks = dto.MajorItemOfWorks.Where(x => x.Id != 0);
                 if (ExistingMajorWorkItem.Count > 0)
                 {
+                    bool CanDelete = jsonRules.MajorItemOfWorkRules.CRUD.CanDelete;
                     foreach (var item in UpdateMajorItemOfWorks)
                     {
                         var UpdateMajorWorkItem = ExistingMajorWorkItem.FirstOrDefault(x => x.Id == item.Id);
+                        var OldSelectedComponent = new RevisionProjectMajorWorkItem
+                        {
+                            Id = UpdateMajorWorkItem.Id,
+                            TransactionId = UpdateMajorWorkItem.TransactionId,
+                            ProjectId = UpdateMajorWorkItem.ProjectId,
+                            ComponentId = UpdateMajorWorkItem.ComponentId,
+                            ReferenceId = UpdateMajorWorkItem.ReferenceId,
+                            YearOfWork = UpdateMajorWorkItem.YearOfWork,
+                            WorkTypeId = UpdateMajorWorkItem.WorkTypeId,
+                            InfraType = UpdateMajorWorkItem.InfraType,
+                            IsDeleted = (CanDelete) ? UpdateMajorWorkItem.IsDeleted : false
+                        };
                         if (UpdateMajorWorkItem != null)
                         {
                             if (MajorWorkItemRules.Count > 0)
                             {
                                 UpdateMajorWorkItem = MajorWorkItemRules.UpdateRevisionData(item, UpdateMajorWorkItem);
+                                if (OldSelectedComponent.YearOfWork != UpdateMajorWorkItem.YearOfWork)
+                                {
+                                    TransactionLog.Add(new RevisionTransactionLog
+                                    {
+                                        TransactionId = RevisionTransactionId,
+                                        ReferenceId = dto.TransactionId,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tRevisionProjectMajorWorkItem",
+                                        AffectedColumn = "YearOfWork",
+                                        OldValue = OldSelectedComponent.YearOfWork.ToString(),
+                                        NewValue = UpdateMajorWorkItem.YearOfWork.ToString(),
+                                        CreatedBy = _Session.UserId,
+                                        CreatedDate = CurrentDate
+                                    });
+                                }
+                                if (OldSelectedComponent.WorkTypeId != UpdateMajorWorkItem.WorkTypeId)
+                                {
+                                    TransactionLog.Add(new RevisionTransactionLog
+                                    {
+                                        TransactionId = RevisionTransactionId,
+                                        ReferenceId = dto.TransactionId,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tRevisionProjectMajorWorkItem",
+                                        AffectedColumn = "WorkTypeId",
+                                        OldValue = OldSelectedComponent.WorkTypeId.ToString(),
+                                        NewValue = UpdateMajorWorkItem.WorkTypeId.ToString(),
+                                        CreatedBy = _Session.UserId,
+                                        CreatedDate = CurrentDate
+                                    });
+                                }
+                                if (OldSelectedComponent.InfraType != UpdateMajorWorkItem.InfraType)
+                                {
+                                    TransactionLog.Add(new RevisionTransactionLog
+                                    {
+                                        TransactionId = RevisionTransactionId,
+                                        ReferenceId = dto.TransactionId,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tRevisionProjectMajorWorkItem",
+                                        AffectedColumn = "InfraType",
+                                        OldValue = OldSelectedComponent.InfraType,
+                                        NewValue = UpdateMajorWorkItem.InfraType,
+                                        CreatedBy = _Session.UserId,
+                                        CreatedDate = CurrentDate
+                                    });
+                                }
+                                if (OldSelectedComponent.IsDeleted != UpdateMajorWorkItem.IsDeleted && CanDelete == true)
+                                {
+                                    TransactionLog.Add(new RevisionTransactionLog
+                                    {
+                                        TransactionId = RevisionTransactionId,
+                                        ReferenceId = dto.TransactionId,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tRevisionProjectMajorWorkItem",
+                                        AffectedColumn = "IsDeleted",
+                                        OldValue = (OldSelectedComponent.IsDeleted) ? "True" : "False",
+                                        NewValue = (UpdateMajorWorkItem.IsDeleted) ? "True" : "False",
+                                        CreatedBy = _Session.UserId,
+                                        CreatedDate = CurrentDate
+                                    });
+                                }
                             }
-                            var OldSelectedComponent = new DBHelper.Models.Table.RevisionProjectMajorWorkItem
-                            {
-                                Id = SelectedComponent.Id,
-                                TransactionId = SelectedComponent.TransactionId,
-                                ProjectId = SelectedComponent.ProjectId,
-                                ComponentType = SelectedComponent.ComponentType,
-                                ComponentId = SelectedComponent.ComponentId,
-                                Description = SelectedComponent.Description,
-                                Amount = SelectedComponent.Amount,
-                                StartDate = SelectedComponent.StartDate,
-                                EndDate = SelectedComponent.EndDate,
-                                IsDeleted = SelectedComponent.IsDeleted
-                            };
-                            UpdateMajorWorkItem.RevisedNumber = Project.RevisedNumber;
-                            UpdateMajorWorkItem.Id = 0;
-                            var Locations = ExistingMajorWorkLocations.Where(x => x.ParentId == UpdateMajorWorkItem.ReferenceId).ToList();
-                            UpdateMajorWorkItem.ReferenceId = UpdateMajorWorkItem.ProjectId + "-" + ("tCountSequence").GenerateCode();
-                            Locations.ForEach(x => x.ParentId = UpdateMajorWorkItem.ReferenceId);
+                            //var Locations = ExistingMajorWorkLocations.Where(x => x.ParentId == UpdateMajorWorkItem.ReferenceId).ToList();
+                            //UpdateMajorWorkItem.ReferenceId = UpdateMajorWorkItem.ProjectId + "-" + ("tCountSequence").GenerateCode();
+                            //Locations.ForEach(x => x.ParentId = UpdateMajorWorkItem.ReferenceId);
                         }
                     }
-                }
-                if (jsonRules.MajorItemOfWorkRules.CRUD.CanDelete)
-                {
-                    var DeletedMajorItems = NewMajorWorkItem.Where(x => !UpdateMajorItemOfWorks.Select(a => a.Id).Contains(x.Id)).Select(x =>
+                    if (CanDelete)
                     {
-                        x.Id = 0; // reset PK for insert
-                        return x;
-                    }).ToList();
-                    if (DeletedMajorItems.Count > 0)
-                    {
-                        NewMajorWorkItem = DeletedMajorItems;
-                        var DeletedMajorItemReferenceIds = DeletedMajorItems.Select(x => x.ReferenceId).ToList();
-                        NewMajorWorkLocations = NewMajorWorkLocations.Where(x => !DeletedMajorItemReferenceIds.Contains(x.ParentId)).Select(x =>
+                        var DeletedMajorItems = dto.MajorItemOfWorks.Where(x => x.Id != 0 && x.IsDeleted == true).ToList();
+                        if (DeletedMajorItems.Count > 0)
                         {
-                            x.Id = 0; // reset PK for insert
-                            return x;
-                        }).ToList();
-                        NewMajorWorkLocations.AddRange(MajorWorkLocations.Where(x => !DeletedMajorItemReferenceIds.Contains(x.ParentId)).Select(x => new RevisionProjectMajorWorkLocations
-                        {
-                            TransactionId = dto.TransactionId,
-                            ParentId = x.ParentId,
-                            InfraId = x.InfraId,
-                            DetailedScope = x.DetailedScope,
-                            TargetUnitId = x.TargetUnitId,
-                            TargetUnit = x.TargetUnit,
-                            StartX = x.StartX,
-                            StartY = x.StartY,
-                            EndX = x.EndX,
-                            EndY = x.EndY,
-                            PhysicalTarget = x.PhysicalTarget,
-                            StartStationLimit = x.StartStationLimit,
-                            EndStationLimit = x.EndStationLimit,
-                            EndChainage = x.EndChainage,
-                            StartChainage = x.StartChainage
-                        }));
+                            var DeletedMajorItemReferenceIds = DeletedMajorItems.Select(x => x.ReferenceId).ToList();
+                            ExistingMajorWorkLocations = ExistingMajorWorkLocations.Where(x => !DeletedMajorItemReferenceIds.Contains(x.ParentId)).Select(x =>
+                            {
+                                x.IsDeleted = true; // reset PK for insert
+                                return x;
+                            }).ToList();
+                        }
                     }
                 }
                 var NewMajorItemOfWorksToInsert = dto.MajorItemOfWorks.Where(x => x.Id == 0);
@@ -2051,16 +2100,17 @@ namespace WebAPI.Controllers.Revision
                 {
                     if (NewMajorItemOfWorksToInsert.Count() > 0)
                     {
-                        NewMajorWorkItem.AddRange(NewMajorItemOfWorksToInsert.Select(x => new RevisionProjectMajorWorkItem
+                        ExistingMajorWorkItem.AddRange(NewMajorItemOfWorksToInsert.Select(x => new RevisionProjectMajorWorkItem
                         {
                             Id = x.Id,
                             TransactionId = dto.TransactionId,
                             ProjectId = x.ProjectId,
-                            ReferenceId = x.ReferenceId,
                             ComponentId = x.ComponentId,
+                            ReferenceId = x.ReferenceId,
                             YearOfWork = x.YearOfWork,
                             WorkTypeId = x.WorkTypeId,
                             InfraType = x.InfraType,
+                            IsDeleted = false
                         }));
                     }
                 }
@@ -2073,53 +2123,261 @@ namespace WebAPI.Controllers.Revision
                 .Select(p => p.Name)
                 .ToList();
                 var UpdateMajorWorkLocations = dto.MajorItemLocations.Where(x => x.Id != 0);
-                if (MajorWorkLocations.Count > 0)
+                if (ExistingMajorWorkLocations.Count > 0)
                 {
+                    bool CanDelete = jsonRules.MajorItemLocationRules.CRUD.CanDelete;
                     foreach (var location in UpdateMajorWorkLocations)
                     {
-                        var UpdateMajorWorkLocation = MajorWorkLocations.FirstOrDefault(x => x.Id == location.Id);
+                        var UpdateMajorWorkLocation = ExistingMajorWorkLocations.FirstOrDefault(x => x.Id == location.Id);
+                        var OldSelectedComponent = new RevisionProjectMajorWorkLocations
+                        {
+                            Id = UpdateMajorWorkLocation.Id,
+                            TransactionId = dto.TransactionId,
+                            ParentId = UpdateMajorWorkLocation.ParentId,
+                            InfraId = UpdateMajorWorkLocation.InfraId,
+                            DetailedScope = UpdateMajorWorkLocation.DetailedScope,
+                            TargetUnitId = UpdateMajorWorkLocation.TargetUnitId,
+                            TargetUnit = UpdateMajorWorkLocation.TargetUnit,
+                            StartX = UpdateMajorWorkLocation.StartX,
+                            StartY = UpdateMajorWorkLocation.StartY,
+                            EndX = UpdateMajorWorkLocation.EndX,
+                            EndY = UpdateMajorWorkLocation.EndY,
+                            PhysicalTarget = UpdateMajorWorkLocation.PhysicalTarget,
+                            StartStationLimit = UpdateMajorWorkLocation.StartStationLimit,
+                            EndStationLimit = UpdateMajorWorkLocation.EndStationLimit,
+                            EndChainage = UpdateMajorWorkLocation.EndChainage,
+                            StartChainage = UpdateMajorWorkLocation.StartChainage,
+                            IsDeleted = UpdateMajorWorkLocation.IsDeleted
+                        };
                         if (UpdateMajorWorkLocation != null)
                         {
                             if (MajorWorkItemRules.Count > 0)
                             {
                                 UpdateMajorWorkLocation = MajorItemLocationsRules.UpdateRevisionData(location, UpdateMajorWorkLocation);
+                                if (OldSelectedComponent.InfraId != UpdateMajorWorkLocation.InfraId)
+                                {
+                                    TransactionLog.Add(new RevisionTransactionLog
+                                    {
+                                        TransactionId = RevisionTransactionId,
+                                        ReferenceId = dto.TransactionId,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tRevisionProjectMajorWorkLocations",
+                                        AffectedColumn = "InfraId",
+                                        OldValue = OldSelectedComponent.InfraId,
+                                        NewValue = UpdateMajorWorkLocation.InfraId,
+                                        CreatedBy = _Session.UserId,
+                                        CreatedDate = CurrentDate
+                                    });
+                                }
+                                if (OldSelectedComponent.DetailedScope != UpdateMajorWorkLocation.DetailedScope)
+                                {
+                                    TransactionLog.Add(new RevisionTransactionLog
+                                    {
+                                        TransactionId = RevisionTransactionId,
+                                        ReferenceId = dto.TransactionId,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tRevisionProjectMajorWorkLocations",
+                                        AffectedColumn = "DetailedScope",
+                                        OldValue = OldSelectedComponent.DetailedScope,
+                                        NewValue = UpdateMajorWorkLocation.DetailedScope,
+                                        CreatedBy = _Session.UserId,
+                                        CreatedDate = CurrentDate
+                                    });
+                                }
+                                if (OldSelectedComponent.TargetUnitId != UpdateMajorWorkLocation.TargetUnitId)
+                                {
+                                    TransactionLog.Add(new RevisionTransactionLog
+                                    {
+                                        TransactionId = RevisionTransactionId,
+                                        ReferenceId = dto.TransactionId,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tRevisionProjectMajorWorkLocations",
+                                        AffectedColumn = "TargetUnitId",
+                                        OldValue = OldSelectedComponent.TargetUnitId.ToString(),
+                                        NewValue = UpdateMajorWorkLocation.TargetUnitId.ToString(),
+                                        CreatedBy = _Session.UserId,
+                                        CreatedDate = CurrentDate
+                                    });
+                                }
+                                if (OldSelectedComponent.TargetUnit != UpdateMajorWorkLocation.TargetUnit)
+                                {
+                                    TransactionLog.Add(new RevisionTransactionLog
+                                    {
+                                        TransactionId = RevisionTransactionId,
+                                        ReferenceId = dto.TransactionId,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tRevisionProjectMajorWorkLocations",
+                                        AffectedColumn = "TargetUnit",
+                                        OldValue = OldSelectedComponent.TargetUnit,
+                                        NewValue = UpdateMajorWorkLocation.TargetUnit,
+                                        CreatedBy = _Session.UserId,
+                                        CreatedDate = CurrentDate
+                                    });
+                                }
+                                if (OldSelectedComponent.StartX != UpdateMajorWorkLocation.StartX)
+                                {
+                                    TransactionLog.Add(new RevisionTransactionLog
+                                    {
+                                        TransactionId = RevisionTransactionId,
+                                        ReferenceId = dto.TransactionId,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tRevisionProjectMajorWorkLocations",
+                                        AffectedColumn = "StartX",
+                                        OldValue = OldSelectedComponent.StartX,
+                                        NewValue = UpdateMajorWorkLocation.StartX,
+                                        CreatedBy = _Session.UserId,
+                                        CreatedDate = CurrentDate
+                                    });
+                                }
+                                if (OldSelectedComponent.StartY != UpdateMajorWorkLocation.StartY)
+                                {
+                                    TransactionLog.Add(new RevisionTransactionLog
+                                    {
+                                        TransactionId = RevisionTransactionId,
+                                        ReferenceId = dto.TransactionId,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tRevisionProjectMajorWorkLocations",
+                                        AffectedColumn = "StartY",
+                                        OldValue = OldSelectedComponent.StartY,
+                                        NewValue = UpdateMajorWorkLocation.StartY,
+                                        CreatedBy = _Session.UserId,
+                                        CreatedDate = CurrentDate
+                                    });
+                                }
+                                if (OldSelectedComponent.EndX != UpdateMajorWorkLocation.EndX)
+                                {
+                                    TransactionLog.Add(new RevisionTransactionLog
+                                    {
+                                        TransactionId = RevisionTransactionId,
+                                        ReferenceId = dto.TransactionId,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tRevisionProjectMajorWorkLocations",
+                                        AffectedColumn = "EndX",
+                                        OldValue = OldSelectedComponent.EndX,
+                                        NewValue = UpdateMajorWorkLocation.EndX,
+                                        CreatedBy = _Session.UserId,
+                                        CreatedDate = CurrentDate
+                                    });
+                                }
+                                if (OldSelectedComponent.EndY != UpdateMajorWorkLocation.EndY)
+                                {
+                                    TransactionLog.Add(new RevisionTransactionLog
+                                    {
+                                        TransactionId = RevisionTransactionId,
+                                        ReferenceId = dto.TransactionId,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tRevisionProjectMajorWorkLocations",
+                                        AffectedColumn = "EndY",
+                                        OldValue = OldSelectedComponent.EndY,
+                                        NewValue = UpdateMajorWorkLocation.EndY,
+                                        CreatedBy = _Session.UserId,
+                                        CreatedDate = CurrentDate
+                                    });
+                                }
+                                if (OldSelectedComponent.PhysicalTarget != UpdateMajorWorkLocation.PhysicalTarget)
+                                {
+                                    TransactionLog.Add(new RevisionTransactionLog
+                                    {
+                                        TransactionId = RevisionTransactionId,
+                                        ReferenceId = dto.TransactionId,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tRevisionProjectMajorWorkLocations",
+                                        AffectedColumn = "PhysicalTarget",
+                                        OldValue = OldSelectedComponent.PhysicalTarget.ToString(),
+                                        NewValue = UpdateMajorWorkLocation.PhysicalTarget.ToString(),
+                                        CreatedBy = _Session.UserId,
+                                        CreatedDate = CurrentDate
+                                    });
+                                }
+                                if (OldSelectedComponent.StartStationLimit != UpdateMajorWorkLocation.StartStationLimit)
+                                {
+                                    TransactionLog.Add(new RevisionTransactionLog
+                                    {
+                                        TransactionId = RevisionTransactionId,
+                                        ReferenceId = dto.TransactionId,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tRevisionProjectMajorWorkLocations",
+                                        AffectedColumn = "StartStationLimit",
+                                        OldValue = OldSelectedComponent.StartStationLimit,
+                                        NewValue = UpdateMajorWorkLocation.StartStationLimit,
+                                        CreatedBy = _Session.UserId,
+                                        CreatedDate = CurrentDate
+                                    });
+                                }
+                                if (OldSelectedComponent.EndStationLimit != UpdateMajorWorkLocation.EndStationLimit)
+                                {
+                                    TransactionLog.Add(new RevisionTransactionLog
+                                    {
+                                        TransactionId = RevisionTransactionId,
+                                        ReferenceId = dto.TransactionId,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tRevisionProjectMajorWorkLocations",
+                                        AffectedColumn = "EndStationLimit",
+                                        OldValue = OldSelectedComponent.EndStationLimit,
+                                        NewValue = UpdateMajorWorkLocation.EndStationLimit,
+                                        CreatedBy = _Session.UserId,
+                                        CreatedDate = CurrentDate
+                                    });
+                                }
+                                if (OldSelectedComponent.EndChainage != UpdateMajorWorkLocation.EndChainage)
+                                {
+                                    TransactionLog.Add(new RevisionTransactionLog
+                                    {
+                                        TransactionId = RevisionTransactionId,
+                                        ReferenceId = dto.TransactionId,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tRevisionProjectMajorWorkLocations",
+                                        AffectedColumn = "EndChainage",
+                                        OldValue = OldSelectedComponent.EndChainage.ToString(),
+                                        NewValue = UpdateMajorWorkLocation.EndChainage.ToString(),
+                                        CreatedBy = _Session.UserId,
+                                        CreatedDate = CurrentDate
+                                    });
+                                }
+                                if (OldSelectedComponent.StartChainage != UpdateMajorWorkLocation.StartChainage)
+                                {
+                                    TransactionLog.Add(new RevisionTransactionLog
+                                    {
+                                        TransactionId = RevisionTransactionId,
+                                        ReferenceId = dto.TransactionId,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tRevisionProjectMajorWorkLocations",
+                                        AffectedColumn = "StartChainage",
+                                        OldValue = OldSelectedComponent.StartChainage.ToString(),
+                                        NewValue = UpdateMajorWorkLocation.StartChainage.ToString(),
+                                        CreatedBy = _Session.UserId,
+                                        CreatedDate = CurrentDate
+                                    });
+                                }
+                                if (OldSelectedComponent.IsDeleted != UpdateMajorWorkLocation.IsDeleted && CanDelete == true)
+                                {
+                                    TransactionLog.Add(new RevisionTransactionLog
+                                    {
+                                        TransactionId = RevisionTransactionId,
+                                        ReferenceId = dto.TransactionId,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tRevisionProjectMajorWorkLocations",
+                                        AffectedColumn = "IsDeleted",
+                                        OldValue = (OldSelectedComponent.IsDeleted) ? "True" : "False",
+                                        NewValue = (UpdateMajorWorkLocation.IsDeleted) ? "True" : "False",
+                                        CreatedBy = _Session.UserId,
+                                        CreatedDate = CurrentDate
+                                    });
+                                }
                             }
-                            NewMajorWorkLocations.Add(new RevisionProjectMajorWorkLocations
-                            {
-                                Id = UpdateMajorWorkLocation.Id,
-                                TransactionId = dto.TransactionId,
-                                ParentId = UpdateMajorWorkLocation.ParentId,
-                                InfraId = UpdateMajorWorkLocation.InfraId,
-                                DetailedScope = UpdateMajorWorkLocation.DetailedScope,
-                                TargetUnitId = UpdateMajorWorkLocation.TargetUnitId,
-                                TargetUnit = UpdateMajorWorkLocation.TargetUnit,
-                                StartX = UpdateMajorWorkLocation.StartX,
-                                StartY = UpdateMajorWorkLocation.StartY,
-                                EndX = UpdateMajorWorkLocation.EndX,
-                                EndY = UpdateMajorWorkLocation.EndY,
-                                PhysicalTarget = UpdateMajorWorkLocation.PhysicalTarget,
-                                StartStationLimit = UpdateMajorWorkLocation.StartStationLimit,
-                                EndStationLimit = UpdateMajorWorkLocation.EndStationLimit,
-                                EndChainage = UpdateMajorWorkLocation.EndChainage,
-                                StartChainage = UpdateMajorWorkLocation.StartChainage
-                            });
                         }
                     }
-                }
-                if (jsonRules.MajorItemLocationRules.CRUD.CanDelete)
-                {
-                    NewMajorWorkLocations = NewMajorWorkLocations.Where(x => !UpdateMajorWorkLocations.Select(a => a.Id).Contains(x.Id)).Select(x =>
+                    if (jsonRules.MajorItemLocationRules.CRUD.CanDelete)
                     {
-                        x.Id = 0; // reset PK for insert
-                        return x;
-                    }).ToList();
+                        ExistingMajorWorkLocations = ExistingMajorWorkLocations.Where(x => !UpdateMajorWorkLocations.Where(a => a.IsDeleted == true).Select(b => b.Id).Contains(x.Id)).ToList();
+                    }
                 }
                 if (jsonRules.MajorItemLocationRules.CRUD.CanAdd)
                 {
                     var NewMajorWorkLocationsToInsert = dto.MajorItemLocations.Where(x => NewMajorItemOfWorksToInsert.Select(c => c.ReferenceId).Contains(x.ParentId));
                     if (NewMajorWorkLocationsToInsert.Count() > 0)
                     {
-                        NewMajorWorkLocations.AddRange(NewMajorWorkLocationsToInsert.Select(x => new RevisionProjectMajorWorkLocations
+                        ExistingMajorWorkLocations.AddRange(NewMajorWorkLocationsToInsert.Select(x => new RevisionProjectMajorWorkLocations
                         {
                             TransactionId = dto.TransactionId,
                             ParentId = x.ParentId,
@@ -2140,12 +2398,11 @@ namespace WebAPI.Controllers.Revision
                     }
                 }
                 #endregion
-                _db.tProjectRevisions.Update(Project);
-                await _db.tRevisionProjects.AddAsync(NewRevisionProject);
-                await _db.tRevisionProjectFundingProfile.AddRangeAsync(NewFundingProfile);
-                await _db.tRevisionProjectComponentCost.AddRangeAsync(NewComponent);
-                await _db.tRevisionProjectMajorWorkItem.AddRangeAsync(NewMajorWorkItem);
-                await _db.tRevisionProjectMajorWorkLocations.AddRangeAsync(NewMajorWorkLocations);
+                _db.tRevisionProjects.Update(ExistingRevisionProject);
+                _db.tRevisionProjectFundingProfile.UpdateRange(ExistingFundingProfile);
+                _db.tRevisionProjectComponentCost.UpdateRange(ExistingComponent);
+                _db.tRevisionProjectMajorWorkItem.UpdateRange(ExistingMajorWorkItem);
+                _db.tRevisionProjectMajorWorkLocations.UpdateRange(ExistingMajorWorkLocations);
 
                 bool isROUser = _Session.UserGroups.Contains("RPC");
                 bool isCOUser = _Session.UserGroups.Contains("AUC");

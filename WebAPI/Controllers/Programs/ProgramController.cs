@@ -298,7 +298,7 @@ namespace WebAPI.Controllers.Programs
                     Category = _db.tProjectCategoryEnum.FirstOrDefault(a => a.Enum == x.Category)!.Name ?? x.Category.ToString(),
                     City = _db.tOptionAdminAreaCityMunicipality.FirstOrDefault(a => a.Code == x.City.ToString())!.Name ?? x.City.ToString(),
                     LegislativeDistrict = _db.tOptionAdminAreaCongressionalDistrict.FirstOrDefault(a => a.Code == x.LegislativeDistrict.ToString())!.Name ?? x.LegislativeDistrict.ToString(),
-                    Cost = _db.tProjectComponentCost.Where(a => a.ReferenceId == x.ReferenceId).Sum(a => a.Total),
+                    Cost = _db.tProjectComponentCost.Where(a => a.ProjectId == x.ReferenceId && a.StageName == x.StageName).Sum(a => a.Amount),
                     CreatedBy = x.CreatedBy,
                     CreatedDate = x.CreatedDate,
 
@@ -629,7 +629,7 @@ namespace WebAPI.Controllers.Programs
                         string FirstSegment = checkStageType.Name.GenerateProjec1stSegment();
                         #region Component Costs
                         List<DBHelper.Models.Table.ProjectComponentCost> NewComponent = new List<DBHelper.Models.Table.ProjectComponentCost>();
-                        List<ProjectComponentCostYear> NewComponentPerYear = new List<ProjectComponentCostYear>();
+                        //List<ProjectComponentCostYear> NewComponentPerYear = new List<ProjectComponentCostYear>();
                         if (Components.Count() > 0)
                         {
                             NewComponent.AddRange(Components.Select(x => new DBHelper.Models.Table.ProjectComponentCost()
