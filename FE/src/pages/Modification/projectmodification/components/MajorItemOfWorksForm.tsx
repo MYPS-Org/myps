@@ -16,6 +16,7 @@ import type { ProgramList } from '../../../Program/Model.d';
 import type { FieldRules } from '../../Model';
 import { getDisabledClass } from '../../../../utils/GlobalFunctions';
 import { useMajorItemOfWorks } from '../../hooks/useMajorItemOfWorks';
+import { useMajorItemLocations } from '../../hooks/useMajorItemLocations';
 
 interface MajorItemOfWorksFormProps {
   majorItems: MajorItemOfWorksWithDropdown[];
@@ -43,6 +44,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
   fieldRules,
 }) => {
   const { addMajorItem: hookAdd, editMajorItem: hookEdit, deleteMajorItem: hookDelete, majorItems: hookItems } = useMajorItemOfWorks();
+  const { getLocationsByParentId, addWorkLocation, editWorkLocation, deleteWorkLocation } = useMajorItemLocations();
   const [majorItemDialogOpen, setMajorItemDialogOpen] = useState(false);
   const [editingMajorItemIndex, setEditingMajorItemIndex] = useState<number | null>(null);
   const [deletingMajorItemIndex, setDeletingMajorItemIndex] = useState<number | null>(null);
@@ -87,7 +89,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
   useEffect(() => {
     if (items.length > 0 && dropDowns?.length) {
       let hasUpdates = false;
-      const updatedItems = items.map((item, index) => {
+      const updatedItems = items.map((item,) => {
         // If item has InfraType but no or empty DropdownData, update it
         if (item.InfraType && (!item.DropdownData || item.DropdownData.length === 0)) {
           const filteredDropdowns = dropDowns.filter(x => x.InfraType === item.InfraType);
@@ -240,36 +242,19 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     setExpandedRows(newExpanded);
   };
 
-  // Work Location handlers
-  const handleAddWorkLocation = (majorItemIndex: number, workLocation: MajorItemLocations) => {
-    const updatedLocations = [...(items[majorItemIndex].MajorItemLocations || []), workLocation];
-    
-    const updatedItem = {
-      ...items[majorItemIndex],
-      MajorItemLocations: updatedLocations
-    };
-    callEdit(majorItemIndex, updatedItem);
+  // Work Location handlers - now using dedicated hook for better performance
+  const handleAddWorkLocation = (_majorItemIndex: number, workLocation: MajorItemLocations) => {
+    addWorkLocation(workLocation);
   };
 
   const handleEditWorkLocation = (majorItemIndex: number, workLocationIndex: number, workLocation: MajorItemLocations) => {
-    const updatedWorkLocations = [...(items[majorItemIndex].MajorItemLocations || [])];
-    updatedWorkLocations[workLocationIndex] = workLocation;
-    
-    const updatedItem = {
-      ...items[majorItemIndex],
-      MajorItemLocations: updatedWorkLocations
-    };
-    callEdit(majorItemIndex, updatedItem);
+    const parentId = items[majorItemIndex].ReferenceId;
+    editWorkLocation(parentId, workLocationIndex, workLocation);
   };
 
   const handleDeleteWorkLocation = (majorItemIndex: number, workLocationIndex: number) => {
-    const updatedWorkLocations = (items[majorItemIndex].MajorItemLocations || []).filter((_, i) => i !== workLocationIndex);
-    
-    const updatedItem = {
-      ...items[majorItemIndex],
-      MajorItemLocations: updatedWorkLocations
-    };
-    callEdit(majorItemIndex, updatedItem);
+    const parentId = items[majorItemIndex].ReferenceId;
+    deleteWorkLocation(parentId, workLocationIndex);
   };
 
   const getMinMaxAmounts = (workTypeId: number) => {
@@ -380,7 +365,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                     <TableCell colSpan={8} className="p-4">
                       <WorkLocationTable
                         majorItemOfWorks={item}
-                        workLocations={item.MajorItemLocations || []}
+                        workLocations={getLocationsByParentId(item.ReferenceId)}
                         onAdd={(workLocation) => handleAddWorkLocation(index, workLocation)}
                         onEdit={(workLocationIndex, workLocation) => 
                           handleEditWorkLocation(index, workLocationIndex, workLocation)

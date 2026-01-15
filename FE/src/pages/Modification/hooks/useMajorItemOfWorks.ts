@@ -84,17 +84,7 @@ export const useMajorItemOfWorks = () => {
                 : item
             )
         );
-        
-        // Update MajorItemLocations if they exist in the updatedItem
-        if (updatedItem.MajorItemLocations && updatedItem.MajorItemLocations.length >= 0) {
-            setLocations(prev => {
-                // Remove old locations for this parent
-                const filtered = prev.filter(loc => loc.ParentId !== updatedItem.ReferenceId);
-                // Add updated locations
-                const updated = [...filtered, ...updatedItem.MajorItemLocations];
-                return updated;
-            });
-        }
+        // Note: MajorItemLocations are now managed independently via useMajorItemLocations hook
     };
 
 
