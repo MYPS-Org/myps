@@ -742,7 +742,11 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     if (hasTerminatedComponent) {
       setIsTerminationDialogOpen(true);
     } else {
-      navigate(-1); // Go back to previous page /project
+      showToast({
+        type: 'info',
+        message: 'No terminated components found for this project.'
+      });
+      navigate(`/projects/project-details/${projectDetails?.ProjectId}:${projectDetails?.StageName}`); // Go back to previous page /project
     }
   }, [modificationCategory, mode]);
 
