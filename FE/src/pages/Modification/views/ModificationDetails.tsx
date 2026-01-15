@@ -24,12 +24,12 @@ const ModifyProject: React.FC = () => {
     const selectedCategoryId = location.state?.categoryId || null;
     const selectedRevisionGroupId = location.state?.revisionGroupId || 0;
 
-    console.log('ModificationDetails - Navigation state:', location.state);
-    console.log('ModificationDetails - Category:', categoryDesc);
-    console.log('ModificationDetails - Reason:', reasonDesc);
-    console.log('ModificationDetails - Reason ID:', selectedReasonId);
-    console.log('ModificationDetails - Category ID:', selectedCategoryId);
-    console.log('ModificationDetails - Revision Group ID:', selectedRevisionGroupId);
+    // console.log('ModificationDetails - Navigation state:', location.state);
+    // console.log('ModificationDetails - Category:', categoryDesc);
+    // console.log('ModificationDetails - Reason:', reasonDesc);
+    // console.log('ModificationDetails - Reason ID:', selectedReasonId);
+    // console.log('ModificationDetails - Category ID:', selectedCategoryId);
+    // console.log('ModificationDetails - Revision Group ID:', selectedRevisionGroupId);
 
     // Set modification context once on mount from navigation state
     useEffect(() => {
@@ -46,14 +46,14 @@ const ModifyProject: React.FC = () => {
         const loadProjectData = async () => {
             try {
                 if (id && id.length == 2) {
-                    console.log('Loading project details for:', id[0], id[1]); // Debug log
+                    // console.log('Loading project details for:', id[0], id[1]); // Debug log
                     await fetchProjectDetails(id[0], id[1]);
                 } else {
-                    console.error('Invalid project ID format. Expected format: "ProjectId:StageName"', id);
+                    // console.error('Invalid project ID format. Expected format: "ProjectId:StageName"', id);
                     setIsLoading(false);
                 }
             } catch (error) {
-                console.error('Unexpected error loading project details:', error);
+                // console.error('Unexpected error loading project details:', error);
                 setIsLoading(false);
             }
         };
@@ -64,44 +64,44 @@ const ModifyProject: React.FC = () => {
     
     const fetchProjectDetails = useCallback(async (projectId: string, _stageName: string) => {
         try {
-            console.log('Calling fetchRevisionData with:', { 
-                ProjectId: projectId, 
-                RevisionGroupId: selectedRevisionGroupId,
-                CategoryId: selectedCategoryId,
-                ReasonId: selectedReasonId 
-            });
+            // console.log('Calling fetchRevisionData with:', { 
+            //     ProjectId: projectId, 
+            //     RevisionGroupId: selectedRevisionGroupId,
+            //     CategoryId: selectedCategoryId,
+            //     ReasonId: selectedReasonId 
+            // });
             const response = await fetchRevisionData(
                 projectId,
                 selectedRevisionGroupId,
                 selectedCategoryId,
                 selectedReasonId
             );
-            console.log('Revision data response:', response);
+            // console.log('Revision data response:', response);
             
             const data = response.Data as RevisionProjectPayload;
             setInitialData(data);
 
             // Debug: Check what properties exist in the response
-            console.log('=== RESPONSE DATA STRUCTURE ===');
-            console.log('All keys in response.Data:', Object.keys(data));
-            console.log('ProjectComponentStatus:', data.ComponentsStatus);
-            console.log('ComponentsStatus (if exists):', (data as any).ComponentsStatus);
-            console.log('===============================');
+            // console.log('=== RESPONSE DATA STRUCTURE ===');
+            // console.log('All keys in response.Data:', Object.keys(data));
+            // console.log('ProjectComponentStatus:', data.ComponentsStatus);
+            // console.log('ComponentsStatus (if exists):', (data as any).ComponentsStatus);
+            // console.log('===============================');
 
             // Get ProjectStatus directly from API response
             if (data.ProjectStatus) {
-                console.log('=== PROJECT STATUS FROM API ===');
-                console.log('ProjectStatus:', data.ProjectStatus);
-                console.log('Construction Status:', data.ProjectStatus.ConstructionStatus);
-                console.log('Package Status:', data.ProjectStatus.PackageStatus);
+                // console.log('=== PROJECT STATUS FROM API ===');
+                // console.log('ProjectStatus:', data.ProjectStatus);
+                // console.log('Construction Status:', data.ProjectStatus.ConstructionStatus);
+                // console.log('Package Status:', data.ProjectStatus.PackageStatus);
                 
                 // Set the status to Jotai atoms directly from API
                 setStatusFromAPI(
                     data.ProjectStatus.ConstructionStatus,
                     data.ProjectStatus.PackageStatus
                 );
-                console.log('Status set to Jotai atoms from API ProjectStatus');
-                console.log('===============================');
+                // console.log('Status set to Jotai atoms from API ProjectStatus');
+                // console.log('===============================');
             } else {
                 console.warn('No ProjectStatus found in response');
             }
@@ -109,10 +109,10 @@ const ModifyProject: React.FC = () => {
             // Parse and set field rules from API
             if (data.Rules && data.Rules.Field) {
                 try {
-                    console.log('=== FIELD RULES FROM API ===');
-                    console.log('Raw Field string:', data.Rules.Field);
-                    console.log('Field string type:', typeof data.Rules.Field);
-                    console.log('Field string length:', data.Rules.Field.length);
+                    // console.log('=== FIELD RULES FROM API ===');
+                    // console.log('Raw Field string:', data.Rules.Field);
+                    // console.log('Field string type:', typeof data.Rules.Field);
+                    // console.log('Field string length:', data.Rules.Field.length);
                     
                     // Try to parse
                     let parsedRules: FieldRules;
@@ -143,13 +143,13 @@ const ModifyProject: React.FC = () => {
                         console.log('✓ Successfully parsed repaired JSON');
                     }
                     
-                    console.log('✓ Successfully parsed Field Rules');
-                    console.log('Parsed Field Rules:', parsedRules);
-                    console.log('Parsed keys:', Object.keys(parsedRules));
+                    // console.log('✓ Successfully parsed Field Rules');
+                    // console.log('Parsed Field Rules:', parsedRules);
+                    // console.log('Parsed keys:', Object.keys(parsedRules));
                     
                     setFieldRules(parsedRules);
-                    console.log('✓ Field rules set to Jotai atoms');
-                    console.log('===========================');
+                    // console.log('✓ Field rules set to Jotai atoms');
+                    // console.log('===========================');
                 } catch (parseError) {
                     console.error('❌ ERROR PARSING FIELD RULES JSON (even after repair attempt)');
                     console.error('Parse Error:', parseError);

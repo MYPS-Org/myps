@@ -51,7 +51,7 @@ class HttpClient {
                     message: customConfig.preloaderMessage ?? 'Getting data...'
                 });
 
-                console.log('🚀 HTTP Request:', config.method?.toUpperCase(), config.url);
+                // console.log('🚀 HTTP Request:', config.method?.toUpperCase(), config.url);
                 return config;
             },
             (error: any) => {
@@ -74,7 +74,7 @@ class HttpClient {
                     this.updatePreloader({ loading: false, progress: 0, message: '' });
                 }, 500);
 
-                console.log('✅ HTTP Response:', response.status, response.config.url);
+                // console.log('✅ HTTP Response:', response.status, response.config.url);
                 return response;
             },
             async (error: any) => {

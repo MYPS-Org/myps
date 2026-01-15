@@ -41,9 +41,6 @@ const RevisionForm: React.FC<RevisionFormProps> = ({
     forCorrectionsDetails,
     statusName,
 }) => {
-    
-    console.log('RevisionForm - Received props:', { category, reason, fieldRules });
-    
     // Helper function to get editable fields from a rule group
     const getEditableFields = (rules: Record<string, boolean> | undefined) => {
         if (!rules) return [];

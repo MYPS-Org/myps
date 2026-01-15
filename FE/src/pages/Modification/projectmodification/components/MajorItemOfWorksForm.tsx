@@ -60,7 +60,9 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     return hookAdd(item);
   };
   const callEdit = (index: number, item: MajorItemOfWorksWithDropdown) => {
-    if (propOnEdit) return propOnEdit(index, item);
+    if (propOnEdit) {
+      return propOnEdit(index, item);
+    }
     return hookEdit(index, item);
   };
   const callDelete = (index: number) => {
@@ -81,12 +83,6 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     });
   }, [items, dropDowns]);
 
-  // Debug: Monitor when componentCosts prop changes
-  useEffect(() => {
-    console.log('MajorItemOfWorksForm: componentCosts prop changed:', componentCosts);
-    console.log('ComponentCosts count:', componentCosts?.length || 0);
-  }, [componentCosts]);
-
   // Update dropdown data for items that have InfraType but no DropdownData (from backend)
   useEffect(() => {
     if (items.length > 0 && dropDowns?.length) {
@@ -95,7 +91,6 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
         // If item has InfraType but no or empty DropdownData, update it
         if (item.InfraType && (!item.DropdownData || item.DropdownData.length === 0)) {
           const filteredDropdowns = dropDowns.filter(x => x.InfraType === item.InfraType);
-          console.log(`Updating DropdownData for item ${index} with InfraType '${item.InfraType}':`, filteredDropdowns);
           hasUpdates = true;
           return {
             ...item,
@@ -106,7 +101,6 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
       });
       
       if (hasUpdates) {
-        console.log('Updating items with proper DropdownData');
         // We need to call callEdit for each updated item
         updatedItems.forEach((item, index) => {
           if (item.InfraType && item.DropdownData && item.DropdownData.length > 0 && 
@@ -231,9 +225,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
   };
 
   const getComponentDescription = (componentId: string): string => {
-    console.log('Looking for component with ID:', componentId, 'in componentCosts:', componentCosts);
     const component = componentCosts?.find(cost => cost.ComponentId === componentId);
-    console.log('Found component:', component);
     // Return the description or the componentId as fallback
     return component?.ComponentId || component?.ComponentId || componentId || 'Unknown Component';
   };
@@ -250,9 +242,11 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
 
   // Work Location handlers
   const handleAddWorkLocation = (majorItemIndex: number, workLocation: MajorItemLocations) => {
+    const updatedLocations = [...(items[majorItemIndex].MajorItemLocations || []), workLocation];
+    
     const updatedItem = {
       ...items[majorItemIndex],
-      MajorItemLocations: [...(items[majorItemIndex].MajorItemLocations || []), workLocation]
+      MajorItemLocations: updatedLocations
     };
     callEdit(majorItemIndex, updatedItem);
   };
@@ -318,7 +312,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
           </TableHead>
           <TableBody>
             {items.map((item, index) => (
-              <React.Fragment key={item.Id || index}>)
+              <React.Fragment key={item.Id || index}>
                 <TableRow className="border-b">
                   <TableCell>
                     <button

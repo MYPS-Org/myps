@@ -39,14 +39,11 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
     const fieldPermissions = useMemo(() => {
         if (!fieldRules) return {};
 
-        console.log('Processing fieldRules:', fieldRules);
-
         const permissions: Record<string, boolean> = {};
 
         // Extract ProjectDetailsRules specifically (these are at root level in that section)
         if (fieldRules.ProjectDetailsRules && typeof fieldRules.ProjectDetailsRules === 'object') {
             Object.assign(permissions, fieldRules.ProjectDetailsRules);
-            console.log('Extracted ProjectDetailsRules:', fieldRules.ProjectDetailsRules);
         }
 
         // If there are any other root-level boolean fields, include them
@@ -55,8 +52,6 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                 permissions[key] = value;
             }
         }
-
-        console.log('Final fieldPermissions:', permissions);
         return permissions;
     }, [fieldRules]);
 
@@ -85,8 +80,6 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             availableDEOs = projectEnums.DEOs?.filter(
                 (deo) => deo.ProvinceGdbId === ProvinceGdbId
             ) || [];
-
-            console.log('Filtered Cities and LDs by Province:', projectDetails.Province, availableCities, availableLDs, availableDEOs);
         }
         // If city is selected but no province, filter LDs by city's province
         else if (projectDetails?.City) {
@@ -96,8 +89,6 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     (ld) => ld.ProvinceGdbId === selectedCity.ProvinceGdbId
                 ) || [];
             }
-            console.log('Filtered City:', projectDetails.City);
-            console.log('Filtered LDs:', availableLDs);
         }
         // If LD is selected but no province/city, filter cities by LD's province
         else if (projectDetails?.LegislativeDistrict) {
@@ -107,7 +98,6 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     (city) => city.ProvinceGdbId === selectedLD.ProvinceGdbId
                 ) || [];
             }
-            console.log('Filtered Cities by LD:', projectDetails.LegislativeDistrict, availableCities);
         }
         else if (projectDetails?.DEO) {
             const selectedDEO = projectEnums.DEOs?.find((deo) => deo.ParticipantId === projectDetails.DEO?.toString());
@@ -140,13 +130,11 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
         // Filter OU based on selected IO
         if(projectDetails?.ImplementingOffice) {
             const selectedIO = projectEnums.IOs?.find((io) => io.ParticipantId === projectDetails.ImplementingOffice);
-            console.log('Selected IO for OU filtering:', selectedIO);
             if (selectedIO) {
                 // Show OUs that belong to the selected IO or are Central Office (CO)
                 availableOUs = projectEnums.OperatingUnits?.filter(
                     (ou) => ou.ParticipantId === selectedIO.ParticipantId || (selectedIO.OrgType === 'UPMO' || ou.OrgType === 'CO')
                 ) || [];
-                console.log('Filtered OUs:', availableOUs);
             }
         } else {
             // If no IO selected, show all OUs
@@ -163,9 +151,6 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
     }, [projectEnums, updateFilteredData]);
 
     const handleInputChange = (field: keyof ProjectDetails, value: any) => {
-            console.log('ProjectDetailsForm - handleInputChange:', field, value, typeof value);
-            // if (disabled) return; // Prevent changes if disabled
-    
             if (field === 'Province') {
                 // When province changes, clear city and LD if they don't belong to the new province
                 const newProvince = value;
@@ -209,10 +194,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                 const selectedCity = projectEnums?.Cities?.find((city) => city.GdbId === value);
                 if (selectedCity) {
                     const selectedProvince = projectEnums?.Provinces.find(p => p.GdbId === selectedCity.ProvinceGdbId);
-                    console.log('City auto-set to ' + selectedCity.Name + ' (Province ID: ' + selectedCity.ProvinceGdbId + ')');
                     if (selectedProvince && selectedProvince.GdbId !== projectDetails?.Province) {
                         onChange('Province', selectedProvince.GdbId);
-                        console.log('Province auto-set to ' + selectedProvince.Name + ' (ID: ' + selectedProvince.Id + ')');
                     }
                     
                     // Clear LD if it doesn't belong to the same province
@@ -236,7 +219,6 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     
                     if (currentProvinceGdbId !== selectedLD.ProvinceGdbId && selectedProvince) {
                         onChange('Province', selectedProvince.GdbId);
-                        console.log('Province auto-set from LD to:', selectedProvince.Name);
                     }
                     
                     // Clear city if it doesn't belong to the same province
@@ -258,7 +240,6 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
     
                     if (currentProvinceGdbId !== selectedDEO.ProvinceGdbId && selectedProvince) {
                         onChange('Province', selectedProvince.GdbId);
-                        console.log('Province auto-set from DEO to:', selectedProvince.Name);
                     }
                     
                     // Clear city if it doesn't belong to the same province

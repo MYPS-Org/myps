@@ -75,9 +75,6 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
         Object.assign(permissions, locationRules.Fields);
       }
     }
-
-    console.log('WorkLocationTable - Field Permissions Map:', permissions);
-    console.log('WorkLocationTable - MajorItemLocationRules:', fieldRules.MajorItemLocationRules);
     return permissions;
   }, [fieldRules]);
 

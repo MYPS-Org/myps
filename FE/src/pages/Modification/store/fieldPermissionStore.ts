@@ -105,39 +105,34 @@ export const fieldPermissionsAtom = atom((get) => {
     const fieldRules = get(fieldRulesAtom);
     const currentCase = get(currentCaseAtom);
 
-    console.log('=== FIELD PERMISSIONS ATOM CALCULATION ===');
-    console.log('PCMA Status:', pcmaStatus);
-    console.log('Package Status:', packageStatus);
-    console.log('Current Case:', currentCase);
-    console.log('Field Rules from atom:', fieldRules);
+    // console.log('=== FIELD PERMISSIONS ATOM CALCULATION ===');
+    // console.log('PCMA Status:', pcmaStatus);
+    // console.log('Package Status:', packageStatus);
+    // console.log('Current Case:', currentCase);
+    // console.log('Field Rules from atom:', fieldRules);
 
     // If status not set, return null
     if (!pcmaStatus || !packageStatus) {
-        console.log('Status not set, returning null');
         return null;
     }
 
     // Collect all editable fields from API rules
     const editableFields: string[] = [];
     if (fieldRules) {
-        console.log('Processing field rules...');
-        Object.entries(fieldRules).forEach(([ruleGroup, rules]) => {
-            console.log(`Processing ${ruleGroup}:`, rules);
+        Object.entries(fieldRules).forEach(([, rules]) => {
             if (rules) {
                 // Handle both old format (Record<string, boolean>) and new format (FieldRuleSection)
                 const fields = typeof rules === 'object' && 'Fields' in rules ? rules.Fields : rules;
                 
                 Object.entries(fields).forEach(([fieldName, isEditable]) => {
-                    console.log(`  Field: ${fieldName}, Editable: ${isEditable}`);
+                    // console.log(`  Field: ${fieldName}, Editable: ${isEditable}`);
                     if (isEditable === true) {
                         editableFields.push(fieldName);
-                        console.log(`    ✓ Added ${fieldName} to editable fields`);
+                        // console.log(`    ✓ Added ${fieldName} to editable fields`);
                     }
                 });
             }
         });
-        console.log('Total editable fields collected:', editableFields.length);
-        console.log('Editable fields:', editableFields);
     } else {
         console.warn('No field rules available');
     }
@@ -151,8 +146,8 @@ export const fieldPermissionsAtom = atom((get) => {
         editableFields
     };
 
-    console.log('Final permissions object:', permissions);
-    console.log('=========================================');
+    // console.log('Final permissions object:', permissions);
+    // console.log('=========================================');
 
     return permissions;
 });
@@ -259,35 +254,35 @@ export const setStatusFromAPIAtom = atom(
 export const setFieldRulesAtom = atom(
     null,
     (_get, set, fieldRules: FieldRules) => {
-        console.log('=== SETTING FIELD RULES FROM API (ATOM) ===');
-        console.log('Field Rules received:', fieldRules);
-        console.log('Field Rules type:', typeof fieldRules);
-        console.log('Field Rules keys:', Object.keys(fieldRules || {}));
+        // console.log('=== SETTING FIELD RULES FROM API (ATOM) ===');
+        // console.log('Field Rules received:', fieldRules);
+        // console.log('Field Rules type:', typeof fieldRules);
+        // console.log('Field Rules keys:', Object.keys(fieldRules || {}));
         
         // Log each rule group
-        if (fieldRules) {
-            Object.entries(fieldRules).forEach(([group, rules]) => {
-                console.log(`${group}:`, rules);
-                if (rules) {
-                    // Handle both old format and new format
-                    const fields = typeof rules === 'object' && 'Fields' in rules ? rules.Fields : rules;
-                    const editableCount = Object.values(fields).filter(v => v === true).length;
-                    console.log(`  - ${editableCount} editable fields out of ${Object.keys(fields).length}`);
+        // if (fieldRules) {
+        //     Object.entries(fieldRules).forEach(([group, rules]) => {
+        //         console.log(`${group}:`, rules);
+        //         if (rules) {
+        //             // Handle both old format and new format
+        //             const fields = typeof rules === 'object' && 'Fields' in rules ? rules.Fields : rules;
+        //             const editableCount = Object.values(fields).filter(v => v === true).length;
+        //             console.log(`  - ${editableCount} editable fields out of ${Object.keys(fields).length}`);
                     
-                    // Log CRUD rules if present
-                    if (typeof rules === 'object' && 'CRUD' in rules) {
-                        console.log(`  - CRUD: CanAdd=${rules.CRUD.CanAdd}, CanDelete=${rules.CRUD.CanDelete}`);
-                        if (rules.CRUD.Message) {
-                            console.log(`  - Message: ${rules.CRUD.Message}`);
-                        }
-                    }
-                }
-            });
-        }
+        //             // Log CRUD rules if present
+        //             if (typeof rules === 'object' && 'CRUD' in rules) {
+        //                 console.log(`  - CRUD: CanAdd=${rules.CRUD.CanAdd}, CanDelete=${rules.CRUD.CanDelete}`);
+        //                 if (rules.CRUD.Message) {
+        //                     console.log(`  - Message: ${rules.CRUD.Message}`);
+        //                 }
+        //             }
+        //         }
+        //     });
+        // }
         
         set(fieldRulesAtom, fieldRules);
-        console.log('Field rules set to atom successfully');
-        console.log('==========================================');
+        // console.log('Field rules set to atom successfully');
+        // console.log('==========================================');
     }
 );
 

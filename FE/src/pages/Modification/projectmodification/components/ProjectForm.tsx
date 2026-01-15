@@ -78,8 +78,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  console.log('ProjectForm - Received props:', { category, reason, reasonId, categoryId, revisionGroupId });
-
   const [savingSection, setSavingSection] = useState<string | null>(null);
   const [projectEnums, setProjectEnums] = useState<ProjectEnums | null>(null);
   const [updateAllProject, setUpdateAllProject] = useState<boolean>(false);
@@ -200,51 +198,35 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     fieldRules
   } = useFieldPermissions();
 
-  // Log field permissions for debugging
-  useEffect(() => {
-    console.log('=== FIELD PERMISSIONS IN PROJECT FORM ===');
-    console.log('PCMA Status:', pcmaStatus);
-    console.log('Package Status:', packageStatus);
-    console.log('Current Case:', currentCase);
-    console.log('Permissions:', permissions);
-    console.log('Field Rules:', fieldRules);
-    if (permissions) {
-      console.log('Editable Fields Count:', permissions.editableFields?.length);
-      console.log('Editable Fields:', permissions.editableFields);
-    }
-    console.log('========================================');
-  }, [pcmaStatus, packageStatus, currentCase, permissions, fieldRules]);
-
   // #region GEOJSON DATA FOR MAP
-    // Fetch GeoJSON data for map rendering
-    useEffect(() => {
-      const loadMapData = async () => {
-        if (mode === 'edit' && initialData?.ProjectDetails?.ProjectId && initialData?.ProgramDetails?.ProgramId) {
-          try {
-            const response = await fetchProjectGeoJSON(
-              initialData.ProjectDetails.ProjectId,
-              initialData.ProgramDetails.ProgramId
-            );
-            if (response.Data) {
-              setGeoJsonData(response.Data);
-            }
-          } catch (error) {
-            console.error('Error loading map data:', error);
-            // Gracefully handle error - map will show "No data available"
+  // Fetch GeoJSON data for map rendering
+  useEffect(() => {
+    const loadMapData = async () => {
+      if (mode === 'edit' && initialData?.ProjectDetails?.ProjectId && initialData?.ProgramDetails?.ProgramId) {
+        try {
+          const response = await fetchProjectGeoJSON(
+            initialData.ProjectDetails.ProjectId,
+            initialData.ProgramDetails.ProgramId
+          );
+          if (response.Data) {
+            setGeoJsonData(response.Data);
           }
+        } catch (error) {
+          console.error('Error loading map data:', error);
+          // Gracefully handle error - map will show "No data available"
         }
-      };
-  
-      loadMapData();
-    }, [mode, initialData?.ProjectDetails?.ProjectId, initialData?.ProgramDetails?.ProgramId]);
-    // #endregion
+      }
+    };
+
+    loadMapData();
+  }, [mode, initialData?.ProjectDetails?.ProjectId, initialData?.ProgramDetails?.ProgramId]);
+  // #endregion
 
   useEffect(() => {
     // Load project enums
     const loadProjectEnums = async () => {
       try {
-        const response = await getProjectEnums();
-        console.log('Project Enums:', response.Data);
+        const response = await getProjectEnums()
         setProjectEnums(response.Data);
       } catch (error) {
         console.error('Error loading project enums:', error);
@@ -291,11 +273,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       setComponentCostsYear(initialData.ComponentCostPerYear || []);
     }
   }, [mode, initialData, setComponentCosts, setComponentCostsYear]);
-
-  useEffect(() => {
-    console.log('ComponentCosts (atom) changed:', componentCosts);
-    console.log('ComponentCostsWithYears (derived):', componentCostsWithYears);
-  }, [componentCosts, componentCostsYear]);
 
   // Major Items of Work: use Jotai atoms instead of local state ===
   const {
@@ -374,7 +351,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   };
 
   const handleProgramDetailsChange = (updatedProgramDetails: ProgramList) => {
-    console.log('Program details changed in ProjectForm:', updatedProgramDetails);
     setProgramDetails(updatedProgramDetails);
     
     // Update project details with program information
@@ -382,7 +358,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       ...prev,
       ProgramId: updatedProgramDetails.ProgramId,
     }));
-    console.log('Project details updated with ProgramId:', updatedProgramDetails.ProgramId);
   };
 
   // #region Component Costs handlers (now using atoms)
@@ -423,9 +398,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
       // add via hook method so years linkage is preserved if needed later
       addComponentCost(excComponent);
-
-      console.log('Created EXC component:', excComponent);
-      
       showToast({
         type: 'success',
         message: 'EXC component created successfully'
@@ -436,7 +408,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
   const handleExcessPromptCancel = () => {
     // User cancelled - do nothing, just close the dialog
-    console.log('User cancelled EXC component creation');
     setExcessComponentData(null);
     
     showToast({
@@ -448,8 +419,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   
   // #region Docs
   const handleAddDoc = (newDoc: ProjectSupportingDocs) => {
-    console.log('ProjectForm: Adding doc:', newDoc);
-    console.log('ProjectForm: Current docs before:', docs);
     setDocs(prev => {
       const newDocs = [...prev, newDoc];
       console.log('ProjectForm: New docs after adding:', newDocs);
@@ -545,7 +514,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     
     // If there are validation errors, don't proceed with update
     if (Object.keys(validationErrors).length > 0) {
-      console.log('Validation errors found:', validationErrors);
+      // console.log('Validation errors found:', validationErrors);
       return;
     }
 
@@ -673,12 +642,12 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           message: 'Project updated successfully.'
       });
 
-      console.log('=== PROJECT UPDATE SUCCESSFUL ===');
-      console.log('Keeping current state after successful update');
-      console.log('Current Component Costs:', componentCosts);
-      console.log('Current Component Cost Years:', componentCostsYear);
-      console.log('Current Major Items:', majorItems);
-      console.log('Current Funding Profiles:', fundingProfiles);
+      // console.log('=== PROJECT UPDATE SUCCESSFUL ===');
+      // console.log('Keeping current state after successful update');
+      // console.log('Current Component Costs:', componentCosts);
+      // console.log('Current Component Cost Years:', componentCostsYear);
+      // console.log('Current Major Items:', majorItems);
+      // console.log('Current Funding Profiles:', fundingProfiles);
 
     } catch (error) {
       showToast({

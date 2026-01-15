@@ -34,8 +34,6 @@ const NotesForm: React.FC<NotesFormProps> = ({
 
   const handleAddNote = (docs: ProjectSupportingDocs) => {
     if (disabled) return;
-    console.log('Adding new document to table:', docs);
-    console.log('Current documents before adding:', docs);
     try {
       onAdd(docs);
       setIsAddNoteModalOpen(false);
@@ -53,7 +51,6 @@ const NotesForm: React.FC<NotesFormProps> = ({
   };
 
   const handleDeleteDoc = async (doc: ProjectSupportingDocs) => {
-    console.log('Deleting document:', doc);
     try {
       const deletedDoc = await deleteDoc(doc); // Pass as array
       if (deletedDoc) {
