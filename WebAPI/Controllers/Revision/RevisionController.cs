@@ -679,7 +679,7 @@ namespace WebAPI.Controllers.Revision
                 }
                 if (jsonRules.FundingProfileRules.CRUD.CanDelete)
                 {
-                    var DeletedFundingIds = UpdateFundingProfile.Select(x => x.Id).ToList();
+                    var DeletedFundingIds = UpdateFundingProfile.Where(x => x.IsDeleted == true).Select(x => x.Id).ToList();
                     NewFundingProfile = NewFundingProfile.Where(x => !DeletedFundingIds.Contains(x.Id)).Select(x =>
                     {
                         x.Id = 0; // reset PK for insert
@@ -688,19 +688,15 @@ namespace WebAPI.Controllers.Revision
                 }
                 if (jsonRules.FundingProfileRules.CRUD.CanAdd)
                 {
-                    var NewFundingToInsert = dto.FundingProfile.Where(x => x.Id == 0);
-                    if (NewFundingToInsert.Count() > 0)
+                    NewFundingProfile.AddRange(dto.FundingProfile.Where(x => x.Id == 0).Select(x => new RevisionProjectFundingProfile
                     {
-                        NewFundingProfile.AddRange(NewFundingToInsert.Select(x => new RevisionProjectFundingProfile
-                        {
-                            TransactionId = TransactionId,
-                            ProjectId = x.ProjectId,
-                            Source = x.Source,
-                            Agreement = x.Agreement,
-                            Amount = x.Amount,
-                            Percentage = x.Percentage
-                        }));
-                    }
+                        TransactionId = TransactionId,
+                        ProjectId = x.ProjectId,
+                        Source = x.Source,
+                        Agreement = x.Agreement,
+                        Amount = x.Amount,
+                        Percentage = x.Percentage
+                    }));
                 }
                 #endregion
                 #region ComponentCosts
@@ -741,30 +737,26 @@ namespace WebAPI.Controllers.Revision
                             });
                         }
                     }
-                }
-                var NewComponentToInsert = dto.ComponentCosts.Where(x => x.Id == 0);
-                if (jsonRules.ComponentCostRules.CRUD.CanDelete)
-                {
-                    NewComponent = NewComponent.Where(x => !UpdateComponentCost.Select(a => a.Id).Contains(x.Id)).Select(x =>
+                    if (jsonRules.ComponentCostRules.CRUD.CanDelete)
                     {
-                        x.Id = 0; // reset PK for insert
-                        return x;
-                    }).ToList();
+                        NewComponent = NewComponent.Where(x => !UpdateComponentCost.Where(x => x.IsDeleted == true).Select(a => a.Id).Contains(x.Id)).Select(x =>
+                        {
+                            x.Id = 0; // reset PK for insert
+                            return x;
+                        }).ToList();
+                    }
                 }
                 if (jsonRules.ComponentCostRules.CRUD.CanAdd)
                 {
-                    if (NewComponentToInsert.Count() > 0)
+                    NewComponent.AddRange(dto.ComponentCosts.Where(x => x.Id == 0).Select(x => new DBHelper.Models.Table.RevisionProjectComponentCost
                     {
-                        NewComponent.AddRange(NewComponentToInsert.Select(x => new DBHelper.Models.Table.RevisionProjectComponentCost
-                        {
-                            TransactionId = TransactionId,
-                            ProjectId = Project.ProjectId,
-                            ComponentType = x.ComponentType,
-                            ComponentId = x.ComponentId,
-                            Description = x.Description,
-                            Amount = x.Amount,
-                        }));
-                    }
+                        TransactionId = TransactionId,
+                        ProjectId = Project.ProjectId,
+                        ComponentType = x.ComponentType,
+                        ComponentId = x.ComponentId,
+                        Description = x.Description,
+                        Amount = x.Amount,
+                    }));
                 }
                 #endregion
                 #region MajorWorkItem
@@ -796,60 +788,57 @@ namespace WebAPI.Controllers.Revision
                             Locations.ForEach(x => x.ParentId = UpdateMajorWorkItem.ReferenceId);
                         }
                     }
-                }
-                if (jsonRules.MajorItemOfWorkRules.CRUD.CanDelete)
-                {
-                    var DeletedMajorItems = NewMajorWorkItem.Where(x => !UpdateMajorItemOfWorks.Select(a => a.Id).Contains(x.Id)).Select(x =>
+                    if (jsonRules.MajorItemOfWorkRules.CRUD.CanDelete)
                     {
-                        x.Id = 0; // reset PK for insert
-                        return x;
-                    }).ToList();
-                    if (DeletedMajorItems.Count > 0)
-                    {
-                        NewMajorWorkItem = DeletedMajorItems;
-                        var DeletedMajorItemReferenceIds = DeletedMajorItems.Select(x => x.ReferenceId).ToList();
-                        NewMajorWorkLocations = NewMajorWorkLocations.Where(x => !DeletedMajorItemReferenceIds.Contains(x.ParentId)).Select(x =>
+                        var DeletedMajorItems = NewMajorWorkItem.Where(x => !UpdateMajorItemOfWorks.Select(a => a.Id).Contains(x.Id)).Select(x =>
                         {
                             x.Id = 0; // reset PK for insert
                             return x;
                         }).ToList();
-                        NewMajorWorkLocations.AddRange(MajorWorkLocations.Where(x => !DeletedMajorItemReferenceIds.Contains(x.ParentId)).Select(x => new RevisionProjectMajorWorkLocations
+                        if (DeletedMajorItems.Count > 0)
                         {
-                            TransactionId = TransactionId,
-                            ParentId = x.ParentId,
-                            InfraId = x.InfraId,
-                            DetailedScope = x.DetailedScope,
-                            TargetUnitId = x.TargetUnitId,
-                            TargetUnit = x.TargetUnit,
-                            StartX = x.StartX,
-                            StartY = x.StartY,
-                            EndX = x.EndX,
-                            EndY = x.EndY,
-                            PhysicalTarget = x.PhysicalTarget,
-                            StartStationLimit = x.StartStationLimit,
-                            EndStationLimit = x.EndStationLimit,
-                            EndChainage = x.EndChainage,
-                            StartChainage = x.StartChainage
-                        }));
+                            NewMajorWorkItem = DeletedMajorItems;
+                            var DeletedMajorItemReferenceIds = DeletedMajorItems.Select(x => x.ReferenceId).ToList();
+                            NewMajorWorkLocations = NewMajorWorkLocations.Where(x => !DeletedMajorItemReferenceIds.Contains(x.ParentId)).Select(x =>
+                            {
+                                x.Id = 0; // reset PK for insert
+                                return x;
+                            }).ToList();
+                            NewMajorWorkLocations.AddRange(MajorWorkLocations.Where(x => !DeletedMajorItemReferenceIds.Contains(x.ParentId)).Select(x => new RevisionProjectMajorWorkLocations
+                            {
+                                TransactionId = TransactionId,
+                                ParentId = x.ParentId,
+                                InfraId = x.InfraId,
+                                DetailedScope = x.DetailedScope,
+                                TargetUnitId = x.TargetUnitId,
+                                TargetUnit = x.TargetUnit,
+                                StartX = x.StartX,
+                                StartY = x.StartY,
+                                EndX = x.EndX,
+                                EndY = x.EndY,
+                                PhysicalTarget = x.PhysicalTarget,
+                                StartStationLimit = x.StartStationLimit,
+                                EndStationLimit = x.EndStationLimit,
+                                EndChainage = x.EndChainage,
+                                StartChainage = x.StartChainage
+                            }));
+                        }
                     }
                 }
                 var NewMajorItemOfWorksToInsert = dto.MajorItemOfWorks.Where(x => x.Id == 0);
                 if (jsonRules.MajorItemOfWorkRules.CRUD.CanAdd)
                 {
-                    if (NewMajorItemOfWorksToInsert.Count() > 0)
+                    NewMajorWorkItem.AddRange(dto.MajorItemOfWorks.Where(x => x.Id == 0).Select(x => new RevisionProjectMajorWorkItem
                     {
-                        NewMajorWorkItem.AddRange(NewMajorItemOfWorksToInsert.Select(x => new RevisionProjectMajorWorkItem
-                        {
-                            Id = x.Id,
-                            TransactionId = TransactionId,
-                            ProjectId = x.ProjectId,
-                            ReferenceId = x.ReferenceId,
-                            ComponentId = x.ComponentId,
-                            YearOfWork = x.YearOfWork,
-                            WorkTypeId = x.WorkTypeId,
-                            InfraType = x.InfraType,
-                        }));
-                    }
+                        Id = x.Id,
+                        TransactionId = TransactionId,
+                        ProjectId = x.ProjectId,
+                        ReferenceId = x.ReferenceId,
+                        ComponentId = x.ComponentId,
+                        YearOfWork = x.YearOfWork,
+                        WorkTypeId = x.WorkTypeId,
+                        InfraType = x.InfraType,
+                    }));
                 }
                 #endregion
                 #region MajorWorkLocations
@@ -895,7 +884,7 @@ namespace WebAPI.Controllers.Revision
                 }
                 if (jsonRules.MajorItemLocationRules.CRUD.CanDelete)
                 {
-                    NewMajorWorkLocations = NewMajorWorkLocations.Where(x => !UpdateMajorWorkLocations.Select(a => a.Id).Contains(x.Id)).Select(x =>
+                    NewMajorWorkLocations = NewMajorWorkLocations.Where(x => !UpdateMajorWorkLocations.Where(x => x.IsDeleted == true).Select(a => a.Id).Contains(x.Id)).Select(x =>
                     {
                         x.Id = 0; // reset PK for insert
                         return x;
@@ -1982,9 +1971,6 @@ namespace WebAPI.Controllers.Revision
                 }
                 #endregion
                 #region MajorWorkItem
-                var MajorItemIds = dto.MajorItemOfWorks.Where(x => x.Id != 0).Select(x => x.Id);
-                var MajorWorkItem = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && MajorItemIds.Contains(x.Id)).ToListAsync();
-                var MajorWorkLocations = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => MajorWorkItem.Select(c => c.ReferenceId).Contains(x.ParentId)).ToListAsync();
                 var MajorWorkItemRules = jsonRules.MajorItemOfWorkRules.Fields.GetType()
                 .GetProperties()
                 .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
@@ -1992,20 +1978,33 @@ namespace WebAPI.Controllers.Revision
                 .Select(p => p.Name)
                 .ToList();
                 var UpdateMajorItemOfWorks = dto.MajorItemOfWorks.Where(x => x.Id != 0);
-                if (MajorWorkItem.Count > 0)
+                if (ExistingMajorWorkItem.Count > 0)
                 {
                     foreach (var item in UpdateMajorItemOfWorks)
                     {
-                        var UpdateMajorWorkItem = MajorWorkItem.FirstOrDefault(x => x.Id == item.Id);
+                        var UpdateMajorWorkItem = ExistingMajorWorkItem.FirstOrDefault(x => x.Id == item.Id);
                         if (UpdateMajorWorkItem != null)
                         {
                             if (MajorWorkItemRules.Count > 0)
                             {
                                 UpdateMajorWorkItem = MajorWorkItemRules.UpdateRevisionData(item, UpdateMajorWorkItem);
                             }
+                            var OldSelectedComponent = new DBHelper.Models.Table.RevisionProjectMajorWorkItem
+                            {
+                                Id = SelectedComponent.Id,
+                                TransactionId = SelectedComponent.TransactionId,
+                                ProjectId = SelectedComponent.ProjectId,
+                                ComponentType = SelectedComponent.ComponentType,
+                                ComponentId = SelectedComponent.ComponentId,
+                                Description = SelectedComponent.Description,
+                                Amount = SelectedComponent.Amount,
+                                StartDate = SelectedComponent.StartDate,
+                                EndDate = SelectedComponent.EndDate,
+                                IsDeleted = SelectedComponent.IsDeleted
+                            };
                             UpdateMajorWorkItem.RevisedNumber = Project.RevisedNumber;
                             UpdateMajorWorkItem.Id = 0;
-                            var Locations = MajorWorkLocations.Where(x => x.ParentId == UpdateMajorWorkItem.ReferenceId).ToList();
+                            var Locations = ExistingMajorWorkLocations.Where(x => x.ParentId == UpdateMajorWorkItem.ReferenceId).ToList();
                             UpdateMajorWorkItem.ReferenceId = UpdateMajorWorkItem.ProjectId + "-" + ("tCountSequence").GenerateCode();
                             Locations.ForEach(x => x.ParentId = UpdateMajorWorkItem.ReferenceId);
                         }
@@ -2029,7 +2028,7 @@ namespace WebAPI.Controllers.Revision
                         }).ToList();
                         NewMajorWorkLocations.AddRange(MajorWorkLocations.Where(x => !DeletedMajorItemReferenceIds.Contains(x.ParentId)).Select(x => new RevisionProjectMajorWorkLocations
                         {
-                            TransactionId = TransactionId,
+                            TransactionId = dto.TransactionId,
                             ParentId = x.ParentId,
                             InfraId = x.InfraId,
                             DetailedScope = x.DetailedScope,
@@ -2055,7 +2054,7 @@ namespace WebAPI.Controllers.Revision
                         NewMajorWorkItem.AddRange(NewMajorItemOfWorksToInsert.Select(x => new RevisionProjectMajorWorkItem
                         {
                             Id = x.Id,
-                            TransactionId = TransactionId,
+                            TransactionId = dto.TransactionId,
                             ProjectId = x.ProjectId,
                             ReferenceId = x.ReferenceId,
                             ComponentId = x.ComponentId,
@@ -2088,7 +2087,7 @@ namespace WebAPI.Controllers.Revision
                             NewMajorWorkLocations.Add(new RevisionProjectMajorWorkLocations
                             {
                                 Id = UpdateMajorWorkLocation.Id,
-                                TransactionId = TransactionId,
+                                TransactionId = dto.TransactionId,
                                 ParentId = UpdateMajorWorkLocation.ParentId,
                                 InfraId = UpdateMajorWorkLocation.InfraId,
                                 DetailedScope = UpdateMajorWorkLocation.DetailedScope,
@@ -2122,7 +2121,7 @@ namespace WebAPI.Controllers.Revision
                     {
                         NewMajorWorkLocations.AddRange(NewMajorWorkLocationsToInsert.Select(x => new RevisionProjectMajorWorkLocations
                         {
-                            TransactionId = TransactionId,
+                            TransactionId = dto.TransactionId,
                             ParentId = x.ParentId,
                             InfraId = x.InfraId,
                             DetailedScope = x.DetailedScope,
@@ -2152,7 +2151,7 @@ namespace WebAPI.Controllers.Revision
                 bool isCOUser = _Session.UserGroups.Contains("AUC");
                 await _db.tRevisionDetails.AddAsync(new RevisionDetails
                 {
-                    TransactionId = TransactionId,
+                    TransactionId = dto.TransactionId,
                     RevisionGroupId = RevisionCategory.RevisionGroupId,
                     CategoryId = dto.RevisionDetails.CategoryId,
                     ReasonId = RevisionRules.ReasonId,
@@ -2166,7 +2165,7 @@ namespace WebAPI.Controllers.Revision
                     CreatedBy = _Session.UserId,
                     CreatedDate = CurrentDate
                 });
-                string DocumentName = $"{TransactionId}_{DocumentNaming.SecondSegmentName}_{CurrentDate.ToString("MM-dd-yyyy")}.{dto.RevisionDetails.ApprovedDocument.Extension}";
+                string DocumentName = $"{dto.TransactionId}_{DocumentNaming.SecondSegmentName}_{CurrentDate.ToString("MM-dd-yyyy")}.{dto.RevisionDetails.ApprovedDocument.Extension}";
                 string FilePath = Path.Combine(Appsetting.Resources.Revision.ImplementingOffice, DocumentName);
                 string ResourcePath = Path.Combine(Directory.GetCurrentDirectory(), FilePath);
                 if (!dto.RevisionDetails.ApprovedDocument.UploadFile(ResourcePath))
@@ -2175,7 +2174,7 @@ namespace WebAPI.Controllers.Revision
                 }
                 await _db.tRevisionDocuments.AddAsync(new RevisionDocuments
                 {
-                    TransactionId = TransactionId,
+                    TransactionId = dto.TransactionId,
                     DocumentPath = FilePath,
                     DocumentName = DocumentName,
                     IsApprovedDocument = false
@@ -2187,7 +2186,7 @@ namespace WebAPI.Controllers.Revision
                     {
                         Message = "Revision request submitted successfully.",
                         Title = "Success",
-                        TransactionId = TransactionId
+                        TransactionId = dto.TransactionId
                     }
                 );
             }
