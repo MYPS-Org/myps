@@ -234,6 +234,7 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
                   <button
                     onClick={() => onDelete(index)}
                     className="text-red-600 hover:text-red-800"
+                    disabled={disabled}
                   >
                     <TrashIcon className="w-4 h-4" />
                   </button>

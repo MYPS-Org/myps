@@ -535,16 +535,17 @@ const Program: React.FC = () => {
             {selectedProgram && (
                 <DeleteProgramDialog
                     isOpen={isDeleteProgramOpen}
-                    onClose={() => setIsDeleteProgramOpen(false)}
-                    program={ProgramData.lists?.find((program: any) => program.ProgramId === selectedProgram) as any} // Cast to match expected type
-                    onSubmit={(programId: any) => {
-                        setProgramData(prev => ({
-                            ...prev,
-                            lists: prev.lists.filter(program => program.ProgramId !== programId),
-                            total: prev.total - 1
-                        }));
+                    onClose={() => {
+                        setIsDeleteProgramOpen(false);
+                        setSelectedProgram(null);
                     }}
-            />
+                    program={ProgramData.lists?.find((program: any) => program.ProgramId === selectedProgram) as any}
+                    onDeleteSuccess={async () => {
+                        // Refresh program list after deletion
+                        const response = await fetchProgram(ProgramFilters);
+                        setProgramData(response.Data);
+                    }}
+                />
             )}
         </div>
     );

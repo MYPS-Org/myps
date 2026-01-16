@@ -8,11 +8,11 @@ import { deleteProgram } from '../Service';
 interface DeleteProgramDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (programId: any) => void;
   program: ProgramList;
+  onDeleteSuccess?: () => void;
 }
 
-const DeleteProgramDialog: React.FC<DeleteProgramDialogProps> = ({ isOpen, onClose, onSubmit, program }) => {
+const DeleteProgramDialog: React.FC<DeleteProgramDialogProps> = ({ isOpen, onClose, program, onDeleteSuccess }) => {
   const [confirmText, setConfirmText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -23,7 +23,7 @@ const DeleteProgramDialog: React.FC<DeleteProgramDialogProps> = ({ isOpen, onClo
       return;
     }
 
-    if (!program.ProgramId) {
+    if (!program?.ProgramId) {
       console.error('Program ID is undefined');
       return;
     }
@@ -31,11 +31,17 @@ const DeleteProgramDialog: React.FC<DeleteProgramDialogProps> = ({ isOpen, onClo
     setIsDeleting(true);
     try {
       await deleteProgram(program);
-      onSubmit(program.ProgramId); // Call the onSubmit prop with the program ID
+      
+      // Call refresh callback before closing
+      if (onDeleteSuccess) {
+        await onDeleteSuccess();
+      }
+      
+      // Close dialog after successful deletion and refresh
       handleClose();
     } catch (error) {
       console.error('Error deleting program:', error);
-    } finally {
+      // Keep dialog open on error so user can retry
       setIsDeleting(false);
     }
   };
@@ -138,7 +144,7 @@ const DeleteProgramDialog: React.FC<DeleteProgramDialogProps> = ({ isOpen, onClo
                 disabled={confirmText.toLowerCase() !== 'delete' || isDeleting}
                 className="disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isDeleting ? 'Deleting...' : 'Delete Group'}
+                {isDeleting ? 'Deleting...' : 'Delete Program'}
               </Button>
             </div>
           </form>

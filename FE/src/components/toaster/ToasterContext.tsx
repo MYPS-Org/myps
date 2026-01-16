@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, type ReactNode } from "react";
-import { Toaster } from "./Toaster";
+import { Toaster } from "./toaster";
 
 type ToastType = "success" | "error" | "info" | "warning";
 
