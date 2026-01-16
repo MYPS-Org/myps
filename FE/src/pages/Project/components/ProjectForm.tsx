@@ -38,6 +38,7 @@ import { useToast } from '../../../components/toaster/ToasterContext';
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/react';
 
 import RevisionDialog from '../dialogs/RevisionDialog';
+import SaveProjectConfirmDialog from '../dialogs/SaveProjectConfirmDialog';
 
 interface ProjectFormProps {
   initialData?: ProjectFormPayload;
@@ -74,6 +75,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   // Dialog state
   const [ isRevisionOpen, setIsRevisionOpen ] = useState<boolean>(false);
   const [ selectedRevHeaderId, setSelectedRevHeaderId ] = useState<number>(0);
+  const [ isConfirmDialogOpen, setIsConfirmDialogOpen ] = useState<boolean>(false);
 
   
   // SetMaxAmount in ComponentCostForm
@@ -552,6 +554,12 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       return;
     }
     
+    // Show confirmation dialog
+    setIsConfirmDialogOpen(true);
+  };
+
+  // Actual save logic after confirmation
+  const confirmSaveProject = async () => {
     setSavingSection('projectDetails');
     try {
       console.log('Adding new project details:', projectDetails);
@@ -572,6 +580,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           type: 'error',
           message: 'Failed to add project details.'
       });
+      throw error;
     } finally {
       setSavingSection(null);
     }
@@ -625,6 +634,12 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       return;
     }
     
+    // Show confirmation dialog
+    setIsConfirmDialogOpen(true);
+  };
+
+  // Actual update logic after confirmation
+  const confirmUpdateProject = async () => {
     setUpdateAllProject(true);
     
     try {
@@ -1053,6 +1068,15 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         revHeaders={Dropdowns?.Revisions?.Headers}
         categories={Dropdowns?.Revisions?.Categories}
         reasons={Dropdowns?.Revisions?.Reasons}
+      />
+
+      {/* Save/Update Confirmation Dialog */}
+      <SaveProjectConfirmDialog
+        isOpen={isConfirmDialogOpen}
+        onClose={() => setIsConfirmDialogOpen(false)}
+        onConfirm={mode === 'add' ? confirmSaveProject : confirmUpdateProject}
+        mode={mode}
+        projectName={projectDetails.ProjectId || 'Untitled Project'}
       />
 
     </div>
