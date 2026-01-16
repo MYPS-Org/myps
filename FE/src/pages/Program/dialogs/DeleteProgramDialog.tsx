@@ -4,6 +4,7 @@ import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import type { ProgramList } from '../Model';
 import { deleteProgram } from '../Service';
+import { useToast } from '../../../components/toaster/ToasterContext';
 
 interface DeleteProgramDialogProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ interface DeleteProgramDialogProps {
 const DeleteProgramDialog: React.FC<DeleteProgramDialogProps> = ({ isOpen, onClose, program, onDeleteSuccess }) => {
   const [confirmText, setConfirmText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+  const { showToast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,6 +37,10 @@ const DeleteProgramDialog: React.FC<DeleteProgramDialogProps> = ({ isOpen, onClo
       // Call refresh callback before closing
       if (onDeleteSuccess) {
         await onDeleteSuccess();
+        showToast({
+          type: 'success',
+          message: 'Program deleted successfully.',
+        })
       }
       
       // Close dialog after successful deletion and refresh
