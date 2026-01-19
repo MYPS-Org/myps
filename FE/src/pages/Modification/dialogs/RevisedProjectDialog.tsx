@@ -141,6 +141,11 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
 
         setIsSubmitting(true);
 
+        const isImplementingOffice = user?.UserGroups === 'DPC' || user?.UserGroups === 'RPC';
+        const isAuc = user?.UserGroups === 'AUC';
+
+        const shouldCreateNewRevision = isImplementingOffice || (isAuc && !transactionId);
+
         try {
             // Prepare the payload
             const payload = {
@@ -167,11 +172,9 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
 
             console.log('Submitting modification request with payload:', payload);
 
-            let response;
-            //adjust this later
-            if (user?.UserGroups === 'DPC') {
+            if (shouldCreateNewRevision) {
                 // Implementing Office: Submit new modification request
-                response = await submitModificationRequest(payload);
+                await submitModificationRequest(payload);
                 
                 showToast({
                     type: 'success',
@@ -188,12 +191,14 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
                 // navigate('/revision/view/' + (response?.Data?.TransactionId || ''));
                 navigate('/revision');
             } else {
-                // Non-Implementing Office: Approve existing revision
-                // console.log('=== Calling updateRevisionRequestStatus ===');
-                // console.log('transactionId:', transactionId);
-                // console.log('approvalDate:', approvalDate);
-                // console.log('approvalDocument:', approvalDocument);
-                
+                // AUC approving an existing revision
+                if (!transactionId) {
+                    showToast({
+                        type: 'error',
+                        message: 'Transaction ID is missing for approving the revision.'
+                    });
+                    return;
+                }
                 await updateRevisionRequestStatus(
                     transactionId, 
                     1,
