@@ -27,6 +27,7 @@ namespace DBHelper.Models.Table
         public Double Amount { get; set; }
         [Required]
         public Double Percentage { get; set; }
+        [Required]
         public bool IsDeleted { get; set; } = false;
     }
 }

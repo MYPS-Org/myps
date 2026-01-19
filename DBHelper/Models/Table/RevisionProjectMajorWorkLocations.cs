@@ -37,6 +37,7 @@ namespace DBHelper.Models.Table
         public string? EndStationLimit { get; set; }
         public Double? EndChainage { get; set; }
         public Double? StartChainage { get; set; }
+        [Required]
         public bool IsDeleted { get; set; } = false;
     }
 }

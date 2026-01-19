@@ -38,6 +38,7 @@ namespace DBHelper.Models.Table
         [MaxLength(100)]
         public string? UpdatedBy { get; set; }
         public DateTime? UpdatedDate { get; set; }
+        [Required]
         public bool IsDeleted { get; set; } = false;
     }
 }

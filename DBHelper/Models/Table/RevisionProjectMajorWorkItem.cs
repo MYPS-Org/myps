@@ -30,6 +30,7 @@ namespace DBHelper.Models.Table
         [Required]
         [MaxLength(50)]
         public string InfraType { get; set; } = string.Empty;
+        [Required]
         public bool IsDeleted { get; set; } = false;
     }
 }
