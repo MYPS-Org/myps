@@ -22,7 +22,7 @@ namespace WebAPI.Controllers.MockUps
         {
             try
             {
-                var checifExists = await _db.tProgramStages.FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId && x.StageName == "GAA");
+                var checifExists = await _db.tProgramStages.FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId && x.StageName == "GAA-R");
                 if (checifExists == null)
                 {
                     return new BadRequestObjectResult(

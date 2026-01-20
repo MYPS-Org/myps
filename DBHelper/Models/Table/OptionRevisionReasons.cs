@@ -19,6 +19,7 @@ namespace DBHelper.Models.Table
         public int RevisionGroupId { get; set; }
         [Required]
         public int ReasonId { get; set; }
-        public int? CategoryId { get; set; }
+        public int?[] CategoryId { get; set; } = Array.Empty<int?>();
+        public bool IsDeleted { get; set; } = false;
     }
 }

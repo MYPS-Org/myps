@@ -341,6 +341,11 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = "Expected Parametes missing!", Title = "Parameter Error" });
                 }
+                var NotAllowed = await _db.vProgramDetails.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId && x.StageName != "BP");
+                if (NotAllowed != null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Program {dto.ProgramId} cannot be deleted because it has progressed beyond the BP stage.", Title = "Delete Not Allowed" });
+                }
                 var program = await _db.tPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
                 if (program == null)
                 {
@@ -351,6 +356,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Program Stage with Revision ID '{dto.RevisionId}' does not exist in the Program Stages table. Please contact administrator!", Title = "Stage not found" });
                 }
+                
                 int[] AllowedStages =
                 {
                     (int)EnumProgramStage.RBP,
