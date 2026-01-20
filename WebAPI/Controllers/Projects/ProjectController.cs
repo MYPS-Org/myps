@@ -200,6 +200,16 @@ namespace WebAPI.Controllers.Projects
             try
             {
                 DateTime CurrentDate = DateTime.UtcNow;
+                #region Field Validation
+                if (dto.Feasibility == 0)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Feasibility is required!", Title = "Invalid Feasibility" });
+                }
+                if (dto.ImplementationMode == 0)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Implementation Mode is required!", Title = "Invalid Implementation Mode" });
+                }
+                #endregion
                 var Program = await _db.vPrograms.FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
                 if (Program == null)
                 {
@@ -775,6 +785,10 @@ namespace WebAPI.Controllers.Projects
                     });
                     Project.Agency = dto.ProjectDetails!.Agency;
                 }
+                if(dto.ProjectDetails!.ImplementationMode == null || dto.ProjectDetails!.ImplementationMode == 0)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Implementation Mode is required!", Title = "Implementation Mode Required" });
+                }
                 if (Project.ImplementationMode != dto.ProjectDetails?.ImplementationMode)
                 {
                     var ImplementationMode = await _db.tProjectImplementModeEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.ImplementationMode);
@@ -818,6 +832,10 @@ namespace WebAPI.Controllers.Projects
                         CreatedDate = CurrentDate
                     });
                     Project.EmergencyMode = dto.ProjectDetails!.EmergencyMode;
+                }
+                if (dto.ProjectDetails!.Feasibility == null || dto.ProjectDetails!.Feasibility == 0)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Feasibility is required!", Title = "Feasibility Required" });
                 }
                 if (Project.Feasibility != dto.ProjectDetails?.Feasibility)
                 {
@@ -1880,9 +1898,13 @@ namespace WebAPI.Controllers.Projects
                     return new BadRequestObjectResult(new { Message = "No file uploaded!", Title = "File Upload Error" });
                 }
                 string FilePath = Path.Combine(Appsetting.Resources.SupportingDocs, Project.ProjectId!, dto.File.Name);
-                if (!dto.File.UploadFile(FilePath))
+                if (!dto.File.ValidateFileSize(50))
                 {
-                    return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted!", Title = "File Corrupted" });
+                    return new BadRequestObjectResult(new { Message = "Uploaded file exceeds the maximum allowed size of 50 MB!", Title = "File Size Exceeded" });
+                }
+                if (dto.File.IsPdfCorrupted())
+                {
+                    return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted or not valid!", Title = "File Corrupted" });
                 }
                 var type = dto.DocumentType.Split(":");
                 string docType = type[0];
