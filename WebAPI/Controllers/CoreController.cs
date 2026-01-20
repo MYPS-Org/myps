@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using System.Collections.Concurrent;
 using System.Diagnostics;
@@ -78,10 +79,21 @@ namespace WebAPI.Controllers
             Guid errorReferenceId = Guid.NewGuid();
             try
             {
-                string message = $"\n\n/========================= MYPS ERROR EVENT STARTS HERE =========================/" +
-                    $"\n\n[{errorReferenceId}] \n\nMessage: {ex.Message}\n\nStackRace:{ex.StackTrace}\n\n" +
-                    $"/========================= MYPS ERROR EVENT ENDS HERE =========================/\n\n";
-                EventLog.WriteEntry("Application", message, EventLogEntryType.Error);
+                string Header = "\n\n/========================= MYPS ERROR EVENT STARTS HERE =========================/\n\n";
+                string Body = $"[{errorReferenceId}]\n\nException: [[EXCEPTION]]\n\n";
+                string Footer = "/========================= MYPS ERROR EVENT ENDS HERE =========================/\n\n";
+                if (ex is DbUpdateException dbEx)
+                {
+                    Body.Replace("[[EXCEPTION]]", dbEx.ToString());
+                }
+                else
+                {
+                    Body.Replace("[[EXCEPTION]]", ex.ToString());
+                }
+                
+                string Message = Header + Body + Footer;
+
+                EventLog.WriteEntry("Application", Message, EventLogEntryType.Error);
                 string ErrorId = errorReferenceId.ToString();
                 return new BadRequestObjectResult(
                     new

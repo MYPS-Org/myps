@@ -1179,16 +1179,10 @@ namespace WebAPI.Controllers.Revision
                     }
                 );
             }
-            catch (DbUpdateException ex)
+            catch (Exception ex)
             {
-                var sqlEx = ex.GetBaseException(); // usually SqlException
-                return BadRequest(new
-                {
-                    Message = "Save failed",
-                    Error = sqlEx.Message,
-                    Details = ex.InnerException?.Message,
-                    Stack = ex.StackTrace
-                });
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
             }
         }
         [AllowAnonymous]

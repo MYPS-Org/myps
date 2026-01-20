@@ -308,7 +308,7 @@ namespace WebAPI.Controllers.Programs
                 var AvailableStatuses = await _db.tProgramStatusEnum.AsNoTracking().ToListAsync();
                 var AvailableGroups = await _db.tGroups.AsNoTracking().ToListAsync();
                 string[] includes = { "C", "R", "PMO", "PMOC", "B" };
-                var Security = await _db.tProjectImplementingOfficeEnum.AsNoTracking().Where(x => includes.Contains(x.OrgType)).ToListAsync();
+                var Security = await _db.vAdminImplementingOffice.AsNoTracking().Where(x => includes.Contains(x.OrgType)).ToListAsync();
                 var response = new
                 {
                     IsActive = (CurrentProgramVersion.StageName == program.StageName) ? true : false,
