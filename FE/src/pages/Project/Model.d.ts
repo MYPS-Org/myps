@@ -379,9 +379,10 @@ export interface FundingProfile {
 
 // #region Additional interfaces for dropdowns and enums
 export interface Dropdowns {
+	// Programs: ProgramList[];
 	Categories: CategoryEnum[];
 	Thrusts: ThrustEnum[];
-	Origins: OriginEnum[];
+	Origins: TableEnum[];
 	Cities: CityEnum[];
 	ComponentTypes: ComponentTypeEnum[];
 	LDs: LDEnum[];
@@ -389,9 +390,9 @@ export interface Dropdowns {
 	IOs: IOEnum[];
 	DEOs: RODEOEnum[];
 	Agencies: AgencyEnum[];
-	ImplementationModes: ImplementationModeEnum[];
-	EmergencyModes: EmergencyModeEnum[];
-	Feasibility: FeasibEnum[];
+	ImplementationModes: TableEnum[];
+	EmergencyModes: TableEnum[];
+	Feasibility: TableEnum[];
 	// Funding Profile
 	Agreements: AgreementEnum[];
 	Sources: SourceEnum[];
@@ -409,16 +410,16 @@ export interface DropdownSupportingDocs {
 	ValidUntil: number;
 }
 export interface ComponentTypeEnum {
-	Description: string;
-	Enum: number;
-	ExportToPCMA: string;
 	Id: number;
-	Name: string;
+	ComponentId?: string;
+	ComponentName?: string;
+	ExportToPCMA: boolean;
+	IsDeleted: boolean;
 }
 export interface CategoryEnum {
 	Id: number;
-	Enum: number;
-	Name: string;
+	CategoryId?: string;
+	CategoryName?: string;
 	Minimum: number;
 	Maximum: number;
 	ValidUntil: number;
@@ -435,11 +436,11 @@ export interface ThrustEnum {
 	InfrastructureType?: string;
 	ThrustDescription: string;
 }
-export interface OriginEnum {
+export interface TableEnum {
 	Id: number;
-	Enum: number;
+	NameId: number;
 	Name: string;
-	Description: string;
+	Description?: string;
 }
 export interface CityEnum {
 	Id: number;
@@ -472,22 +473,10 @@ export interface RODEOEnum {
 	RegionParticipantId: string;
 	RegionName: string;
 }
-export interface FeasibEnum {
-	Id: number;
-	Enum: number;
-	Name: string;
-	Description: string;
-}
 export interface AgencyEnum {
 	Id: number;
 	Code: string;
 	AgencyName: string;
-}
-export interface ImplementationModeEnum {
-	Id: number;
-	Enum: number;
-	Name: string;
-	Description: string;
 }
 export interface EmergencyModeEnum {
 	Id: number;
@@ -523,7 +512,7 @@ export interface ProjectEnums {
   Programs: ProgramList[];
   Categories: CategoryEnum[];
   Thrusts: ProjectThurstEnum[];
-  Origins: ProjectOriginEnum[];
+  Origins: TableEnum[];
   Cities: ProjectCityEnum[];
   Provinces: ProjectProvinceEnum[];
   LDs: ProjectLegislativeDistrictEnum[];
@@ -531,17 +520,10 @@ export interface ProjectEnums {
   IOs: ProjectImplementingOfficeEnum[];
   DEOs: ProjectRODEOEnum[];
   Agencies: ProjectAgencyLists[];
-  ImplementationModes: ProjectImplementModeEnum[];
-  EmergencyModes: ProjectEmergencyModeEnum[];
-  Feasibility: ProjectLongFeasibilityEnum[];
-  RegionWide: ProjectCategoryEnum[];
-}
-
-export interface ProjectCategoryEnum {
-	Id: number;
-	Enum: number;
-	Name: string;
-	Description: string;
+  ImplementationModes: TableEnum[];
+  EmergencyModes: TableEnum[];
+  Feasibility: TableEnum[];
+  RegionWide: TableEnum[];
 }
 
 export interface ProjectThurstEnum {
@@ -555,13 +537,6 @@ export interface ProjectThurstEnum {
 	ValidToDate: number;
 	InfrastructureType?: string;
 	ThrustDescription: string;
-}
-
-export interface ProjectOriginEnum {
-	Id: number;
-	Enum: number;
-	Name: string;
-	Description: string;
 }
 
 export interface ProjectCityEnum {
@@ -630,27 +605,6 @@ export interface ProjectAgencyLists {
 	Id: number;
 	Code: string;
 	AgencyName: string;
-}
-
-export interface ProjectImplementModeEnum {
-	Id: number;
-	Enum: number;
-	Name: string;
-	Description: string;
-}
-
-export interface ProjectEmergencyModeEnum {
-	Id: number;
-	Enum: boolean;
-	Name: string;
-	Description: string;
-}
-
-export interface ProjectLongFeasibilityEnum {
-	Id: number;
-	Enum: number;
-	Name: string;
-	Description: string;
 }
 
 // #region Project Revisions

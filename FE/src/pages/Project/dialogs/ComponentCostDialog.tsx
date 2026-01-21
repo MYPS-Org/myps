@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogTitle, DialogPanel } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
-import type { ComponentCost, ComponentCostYear, ComponentCostWithYears } from '../Model';
+import type { ComponentCost, ComponentCostYear, ComponentCostWithYears, ComponentTypeEnum } from '../Model';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { handleCurrencyBlur, handleCurrencyChange } from '../../../utils/GlobalFunctions';
 
@@ -11,7 +11,7 @@ interface ComponentCostDialogProps {
   onSave: (cost: ComponentCost, costYear?: ComponentCostYear) => void; // Added costYear parameter
   editingCost?: ComponentCostWithYears;
   mode: 'add' | 'edit';
-  componentTypes: any[];
+  componentTypes: ComponentTypeEnum[];
   componentCosts: ComponentCost[];
   ProjectId: string;
   maxAmountCost?: number;
@@ -136,13 +136,13 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
 
   const [newComponentId, setNewComponentId] = useState('');
   const handleChangeComponentId = (value: string) => {
-    const selectedComponent = componentTypes.find(type => type.Description === value);
+    const selectedComponent = componentTypes.find(type => type.ComponentName === value);
     
     if (!selectedComponent) {
       return;
     }
 
-    let generatedId = selectedComponent.Name;
+    let generatedId = selectedComponent.ComponentId || '';
     
     // Only add number increment if the component type is "Civil Works"
     if (value.toLowerCase() === 'civil works') {
@@ -151,7 +151,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
       const matchingCount = componentCosts.filter(item => item.ComponentType === value).length;
       
       // Create the new ID: "DR-1", "DR-2", etc.
-      generatedId = `${selectedComponent.Name}${matchingCount + 1}`;
+      generatedId = `${selectedComponent.ComponentId}${matchingCount + 1}`;
     }
 
     setNewComponentId(generatedId)
@@ -275,9 +275,9 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                         required
                     >   
                     <option value="">Select Component Type</option>
-                        {componentTypes?.map((type: any) => (
-                            <option key={type.Id} value={type.description}>
-                                {type.Description}
+                        {componentTypes?.map((type: ComponentTypeEnum) => (
+                            <option key={type.Id} value={type.ComponentName}>
+                                {type.ComponentName}
                             </option>
                         ))}
                     </select>

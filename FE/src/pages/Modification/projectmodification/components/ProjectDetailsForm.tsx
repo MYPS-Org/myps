@@ -411,8 +411,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                         <SearchableDropdown
                                             options={formatDropdownOptions(
                                                 projectEnums?.Categories?.filter(x => x.ValidUntil === 0 || x.ValidUntil > new Date().getFullYear()) || [], 
-                                                'Enum', 
-                                                'Name', 
+                                                'CategoryId', 
+                                                'CategoryName', 
                                                 'Id'
                                             )}
                                             value={projectDetails?.Category || ''}
@@ -783,7 +783,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     >
                                         <option value="">Select Implementation Mode</option>
                                         {projectEnums?.ImplementationModes?.map((mode) => (
-                                            <option key={mode.Id} value={mode.Enum}>
+                                            <option key={mode.Id} value={mode.NameId}>
                                                 {mode.Name}
                                             </option>
                                         ))}
@@ -853,7 +853,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     >
                                         <option value="">Select Feasibility Study</option>
                                         {projectEnums?.Feasibility?.map((feasibility) => (
-                                            <option key={feasibility.Id} value={feasibility.Enum}>
+                                            <option key={feasibility.Id} value={feasibility.NameId}>
                                                 {feasibility.Name}
                                             </option>
                                         ))}
