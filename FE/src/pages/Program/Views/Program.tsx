@@ -135,7 +135,22 @@ const Program: React.FC = () => {
                 const isCurrentlyExpanded = expandedRows.has(programId);
                 
                 // Toggle the expanded state for this row
-                setExpandedRows(prev => {
+                if (isCurrentlyExpanded) {
+                    setExpandedRows(new Set())
+                } else {
+                    setExpandedRows(new Set([programId]));
+                    if (!stageLists[programId]) {
+                        const response = await fetchStagesByProgramId(programId);
+                        setStageLists(prev => ({
+                            ...prev,
+                            [programId]: response.Data
+                        }));
+                    }
+                }
+                /**
+                 * use this code to allow multiple rows expanded at the same time
+                 */
+                /** setExpandedRows(prev => {
                     const newExpanded = new Set(prev);
                     if (newExpanded.has(programId)) {
                         newExpanded.delete(programId);
@@ -145,7 +160,7 @@ const Program: React.FC = () => {
                     return newExpanded;
                 });
 
-                // Only fetch data if we're expanding (not collapsing) and data doesn't already exist
+                Only fetch data if we're expanding (not collapsing) and data doesn't already exist
                 if (!isCurrentlyExpanded && !stageLists[programId]) {
                     const response = await fetchStagesByProgramId(programId);
                     setStageLists(prev => ({
@@ -153,6 +168,7 @@ const Program: React.FC = () => {
                         [programId]: response.Data
                     }));
                 }
+                */
             }
         } catch (error) {
             console.error('Error toggling program details:', error);
