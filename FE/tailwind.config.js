@@ -6,6 +6,23 @@ export default {
   ],
   darkMode: false, // Disable dark mode completely
   theme: {
+    container: {
+      center: true,
+      padding: {
+        DEFAULT: '0.75rem',   // 12px → matches 13px base font
+        sm: '1rem',           // 16px
+        lg: '1.5rem',         // 24px
+        xl: '2rem',           // 32px
+        '2xl': '2.5rem',      // 40px
+      },
+      screens: {
+        sm: '640px',
+        md: '768px',
+        lg: '1024px',
+        xl: '1280px',
+        '2xl': '1440px',
+      },
+    },
     extend: {
       colors: {
         // Custom color palette that works well in both themes
@@ -40,7 +57,22 @@ export default {
       },
       transitionProperty: {
         'colors': 'color, background-color, border-color, text-decoration-color, fill, stroke',
-      }
+      },
+      fontSize: {
+        'xs': ['0.75rem', { lineHeight: '1rem' }],      // 12px
+        'sm': ['0.875rem', { lineHeight: '1.25rem' }],  // 14px
+        'base': ['0.875rem', { lineHeight: '1.5rem' }], // 14px (reduced from 16px)
+        'lg': ['1rem', { lineHeight: '1.5rem' }],       // 16px
+        'xl': ['1.125rem', { lineHeight: '1.75rem' }],  // 18px
+        '2xl': ['1.25rem', { lineHeight: '1.75rem' }],  // 20px
+        '3xl': ['1.5rem', { lineHeight: '2rem' }],      // 24px
+        '4xl': ['1.75rem', { lineHeight: '2.25rem' }],  // 28px
+        '5xl': ['2rem', { lineHeight: '2.5rem' }],      // 32px
+      },
+      spacing: {
+        '128': '32rem',
+        '144': '36rem',
+      },
     },
   },
   plugins: [],
