@@ -128,10 +128,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       Region: '',
       Agency: 0,
       ImplementationMode: 0,
-      EmergencyMode: false,
+      EmergencyMode: 0,
       Feasibility: 0,
-      DetailedDesign: false,
-      RowAvailable: false,
+      DetailedDesign: 0,
+      RowAvailable: 0,
       Tier: 1,
     }
   );
@@ -568,8 +568,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         Province: projectDetails.Province ? projectDetails.Province.toString() : '',
         City: projectDetails.City ? projectDetails.City.toString() : '',
         LegislativeDistrict: projectDetails.LegislativeDistrict ? projectDetails.LegislativeDistrict.toString() : '',
-        EmergencyMode: projectDetails.EmergencyMode ? true : false,
-      });
+          EmergencyMode: projectDetails.EmergencyMode,
+        });
       
       if (response.Data.ProjectId && response.Data.StageName) {
         navigate(`/projects/project-details/${response.Data.ProjectId}:${response.Data.StageName}`);
@@ -692,7 +692,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           City: projectDetails.City ? projectDetails.City.toString() : '',
           LegislativeDistrict: projectDetails.LegislativeDistrict ? projectDetails.LegislativeDistrict.toString() : '',
           ProgramName: programDetails.Name || '',
-          EmergencyMode: projectDetails.EmergencyMode ? true : false,
+          EmergencyMode: projectDetails.EmergencyMode,
           CreatedBy: projectDetails.CreatedBy || 'SYSTEM',
           CreatedDate: projectDetails.CreatedDate || new Date().toISOString(),
           UpdatedBy: 'SYSTEM', // Set current user

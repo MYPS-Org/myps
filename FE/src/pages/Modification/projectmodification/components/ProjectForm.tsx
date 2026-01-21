@@ -181,10 +181,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       Region: '',
       Agency: 0,
       ImplementationMode: 0,
-      EmergencyMode: false,
+      EmergencyMode: 0,
       Feasibility: 0,
-      DetailedDesign: false,
-      RowAvailable: false,
+      DetailedDesign: 0,
+      RowAvailable: 0,
       Tier: 1,
     }
   );
@@ -489,7 +489,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       console.log('Adding new project details:', projectDetails);
       const response = await addProjectDetails({
         ...projectDetails,
-        EmergencyMode: projectDetails.EmergencyMode ? true : false,
+        EmergencyMode: projectDetails.EmergencyMode,
       });
       
       if (response.Data.ProjectId && response.Data.StageName) {
@@ -598,7 +598,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           ...projectDetails,
           // Add missing required fields for the expected payload
           ProgramName: programDetails.Name || '',
-          EmergencyMode: projectDetails.EmergencyMode ? true : false,
+          EmergencyMode: projectDetails.EmergencyMode,
           CreatedBy: projectDetails.CreatedBy || 'SYSTEM',
           CreatedDate: projectDetails.CreatedDate || new Date().toISOString(),
           UpdatedBy: 'SYSTEM', // Set current user

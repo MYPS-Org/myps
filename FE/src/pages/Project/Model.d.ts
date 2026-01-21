@@ -116,9 +116,9 @@ export interface ProjectDetails {
 	EmergencyMode?: number;
 	Feasibility?: number;
 	FeasibilityDate?: string;
-	DetailedDesign?: boolean;
+	DetailedDesign?: number;
 	DetailedDesignDate?: string;
-	RowAvailable?: boolean;
+	RowAvailable?: number;
 	RegionWide?: number;
 	Tier: number;
 	CreatedBy?: string;
@@ -522,7 +522,9 @@ export interface ProjectEnums {
   Agencies: ProjectAgencyLists[];
   ImplementationModes: TableEnum[];
   EmergencyModes: TableEnum[];
+  RowsAvailable: TableEnum[];
   Feasibility: TableEnum[];
+  DetailedDesign: TableEnum[];
   RegionWide: TableEnum[];
 }
 

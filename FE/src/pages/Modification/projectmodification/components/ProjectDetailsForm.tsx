@@ -799,15 +799,19 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <EditableField field="EmergencyMode" isFieldEditable={isFieldEditable}>
                                     {(editable) => (
                                     <select 
-                                        name="EmergencyCode" 
-                                        id="EmergencyCode" 
-                                        value={projectDetails?.EmergencyMode ? 'true' : 'false'} 
-                                        onChange={(e) => handleInputChange('EmergencyMode', e.target.value === 'true')} 
+                                        name="EmergencyMode" 
+                                        id="EmergencyMode" 
+                                        value={projectDetails?.EmergencyMode}
+                                        onChange={(e) => handleInputChange('EmergencyMode', parseInt(e.target.value))} 
                                         className={`w-2/3 mt-1 px-3 py-2 border ${errors.EmergencyMode ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(!editable)} rounded-md truncate`}
                                         disabled={!editable}
                                     >
-                                        <option value="false">No</option>
-                                        <option value="true">Yes</option>
+                                        <option value="">Select Emergency Mode</option>
+                                        {projectEnums?.EmergencyModes?.map((mode) => (
+                                            <option key={mode.Id} value={mode.NameId}>
+                                                {mode.Name}
+                                            </option>
+                                        ))}
                                     </select>
                                     )}
                                 </EditableField>
@@ -820,13 +824,17 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <EditableField field="RowAvailable" isFieldEditable={isFieldEditable}>
                                     {(editable) => (
                                     <select 
-                                        value={projectDetails?.RowAvailable ? 'true' : 'false'} 
-                                        onChange={(e) => handleInputChange('RowAvailable', e.target.value === 'true')}
+                                        value={projectDetails?.RowAvailable}
+                                        onChange={(e) => handleInputChange('RowAvailable', parseInt(e.target.value))}
                                         className={`flex-2/3 mt-1 px-3 py-2 border ${errors.RowAvailable ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(!editable)} rounded-md`}
                                         disabled={!editable}
                                     >
-                                        <option value="false">No</option>
-                                        <option value="true">Yes</option>
+                                        <option value="">Select ROW Available</option>
+                                        {projectEnums?.RowsAvailable?.map((row) => (
+                                            <option key={row.Id} value={row.NameId}>
+                                                {row.Name}
+                                            </option>
+                                        ))}
                                     </select>
                                     )}
                                 </EditableField>
@@ -888,13 +896,17 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <EditableField field="DetailedDesign" isFieldEditable={isFieldEditable}>
                                     {(editable) => (
                                     <select 
-                                        value={projectDetails?.DetailedDesign ? 'true' : 'false'} 
-                                        onChange={(e) => handleInputChange('DetailedDesign', e.target.value === 'true')}
+                                        value={projectDetails?.DetailedDesign} 
+                                        onChange={(e) => handleInputChange('DetailedDesign', parseInt(e.target.value))}
                                         className={`w-2/3 mt-1 px-3 py-2 border ${errors.DetailedDesign ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(!editable)} rounded-md truncate`}
                                         disabled={!editable}
                                     >
-                                        <option value="false">No</option>
-                                        <option value="true">Yes</option>
+                                        <option value="">Select Detailed Design</option>
+                                        {projectEnums?.DetailedDesign?.map((design) => (
+                                            <option key={design.Id} value={design.NameId}>
+                                                {design.Name}
+                                            </option>
+                                        ))}
                                     </select>
                                     )}
                                 </EditableField>

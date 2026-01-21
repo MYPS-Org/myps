@@ -744,13 +744,17 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`flex-1/3 ${errors.RowAvailable ? 'text-red-500' : 'text-gray-600'}`}>ROW Available:</label>
                                 <select 
-                                    value={projectDetails?.RowAvailable ? 'true' : 'false'} 
-                                    onChange={(e) => handleInputChange('RowAvailable', e.target.value === 'true')}
+                                    value={projectDetails?.RowAvailable} 
+                                    onChange={(e) => handleInputChange('RowAvailable', parseInt(e.target.value))}
                                     className={`flex-2/3 mt-1 px-3 py-2 border ${errors.RowAvailable ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md`}
                                     disabled={disabled}
                                 >
-                                    <option value="false">No</option>
-                                    <option value="true">Yes</option>
+                                    <option value="">Select ROW Availability</option>
+                                    {projectEnums?.RowsAvailable?.map((row) => (
+                                        <option key={row.Id} value={row.NameId}>
+                                            {row.Name}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
                         </div>
@@ -800,13 +804,17 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.DetailedDesign ? 'text-red-500' : 'text-gray-600'}`}>Detailed Design:</label>
                                 <select 
-                                    value={projectDetails?.DetailedDesign ? 'true' : 'false'} 
-                                    onChange={(e) => handleInputChange('DetailedDesign', e.target.value === 'true')}
+                                    value={projectDetails?.DetailedDesign} 
+                                    onChange={(e) => handleInputChange('DetailedDesign', parseInt(e.target.value))}
                                     className={`w-2/3 mt-1 px-3 py-2 border ${errors.DetailedDesign ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
                                     disabled={disabled}
                                 >
-                                    <option value="false">No</option>
-                                    <option value="true">Yes</option>
+                                    <option value="">Select Detailed Design</option>
+                                    {projectEnums?.DetailedDesign?.map((design) => (
+                                        <option key={design.Id} value={design.NameId}>
+                                            {design.Name}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
                         </div>
