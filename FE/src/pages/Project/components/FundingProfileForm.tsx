@@ -4,7 +4,6 @@ import { Button } from "../../../components/tailwindui/button";
 import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from "../../../components/tailwindui/table";
 import { getDisabledClass, handleCurrencyBlur, handleCurrencyChange, handleCurrencyFocus, handleNumberFocus } from "../../../utils/GlobalFunctions";
-import { json } from "stream/consumers";
 
 interface FundingProfileFormProps {
   initialData?: ProjectFormPayload;

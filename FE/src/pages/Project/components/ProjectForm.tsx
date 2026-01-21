@@ -54,8 +54,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const [projectEnums, setProjectEnums] = useState<ProjectEnums | null>(null);
   const [updateAllProject, setUpdateAllProject] = useState<boolean>(false);
   const [geoJsonData, setGeoJsonData] = useState<GeoJSON.FeatureCollection | null>(null);
-  const [reviseProject, setReviseProject] = useState<boolean>(false);
-  const [updateUnlockProject, setUpdateUnlockProject] = useState<boolean>(false);
+  const [reviseProject] = useState<boolean>(false);
+  const [updateUnlockProject] = useState<boolean>(false);
   // const [reviseProject, setReviseProject] = useState<boolean>(false);
   const [errors, setErrors] = useState<FormValidationError<ProjectDetails>>({});
   //toaster here
