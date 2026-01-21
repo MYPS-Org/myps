@@ -219,7 +219,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
           <TableBody>
             {componentCosts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-gray-500 py-8">
+                <TableCell colSpan={9} className="text-center text-gray-500 py-8">
                   No component costs added yet. Click "Add Cost" to get started.
                 </TableCell>
               </TableRow>

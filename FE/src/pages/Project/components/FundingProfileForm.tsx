@@ -245,13 +245,13 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
         </Table>
         
         {/* Validation Summary */}
-        {(Math.abs(totalPercentage - 100) >= 0.01 || Object.keys(errors).length > 0) && (
+        {(/*Math.abs(totalPercentage - 100) >= 0.01 || */Object.keys(errors).length > 0) && (
           <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
             <h4 className="text-sm font-medium text-yellow-800 mb-2">Validation Issues:</h4>
             <ul className="text-sm text-yellow-700 space-y-1">
-              {Math.abs(totalPercentage - 100) >= 0.01 && (
+              {/* {Math.abs(totalPercentage - 100) >= 0.01 && (
                 <li>• Total percentage must equal 100% (currently {totalPercentage.toFixed(2)}%)</li>
-              )}
+              )} */}
               {Object.keys(errors).length > 0 && (
                 <li>• Fix individual field errors shown above</li>
               )}
