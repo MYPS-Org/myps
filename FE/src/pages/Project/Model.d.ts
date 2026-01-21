@@ -113,7 +113,7 @@ export interface ProjectDetails {
 	Region?: string;
 	Agency?: number;
 	ImplementationMode?: number;
-	EmergencyMode?: boolean;
+	EmergencyMode?: number;
 	Feasibility?: number;
 	FeasibilityDate?: string;
 	DetailedDesign?: boolean;

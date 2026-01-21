@@ -80,7 +80,7 @@ export const projectDetailsRules: ValidationRule<ProjectDetails>[] = [
     {
         field: "EmergencyMode",
         message: "Emergency Mode is required.",
-        validate: (value) => typeof value === 'boolean' && value !== undefined
+        validate: (value) => typeof value === 'number' && value > 0
     },
     {
         field: "Feasibility",

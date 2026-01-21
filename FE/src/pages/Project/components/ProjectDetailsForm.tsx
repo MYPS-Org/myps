@@ -723,15 +723,19 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             <div className="flex flex-row gap-5 items-center">
                                 <label className={`w-1/3 ${errors.EmergencyMode ? 'text-red-500' : 'text-gray-600'}`}>Emergency Mode:</label>
                                 <select 
-                                    name="EmergencyCode" 
-                                    id="EmergencyCode" 
-                                    value={projectDetails?.EmergencyMode ? 'true' : 'false'} 
-                                    onChange={(e) => handleInputChange('EmergencyMode', e.target.value === 'true')} 
+                                    name="EmergencyMode" 
+                                    id="EmergencyMode" 
+                                    value={projectDetails?.EmergencyMode} 
+                                    onChange={(e) => handleInputChange('EmergencyMode', parseInt(e.target.value))} 
                                     className={`w-2/3 mt-1 px-3 py-2 border ${errors.EmergencyMode ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
                                     disabled={disabled}
                                 >
-                                    <option value="false">No</option>
-                                    <option value="true">Yes</option>
+                                <option value="">Select Emergency Mode</option>
+                                {projectEnums?.EmergencyModes?.map((mode) => (
+                                    <option key={mode.Id} value={mode.NameId}>
+                                        {mode.Name}
+                                    </option>
+                                ))}
                                 </select>
                             </div>
                         </div>
