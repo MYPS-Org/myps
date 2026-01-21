@@ -1,12 +1,13 @@
 // import type { PaginationParams, PaginationResponse } from '../../model/Pagination';
 import { httpClient } from '../../services/httpClient';
+import type { TableEnum } from './Model';
 
 
 import type { ProgramModel, ProgramEnums, ProgramPagination, ProgramList, ProgramDetailsEnums, ProgramDetails, ParentProgram, StageList } from './Model';
 
 export const fetchProgramEnums = async () => {
     try {
-        const response = await httpClient.post< { Stages: ProgramEnums[]; Types: ProgramEnums[]; Groups: ProgramEnums[], DataSecurity: ProgramEnums[] } >(
+        const response = await httpClient.post< { Stages: TableEnum[]; Types: TableEnum[]; Groups: ProgramEnums[], DataSecurity: ProgramEnums[] } >(
             '/Program/InitAddProgram',
             null,
             {

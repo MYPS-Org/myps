@@ -16,13 +16,16 @@ export interface ProgramModel {
 }
 export interface ProgramEnums {
 	Id: number;
-	Enum: number;
+	ParticipantId: string;
+	Name?: string;
 	GroupName?: string;
-	Name: string;
-	Description: string;
-	ParticipantId?: string;
 	OrgName?: string;
 	OrgType?: string;
+	ProvinceName?: string;
+	RegionName?: string;
+	CongressionalDistrictName?: string;
+	IslandCode?: string;
+	RegionParticipantId: string;
 }
 
 export interface ParentProgram {
@@ -100,12 +103,19 @@ export interface ProgramDetailsEnums{
   Projects: ProjectLists[];
   IsActive: boolean;
   Dropdowns: {
-    Stages: ProgramEnums[];
-    Statuses: ProgramEnums[];
-    Types: ProgramEnums[];
+    Stages: TableEnums[];
+    Statuses: TableEnums[];
+    Types: TableEnums[];
     Groups: ProgramEnums[];
 	DataSecurity: ProgramEnums[];
   };
+}
+
+export interface TableEnum {
+	Id: number;
+	NameId: number;
+	Name: string;
+	Description?: string;
 }
 
 export interface ProgramPagination extends PaginationParams {

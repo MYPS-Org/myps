@@ -552,7 +552,7 @@ const ProgramDetail: React.FC = () => {
                   <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-md p-3">
                 {Object.keys(groupedDataSecurity).map((orgType) => {
                   const groupItems = groupedDataSecurity[orgType].filter(item =>
-                    item.OrgName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    item.Name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                     item.ParticipantId?.toLowerCase().includes(searchTerm.toLowerCase())
                   );
                   
@@ -592,7 +592,7 @@ const ProgramDetail: React.FC = () => {
                             />
                             <div className="flex flex-col">
                               <span className="text-sm text-gray-700 font-medium">
-                                {item.OrgName}
+                                {item.Name}
                               </span>
                               {/* <span className="text-xs text-gray-500">
                                 {item.ParticipantId}
@@ -611,7 +611,7 @@ const ProgramDetail: React.FC = () => {
                 )}
                 {Object.keys(groupedDataSecurity).every(orgType => 
                   groupedDataSecurity[orgType].filter(item =>
-                    item.OrgName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    item.Name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                     item.ParticipantId?.toLowerCase().includes(searchTerm.toLowerCase())
                   ).length === 0
                 ) && searchTerm && (

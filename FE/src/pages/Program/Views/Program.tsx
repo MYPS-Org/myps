@@ -29,14 +29,15 @@ import {
     ChevronRightIcon,
     XMarkIcon
 } from '@heroicons/react/24/outline'; // Adjust the import path as necessary
+import type { TableEnum } from '../../Project/Model';
 
 const Program: React.FC = () => {
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(false);
     const [programEnums, setProgramEnums] = useState<{
         // Statuses: ProgramEnums[];
-        Stages: ProgramEnums[];
-        Types: ProgramEnums[];
+        Stages: TableEnum[];
+        Types: TableEnum[];
         Groups: ProgramEnums[];
         DataSecurity: ProgramEnums[];
     } | null>(null);
