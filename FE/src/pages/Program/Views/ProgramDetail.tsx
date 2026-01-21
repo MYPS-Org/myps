@@ -398,6 +398,7 @@ const ProgramDetail: React.FC = () => {
                   onChange={(e) => handleChange('YearStart', e.target.value)}
                   value={programEnums?.Details.YearStart}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
+                  disabled
                 />
               </div>
               <div>
