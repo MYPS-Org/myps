@@ -1,4 +1,5 @@
 ﻿using Confluent.Kafka;
+using Dapper;
 using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Table;
@@ -12,6 +13,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.EntityFrameworkCore.Scaffolding.Metadata;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
+using System.Data.SqlClient;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
@@ -516,6 +518,30 @@ namespace WebAPI.Controllers.Projects
                         }
                     }
                 });
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> test()
+        {
+            try
+            {
+                using (var conn = new SqlConnection(Appsetting.ConnectionString))
+                {
+                    conn.Open();
+                    var Totals = conn.QueryFirstOrDefault<double?>(
+                        "pUpdateProgramCost",
+                        new { ProgramId = "PR20260110462", StageName = "BP" },
+                        commandType: System.Data.CommandType.StoredProcedure);
+                    return Ok(new
+                    {
+                        TotalCost = Totals ?? 0
+                    });
+                }
             }
             catch (Exception ex)
             {
@@ -1726,17 +1752,29 @@ namespace WebAPI.Controllers.Projects
                 await _db.SaveChangesAsync();
                 if (HasCostUpdate)
                 {
-                    var param = new Dictionary<string, object> { { "@ProgramId", dto.ProjectDetails!.ProgramId! } };
-                    double? Totals = Sql.NormalQuery<double?>(
-                        Appsetting.ConnectionString,
-                        "EXEC pUpdateProgramCost @ProgramId = @ProgramId", param
-                    ).FirstOrDefault();
+                    var Projects = await _db.vProjectDetails.FromSqlInterpolated($"SELECT * FROM fProjectsPerStage({Program.ProgramId}) fp WHERE fp.StageName = {Program.StageName}").AsNoTracking().ToListAsync();
+                    HashSet<string> ProjectIds = Projects.Select(x => x.ProjectId!).ToHashSet();
+                    double ProgramAmount = _db.tProjectComponentCost.AsNoTracking().Where(x => ProjectIds.Contains(x.ProjectId) && x.IsDeleted == false && x.StageName == Program.StageName).Sum(x => x.Amount);
+                    //var param = new Dictionary<string, object> { { "@ProgramId", Program.ProgramId },{ "@StageName", Program.StageName } };
+                    //double? Totals = Sql.NormalQuery<double?>(
+                    //    Appsetting.ConnectionString,
+                    //    "EXEC pUpdateProgramCost @ProgramId = @ProgramId, @StageName = @StageName", param
+                    //).FirstOrDefault();
+                    //double? Totals = 0;
+                    //using (var conn = new SqlConnection(Appsetting.ConnectionString))
+                    //{
+                    //    conn.Open();
+                    //    Totals = conn.QueryFirstOrDefault<double?>(
+                    //        "pUpdateProgramCost",
+                    //        new { ProgramId = "PR20260110462", StageName = "BP" },
+                    //        commandType: System.Data.CommandType.StoredProcedure);
+                    //}
                     var CurrentVersion = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == Program.Id);
                     if (CurrentVersion == null)
                     {
                         return new BadRequestObjectResult(new { Message = "Program not found for this project!", Title = "Program Not Found" });
                     }
-                    CurrentVersion.Cost = Totals ?? 0;
+                    CurrentVersion.Cost = ProgramAmount;
                     _db.tProgramRevisions.Update(CurrentVersion);
                     await _db.SaveChangesAsync();
                 }
