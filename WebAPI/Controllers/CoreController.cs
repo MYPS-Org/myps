@@ -84,11 +84,11 @@ namespace WebAPI.Controllers
                 string Footer = "/========================= MYPS ERROR EVENT ENDS HERE =========================/\n\n";
                 if (ex is DbUpdateException dbEx)
                 {
-                    Body.Replace("[[EXCEPTION]]", dbEx.ToString());
+                    Body = Body.Replace("[[EXCEPTION]]", dbEx.ToString());
                 }
                 else
                 {
-                    Body.Replace("[[EXCEPTION]]", ex.ToString());
+                    Body = Body.Replace("[[EXCEPTION]]", ex.ToString());
                 }
                 
                 string Message = Header + Body + Footer;
