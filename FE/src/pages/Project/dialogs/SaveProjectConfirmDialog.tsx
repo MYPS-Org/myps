@@ -24,15 +24,17 @@ const SaveProjectConfirmDialog: React.FC<SaveProjectConfirmDialogProps> = ({
     setIsSubmitting(true);
     try {
       await onConfirm();
-      handleClose();
     } catch (error) {
       console.error('Error saving/updating project:', error);
-      setIsSubmitting(false);
+    }
+    finally {
+      handleClose();
     }
   };
-
+  
   const handleClose = () => {
     if (!isSubmitting) {
+      setIsSubmitting(false);
       onClose();
     }
   };

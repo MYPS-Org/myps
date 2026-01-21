@@ -4,6 +4,7 @@ import { Button } from "../../../components/tailwindui/button";
 import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from "../../../components/tailwindui/table";
 import { getDisabledClass, handleCurrencyBlur, handleCurrencyChange, handleCurrencyFocus, handleNumberFocus } from "../../../utils/GlobalFunctions";
+import { json } from "stream/consumers";
 
 interface FundingProfileFormProps {
   initialData?: ProjectFormPayload;
@@ -28,43 +29,53 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
   const [totalPercentage, setTotalPercentage] = useState(0);
   const [totalAmount, setTotalAmount] = useState(0);
   const [displayValues, setDisplayValues] = useState<{ [key: number]: string }>({});
+  const [percentageBalancer, setPercentageBalancer] = useState(0);
 
   // Calculate total percentage and amount, then auto-update percentages
   useEffect(() => {
-    const totalAmt = fundingProfiles.reduce((sum, profile) => sum + (profile.Amount || 0), 0);
+    const totalAmt = fundingProfiles.reduce((sum, p) => sum + (p.Amount || 0), 0);
     setTotalAmount(totalAmt);
 
     // Create updated profiles with recalculated percentages
-    fundingProfiles.forEach((profile, index) => {
-      if (totalAmt > 0) {
-        const calculatedPercentage = ((profile.Amount || 0) / totalAmt) * 100;
-        const roundedPercentage = Math.round(calculatedPercentage * 100) / 100; // Round to 2 decimal places
-        
-        // Only update if the percentage has changed to avoid infinite loops
-        if (profile.Percentage !== roundedPercentage) {
-          // Update the profile with new percentage
-          onEdit(index, { ...profile, Percentage: roundedPercentage });
+    let hasChanges = false;
+
+    const updatedProfiles = fundingProfiles.map((profile) => {
+      if (totalAmt === 0) {
+        if(profile.Percentage !== 0) {
+          hasChanges = true;
+          return { ...profile, Percentage: 0 };
         }
-      } else {
-        // If total amount is 0, set percentage to 0
-        if (profile.Percentage !== 0) {
-          onEdit(index, { ...profile, Percentage: 0 });
-        }
+        return profile;
       }
+
+      const calculated = ((profile.Amount || 0) / totalAmt) * 100;
+      const rounded = Math.round(calculated * 100) / 100; // Round to 2 decimal places
+
+      if (profile.Percentage !== rounded) {
+        hasChanges = true;
+        return { ...profile, Percentage: rounded };
+      }
+      return profile;
     });
 
-    // Calculate total percentage for display using the current state
-    // We need to use a setTimeout to ensure state updates are processed first
-    setTimeout(() => {
-      const total = fundingProfiles.reduce((sum, profile) => sum + (profile.Percentage || 0), 0);
-      const roundedTotal = Math.round(total * 100) / 100;
-      setTotalPercentage(roundedTotal);
-    }, 0);
+    if (hasChanges) {
+      updatedProfiles.forEach((profile, index) => {
+        onEdit(index, profile);
+      });
+    }
+
+    // Calculate total percentage and balancer to fix floating-point errors
+    const totalPct = updatedProfiles.reduce((sum, p) => sum + (p.Percentage || 0), 0);
+    setTotalPercentage(totalPct);
+
+    // Balancer compensates for rounding errors (e.g., 3 items at 33.33% = 99.99%, balancer = 0.01%)
+    const balancer = totalAmt > 0 ? Math.round((100 - totalPct) * 100) / 100 : 0;
+    setPercentageBalancer(balancer);
 
     if (onTotalAmountChange) {
       onTotalAmountChange(totalAmt);
     }
-  }, [fundingProfiles]); // Trigger when array length or amounts change
+  });
 
   useEffect(() => {
     const newDisplayValues: { [key: number]: string } = {};
@@ -120,9 +131,10 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
   };
 
   const getTotalPercentageColor = () => {
+    const adjustedTotal = totalPercentage + percentageBalancer;
     // Use Math.abs to check if the difference is within a small tolerance (0.01)
-    if (Math.abs(totalPercentage - 100) < 0.01) return "text-green-600";
-    if (totalPercentage > 100) return "text-red-600";
+    if (Math.abs(adjustedTotal - 100) < 0.01) return "text-green-600";
+    if (adjustedTotal > 100) return "text-red-600";
     return "text-yellow-600";
   };
 
@@ -243,15 +255,14 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
             ))}
         </TableBody>
         </Table>
-        
         {/* Validation Summary */}
         {(/*Math.abs(totalPercentage - 100) >= 0.01 || */Object.keys(errors).length > 0) && (
           <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
             <h4 className="text-sm font-medium text-yellow-800 mb-2">Validation Issues:</h4>
             <ul className="text-sm text-yellow-700 space-y-1">
-              {/* {Math.abs(totalPercentage - 100) >= 0.01 && (
+              {Math.abs(totalPercentage - 100) >= 0.01 && (
                 <li>• Total percentage must equal 100% (currently {totalPercentage.toFixed(2)}%)</li>
-              )} */}
+              )}
               {Object.keys(errors).length > 0 && (
                 <li>• Fix individual field errors shown above</li>
               )}
