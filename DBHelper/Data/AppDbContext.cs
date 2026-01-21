@@ -37,6 +37,7 @@ namespace DBHelper.Data
         public DbSet<Models.Table.OptionProjectFeasibilityStudy> tOptionProjectFeasibilityStudy { get; set; }
         public DbSet<Models.Table.OptionProjectDetailedDesign> tOptionProjectDetailedDesign { get; set; }
         public DbSet<Models.Table.OptionProjectRowAvailable> tOptionProjectRowAvailable { get; set; }
+        public DbSet<Models.Table.OptionRegionWide> tOptionRegionWide { get; set; }
         public DbSet<Models.Table.OptionProjectAgency> tOptionProjectAgency { get; set; }
         public DbSet<Models.Table.OptionProjectComponent> tOptionProjectComponent { get; set; }
         public DbSet<Models.Table.ProjectComponentCost> tProjectComponentCost { get; set; }

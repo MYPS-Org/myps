@@ -29,14 +29,14 @@ namespace DBHelper.Models.Views
         public string? ImplementingOffice { get; set; }
         public string? DEO { get; set; }
         public string? Region { get; set; }
-        public int Agency { get; set; }
+        public int? Agency { get; set; }
         public int? ImplementationMode { get; set; }
-        public int EmergencyMode { get; set; }
+        public int? EmergencyMode { get; set; }
         public int? Feasibility { get; set; }
         public DateTime? FeasibilityDate { get; set; }
         public int DetailedDesign { get; set; }
         public DateTime? DetailedDesignDate { get; set; }
-        public int RowAvailable { get; set; }
+        public int? RowAvailable { get; set; }
         public int RegionWide { get; set; } = 0;
         public int Tier { get; set; } = 0;
         public bool? IsRevised { get; set; } = false;

@@ -12,8 +12,7 @@ namespace DBHelper.Models.Table
         [Required]
         [MaxLength(50)]
         public string Name { get; set; } = string.Empty;
-        [Required]
         [MaxLength(500)]
-        public string Description { get; set; } = string.Empty;
+        public string? Description { get; set; } = string.Empty;
     }
 }

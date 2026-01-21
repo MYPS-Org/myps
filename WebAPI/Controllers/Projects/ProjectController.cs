@@ -168,6 +168,8 @@ namespace WebAPI.Controllers.Projects
                 var Agency = await _db.tOptionProjectAgency.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var ImplementationMode = await _db.tOptionProjectImplementationMode.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var EmergencyMode = await _db.tOptionProjectEmergencyMode.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var RowAvailables = await _db.tOptionProjectRowAvailable.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var Design = await _db.tOptionProjectDetailedDesign.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 return Ok(new
                 {
                     Programs = AvailablePrograms,
@@ -185,6 +187,8 @@ namespace WebAPI.Controllers.Projects
                     Agencies = Agency,
                     ImplementationModes = ImplementationMode,
                     EmergencyModes = EmergencyMode,
+                    RowsAvailable = RowAvailables,
+                    DetailedDesign = Design
                 });
             }
             catch (Exception ex)
@@ -274,7 +278,7 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = $"Selected Feasibility '{dto.Feasibility}' is not valid!", Title = "Invalid Feasibility" });
                 }
-                var Agency = await _db.tOptionProjectAgency.FirstOrDefaultAsync(x => x.Id == dto.Agency);
+                var Agency = await _db.tOptionProjectAgency.FirstOrDefaultAsync(x => x.NameId == dto.Agency);
                 if(Agency == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Selected Agency '{dto.Agency}' is not valid!", Title = "Invalid Agency" });
@@ -288,6 +292,16 @@ namespace WebAPI.Controllers.Projects
                 if(EmergencyMode == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Selected Emergency Mode '{dto.EmergencyMode}' is not valid!", Title = "Invalid Emergency Mode" });
+                }
+                var RowAvailable = await _db.tOptionProjectRowAvailable.FirstOrDefaultAsync(x => x.NameId == dto.EmergencyMode);
+                if(RowAvailable == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Selected Row Available '{dto.EmergencyMode}' is not valid!", Title = "Invalid Row Available" });
+                }
+                var DetailedDesign = await _db.tOptionProjectDetailedDesign.FirstOrDefaultAsync(x => x.NameId == dto.EmergencyMode);
+                if(DetailedDesign == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Selected Detailed Design '{dto.EmergencyMode}' is not valid!", Title = "Invalid Detailed Design" });
                 }
                 string FirstSegment = ProgramDetails.StageName.GenerateProjec1stSegment();
                 string SecondSegment = ProgramDetails.YearStart.GenerateProjec2ndSegment();
@@ -331,15 +345,15 @@ namespace WebAPI.Controllers.Projects
                     ImplementingOffice = dto.ImplementingOffice!,
                     DEO = SelectedDeo.ParticipantId,
                     Region = dto.Region!,
-                    Agency = dto.Agency,
+                    Agency = (int)dto.Agency!,
                     ImplementationMode = dto.ImplementationMode,
-                    EmergencyMode = dto.EmergencyMode,
+                    EmergencyMode = (int)dto.EmergencyMode!,
                     IslandCode = SelectedRegion.IslandCode ?? dto.IslandCode!,
                     Feasibility = dto.Feasibility,
                     FeasibilityDate = dto.FeasibilityDate,
                     DetailedDesign = dto.DetailedDesign,
                     DetailedDesignDate = dto.DetailedDesignDate,
-                    RowAvailable = dto.RowAvailable,
+                    RowAvailable = (int)dto.RowAvailable!,
                     RegionWide = dto.RegionWide,
                     Tier = dto.Tier,
                     CreatedBy = _Session.UserId,
@@ -413,7 +427,7 @@ namespace WebAPI.Controllers.Projects
                 HashSet<string> ItemParents = MajorItemOfWork.Select(x => x.ReferenceId).ToHashSet();
                 var MajorWorkLocation = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => ItemParents.Contains(x.ParentId)).ToListAsync();
 
-
+                var RowAvailables = await _db.tOptionProjectRowAvailable.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var Notes = await _db.tProjectNotes.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
                 var Funding = await _db.tProjectFundingProfile.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && x.RevisedNumber == Project.RevisedNumber).ToListAsync();
 
@@ -431,6 +445,7 @@ namespace WebAPI.Controllers.Projects
                 var Agency = await _db.tOptionProjectAgency.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var ImplementationMode = await _db.tOptionProjectImplementationMode.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var EmergencyMode = await _db.tOptionProjectEmergencyMode.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var Design = await _db.tOptionProjectDetailedDesign.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
 
                 var Agreement = await _db.tOptionFundingAgreement.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var Source = await _db.tOptionFundingSource.AsNoTracking().Where(x => Agreement.Select(a => a.SourceOrg).Distinct().Contains(x.Organization)).OrderBy(x => x.Organization == "GOP" ? 0 : 1).ThenBy(x => x.Name).ToListAsync();
@@ -477,6 +492,8 @@ namespace WebAPI.Controllers.Projects
                         Agencies = Agency,
                         ImplementationModes = ImplementationMode,
                         EmergencyModes = EmergencyMode,
+                        RowsAvailable = RowAvailables,
+                        DetailedDesign = Design,
 
                         //SupportingDocs
                         SupportingDocs = SupportingDoc,
@@ -531,6 +548,7 @@ namespace WebAPI.Controllers.Projects
                     return new BadRequestObjectResult(new { Message = "Program not found for this project!", Title = "Program Not Found" });
                 }
                 bool HasCostUpdate = false;
+
                 #region Update Project Details
                 if (Project.Description != dto.ProjectDetails?.Description)
                 {
@@ -616,12 +634,12 @@ namespace WebAPI.Controllers.Projects
                 }
                 if (Project.City != dto.ProjectDetails?.City)
                 {
-                    var City = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().FirstOrDefaultAsync(x => x.Code == dto.ProjectDetails!.City);
+                    var City = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().FirstOrDefaultAsync(x => x.GdbId == dto.ProjectDetails!.City);
                     if (City == null)
                     {
                         return new BadRequestObjectResult(new { Message = $"Selected City '{dto.ProjectDetails!.City}' is not valid!", Title = "Invalid City" });
                     }
-                    var OldCity = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().FirstOrDefaultAsync(x => x.Code == Project.City);
+                    var OldCity = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().FirstOrDefaultAsync(x => x.GdbId == Project.City);
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
@@ -660,12 +678,12 @@ namespace WebAPI.Controllers.Projects
                 //}
                 if (Project.LegislativeDistrict != dto.ProjectDetails?.LegislativeDistrict)
                 {
-                    var LD = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().FirstOrDefaultAsync(x => x.Code == dto.ProjectDetails!.LegislativeDistrict);
+                    var LD = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().FirstOrDefaultAsync(x => x.GdbId == dto.ProjectDetails!.LegislativeDistrict);
                     if (LD == null)
                     {
                         return new BadRequestObjectResult(new { Message = $"Selected Legislative District '{dto.ProjectDetails!.LegislativeDistrict}' is not valid!", Title = "Invalid Legislative District" });
                     }
-                    var OldLD = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().FirstOrDefaultAsync(x => x.Code == Project.LegislativeDistrict);
+                    var OldLD = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().FirstOrDefaultAsync(x => x.GdbId == Project.LegislativeDistrict);
                     transactionLogs.Add(new TransactionLog
                     {
                         TransactionId = Project.ProjectId!,
@@ -994,12 +1012,12 @@ namespace WebAPI.Controllers.Projects
                         ImplementingOffice = Project!.ImplementingOffice!,
                         DEO = Project.DEO!,
                         Region = Project.Region!,
-                        Agency = Project.Agency,
+                        Agency = (int)Project.Agency!,
                         ImplementationMode = Project.ImplementationMode,
-                        EmergencyMode = Project.EmergencyMode,
+                        EmergencyMode = (int)Project.EmergencyMode!,
                         Feasibility = Project.Feasibility,
                         DetailedDesign = Project.DetailedDesign,
-                        RowAvailable = Project.RowAvailable,
+                        RowAvailable = (int)Project.RowAvailable!,
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     };
@@ -1019,74 +1037,29 @@ namespace WebAPI.Controllers.Projects
                 }
                 #endregion
                 #region Update Component Cost
-                var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
+                var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && !x.IsDeleted).ToListAsync();
                 var NewComponentCostData = dto.ComponentCosts.Where(x => x.Id == 0);
+                #region New Component Cost
+                if (NewComponentCostData.Count() > 0)
+                {
+                    HasCostUpdate = true;
+                    var NewCostToAdd = NewComponentCostData.Select((item, index) => new DBHelper.Models.Table.ProjectComponentCost
+                    {
+                        StageName = Project.StageName!,
+                        ProjectId = Project.ProjectId!,
+                        ComponentId = item.ComponentId,
+                        ComponentType = item.ComponentType,
+                        Description = item.Description,
+                        Amount = item.Amount,
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    }).ToList();
+                    await _db.tProjectComponentCost.AddRangeAsync(NewCostToAdd);
+                }
+                #endregion
+                #region Update Component Cost
                 if (ComponentCost.Count > 0)
                 {
-                    #region Delete Component Cost and Year
-                    var DeletedComponentCost = ComponentCost.Select(x => (int)x.Id).Except(dto.ComponentCosts.Select(x => x.Id)).ToList();
-                    if (DeletedComponentCost.Count > 0)
-                    {
-                        HasCostUpdate = true;
-                        var DeletedItems = await _db.tProjectComponentCost.Where(x => DeletedComponentCost.Contains(x.Id)).ToListAsync();
-                        _db.tProjectComponentCost.RemoveRange(DeletedItems);
-                        transactionLogs.AddRange(DeletedItems.Select(item => new TransactionLog
-                        {
-                            TransactionId = Project.ProjectId!,
-                            TypeOfTransaction = "Delete",
-                            AffectedTable = "tProjectComponentCost",
-                            AffectedColumn = "Row",
-                            NewValue = "",
-                            OldValue = JsonConvert.SerializeObject(item),
-                            CreatedBy = _Session.UserId,
-                            CreatedDate = CurrentDate
-                        }));
-                    }
-                    #endregion
-                    #region New Component Cost and Year
-                    //if (NewComponentCost.Count > 0)
-                    //{
-                    //    HasCostUpdate = true;
-                    //    var NewCostToAdd = NewComponentCostData.Select((item, index) => new ProjectComponentCost
-                    //    {
-                    //        StageName = Project.StageName!,
-                    //        ProjectId = Project.ProjectId!,
-                    //        ReferenceId = Project.ProjectId!.GenerateReferenceId(Project.StageName),
-                    //        ComponentId = item.ComponentId,
-                    //        ComponentType = item.ComponentType,
-                    //        Description = item.Description,
-                    //        Total = item.Total,
-                    //        CreatedBy = _Session.UserId,
-                    //        CreatedDate = CurrentDate
-                    //    }).ToList();
-                    //    await _db.tProjectComponentCost.AddRangeAsync(NewCostToAdd);
-
-                    //    var relatedYears = new List<ProjectComponentCostYear>();
-                    //    foreach (var parent in NewCostToAdd)
-                    //    {
-                    //        var matchingDto = NewCostToAdd.FirstOrDefault(dto =>
-                    //            dto.ComponentId == parent.ComponentId &&
-                    //            dto.ComponentType == parent.ComponentType &&
-                    //            dto.Total == parent.Total);
-
-                    //        if (matchingDto != null)
-                    //        {
-                    //            var matchingYears = dto.ComponentCostYear.Select(year => new ProjectComponentCostYear
-                    //            {
-                    //                ParentId = matchingDto.ReferenceId,
-                    //                CostYear = year.CostYear,
-                    //                Cost = year.Cost,
-                    //                StartDate = year.StartDate,
-                    //                EndDate = year.EndDate
-                    //            });
-
-                    //            relatedYears.AddRange(matchingYears);
-                    //        }
-                    //    }
-                    //    await _db.tProjectComponentCostYear.AddRangeAsync(relatedYears);
-                    //}
-                    #endregion
-                    #region Update Component Cost and Year
                     var UpdateComponentCost = dto.ComponentCosts.Where(x => ComponentCost.Select(a => a.Id).Contains(x.Id)).ToList();
                     if (UpdateComponentCost.Count > 0)
                     {
@@ -1151,6 +1124,22 @@ namespace WebAPI.Controllers.Projects
                                     });
                                     ExistingItem.Amount = item.Amount;
                                 }
+                                if(ExistingItem.IsDeleted == true)
+                                {
+                                    ComponentUpdate = true;
+                                    transactionLogs.Add(new TransactionLog
+                                    {
+                                        TransactionId = Project.ProjectId!,
+                                        TypeOfTransaction = "Delete",
+                                        AffectedTable = "tProjectComponentCost",
+                                        AffectedColumn = "Row",
+                                        NewValue = "",
+                                        OldValue = JsonConvert.SerializeObject(ExistingItem),
+                                        CreatedBy = _Session.UserId,
+                                        CreatedDate = CurrentDate
+                                    });
+                                    ExistingItem.IsDeleted = item.IsDeleted;
+                                }
                                 if (ComponentUpdate)
                                 {
                                     ExistingItem.UpdatedBy = _Session.UserId;
@@ -1160,28 +1149,8 @@ namespace WebAPI.Controllers.Projects
                             }
                         }
                     }
-                    #endregion
                 }
-                if (NewComponentCostData.Count() > 0)
-                {
-                    HasCostUpdate = true;
-                    var NewCostIds = NewComponentCostData.Select(x => (int)x.Id).ToHashSet<int>();
-
-                    var SaveNewComponent = NewComponentCostData.Select((item, index) => new DBHelper.Models.Table.ProjectComponentCost
-                    {
-                        StageName = Project.StageName,
-                        ProjectId = Project.ProjectId!,
-                        ComponentId = item.ComponentId,
-                        ComponentType = item.ComponentType,
-                        StartDate = item.StartDate,
-                        EndDate = item.EndDate,
-                        Description = item.Description,
-                        Amount = item.Amount,
-                        CreatedBy = _Session.UserId,
-                        CreatedDate = CurrentDate
-                    });
-                    await _db.tProjectComponentCost.AddRangeAsync(SaveNewComponent);
-                }
+                #endregion
                 #endregion
                 #region Update Major Item of Works
                 var MajorItemOfWorks = await _db.tProjectMajorWorkItem.Where(x => x.ProjectId == Project.ProjectId).ToListAsync();
@@ -1755,7 +1724,6 @@ namespace WebAPI.Controllers.Projects
                 #endregion
                 await _db.tTransactionLog.AddRangeAsync(transactionLogs);
                 await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
                 if (HasCostUpdate)
                 {
                     var param = new Dictionary<string, object> { { "@ProgramId", dto.ProjectDetails!.ProgramId! } };
@@ -1772,6 +1740,7 @@ namespace WebAPI.Controllers.Projects
                     _db.tProgramRevisions.Update(CurrentVersion);
                     await _db.SaveChangesAsync();
                 }
+                await transaction.CommitAsync();
                 return Ok(new
                 {
                     Message = $"Project {dto.ProjectDetails!.ProjectId} updated successfully!",
