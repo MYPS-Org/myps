@@ -834,7 +834,7 @@ const Rbac: React.FC = () => {
 								)
 							}
 						</Pagination>
-						<div className='mb-3.5'>
+						<div className='mb-3.5 text-center'>
 							{
 								UsersData.lists.length > 0 ? (
 									<p className="text-sm text-gray-500">
@@ -1007,7 +1007,7 @@ const Rbac: React.FC = () => {
 								)
 							}
 						</Pagination>
-						<div className='mb-3.5'>
+						<div className='mb-3.5 text-center'>
 							{
 								PermissionsData.lists.length > 0 ? (
 									<p className="text-sm text-gray-500">
@@ -1251,7 +1251,7 @@ const Rbac: React.FC = () => {
 								)
 							}
 						</Pagination>
-						<div className='mb-3.5'>
+						<div className='mb-3.5 text-center'>
 							{
 								UserGroupsData.lists.length > 0 ? (
 									<p className="text-sm text-gray-500">

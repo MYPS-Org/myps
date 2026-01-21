@@ -61,9 +61,9 @@ const ReviseDialog: React.FC<ReviseProjectDialogProps> = ({
         
         // Special handling for Non-Implementable (RevisionGroupId: 8)
         // All reasons have null CategoryId, so show them all regardless of selected category
-        if (selectedRevisionGroupId === 8) {
-            return filtered; // Return all reasons for Non-Implementable
-        }
+        // if (selectedRevisionGroupId === 8) {
+        //     return filtered; // Return all reasons for Non-Implementable
+        // }
         
         // For other revision types, filter by CategoryId if a category is selected
         if (selectedCategory) {

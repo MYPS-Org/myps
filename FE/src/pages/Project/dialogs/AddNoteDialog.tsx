@@ -201,6 +201,7 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({
                     accept=".pdf,application/pdf"
                     onChange={e => handleFileChange(e)}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    required
                   />
                 </div>
               </div>

@@ -272,6 +272,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                             handleChange('ComponentType', value);
                             handleChangeComponentId(value);
                         }}
+                        required
                     >   
                     <option value="">Select Component Type</option>
                         {componentTypes?.map((type: any) => (
