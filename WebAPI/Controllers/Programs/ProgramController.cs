@@ -28,10 +28,10 @@ namespace WebAPI.Controllers.Programs
                 var SelectedStage = new[] { EnumProgramStage.RBP, EnumProgramStage.BP }.Select(stage => (int)stage).ToList();
                 var SelectedStatus = new[] { EnumProgramStatus.Working, EnumProgramStatus.Approved }.Select(stage => (int)stage).ToList();
 
-                var AvailableStages = await _db.tProgramStageEnum.Where(x => SelectedStage.Contains(x.Id)).ToListAsync();
-                var AvailableTypes = await _db.tProgramTypeEnum.ToListAsync();
+                var AvailableStages = await _db.tOptionProgramStage.Where(x => SelectedStage.Contains(x.Id)).ToListAsync();
+                var AvailableTypes = await _db.tOptionProgramType.ToListAsync();
 
-                var AvailableStatuses = await _db.tProgramStatusEnum.Where(x => SelectedStatus.Contains(x.Enum)).ToListAsync();
+                var AvailableStatuses = await _db.tOptionProgramStatus.Where(x => SelectedStatus.Contains(x.NameId)).ToListAsync();
                 var AvailableGroups = await _db.tGroups.ToListAsync();
                 var response = new
                 {
@@ -152,12 +152,12 @@ namespace WebAPI.Controllers.Programs
             {
                 var SelectedStage = new[] { EnumProgramStage.RDIP, EnumProgramStage.PIP }.Select(stage => (int)stage).ToList();
 
-                var Stage = await _db.tProgramStageEnum.AsNoTracking().Where(x => !SelectedStage.Contains(x.Id)).ToListAsync();
+                var Stage = await _db.tOptionProgramStage.AsNoTracking().Where(x => !SelectedStage.Contains(x.Id)).ToListAsync();
 
-                var Type = await _db.tProgramTypeEnum.AsNoTracking().ToListAsync();
+                var Type = await _db.tOptionProgramType.AsNoTracking().ToListAsync();
                 var Group = await _db.tGroups.ToListAsync();
                 string[] includes = { "C", "R", "PMO", "PMOC", "B" };
-                var Security = await _db.tProjectImplementingOfficeEnum.AsNoTracking().Where(x => includes.Contains(x.OrgType)).ToListAsync();
+                var Security = await _db.vAdminImplementingOffice.AsNoTracking().Where(x => includes.Contains(x.OrgType)).ToListAsync();
                 return Ok(new
                 {
                     Stages = Stage,
@@ -183,18 +183,18 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Program name '{dto.Name}' already exists in the System!", Title = "Program Already Exists" });
                 }
-                var checkStageType = await _db.tProgramStageEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == (int)dto.Stage);
+                var checkStageType = await _db.tOptionProgramStage.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == (int)dto.Stage);
                 if (checkStageType == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program Stage '{dto.Stage}' is not valid!", Title = "Invalid Stage" });
                 }
-                var checkType = await _db.tProgramTypeEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == (int)dto.Type);
+                var checkType = await _db.tOptionProgramType.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == (int)dto.Type);
                 if (checkType == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program Type '{dto.Type}' is not valid!", Title = "Invalid Type" });
                 }
                 string[] includes = { "C", "R", "PMO", "PMOC", "B" };
-                var GetSecurityGroup = await _db.tProjectImplementingOfficeEnum.AsNoTracking().Where(x => includes.Contains(x.OrgType)).Select(x => x.ParticipantId).ToListAsync();
+                var GetSecurityGroup = await _db.vAdminImplementingOffice.AsNoTracking().Where(x => includes.Contains(x.OrgType)).Select(x => x.ParticipantId).ToListAsync();
                 var CheckItems = dto.DataSecurityGroup.Where(x => !GetSecurityGroup.Contains(x));
                 if (CheckItems.Count() > 0)
                 {
@@ -295,7 +295,7 @@ namespace WebAPI.Controllers.Programs
                     ProjectId = x.ProjectId,
                     Description = x.Description,
                     Thrust = _db.tProjectThrustLists.FirstOrDefault(a => a.PAPKey == x.Thrust)!.ThrustDescription ?? x.Thrust.ToString(),
-                    Category = _db.tProjectCategoryEnum.FirstOrDefault(a => a.Enum == x.Category)!.Name ?? x.Category.ToString(),
+                    Category = _db.tOptionProjectCategory.FirstOrDefault(a => a.CategoryId == x.Category)!.CategoryName ?? x.Category.ToString(),
                     City = _db.tOptionAdminAreaCityMunicipality.FirstOrDefault(a => a.Code == x.City.ToString())!.Name ?? x.City.ToString(),
                     LegislativeDistrict = _db.tOptionAdminAreaCongressionalDistrict.FirstOrDefault(a => a.Code == x.LegislativeDistrict.ToString())!.Name ?? x.LegislativeDistrict.ToString(),
                     Cost = _db.tProjectComponentCost.Where(a => a.ProjectId == x.ReferenceId && a.StageName == x.StageName).Sum(a => a.Amount),
@@ -303,9 +303,9 @@ namespace WebAPI.Controllers.Programs
                     CreatedDate = x.CreatedDate,
 
                 }).ToListAsync();
-                var AvailableStages = await _db.tProgramStageEnum.AsNoTracking().ToListAsync();
-                var AvailableTypes = await _db.tProgramTypeEnum.AsNoTracking().ToListAsync();
-                var AvailableStatuses = await _db.tProgramStatusEnum.AsNoTracking().ToListAsync();
+                var AvailableStages = await _db.tOptionProgramStage.AsNoTracking().ToListAsync();
+                var AvailableTypes = await _db.tOptionProgramType.AsNoTracking().ToListAsync();
+                var AvailableStatuses = await _db.tOptionProgramStatus.AsNoTracking().ToListAsync();
                 var AvailableGroups = await _db.tGroups.AsNoTracking().ToListAsync();
                 string[] includes = { "C", "R", "PMO", "PMOC", "B" };
                 var Security = await _db.vAdminImplementingOffice.AsNoTracking().Where(x => includes.Contains(x.OrgType)).ToListAsync();
@@ -495,12 +495,12 @@ namespace WebAPI.Controllers.Programs
                     });
                     NewProgramVersion.DataSecurityGroup = dto.DataSecurityGroup;
                 }
-                var Status = await _db.tProgramStatusEnum.FirstOrDefaultAsync(x => x.Enum == (int)dto.Status);
+                var Status = await _db.tOptionProgramStatus.FirstOrDefaultAsync(x => x.NameId == (int)dto.Status);
                 if (Status == null) { return new BadRequestObjectResult(new { Message = $"The selected Status is invalid. Please ensure the Status field has a valid value selected.", Title = "Update Failed" }); }
                 if (dto.Status != NewProgramVersion.Status)
                 {
                     hasUpdated = true;
-                    var Current = await _db.tProgramStatusEnum.FirstOrDefaultAsync(x => x.Enum == (int)NewProgramVersion.Status);
+                    var Current = await _db.tOptionProgramStatus.FirstOrDefaultAsync(x => x.NameId == (int)NewProgramVersion.Status);
                     NewProgramVersion.Status = dto.Status;
                     transactionLogs.Add(new TransactionLog
                     {
@@ -514,12 +514,12 @@ namespace WebAPI.Controllers.Programs
                         CreatedDate = CurrentDate
                     });
                 }
-                var Types = await _db.tProgramTypeEnum.FirstOrDefaultAsync(x => x.Enum == (int)dto.Type);
+                var Types = await _db.tOptionProgramType.FirstOrDefaultAsync(x => x.NameId == (int)dto.Type);
                 if (Types == null) { return new BadRequestObjectResult(new { Message = $"The selected Type is invalid. Please ensure the Type field has a valid value selected.", Title = "Update Failed" }); }
                 if (dto.Type != NewProgramVersion.Type)
                 {
                     hasUpdated = true;
-                    var Current = await _db.tProgramTypeEnum.FirstOrDefaultAsync(x => x.Enum == (int)NewProgramVersion.Type);
+                    var Current = await _db.tOptionProgramType.FirstOrDefaultAsync(x => x.NameId == (int)NewProgramVersion.Type);
                     NewProgramVersion.Type = dto.Type;
                     transactionLogs.Add(new TransactionLog
                     {
@@ -602,7 +602,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Program ID Revision '{checkRevisions.Id}' does not exist in the Stages table. Please contact administrator!", Title = "Program Stage not found" });
                 }
-                var checkStageType = await _db.tProgramStageEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == (int)dto.Stage);
+                var checkStageType = await _db.tOptionProgramStage.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == (int)dto.Stage);
                 if (checkStageType == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program Stage '{dto.Stage}' is not valid!", Title = "Invalid Stage" });

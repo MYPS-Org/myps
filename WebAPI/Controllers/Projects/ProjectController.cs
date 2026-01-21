@@ -126,7 +126,7 @@ namespace WebAPI.Controllers.Projects
                     ProjectId = x.ProjectId,
                     Description = x.Description,
                     Thrust = _db.tProjectThrustLists.FirstOrDefault(a => a.PAPKey == x.Thrust)!.ThrustDescription ?? x.Thrust.ToString(),
-                    Category = _db.tProjectCategoryEnum.FirstOrDefault(a => a.Enum == x.Category)!.Name ?? x.Category.ToString(),
+                    Category = _db.tOptionProjectCategory.FirstOrDefault(a => a.CategoryId == x.Category)!.CategoryName ?? x.Category.ToString(),
                     City = _db.tOptionAdminAreaCityMunicipality.FirstOrDefault(a => a.Code == x.City)!.Name ?? x.City.ToString(),
                     LegislativeDistrict = _db.tOptionAdminAreaCongressionalDistrict.FirstOrDefault(a => a.Code == x.LegislativeDistrict)!.Name ?? x.LegislativeDistrict.ToString(),
                     Cost = _db.tProjectComponentCost.Where(a => a.ProjectId == x.ReferenceId && a.StageName == x.StageName).Sum(a => a.Amount),
@@ -154,9 +154,9 @@ namespace WebAPI.Controllers.Projects
             {
                 var AvailablePrograms = await _db.vProgramDetails.AsNoTracking().Where(x => x.IsPublished != true).ToListAsync();
                 int CurrentYear = (int)DateTime.UtcNow.Year;
-                var Category = await _db.tProjectCategoryEnum.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync();
+                var Category = await _db.tOptionProjectCategory.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.CategoryName).ToListAsync();
                 var Thrust = await _db.tProjectThrustLists.AsNoTracking().OrderBy(x => x.ThrustDescription).ToListAsync();
-                var Origin = await _db.tProjectOriginEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var Origin = await _db.tOptionProjectOrigin.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var Province = await _db.tOptionAdminAreaProvince.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var City = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var LD = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
@@ -164,10 +164,10 @@ namespace WebAPI.Controllers.Projects
                 var OperatingUnit = await _db.vAdminOperatingUnit.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var DEO = await _db.tOptionAdminAreaDistrictEngineeringOffice.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var Region = await _db.tOptionAdminAreaRegion.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-                var Feasib = await _db.tProjectLongFeasibilityEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-                var Agency = await _db.tProjectAgencyLists.AsNoTracking().OrderBy(x => x.AgencyName).ToListAsync();
-                var ImplementationMode = await _db.tProjectImplementModeEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-                var EmergencyMode = await _db.tProjectEmergencyModeEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var Feasib = await _db.tOptionProjectFeasibilityStudy.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var Agency = await _db.tOptionProjectAgency.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var ImplementationMode = await _db.tOptionProjectImplementationMode.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var EmergencyMode = await _db.tOptionProjectEmergencyMode.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 return Ok(new
                 {
                     Programs = AvailablePrograms,
@@ -224,7 +224,7 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = "Selected Program is already published!", Title = "Program Already Published" });
                 }
-                var Category = await _db.tProjectCategoryEnum.FirstOrDefaultAsync(x => x.Enum == dto.Category && (x.ValidUntil == 0 || x.ValidUntil >= CurrentDate.Year));
+                var Category = await _db.tOptionProjectCategory.FirstOrDefaultAsync(x => x.CategoryId == dto.Category && (x.ValidUntil == 0 || x.ValidUntil >= CurrentDate.Year));
                 if(Category == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Selected Category '{dto.Category}' is not valid!", Title = "Invalid Category" });
@@ -234,7 +234,7 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = $"Selected Thrust '{dto.Thrust}' is not valid!", Title = "Invalid Thrust" });
                 }
-                var Origin = await _db.tProjectOriginEnum.FirstOrDefaultAsync(x => x.Enum == dto.Origin);
+                var Origin = await _db.tOptionProjectOrigin.FirstOrDefaultAsync(x => x.NameId == dto.Origin);
                 if(Origin == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Selected Origin '{dto.Origin}' is not valid!", Title = "Invalid Origin" });
@@ -269,22 +269,22 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = $"Selected Implementing Office '{dto.ImplementingOffice}' is not valid!", Title = "Invalid Implementing Office" });
                 }
-                var Feasib = await _db.tProjectLongFeasibilityEnum.FirstOrDefaultAsync(x => x.Enum == dto.Feasibility);
+                var Feasib = await _db.tOptionProjectFeasibilityStudy.FirstOrDefaultAsync(x => x.NameId == dto.Feasibility);
                 if(Feasib == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Selected Feasibility '{dto.Feasibility}' is not valid!", Title = "Invalid Feasibility" });
                 }
-                var Agency = await _db.tProjectAgencyLists.FirstOrDefaultAsync(x => x.Id == dto.Agency);
+                var Agency = await _db.tOptionProjectAgency.FirstOrDefaultAsync(x => x.Id == dto.Agency);
                 if(Agency == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Selected Agency '{dto.Agency}' is not valid!", Title = "Invalid Agency" });
                 }
-                var ImplementationMode = await _db.tProjectImplementModeEnum.FirstOrDefaultAsync(x => x.Enum == dto.ImplementationMode);
+                var ImplementationMode = await _db.tOptionProjectImplementationMode.FirstOrDefaultAsync(x => x.NameId == dto.ImplementationMode);
                 if(ImplementationMode == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Selected Implementation Mode '{dto.ImplementationMode}' is not valid!", Title = "Invalid Implementation Mode" });
                 }
-                var EmergencyMode = await _db.tProjectEmergencyModeEnum.FirstOrDefaultAsync(x => x.Enum == dto.EmergencyMode);
+                var EmergencyMode = await _db.tOptionProjectEmergencyMode.FirstOrDefaultAsync(x => x.NameId == dto.EmergencyMode);
                 if(EmergencyMode == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Selected Emergency Mode '{dto.EmergencyMode}' is not valid!", Title = "Invalid Emergency Mode" });
@@ -386,10 +386,6 @@ namespace WebAPI.Controllers.Projects
                 .FromSqlInterpolated($"SELECT * FROM fProjectsPerStage({dto.ProjectId}) fp WHERE fp.StageName = {dto.StageName} AND fp.ProjectId = {dto.ProjectId}")
                 .AsNoTracking()
                 .FirstOrDefaultAsync();
-                if (Project.isRevised == true)
-                {
-
-                }
                 //var Project = await _db.vProjectDetails.AsNoTracking().Where(x => x.ReferenceId == dto.ProjectId).OrderByDescending(x => x.RevisionNumber).FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId);
                 if(Project == null)
                 {
@@ -409,7 +405,7 @@ namespace WebAPI.Controllers.Projects
                 var Doc = await _db.tProjectSupportingDocs.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
                 var SupportingDoc = await _db.tDropdownSupportingDocs.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync();
 
-                var ComponentType = await _db.tProjectComponentEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var ComponentType = await _db.tOptionProjectComponent.AsNoTracking().OrderBy(x => x.ComponentName).ToListAsync();
                 var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
                 //var ComponentCostYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentCost.Select(a => a.ReferenceId).Contains(x.ParentId)).ToListAsync();
 
@@ -421,9 +417,9 @@ namespace WebAPI.Controllers.Projects
                 var Notes = await _db.tProjectNotes.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
                 var Funding = await _db.tProjectFundingProfile.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && x.RevisedNumber == Project.RevisedNumber).ToListAsync();
 
-                var Category = await _db.tProjectCategoryEnum.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync();
+                var Category = await _db.tOptionProjectCategory.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.CategoryName).ToListAsync();
                 var Thrust = await _db.tProjectThrustLists.AsNoTracking().OrderBy(x => x.ThrustDescription).ToListAsync();
-                var Origin = await _db.tProjectOriginEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var Origin = await _db.tOptionProjectOrigin.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var Province = await _db.tOptionAdminAreaProvince.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var City = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var LD = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
@@ -431,10 +427,10 @@ namespace WebAPI.Controllers.Projects
                 var OperatingUnit = await _db.vAdminOperatingUnit.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var DEO = await _db.tOptionAdminAreaDistrictEngineeringOffice.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var Region = await _db.tOptionAdminAreaRegion.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-                var Feasib = await _db.tProjectLongFeasibilityEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-                var Agency = await _db.tProjectAgencyLists.AsNoTracking().OrderBy(x => x.AgencyName).ToListAsync();
-                var ImplementationMode = await _db.tProjectImplementModeEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-                var EmergencyMode = await _db.tProjectEmergencyModeEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var Feasib = await _db.tOptionProjectFeasibilityStudy.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var Agency = await _db.tOptionProjectAgency.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var ImplementationMode = await _db.tOptionProjectImplementationMode.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var EmergencyMode = await _db.tOptionProjectEmergencyMode.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
 
                 var Agreement = await _db.tOptionFundingAgreement.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var Source = await _db.tOptionFundingSource.AsNoTracking().Where(x => Agreement.Select(a => a.SourceOrg).Distinct().Contains(x.Organization)).OrderBy(x => x.Organization == "GOP" ? 0 : 1).ThenBy(x => x.Name).ToListAsync();
@@ -554,12 +550,12 @@ namespace WebAPI.Controllers.Projects
                 }
                 if (Project.Category != dto.ProjectDetails?.Category)
                 {
-                    var Category = await _db.tProjectCategoryEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.Category);
+                    var Category = await _db.tOptionProjectCategory.AsNoTracking().FirstOrDefaultAsync(x => x.CategoryId == dto.ProjectDetails!.Category);
                     if (Category == null)
                     {
                         return new BadRequestObjectResult(new { Message = $"Selected Category '{dto.ProjectDetails!.Category}' is not valid!", Title = "Invalid Category" });
                     }
-                    var OldCategory = await _db.tProjectCategoryEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == Project.Category);
+                    var OldCategory = await _db.tOptionProjectCategory.AsNoTracking().FirstOrDefaultAsync(x => x.CategoryId == Project.Category);
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
@@ -567,8 +563,8 @@ namespace WebAPI.Controllers.Projects
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "Category",
-                        NewValue = Category.Name,
-                        OldValue = OldCategory?.Name ?? "",
+                        NewValue = Category.CategoryName,
+                        OldValue = OldCategory?.CategoryName ?? "",
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
@@ -598,12 +594,12 @@ namespace WebAPI.Controllers.Projects
                 }
                 if (Project.Origin != dto.ProjectDetails?.Origin)
                 {
-                    var Origin = await _db.tProjectOriginEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.Origin);
+                    var Origin = await _db.tOptionProjectOrigin.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == dto.ProjectDetails!.Origin);
                     if (Origin == null)
                     {
                         return new BadRequestObjectResult(new { Message = $"Selected Origin '{dto.ProjectDetails!.Origin}' is not valid!", Title = "Invalid Origin" });
                     }
-                    var OldOrigin = await _db.tProjectOriginEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == Project.Origin);
+                    var OldOrigin = await _db.tOptionProjectOrigin.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == Project.Origin);
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
@@ -692,7 +688,7 @@ namespace WebAPI.Controllers.Projects
                     {
                         return new BadRequestObjectResult(new { Message = $"Selected Operating Unit '{dto.ProjectDetails!.OperatingUnit}' is not valid!", Title = "Invalid Operating Unit" });
                     }
-                    var OldOperatingUnit = await _db.vAdminImplementingOffice.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == Project.OperatingUnit);
+                    var OldOperatingUnit = await _db.vAdminOperatingUnit.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == Project.OperatingUnit);
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
@@ -769,12 +765,12 @@ namespace WebAPI.Controllers.Projects
                 //}
                 if (Project.Agency != dto.ProjectDetails?.Agency)
                 {
-                    var Agency = await _db.tProjectAgencyLists.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dto.ProjectDetails!.Agency);
+                    var Agency = await _db.tOptionProjectAgency.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == dto.ProjectDetails!.Agency);
                     if (Agency == null)
                     {
                         return new BadRequestObjectResult(new { Message = $"Selected Agency '{dto.ProjectDetails!.Agency}' is not valid!", Title = "Invalid Agency" });
                     }
-                    var OldAgency = await _db.tProjectAgencyLists.AsNoTracking().FirstOrDefaultAsync(x => x.Id == Project.Agency);
+                    var OldAgency = await _db.tOptionProjectAgency.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == Project.Agency);
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
@@ -782,8 +778,8 @@ namespace WebAPI.Controllers.Projects
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "Agency",
-                        NewValue = Agency.AgencyName,
-                        OldValue = OldAgency?.AgencyName ?? "",
+                        NewValue = Agency.Name,
+                        OldValue = OldAgency?.Name ?? "",
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
@@ -795,12 +791,12 @@ namespace WebAPI.Controllers.Projects
                 }
                 if (Project.ImplementationMode != dto.ProjectDetails?.ImplementationMode)
                 {
-                    var ImplementationMode = await _db.tProjectImplementModeEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.ImplementationMode);
+                    var ImplementationMode = await _db.tOptionProjectImplementationMode.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == dto.ProjectDetails!.ImplementationMode);
                     if (ImplementationMode == null)
                     {
                         return new BadRequestObjectResult(new { Message = $"Selected Implementation Mode '{dto.ProjectDetails!.ImplementationMode}' is not valid!", Title = "Invalid Implementation Mode" });
                     }
-                    var OldImplementationMode = await _db.tProjectImplementModeEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == Project.ImplementationMode);
+                    var OldImplementationMode = await _db.tOptionProjectImplementationMode.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == Project.ImplementationMode);
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
@@ -817,12 +813,12 @@ namespace WebAPI.Controllers.Projects
                 }
                 if (Project.EmergencyMode != dto.ProjectDetails?.EmergencyMode)
                 {
-                    var EmergencyMode = await _db.tProjectEmergencyModeEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.EmergencyMode);
+                    var EmergencyMode = await _db.tOptionProjectEmergencyMode.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == dto.ProjectDetails!.EmergencyMode);
                     if (EmergencyMode == null)
                     {
                         return new BadRequestObjectResult(new { Message = $"Selected Emergency Mode '{dto.ProjectDetails!.EmergencyMode}' is not valid!", Title = "Invalid Emergency Mode" });
                     }
-                    var OldEmergencyMode = await _db.tProjectEmergencyModeEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == Project.EmergencyMode);
+                    var OldEmergencyMode = await _db.tOptionProjectEmergencyMode.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == Project.EmergencyMode);
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
@@ -843,12 +839,12 @@ namespace WebAPI.Controllers.Projects
                 }
                 if (Project.Feasibility != dto.ProjectDetails?.Feasibility)
                 {
-                    var Feasib = await _db.tProjectLongFeasibilityEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.Feasibility);
+                    var Feasib = await _db.tOptionProjectFeasibilityStudy.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == dto.ProjectDetails!.Feasibility);
                     if (Feasib == null)
                     {
                         return new BadRequestObjectResult(new { Message = $"Selected Feasibility '{dto.ProjectDetails!.Feasibility}' is not valid!", Title = "Invalid Feasibility" });
                     }
-                    var OldFeasibility = await _db.tProjectLongFeasibilityEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == Project.Feasibility);
+                    var OldFeasibility = await _db.tOptionProjectFeasibilityStudy.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == Project.Feasibility);
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
@@ -881,12 +877,12 @@ namespace WebAPI.Controllers.Projects
                 }
                 if (Project.DetailedDesign != dto.ProjectDetails?.DetailedDesign)
                 {
-                    var DetailedDesign = await _db.tProjectEmergencyModeEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.DetailedDesign);
+                    var DetailedDesign = await _db.tOptionProjectDetailedDesign.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == dto.ProjectDetails!.DetailedDesign);
                     if (DetailedDesign == null)
                     {
                         return new BadRequestObjectResult(new { Message = $"Selected Detailed Design '{dto.ProjectDetails!.DetailedDesign}' is not valid!", Title = "Invalid Detailed Design" });
                     }
-                    var OldDetailedDesign = await _db.tProjectEmergencyModeEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == Project.DetailedDesign);
+                    var OldDetailedDesign = await _db.tOptionProjectDetailedDesign.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == Project.DetailedDesign);
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
@@ -919,12 +915,12 @@ namespace WebAPI.Controllers.Projects
                 }
                 if (Project.RowAvailable != dto.ProjectDetails?.RowAvailable)
                 {
-                    var RowAvailable = await _db.tProjectEmergencyModeEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == dto.ProjectDetails!.EmergencyMode);
+                    var RowAvailable = await _db.tOptionProjectRowAvailable.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == dto.ProjectDetails!.RowAvailable);
                     if (RowAvailable == null)
                     {
                         return new BadRequestObjectResult(new { Message = $"Selected Row Available '{dto.ProjectDetails!.EmergencyMode}' is not valid!", Title = "Invalid Row Available" });
                     }
-                    var OldRowAvailable = await _db.tProjectEmergencyModeEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == Project.RowAvailable);
+                    var OldRowAvailable = await _db.tOptionProjectRowAvailable.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == Project.RowAvailable);
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
@@ -1104,7 +1100,7 @@ namespace WebAPI.Controllers.Projects
                                 if (ExistingItem.ComponentType != item.ComponentType)
                                 {
                                     ComponentUpdate = true;
-                                    var Component = await _db.tProjectComponentEnum.FirstOrDefaultAsync(x => x.Description == item.ComponentType);
+                                    var Component = await _db.tOptionProjectComponent.FirstOrDefaultAsync(x => x.ComponentId == item.ComponentType);
                                     if (Component == null)
                                     {
                                         return new BadRequestObjectResult(new { Message = $"Selected Component '{item.ComponentType}' is not valid!", Title = "Invalid Component" });
@@ -1115,13 +1111,13 @@ namespace WebAPI.Controllers.Projects
                                         TypeOfTransaction = "Update",
                                         AffectedTable = "tProjectComponentCost",
                                         AffectedColumn = "ComponentType",
-                                        NewValue = Component.Name,
+                                        NewValue = Component.ComponentName,
                                         OldValue = ExistingItem.ComponentType,
                                         CreatedBy = _Session.UserId,
                                         CreatedDate = CurrentDate
                                     });
                                     ExistingItem.ComponentId = item.ComponentId;
-                                    ExistingItem.ComponentType = Component.Description;
+                                    ExistingItem.ComponentType = Component.ComponentName;
                                 }
                                 if (ExistingItem.Description != item.Description)
                                 {

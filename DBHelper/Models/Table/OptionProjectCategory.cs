@@ -8,17 +8,19 @@ using System.Threading.Tasks;
 
 namespace DBHelper.Models.Table
 {
-    public class ProjectEmergencyModeEnum
+    public class OptionProjectCategory
     {
         [Key]
         public int Id { get; set; }
         [Required]
-        public bool Enum { get; set; }
+        public int CategoryId { get; set; }
+        [MaxLength(200)]
+        public string? CategoryName { get; set; }
         [Required]
-        [MaxLength(50)]
-        public string Name { get; set; } = string.Empty;
+        public int Minimum { get; set; }
         [Required]
-        [MaxLength(100)]
-        public string Description { get; set; } = string.Empty;
+        public int Maximum { get; set; }
+        [Required]
+        public int ValidUntil { get; set; }
     }
 }

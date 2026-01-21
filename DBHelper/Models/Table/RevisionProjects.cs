@@ -46,6 +46,6 @@ namespace DBHelper.Models.Table
         public string DEO { get; set; } = string.Empty;
         public int? ImplementationMode { get; set; }
         [Required]
-        public bool EmergencyMode { get; set; }
+        public int EmergencyMode { get; set; }
     }
 }

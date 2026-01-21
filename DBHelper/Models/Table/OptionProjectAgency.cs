@@ -8,18 +8,16 @@ using System.Threading.Tasks;
 
 namespace DBHelper.Models.Table
 {
-    public class ProjectComponentEnum
+    public class OptionProjectAgency
     {
         [Key]
         public int Id { get; set; }
         [Required]
-        public int Enum { get; set; }
-        [Required]
-        [MaxLength(10)]
-        public string Name { get; set; } = string.Empty;
+        public int NameId { get; set; }
         [Required]
         [MaxLength(200)]
-        public string Description { get; set; } = string.Empty;
-        public bool? ExportToPCMA { get; set; }
+        public string Name { get; set; } = string.Empty;
+        [MaxLength(500)]
+        public string? Description { get; set; }
     }
 }

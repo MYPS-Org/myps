@@ -25,7 +25,7 @@ namespace WebAPI.Controllers.Revision.RegionalOffice
             try
             {
                 DateTime CurrentDate = DateTime.UtcNow;
-                var CheckRevision = await _db.tProjectRevisions.AsNoTracking().Where(x => x.ProjectId == dto.ProjectId && x.isRevised == true).OrderByDescending(x => x.RevisedNumber).FirstOrDefaultAsync();
+                var CheckRevision = await _db.tProjectRevisions.AsNoTracking().Where(x => x.ProjectId == dto.ProjectId && x.IsRevised == true).OrderByDescending(x => x.RevisedNumber).FirstOrDefaultAsync();
                 if (CheckRevision == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Revision cannot be updated, no revision request!", Title = "Revision not found" });

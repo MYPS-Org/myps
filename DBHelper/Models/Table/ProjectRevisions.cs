@@ -60,12 +60,12 @@ namespace DBHelper.Models.Table
         public string IslandCode { get; set; } = string.Empty;
         public int? ImplementationMode { get; set; }
         [Required]
-        public bool EmergencyMode { get; set; }
+        public int EmergencyMode { get; set; }
         public int? Feasibility { get; set; }
         public DateTime? FeasibilityDate { get; set; }
-        public bool? DetailedDesign { get; set; }
+        public int DetailedDesign { get; set; }
         public DateTime? DetailedDesignDate { get; set; }
-        public bool? RowAvailable { get; set; }
+        public int RowAvailable { get; set; }
         [Required]
         public int RegionWide { get; set; } = 0;
         [Required]
