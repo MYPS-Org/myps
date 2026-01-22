@@ -116,7 +116,7 @@ namespace WebAPI.Controllers.Projects
             try
             {
                 var Stage = await _db.vProjectDetails
-                .FromSqlInterpolated($"SELECT * FROM fProjectsPerStage({dto.ProjectId}) fp WHERE fp.ReferenceId = {dto.ProjectId}")
+                .FromSqlInterpolated($"SELECT * FROM fProjectDetails({dto.ProjectId}) fp WHERE fp.ReferenceId = {dto.ProjectId}")
                 .AsNoTracking().Select(x => new ProjectPerStage()
                 {
                     Id = x.Id,
@@ -399,7 +399,7 @@ namespace WebAPI.Controllers.Projects
             try
             {
                 var Project = await _db.vProjectDetails
-                .FromSqlInterpolated($"SELECT * FROM fProjectsPerStage({dto.ProjectId}) fp WHERE fp.StageName = {dto.StageName} AND fp.ProjectId = {dto.ProjectId}")
+                .FromSqlInterpolated($"SELECT * FROM fProjectDetails({dto.ProjectId}) fp WHERE fp.StageName = {dto.StageName} AND fp.ProjectId = {dto.ProjectId}")
                 .AsNoTracking()
                 .FirstOrDefaultAsync();
                 //var Project = await _db.vProjectDetails.AsNoTracking().Where(x => x.ReferenceId == dto.ProjectId).OrderByDescending(x => x.RevisionNumber).FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId);
@@ -536,7 +536,7 @@ namespace WebAPI.Controllers.Projects
                 List<TransactionLog> transactionLogs = new List<TransactionLog>();
 
                 var Project = await _db.vProjectDetails
-                .FromSqlInterpolated($"SELECT * FROM fProjectsPerStage({dto.ProjectDetails.ProjectId}) fp WHERE fp.ProjectId = {dto.ProjectDetails.ProjectId} AND fp.StageName = {dto.ProjectDetails.StageName}")
+                .FromSqlInterpolated($"SELECT * FROM fProjectDetails({dto.ProjectDetails.ProjectId}) fp WHERE fp.ProjectId = {dto.ProjectDetails.ProjectId} AND fp.StageName = {dto.ProjectDetails.StageName}")
                 .AsNoTracking()
                 .FirstOrDefaultAsync();
                 //var Project = await _db.vProjectDetails.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectDetails.ProjectId);
@@ -1750,7 +1750,7 @@ namespace WebAPI.Controllers.Projects
                 await _db.SaveChangesAsync();
                 if (HasCostUpdate)
                 {
-                    var Projects = await _db.vProjectDetails.FromSqlInterpolated($"SELECT * FROM fProjectsPerStage({Program.ProgramId}) fp WHERE fp.StageName = {Program.StageName}").AsNoTracking().ToListAsync();
+                    var Projects = await _db.vProjectDetails.FromSqlInterpolated($"SELECT * FROM fProjectDetails({Program.ProgramId}) fp WHERE fp.StageName = {Program.StageName}").AsNoTracking().ToListAsync();
                     HashSet<string> ProjectIds = Projects.Select(x => x.ProjectId!).ToHashSet();
                     double ProgramAmount = _db.tProjectComponentCost.AsNoTracking().Where(x => ProjectIds.Contains(x.ProjectId) && x.IsDeleted == false && x.StageName == Program.StageName && !CostToBeDeleted.Contains(x.Id)).Sum(x => x.Amount);
                     //var param = new Dictionary<string, object> { { "@ProgramId", Program.ProgramId },{ "@StageName", Program.StageName } };
@@ -1798,7 +1798,7 @@ namespace WebAPI.Controllers.Projects
             try
             {
                 var Project = await _db.vProjectDetails
-                .FromSqlInterpolated($"SELECT * FROM fProjectsPerStage({dto.ProjectId}) fp WHERE fp.ProjectId = {dto.ProjectId}")
+                .FromSqlInterpolated($"SELECT * FROM fProjectDetails({dto.ProjectId}) fp WHERE fp.ProjectId = {dto.ProjectId}")
                 .AsNoTracking()
                 .FirstOrDefaultAsync();
                 //var Project = await _db.vProjectDetails.FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId);
@@ -1844,7 +1844,7 @@ namespace WebAPI.Controllers.Projects
             try
             {
                 var Project = await _db.vProjectDetails
-                .FromSqlInterpolated($"SELECT * FROM fProjectsPerStage({dto.ProjectId}) fp WHERE fp.ProjectId = {dto.ProjectId} AND fp.StageName = {dto.StageName}")
+                .FromSqlInterpolated($"SELECT * FROM fProjectDetails({dto.ProjectId}) fp WHERE fp.ProjectId = {dto.ProjectId} AND fp.StageName = {dto.StageName}")
                 .AsNoTracking()
                 .FirstOrDefaultAsync();
                 if (Project == null)
@@ -1890,7 +1890,7 @@ namespace WebAPI.Controllers.Projects
             try
             {
                 var Project = await _db.vProjectDetails
-                .FromSqlInterpolated($"SELECT * FROM fProjectsPerStage({dto.ProjectId}) fp WHERE fp.ProjectId = {dto.ProjectId} AND fp.StageName = {dto.StageName}")
+                .FromSqlInterpolated($"SELECT * FROM fProjectDetails({dto.ProjectId}) fp WHERE fp.ProjectId = {dto.ProjectId} AND fp.StageName = {dto.StageName}")
                 .AsNoTracking()
                 .FirstOrDefaultAsync();
                 //var Project = await _db.vProjectDetails.FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId);
@@ -1945,7 +1945,7 @@ namespace WebAPI.Controllers.Projects
             try
             {
                 var Project = await _db.vProjectDetails
-                .FromSqlInterpolated($"SELECT * FROM fProjectsPerStage({dto.ProjectId}) fp WHERE fp.ProjectId = {dto.ProjectId} AND fp.StageName = {dto.StageName}")
+                .FromSqlInterpolated($"SELECT * FROM fProjectDetails({dto.ProjectId}) fp WHERE fp.ProjectId = {dto.ProjectId} AND fp.StageName = {dto.StageName}")
                 .AsNoTracking()
                 .FirstOrDefaultAsync();
                 if (Project == null)
