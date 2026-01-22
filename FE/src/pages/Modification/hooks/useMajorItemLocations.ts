@@ -67,8 +67,17 @@ export const useMajorItemLocations = () => {
       const parentLocations = prev.filter(loc => loc.ParentId === parentId);
       const otherLocations = prev.filter(loc => loc.ParentId !== parentId);
       
-      // Remove the specific location
-      parentLocations.splice(locationIndex, 1);
+      // Get the location to delete
+      const locationToDelete = parentLocations[locationIndex];
+      if (!locationToDelete) return prev;
+      
+      if (locationToDelete.Id === 0) {
+        // New item - hard delete (remove from array)
+        parentLocations.splice(locationIndex, 1);
+      } else {
+        // Existing item - soft delete (mark as deleted)
+        parentLocations[locationIndex] = { ...locationToDelete, IsDeleted: true };
+      }
       
       // Combine and return
       return [...otherLocations, ...parentLocations];

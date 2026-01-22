@@ -429,7 +429,13 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   };
 
   const handleDeleteDoc = (doc: ProjectSupportingDocs) => {
-    setDocs(prev => prev.filter(selected => selected.Id !== doc.Id));
+    if (doc.Id === 0) {
+      // New item - hard delete (remove from array)
+      setDocs(prev => prev.filter(selected => selected.Id !== doc.Id));
+    } else {
+      // Existing item - soft delete (mark as deleted)
+      setDocs(prev => prev.map(d => d.Id === doc.Id ? { ...d, IsDeleted: true } : d));
+    }
   };
   // #endregion
 
@@ -444,7 +450,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       Percentage: 0,
       Amount: 0,
       CreatedBy: '',
-      CreatedDate: new Date().toISOString().split('T')[0]
+      CreatedDate: new Date().toISOString().split('T')[0],
+      IsDeleted: false,
     };
     setFundingProfiles(prev => [...prev, newProfile]);
     console.log('Added funding profile to staging:', newProfile);
@@ -463,7 +470,15 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
   const handleDeleteFundingProfile = (index: number) => {
     const profileToDelete = fundingProfiles[index];
-    setFundingProfiles(prev => prev.filter((_, i) => i !== index));
+    if (profileToDelete.Id === 0) {
+      // New item - hard delete (remove from array)
+      setFundingProfiles(prev => prev.filter((_, i) => i !== index));
+    } else {
+      // Existing item - soft delete (mark as deleted)
+      setFundingProfiles(prev => prev.map((profile, i) => 
+        i === index ? { ...profile, IsDeleted: true } : profile
+      ));
+    }
     console.log('Deleted funding profile from staging:', profileToDelete);
   };
   // #endregion
@@ -565,6 +580,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         const majorItemPayload: MajorItemOfWork = {
           Id: item.Id,
           ProjectId: initialData?.ProjectDetails.ProjectId || '',
+          ReferenceId: item.ReferenceId,
           StageName: initialData?.ProgramDetails.StageName || '',
           ComponentId: item.ComponentId,
           YearOfWork: item.YearOfWork,
@@ -572,7 +588,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           InfraType: item.InfraType,
           TargetUnitId: item.TargetUnitId,
           TargetUnit: item.TargetUnit,
-          CreatedBy: item.CreatedBy
+          CreatedBy: item.CreatedBy,
+          IsDeleted: item.IsDeleted || false
         };
         majorItemsForPayload.push(majorItemPayload);
         
@@ -1091,6 +1108,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         majorItemOfWorks={majorItems.map(item => ({
           Id: item.Id,
           ProjectId: item.ProjectId,
+          ReferenceId: item.ReferenceId,
           StageName: initialData?.ProgramDetails.StageName || '',
           ComponentId: item.ComponentId,
           YearOfWork: item.YearOfWork,
@@ -1098,7 +1116,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           InfraType: item.InfraType,
           TargetUnitId: item.TargetUnitId,
           TargetUnit: item.TargetUnit,
-          CreatedBy: item.CreatedBy
+          CreatedBy: item.CreatedBy,
+          IsDeleted: item.IsDeleted || false
         }))}
         majorItemLocations={majorItems.flatMap(item => 
           (item.MajorItemLocations || []).map(location => ({
@@ -1125,6 +1144,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         majorItemOfWorks={majorItems.map(item => ({
           Id: item.Id,
           ProjectId: item.ProjectId,
+          ReferenceId: item.ReferenceId,
           StageName: initialData?.ProgramDetails.StageName || '',
           ComponentId: item.ComponentId,
           YearOfWork: item.YearOfWork,
@@ -1132,7 +1152,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           InfraType: item.InfraType,
           TargetUnitId: item.TargetUnitId,
           TargetUnit: item.TargetUnit,
-          CreatedBy: item.CreatedBy
+          CreatedBy: item.CreatedBy,
+          IsDeleted: item.IsDeleted || false
         }))}
         majorItemLocations={majorItems.flatMap(item => 
           (item.MajorItemLocations || []).map(location => ({

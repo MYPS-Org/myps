@@ -136,6 +136,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
       PhysicalTarget: null,
       StartStationLimit: '',
       EndStationLimit: '',
+      IsDeleted: false,
     };
     onAdd(newWorkLocation);
   };
@@ -168,6 +169,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
         PhysicalTarget: null,
         StartStationLimit: '',
         EndStationLimit: '',
+        IsDeleted: false,
       };
       onAdd(newWorkLocation);
     } else if (editingIndex !== null) {
@@ -563,6 +565,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
         
         <div className="space-y-6">
           {workLocations.map((location, index) => {
+            if (location.IsDeleted) return null;
             const fields = getFieldsForInfraType();
             return (
               <div

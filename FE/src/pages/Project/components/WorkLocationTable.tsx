@@ -90,6 +90,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
       PhysicalTarget: null,
       StartStationLimit: '',
       EndStationLimit: '',
+      IsDeleted: false
     };
     onAdd(newWorkLocation);
   };
@@ -109,6 +110,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
       DetailedScope: locationToCopy.DetailedScope 
         ? `${locationToCopy.DetailedScope} (Copy)`
         : '(Copy)',
+      IsDeleted: false
     };
     
     onAdd(copiedLocation);
@@ -147,6 +149,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
         PhysicalTarget: null,
         StartStationLimit: '',
         EndStationLimit: '',
+        IsDeleted: false
       };
       onAdd(newWorkLocation);
     } else if (editingIndex !== null) {
@@ -198,9 +201,11 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
 
   // Calculate total physical target for all work locations
   const getTotalPhysicalTarget = (): number => {
-    return workLocations.reduce((total, location) => {
-      return total + (location.PhysicalTarget || 0);
-    }, 0);
+    return workLocations
+      .filter(location => !location.IsDeleted)
+      .reduce((total, location) => {
+        return total + (location.PhysicalTarget || 0);
+      }, 0);
   };
 
   // Format number with commas
@@ -573,10 +578,11 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
         )} */}
       </div>
 
-      {workLocations.length > 0 ? (
+      {workLocations.filter(loc => !loc.IsDeleted).length > 0 ? (
         
         <div className="space-y-6">
           {workLocations.map((location, index) => {
+            if (location.IsDeleted) return null;
             const fields = getFieldsForInfraType();
             return (
               <div

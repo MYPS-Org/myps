@@ -57,10 +57,13 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
       
       if (modalMode === 'add') {
         // For add mode, calculate total with the new cost added
-        newTotalCost = componentCosts.reduce((sum, existingCost) => sum + (existingCost.Amount || 0), 0) + (cost.Amount || 0);
+        newTotalCost = componentCosts
+          .filter(c => !c.IsDeleted)
+          .reduce((sum, existingCost) => sum + (existingCost.Amount || 0), 0) + (cost.Amount || 0);
       } else if (modalMode === 'edit' && editingIndex !== null) {
         // For edit mode, replace the existing cost with the new one
         newTotalCost = componentCosts.reduce((sum, existingCost, index) => {
+          if (existingCost.IsDeleted) return sum;
           if (index === editingIndex) {
             return sum + (cost.Amount || 0);
           }
@@ -88,7 +91,9 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
 
 
   const calculateTotalCosts = () => {
-    const totalCost = componentCosts.reduce((sum, cost) => sum + (cost.Amount || 0), 0);
+    const totalCost = componentCosts
+      .filter(cost => !cost.IsDeleted)
+      .reduce((sum, cost) => sum + (cost.Amount || 0), 0);
 
     return {
       totalCost,
@@ -223,7 +228,9 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
                 </TableCell>
               </TableRow>
             ) : (
-              componentCosts.map((cost, index) => (
+              componentCosts.map((cost, index) => {
+                if (cost.IsDeleted) return null;
+                return (
                 <TableRow key={cost.Id}>
                   <TableCell className="font-medium">{cost.ComponentId}</TableCell>
                   <TableCell>{cost.ComponentType}</TableCell>
@@ -258,7 +265,8 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
                     </div>
                   </TableCell>
                 </TableRow>
-              ))
+                );
+              })
             )}
           </TableBody>
         </Table>

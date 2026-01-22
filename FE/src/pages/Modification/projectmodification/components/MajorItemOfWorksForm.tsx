@@ -191,7 +191,8 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
         TargetUnit: getTargetUnitName(majorItemData.WorkTypeId),
         CreatedBy: '',
         DropdownData: dropDowns?.filter(x => x.InfraType === majorItemData.InfraType) || [],
-        MajorItemLocations: [] // Initialize empty work locations array
+        MajorItemLocations: [], // Initialize empty work locations array
+        IsDeleted: false,
       };
       
       // Call unified add handler with complete item
@@ -249,11 +250,13 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
 
   const handleEditWorkLocation = (majorItemIndex: number, workLocationIndex: number, workLocation: MajorItemLocations) => {
     const parentId = items[majorItemIndex].ReferenceId;
+    if (!parentId) return;
     editWorkLocation(parentId, workLocationIndex, workLocation);
   };
 
   const handleDeleteWorkLocation = (majorItemIndex: number, workLocationIndex: number) => {
     const parentId = items[majorItemIndex].ReferenceId;
+    if (!parentId) return;
     deleteWorkLocation(parentId, workLocationIndex);
   };
 
@@ -296,7 +299,9 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
             </TableRow>
           </TableHead>
           <TableBody>
-            {items.map((item, index) => (
+            {items.map((item, index) => {
+              if (item.IsDeleted) return null;
+              return (
               <React.Fragment key={item.Id || index}>
                 <TableRow className="border-b">
                   <TableCell>
@@ -365,7 +370,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                     <TableCell colSpan={8} className="p-4">
                       <WorkLocationTable
                         majorItemOfWorks={item}
-                        workLocations={getLocationsByParentId(item.ReferenceId)}
+                        workLocations={getLocationsByParentId(item.ReferenceId || '')}
                         onAdd={(workLocation) => handleAddWorkLocation(index, workLocation)}
                         onEdit={(workLocationIndex, workLocation) => 
                           handleEditWorkLocation(index, workLocationIndex, workLocation)
@@ -378,7 +383,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                         targetUnit={item.TargetUnit}
                         maxAmount={getMinMaxAmounts(item.WorkTypeId).max}
                         minAmount={getMinMaxAmounts(item.WorkTypeId).min}
-                        parentId={item.ReferenceId}
+                        parentId={item.ReferenceId || ''}
                         dropDowns={dropDowns}
                         disabled={false}
                         fieldRules={fieldRules}
@@ -387,8 +392,8 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                   </TableRow>
                 )}
               </React.Fragment>
-            ))}
-          </TableBody>
+            );
+            })}\n          </TableBody>
         </Table>
       </div>
 

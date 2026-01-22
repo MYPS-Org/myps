@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from "react";
-import type { ComponentCost, ComponentCostWithYears, ComponentCostYear } from "../../../Project/Model.d";
+import type { ComponentCost } from "../../../Project/Model.d";
 import type { FieldRules } from "../../Model";
 import { Button } from "../../../../components/tailwindui/button";
 import { PlusIcon, TrashIcon, PencilIcon } from "@heroicons/react/24/outline";
@@ -12,8 +12,8 @@ import { componentCostsWithYearsAtom } from "../../atoms/componentCosts.atom";
 import { useComponentCosts } from "../../hooks/useComponentCosts";
 
 interface ComponentCostFormProps {
-  componentCosts?: ComponentCostWithYears[];
-  onAdd?: (cost: ComponentCost, costYear?: ComponentCostYear) => void;
+  componentCosts?: ComponentCost[];
+  onAdd?: (cost: ComponentCost) => void;
   onEdit?: (index: number, updatedCost: ComponentCost) => void;
   onDelete?: (index: number) => void;
   initialData?: any;
@@ -76,8 +76,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
 
   const isFromDatabase = useCallback((cost: ComponentCost) => {
     if (cost.Id && cost.Id > 0) return true;
-    if (cost.ReferenceId && (cost.ReferenceId.startsWith('temp_') || /^\d+$/.test(String(cost.ReferenceId)))) return false;
-    return true;
+    return false;
   }, []);
 
   const canAddComponentCost = useCallback(() => {
@@ -95,24 +94,19 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
     return fieldRules.ComponentCostRules.CRUD.CanDelete ?? false;
   }, [isFromDatabase, fieldRules]);
 
-  const ensureReferenceId = (cost: ComponentCost) => {
-    if (cost.ReferenceId && String(cost.ReferenceId).length > 0) return cost.ReferenceId;
-    return Date.now().toString();
-  };
-
-  const handleSaveCost = (cost: ComponentCost, costYear?: ComponentCostYear) => {
+  const handleSaveCost = (cost: ComponentCost) => {
     // Budget validation
     if (maxAmountCost && maxAmountCost > 0) {
       let newTotalCost = 0;
 
       if (modalMode === 'add') {
-        newTotalCost = componentCosts.reduce((sum, existingCost) => sum + (existingCost.Total || 0), 0) + (cost.Total || 0);
+        newTotalCost = componentCosts.reduce((sum, existingCost) => sum + (existingCost.Amount || 0), 0) + (cost.Amount || 0);
       } else if (modalMode === 'edit' && editingIndex !== null) {
         newTotalCost = componentCosts.reduce((sum, existingCost, index) => {
           if (index === editingIndex) {
-            return sum + (cost.Total || 0);
+            return sum + (cost.Amount || 0);
           }
-          return sum + (existingCost.Total || 0);
+          return sum + (existingCost.Amount || 0);
         }, 0);
       }
 
@@ -124,22 +118,21 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
     }
 
     if (modalMode === 'add') {
-      const refId = ensureReferenceId(cost);
-      const costWithRef = { ...cost, ReferenceId: refId };
-      const yearWithParent = costYear ? { ...costYear, ParentId: refId } : undefined;
-      add(costWithRef, yearWithParent);
+      add(cost);
     } else if (modalMode === 'edit' && editingIndex !== null) {
-      const existingRef = componentCosts[editingIndex]?.ReferenceId;
-      const refId = cost.ReferenceId || existingRef || Date.now().toString();
-      const updated = { ...cost, ReferenceId: refId };
-      update(String(refId), updated);
+      const componentId = cost.ComponentId || componentCosts[editingIndex]?.ComponentId;
+      if (componentId) {
+        update(componentId, cost);
+      }
     }
 
     handleCloseModal();
   };
 
   const calculateTotalCosts = () => {
-    const totalCost = componentCosts.reduce((sum, cost) => sum + (cost.Total || 0), 0);
+    const totalCost = componentCosts
+      .filter(cost => !cost.IsDeleted)
+      .reduce((sum, cost) => sum + (cost.Amount || 0), 0);
     return { totalCost };
   };
 
@@ -232,8 +225,10 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
               </TableCell>
             </TableRow>
           ) : (
-            componentCosts.map((cost, index) => (
-              <TableRow key={cost.Id || cost.ReferenceId || index}>
+            componentCosts.map((cost, index) => {
+              if (cost.IsDeleted) return null;
+              return (
+              <TableRow key={cost.Id || cost.ComponentId || index}>
                 <TableCell className="font-medium">{cost.ComponentId}</TableCell>
                 <TableCell>{cost.ComponentType}</TableCell>
                 <TableCell>
@@ -241,7 +236,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
                     {cost.Description}
                   </div>
                 </TableCell>
-                <TableCell>₱{formatCurrency(cost.Total || 0)}</TableCell>
+                <TableCell>₱{formatCurrency(cost.Amount || 0)}</TableCell>
                 <TableCell>{cost.CreatedBy || '-'}</TableCell>
                 <TableCell>{cost.CreatedDate ? new Date(cost.CreatedDate).toLocaleDateString() : '-'}</TableCell>
                 <TableCell>{cost.ConstructionStatusName}</TableCell>
@@ -266,7 +261,8 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
                   </div>
                 </TableCell>
               </TableRow>
-            ))
+              );
+            })
           )}
         </TableBody>
       </Table>

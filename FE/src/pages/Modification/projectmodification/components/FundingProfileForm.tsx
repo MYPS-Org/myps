@@ -35,13 +35,18 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
 
   // Calculate total percentage and amount, then auto-update percentages
   useEffect(() => {
-    const totalAmt = fundingProfiles.reduce((sum, p) => sum + (p.Amount || 0), 0);
+    const totalAmt = fundingProfiles
+      .filter(p => !p.IsDeleted)
+      .reduce((sum, p) => sum + (p.Amount || 0), 0);
     setTotalAmount(totalAmt);
 
     // Create updated profiles with recalculated percentages
     let hasChanges = false;
 
     const updatedProfiles = fundingProfiles.map((profile) => {
+      // Skip deleted items
+      if (profile.IsDeleted) return profile;
+      
       if (totalAmt === 0) {
         if(profile.Percentage !== 0) {
           hasChanges = true;
@@ -67,7 +72,9 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
     }
 
     // Calculate total percentage and balancer to fix floating-point errors
-    const totalPct = updatedProfiles.reduce((sum, p) => sum + (p.Percentage || 0), 0);
+    const totalPct = updatedProfiles
+      .filter(p => !p.IsDeleted)
+      .reduce((sum, p) => sum + (p.Percentage || 0), 0);
     setTotalPercentage(totalPct);
 
     // Balancer compensates for rounding errors (e.g., 3 items at 33.33% = 99.99%, balancer = 0.01%)
@@ -195,8 +202,9 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
             </TableRow>
         </TableHead>
         <TableBody>
-            {fundingProfiles.map((profile, index) => (
-              
+            {fundingProfiles.map((profile, index) => {
+              if (profile.IsDeleted) return null;
+              return (
             <TableRow key={profile.Id === 0 ? `new-${index}` : profile.Id}>
                 <TableCell className="w-1/3">
                   <select
@@ -275,7 +283,8 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
                   </button>
                 </TableCell>
             </TableRow>
-            ))}
+            );
+            })}
         </TableBody>
         </Table>
         

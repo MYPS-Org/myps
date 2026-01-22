@@ -371,18 +371,19 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   };
 
   const handleDeleteComponentCost = (index: number) => {
-    console.log('=== DELETING COMPONENT COST ===');
-    console.log('Index:', index);
-    console.log('Current componentCosts before delete:', componentCosts);
-    
     const costToDelete = componentCosts[index];
     if (costToDelete) {
-      setComponentCosts(prev => {
-        const updated = prev.filter((_, i) => i !== index);
-        console.log('Updated componentCosts after delete:', updated);
-        return updated;
-      });
-      console.log('Deleted component cost from staging:', costToDelete);
+      if (costToDelete.Id === 0) {
+        // Hard delete for new items not yet saved to database
+        setComponentCosts(prev => prev.filter((_, i) => i !== index));
+        console.log('Hard deleted (removed) new component cost:', costToDelete);
+      } else {
+        // Soft delete for existing database items
+        setComponentCosts(prev => prev.map((cost, i) => 
+          i === index ? { ...cost, IsDeleted: true } : cost
+        ));
+        console.log('Soft deleted (IsDeleted=true) existing component cost:', costToDelete);
+      }
     }
   };
 
@@ -401,7 +402,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       TargetUnit: '',
       CreatedBy: '',
       MajorItemLocations: [], // Initialize empty work locations
-      DropdownData: []
+      DropdownData: [],
+      IsDeleted: false
     };
     setMajorItems(prev => [...prev, newItem]);
     console.log('Added major item to staging:', newItem);
@@ -420,8 +422,19 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
   const handleDeleteMajorItem = (index: number) => {
     const itemToDelete = majorItems[index];
-    setMajorItems(prev => prev.filter((_, i) => i !== index));
-    console.log('Deleted major item from staging:', itemToDelete);
+    if (itemToDelete) {
+      if (itemToDelete.Id === 0) {
+        // Hard delete for new items not yet saved to database
+        setMajorItems(prev => prev.filter((_, i) => i !== index));
+        console.log('Hard deleted (removed) new major item:', itemToDelete);
+      } else {
+        // Soft delete for existing database items
+        setMajorItems(prev => prev.map((item, i) => 
+          i === index ? { ...item, IsDeleted: true } : item
+        ));
+        console.log('Soft deleted (IsDeleted=true) existing major item:', itemToDelete);
+      }
+    }
   };
 // #endregion
 
@@ -441,7 +454,15 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   };
 
   const handleDeleteDoc = (doc: ProjectSupportingDocs) => {
-    setDocs(prev => prev.filter(selected => selected.Id !== doc.Id));
+    if (doc.Id === 0) {
+      // Hard delete for new items not yet saved to database
+      setDocs(prev => prev.filter(selected => selected !== doc));
+      console.log('Hard deleted (removed) new document:', doc);
+    } else {
+      // Soft delete for existing database items - mark as deleted
+      setDocs(prev => prev.map(d => d.Id === doc.Id ? { ...d, IsDeleted: true } : d));
+      console.log('Soft deleted (IsDeleted=true) existing document:', doc);
+    }
   };
 // #endregion
 
@@ -456,7 +477,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       Percentage: 0,
       Amount: 0,
       CreatedBy: '',
-      CreatedDate: new Date().toISOString().split('T')[0]
+      CreatedDate: new Date().toISOString().split('T')[0],
+      IsDeleted: false
     };
     setFundingProfiles(prev => [...prev, newProfile]);
     console.log('Added funding profile to staging:', newProfile);
@@ -475,8 +497,19 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
   const handleDeleteFundingProfile = (index: number) => {
     const profileToDelete = fundingProfiles[index];
-    setFundingProfiles(prev => prev.filter((_, i) => i !== index));
-    console.log('Deleted funding profile from staging:', profileToDelete);
+    if (profileToDelete) {
+      if (profileToDelete.Id === 0) {
+        // Hard delete for new items not yet saved to database
+        setFundingProfiles(prev => prev.filter((_, i) => i !== index));
+        console.log('Hard deleted (removed) new funding profile:', profileToDelete);
+      } else {
+        // Soft delete for existing database items
+        setFundingProfiles(prev => prev.map((profile, i) => 
+          i === index ? { ...profile, IsDeleted: true } : profile
+        ));
+        console.log('Soft deleted (IsDeleted=true) existing funding profile:', profileToDelete);
+      }
+    }
   };
 // #endregion
 
@@ -606,7 +639,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           InfraType: item.InfraType,
           TargetUnitId: item.TargetUnitId,
           TargetUnit: item.TargetUnit,
-          CreatedBy: item.CreatedBy
+          CreatedBy: item.CreatedBy,
+          IsDeleted: item.IsDeleted
         };
         majorItemsForPayload.push(majorItemPayload);
         

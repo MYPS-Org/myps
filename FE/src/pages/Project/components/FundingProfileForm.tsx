@@ -32,7 +32,9 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
 
   // Calculate total percentage and amount, then auto-update percentages
   useEffect(() => {
-    const totalAmt = fundingProfiles.reduce((sum, p) => sum + (p.Amount || 0), 0);
+    const totalAmt = fundingProfiles
+      .filter(p => !p.IsDeleted)
+      .reduce((sum, p) => sum + (p.Amount || 0), 0);
     setTotalAmount(totalAmt);
 
     // Create updated profiles with recalculated percentages
@@ -172,7 +174,9 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
             </TableRow>
         </TableHead>
         <TableBody>
-            {fundingProfiles.map((profile, index) => (
+            {fundingProfiles.map((profile, index) => {
+              if (profile.IsDeleted) return null;
+              return (
               
             <TableRow key={profile.Id === 0 ? `new-${index}` : profile.Id}>
                 <TableCell className="w-1/3">
@@ -251,7 +255,8 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
                   </button>
                 </TableCell>
             </TableRow>
-            ))}
+            );
+            })}
         </TableBody>
         </Table>
         {/* Validation Summary */}

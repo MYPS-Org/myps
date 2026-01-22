@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
-import { XMarkIcon, DocumentArrowUpIcon, DocumentIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon} from '@heroicons/react/24/outline';
 import type { ProjectDetails, ComponentCost, MajorItemOfWork, MajorItemLocations, FundingProfile } from '../../Project/Model';
 import { ResubmitRevisionRequest, submitModificationRequest, updateRevisionRequestStatus } from '../Service';
 import { useToast } from '../../../components/toaster/ToasterContext';

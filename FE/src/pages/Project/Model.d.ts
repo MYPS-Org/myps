@@ -291,6 +291,7 @@ export interface MajorItemOfWorksWithDropdown extends MajorItemOfWork {
 export interface MajorItemOfWork {
 	Id: number;
 	ProjectId: string;
+	ReferenceId?: string;
 	StageName?: string;
 	ComponentId: string;
 	YearOfWork: number;
@@ -299,6 +300,7 @@ export interface MajorItemOfWork {
 	TargetUnitId: number;
 	TargetUnit: string;
 	CreatedBy: string;
+	IsDeleted: boolean;
 }
 export interface MajorItemLocations {
 	Id: number;
@@ -318,6 +320,7 @@ export interface MajorItemLocations {
 	EndY: string;
 	StartStationLimit: string;
 	EndStationLimit: string;
+	IsDeleted: boolean;
 }
 export interface ProjectNote {
 	Id: number;
@@ -339,6 +342,7 @@ export interface ProjectSupportingDocs {
 	Description: string;
 	CreatedBy: string;
 	CreatedDate?: string;
+	IsDeleted?: boolean;
 }
 export interface FundingProfile {
 	Id: number;
@@ -350,6 +354,7 @@ export interface FundingProfile {
 	Amount: number;
 	CreatedBy: string;
 	CreatedDate: string;
+	IsDeleted: boolean;
 }
 
 // #region Additional interfaces for dropdowns and enums

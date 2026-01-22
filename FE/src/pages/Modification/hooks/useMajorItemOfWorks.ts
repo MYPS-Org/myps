@@ -45,7 +45,8 @@ export const useMajorItemOfWorks = () => {
             InfraType: '',
             TargetUnitId: 0,
             TargetUnit: '',
-            CreatedBy: ''
+            CreatedBy: '',
+            IsDeleted: false
         };
 
         setItems(prev => [...prev, {
@@ -58,7 +59,8 @@ export const useMajorItemOfWorks = () => {
             InfraType: newItem.InfraType,
             TargetUnitId: newItem.TargetUnitId,
             TargetUnit: newItem.TargetUnit,
-            CreatedBy: newItem.CreatedBy
+            CreatedBy: newItem.CreatedBy,
+            IsDeleted: false
         }]);
     }
 
@@ -79,7 +81,8 @@ export const useMajorItemOfWorks = () => {
                     InfraType: updatedItem.InfraType,
                     TargetUnitId: updatedItem.TargetUnitId,
                     TargetUnit: updatedItem.TargetUnit,
-                    CreatedBy: updatedItem.CreatedBy
+                    CreatedBy: updatedItem.CreatedBy,
+                    IsDeleted: updatedItem.IsDeleted ?? item.IsDeleted ?? false
                 }
                 : item
             )
@@ -90,11 +93,25 @@ export const useMajorItemOfWorks = () => {
 
     const deleteMajorItem = (index: number) => {
         setItems(prev => {
-        const refId = prev[index]?.ReferenceId;
+        const itemToDelete = prev[index];
+        if (!itemToDelete) return prev;
+        
+        const refId = itemToDelete.ReferenceId;
         if (!refId) return prev;
 
-        setLocations(locs => locs.filter(l => l.ParentId !== refId));
-        return prev.filter((_, i) => i !== index);
+        if (itemToDelete.Id === 0) {
+          // New item - hard delete (remove from array and its locations)
+          setLocations(locs => locs.filter(l => l.ParentId !== refId));
+          return prev.filter((_, i) => i !== index);
+        } else {
+          // Existing item - soft delete (mark as deleted and mark its locations as deleted)
+          setLocations(locs => locs.map(l => 
+            l.ParentId === refId ? { ...l, IsDeleted: true } : l
+          ));
+          return prev.map((item, i) => 
+            i === index ? { ...item, IsDeleted: true } : item
+          );
+        }
         });
     };
 

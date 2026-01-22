@@ -13,6 +13,7 @@ interface AddMajorItemDialogProps {
     YearOfWork: number;
     WorkTypeId: number;
     InfraType: string;
+    IsDeleted: boolean;
   }) => void;
   componentCosts: ComponentCost[];
   programDetails?: ProgramList;
@@ -23,6 +24,7 @@ interface AddMajorItemDialogProps {
     YearOfWork: number;
     WorkTypeId: number;
     InfraType: string;
+    IsDeleted: boolean; 
   };
   existingMajorItems?: Array<{ ComponentId: string }>;
 }
@@ -42,7 +44,8 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
     ComponentId: '',
     YearOfWork: programDetails?.YearStart || new Date().getFullYear(),
     WorkTypeId: 0,
-    InfraType: ''
+    InfraType: '',
+    IsDeleted: false
   });
 
   const [availableWorkTypes, setAvailableWorkTypes] = useState<ScopeOfWorkEnum[]>([]);
@@ -56,7 +59,8 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
         ComponentId: '',
         YearOfWork: programDetails ? programDetails.YearStart : new Date().getFullYear(),
         WorkTypeId: 0,
-        InfraType: ''
+        InfraType: '',
+        IsDeleted: false
       });
     }
   }, [mode, initialData, isOpen]);
@@ -89,7 +93,8 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
       ComponentId: '',
       YearOfWork: new Date().getFullYear(),
       WorkTypeId: 0,
-      InfraType: ''
+      InfraType: '',
+      IsDeleted: false
     });
     onClose();
   };
