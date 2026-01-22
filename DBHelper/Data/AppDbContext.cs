@@ -78,6 +78,7 @@ namespace DBHelper.Data
         public DbSet<Models.Table.RevisionProjectComponentCost> tRevisionProjectComponentCost { get; set; }
         public DbSet<Models.Table.RevisionProjectMajorWorkItem> tRevisionProjectMajorWorkItem { get; set; }
         public DbSet<Models.Table.RevisionProjectMajorWorkLocations> tRevisionProjectMajorWorkLocations { get; set; }
+        public DbSet<Models.Table.RevisionDetailsComponentsStatus> tRevisionDetailsComponentsStatus { get; set; }
         #endregion
         #region Views
         public DbSet<Models.Views.Users> vUsers { get; set; }

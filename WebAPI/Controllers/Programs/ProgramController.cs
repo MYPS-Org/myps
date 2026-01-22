@@ -288,9 +288,8 @@ namespace WebAPI.Controllers.Programs
                 {
                     Id = x.Id,
                     ProgramId = x.ProgramId,
-                    ProgramName = x.ProgramName,
                     StageId = x.StageId,
-                    StageName = x.StageName,
+                    StageName = x.StageName!,
                     ReferenceId = x.ReferenceId,
                     ProjectId = x.ProjectId,
                     Description = x.Description,
@@ -614,7 +613,7 @@ namespace WebAPI.Controllers.Programs
                 if (checkProjects.Count > 0)
                 {
                     HashSet<string> projectIds = checkProjects.Select(p => p.ProjectId!).ToHashSet();
-                    HashSet<int?> RevisionIds = checkProjects.Select(p => p.RevisionId!).ToHashSet();
+                    HashSet<int> RevisionIds = checkProjects.Select(p => p.RevisionId!).ToHashSet();
                     var ProjectRevisions = await _db.tProjectRevisions.AsNoTracking().Where(x => RevisionIds.Contains(x.Id)).ToListAsync();
 
                     var Components = await _db.tProjectComponentCost.AsNoTracking().Where(x => projectIds.Contains(x.ProjectId) && x.StageName == checkStage.StageName).ToListAsync();

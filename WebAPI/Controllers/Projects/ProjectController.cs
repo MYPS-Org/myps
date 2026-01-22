@@ -353,7 +353,7 @@ namespace WebAPI.Controllers.Projects
                     IslandCode = SelectedRegion.IslandCode ?? dto.IslandCode!,
                     Feasibility = dto.Feasibility,
                     FeasibilityDate = dto.FeasibilityDate,
-                    DetailedDesign = dto.DetailedDesign,
+                    DetailedDesign = (int)dto.DetailedDesign!,
                     DetailedDesignDate = dto.DetailedDesignDate,
                     RowAvailable = (int)dto.RowAvailable!,
                     RegionWide = dto.RegionWide,
@@ -1018,7 +1018,7 @@ namespace WebAPI.Controllers.Projects
                         ImplementationMode = Project.ImplementationMode,
                         EmergencyMode = (int)Project.EmergencyMode!,
                         Feasibility = Project.Feasibility,
-                        DetailedDesign = Project.DetailedDesign,
+                        DetailedDesign = (int)Project.DetailedDesign!,
                         RowAvailable = (int)Project.RowAvailable!,
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
