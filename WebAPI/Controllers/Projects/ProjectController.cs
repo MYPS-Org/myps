@@ -425,13 +425,13 @@ namespace WebAPI.Controllers.Projects
                 var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && x.IsDeleted == false).ToListAsync();
                 //var ComponentCostYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentCost.Select(a => a.ReferenceId).Contains(x.ParentId)).ToListAsync();
 
-                var MajorItemOfWork = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && x.RevisedNumber == Project.RevisedNumber).ToListAsync();
+                var MajorItemOfWork = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && x.RevisedNumber == Project.RevisedNumber && x.IsDeleted == false).ToListAsync();
                 HashSet<string> ItemParents = MajorItemOfWork.Select(x => x.ReferenceId).ToHashSet();
-                var MajorWorkLocation = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => ItemParents.Contains(x.ParentId)).ToListAsync();
+                var MajorWorkLocation = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => ItemParents.Contains(x.ParentId) && x.IsDeleted == false).ToListAsync();
 
                 var RowAvailables = await _db.tOptionProjectRowAvailable.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var Notes = await _db.tProjectNotes.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
-                var Funding = await _db.tProjectFundingProfile.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && x.RevisedNumber == Project.RevisedNumber).ToListAsync();
+                var Funding = await _db.tProjectFundingProfile.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && x.RevisedNumber == Project.RevisedNumber && x.IsDeleted == false).ToListAsync();
 
                 var Category = await _db.tOptionProjectCategory.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.CategoryName).ToListAsync();
                 var Thrust = await _db.tProjectThrustLists.AsNoTracking().OrderBy(x => x.ThrustDescription).ToListAsync();
@@ -1039,6 +1039,7 @@ namespace WebAPI.Controllers.Projects
                 }
                 #endregion
                 #region Update Component Cost
+                var CostToBeDeleted = dto.ComponentCosts.Where(x => x.IsDeleted == true && x.Id > 0).Select(x => x.Id).ToHashSet<int>();
                 var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && !x.IsDeleted).ToListAsync();
                 var NewComponentCostData = dto.ComponentCosts.Where(x => x.Id == 0);
                 #region New Component Cost
@@ -1165,7 +1166,7 @@ namespace WebAPI.Controllers.Projects
                     {
                         var UpdatedWorkItemIds = UpdateMajorItems.Select(x => x.ReferenceId).ToHashSet();
                         var UpdatedWorkLocations = dto.MajorItemLocations.Where(x => UpdatedWorkItemIds.Contains(x.ParentId)).ToHashSet();
-                        var LocationsToBeDeleted = new HashSet<int>();
+                        var LocationsToBeDeleted = new List<int>();
                         foreach (var item in UpdateMajorItems)
                         {
                             var ExistingItem = MajorItemOfWorks.FirstOrDefault(x => x.Id == item.Id);
@@ -1242,20 +1243,20 @@ namespace WebAPI.Controllers.Projects
                                         CreatedDate = CurrentDate
                                     });
                                     ExistingItem.IsDeleted = item.IsDeleted;
-                                    var ToBeDeleted = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => UpdatedWorkItemIds.Contains(x.ParentId) && !x.IsDeleted).ToListAsync();
-                                    ToBeDeleted.Select(x =>
-                                    {
-                                        x.IsDeleted = true;
-                                        return x;
-                                    });
-                                    LocationsToBeDeleted = ToBeDeleted.Select(x => x.Id).ToHashSet();
-                                    _db.tProjectMajorWorkLocations.UpdateRange(ToBeDeleted);
                                 }
                                 if (hasUpdate)
                                 {
                                     ExistingItem.UpdatedBy = _Session.UserId;
                                     ExistingItem.UpdatedDate = CurrentDate;
                                     _db.tProjectMajorWorkItem.Update(ExistingItem);
+                                    var ToBeDeleted = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => UpdatedWorkItemIds.Contains(x.ParentId) && !x.IsDeleted && !LocationsToBeDeleted.Contains(x.Id)).ToListAsync();
+                                    ToBeDeleted.Select(x =>
+                                    {
+                                        x.IsDeleted = true;
+                                        return x;
+                                    });
+                                    LocationsToBeDeleted.AddRange(ToBeDeleted.Select(x => x.Id));
+                                    _db.tProjectMajorWorkLocations.UpdateRange(ToBeDeleted);
                                 }
                             }
                         }
@@ -1751,7 +1752,7 @@ namespace WebAPI.Controllers.Projects
                 {
                     var Projects = await _db.vProjectDetails.FromSqlInterpolated($"SELECT * FROM fProjectsPerStage({Program.ProgramId}) fp WHERE fp.StageName = {Program.StageName}").AsNoTracking().ToListAsync();
                     HashSet<string> ProjectIds = Projects.Select(x => x.ProjectId!).ToHashSet();
-                    double ProgramAmount = _db.tProjectComponentCost.AsNoTracking().Where(x => ProjectIds.Contains(x.ProjectId) && x.IsDeleted == false && x.StageName == Program.StageName).Sum(x => x.Amount);
+                    double ProgramAmount = _db.tProjectComponentCost.AsNoTracking().Where(x => ProjectIds.Contains(x.ProjectId) && x.IsDeleted == false && x.StageName == Program.StageName && !CostToBeDeleted.Contains(x.Id)).Sum(x => x.Amount);
                     //var param = new Dictionary<string, object> { { "@ProgramId", Program.ProgramId },{ "@StageName", Program.StageName } };
                     //double? Totals = Sql.NormalQuery<double?>(
                     //    Appsetting.ConnectionString,
