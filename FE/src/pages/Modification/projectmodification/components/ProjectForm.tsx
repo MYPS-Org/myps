@@ -368,7 +368,38 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   };
 
   const handleDeleteComponentCost = (index: number) => {
+    const costToDelete = componentCosts[index];
+    if (!costToDelete) return;
+    
+    // CASCADE DELETE: Find all related major items and their work locations
+    const relatedMajorItems = majorItems.filter(
+      item => item.ComponentId === costToDelete.ComponentId && !item.IsDeleted
+    );
+    
+    if (relatedMajorItems.length > 0) {
+      const confirmMessage = `Deleting this component will also delete ${relatedMajorItems.length} related major item(s) and their work locations.\n\nDo you want to proceed?`;
+      if (!window.confirm(confirmMessage)) {
+        return; // User cancelled
+      }
+    }
+    
+    // Delete the component cost
     deleteComponentCost(index);
+    
+    // Cascade delete: Delete all related major items (which will cascade to their locations)
+    relatedMajorItems.forEach((item) => {
+      const actualIndex = majorItems.findIndex(
+        mi => mi.ComponentId === item.ComponentId && 
+              mi.WorkTypeId === item.WorkTypeId && 
+              mi.YearOfWork === item.YearOfWork &&
+              mi.ReferenceId === item.ReferenceId
+      );
+      if (actualIndex !== -1) {
+        deleteMajorItem(actualIndex);
+      }
+    });
+    
+    console.log('Deleted component cost and cascaded to related major items:', costToDelete);
   };
   // #endregion
 
@@ -565,13 +596,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     setUpdateAllProject(true);
     
     try {
-      console.log('=== STAGING DATA BEFORE UPDATE ===');
-      console.log('Component Costs:', componentCosts);
-      console.log('Major Items:', majorItems);
-      console.log('Funding Profiles:', fundingProfiles);
-      
-      // Prepare data for backend matching the expected payload structure
-      
       // Transform majorItems into separate MajorItemOfWorks and WorkLocations arrays
       const majorItemsForPayload: MajorItemOfWork[] = [];
       const workLocationsForPayload: MajorItemLocations[] = [];
@@ -639,9 +663,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           ...profile, StageName: initialData?.ProgramDetails?.StageName || '',
         }))
       };
-
-      console.log('=== SENDING TO BACKEND (MATCHING EXPECTED PAYLOAD) ===');
-      console.log('Update payload:', payload);
 
       await updateEntireProject(payload);
 

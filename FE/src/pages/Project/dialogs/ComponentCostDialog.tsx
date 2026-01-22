@@ -55,7 +55,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   const calculateRemainingBudget = () => {
     if (!maxAmountCost || maxAmountCost <= 0) return null;
     
-    let currentTotalCost = componentCosts.reduce((sum, cost) => sum + (cost.Amount || 0), 0);
+    let currentTotalCost = componentCosts.reduce((sum, cost) => cost.IsDeleted ? sum : sum + (cost.Amount || 0), 0);
     
     // If editing, subtract the original cost from current total
     if (mode === 'edit' && editingCost) {

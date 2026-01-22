@@ -373,16 +373,50 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const handleDeleteComponentCost = (index: number) => {
     const costToDelete = componentCosts[index];
     if (costToDelete) {
+      // CASCADE DELETE: Find all related major items and their work locations
+      const relatedMajorItems = majorItems.filter(
+        item => item.ComponentId === costToDelete.ComponentId && !item.IsDeleted
+      );
+      
+      if (relatedMajorItems.length > 0) {
+        const confirmMessage = `Deleting this component will also delete ${relatedMajorItems.length} related major item(s) and their work locations.\n\nDo you want to proceed?`;
+        if (!window.confirm(confirmMessage)) {
+          return; // User cancelled
+        }
+      }
+
       if (costToDelete.Id === 0) {
         // Hard delete for new items not yet saved to database
         setComponentCosts(prev => prev.filter((_, i) => i !== index));
-        console.log('Hard deleted (removed) new component cost:', costToDelete);
+        
+        // Cascade hard delete: Remove all related major items and their locations
+        setMajorItems(prev => prev.filter(item => item.ComponentId !== costToDelete.ComponentId));
+        
+        console.log('Hard deleted (removed) component cost and related major items:', costToDelete);
       } else {
         // Soft delete for existing database items
         setComponentCosts(prev => prev.map((cost, i) => 
           i === index ? { ...cost, IsDeleted: true } : cost
         ));
-        console.log('Soft deleted (IsDeleted=true) existing component cost:', costToDelete);
+        
+        // Cascade soft delete: Mark all related major items as deleted
+        // This will also cascade to their work locations since they're part of MajorItemLocations array
+        setMajorItems(prev => prev.map(item => {
+          if (item.ComponentId === costToDelete.ComponentId && !item.IsDeleted) {
+            // Soft delete the major item and all its work locations
+            return {
+              ...item,
+              IsDeleted: true,
+              MajorItemLocations: item.MajorItemLocations?.map(location => ({
+                ...location,
+                IsDeleted: true
+              }))
+            };
+          }
+          return item;
+        }));
+        
+        console.log('Soft deleted (IsDeleted=true) component cost and cascaded to related major items:', costToDelete);
       }
     }
   };
@@ -588,7 +622,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
     // Check component cost validation
     if (maxAmountCost && maxAmountCost > 0) {
-      const totalComponentCost = componentCosts.reduce((sum, cost) => sum + (cost.Amount || 0), 0);
+      const totalComponentCost = componentCosts.reduce((sum, cost) => cost.IsDeleted ? sum : sum + (cost.Amount || 0), 0);
       
       if (totalComponentCost !== maxAmountCost) {
         if (totalComponentCost < maxAmountCost) {
@@ -700,9 +734,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         }))
       };
 
-      console.log('=== SENDING TO BACKEND (MATCHING EXPECTED PAYLOAD) ===');
-      console.log('Update payload:', payload);
-
       await updateEntireProject(payload);
 
       showToast({
@@ -710,24 +741,18 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           message: 'Project updated successfully.'
       });
 
-      // Backend only returns success message, not the updated data
-      // So we keep the current state as is after successful update
-      console.log('=== PROJECT UPDATE SUCCESSFUL ===');
-      console.log('Keeping current state after successful update');
-      console.log('Current Component Costs:', componentCosts);
-      console.log('Current Major Items:', majorItems);
-      console.log('Current Funding Profiles:', fundingProfiles);
-
     } catch (error) {
       showToast({
           type: 'error',
           message: 'Failed to fetch projects.'
       });
-      
-      // Don't use alert() - use proper error state instead
-      // console.error('Update failed with error:', errorMessage);
     } finally {
       setUpdateAllProject(false);
+      
+      // Refresh the project by re-navigating to the same page
+      if (initialData?.ProjectDetails?.ProjectId && initialData?.ProgramDetails?.StageName) {
+        navigate(`/projects/project-details/${initialData.ProjectDetails.ProjectId}:${initialData.ProgramDetails.StageName}`);
+      }
     }
   };
 
