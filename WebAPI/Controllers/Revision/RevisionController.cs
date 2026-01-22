@@ -1193,6 +1193,13 @@ namespace WebAPI.Controllers.Revision
                         RevisionDetails.COStatus = dto.Status;
                         RevisionDetails.COApprover = _Session.UserId;
                         RevisionDetails.COApprovedDate = CurrentDate;
+                        //if (dto.Status == EnumRevisionStatus.Approved) {
+                        //    var ComponentsAffected = await _db.vProjectComponentStatus.AsNoTracking().Where(x => x.ProjectId == RevisionDetails.ProjectId && x.ConstructionStatusName == "" && x.Stat).ToListAsync();
+                        //    await _db.tRevisionDetailsComponentsStatus.AddAsync(new RevisionDetailsComponentsStatus
+                        //    {
+                        //        TransactionId = dto.TransactionId,
+                        //    });
+                        //}
                     }
                     _db.tRevisionDetails.Update(RevisionDetails);
                 }
