@@ -37,17 +37,19 @@ namespace WebAPI.Controllers
         {
             try
             {
-                if (!context.ModelState.IsValid)
+                if (context.ModelState.Root.ValidationState == ModelValidationState.Unvalidated)
                 {
                     string errors = ValidateModel(context.ModelState);
-
-                    var response = new
+                    if (!string.IsNullOrEmpty(errors))
                     {
-                        status = 400,
-                        Title = "Validation failed",
-                        Message = errors
-                    };
-                    context.Result = new BadRequestObjectResult(response);
+                        var response = new
+                        {
+                            status = 400,
+                            Title = "Validation failed",
+                            Message = errors
+                        };
+                        context.Result = new BadRequestObjectResult(response);
+                    }
                 }
                 var controllerActionDescriptor = context.ActionDescriptor as ControllerActionDescriptor;
                 bool hasAllowAnonymous = context.ActionDescriptor.EndpointMetadata
