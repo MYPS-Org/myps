@@ -39,7 +39,7 @@ export interface OptionRevisionReasons {
 	Reason: string;
 	RevisionGroupId: number;
 	ReasonId: number;
-    CategoryId?: number;
+    CategoryId?: number[];
 	CreatedBy: string;
 	CreatedDate?: string;
 }

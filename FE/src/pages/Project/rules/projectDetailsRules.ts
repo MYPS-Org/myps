@@ -33,6 +33,11 @@ export const projectDetailsRules: ValidationRule<ProjectDetails>[] = [
         validate: (value) => typeof value === 'number' && value > 0
     },
     {
+        field: "Province",
+        message: "Province is required.",
+        validate: (value) => !!value
+    },
+    {
         field: "City",
         message: "City is required.",
         validate: (value) => !!value
@@ -80,21 +85,16 @@ export const projectDetailsRules: ValidationRule<ProjectDetails>[] = [
     {
         field: "EmergencyMode",
         message: "Emergency Mode is required.",
-        validate: (value) => typeof value === 'number' && value > 0
+        validate: (value) => typeof value === 'number'
     },
     {
         field: "Feasibility",
         message: "Feasibility is required.",
-        validate: (value) => typeof value === 'number' && value > 0
+        validate: (value) => typeof value === 'number'
     },
-    // {
-    //     field: "DetailedDesign",
-    //     message: "Detailed Design is required.",
-    //     validate: (value) => typeof value === 'boolean'
-    // },
-    // {
-    //     field: "RowAvailable",
-    //     message: "Row Available is required.",
-    //     validate: (value) => typeof value === 'boolean'
-    // }
+    {
+        field: "DetailedDesign",
+        message: "Detailed Design is required.",
+        validate: (value) => typeof value === 'number'
+    }
 ]

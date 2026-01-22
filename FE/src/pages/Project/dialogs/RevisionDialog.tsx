@@ -52,28 +52,16 @@ const ReviseDialog: React.FC<ReviseProjectDialogProps> = ({
     const filteredReasons = useMemo(() => {
         if (!selectedRevisionGroupId) return [];
 
-        let filtered = reasons;
-        
-        // First filter by RevisionGroupId
-        if (!selectedCategory) {
-            filtered = reasons.filter(reason => reason.RevisionGroupId === selectedRevisionGroupId);
-        }
-        
-        // Special handling for Non-Implementable (RevisionGroupId: 8)
-        // All reasons have null CategoryId, so show them all regardless of selected category
-        // if (selectedRevisionGroupId === 8) {
-        //     return filtered; // Return all reasons for Non-Implementable
-        // }
-        
-        // For other revision types, filter by CategoryId if a category is selected
-        if (selectedCategory) {
-            filtered = filtered.filter(reason => reason.CategoryId === selectedCategory);
-            console.log('Filtered reasons by category:', filtered);
-            console.log('Selected category:', selectedCategory);
-        }
-        
-        return filtered;
-    }, [reasons, selectedRevisionGroupId, selectedCategory, showCategoryDropdown]);
+        return reasons.filter(reason => {
+            // First check: must match RevisionGroupId
+            if (reason.RevisionGroupId !== selectedRevisionGroupId) return false;
+            
+            // Second check: if category is selected, must match CategoryId
+            if (selectedCategory && !reason.CategoryId?.includes(selectedCategory)) return false;
+            
+            return true;
+        });
+    }, [reasons, selectedRevisionGroupId, selectedCategory]);
 
     // Reset selections when dialog opens or header changes
     useEffect(() => {
@@ -83,9 +71,11 @@ const ReviseDialog: React.FC<ReviseProjectDialogProps> = ({
         }
     }, [isOpen, selectedRevHeaderId]);
 
-    // Reset reason when category changes
+    // Reset reason when category changes (only if there's a value to reset)
     useEffect(() => {
-        setSelectedReason('');
+        if (selectedReason) {
+            setSelectedReason('');
+        }
     }, [selectedCategory]);
 
     const handleSubmit = async (e: React.FormEvent) => {

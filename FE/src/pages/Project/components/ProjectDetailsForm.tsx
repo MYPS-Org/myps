@@ -453,7 +453,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     <div className="grid grid-cols-3 gap-5">
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className="w-1/3 text-gray-600">Province:</label>
+                                <label className={`w-1/3 ${errors.Province ? 'text-red-500' : 'text-gray-600'}`}>Province:</label>
                                 <div className="w-2/3">
                                     <SearchableDropdown
                                         options={formatDropdownOptions(projectEnums?.Provinces || [], 'GdbId', 'Name', 'Id')}
