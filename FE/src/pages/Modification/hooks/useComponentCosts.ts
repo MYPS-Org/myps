@@ -4,13 +4,11 @@ import type {
   ComponentCost
 } from '../../Project/Model';
 import {
-  componentCostsAtom,
-  componentCostsWithYearsAtom
+  componentCostsAtom
 } from '../atoms/componentCosts.atom';
 
 export function useComponentCosts() {
   const [costs, setCosts] = useAtom(componentCostsAtom);
-  const [costsWithYears] = useAtom(componentCostsWithYearsAtom);
 
   // Delete-dialog state (local to the component using this hook)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -80,7 +78,6 @@ export function useComponentCosts() {
   return {
     // read
     costs,
-    costsWithYears,
     // actions
     add,
     update,

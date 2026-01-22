@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Dialog, DialogTitle, DialogPanel } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
-import type { ComponentCost, ComponentCostYear, ComponentCostWithYears, ComponentTypeEnum } from '../../Project/Model';
+import type { ComponentCost, ComponentTypeEnum } from '../../Project/Model';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { handleCurrencyBlur, handleCurrencyChange } from '../../../utils/GlobalFunctions';
 import { useFieldPermissionState } from '../hooks/useFieldPermissions';
@@ -9,8 +9,8 @@ import { useFieldPermissionState } from '../hooks/useFieldPermissions';
 interface ComponentCostDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (cost: ComponentCost, costYear?: ComponentCostYear) => void;
-  editingCost?: ComponentCostWithYears;
+  onSave: (cost: ComponentCost) => void;
+  editingCost?: ComponentCost;
   mode: 'add' | 'edit';
   componentTypes: ComponentTypeEnum[];
   componentCosts: ComponentCost[];
@@ -39,21 +39,18 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   const [formData, setFormData] = useState({
     Id: 0,
     ProjectId: ProjectId,
-    ReferenceId: '',
     ComponentType: '',
     ComponentId: '',
     Description: '',
-    Total: 0,
+    Amount: 0,
+    StageName: '',
+    StartDate: '',
+    EndDate: '',
+    IsDeleted: false,
     CreatedBy: '',
     CreatedDate: new Date().toISOString(),
     UpdatedBy: '',
     UpdatedDate: new Date().toISOString(),
-    CostPerYear: [] as ComponentCostYear[],
-    // Fields for ComponentCostYear
-    // ApprovalDate: '',
-    // PAPCode: '',
-    StartDate: '',
-    EndDate: '',
   });
 
   const [displayValue, setDisplayValue] = useState('');
@@ -68,7 +65,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
       return {
         StartDate: true,
         EndDate: true,
-        Total: true,
+        Amount: true,
         Description: true,
         ComponentType: true,
       };
@@ -84,12 +81,6 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
       Object.assign(permissions, componentCostFields);
     }
 
-    // Get ComponentCostYearRules fields
-    const componentCostYearFields = permissionState.fieldRules.ComponentCostYearRules?.Fields;
-    if (componentCostYearFields) {
-      Object.assign(permissions, componentCostYearFields);
-    }
-
     return permissions;
   }, [permissionState.fieldRules, mode]);
 
@@ -102,11 +93,11 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   const calculateRemainingBudget = () => {
     if (!maxAmountCost || maxAmountCost <= 0) return null;
     
-    let currentTotalCost = componentCosts.reduce((sum, cost) => sum + (cost.Total || 0), 0);
+    let currentTotalCost = componentCosts.reduce((sum, cost) => sum + (cost.Amount || 0), 0);
     
     // If editing, subtract the original cost from current total
     if (mode === 'edit' && editingCost) {
-      currentTotalCost -= (editingCost.Total || 0);
+      currentTotalCost -= (editingCost.Amount || 0);
     }
     
     return maxAmountCost - currentTotalCost;
@@ -119,52 +110,47 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
       setFormData({
         Id: editingCost.Id ?? 0,
         ProjectId: editingCost.ProjectId ?? ProjectId,
-        ReferenceId: editingCost.ReferenceId ?? '',
         ComponentType: editingCost.ComponentType ?? '',
         ComponentId: editingCost.ComponentId ?? '',
         Description: editingCost.Description ?? '',
-        Total: editingCost.Total ?? 0,
+        Amount: editingCost.Amount ?? 0,
+        StageName: editingCost.StageName ?? '',
+        StartDate: editingCost.StartDate ?? '',
+        EndDate: editingCost.EndDate ?? '',
+        IsDeleted: editingCost.IsDeleted ?? false,
         CreatedBy: editingCost.CreatedBy ?? '',
         CreatedDate: editingCost.CreatedDate ?? new Date().toISOString(),
         UpdatedBy: editingCost.UpdatedBy ?? '',
         UpdatedDate: editingCost.UpdatedDate ?? new Date().toISOString(),
-        CostPerYear: editingCost.CostPerYear || [],
-        // ApprovalDate: editingCost.CostPerYear?.[0]?.ApprovalDate || '',
-        // PAPCode: editingCost.CostPerYear?.[0]?.PAPCode || '',
-        StartDate: editingCost.CostPerYear?.[0]?.StartDate || '',
-        EndDate: editingCost.CostPerYear?.[0]?.EndDate || '',
       });
     } else if (mode === 'add') {
       // Reset form for new entry
       setFormData({
         Id: 0,
         ProjectId: ProjectId,
-        ReferenceId: '',
         ComponentType: '',
         ComponentId: '',
         Description: '',
-        Total: 0,
+        Amount: 0,
+        StageName: '',
+        StartDate: '',
+        EndDate: '',
+        IsDeleted: false,
         CreatedBy: '',
         CreatedDate: new Date().toISOString(),
         UpdatedBy: '',
         UpdatedDate: new Date().toISOString(),
-        CostPerYear: [] as ComponentCostYear[],
-        // Fields for ComponentCostYear
-        // ApprovalDate: '',
-        // PAPCode: '',
-        StartDate: '',
-        EndDate: '',
       });
     }
-  }, [editingCost, mode, isOpen]);
+  }, [editingCost, mode, isOpen, ProjectId]);
 
   useEffect(() => {
-    if (formData.Total > 0) {
-      setDisplayValue(formData.Total.FormatToCurrency());
+    if (formData.Amount > 0) {
+      setDisplayValue(formData.Amount.FormatToCurrency());
     } else {
       setDisplayValue('');
     }
-  }, [formData.Total]);
+  }, [formData.Amount]);
 
   const handleChange = (field: string, value: string | number) => {
     setFormData(prev => ({
@@ -175,34 +161,31 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   
   const handleCurrencyFocus = (e: React.FocusEvent<HTMLInputElement>) => {
     // Show raw number on focus for easier editing
-    if (formData.Total > 0) {
-      e.target.value = formData.Total.toString();
+    if (formData.Amount > 0) {
+      e.target.value = formData.Amount.toString();
     } else {
       e.target.value = '';
     }
   };
 
-  const [newComponentId, setNewComponentId] = useState('');
   const handleChangeComponentId = (value: string) => {
-    const selectedComponent = componentTypes.find(type => type.Description === value);
+    const selectedComponent = componentTypes.find(type => type.ComponentName === value);
     
     if (!selectedComponent) {
       return;
     }
 
-    let generatedId = selectedComponent.Name;
+    let generatedId = selectedComponent.ComponentId || '';
     
     // Only add number increment if the component type is "Civil Works"
     if (value.toLowerCase() === 'civil works') {
       // Count how many existing componentCosts have the same ComponentType
       console.log('Selected component:', componentCosts);
-      const matchingCount = componentCosts.filter(item => item.ComponentType === value).length;
+      const matchingCount = componentCosts.filter(item => item.ComponentType === value && !item.IsDeleted).length;
       
       // Create the new ID: "DR-1", "DR-2", etc.
-      generatedId = `${selectedComponent.Name}${matchingCount + 1}`;
+      generatedId = `${selectedComponent.ComponentId}${matchingCount + 1}`;
     }
-
-    setNewComponentId(generatedId)
     // ✅ Save into formData so it's actually submitted
     handleChange('ComponentId', generatedId);
   }
@@ -212,21 +195,21 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     e.preventDefault();
     
     try {
-        // Validate if the total would exceed max amount cost
-        if (mode === 'add' && formData.Total <= 0) {
-          alert('Total cost must be greater than zero when adding a new component.');
+        // Validate if the amount would exceed max amount cost
+        if (mode === 'add' && formData.Amount <= 0) {
+          alert('Amount must be greater than zero when adding a new component.');
           return;
         }
 
         if (maxAmountCost && maxAmountCost > 0) {
-          let currentTotalCost = componentCosts.reduce((sum, cost) => sum + (cost.Total || 0), 0);
+          let currentTotalCost = componentCosts.reduce((sum, cost) => sum + (cost.Amount || 0), 0);
           
           // If editing, subtract the original cost from current total
           if (mode === 'edit' && editingCost) {
-            currentTotalCost -= (editingCost.Total || 0);
+            currentTotalCost -= (editingCost.Amount || 0);
           }
           
-          const newTotalCost = currentTotalCost + (formData.Total || 0);
+          const newTotalCost = currentTotalCost + (formData.Amount || 0);
           
           if (newTotalCost > maxAmountCost) {
             const exceeded = newTotalCost - maxAmountCost;
@@ -238,24 +221,10 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
           }
         }
         
-        // Split the form data into ComponentCost and ComponentCostYear parts
-        const { CostPerYear, StartDate, EndDate, ...componentCostData } = formData;
+        // Send ComponentCost data to parent
+        onSave(formData as ComponentCost);
         
-        // Create ComponentCostYear object if we have the required fields
-        const componentCostYear: ComponentCostYear = {
-          Id: 0, // Will be set by backend
-          ParentId: componentCostData.ReferenceId, // Will be linked after ComponentCost is saved
-          CostYear: new Date().getFullYear(), // Default to current year
-          Cost: componentCostData.Total, // Use the same cost value
-          StartDate: StartDate || new Date().toISOString(),
-          EndDate: EndDate || new Date().toISOString()
-        };
-
-        // Send both ComponentCost and ComponentCostYear data to parent
-        onSave(componentCostData as ComponentCost, componentCostYear);
-        
-        console.log('Component cost saved:', componentCostData);
-        console.log('Component cost year saved:', componentCostYear);
+        console.log('Component cost saved:', formData);
         onClose();
     } catch (error) {
       console.error('Error saving component cost:', error);
@@ -266,21 +235,18 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         setFormData({
             Id: 0,
             ProjectId: '',
-            ReferenceId: '',
             ComponentType: '',
             ComponentId: '',
             Description: '',
-            Total: 0,
+            Amount: 0,
+            StageName: '',
+            StartDate: '',
+            EndDate: '',
+            IsDeleted: false,
             CreatedBy: '',
             CreatedDate: new Date().toISOString(),
             UpdatedBy: '',
             UpdatedDate: new Date().toISOString(),
-            CostPerYear: [] as ComponentCostYear[],
-            // Fields for ComponentCostYear
-            // ApprovalDate: '',
-            // PAPCode: '',
-            StartDate: new Date().toISOString(),
-            EndDate: new Date().toISOString(),
         });
     };
 
@@ -347,7 +313,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                         <input 
                             className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500'
                             type="text" 
-                            value={formData.ComponentId || newComponentId}
+                            value={formData.ComponentId}
                             readOnly
                         />
                     {/* <select 
@@ -389,34 +355,34 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                 <div className="grid grid-cols-3 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Total Cost <span className="text-xs text-gray-500">{isFieldEditable('Total') ? '✓ Editable' : '✗ Not Editable'}</span>
+                            Amount <span className="text-xs text-gray-500">{isFieldEditable('Amount') ? '✓ Editable' : '✗ Not Editable'}</span>
                         </label>
                         <input
                             type="text"
                             value={displayValue}
-                            onChange={(e) => handleCurrencyChange(e.target.value, setDisplayValue, handleChange, 'Total')}
+                            onChange={(e) => handleCurrencyChange(e.target.value, setDisplayValue, handleChange, 'Amount')}
                             onFocus={handleCurrencyFocus}
-                            onBlur={(e) => handleCurrencyBlur(e, (value) => handleChange('Total', value))}
+                            onBlur={(e) => handleCurrencyBlur(e, (value) => handleChange('Amount', value))}
                             className={`w-full px-3 py-2 border rounded-md text-right focus:outline-none focus:ring-2 ${
-                              remainingBudget !== null && formData.Total > remainingBudget 
+                              remainingBudget !== null && formData.Amount > remainingBudget 
                                 ? 'border-red-300 focus:ring-red-500' 
                                 : 'border-gray-300 focus:ring-blue-500'
-                            } ${!isFieldEditable('Total')
+                            } ${!isFieldEditable('Amount')
                                     ? 'bg-gray-100 cursor-not-allowed' 
                                     : ''}
                             `}
                             placeholder="₱0.00"
                             min="0"
-                            disabled={!isFieldEditable('Total')}
+                            disabled={!isFieldEditable('Amount')}
                         />
                         {remainingBudget !== null && (
                           <div className="mt-1">
                             <p className="text-xs text-gray-500">
                               Remaining budget: ₱{remainingBudget.toLocaleString('en-PH')}
                             </p>
-                            {formData.Total > remainingBudget && (
+                            {formData.Amount > remainingBudget && (
                               <p className="text-xs text-red-500">
-                                Exceeds remaining budget by ₱{(formData.Total - remainingBudget).toLocaleString('en-PH')}
+                                Exceeds remaining budget by ₱{(formData.Amount - remainingBudget).toLocaleString('en-PH')}
                               </p>
                             )}
                           </div>

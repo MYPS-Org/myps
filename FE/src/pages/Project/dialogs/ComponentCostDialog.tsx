@@ -161,7 +161,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     try {
         // Validate if the total would exceed max amount cost
         if (maxAmountCost && maxAmountCost > 0) {
-          let currentTotalCost = componentCosts.reduce((sum, cost) => sum + (cost.Amount || 0), 0);
+          let currentTotalCost = componentCosts.reduce((sum, cost) => cost.IsDeleted ? sum : sum + (cost.Amount || 0), 0);
           
           // If editing, subtract the original cost from current total
           if (mode === 'edit' && editingCost) {

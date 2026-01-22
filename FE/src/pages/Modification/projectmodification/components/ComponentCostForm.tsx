@@ -7,8 +7,6 @@ import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from ".
 import ComponentCostDialog from "../../dialogs/ComponentCostDialog";
 import DeleteComponentDialog from "../../dialogs/deleteDialog/DeleteComponentDialog";
 
-import { useAtom } from "jotai";
-import { componentCostsWithYearsAtom } from "../../atoms/componentCosts.atom";
 import { useComponentCosts } from "../../hooks/useComponentCosts";
 
 interface ComponentCostFormProps {
@@ -36,10 +34,9 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
   reason,
   reasonId,
 }) => {
-  // Read-only derived costs from atom
-  const [componentCosts] = useAtom(componentCostsWithYearsAtom);
-  // Mutations via hook (encapsulates atom setters)
+  // Get component costs and mutations from the hook
   const { 
+    costs: componentCosts,
     add, 
     update, 
     // Delete dialog state & actions from hook

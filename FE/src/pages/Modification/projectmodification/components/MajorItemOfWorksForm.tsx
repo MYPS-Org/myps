@@ -393,7 +393,8 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                 )}
               </React.Fragment>
             );
-            })}\n          </TableBody>
+            })}
+            </TableBody>
         </Table>
       </div>
 
