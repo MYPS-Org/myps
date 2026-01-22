@@ -160,7 +160,7 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
   // Filter out already selected ComponentIds (but allow the current one when editing)
   const availableComponentCosts = componentCosts.filter(cost => {
     // Always exclude EAO, EXC, SAV component IDs regardless of mode or reason
-    const excludedComponents = ['EAO', 'EXC', 'SAV'];
+    const excludedComponents = ['EAO', 'EXC', 'SAV', 'CoS'];
     const componentId = cost.ComponentId?.toUpperCase();
     const isExcluded = excludedComponents.includes(componentId);
     

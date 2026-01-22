@@ -239,7 +239,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     return initialData.MajorItemOfWorks.map(item => {
       // Find MajorItemLocations that belong to this MajorItem via ParentId matching ComponentId
       const itemWorkLocations = (initialData.MajorItemLocations || []).filter(
-        location => location.ParentId === item.ComponentId
+        location => location.ParentId === item.ReferenceId
       );
       
       return {
@@ -391,9 +391,13 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
   // #region Major Items of Work
   const handleAddMajorItem = () => {
+    // Generate a unique temporary ReferenceId for linking WorkLocations
+    const tempReferenceId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
     const newItem: MajorItemOfWorksWithDropdown = {
       Id: 0, // Temporary ID
       ProjectId: '',
+      ReferenceId: tempReferenceId, // Use generated temp ID for linking work locations
       ComponentId: '',
       YearOfWork: 0,
       WorkTypeId: 0,
@@ -575,9 +579,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     // Collect all business validation errors
     const businessValidationErrors: string[] = [];
 
-    // Check funding percentage validation
+    // Check funding percentage validation with tolerance for floating-point rounding errors
     const roundedTotal = Math.round(totalPercentage * 100) / 100;
-    if (roundedTotal !== 100) {
+    // Use tolerance of 0.03 to account for rounding (e.g., 3 items at 33.33% = 99.99%)
+    if (Math.abs(roundedTotal - 100) >= 0.03) {
       businessValidationErrors.push(`Total funding percentage must equal 100%. Current total: ${roundedTotal.toFixed(1)}%`);
     }
 
@@ -632,6 +637,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         const majorItemPayload: MajorItemOfWork = {
           Id: item.Id,
           ProjectId: initialData?.ProjectDetails.ProjectId || '',
+          ReferenceId: item.ReferenceId,
           StageName: initialData?.ProgramDetails.StageName || '',
           ComponentId: item.ComponentId,
           YearOfWork: item.YearOfWork,
@@ -649,7 +655,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           item.MajorItemLocations.forEach(location => {
             const workLocationPayload: MajorItemLocations = {
               ...location,
-              ParentId: item.ComponentId // Link to MajorItem via ComponentId
+              ParentId: item.ReferenceId // Link to MajorItem via ComponentId
             };
             workLocationsForPayload.push(workLocationPayload);
           });

@@ -291,7 +291,7 @@ export interface MajorItemOfWorksWithDropdown extends MajorItemOfWork {
 export interface MajorItemOfWork {
 	Id: number;
 	ProjectId: string;
-	ReferenceId?: string;
+	ReferenceId: string;
 	StageName?: string;
 	ComponentId: string;
 	YearOfWork: number;

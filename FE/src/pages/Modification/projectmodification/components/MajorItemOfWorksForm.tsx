@@ -370,7 +370,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                     <TableCell colSpan={8} className="p-4">
                       <WorkLocationTable
                         majorItemOfWorks={item}
-                        workLocations={getLocationsByParentId(item.ReferenceId || '')}
+                        workLocations={getLocationsByParentId(item.ReferenceId)}
                         onAdd={(workLocation) => handleAddWorkLocation(index, workLocation)}
                         onEdit={(workLocationIndex, workLocation) => 
                           handleEditWorkLocation(index, workLocationIndex, workLocation)
@@ -383,7 +383,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                         targetUnit={item.TargetUnit}
                         maxAmount={getMinMaxAmounts(item.WorkTypeId).max}
                         minAmount={getMinMaxAmounts(item.WorkTypeId).min}
-                        parentId={item.ReferenceId || ''}
+                        parentId={item.ReferenceId}
                         dropDowns={dropDowns}
                         disabled={false}
                         fieldRules={fieldRules}

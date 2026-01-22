@@ -38,7 +38,7 @@ export const useMajorItemOfWorks = () => {
         const newItem = item ?? {
             Id: 0,
             ProjectId: '',
-            ReferenceId: `temp_${Date.now()}`,
+            ReferenceId: `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             ComponentId: '',
             YearOfWork: 0,
             WorkTypeId: 0,

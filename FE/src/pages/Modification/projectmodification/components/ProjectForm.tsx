@@ -534,9 +534,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     // Collect all business validation errors
     const businessValidationErrors: string[] = [];
 
-    // Check funding percentage validation
+    // Check funding percentage validation with tolerance for floating-point rounding errors
     const roundedTotal = Math.round(totalPercentage * 100) / 100;
-    if (roundedTotal !== 100) {
+    // Use tolerance of 0.03 to account for rounding (e.g., 3 items at 33.33% = 99.99%)
+    if (Math.abs(roundedTotal - 100) >= 0.03) {
       businessValidationErrors.push(`Total funding percentage must equal 100%. Current total: ${roundedTotal.toFixed(1)}%`);
     }
 
@@ -593,12 +594,12 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         };
         majorItemsForPayload.push(majorItemPayload);
         
-        // Add MajorItemLocations with ParentId referencing the MajorItem's ComponentId
+        // Add MajorItemLocations with ParentId referencing the MajorItem's ReferenceId
         if (item.MajorItemLocations && item.MajorItemLocations.length > 0) {
           item.MajorItemLocations.forEach(location => {
             const workLocationPayload: MajorItemLocations = {
               ...location,
-              ParentId: item.ComponentId // Link to MajorItem via ComponentId
+              ParentId: item.ReferenceId // Link to MajorItem via ReferenceId
             };
             workLocationsForPayload.push(workLocationPayload);
           });
