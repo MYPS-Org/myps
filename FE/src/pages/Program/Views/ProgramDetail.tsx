@@ -446,7 +446,7 @@ const ProgramDetail: React.FC = () => {
                     disabled={!programEnums?.IsActive}
                   >
                     {programEnums?.Dropdowns.Statuses.map((status) => (
-                      <option key={status.Id} value={status.Id}>
+                      <option key={status.Id} value={status.NameId}>
                         {status.Name}
                       </option>
                     ))}

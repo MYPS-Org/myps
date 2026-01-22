@@ -17,7 +17,6 @@ export interface ProjectFormPayload {
   ProgramDetails: ProgramList;
   ProjectDetails: ProjectDetails;
   ComponentCosts: ComponentCost[];
-  ComponentCostPerYear: ComponentCostYear[];
   MajorItemOfWorks: MajorItemOfWork[];
   MajorItemLocations: MajorItemLocations[];
   ProjectNotes: ProjectNote[];
@@ -178,7 +177,6 @@ export interface ProjectById {
   ProgramDetails: ProgramDetails,
   ProjectDetails: ProjectDetails,
   ComponentCosts: ProjectComponentCost[],
-  ComponentCostPerYear: ProjectComponentCostYear[],
   MajorItemOfWorks: ProjectMajorItemOfWorks[],
   ProjectNotes: Notes,
   Docs: Docs,
@@ -263,51 +261,29 @@ export interface FileEntity {
 	DataUrl: string
 }
 
-export interface ComponentCostFormType
- {
-	ComponentCost: ComponentCost[];
-	ComponentCostYear: ComponentCostYear[];
-}
-
-// #region fetch data interfaces
+// #region ComponentCost
 export interface ComponentCost {
-	// Base identifiers
 	Id: number;
 	ProjectId: string;
-	ReferenceId: string;
 	ComponentType: string;
 	ComponentId: string;
-	// Descriptive
 	Description?: string;
-	StageName?: string;
-	// Financial
-	Total: number;
-	// Revision / status
+	Amount: number;
+	StageName: string;
+	StartDate?: string;
+	EndDate?: string;
+	IsDeleted: boolean;
 	RevisedNumber?: number;
 	ConstructionStatusCode?: number;
 	ConstructionStatusName?: string;
 	PackedStatusCode?: boolean;
 	PackedStatusName?: string;
-	// Audit
-	CreatedBy?: string;
-	CreatedDate?: string;
+	CreatedBy: string;
+	CreatedDate: string;
 	UpdatedBy?: string;
 	UpdatedDate?: string;
 }
-
-// Combined interface for UI (ComponentCost with its related ComponentCostYear)
-export interface ComponentCostWithYears extends ComponentCost {
-	CostPerYear?: ComponentCostYear[];
-}
-
-export interface ComponentCostYear {
-	Id: number;
-	ParentId: string;
-	CostYear: number;
-	Cost: number;
-	StartDate?: string;
-	EndDate?: string;
-}
+// #endregion ComponentCost
 export interface MajorItemOfWorksWithDropdown extends MajorItemOfWork {
 	DropdownData: ScopeOfWorkEnum[];
 	MajorItemLocations: MajorItemLocations[]; // Keep for UI functionality
@@ -317,7 +293,6 @@ export interface MajorItemOfWork {
 	ProjectId: string;
 	StageName?: string;
 	ComponentId: string;
-	ReferenceId: string;
 	YearOfWork: number;
 	WorkTypeId: number;
 	InfraType: string;

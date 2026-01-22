@@ -12,7 +12,6 @@ import type {
   ProjectFormPayload,
   ProjectEnums,
   Dropdowns,
-  ComponentCostYear,
   InfraData,
   MajorItemOfWorksWithDropdown,
   MajorItemOfWork,
@@ -227,24 +226,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     initialData?.ComponentCosts || []
   );
 
-   const [componentCostsYear, setComponentCostsYear] = useState<ComponentCostYear[]>(
-    initialData?.ComponentCostPerYear || []
-  );
-
-  // Combine componentCosts and componentCostsYear for UI - using useMemo to ensure proper recalculation
-  const componentCostsWithYears = React.useMemo(() => {
-    console.log('Recalculating componentCostsWithYears:', { componentCosts, componentCostsYear });
-    return (componentCosts || []).map(cost => ({
-      ...cost,
-      CostPerYear: (componentCostsYear || []).filter(year => year.ParentId === cost.ReferenceId)
-    }));
-  }, [componentCosts, componentCostsYear]);
-
   // Debug effect to monitor componentCosts state changes
   useEffect(() => {
     console.log('ComponentCosts state changed:', componentCosts);
-    console.log('ComponentCostsWithYears recalculated:', componentCostsWithYears);
-  }, [componentCosts, componentCostsWithYears]);
+  }, [componentCosts]);
 
   const [majorItems, setMajorItems] = useState<MajorItemOfWorksWithDropdown[]>(() => {
     if (!initialData?.MajorItemOfWorks) return [];
@@ -252,9 +237,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     // Transform backend MajorItemOfWork[] to MajorItemOfWorksWithDropdown[]
     // Combine with MajorItemLocations from the separate array
     return initialData.MajorItemOfWorks.map(item => {
-      // Find MajorItemLocations that belong to this MajorItem via ParentId matching ReferenceId
+      // Find MajorItemLocations that belong to this MajorItem via ParentId matching ComponentId
       const itemWorkLocations = (initialData.MajorItemLocations || []).filter(
-        location => location.ParentId === item.ReferenceId
+        location => location.ParentId === item.ComponentId
       );
       
       return {
@@ -357,38 +342,18 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   };
 
   // #region Component Costs
-  const handleAddComponentCost = (newCost: ComponentCost, newCostYear?: ComponentCostYear) => {
+  const handleAddComponentCost = (newCost: ComponentCost) => {
     console.log('=== ADDING COMPONENT COST ===');
     console.log('New cost:', newCost);
-    console.log('New cost year:', newCostYear);
     console.log('Current componentCosts before add:', componentCosts);
     
-    // Generate a temporary ID for new cost (will be replaced when saved)
-    const tempId = Date.now().toString(); // Simple temp ID
-    const costWithId = { ...newCost, ReferenceId: tempId };
-    
     setComponentCosts(prev => {
-      const updated = [...prev, costWithId];
+      const updated = [...prev, newCost];
       console.log('Updated componentCosts:', updated);
       return updated;
     });
     
-    // If ComponentCostYear data is provided, add it to the componentCostsYear array
-    if (newCostYear) {
-      const costYearWithParentId = { 
-        ...newCostYear, 
-        ParentId: tempId, // Link to the component cost
-        Id: Date.now() + 1 // Ensure unique ID
-      };
-      setComponentCostsYear(prev => {
-        const updated = [...prev, costYearWithParentId];
-        console.log('Updated componentCostsYear:', updated);
-        return updated;
-      });
-      console.log('Added component cost year to staging:', costYearWithParentId);
-    }
-    
-    console.log('Added component cost to staging:', costWithId);
+    console.log('Added component cost to staging:', newCost);
   };
 
   const handleEditComponentCost = (index: number, updatedCost: ComponentCost) => {
@@ -417,42 +382,17 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         console.log('Updated componentCosts after delete:', updated);
         return updated;
       });
-      // Also remove related ComponentCostYear entries
-      setComponentCostsYear(prev => {
-        const updated = prev.filter(year => year.ParentId !== costToDelete.ReferenceId);
-        console.log('Updated componentCostsYear after delete:', updated);
-        return updated;
-      });
       console.log('Deleted component cost from staging:', costToDelete);
     }
   };
 
-  // Handlers for ComponentCostYear (these will be used when we implement year-by-year cost breakdown)
-  // const handleAddComponentCostYear = (parentId: number, newCostYear: ComponentCostYear) => {
-  //   setComponentCostsYear(prev => [...prev, { ...newCostYear, ParentId: parentId }]);
-  //   console.log('Added component cost year to staging:', newCostYear);
-  // };
-
-  // const handleEditComponentCostYear = (costYearId: number, updatedCostYear: ComponentCostYear) => {
-  //   setComponentCostsYear(prev => prev.map(year => year.Id === costYearId ? updatedCostYear : year));
-  //   console.log('Updated component cost year in staging:', updatedCostYear);
-  // };
-
-  // const handleDeleteComponentCostYear = (costYearId: number) => {
-  //   setComponentCostsYear(prev => prev.filter(year => year.Id !== costYearId));
-  //   console.log('Deleted component cost year from staging:', costYearId);
-  // };
   // #endregion
 
   // #region Major Items of Work
   const handleAddMajorItem = () => {
-    // Generate a unique temporary ReferenceId for linking WorkLocations
-    const tempReferenceId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
     const newItem: MajorItemOfWorksWithDropdown = {
       Id: 0, // Temporary ID
       ProjectId: '',
-      ReferenceId: tempReferenceId, // Use generated temp ID
       ComponentId: '',
       YearOfWork: 0,
       WorkTypeId: 0,
@@ -610,7 +550,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
     // Check component cost validation
     if (maxAmountCost && maxAmountCost > 0) {
-      const totalComponentCost = componentCosts.reduce((sum, cost) => sum + (cost.Total || 0), 0);
+      const totalComponentCost = componentCosts.reduce((sum, cost) => sum + (cost.Amount || 0), 0);
       
       if (totalComponentCost !== maxAmountCost) {
         if (totalComponentCost < maxAmountCost) {
@@ -645,7 +585,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     try {
       console.log('=== STAGING DATA BEFORE UPDATE ===');
       console.log('Component Costs:', componentCosts);
-      console.log('Component Cost Years:', componentCostsYear);
       console.log('Major Items:', majorItems);
       console.log('Funding Profiles:', fundingProfiles);
       
@@ -662,7 +601,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           ProjectId: initialData?.ProjectDetails.ProjectId || '',
           StageName: initialData?.ProgramDetails.StageName || '',
           ComponentId: item.ComponentId,
-          ReferenceId: item.ReferenceId,
           YearOfWork: item.YearOfWork,
           WorkTypeId: item.WorkTypeId,
           InfraType: item.InfraType,
@@ -672,12 +610,12 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         };
         majorItemsForPayload.push(majorItemPayload);
         
-        // Add MajorItemLocations with ParentId referencing the MajorItem's ReferenceId
+        // Add MajorItemLocations with ParentId referencing the MajorItem's ComponentId
         if (item.MajorItemLocations && item.MajorItemLocations.length > 0) {
           item.MajorItemLocations.forEach(location => {
             const workLocationPayload: MajorItemLocations = {
               ...location,
-              ParentId: item.ReferenceId // Link to MajorItem via ReferenceId
+              ParentId: item.ComponentId // Link to MajorItem via ComponentId
             };
             workLocationsForPayload.push(workLocationPayload);
           });
@@ -702,23 +640,17 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           Id: cost.Id,
           ProjectId: cost.ProjectId || projectDetails.ProjectId || '',
           StageName: initialData?.ProgramDetails?.StageName || '',
-          ReferenceId: cost.ReferenceId || '',
           ComponentType: cost.ComponentType || '',
           ComponentId: cost.ComponentId || '',
           Description: cost.Description || '',
-          Total: cost.Total || 0,
+          Amount: cost.Amount || 0,
+          StartDate: cost.StartDate || new Date().toISOString(),
+          EndDate: cost.EndDate || new Date().toISOString(),
           CreatedBy: cost.CreatedBy || 'SYSTEM',
           CreatedDate: cost.CreatedDate || new Date().toISOString(),
           UpdatedBy: 'SYSTEM',
           UpdatedDate: new Date().toISOString(),
-        })),
-        ComponentCostYear: componentCostsYear.map(year => ({
-          Id: year.Id,
-          ParentId: year.ParentId,
-          CostYear: year.CostYear,
-          Cost: year.Cost,
-          StartDate: year.StartDate || new Date().toISOString(),
-          EndDate: year.EndDate || new Date().toISOString()
+          IsDeleted: cost.IsDeleted || false
         })),
         MajorItemOfWorks: majorItemsForPayload,
         MajorItemLocations: workLocationsForPayload,
@@ -743,7 +675,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       console.log('=== PROJECT UPDATE SUCCESSFUL ===');
       console.log('Keeping current state after successful update');
       console.log('Current Component Costs:', componentCosts);
-      console.log('Current Component Cost Years:', componentCostsYear);
       console.log('Current Major Items:', majorItems);
       console.log('Current Funding Profiles:', fundingProfiles);
 
@@ -999,7 +930,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             <p className="text-sm text-blue-600 font-medium">⚠️ Add component costs first - they are required for Major Items of Work</p>
           </div>
           <ComponentCostForm
-            componentCosts={componentCostsWithYears}
+            componentCosts={componentCosts}
             onAdd={handleAddComponentCost}
             onEdit={handleEditComponentCost}
             onDelete={handleDeleteComponentCost}

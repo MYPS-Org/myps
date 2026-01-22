@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import type { ComponentCost, ComponentCostWithYears, ComponentCostYear } from "../Model";
+import type { ComponentCost } from "../Model";
 import { Button } from "../../../components/tailwindui/button";
 import { PlusIcon, TrashIcon, PencilIcon } from "@heroicons/react/24/outline";
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from "../../../components/tailwindui/table";
@@ -7,8 +7,8 @@ import { ComponentCostDialog } from "../dialogs";
 import { getDisabledClass } from "../../../utils/GlobalFunctions";
 
 interface ComponentCostFormProps {
-  componentCosts: ComponentCostWithYears[];
-  onAdd: (cost: ComponentCost, costYear?: ComponentCostYear) => void;
+  componentCosts: ComponentCost[];
+  onAdd: (cost: ComponentCost) => void;
   onEdit: (index: number, updatedCost: ComponentCost) => void;
   onDelete: (index: number) => void;
   initialData?: any; // Optional initial data for dropdowns or other purposes
@@ -50,21 +50,21 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
     setEditingIndex(null);
   };
 
-  const handleSaveCost = (cost: ComponentCost, costYear?: ComponentCostYear) => {
+  const handleSaveCost = (cost: ComponentCost) => {
     // Validate if adding/editing would exceed max amount cost
     if (maxAmountCost && maxAmountCost > 0) {
       let newTotalCost = 0;
       
       if (modalMode === 'add') {
         // For add mode, calculate total with the new cost added
-        newTotalCost = componentCosts.reduce((sum, existingCost) => sum + (existingCost.Total || 0), 0) + (cost.Total || 0);
+        newTotalCost = componentCosts.reduce((sum, existingCost) => sum + (existingCost.Amount || 0), 0) + (cost.Amount || 0);
       } else if (modalMode === 'edit' && editingIndex !== null) {
         // For edit mode, replace the existing cost with the new one
         newTotalCost = componentCosts.reduce((sum, existingCost, index) => {
           if (index === editingIndex) {
-            return sum + (cost.Total || 0);
+            return sum + (cost.Amount || 0);
           }
-          return sum + (existingCost.Total || 0);
+          return sum + (existingCost.Amount || 0);
         }, 0);
       }
 
@@ -79,17 +79,16 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
     }
 
     if (modalMode === 'add') {
-      onAdd(cost, costYear);
+      onAdd(cost);
     } else if (modalMode === 'edit' && editingIndex !== null) {
       onEdit(editingIndex, cost);
-      // TODO: Handle costYear updates for edit mode
     }
     handleCloseModal();
   };
 
 
   const calculateTotalCosts = () => {
-    const totalCost = componentCosts.reduce((sum, cost) => sum + (cost.Total || 0), 0);
+    const totalCost = componentCosts.reduce((sum, cost) => sum + (cost.Amount || 0), 0);
 
     return {
       totalCost,
@@ -233,7 +232,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
                       {cost.Description}
                     </div>
                   </TableCell>
-                  <TableCell>₱{formatCurrency(cost.Total || 0)}</TableCell>
+                  <TableCell>₱{formatCurrency(cost.Amount || 0)}</TableCell>
                   <TableCell>{cost.CreatedBy || '-'}</TableCell>
                   <TableCell>{cost.CreatedDate ? new Date(cost.CreatedDate).toLocaleDateString() : '-'}</TableCell>
                   <TableCell>{cost.UpdatedBy || '-'}</TableCell>

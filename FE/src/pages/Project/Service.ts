@@ -1,5 +1,5 @@
 import { httpClient, type ApiResponse } from "../../services/httpClient";
-import type { ProjectLists, ProgramDetails, ComponentCost, ComponentCostYear, ProjectDetails, MajorItemOfWork, MajorItemLocations, FundingProfile, ProjectNote, ProjectEnums, ProjectFormPayload, ProjectPagination, AddNotes, InfraData, ProjectSupportingDocs, ProjectRevisionList } from "./Model.d";
+import type { ProjectLists, ProgramDetails, ComponentCost, ProjectDetails, MajorItemOfWork, MajorItemLocations, FundingProfile, ProjectNote, ProjectEnums, ProjectFormPayload, ProjectPagination, AddNotes, InfraData, ProjectSupportingDocs, ProjectRevisionList } from "./Model.d";
 
 // #region INITIALIZE Project Lists
 export const fetchProject = async (data: ProjectPagination) => {
@@ -92,7 +92,6 @@ export const updateProjectDetails = async (projectDetails: ProjectDetails) => {
 export const updateEntireProject = async (payload: {
     ProjectDetails: ProjectDetails;
     ComponentCosts: ComponentCost[];
-    ComponentCostYear: ComponentCostYear[];
     MajorItemOfWorks: MajorItemOfWork[];
     MajorItemLocations: MajorItemLocations[];
     FundingProfile: FundingProfile[];

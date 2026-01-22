@@ -113,14 +113,10 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     InfraType: string;
   }) => {
     if (isAddingNewMajorItem) {
-      // Generate a unique temporary ReferenceId for linking WorkLocations
-      const tempReferenceId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
       // Create new major item
       const newMajorItem: MajorItemOfWorksWithDropdown = {
         Id: 0, // Temporary ID
         ProjectId: projectId,
-        ReferenceId: tempReferenceId, // Use generated temp ID
         ComponentId: majorItemData.ComponentId,
         YearOfWork: majorItemData.YearOfWork,
         WorkTypeId: majorItemData.WorkTypeId,
@@ -240,9 +236,9 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     
     // Find the corresponding component cost
     const componentCost = componentCosts?.find(cost => cost.ComponentId === majorItem.ComponentId);
-    if (!componentCost || !componentCost.Total) return 0;
+    if (!componentCost || !componentCost.Amount) return 0;
     
-    return componentCost.Total / totalPhysicalTarget;
+    return componentCost.Amount / totalPhysicalTarget;
   };
 
   // Format currency helper function
@@ -369,7 +365,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                         targetUnit={item.TargetUnit}
                         maxAmount={getMinMaxAmounts(item.WorkTypeId).max}
                         minAmount={getMinMaxAmounts(item.WorkTypeId).min}
-                        parentId={item.ReferenceId}
+                        parentId={item.ComponentId}
                         dropDowns={dropDowns}
                         disabled={disabled}
                       />
