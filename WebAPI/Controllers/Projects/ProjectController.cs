@@ -422,7 +422,7 @@ namespace WebAPI.Controllers.Projects
                 var SupportingDoc = await _db.tDropdownSupportingDocs.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync();
 
                 var ComponentType = await _db.tOptionProjectComponent.AsNoTracking().OrderBy(x => x.ComponentName).ToListAsync();
-                var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
+                var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && x.IsDeleted == false).ToListAsync();
                 //var ComponentCostYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentCost.Select(a => a.ReferenceId).Contains(x.ParentId)).ToListAsync();
 
                 var MajorItemOfWork = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && x.RevisedNumber == Project.RevisedNumber).ToListAsync();
@@ -526,30 +526,6 @@ namespace WebAPI.Controllers.Projects
         }
         [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> test()
-        {
-            try
-            {
-                using (var conn = new SqlConnection(Appsetting.ConnectionString))
-                {
-                    conn.Open();
-                    var Totals = conn.QueryFirstOrDefault<double?>(
-                        "pUpdateProgramCost",
-                        new { ProgramId = "PR20260110462", StageName = "BP" },
-                        commandType: System.Data.CommandType.StoredProcedure);
-                    return Ok(new
-                    {
-                        TotalCost = Totals ?? 0
-                    });
-                }
-            }
-            catch (Exception ex)
-            {
-                return ExceptionHandler(ex);
-            }
-        }
-        [AllowAnonymous]
-        [HttpPost]
         public async Task<IActionResult> UpdateProjectDetails([FromBody] UpdateProjectDetailsDTO dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -560,7 +536,7 @@ namespace WebAPI.Controllers.Projects
                 List<TransactionLog> transactionLogs = new List<TransactionLog>();
 
                 var Project = await _db.vProjectDetails
-                .FromSqlInterpolated($"SELECT * FROM fProjectsPerStage({dto.ProjectDetails.ProjectId}) fp WHERE fp.ProjectId = {dto.ProjectDetails.ProjectId}")
+                .FromSqlInterpolated($"SELECT * FROM fProjectsPerStage({dto.ProjectDetails.ProjectId}) fp WHERE fp.ProjectId = {dto.ProjectDetails.ProjectId} AND fp.StageName = {dto.ProjectDetails.StageName}")
                 .AsNoTracking()
                 .FirstOrDefaultAsync();
                 //var Project = await _db.vProjectDetails.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectDetails.ProjectId);
@@ -568,7 +544,7 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
                 }
-                var Program = await _db.vProgramDetails.AsNoTracking().OrderByDescending(x => x.RevisionNumber).FirstOrDefaultAsync(x => x.ProgramId == Project.ProgramId);
+                var Program = await _db.vProgramDetails.AsNoTracking().OrderByDescending(x => x.RevisionNumber).FirstOrDefaultAsync(x => x.ProgramId == Project.ProgramId && x.StageName == dto.ProjectDetails.StageName);
                 if (Program == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Program not found for this project!", Title = "Program Not Found" });
@@ -1150,7 +1126,7 @@ namespace WebAPI.Controllers.Projects
                                     });
                                     ExistingItem.Amount = item.Amount;
                                 }
-                                if(ExistingItem.IsDeleted == true)
+                                if(item.IsDeleted == true)
                                 {
                                     ComponentUpdate = true;
                                     transactionLogs.Add(new TransactionLog
@@ -1183,31 +1159,13 @@ namespace WebAPI.Controllers.Projects
                 if (MajorItemOfWorks.Count > 0)
                 {
                     var currentMajorItemIds = new HashSet<int>(MajorItemOfWorks.Select(x => x.Id));
-                    var deletedMajorItems = currentMajorItemIds.Except(dto.MajorItemOfWorks.Where(x => x.Id != 0).Select(x => x.Id)).ToList();
-                    #region Delete Major Item of Works
-                    if (deletedMajorItems.Count > 0)
-                    {
-                        var DeletedItems = MajorItemOfWorks.Where(x => deletedMajorItems.Contains(x.Id)).ToList();
-                        _db.tProjectMajorWorkItem.RemoveRange(DeletedItems);
-                        transactionLogs.AddRange(DeletedItems.Select(item => new TransactionLog
-                        {
-                            TransactionId = Project.ProjectId!,
-                            TypeOfTransaction = "Delete",
-                            AffectedTable = "tProjectMajorItemOfWorks",
-                            AffectedColumn = "Row",
-                            NewValue = "",
-                            OldValue = JsonConvert.SerializeObject(item),
-                            CreatedBy = _Session.UserId,
-                            CreatedDate = CurrentDate
-                        }));
-                    }
-                    #endregion
                     #region Update Major Item of Works
                     var UpdateMajorItems = dto.MajorItemOfWorks.Where(x => currentMajorItemIds.Contains(x.Id)).ToList();
                     if (UpdateMajorItems.Count > 0)
                     {
                         var UpdatedWorkItemIds = UpdateMajorItems.Select(x => x.ReferenceId).ToHashSet();
                         var UpdatedWorkLocations = dto.MajorItemLocations.Where(x => UpdatedWorkItemIds.Contains(x.ParentId)).ToHashSet();
+                        var LocationsToBeDeleted = new HashSet<int>();
                         foreach (var item in UpdateMajorItems)
                         {
                             var ExistingItem = MajorItemOfWorks.FirstOrDefault(x => x.Id == item.Id);
@@ -1269,6 +1227,30 @@ namespace WebAPI.Controllers.Projects
                                     });
                                     ExistingItem.WorkTypeId = item.WorkTypeId;
                                 }
+                                if (item.IsDeleted == true)
+                                {
+                                    hasUpdate = true;
+                                    transactionLogs.Add(new TransactionLog
+                                    {
+                                        TransactionId = Project.ProjectId!,
+                                        TypeOfTransaction = "Delete",
+                                        AffectedTable = "tProjectMajorItemOfWorks",
+                                        AffectedColumn = "Row",
+                                        NewValue = "",
+                                        OldValue = JsonConvert.SerializeObject(ExistingItem),
+                                        CreatedBy = _Session.UserId,
+                                        CreatedDate = CurrentDate
+                                    });
+                                    ExistingItem.IsDeleted = item.IsDeleted;
+                                    var ToBeDeleted = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => UpdatedWorkItemIds.Contains(x.ParentId) && !x.IsDeleted).ToListAsync();
+                                    ToBeDeleted.Select(x =>
+                                    {
+                                        x.IsDeleted = true;
+                                        return x;
+                                    });
+                                    LocationsToBeDeleted = ToBeDeleted.Select(x => x.Id).ToHashSet();
+                                    _db.tProjectMajorWorkLocations.UpdateRange(ToBeDeleted);
+                                }
                                 if (hasUpdate)
                                 {
                                     ExistingItem.UpdatedBy = _Session.UserId;
@@ -1278,25 +1260,8 @@ namespace WebAPI.Controllers.Projects
                             }
                         }
                         #region Update Locations for Updated Major Items
-                        var CurrentLocations = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => UpdatedWorkItemIds.Contains(x.ParentId)).ToListAsync();
+                        var CurrentLocations = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => UpdatedWorkItemIds.Contains(x.ParentId) && !x.IsDeleted && !LocationsToBeDeleted.Contains(x.Id)).ToListAsync();
                         var CurrentLocationIds = CurrentLocations.Select(x => x.Id).ToHashSet();
-                        var IncomingLocationIds = UpdatedWorkLocations.Where(x => x.Id != 0).Select(x => x.Id).ToHashSet();
-                        var DeletedLocations = CurrentLocations.Where(x => !IncomingLocationIds.Contains(x.Id)).ToList();
-                        if (DeletedLocations.Count > 0)
-                        {
-                            _db.tProjectMajorWorkLocations.RemoveRange(DeletedLocations);
-                            transactionLogs.AddRange(DeletedLocations.Select(item => new TransactionLog
-                            {
-                                TransactionId = Project.ProjectId!,
-                                TypeOfTransaction = "Delete",
-                                AffectedTable = "tProjectMajorWorkLocations",
-                                AffectedColumn = "Row",
-                                NewValue = "",
-                                OldValue = JsonConvert.SerializeObject(item),
-                                CreatedBy = _Session.UserId,
-                                CreatedDate = CurrentDate
-                            }));
-                        }
                         var UpdateLocations = UpdatedWorkLocations.Where(x => CurrentLocationIds.Contains(x.Id)).ToList();
                         if (UpdateLocations.Count > 0)
                         {
@@ -1520,6 +1485,22 @@ namespace WebAPI.Controllers.Projects
                                         });
                                         ExistingLoc.StartChainage = loc.StartChainage;
                                     }
+                                    if (loc.IsDeleted == true)
+                                    {
+                                        hasLocUpdate = true;
+                                        transactionLogs.Add(new TransactionLog
+                                        {
+                                            TransactionId = Project.ProjectId!,
+                                            TypeOfTransaction = "Delete",
+                                            AffectedTable = "tProjectMajorWorkLocations",
+                                            AffectedColumn = "Row",
+                                            NewValue = "",
+                                            OldValue = JsonConvert.SerializeObject(ExistingLoc),
+                                            CreatedBy = _Session.UserId,
+                                            CreatedDate = CurrentDate
+                                        });
+                                        ExistingLoc.IsDeleted = loc.IsDeleted;
+                                    }
                                     if (hasLocUpdate)
                                     {
                                         ExistingLoc.UpdatedBy = _Session.UserId;
@@ -1720,6 +1701,22 @@ namespace WebAPI.Controllers.Projects
                                         CreatedDate = CurrentDate
                                     });
                                     ExistingItem.Percentage = item.Percentage;
+                                }
+                                if (item.IsDeleted == true)
+                                {
+                                    FundingUpdate = true;
+                                    transactionLogs.Add(new TransactionLog
+                                    {
+                                        TransactionId = Project.ProjectId!,
+                                        TypeOfTransaction = "Delete",
+                                        AffectedTable = "tProjectFundingProfile",
+                                        AffectedColumn = "Row",
+                                        NewValue = "",
+                                        OldValue = JsonConvert.SerializeObject(ExistingItem),
+                                        CreatedBy = _Session.UserId,
+                                        CreatedDate = CurrentDate
+                                    });
+                                    ExistingItem.IsDeleted = item.IsDeleted;
                                 }
                                 if (FundingUpdate)
                                 {

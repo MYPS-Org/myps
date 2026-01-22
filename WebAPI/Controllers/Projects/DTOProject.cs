@@ -106,6 +106,8 @@ namespace WebAPI.Controllers.Projects
         [Required]
         [MaxLength(50)]
         public string InfraType { get; set; } = string.Empty;
+        [Required]
+        public bool IsDeleted { get; set; } = false;
     }
     public class ProjectMajorWorkLocationsDTO
     {
@@ -138,6 +140,8 @@ namespace WebAPI.Controllers.Projects
         public string? EndStationLimit { get; set; }
         public Double? EndChainage { get; set; }
         public Double? StartChainage { get; set; }
+        [Required]
+        public bool IsDeleted { get; set; } = false;
     }
     public class AddNotesDTO : ProjectDetailsDTO
     {
@@ -182,5 +186,7 @@ namespace WebAPI.Controllers.Projects
         public Double Amount { get; set; }
         [Required]
         public Double Percentage { get; set; }
+        [Required]
+        public bool IsDeleted { get; set; } = false;
     }
 }
