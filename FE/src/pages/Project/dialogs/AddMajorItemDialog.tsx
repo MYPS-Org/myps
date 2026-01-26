@@ -67,22 +67,22 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
 
   // Update available work types when InfraType changes
   useEffect(() => {
-    if (formData.InfraType && dropDowns) {
-      const filtered = dropDowns.filter(scope => scope.InfraType === formData.InfraType);
-      setAvailableWorkTypes(filtered);
-      
-      // Reset WorkTypeId if current selection is not available for new InfraType
-      if (formData.WorkTypeId > 0) {
-        const isCurrentWorkTypeValid = filtered.some(scope => scope.Enum === formData.WorkTypeId);
-        if (!isCurrentWorkTypeValid) {
-          setFormData(prev => ({ ...prev, WorkTypeId: 0 }));
-        }
-      }
-    } else {
+    if (!formData.InfraType || !dropDowns) {
       setAvailableWorkTypes([]);
-      setFormData(prev => ({ ...prev, WorkTypeId: 0 }));
+      return;
     }
+
+    setAvailableWorkTypes(
+      dropDowns.filter(scope => scope.InfraType === formData.InfraType)
+    );
   }, [formData.InfraType, dropDowns]);
+
+  // 2️⃣ Reset WorkTypeId ONLY when InfraType changes
+  useEffect(() => {
+    setFormData(prev =>
+      prev.WorkTypeId === 0 ? prev : { ...prev, WorkTypeId: 0 }
+    );
+  }, [formData.InfraType]);
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));

@@ -71,7 +71,7 @@ export interface ProjectComponentStatus {
 	ProjectComponentId: string;
 	ComponentId?: string;
 	ConstructionStatusCode?: number;
-	ConstructionStatusName: string;
+	ConstructionStatusName?: string;
 	PackedStatusCode: boolean;
 	PackedStatusName: string;
 }

@@ -5,6 +5,7 @@ import type { ComponentCost, ComponentTypeEnum } from '../../Project/Model';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { handleCurrencyBlur, handleCurrencyChange } from '../../../utils/GlobalFunctions';
 import { useFieldPermissionState } from '../hooks/useFieldPermissions';
+import { useAuth } from '../../../contexts/AuthContext';
 
 interface ComponentCostDialogProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ interface ComponentCostDialogProps {
   categoryDesc?: string; // Keep for display purposes
   reasonDesc?: string; // Keep for display purposes
   reasonId?: number; // Keep for reference
+  isChangeOfCreditor?: boolean;
   // Removed: currentCase, pcmaStatus, packageStatus - now from Jotai
 }
 
@@ -32,11 +34,28 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   componentCosts,
   ProjectId,
   maxAmountCost,
+  isChangeOfCreditor
   // categoryDesc, // May be needed for future display/logging
   // reasonDesc, // May be needed for future display/logging
   // reasonId // May be needed for validation logic
 }) => {
-  const [formData, setFormData] = useState({
+  const { user } = useAuth();
+  const [formData, setFormData] = useState<{
+    Id: number;
+    ProjectId: string;
+    ComponentType: string;
+    ComponentId: string;
+    Description: string;
+    Amount: number;
+    StageName: string;
+    StartDate: string | null;
+    EndDate: string | null;
+    IsDeleted: boolean;
+    CreatedBy: string;
+    CreatedDate: string;
+    UpdatedBy: string;
+    UpdatedDate: string;
+  }>({
     Id: 0,
     ProjectId: ProjectId,
     ComponentType: '',
@@ -44,10 +63,10 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     Description: '',
     Amount: 0,
     StageName: '',
-    StartDate: '',
-    EndDate: '',
+    StartDate: null,
+    EndDate: null,
     IsDeleted: false,
-    CreatedBy: '',
+    CreatedBy: user?.UserId,
     CreatedDate: new Date().toISOString(),
     UpdatedBy: '',
     UpdatedDate: new Date().toISOString(),
@@ -61,7 +80,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   // Helper function to check if a field is editable based on fieldRules from API
   const fieldPermissionsMap = useMemo(() => {
     // EXCEPTION: When adding new component (mode === 'add'), all fields should be editable
-    if (mode === 'add') {
+    if (mode === 'add' || mode === 'edit') {
       return {
         StartDate: true,
         EndDate: true,
@@ -93,7 +112,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   const calculateRemainingBudget = () => {
     if (!maxAmountCost || maxAmountCost <= 0) return null;
     
-    let currentTotalCost = componentCosts.reduce((sum, cost) => sum + (cost.Amount || 0), 0);
+    let currentTotalCost = componentCosts.reduce((sum, cost) => cost.IsDeleted ? sum : sum + (cost.Amount || 0), 0);
     
     // If editing, subtract the original cost from current total
     if (mode === 'edit' && editingCost) {
@@ -115,8 +134,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         Description: editingCost.Description ?? '',
         Amount: editingCost.Amount ?? 0,
         StageName: editingCost.StageName ?? '',
-        StartDate: editingCost.StartDate ?? '',
-        EndDate: editingCost.EndDate ?? '',
+        StartDate: editingCost.StartDate ?? null,
+        EndDate: editingCost.EndDate ?? null,
         IsDeleted: editingCost.IsDeleted ?? false,
         CreatedBy: editingCost.CreatedBy ?? '',
         CreatedDate: editingCost.CreatedDate ?? new Date().toISOString(),
@@ -133,8 +152,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         Description: '',
         Amount: 0,
         StageName: '',
-        StartDate: '',
-        EndDate: '',
+        StartDate: null,
+        EndDate: null,
         IsDeleted: false,
         CreatedBy: '',
         CreatedDate: new Date().toISOString(),
@@ -152,7 +171,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     }
   }, [formData.Amount]);
 
-  const handleChange = (field: string, value: string | number) => {
+  const handleChange = (field: string, value: string | number | null) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -202,7 +221,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         }
 
         if (maxAmountCost && maxAmountCost > 0) {
-          let currentTotalCost = componentCosts.reduce((sum, cost) => sum + (cost.Amount || 0), 0);
+          let currentTotalCost = componentCosts.reduce((sum, cost) => cost.IsDeleted ? sum : sum + (cost.Amount || 0), 0);
           
           // If editing, subtract the original cost from current total
           if (mode === 'edit' && editingCost) {
@@ -240,8 +259,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
             Description: '',
             Amount: 0,
             StageName: '',
-            StartDate: '',
-            EndDate: '',
+            StartDate: null,
+            EndDate: null,
             IsDeleted: false,
             CreatedBy: '',
             CreatedDate: new Date().toISOString(),
@@ -292,15 +311,17 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                         onChange={(e) => { 
                             const value = e.target.value; 
                             handleChange('ComponentType', value);
-                            handleChangeComponentId(value);
+                            if (!isChangeOfCreditor) {
+                                handleChangeComponentId(value);
+                            }
                         }}
                     >   
                     <option value="">Select Component Type</option>
                         {componentTypes
-                            ?.filter((type: any) => ['CW', 'CWD', 'ROW', 'DR', 'EAO', 'EXC', 'SAV'].includes(type.Name))
+                            ?.filter((c) => ['CW', 'CWD', 'ROW', 'DR', 'EAO', 'EXC', 'SAV'].includes(c.ComponentId || ''))
                             .map((type: any) => (
-                                <option key={type.Id} value={type.Description}>
-                                    {type.Description}
+                                <option key={type.Id} value={type.ComponentName}>
+                                    {type.ComponentName}
                                 </option>
                             ))
                         }
@@ -308,13 +329,15 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Component ID
+                            Component ID {isChangeOfCreditor && <span className="text-xs text-gray-500">(Manual Input)</span>}
                         </label>
                         <input 
                             className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500'
                             type="text" 
                             value={formData.ComponentId}
-                            readOnly
+                            onChange={(e) => handleChange('ComponentId', e.target.value)}
+                            readOnly={!isChangeOfCreditor}
+                            placeholder={isChangeOfCreditor ? "Enter Component ID" : ""}
                         />
                     {/* <select 
                     className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500'
@@ -416,8 +439,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                         </label>
                         <input
                             type="date"
-                            value={formData.StartDate.split('T')[0]}
-                            onChange={(e) => handleChange('StartDate', e.target.value)}
+                            value={formData.StartDate ? formData.StartDate.split('T')[0] : ''}
+                            onChange={(e) => handleChange('StartDate', e.target.value || null)}
                             disabled={!isFieldEditable('StartDate')}
                             className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                                 !isFieldEditable('StartDate')
@@ -432,8 +455,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                         </label>
                         <input
                             type="date"
-                            value={formData.EndDate.split('T')[0]}
-                            onChange={(e) => handleChange('EndDate', e.target.value)}
+                            value={formData.EndDate ? formData.EndDate.split('T')[0] : ''}
+                            onChange={(e) => handleChange('EndDate', e.target.value || null)}
                             disabled={!isFieldEditable('EndDate')}
                             className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                                 !isFieldEditable('EndDate')

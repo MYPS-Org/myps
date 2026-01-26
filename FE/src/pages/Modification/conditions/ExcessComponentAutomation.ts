@@ -16,7 +16,7 @@ const APPLICABLE_CATEGORIES = [
   'changeinauthoritytoimplement',
   'forsavingspartialunutilizedbalance',
   'nonimplementable',
-  'termination'
+  'termination',
 ];
 
 /**

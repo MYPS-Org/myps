@@ -52,6 +52,9 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
 
+  const normalizedCategory = category?.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
+  const isChangeOfCreditor = normalizedCategory === 'changeofcreditor';
+
   const formatCurrency = (amount: number) => amount.toLocaleString('en-PH');
 
   const handleOpenAddModal = () => {
@@ -95,11 +98,16 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
     // Budget validation
     if (maxAmountCost && maxAmountCost > 0) {
       let newTotalCost = 0;
-
+      
       if (modalMode === 'add') {
-        newTotalCost = componentCosts.reduce((sum, existingCost) => sum + (existingCost.Amount || 0), 0) + (cost.Amount || 0);
+        // For add mode, calculate total with the new cost added
+        newTotalCost = componentCosts
+          .filter(c => !c.IsDeleted)
+          .reduce((sum, existingCost) => sum + (existingCost.Amount || 0), 0) + (cost.Amount || 0);
       } else if (modalMode === 'edit' && editingIndex !== null) {
+        // For edit mode, replace the existing cost with the new one
         newTotalCost = componentCosts.reduce((sum, existingCost, index) => {
+          if (existingCost.IsDeleted) return sum;
           if (index === editingIndex) {
             return sum + (cost.Amount || 0);
           }
@@ -110,7 +118,10 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
       if (newTotalCost > maxAmountCost) {
         const exceeded = newTotalCost - maxAmountCost;
         const confirmMessage = `This action will exceed the maximum budget by ₱${formatCurrency(exceeded)}.\n\nTotal cost: ₱${formatCurrency(newTotalCost)}\nMax allowed: ₱${formatCurrency(maxAmountCost)}\n\nDo you want to proceed anyway?`;
-        if (!window.confirm(confirmMessage)) return;
+        
+        if (!window.confirm(confirmMessage)) {
+          return; // Don't save if user cancels
+        }
       }
     }
 
@@ -277,6 +288,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
         categoryDesc={category}
         reasonDesc={reason}
         reasonId={reasonId}
+        isChangeOfCreditor={isChangeOfCreditor}
       />
 
       <DeleteComponentDialog

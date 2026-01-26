@@ -718,9 +718,9 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                         {(editable) => (
                                         <SearchableDropdown
                                             options={formatDropdownOptions(projectEnums?.Origins || [],
-                                                'Enum',
+                                                'NameId',
                                                 'Name',
-                                                'Id'
+                                                'Description'
                                             )}
                                             value={projectDetails?.Origin || ''}
                                             onChange={(value) => handleInputChange('Origin', value === '' ? undefined : parseInt(value.toString()))}
@@ -744,8 +744,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                         {(editable) => (
                                         <SearchableDropdown
                                             options={formatDropdownOptions(projectEnums?.Agencies || [],
-                                                'Code',
-                                                'AgencyName',
+                                                'NameId',
+                                                'Name',
                                             )}
                                             value={projectDetails?.Agency || ''}
                                             onChange={(value) => handleInputChange('Agency', value === '' ? undefined : parseInt(value.toString()))}

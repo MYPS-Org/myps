@@ -99,7 +99,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
         e.preventDefault();
         
         // Calculate totals for validation
-        const totalComponentCost = componentCosts.reduce((sum, cost) => sum + (cost.Amount || 0), 0);
+        const totalComponentCost = componentCosts.reduce((sum, cost) => cost.IsDeleted ? sum : sum + (cost.Amount || 0), 0);
         const totalFundingAmount = fundingProfile.reduce((sum, funding) => sum + (funding.Amount || 0), 0);
         
         // Validation: Check if funding profile total matches component costs total

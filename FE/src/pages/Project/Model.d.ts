@@ -270,8 +270,8 @@ export interface ComponentCost {
 	Description?: string;
 	Amount: number;
 	StageName: string;
-	StartDate?: string;
-	EndDate?: string;
+	StartDate?: string | null;
+	EndDate?: string | null;
 	IsDeleted: boolean;
 	RevisedNumber?: number;
 	ConstructionStatusCode?: number;

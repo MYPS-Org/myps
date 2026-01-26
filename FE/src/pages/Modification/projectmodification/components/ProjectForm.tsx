@@ -36,7 +36,7 @@ import { useToast } from '../../../../components/toaster/ToasterContext';
 import ReviseProjectDialog from '../../dialogs/RevisedProjectDialog';
 import ApproveModifyDialog from '../../dialogs/ApproveModifyDialog';
 import ForReviewModifyDialog from '../../dialogs/ForReviewModifyDialog';
-import TerminationDialog from '../../dialogs/TerminationDialog';
+// import TerminationDialog from '../../dialogs/TerminationDialog';
 import ExcessPrompt from '../../dialogs/ExcessPrompt';
 import RejectModifyDialog from '../../dialogs/RejectModifyDialog';
 
@@ -117,7 +117,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState<boolean>(false);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState<boolean>(false);
   const [isForReviewDialogOpen, setIsForReviewDialogOpen] = useState<boolean>(false);
-  const [isTerminationDialogOpen, setIsTerminationDialogOpen] = useState<boolean>(false);
+  // const [isTerminationDialogOpen, setIsTerminationDialogOpen] = useState<boolean>(false);
   const [isExcessPromptOpen, setIsExcessPromptOpen] = useState<boolean>(false);
   const [excessComponentData, setExcessComponentData] = useState<{ excessAmount: number; message: string } | null>(null);
 
@@ -265,7 +265,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   // Seed atoms from initialData when editing an existing revision
   useEffect(() => {
     if (mode === 'edit' && initialData) {
-      setComponentCosts(initialData.ComponentCosts || []);
+      setComponentCosts((initialData.ComponentCosts || []).map(cost => ({
+        ...cost,
+        ProjectId: (cost.ProjectId || '').replace(/\s+/g, '')
+      })));
     }
   }, [mode, initialData, setComponentCosts]);
 
@@ -643,14 +646,14 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         },
         ComponentCosts: componentCosts.map(cost => ({
           Id: cost.Id,
-          ProjectId: cost.ProjectId || projectDetails.ProjectId || '',
+          ProjectId: (cost.ProjectId || projectDetails.ProjectId || '').replace(/\s+/g, ''),
           StageName: initialData?.ProgramDetails?.StageName || '',
           ComponentType: cost.ComponentType || '',
           ComponentId: cost.ComponentId || '',
           Description: cost.Description || '',
           Amount: cost.Amount || 0,
-          StartDate: cost.StartDate || new Date().toISOString(),
-          EndDate: cost.EndDate || new Date().toISOString(),
+          StartDate: cost.StartDate || null,
+          EndDate: cost.EndDate || null,
           CreatedBy: cost.CreatedBy || 'SYSTEM',
           CreatedDate: cost.CreatedDate || new Date().toISOString(),
           UpdatedBy: 'SYSTEM',
@@ -689,8 +692,15 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   };
 
   const handleSubmitModify = (type: string) => {
-    const totalComponentCost = componentCosts.reduce((sum, cost) => sum + (cost.Amount || 0), 0);
-    const projectCost = programDetails.Cost || 0;
+    const totalComponentCost = componentCosts.reduce((sum, cost) => cost.IsDeleted ? sum : sum + (cost.Amount || 0), 0);
+    
+    // Calculate total funding profile amount
+    const totalFundingAmount = fundingProfiles.reduce((sum, profile) => 
+      profile.IsDeleted ? sum : sum + (profile.Amount || 0), 0
+    );
+    
+    // Use funding profile total amount as the project cost for comparison
+    const projectCost = totalFundingAmount > 0 ? totalFundingAmount : (programDetails.Cost || 0);
     
     const excessCheck = checkExcessComponent(modificationCategory, projectCost, totalComponentCost);
     
@@ -762,15 +772,13 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     if (normalizedCategory !== 'termination') return;
 
     const hasTerminatedComponent = 
-      initialData?.ComponentCosts?.some(comp => 
+      initialData?.ComponentsStatus?.some(comp => 
         comp.ConstructionStatusName
           ?.toLowerCase()
           .trim() === 'terminated'
       ) || false;
 
-    if (hasTerminatedComponent) {
-      setIsTerminationDialogOpen(true);
-    } else {
+    if (!hasTerminatedComponent) {
       showToast({
         type: 'info',
         message: 'No terminated components found for this project.'
@@ -780,7 +788,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   }, [modificationCategory, mode]);
 
   return (
-    <div className="overflow-hidden max-w-10xl mx-auto p-6 space-y-6">
+    <div className="overflow-hidden w-full mx-auto p-6 space-y-6">
       <div className='flex items-center justify-between mb-6'>
         <div></div>
         <div className="flex space-x-3">
@@ -1050,8 +1058,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           {/* Component Cost Section - Fill this first to populate Major Items */}
           <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
             <div className="px-4 py-6 sm:p-8">
-              <div className="mb-4">
-                <h3 className="text-lg font-semibold leading-7 text-gray-900">Component Costs</h3>
+              <div className="mb-4 text-center">
+                <h2 className="text-lg font-semibold leading-7 text-gray-900">Component Costs</h2>
                 <p className="text-sm text-blue-600 font-medium">⚠️ Add component costs first - they are required for Major Items of Work</p>
               </div>
               <ComponentCostForm
@@ -1235,14 +1243,14 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         />
       )}
 
-      {isTerminationDialogOpen && (
+      {/* {isTerminationDialogOpen && (
         <TerminationDialog
           isOpen={isTerminationDialogOpen}
           onClose={() => setIsTerminationDialogOpen(false)}
           project={initialData?.ProjectDetails || projectDetails}
           onSubmitTermination={handleTerminationSubmit}
         />
-      )}
+      )} */}
     </div>
   );
 };

@@ -1,7 +1,6 @@
 import type { 
     ProjectDetails, 
     ComponentCost, 
-    ComponentCostYear,
     MajorItemOfWork,
     MajorItemLocations,
     FundingProfile,
@@ -14,7 +13,6 @@ interface RevisionFormProps {
     reason?: string;
     projectDetails?: ProjectDetails;
     componentCosts?: ComponentCost[];
-    componentCostYear?: ComponentCostYear[];
     majorItemOfWorks?: MajorItemOfWork[];
     majorItemLocations?: MajorItemLocations[];
     fundingProfile?: FundingProfile[];

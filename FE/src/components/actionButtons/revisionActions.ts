@@ -54,6 +54,13 @@ export const getRevisionActions = ({
     onClick: () => actions.submit('new'),
   },
   {
+    show: isEdit && userGroup === 'DPC' && regionStatus == null,
+    color: 'green',
+    label: 'Submit Revision Request to RO',
+    loading: loading.revise,
+    onClick: () => actions.submit('new'),
+  },
+  {
     show: isEdit && userGroup === 'DPC' && (regionStatus === 3 || coStatus === 3),
     color: 'green',
     label: 'Re-Submit Revision',
