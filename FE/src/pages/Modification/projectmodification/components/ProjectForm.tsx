@@ -42,6 +42,8 @@ import RejectModifyDialog from '../../dialogs/RejectModifyDialog';
 
 import RevisionForm from './RevisionForm';
 import { checkExcessComponent } from '../../conditions/ExcessComponentAutomation';
+import addExcessComponent from '../../conditions/AddExcessComponent';
+import { applyTerminationNoDisbursementAutomation } from '../../conditions/TerminationNoDisbursementAutomation';
 
 import { useAuth } from '../../../../contexts/AuthContext';
 import { useFieldPermissions } from '../../hooks/useFieldPermissions';
@@ -261,6 +263,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   // Component Costs: use Jotai atoms instead of local state ===
   const [componentCosts, setComponentCosts] = useAtom(componentCostsAtom);
   const { add: addComponentCost, update: updateComponentCost, removeByIndex: deleteComponentCost } = useComponentCosts();
+  const terminateNoDisbursement = reasonId === 37;
 
   // Seed atoms from initialData when editing an existing revision
   useEffect(() => {
@@ -284,6 +287,49 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   useEffect(() => {
     seedFromInitialData(initialData);
   }, [initialData]);
+
+  // #region Termination - No Disbursement Automation
+  // Apply automation when reasonId is 37 (Termination - No Disbursement)
+  useEffect(() => {
+    if (mode !== 'edit' || !initialData) return;
+
+    const automation = applyTerminationNoDisbursementAutomation(
+      reasonId,
+      componentCosts,
+      projectDetails.ProjectId || '',
+      initialData?.ProgramDetails?.StageName || '',
+      user?.username
+    );
+
+    if (automation.shouldApply && automation.terminatedCount > 0) {
+      console.log('Applying Termination - No Disbursement automation:', {
+        terminatedCount: automation.terminatedCount,
+        totalAmount: automation.totalTerminatedAmount,
+        excessComponent: automation.excessComponent
+      });
+
+      // Update component costs: set terminated components to 0
+      setComponentCosts(automation.updatedComponents);
+
+      // Add excess component if there's a terminated amount
+      if (automation.excessComponent) {
+        // Check if EXC component already exists to avoid duplicates
+        const hasExcessComponent = componentCosts.some(
+          c => c.ComponentId === 'EXC' && !c.IsDeleted
+        );
+
+        if (!hasExcessComponent) {
+          addComponentCost(automation.excessComponent);
+          
+          showToast({
+            type: 'info',
+            message: `${automation.terminatedCount} terminated component(s) set to ₱0. Excess component created for ₱${automation.totalTerminatedAmount.toLocaleString('en-PH')}`
+          });
+        }
+      }
+    }
+  }, [reasonId, mode, initialData?.ComponentCosts]);
+  // #endregion
 
   const [docs, setDocs] = useState<ProjectSupportingDocs[]>(
     initialData?.Docs || []
@@ -410,23 +456,13 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const handleExcessPromptConfirm = () => {
     // User confirmed - create EXC component
     if (excessComponentData) {
-      const excComponent: ComponentCost = {
-        Id: 0,
-        ProjectId: projectDetails.ProjectId || '',
-        StageName: initialData?.ProgramDetails?.StageName || '',
-        ComponentType: 'EXC',
-        ComponentId: `EXC`,
-        Description: 'Excess - Intentional Project Cost Reduction',
-        Amount: excessComponentData.excessAmount,
-        StartDate: new Date().toISOString(),
-        EndDate: new Date().toISOString(),
-        RevisedNumber: 0,
-        CreatedBy: 'SYSTEM',
-        CreatedDate: new Date().toISOString(),
-        UpdatedBy: 'SYSTEM',
-        UpdatedDate: new Date().toISOString(),
-        IsDeleted: false
-      };
+      const excComponent = addExcessComponent({
+        projectId: projectDetails.ProjectId || '',
+        stageName: initialData?.ProgramDetails?.StageName || '',
+        amount: excessComponentData.excessAmount,
+        description: 'Excess',
+        createdBy: user?.username || 'SYSTEM'
+      });
 
       // add via hook method
       addComponentCost(excComponent);

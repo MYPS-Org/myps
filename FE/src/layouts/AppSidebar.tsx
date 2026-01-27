@@ -90,39 +90,39 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 		</SidebarHeader>
 		<SidebarBody>
 			<SidebarSection>
-			<SidebarItem>
-				<UserIcon />
-				<SidebarLabel className="text-gray-500">{user?.Name || 'no name'}</SidebarLabel>
-			</SidebarItem>
-			<SidebarItem>
-				<UserGroupIcon />
-				<SidebarLabel className="text-gray-500">{user?.UserGroups || 'no role'}</SidebarLabel>
-			</SidebarItem>
+				<SidebarItem>
+					<UserIcon />
+					<SidebarLabel className="text-gray-500">{user?.Name || 'no name'}</SidebarLabel>
+				</SidebarItem>
+				<SidebarItem>
+					<UserGroupIcon />
+					<SidebarLabel className="text-gray-500">{user?.UserGroups || 'no role'}</SidebarLabel>
+				</SidebarItem>
 			<SidebarDivider>
 			</SidebarDivider>
-			<SidebarItem href="/dashboard" current={currentPath === '/dashboard'}>
-				<HomeIcon />
-				<SidebarLabel className="text-gray-500">Dashboard</SidebarLabel>
-			</SidebarItem>
-			<SidebarItem href="/programs" current={currentPath === '/programs'}>
-				<FolderIcon />
-				<SidebarLabel className="text-gray-500">Programs</SidebarLabel>
-			</SidebarItem>
-			<SidebarItem href="/projects" current={currentPath === '/projects'}>
-				<Square2StackIcon />
-				<SidebarLabel className="text-gray-500">Projects</SidebarLabel>
-			</SidebarItem>
-			<SidebarItem href="/revision" current={currentPath === '/revision'}>
-				<Square2StackIcon />
-				<SidebarLabel className="text-gray-500">Revision</SidebarLabel>
-			</SidebarItem>
-			<SidebarItem href="/project-groups" current={currentPath === '/project-groups'}>
-				<Square2StackIcon />
-				<SidebarLabel className="text-gray-500">Project Groups</SidebarLabel>
-			</SidebarItem>	
-			{/* <SidebarItem href="/program-stages" current={currentPath === '/program-stages'}>	
-				<Square2StackIcon />
-				<SidebarLabel className="text-gray-500">Program Stages</SidebarLabel>
+				<SidebarItem href="/dashboard" current={currentPath === '/dashboard'}>
+					<HomeIcon />
+					<SidebarLabel className="text-gray-500">Dashboard</SidebarLabel>
+				</SidebarItem>
+				<SidebarItem href="/programs" current={currentPath === '/programs'}>
+					<FolderIcon />
+					<SidebarLabel className="text-gray-500">Programs</SidebarLabel>
+				</SidebarItem>
+				<SidebarItem href="/projects" current={currentPath === '/projects'}>
+					<Square2StackIcon />
+					<SidebarLabel className="text-gray-500">Projects</SidebarLabel>
+				</SidebarItem>
+				<SidebarItem href="/revision" current={currentPath === '/revision'}>
+					<Square2StackIcon />
+					<SidebarLabel className="text-gray-500">Revision</SidebarLabel>
+				</SidebarItem>
+				<SidebarItem href="/project-groups" current={currentPath === '/project-groups'}>
+					<Square2StackIcon />
+					<SidebarLabel className="text-gray-500">Project Groups</SidebarLabel>
+				</SidebarItem>	
+				{/* <SidebarItem href="/program-stages" current={currentPath === '/program-stages'}>	
+					<Square2StackIcon />
+					<SidebarLabel className="text-gray-500">Program Stages</SidebarLabel>
 			</SidebarItem> */}
 			<SidebarDropdown
 				label="Multi-Year Management"
@@ -135,6 +135,22 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 				</SidebarDropdownItem>
 				<SidebarDropdownItem href="/multiyear/projects" current={currentPath === '/multiyear/projects'}>
 					<SidebarLabel>Projects</SidebarLabel>
+				</SidebarDropdownItem>
+			</SidebarDropdown>
+			<SidebarDropdown
+				label="Generate Reports"
+				defaultOpen={false}
+				className="text-gray-500"
+				>
+				<Cog6ToothIcon />
+				<SidebarDropdownItem href="/reports/programs" current={currentPath === '/reports/programs'}>
+					<SidebarLabel>Programs</SidebarLabel>
+				</SidebarDropdownItem>
+				<SidebarDropdownItem href="/reports/projects" current={currentPath === '/reports/projects'}>
+					<SidebarLabel>Projects</SidebarLabel>
+				</SidebarDropdownItem>
+				<SidebarDropdownItem href="/reports/multiyear" current={currentPath === '/reports/multiyear'}>
+					<SidebarLabel>Multi-Year</SidebarLabel>
 				</SidebarDropdownItem>
 			</SidebarDropdown>
 			<SidebarDropdown
@@ -211,4 +227,4 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 		</SidebarFooter>
 		</Sidebar>
 	)
-	}
+}

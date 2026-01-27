@@ -248,7 +248,7 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
                 <TableCell>
                   <button
                     onClick={() => onDelete(index)}
-                    className="text-red-600 hover:text-red-800"
+                    className={`text-red-600 hover:text-red-800 ${getDisabledClass(disabled)}`}
                     disabled={disabled}
                   >
                     <TrashIcon className="w-4 h-4" />
