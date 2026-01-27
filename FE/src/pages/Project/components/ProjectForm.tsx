@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../../contexts/AuthContext';
 import { formValidation, type FormValidationError } from '../../../utils/FormValidation';
 import { projectDetailsRules } from '../rules/projectDetailsRules';
 import type { 
@@ -48,6 +49,7 @@ interface ProjectFormProps {
 const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', initialProgramId }) => {
 
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [savingSection, setSavingSection] = useState<string | null>(null);
   const [projectEnums, setProjectEnums] = useState<ProjectEnums | null>(null);
@@ -705,9 +707,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           LegislativeDistrict: projectDetails.LegislativeDistrict ? projectDetails.LegislativeDistrict.toString() : '',
           ProgramName: programDetails.Name || '',
           EmergencyMode: projectDetails.EmergencyMode,
-          CreatedBy: projectDetails.CreatedBy || 'SYSTEM',
+          CreatedBy: projectDetails.CreatedBy || user?.UserId,
           CreatedDate: projectDetails.CreatedDate || new Date().toISOString(),
-          UpdatedBy: 'SYSTEM', // Set current user
+          UpdatedBy: user?.UserId, // Set current user
           UpdatedDate: new Date().toISOString(),
         },
         ComponentCosts: componentCosts.map(cost => ({

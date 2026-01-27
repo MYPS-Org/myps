@@ -14,13 +14,13 @@ const addExcessComponent = (
         Id: 0,
         ProjectId: params.projectId,
         StageName: params.stageName,
-        ComponentType: 'EXC',
+        ComponentType: 'Excess',
         ComponentId: 'EXC',
         Description: params.description ?? 'Excess',
         Amount: params.amount,
-        CreatedBy: params.createdBy ?? 'SYSTEM',
+        CreatedBy: params.createdBy ?? '-',
         CreatedDate: now,
-        UpdatedBy: params.createdBy ?? 'SYSTEM',
+        UpdatedBy: params.createdBy ?? '-',
         UpdatedDate: now,
         IsDeleted: false
     };

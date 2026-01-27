@@ -263,7 +263,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   // Component Costs: use Jotai atoms instead of local state ===
   const [componentCosts, setComponentCosts] = useAtom(componentCostsAtom);
   const { add: addComponentCost, update: updateComponentCost, removeByIndex: deleteComponentCost } = useComponentCosts();
-  const terminateNoDisbursement = reasonId === 37;
 
   // Seed atoms from initialData when editing an existing revision
   useEffect(() => {
@@ -298,7 +297,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       componentCosts,
       projectDetails.ProjectId || '',
       initialData?.ProgramDetails?.StageName || '',
-      user?.username
+      user?.UserId
     );
 
     if (automation.shouldApply && automation.terminatedCount > 0) {
@@ -461,7 +460,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         stageName: initialData?.ProgramDetails?.StageName || '',
         amount: excessComponentData.excessAmount,
         description: 'Excess',
-        createdBy: user?.username || 'SYSTEM'
+        createdBy: user?.UserId || user?.UserId
       });
 
       // add via hook method
@@ -675,9 +674,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           // Add missing required fields for the expected payload
           ProgramName: programDetails.Name || '',
           EmergencyMode: projectDetails.EmergencyMode,
-          CreatedBy: projectDetails.CreatedBy || 'SYSTEM',
+          CreatedBy: projectDetails.CreatedBy || user?.UserId,
           CreatedDate: projectDetails.CreatedDate || new Date().toISOString(),
-          UpdatedBy: 'SYSTEM', // Set current user
+          UpdatedBy: user?.UserId,
           UpdatedDate: new Date().toISOString(),
         },
         ComponentCosts: componentCosts.map(cost => ({
@@ -690,9 +689,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           Amount: cost.Amount || 0,
           StartDate: cost.StartDate || null,
           EndDate: cost.EndDate || null,
-          CreatedBy: cost.CreatedBy || 'SYSTEM',
+          CreatedBy: cost.CreatedBy || user?.UserId,
           CreatedDate: cost.CreatedDate || new Date().toISOString(),
-          UpdatedBy: 'SYSTEM',
+          UpdatedBy: user?.UserId,
           UpdatedDate: new Date().toISOString(),
           IsDeleted: cost.IsDeleted || false
         })),
