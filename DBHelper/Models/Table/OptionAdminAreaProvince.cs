@@ -20,9 +20,8 @@ namespace DBHelper.Models.Table
         [Required]
         [MaxLength(255)]
         public string Name { get; set; } = string.Empty;
-        [Required]
-        [MaxLength(50)]
-        public string Code { get; set; } = string.Empty;
+        [MaxLength(20)]
+        public string? Code { get; set; }
         [Required]
         [MaxLength(10)]
         public string RegionParticipantId { get; set; } = string.Empty;
@@ -30,5 +29,4 @@ namespace DBHelper.Models.Table
         [MaxLength(255)]
         public string RegionName { get; set; } = string.Empty;
     }
-
 }

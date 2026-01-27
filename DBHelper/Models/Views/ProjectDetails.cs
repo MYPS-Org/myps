@@ -17,7 +17,7 @@ namespace DBHelper.Models.Views
         public string? UACS { get; set; }
         public DateTime? MYCAApprovalDate { get; set; }
         public string? IslandCode { get; set; }
-        public int? RevisionNumber { get; set; }
+        public int? RevisionId { get; set; }
         public string? Description { get; set; }
         public int Category { get; set; }
         public int? Thrust { get; set; }
@@ -30,7 +30,7 @@ namespace DBHelper.Models.Views
         public string? DEO { get; set; }
         public string? Region { get; set; }
         public int Agency { get; set; }
-        public int ImplementationMode { get; set; }
+        public int? ImplementationMode { get; set; }
         public bool EmergencyMode { get; set; }
         public int? Feasibility { get; set; }
         public DateTime? FeasibilityDate { get; set; }
@@ -39,6 +39,8 @@ namespace DBHelper.Models.Views
         public bool? RowAvailable { get; set; }
         public int RegionWide { get; set; } = 0;
         public int Tier { get; set; } = 0;
+        public bool? isRevised { get; set; } = false;
+        public int? RevisedNumber { get; set; }
         public string? CreatedBy { get; set; }
         public DateTime? CreatedDate { get; set; }
         public string? UpdatedBy { get; set; }

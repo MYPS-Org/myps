@@ -18,7 +18,8 @@ namespace DBHelper.Models.Table
         [Required]
         public string Source { get; set; } = string.Empty;
         [Required]
-        public int Agreement { get; set; }
+        [MaxLength(50)]
+        public string Agreement { get; set; } = string.Empty;
         [Required]
         public Double Amount { get; set; }
         [Required]
@@ -29,6 +30,7 @@ namespace DBHelper.Models.Table
         [Required]
         [MaxLength(10)]
         public string StageName { get; set; } = string.Empty;
+        public int? RevisedNumber { get; set; }
         [Required]
         public DateTime CreatedDate { get; set; }
         [MaxLength(100)]

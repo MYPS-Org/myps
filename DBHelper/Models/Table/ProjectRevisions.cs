@@ -58,8 +58,7 @@ namespace DBHelper.Models.Table
         [Required]
         [MaxLength(2)]
         public string IslandCode { get; set; } = string.Empty;
-        [Required]
-        public int ImplementationMode { get; set; }
+        public int? ImplementationMode { get; set; }
         [Required]
         public bool EmergencyMode { get; set; }
         public int? Feasibility { get; set; }
@@ -71,6 +70,8 @@ namespace DBHelper.Models.Table
         public int RegionWide { get; set; } = 0;
         [Required]
         public int Tier { get; set; } = 1;
+        public bool isRevised { get; set; } = false;
+        public int? RevisedNumber { get; set; }
         [Required]
         [MaxLength(100)]
         public string CreatedBy { get; set; } = string.Empty;

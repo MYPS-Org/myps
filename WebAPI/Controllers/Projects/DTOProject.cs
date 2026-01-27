@@ -12,11 +12,7 @@ using System.Threading.Tasks;
 
 namespace WebAPI.Controllers.Projects
 {
-    public class ShowProjectDTO : EnumPagination
-    {
-        public ShowProjectFilterDTO Filters { get; set; } = new ShowProjectFilterDTO();
-        public string SortField { get; set; } = "Id";
-    }
+    public class ShowProjectDTO : EnumPagination<ShowProjectFilterDTO> { }
     public class ShowProjectFilterDTO
     {
         public string? ProgramId { get; set; }
@@ -63,9 +59,7 @@ namespace WebAPI.Controllers.Projects
         [Required]
         [MaxLength(10)]
         public string ComponentId { get; set; } = string.Empty;
-        [Required]
-        [MaxLength(400)]
-        public string Description { get; set; } = string.Empty;
+        public string? Description { get; set; }
         [Required]
         public Double Total { get; set; }
     }
@@ -78,10 +72,8 @@ namespace WebAPI.Controllers.Projects
         public int CostYear { get; set; }
         [Required]
         public Double Cost { get; set; }
-        [Required]
-        public DateTime StartDate { get; set; }
-        [Required]
-        public DateTime EndDate { get; set; }
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
     }
     public class ProjectMajorWorkItemDTO
     {
@@ -114,9 +106,7 @@ namespace WebAPI.Controllers.Projects
         [Required]
         [MaxLength(50)]
         public string InfraId { get; set; } = string.Empty;
-        [Required]
-        [MaxLength(100)]
-        public string DetailedScope { get; set; } = string.Empty;
+        public string? DetailedScope { get; set; }
         [Required]
         public int TargetUnitId { get; set; }               
         [MaxLength(100)]
@@ -135,8 +125,8 @@ namespace WebAPI.Controllers.Projects
         public string? StartStationLimit { get; set; }
         [MaxLength(100)]
         public string? EndStationLimit { get; set; }
-        public Double? From { get; set; }
-        public Double? To { get; set; }
+        public Double? EndChainage { get; set; }
+        public Double? StartChainage { get; set; }
     }
     public class AddNotesDTO : ProjectDetailsDTO
     {
@@ -175,7 +165,8 @@ namespace WebAPI.Controllers.Projects
         [Required]
         public string Source { get; set; } = string.Empty;
         [Required]
-        public int Agreement { get; set; }
+        [MaxLength(50)]
+        public string Agreement { get; set; } = string.Empty;
         [Required]
         public Double Amount { get; set; }
         [Required]

@@ -5,7 +5,9 @@ namespace DBHelper.Data
 {
     public class AppDbContext : DbContext
     {
-        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) {
+            this.Database.SetCommandTimeout(TimeSpan.FromMinutes(30));
+        }
         #region Tables
         public DbSet<Models.Table.Users> tUsers { get; set; }
         public DbSet<Models.Table.PermissionGroups> tPermissionGroups { get; set; }
@@ -27,7 +29,7 @@ namespace DBHelper.Data
         public DbSet<Models.Table.ProjectThrustLists> tProjectThrustLists { get; set; }
         public DbSet<Models.Table.ProjectOriginEnum> tProjectOriginEnum { get; set; }
         public DbSet<Models.Table.OptionAdminAreaCityMunicipality> tOptionAdminAreaCityMunicipality { get; set; }
-        public DbSet<Models.Table.AdminAreaCongressionalDistrict> tAdminAreaCongressionalDistrict { get; set; }
+        public DbSet<Models.Table.OptionAdminAreaCongressionalDistrict> tOptionAdminAreaCongressionalDistrict { get; set; }
         public DbSet<Models.Table.OptionAdminAreaDistrictEngineeringOffice> tOptionAdminAreaDistrictEngineeringOffice { get; set; }
         public DbSet<Models.Table.OptionAdminAreaRegion> tOptionAdminAreaRegion { get; set; }
         //public DbSet<Models.Table.AdminImplementingOffice> tAdminImplementingOffice { get; set; }
@@ -37,7 +39,7 @@ namespace DBHelper.Data
         public DbSet<Models.Table.ProjectLongFeasibilityEnum> tProjectLongFeasibilityEnum { get; set; }
         public DbSet<Models.Table.ProjectComponentEnum> tProjectComponentEnum { get; set; }
         public DbSet<Models.Table.ProjectComponentCost> tProjectComponentCost { get; set; }
-        public DbSet<Models.Table.ProjectComponentCostYear> tProjectComponentCostYear { get; set; }
+        //public DbSet<Models.Table.ProjectComponentCostYear> tProjectComponentCostYear { get; set; }
         public DbSet<Models.Table.TransactionLog> tTransactionLog { get; set; }
         public DbSet<Models.Table.ProjectScopeOfWorkEnum> tProjectScopeOfWorkEnum { get; set; }
         public DbSet<Models.Table.ProjectMajorWorkItem> tProjectMajorWorkItem { get; set; }
@@ -59,6 +61,23 @@ namespace DBHelper.Data
         public DbSet<Models.Table.FutureRoadSections> tFutureRoadSections { get; set; }
         public DbSet<Models.Table.FutureBridge> tFutureBridge { get; set; }
         public DbSet<Models.Table.ProjectImplementingOfficeEnum> tProjectImplementingOfficeEnum { get; set; }
+        public DbSet<Models.Table.PCMARevisions> tPCMARevisions { get; set; }
+        public DbSet<Models.Table.PCMARevisionDetails> tPCMARevisionDetails { get; set; }
+        public DbSet<Models.Table.PCMARevisionChangelogs> tPCMARevisionChangelogs { get; set; }
+        public DbSet<Models.Table.RevisionDetails> tRevisionDetails { get; set; }
+        public DbSet<Models.Table.RevisionDocuments> tRevisionDocuments { get; set; }
+        public DbSet<Models.Table.RevisionForCorrectionDetails> tRevisionForCorrectionDetails { get; set; }
+        public DbSet<Models.Table.OptionRevisionHeader> tOptionRevisionHeader { get; set; }
+        public DbSet<Models.Table.OptionRevisionReasons> tOptionRevisionReasons { get; set; }
+        public DbSet<Models.Table.OptionRevisionCategory> tOptionRevisionCategory { get; set; }
+        public DbSet<Models.Table.OptionRevisionStatus> tOptionRevisionStatus { get; set; }
+        public DbSet<Models.Table.OptionRevisionDocuments> tOptionRevisionDocuments { get; set; }
+        public DbSet<Models.Table.RevisionTransactionLog> tRevisionTransactionLog { get; set; }
+        public DbSet<Models.Table.RevisionProjects> tRevisionProjects { get; set; }
+        public DbSet<Models.Table.RevisionProjectFundingProfile> tRevisionProjectFundingProfile { get; set; }
+        public DbSet<Models.Table.RevisionProjectComponentCost> tRevisionProjectComponentCost { get; set; }
+        public DbSet<Models.Table.RevisionProjectMajorWorkItem> tRevisionProjectMajorWorkItem { get; set; }
+        public DbSet<Models.Table.RevisionProjectMajorWorkLocations> tRevisionProjectMajorWorkLocations { get; set; }
         #endregion
         #region Views
         public DbSet<Models.Views.Users> vUsers { get; set; }
@@ -73,12 +92,18 @@ namespace DBHelper.Data
         public DbSet<Models.Views.AdminOperatingUnit> vAdminOperatingUnit { get; set; }
         public DbSet<Models.Views.AdminImplementingOffice> vAdminImplementingOffice { get; set; }
         public DbSet<Models.Views.GetProjectCategoryVersions> vGetProjectCategoryVersions { get; set; }
+        public DbSet<Models.Views.RevisionRules> vRevisionRules { get; set; }
+        public DbSet<Models.Views.ProjectComponentStatus> vProjectComponentStatus { get; set; }
+        public DbSet<Models.Views.RevisionLists> vRevisionLists { get; set; }
+        public DbSet<Models.Views.ProjectComponentCost> vProjectComponentCost { get; set; }
+        public DbSet<Models.Views.RevisionProjectComponentCost> vRevisionProjectComponentCost { get; set; }
         #endregion
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<AdminOperatingUnit>().HasNoKey().ToView("vAdminOperatingUnit");
             modelBuilder.Entity<AdminImplementingOffice>().HasNoKey().ToView("vAdminImplementingOffice");
             modelBuilder.Entity<GetProjectCategoryVersions>().HasNoKey().ToView("vGetProjectCategoryVersions");
+            modelBuilder.Entity<ProjectComponentStatus>().HasNoKey().ToView("vProjectComponentStatus");
             base.OnModelCreating(modelBuilder);
         }
     }

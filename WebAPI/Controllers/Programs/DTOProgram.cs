@@ -9,11 +9,7 @@ using System.Threading.Tasks;
 
 namespace WebAPI.Controllers.Programs
 {
-    public class ShowProgramDTO : EnumPagination
-    {
-        public ShowProgramFilterDTO Filters { get; set; } = new ShowProgramFilterDTO();
-        public string SortField { get; set; } = "Id";
-    }
+    public class ShowProgramDTO : EnumPagination<ShowProgramFilterDTO> { }
     public class ShowProgramFilterDTO
     {
         public string? Name { get; set; }

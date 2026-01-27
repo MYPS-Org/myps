@@ -46,10 +46,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Resources\Templates\" />
-  </ItemGroup>
-
-  <ItemGroup>
     <!-- Copy the native DLL to output directory -->
     <None Include="libwkhtmltox.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

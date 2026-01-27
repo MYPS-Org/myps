@@ -17,19 +17,16 @@ namespace DBHelper.Models.Table
         [MaxLength(100)]
         public string ProjectId { get; set; } = string.Empty;
         [Required]
-        [MaxLength(200)]
-        public string ReferenceId { get; set; } = string.Empty;
-        [Required]
         [MaxLength(100)]
         public string ComponentType { get; set; } = string.Empty;
         [Required]
         [MaxLength(10)]
         public string ComponentId { get; set; } = string.Empty;
+        public string? Description { get; set; }
         [Required]
-        [MaxLength(400)]
-        public string Description { get; set; } = string.Empty;
-        [Required]
-        public Double Total { get; set; }
+        public Double Amount { get; set; }
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
         [Required]
         [MaxLength(10)]
         public string StageName { get; set; } = string.Empty;
@@ -41,5 +38,6 @@ namespace DBHelper.Models.Table
         [MaxLength(100)]
         public string? UpdatedBy { get; set; }
         public DateTime? UpdatedDate { get; set; }
+        public bool IsDeleted { get; set; } = false;
     }
 }

@@ -10,7 +10,9 @@ using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Linq.Expressions;
 using System.Reflection;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
@@ -23,7 +25,7 @@ namespace WebAPI.Controllers
     public abstract class CoreController : Controller
     {
         public AppDbContext _db;
-        public Users _Session = new Users();
+        public DBHelper.Models.Views.Users _Session = new DBHelper.Models.Views.Users();
         private readonly IProducer<Null, string> _producer;
         public CoreController(AppDbContext db, IProducer<Null, string> producer)
         {
@@ -54,7 +56,7 @@ namespace WebAPI.Controllers
                 string userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
                 if (!hasAllowAnonymous || IsAuthenticated || !string.IsNullOrEmpty(userId))
                 {
-                    var user = _db.tUsers.FirstOrDefault(x => x.UserId == userId && x.IsActive == true);
+                    var user = _db.vUsers.FirstOrDefault(x => x.UserId == userId && x.IsActive == true);
                     if(user == null)
                     {
                         context.Result = UnauthorizedUser();
@@ -144,6 +146,18 @@ namespace WebAPI.Controllers
 
             };
             return Unauthorized(responseObj);
+        }
+        private static readonly ConcurrentDictionary<string, LambdaExpression> _orderLambdaCache = new(StringComparer.OrdinalIgnoreCase);
+        // Builds (T e) => e.<SortField> with proper underlying type (no object boxing)
+        public static LambdaExpression GetOrderByLambda<T>(string sortField)
+        {
+            return _orderLambdaCache.GetOrAdd($"{typeof(T).FullName}.{sortField}", _ =>
+            {
+                var param = Expression.Parameter(typeof(T), "e");
+                var body = Expression.PropertyOrField(param, sortField);
+                var delegateType = typeof(Func<,>).MakeGenericType(typeof(T), body.Type);
+                return Expression.Lambda(delegateType, body, param);
+            });
         }
     }
 }

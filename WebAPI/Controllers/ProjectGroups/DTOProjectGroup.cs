@@ -7,11 +7,7 @@ using System.Security;
 
 namespace WebAPI.Controllers.ProjectGroup
 {
-    public class ShowProjectGroupDTO : EnumPagination
-    {
-        public ShowProjectGroupFilterDTO Filters { get; set; } = new ShowProjectGroupFilterDTO();
-        public string SortField { get; set; } = "Id";
-    }
+    public class ShowProjectGroupDTO : EnumPagination<ShowProjectGroupFilterDTO> { }
     public class ShowProjectGroupFilterDTO
     {
         public string? UserGroupName { get; set; }

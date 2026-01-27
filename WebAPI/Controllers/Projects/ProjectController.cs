@@ -55,6 +55,9 @@ namespace WebAPI.Controllers.Projects
 
                 var baseQuery = _db.vProjects.AsNoTracking();
 
+                // Apply sorting and pagination
+                dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "Id";
+
                 // Apply filters to base query
                 if (!string.IsNullOrEmpty(dto.Filters?.ProgramId))
                     baseQuery = baseQuery.Where(e => e.ProgramId!.Contains(dto.Filters.ProgramId));
@@ -65,19 +68,21 @@ namespace WebAPI.Controllers.Projects
                 // Get total count of filtered results (before pagination)
                 var totalRecords = await baseQuery.CountAsync();
 
-                // Apply sorting and pagination
-                dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "Id";
-                var sortedQuery = dto.sortDirection == sortDirectionList.ASC
+                IOrderedQueryable<DBHelper.Models.Views.Projects> sortedQuery = dto.sortDirection == sortDirectionList.ASC
                         ? baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField))
                         : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField));
 
                 // Apply pagination and execute query
-                 List<DBHelper.Models.Views.Projects> permissionLists = await sortedQuery
-                    .Skip((dto.page - 1) * dto.limit)
-                    .Take(dto.limit)
-                    .ToListAsync();
+                List<DBHelper.Models.Views.Projects> permissionLists = await sortedQuery
+                   .Skip((dto.page - 1) * dto.limit)
+                   .Take(dto.limit)
+                   .ToListAsync();
+
+
+                //var pageRows = await ordered.Take(dto.limit).ToListAsync();
 
                 var totalPages = (int)Math.Ceiling((double)totalRecords / dto.limit);
+                //var lastRow = pageRows.Count > 0 ? pageRows[^1] : null;
 
                 var response = new
                 {
@@ -85,7 +90,12 @@ namespace WebAPI.Controllers.Projects
                     dto.page,
                     dto.limit,
                     total = totalRecords,
-                    totalPages
+                    totalPages,
+                    //nextCursor = lastRow == null ? null : new
+                    //{
+                    //    lastSortValue = EF.Property<object>(lastRow, dto.SortField),
+                    //    lastId = lastRow.Id
+                    //}
                 };
 
                 return Ok(response); // Remove the extra wrapper
@@ -95,6 +105,7 @@ namespace WebAPI.Controllers.Projects
                 return ExceptionHandler(ex);
             }
         }
+
         [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ShowProjectStages([FromBody] ShowProjectStagesDTO dto)
@@ -116,7 +127,7 @@ namespace WebAPI.Controllers.Projects
                     Thrust = _db.tProjectThrustLists.FirstOrDefault(a => a.PAPKey == x.Thrust)!.ThrustDescription ?? x.Thrust.ToString(),
                     Category = _db.tProjectCategoryEnum.FirstOrDefault(a => a.Enum == x.Category)!.Name ?? x.Category.ToString(),
                     City = _db.tOptionAdminAreaCityMunicipality.FirstOrDefault(a => a.Code == x.City)!.Name ?? x.City.ToString(),
-                    LegislativeDistrict = _db.tAdminAreaCongressionalDistrict.FirstOrDefault(a => a.Code == x.LegislativeDistrict)!.Name ?? x.LegislativeDistrict.ToString(),
+                    LegislativeDistrict = _db.tOptionAdminAreaCongressionalDistrict.FirstOrDefault(a => a.Code == x.LegislativeDistrict)!.Name ?? x.LegislativeDistrict.ToString(),
                     Cost = _db.tProjectComponentCost.Where(a => a.ReferenceId == x.ReferenceId).Sum(a => a.Total),
                     CreatedBy = x.CreatedBy,
                     CreatedDate = x.CreatedDate,
@@ -132,20 +143,22 @@ namespace WebAPI.Controllers.Projects
                 return ExceptionHandler(ex);
             }
         }
+        #endregion
+        #region Add Project
         [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> InitAddProject()
         {
             try
             {
-                var AvailablePrograms = await _db.vPrograms.AsNoTracking().Where(x => x.IsPublished != true).ToListAsync();
+                var AvailablePrograms = await _db.vProgramDetails.AsNoTracking().Where(x => x.IsPublished != true).ToListAsync();
                 int CurrentYear = (int)DateTime.UtcNow.Year;
                 var Category = await _db.tProjectCategoryEnum.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync();
                 var Thrust = await _db.tProjectThrustLists.AsNoTracking().OrderBy(x => x.ThrustDescription).ToListAsync();
                 var Origin = await _db.tProjectOriginEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var Province = await _db.tOptionAdminAreaProvince.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var City = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-                var LD = await _db.tAdminAreaCongressionalDistrict.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var LD = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var IO = await _db.vAdminImplementingOffice.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var OperatingUnit = await _db.vAdminOperatingUnit.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var DEO = await _db.tOptionAdminAreaDistrictEngineeringOffice.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
@@ -178,8 +191,6 @@ namespace WebAPI.Controllers.Projects
                 return ExceptionHandler(ex);
             }
         }
-        #endregion
-        #region Add Project
         [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> AddProject([FromBody] AddProjectDTO dto)
@@ -222,7 +233,7 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = $"Selected City '{dto.City}' is not valid!", Title = "Invalid City" });
                 }
-                var LD = await _db.tAdminAreaCongressionalDistrict.FirstOrDefaultAsync(x => x.GdbId.ToString() == dto.LegislativeDistrict);
+                var LD = await _db.tOptionAdminAreaCongressionalDistrict.FirstOrDefaultAsync(x => x.GdbId.ToString() == dto.LegislativeDistrict);
                 if(LD == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Selected Legislative District '{dto.LegislativeDistrict}' is not valid!", Title = "Invalid Legislative District" });
@@ -384,23 +395,23 @@ namespace WebAPI.Controllers.Projects
                 var SupportingDoc = await _db.tDropdownSupportingDocs.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync();
 
                 var ComponentType = await _db.tProjectComponentEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-                var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
+                var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && x.RevisedNumber == Project.RevisedNumber).ToListAsync();
                 var ComponentCostYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentCost.Select(a => a.ReferenceId).Contains(x.ParentId)).ToListAsync();
 
-                var MajorItemOfWork = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
+                var MajorItemOfWork = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && x.RevisedNumber == Project.RevisedNumber).ToListAsync();
                 HashSet<string> ItemParents = MajorItemOfWork.Select(x => x.ReferenceId).ToHashSet();
                 var MajorWorkLocation = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => ItemParents.Contains(x.ParentId)).ToListAsync();
 
 
                 var Notes = await _db.tProjectNotes.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
-                var Funding = await _db.tProjectFundingProfile.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
+                var Funding = await _db.tProjectFundingProfile.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && x.RevisedNumber == Project.RevisedNumber).ToListAsync();
 
                 var Category = await _db.tProjectCategoryEnum.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync();
                 var Thrust = await _db.tProjectThrustLists.AsNoTracking().OrderBy(x => x.ThrustDescription).ToListAsync();
                 var Origin = await _db.tProjectOriginEnum.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var Province = await _db.tOptionAdminAreaProvince.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var City = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-                var LD = await _db.tAdminAreaCongressionalDistrict.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var LD = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var IO = await _db.vAdminImplementingOffice.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var OperatingUnit = await _db.vAdminOperatingUnit.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var DEO = await _db.tOptionAdminAreaDistrictEngineeringOffice.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
@@ -415,6 +426,15 @@ namespace WebAPI.Controllers.Projects
 
                 var ScopeOfWork = await _db.tProjectScopeOfWorkEnum.AsNoTracking().OrderBy(x => x.WorkCategory).ToListAsync();
                 var Transactions = await _db.tTransactionLog.AsNoTracking().Where(x => x.TransactionId == dto.ProjectId).ToListAsync();
+                List<OptionRevisionHeader> ReasonHeader = new List<OptionRevisionHeader>();
+                List<OptionRevisionCategory> ReasonCategory = new List<OptionRevisionCategory>();
+                List<OptionRevisionReasons> ReasonReason = new List<OptionRevisionReasons>();
+                if (Project.StageName == "GAA-R")
+                {
+                    ReasonHeader = await _db.tOptionRevisionHeader.AsNoTracking().OrderBy(x => x.RevisionName).ToListAsync();
+                    ReasonCategory = await _db.tOptionRevisionCategory.AsNoTracking().OrderBy(x => x.CategoryName).ToListAsync();
+                    ReasonReason = await _db.tOptionRevisionReasons.AsNoTracking().OrderBy(x => x.Reason).ToListAsync();
+                }
                 return Ok(new
                 {
                     IsActive = (CurrentProgramVersion.StageName == Project.StageName) ? true : false,
@@ -459,6 +479,13 @@ namespace WebAPI.Controllers.Projects
                         //Funding Profile
                         Agreements = Agreement,
                         Sources = Source,
+
+                        Revisions = new
+                        {
+                            Headers = ReasonHeader,
+                            Categories = ReasonCategory,
+                            Reasons = ReasonReason
+                        }
                     }
                 });
             }
@@ -496,6 +523,7 @@ namespace WebAPI.Controllers.Projects
                 #region Update Project Details
                 if (Project.Description != dto.ProjectDetails?.Description)
                 {
+                    hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
                         TransactionId = Project.ProjectId!,
@@ -621,13 +649,12 @@ namespace WebAPI.Controllers.Projects
                 //}
                 if (Project.LegislativeDistrict != dto.ProjectDetails?.LegislativeDistrict)
                 {
-                    var LD = await _db.tAdminAreaCongressionalDistrict.AsNoTracking().FirstOrDefaultAsync(x => x.Code == dto.ProjectDetails!.LegislativeDistrict);
+                    var LD = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().FirstOrDefaultAsync(x => x.Code == dto.ProjectDetails!.LegislativeDistrict);
                     if (LD == null)
                     {
                         return new BadRequestObjectResult(new { Message = $"Selected Legislative District '{dto.ProjectDetails!.LegislativeDistrict}' is not valid!", Title = "Invalid Legislative District" });
                     }
-                    var OldLD = await _db.tAdminAreaCongressionalDistrict.AsNoTracking().FirstOrDefaultAsync(x => x.Code == Project.LegislativeDistrict);
-                    hasUpdated = true;
+                    var OldLD = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().FirstOrDefaultAsync(x => x.Code == Project.LegislativeDistrict);
                     transactionLogs.Add(new TransactionLog
                     {
                         TransactionId = Project.ProjectId!,
@@ -640,6 +667,7 @@ namespace WebAPI.Controllers.Projects
                         CreatedDate = CurrentDate
                     });
                     Project.LegislativeDistrict = dto.ProjectDetails!.LegislativeDistrict;
+                    hasUpdated = true;
                 }
                 if (Project.OperatingUnit != dto.ProjectDetails?.OperatingUnit)
                 {
@@ -928,6 +956,7 @@ namespace WebAPI.Controllers.Projects
                         .FirstOrDefaultAsync();
                     var NewRevision = new ProjectRevisions()
                     {
+                        ReferenceId = Project.ReferenceId,
                         ProjectId = Project.ProjectId!,
                         AlternateId = Project.AlternateId,
                         ExternalId = Project.ExternalId,
@@ -1160,8 +1189,8 @@ namespace WebAPI.Controllers.Projects
                                             TypeOfTransaction = "Update",
                                             AffectedTable = "tProjectComponentCostYear",
                                             AffectedColumn = "StartDate",
-                                            NewValue = SelectedYear.StartDate.ToString("MM/dd/yyyy mm:ss t") ?? "",
-                                            OldValue = yearItem.StartDate.ToString("MM/dd/yyyy mm:ss t") ?? "",
+                                            NewValue = SelectedYear.StartDate?.ToString("MM/dd/yyyy mm:ss t") ?? "",
+                                            OldValue = yearItem.StartDate?.ToString("MM/dd/yyyy mm:ss t") ?? "",
                                             CreatedBy = _Session.UserId,
                                             CreatedDate = CurrentDate
                                         });
@@ -1176,8 +1205,8 @@ namespace WebAPI.Controllers.Projects
                                             TypeOfTransaction = "Update",
                                             AffectedTable = "tProjectComponentCostYear",
                                             AffectedColumn = "EndDate",
-                                            NewValue = SelectedYear.EndDate.ToString("MM/dd/yyyy mm:ss t") ?? "",
-                                            OldValue = yearItem.EndDate.ToString("MM/dd/yyyy mm:ss t") ?? "",
+                                            NewValue = SelectedYear.EndDate?.ToString("MM/dd/yyyy mm:ss t") ?? "",
+                                            OldValue = yearItem.EndDate?.ToString("MM/dd/yyyy mm:ss t") ?? "",
                                             CreatedBy = _Session.UserId,
                                             CreatedDate = CurrentDate
                                         });
@@ -1217,7 +1246,7 @@ namespace WebAPI.Controllers.Projects
                             children.ForEach(x => x.ParentId = location.ReferenceId);
                         }
                     }
-                    var SaveNewComponent = NewComponentCostData.Select((item, index) => new ProjectComponentCost
+                    var SaveNewComponent = NewComponentCostData.Select((item, index) => new DBHelper.Models.Table.ProjectComponentCost
                     {
                         StageName = Project.StageName,
                         ProjectId = Project.ProjectId!,
@@ -1551,7 +1580,7 @@ namespace WebAPI.Controllers.Projects
                                         });
                                         ExistingLoc.EndStationLimit = loc.EndStationLimit;
                                     }
-                                    if (ExistingLoc.From != loc.From)
+                                    if (ExistingLoc.EndChainage != loc.EndChainage)
                                     {
                                         hasLocUpdate = true;
                                         transactionLogs.Add(new TransactionLog
@@ -1559,15 +1588,15 @@ namespace WebAPI.Controllers.Projects
                                             TransactionId = Project.ProjectId!,
                                             TypeOfTransaction = "Update",
                                             AffectedTable = "tProjectMajorWorkLocations",
-                                            AffectedColumn = "From",
-                                            NewValue = loc.From.ToString() ?? "",
-                                            OldValue = ExistingLoc.From.ToString() ?? "",
+                                            AffectedColumn = "EndChainage",
+                                            NewValue = loc.EndChainage.ToString() ?? "",
+                                            OldValue = ExistingLoc.EndChainage.ToString() ?? "",
                                             CreatedBy = _Session.UserId,
                                             CreatedDate = CurrentDate
                                         });
-                                        ExistingLoc.From = loc.From;
+                                        ExistingLoc.EndChainage = loc.EndChainage;
                                     }
-                                    if (ExistingLoc.To != loc.To)
+                                    if (ExistingLoc.StartChainage != loc.StartChainage)
                                     {
                                         hasLocUpdate = true;
                                         transactionLogs.Add(new TransactionLog
@@ -1575,13 +1604,13 @@ namespace WebAPI.Controllers.Projects
                                             TransactionId = Project.ProjectId!,
                                             TypeOfTransaction = "Update",
                                             AffectedTable = "tProjectMajorWorkLocations",
-                                            AffectedColumn = "To",
-                                            NewValue = loc.To.ToString() ?? "",
-                                            OldValue = ExistingLoc.To.ToString() ?? "",
+                                            AffectedColumn = "StartChainage",
+                                            NewValue = loc.StartChainage.ToString() ?? "",
+                                            OldValue = ExistingLoc.StartChainage.ToString() ?? "",
                                             CreatedBy = _Session.UserId,
                                             CreatedDate = CurrentDate
                                         });
-                                        ExistingLoc.To = loc.To;
+                                        ExistingLoc.StartChainage = loc.StartChainage;
                                     }
                                     if (hasLocUpdate)
                                     {
@@ -1605,8 +1634,8 @@ namespace WebAPI.Controllers.Projects
                                     PhysicalTarget = item.PhysicalTarget,
                                     StartStationLimit = item.StartStationLimit,
                                     EndStationLimit = item.EndStationLimit,
-                                    From = item.From,
-                                    To = item.To,
+                                    EndChainage = item.EndChainage,
+                                    StartChainage = item.StartChainage,
                                     CreatedBy = _Session.UserId,
                                     CreatedDate = CurrentDate
                                 }).ToList();
@@ -1632,8 +1661,8 @@ namespace WebAPI.Controllers.Projects
                                 PhysicalTarget = item.PhysicalTarget,
                                 StartStationLimit = item.StartStationLimit,
                                 EndStationLimit = item.EndStationLimit,
-                                From = item.From,
-                                To = item.To,
+                                EndChainage = item.EndChainage,
+                                StartChainage = item.StartChainage,
                                 CreatedBy = _Session.UserId,
                                 CreatedDate = CurrentDate
                             }));
@@ -1687,8 +1716,8 @@ namespace WebAPI.Controllers.Projects
                         PhysicalTarget = item.PhysicalTarget,
                         StartStationLimit = item.StartStationLimit,
                         EndStationLimit = item.EndStationLimit,
-                        From = item.From,
-                        To = item.To,
+                        EndChainage = item.EndChainage,
+                        StartChainage = item.StartChainage,
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     }));
@@ -1737,8 +1766,8 @@ namespace WebAPI.Controllers.Projects
                                 if (ExistingItem.Agreement != item.Agreement)
                                 {
                                     FundingUpdate = true;
-                                    var CurrentAgreement = await _db.tOptionFundingAgreement.FirstOrDefaultAsync(x => x.Id == ExistingItem.Agreement);
-                                    var NewAgreement = await _db.tOptionFundingAgreement.FirstOrDefaultAsync(x => x.Id == item.Agreement);
+                                    var CurrentAgreement = await _db.tOptionFundingAgreement.FirstOrDefaultAsync(x => x.Code == ExistingItem.Agreement);
+                                    var NewAgreement = await _db.tOptionFundingAgreement.FirstOrDefaultAsync(x => x.Code == item.Agreement);
                                     transactionLogs.Add(new TransactionLog
                                     {
                                         TransactionId = dto.ProjectDetails!.ProjectId!,
@@ -1863,33 +1892,16 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = "No file uploaded!", Title = "File Upload Error" });
                 }
-                if (dto.File.IsFileCorrupted())
+                string FilePath = Path.Combine(Appsetting.Resources.ProjectNotes, Project.ProjectId!, dto.File.Name);
+                if (!dto.File.UploadFile(FilePath))
                 {
                     return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted!", Title = "File Corrupted" });
                 }
-                string FileName = dto.File.Name;
-                string Extension = Path.GetExtension(FileName);
-                string PathDir = Path.Combine(Appsetting.Resources.ProjectNotes, Project.ProjectId!);
-                if (!Directory.Exists(PathDir))
-                {
-                    Directory.CreateDirectory(PathDir);
-                }
-                string FilePath = $"{PathDir}/{FileName}";
-
-                string base64Data = dto.File.DataUrl.Contains(",")
-                    ? dto.File.DataUrl.Split(',')[1]
-                    : dto.File.DataUrl;
-                byte[] fileBytes = Convert.FromBase64String(base64Data);
-                if (fileBytes.Length == 0)
-                {
-                    return new BadRequestObjectResult(new { Message = "Uploaded file is empty!", Title = "File Empty" });
-                }
-                await System.IO.File.WriteAllBytesAsync(Path.Combine(Appsetting.RootPath, FilePath), fileBytes);
                 var AddNotes = new ProjectNotes()
                 {
                     ProjectId = dto.ProjectId,
-                    FileName = FileName,
-                    FileExtension = Extension,
+                    FileName = dto.File.Name,
+                    FileExtension = dto.File.Extension,
                     FilePath = FilePath,
                     Description = Regex.Replace(dto.Description, @"\s+", " "),
                     CreatedBy = _Session.UserId,
@@ -1972,38 +1984,21 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = "No file uploaded!", Title = "File Upload Error" });
                 }
-                if (dto.File.IsFileCorrupted())
+                string FilePath = Path.Combine(Appsetting.Resources.SupportingDocs, Project.ProjectId!, dto.File.Name);
+                if (!dto.File.UploadFile(FilePath))
                 {
                     return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted!", Title = "File Corrupted" });
                 }
                 var type = dto.DocumentType.Split(":");
                 string docType = type[0];
                 string DocName = type[1].Replace("/", " or ");
-                string Extension = Path.GetExtension(dto.File.Name);
-                string FileName = $"{DocName}.{Extension}";
-                string PathDir = Path.Combine(Appsetting.Resources.SupportingDocs, Project.ProjectId!);
-                if (!Directory.Exists(PathDir))
-                {
-                    Directory.CreateDirectory(PathDir);
-                }
-                string FilePath = $"{PathDir}/{FileName}";
-
-                string base64Data = dto.File.DataUrl.Contains(",")
-                    ? dto.File.DataUrl.Split(',')[1]
-                    : dto.File.DataUrl;
-                byte[] fileBytes = Convert.FromBase64String(base64Data);
-                if (fileBytes.Length == 0)
-                {
-                    return new BadRequestObjectResult(new { Message = "Uploaded file is empty!", Title = "File Empty" });
-                }
-                await System.IO.File.WriteAllBytesAsync(Path.Combine(Appsetting.RootPath, FilePath), fileBytes);
                 var AddSupporting = new ProjectSupportingDocs()
                 {
                     StageName = dto.StageName,
                     DocumentType = docType,
                     ProjectId = dto.ProjectId,
-                    FileName = FileName,
-                    FileExtension = Extension,
+                    FileName = dto.File.Name,
+                    FileExtension = dto.File.Extension,
                     FilePath = FilePath,
                     Description = Regex.Replace(dto.Description, @"\s+", " "),
                     CreatedBy = _Session.UserId,

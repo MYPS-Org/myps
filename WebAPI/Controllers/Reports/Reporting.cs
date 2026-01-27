@@ -38,23 +38,20 @@ namespace WebAPI.Controllers.Revision
         {
             try
             {
-                // Fix the file path - use absolute path from base directory
-                string excelPath = Path.Combine(Appsetting.Resources.Templates, "AIP.xlsx");
-
-                // Check if file exists
-                if (!System.IO.File.Exists(excelPath))
+                SMTPModel EmailConfig = new SMTPModel
                 {
-                    return BadRequest($"Template file not found at: {excelPath}");
-                }
+                    Recipient = "mf102798@gmail.com",
+                    Subject = "Request for Revision",
+                    Body = "Dear Team,<br/><br/>A new revision request has been submitted. Please review the details and take the necessary actions.<br/><br/>Best Regards,<br/>Automated Notification System"
+                };
+                EmailConfig.SendEmail();
+                var Classification = await _db.tFutureRoadsClassification.AsNoTracking().ToListAsync();
+                var response = new
+                {
+                    Classifications = Classification
+                };
 
-                // 1. convert excel to html (fixed method name)
-                string htmlContent = ExcelToHtml(excelPath);
-
-                // 2. convert html to pdf
-                byte[] pdfBytes = HtmlToPdf(htmlContent);
-
-                // Return the PDF file
-                return File(pdfBytes, "application/pdf", "AIP_Report.pdf");
+                return Ok(response); // Remove the extra wrapper
             }
             catch (Exception ex)
             {

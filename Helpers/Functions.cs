@@ -2,6 +2,7 @@
 using DBHelper.Models.Enums;
 using DBHelper.Models.Extra;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using OfficeOpenXml;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats;
@@ -11,8 +12,11 @@ using System.Drawing;
 using System.Net;
 using System.Net.Http.Json;
 using System.Net.Mail;
+using System.Net.NetworkInformation;
+using System.Reflection;
 using System.Text;
 using System.Text.Json;
+using static Dapper.SqlMapper;
 
 namespace Helpers
 {
@@ -64,9 +68,60 @@ namespace Helpers
                 "EXEC pGenerateUID @Table = @Table", param
             ).FirstOrDefault() ?? string.Empty;
         }
+        public static bool ValidateFileSize(this FileUpload file, int maxFileSizeInMB)
+        {
+            const long MB = 1024L * 1024L;
+            long maxBytes = maxFileSizeInMB * MB;
+
+            string base64Data = file.DataUrl.Contains(",")
+                ? file.DataUrl.Split(',')[1]
+                : file.DataUrl;
+
+            // Fast reject (approximate, before decode)
+            long estimatedBytes = (base64Data.Length * 3L) / 4L;
+            if (estimatedBytes > maxBytes)
+                return false;
+
+            // Exact check
+            byte[] fileBytes = Convert.FromBase64String(base64Data);
+            return fileBytes.LongLength <= maxBytes;
+        }
+
+        public static bool UploadFile(this FileUpload File, string FilePath)
+        {
+            try
+            {
+                if (File.IsFileCorrupted())
+                {
+                    return false;
+                }
+                string folder = Path.GetDirectoryName(FilePath)!;
+                if (!Directory.Exists(folder))
+                {
+                    Directory.CreateDirectory(folder);
+                }
+                string base64Data = File.DataUrl.Contains(",")
+                    ? File.DataUrl.Split(',')[1]
+                    : File.DataUrl;
+                byte[] fileBytes = Convert.FromBase64String(base64Data);
+                System.IO.File.WriteAllBytes(FilePath, fileBytes);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
         public static bool IsFileCorrupted(this FileUpload File)
         {
-
+            string base64Data = File.DataUrl.Contains(",")
+                ? File.DataUrl.Split(',')[1]
+                : File.DataUrl;
+            byte[] fileBytes = Convert.FromBase64String(base64Data);
+            if (fileBytes.Length == 0)
+            {
+                return false;
+            }
             string FileName = File.Name;
             string Extension = File.Extension;
             var AllowedPngs = new[] { "jpg", "jpeg", "png" };
@@ -183,7 +238,7 @@ namespace Helpers
             }
             return li.Where(x => !x).Any();
         }
-        public static string SendEmail(SMTPModel data)
+        public static string SendEmail(this SMTPModel data)
         {
             try
             {
@@ -246,6 +301,112 @@ namespace Helpers
                 string code = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{data.Recipient} : {data.CCAddress}"));
                 throw new Exception($"An error occured while sending email. Please contact support service.");
             }
+        }
+
+        public static FilterDataResult<T> FilterData<T, TFilter>(this List<T> table, EnumPagination<TFilter> dto)
+        {
+            var result = new FilterDataResult<T>();
+
+            if (dto == null || dto.Filters == null)
+            {
+                result.HasError = true;
+                result.ErrorMessage = "Expected Parameters missing!";
+                return result;
+            }
+
+            // default sort field
+            dto.SortField = string.IsNullOrWhiteSpace(dto.SortField) ? "Id" : dto.SortField;
+
+            // validate sort field against T
+            var prop = typeof(T)
+                .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .FirstOrDefault(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
+
+            if (prop == null)
+            {
+                result.HasError = true;
+                result.ErrorMessage = $"Invalid Column: {dto.SortField} to sort!";
+                return result;
+            }
+
+            // ensure sort direction
+            dto.sortDirection ??= sortDirectionList.DESC;
+            if (!Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!.Value))
+            {
+                result.HasError = true;
+                result.ErrorMessage = $"Sorting Direction: {dto.sortDirection} not allowed!";
+                return result;
+            }
+
+            // normalize pagination
+            if (dto.page < 1) dto.page = 1;
+            if (dto.limit < 1) dto.limit = 10;
+
+            // in-memory ordering using reflection
+            Func<T, object?> keySelector = x => prop.GetValue(x);
+
+            IEnumerable<T> ordered = dto.sortDirection!.Value == sortDirectionList.ASC
+                ? table.OrderBy(keySelector)
+                : table.OrderByDescending(keySelector);
+
+            int total = ordered.Count();
+            var lists = ordered.Skip((dto.page - 1) * dto.limit).Take(dto.limit).ToList();
+            int totalPages = dto.limit > 0 ? (int)Math.Ceiling((double)total / dto.limit) : 0;
+
+            result.HasError = false;
+            result.ErrorMessage = null;
+            result.Data = new FilteredResult<T>
+            {
+                lists = lists,
+                page = dto.page,
+                limit = dto.limit,
+                total = total,
+                totalPages = totalPages
+            };
+
+            return result;
+        }
+        public static TDest UpdateRevisionData<TSrc, TDest>(
+            this List<string>? allowedKeys,
+            TSrc sourceData,
+            TDest destinationData)
+        {
+            if (allowedKeys == null || allowedKeys.Count == 0)
+                return destinationData;
+
+            if (sourceData == null || destinationData == null)
+                return destinationData;
+
+            var sourceType = typeof(TSrc);
+            var destType = typeof(TDest);
+
+            foreach (var key in allowedKeys)
+            {
+                if (string.IsNullOrWhiteSpace(key))
+                    continue;
+
+                var sourceProp = sourceType.GetProperty(key);
+                var destProp = destType.GetProperty(key);
+
+                if (sourceProp == null || destProp == null)
+                    continue;
+
+                if (!destProp.CanWrite)
+                    continue;
+
+                if (!destProp.PropertyType.IsAssignableFrom(sourceProp.PropertyType))
+                    continue;
+
+                var newValue = sourceProp.GetValue(sourceData);
+                var oldValue = destProp.GetValue(destinationData);
+
+                if (Equals(newValue, oldValue))
+                    continue;
+
+                destProp.SetValue(destinationData, newValue);
+            }
+
+            return destinationData;
         }
     }
 }

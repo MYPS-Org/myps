@@ -10,11 +10,7 @@ using System.Threading.Tasks;
 namespace WebAPI.Controllers.Programs
 {
     #region Roads
-    public class ShowFutureRoadsDTO : EnumPagination
-    {
-        public ShowFutureRoadsFilterDTO Filters { get; set; } = new ShowFutureRoadsFilterDTO();
-        public string SortField { get; set; } = "Id";
-    }
+    public class ShowFutureRoadsDTO : EnumPagination<ShowFutureRoadsFilterDTO> { }
     public class ShowFutureRoadsFilterDTO
     {
         public string? Name { get; set; }
@@ -49,11 +45,7 @@ namespace WebAPI.Controllers.Programs
     }
     #endregion
     #region Road Sections
-    public class ShowFutureRoadSectionsDTO : EnumPagination
-    {
-        public ShowFutureRoadSectionsFilterDTO Filters { get; set; } = new ShowFutureRoadSectionsFilterDTO();
-        public string SortField { get; set; } = "Id";
-    }
+    public class ShowFutureRoadSectionsDTO : EnumPagination<ShowFutureRoadSectionsFilterDTO> { }
     public class ShowFutureRoadSectionsFilterDTO
     {
         public string? RoadId { get; set; }
@@ -94,11 +86,7 @@ namespace WebAPI.Controllers.Programs
     }
     #endregion
     #region Bridges
-    public class ShowFutureBridgeDTO : EnumPagination
-    {
-        public ShowFutureBridgeFilterDTO Filters { get; set; } = new ShowFutureBridgeFilterDTO();
-        public string SortField { get; set; } = "Id";
-    }
+    public class ShowFutureBridgeDTO : EnumPagination<ShowFutureBridgeFilterDTO> { }
     public class ShowFutureBridgeFilterDTO
     {
         public string? RoadSectionId { get; set; }

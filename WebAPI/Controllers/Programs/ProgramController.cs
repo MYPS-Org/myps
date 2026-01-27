@@ -88,10 +88,10 @@ namespace WebAPI.Controllers.Programs
                 if (!string.IsNullOrEmpty(dto.Filters?.YearStart))
                     baseQuery = baseQuery.Where(e => e.YearStart.ToString() == dto.Filters.YearStart);
 
-                if (dto.Filters?.GroupName != null)
+                if (!string.IsNullOrEmpty(dto.Filters?.GroupName))
                     baseQuery = baseQuery.Where(e => e.GroupName == dto.Filters.GroupName);
 
-                if (dto.Filters?.StageName != null)
+                if (!string.IsNullOrEmpty(dto.Filters?.StageName))
                     baseQuery = baseQuery.Where(e => e.StageName == dto.Filters.StageName);
 
                 // Get total count of filtered results (before pagination)
@@ -297,7 +297,7 @@ namespace WebAPI.Controllers.Programs
                     Thrust = _db.tProjectThrustLists.FirstOrDefault(a => a.PAPKey == x.Thrust)!.ThrustDescription ?? x.Thrust.ToString(),
                     Category = _db.tProjectCategoryEnum.FirstOrDefault(a => a.Enum == x.Category)!.Name ?? x.Category.ToString(),
                     City = _db.tOptionAdminAreaCityMunicipality.FirstOrDefault(a => a.Code == x.City.ToString())!.Name ?? x.City.ToString(),
-                    LegislativeDistrict = _db.tAdminAreaCongressionalDistrict.FirstOrDefault(a => a.Code == x.LegislativeDistrict.ToString())!.Name ?? x.LegislativeDistrict.ToString(),
+                    LegislativeDistrict = _db.tOptionAdminAreaCongressionalDistrict.FirstOrDefault(a => a.Code == x.LegislativeDistrict.ToString())!.Name ?? x.LegislativeDistrict.ToString(),
                     Cost = _db.tProjectComponentCost.Where(a => a.ReferenceId == x.ReferenceId).Sum(a => a.Total),
                     CreatedBy = x.CreatedBy,
                     CreatedDate = x.CreatedDate,
@@ -608,12 +608,12 @@ namespace WebAPI.Controllers.Programs
                 if (checkProjects.Count > 0)
                 {
                     HashSet<string> projectIds = checkProjects.Select(p => p.ProjectId!).ToHashSet();
-                    HashSet<int?> RevisionNumbers = checkProjects.Select(p => p.RevisionNumber!).ToHashSet();
-                    var ProjectRevisions = await _db.tProjectRevisions.AsNoTracking().Where(x => RevisionNumbers.Contains(x.Id)).ToListAsync();
+                    HashSet<int?> RevisionIds = checkProjects.Select(p => p.RevisionId!).ToHashSet();
+                    var ProjectRevisions = await _db.tProjectRevisions.AsNoTracking().Where(x => RevisionIds.Contains(x.Id)).ToListAsync();
 
                     var Components = await _db.tProjectComponentCost.AsNoTracking().Where(x => projectIds.Contains(x.ProjectId) && x.StageName == checkStage.StageName).ToListAsync();
-                    HashSet<string> ComponentsRefs = Components.Select(pr => pr.ReferenceId).ToHashSet();
-                    var ComponentsPerYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentsRefs.Contains(x.ParentId)).ToListAsync();
+                    //HashSet<string> ComponentsRefs = Components.Select(pr => pr.ReferenceId).ToHashSet();
+                    //var ComponentsPerYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentsRefs.Contains(x.ParentId)).ToListAsync();
 
                     var MajorItems = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => projectIds.Contains(x.ProjectId) && x.StageName == checkStage.StageName).ToListAsync();
                     HashSet<string> MajorItemsRefs = MajorItems.Select(pr => pr.ReferenceId).ToHashSet();
@@ -628,32 +628,33 @@ namespace WebAPI.Controllers.Programs
                     {
                         string FirstSegment = checkStageType.Name.GenerateProjec1stSegment();
                         #region Component Costs
-                        List<ProjectComponentCost> NewComponent = new List<ProjectComponentCost>();
+                        List<DBHelper.Models.Table.ProjectComponentCost> NewComponent = new List<DBHelper.Models.Table.ProjectComponentCost>();
                         List<ProjectComponentCostYear> NewComponentPerYear = new List<ProjectComponentCostYear>();
                         if (Components.Count() > 0)
                         {
-                            NewComponent.AddRange(Components.Select(x => new ProjectComponentCost()
+                            NewComponent.AddRange(Components.Select(x => new DBHelper.Models.Table.ProjectComponentCost()
                             {
                                 ProjectId = x.ProjectId.Replace("BP", FirstSegment),
-                                ReferenceId = x.ReferenceId.UpdateReferenceId(FirstSegment),
+                                //ReferenceId = x.ReferenceId.UpdateReferenceId(FirstSegment),
                                 ComponentType = x.ComponentType,
                                 ComponentId = x.ComponentId,
                                 Description = x.Description,
-                                Total = x.Total,
+                                Amount = x.Amount,
+                                //Total = x.Total,
                                 StageName = checkStageType.Name,
                                 CreatedBy = x.CreatedBy,
                                 CreatedDate = x.CreatedDate
                             }));
-                            NewComponentPerYear.AddRange(ComponentsPerYear.Select(x => new ProjectComponentCostYear()
-                            {
-                                ParentId = x.ParentId.UpdateReferenceId(FirstSegment),
-                                CostYear = x.CostYear,
-                                Cost = x.Cost,
-                                StartDate = x.StartDate,
-                                EndDate = x.EndDate
-                            }));
+                            //NewComponentPerYear.AddRange(ComponentsPerYear.Select(x => new ProjectComponentCostYear()
+                            //{
+                            //    ParentId = x.ParentId.UpdateReferenceId(FirstSegment),
+                            //    CostYear = x.CostYear,
+                            //    Cost = x.Cost,
+                            //    StartDate = x.StartDate,
+                            //    EndDate = x.EndDate
+                            //}));
                             await _db.tProjectComponentCost.AddRangeAsync(NewComponent);
-                            await _db.tProjectComponentCostYear.AddRangeAsync(NewComponentPerYear);
+                            //await _db.tProjectComponentCostYear.AddRangeAsync(NewComponentPerYear);
                         }
                         #endregion
                         #region Major Items
@@ -687,8 +688,8 @@ namespace WebAPI.Controllers.Programs
                                 PhysicalTarget = x.PhysicalTarget,
                                 StartStationLimit = x.StartStationLimit,
                                 EndStationLimit = x.EndStationLimit,
-                                From = x.From,
-                                To = x.To,
+                                EndChainage = x.EndChainage,
+                                StartChainage = x.StartChainage,
                                 CreatedBy = x.CreatedBy,
                                 CreatedDate = x.CreatedDate
                             }));

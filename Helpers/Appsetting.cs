@@ -28,8 +28,13 @@ namespace Helpers
         public string Projects { get; set; } = string.Empty;
         public string ProjectNotes { get; set; } = string.Empty;
         public string SupportingDocs { get; set; } = string.Empty;
-
-        public string Templates { get; set; } = string.Empty;
+        public RevisionFolder Revision { get; set; } = new RevisionFolder();
+    }
+    public class RevisionFolder
+    {
+        public string RevisionsMain { get; set; } = string.Empty;
+        public string CentralOffice { get; set; } = string.Empty;
+        public string ImplementingOffice { get; set; } = string.Empty;
     }
     public class KafkaConfig
     {
@@ -73,7 +78,9 @@ namespace Helpers
             Resources.Projects = Path.Combine(Resources.Main, Resources.Projects);
             Resources.ProjectNotes = Path.Combine(Resources.Projects, Resources.ProjectNotes);
             Resources.SupportingDocs = Path.Combine(Resources.Projects, Resources.SupportingDocs);
-            Resources.Templates = Path.Combine(Resources.Main, Resources.Templates);
+            Resources.Revision.RevisionsMain = Path.Combine(Resources.Main, Resources.Revision.RevisionsMain);
+            Resources.Revision.CentralOffice = Path.Combine(Resources.Revision.RevisionsMain, Resources.Revision.CentralOffice);
+            Resources.Revision.ImplementingOffice = Path.Combine(Resources.Revision.RevisionsMain, Resources.Revision.ImplementingOffice);
             KafkaConfigs = config.GetSection("Kafka").Get<KafkaConfig>()!;
             SMTP = config.GetSection("SMTP").Get<SMTPClass>()!;
         }
