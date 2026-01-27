@@ -59,6 +59,92 @@ namespace WebAPI.Controllers.Revision
             }
         }
 
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> GetProgramProjectDetails([FromBody] DTOReportAIPFilter request)
+        {
+            try
+            {
+                var query = _db.AIPBase.AsNoTracking().AsQueryable();
+
+                if (!string.IsNullOrEmpty(request.ProgramId))
+                {
+                    query = query.Where(x => x.ProgramId == request.ProgramId);
+                }
+
+                if (!string.IsNullOrEmpty(request.StageName))
+                {
+                    query = query.Where(x => x.StageName == request.StageName);
+                }
+
+                if (!string.IsNullOrEmpty(request.Region))
+                {
+                    query = query.Where(x => x.Region == request.Region);
+                }
+
+                var results = await query.ToListAsync();
+
+                if (!results.Any())
+                {
+                    return Ok(new DTOProgramProjectDetailsResponse
+                    {
+                        Program = new DTOProgramDetails
+                        {
+                            ProgramId = request.ProgramId ?? "",
+                            StageName = request.StageName ?? "",
+                            ProjectList = new List<DTOProjectInfo>()
+                        }
+                    });
+                }
+
+                // Group and transform the data
+                var programGroup = results.GroupBy(x => new { x.ProgramId, x.StageName }).First();
+
+                var projectList = results
+                    .GroupBy(x => new { x.ProjectId, x.ProjectCategory, x.Region })
+                    .Select(projectGroup => new DTOProjectInfo
+                    {
+                        ProjectId = projectGroup.Key.ProjectId,
+                        ProjectCategory = projectGroup.Key.ProjectCategory ?? "",
+                        Region = projectGroup.Key.Region ?? "",
+                        ComponentCosts = projectGroup
+                            .GroupBy(x => new { x.ComponentId, x.ComponentAmount, x.ComponentDescription })
+                            .Select(cc => new DTOComponentCost
+                            {
+                                ComponentId = cc.Key.ComponentId,
+                                Amount = cc.Key.ComponentAmount,
+                                Description = cc.Key.ComponentDescription ?? ""
+                            })
+                            .ToList(),
+                        MajorItems = projectGroup
+                            .GroupBy(x => new { x.MW_ComponentId, x.Measure, x.WorkTypeDescription })
+                            .Select(mi => new DTOMajorWorkItem
+                            {
+                                ComponentId = mi.Key.MW_ComponentId,
+                                Measure = mi.Key.Measure,
+                                Description = mi.Key.WorkTypeDescription
+                            })
+                            .ToList()
+                    })
+                    .ToList();
+
+                var response = new DTOProgramProjectDetailsResponse
+                {
+                    Program = new DTOProgramDetails
+                    {
+                        ProgramId = programGroup.Key.ProgramId,
+                        StageName = programGroup.Key.StageName,
+                        ProjectList = projectList
+                    }
+                };
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
         private string ExcelToHtml(string filePath)
         {
             using var package = new ExcelPackage(new FileInfo(filePath));

@@ -16,4 +16,47 @@ namespace WebAPI.Controllers.Revision
         [Required]
         public string ReportType { get; set; } = string.Empty;
     }
+    public class DTOReportAIPFilter
+    {
+        public string ProgramId { get; set; }
+        public string StageName { get; set; }
+        public string Region { get; set; }
+    }
+
+    public class DTOProgramProjectDetailsResponse
+    {
+        public DTOProgramDetails Program { get; set; }
+    }
+
+    public class DTOProgramDetails
+    {
+        public string ProgramId { get; set; }
+        public string StageName { get; set; }
+        public List<DTOProjectInfo> ProjectList { get; set; } = new List<DTOProjectInfo>();
+    }
+
+    public class DTOProjectInfo
+    {
+        public string ProjectId { get; set; }
+        public string ProjectCategory { get; set; }
+        public string Region { get; set; }
+        public List<DTOComponentCost> ComponentCosts { get; set; } = new List<DTOComponentCost>();
+        public List<DTOMajorWorkItem> MajorItems { get; set; } = new List<DTOMajorWorkItem>();
+    }
+
+    public class DTOComponentCost
+    {
+        public string ComponentId { get; set; }
+        public double Amount { get; set; }
+        public string Description { get; set; }
+    }
+
+    public class DTOMajorWorkItem
+    {
+        public string ComponentId { get; set; }
+        public string Measure { get; set; }
+        public string Description { get; set; }
+    }
 }
+
+

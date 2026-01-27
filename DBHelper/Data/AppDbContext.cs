@@ -98,6 +98,7 @@ namespace DBHelper.Data
         public DbSet<Models.Views.RevisionLists> vRevisionLists { get; set; }
         public DbSet<Models.Views.ProjectComponentCostStatus> vProjectComponentCostStatus { get; set; }
         public DbSet<Models.Views.RevisionProjectComponentCost> vRevisionProjectComponentCost { get; set; }
+        public DbSet<Models.Views.AIPBase> AIPBase { get; set; }
         #endregion
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -105,6 +106,7 @@ namespace DBHelper.Data
             modelBuilder.Entity<AdminImplementingOffice>().HasNoKey().ToView("vAdminImplementingOffice");
             modelBuilder.Entity<GetProjectCategoryVersions>().HasNoKey().ToView("vGetProjectCategoryVersions");
             modelBuilder.Entity<ProjectComponentStatus>().HasNoKey().ToView("vProjectComponentStatus");
+            modelBuilder.Entity<AIPBase>().HasNoKey().ToView("vAIPBase");
             base.OnModelCreating(modelBuilder);
         }
     }
