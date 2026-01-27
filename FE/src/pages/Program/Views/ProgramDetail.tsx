@@ -2,14 +2,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
-import type { ProgramDetailsEnums } from '../Model.d'; // Adjust the import path as necessary
+import type { ProgramDetailsEnums, AIPReportParams } from '../Model.d'; // Adjust the import path as necessary
 import { Button } from '../../../components/tailwindui/button';
-import { editProgram, fetchProgramById, publishToPCMA } from '../Service';
+import { editProgram, fetchProgramById, publishToPCMA, generateAIPReport } from '../Service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
 import { ChevronDownIcon, ChevronRightIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import NextStageDialog from '../dialogs/NextStageDialog';
 import MetroManilaMap from '../../../components/map/MetroManilaMap';
+import AIPReportDialog from '../dialogs/AIPReportDialog';
 // import { formatCurrency } from '../../../utils/GlobalFunctions';
 // import { Badge } from '../../../components/tailwindui/badge';
 
@@ -93,6 +94,7 @@ const ProgramDetail: React.FC = () => {
   const [isDataSecurityExpanded, setIsDataSecurityExpanded] = useState(false);
   const [isNextStageDialogOpen, setIsNextStageDialogOpen] = useState(false);
   const [isActionDropdownOpen, setIsActionDropdownOpen] = useState(false);
+  const [isAIPReportDialogOpen, setIsAIPReportDialogOpen] = useState(false);
   
   // Group data security by OrgType
   const groupedDataSecurity = useMemo(() => {
@@ -354,6 +356,36 @@ const ProgramDetail: React.FC = () => {
     // TODO: Implement export projects functionality
     console.log('Export Projects clicked');
     setIsActionDropdownOpen(false);
+  };
+
+  const handleViewAIP = () => {
+    setIsAIPReportDialogOpen(true);
+    setIsActionDropdownOpen(false);
+  };
+
+  const handleGenerateAIPReport = async (params: AIPReportParams) => {
+    try {
+      setIsLoading(true);
+      
+      // Generate and get report data
+      const response = await generateAIPReport(params);
+      console.log('AIP Report Data:', response);
+      
+      showToast({
+        type: 'success',
+        message: 'AIP Report generated successfully.',
+      });
+      
+      setIsAIPReportDialogOpen(false);
+    } catch (error) {
+      console.error('Error generating AIP report:', error);
+      showToast({
+        type: 'error',
+        message: 'Failed to generate AIP report. Please try again.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (isLoading) {
@@ -753,6 +785,15 @@ const ProgramDetail: React.FC = () => {
                         </svg>
                         Export Projects
                       </button>
+                      <button
+                        onClick={handleViewAIP}
+                        className="group flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-blue-500 hover:text-white"
+                      >
+                        <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-white" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                        </svg>
+                        View AIP Report
+                      </button>
                     </div>
                   </div>
                 </>
@@ -797,7 +838,7 @@ const ProgramDetail: React.FC = () => {
               </TableRow>
             </TableHead>
             
-            <TableBody className="bg-white divide-y divide-gray-200">
+            {/* <TableBody className="bg-white divide-y divide-gray-200">
               {programEnums.Projects.map((project) => (
                 <TableRow key={project.Id} className="hover:bg-gray-50">
                   <TableCell className="px-6 py-4 whitespace-nowrap">
@@ -832,7 +873,7 @@ const ProgramDetail: React.FC = () => {
                   )}
                 </TableRow>
               ))}
-            </TableBody>
+            </TableBody> */}
           </Table>
         </div>
       </div>
@@ -845,6 +886,17 @@ const ProgramDetail: React.FC = () => {
           onSubmit={handleNextStageSubmit}
           program={programEnums?.Details}
           stages={programEnums?.Dropdowns.Stages || []}
+        />
+      )}
+
+      {/* AIP Report Dialog */}
+      {isAIPReportDialogOpen && (
+        <AIPReportDialog
+          isOpen={isAIPReportDialogOpen}
+          onClose={() => setIsAIPReportDialogOpen(false)}
+          onGenerate={handleGenerateAIPReport}
+          programId={programEnums?.Details.ProgramId}
+          stageName={programEnums?.Details.StageName}
         />
       )}
     </div>

@@ -65,85 +65,212 @@ namespace WebAPI.Controllers.Revision
         {
             try
             {
-                var query = _db.AIPBase.AsNoTracking().AsQueryable();
-
-                if (!string.IsNullOrEmpty(request.ProgramId))
-                {
-                    query = query.Where(x => x.ProgramId == request.ProgramId);
-                }
-
-                if (!string.IsNullOrEmpty(request.StageName))
-                {
-                    query = query.Where(x => x.StageName == request.StageName);
-                }
-
-                if (!string.IsNullOrEmpty(request.Region))
-                {
-                    query = query.Where(x => x.Region == request.Region);
-                }
-
-                var results = await query.ToListAsync();
-
-                if (!results.Any())
-                {
-                    return Ok(new DTOProgramProjectDetailsResponse
-                    {
-                        Program = new DTOProgramDetails
-                        {
-                            ProgramId = request.ProgramId ?? "",
-                            StageName = request.StageName ?? "",
-                            ProjectList = new List<DTOProjectInfo>()
-                        }
-                    });
-                }
-
-                // Group and transform the data
-                var programGroup = results.GroupBy(x => new { x.ProgramId, x.StageName }).First();
-
-                var projectList = results
-                    .GroupBy(x => new { x.ProjectId, x.ProjectCategory, x.Region })
-                    .Select(projectGroup => new DTOProjectInfo
-                    {
-                        ProjectId = projectGroup.Key.ProjectId,
-                        ProjectCategory = projectGroup.Key.ProjectCategory ?? "",
-                        Region = projectGroup.Key.Region ?? "",
-                        ComponentCosts = projectGroup
-                            .GroupBy(x => new { x.ComponentId, x.ComponentAmount, x.ComponentDescription })
-                            .Select(cc => new DTOComponentCost
-                            {
-                                ComponentId = cc.Key.ComponentId,
-                                Amount = cc.Key.ComponentAmount,
-                                Description = cc.Key.ComponentDescription ?? ""
-                            })
-                            .ToList(),
-                        MajorItems = projectGroup
-                            .GroupBy(x => new { x.MW_ComponentId, x.Measure, x.WorkTypeDescription })
-                            .Select(mi => new DTOMajorWorkItem
-                            {
-                                ComponentId = mi.Key.MW_ComponentId,
-                                Measure = mi.Key.Measure,
-                                Description = mi.Key.WorkTypeDescription
-                            })
-                            .ToList()
-                    })
-                    .ToList();
-
-                var response = new DTOProgramProjectDetailsResponse
-                {
-                    Program = new DTOProgramDetails
-                    {
-                        ProgramId = programGroup.Key.ProgramId,
-                        StageName = programGroup.Key.StageName,
-                        ProjectList = projectList
-                    }
-                };
-
+                var response = await GetProgramProjectData(request);
                 return Ok(response);
             }
             catch (Exception ex)
             {
                 return ExceptionHandler(ex);
             }
+        }
+
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> DownloadProgramProjectDetailsPDF([FromBody] DTOReportAIPFilter request)
+        {
+            try
+            {
+                var data = await GetProgramProjectData(request);
+                var htmlContent = GenerateProgramProjectHtml(data);
+                var pdfBytes = HtmlToPdf(htmlContent);
+
+                var fileName = $"AIP_Report_{data.Program.ProgramId}_{data.Program.StageName}_{DateTime.Now:yyyyMMddHHmmss}.pdf";
+                
+                return File(pdfBytes, "application/pdf", fileName);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
+
+        private async Task<DTOProgramProjectDetailsResponse> GetProgramProjectData(DTOReportAIPFilter request)
+        {
+            var query = _db.AIPBase.AsNoTracking().AsQueryable();
+
+            if (!string.IsNullOrEmpty(request.ProgramId))
+            {
+                query = query.Where(x => x.ProgramId == request.ProgramId);
+            }
+
+            if (!string.IsNullOrEmpty(request.StageName))
+            {
+                query = query.Where(x => x.StageName == request.StageName);
+            }
+
+            if (!string.IsNullOrEmpty(request.Region))
+            {
+                query = query.Where(x => x.Region == request.Region);
+            }
+
+            var results = await query.ToListAsync();
+
+            if (!results.Any())
+            {
+                return new DTOProgramProjectDetailsResponse
+                {
+                    Program = new DTOProgramDetails
+                    {
+                        ProgramId = request.ProgramId ?? "",
+                        StageName = request.StageName ?? "",
+                        ProjectList = new List<DTOProjectInfo>()
+                    }
+                };
+            }
+
+            // Group and transform the data
+            var programGroup = results.GroupBy(x => new { x.ProgramId, x.StageName }).First();
+
+            var projectList = results
+                .GroupBy(x => new { x.ProjectId, x.ProjectCategory, x.Region })
+                .Select(projectGroup => new DTOProjectInfo
+                {
+                    ProjectId = projectGroup.Key.ProjectId,
+                    ProjectCategory = projectGroup.Key.ProjectCategory ?? "",
+                    Region = projectGroup.Key.Region ?? "",
+                    ComponentCosts = projectGroup
+                        .GroupBy(x => new { x.ComponentId, x.ComponentAmount, x.ComponentDescription })
+                        .Select(cc => new DTOComponentCost
+                        {
+                            ComponentId = cc.Key.ComponentId,
+                            Amount = cc.Key.ComponentAmount,
+                            Description = cc.Key.ComponentDescription ?? ""
+                        })
+                        .ToList(),
+                    MajorItems = projectGroup
+                        .GroupBy(x => new { x.MW_ComponentId, x.Measure, x.WorkTypeDescription })
+                        .Select(mi => new DTOMajorWorkItem
+                        {
+                            ComponentId = mi.Key.MW_ComponentId,
+                            Measure = mi.Key.Measure,
+                            Description = mi.Key.WorkTypeDescription
+                        })
+                        .ToList()
+                })
+                .ToList();
+
+            return new DTOProgramProjectDetailsResponse
+            {
+                Program = new DTOProgramDetails
+                {
+                    ProgramId = programGroup.Key.ProgramId,
+                    StageName = programGroup.Key.StageName,
+                    ProjectList = projectList
+                }
+            };
+        }
+
+        private string GenerateProgramProjectHtml(DTOProgramProjectDetailsResponse data)
+        {
+            var html = new StringBuilder();
+            html.AppendLine("<!DOCTYPE html>");
+            html.AppendLine("<html>");
+            html.AppendLine("<head>");
+            html.AppendLine("<meta charset='utf-8'>");
+            html.AppendLine("<style>");
+            html.AppendLine("body { font-family: Arial, sans-serif; margin: 20px; font-size: 10pt; }");
+            html.AppendLine("h1 { color: #333; font-size: 18pt; margin-bottom: 10px; text-align: center; }");
+            html.AppendLine("h2 { color: #555; font-size: 14pt; margin-top: 20px; margin-bottom: 10px; background-color: #f0f0f0; padding: 8px; }");
+            html.AppendLine("h3 { color: #666; font-size: 12pt; margin-top: 15px; margin-bottom: 8px; }");
+            html.AppendLine(".header-info { margin-bottom: 20px; padding: 10px; background-color: #e8f4f8; border-left: 4px solid #0066cc; }");
+            html.AppendLine(".header-info p { margin: 5px 0; }");
+            html.AppendLine(".project-section { margin-bottom: 30px; border: 1px solid #ddd; padding: 15px; page-break-inside: avoid; }");
+            html.AppendLine("table { border-collapse: collapse; width: 100%; margin-bottom: 15px; font-size: 9pt; }");
+            html.AppendLine("th { background-color: #4CAF50; color: white; padding: 8px; text-align: left; border: 1px solid #ddd; }");
+            html.AppendLine("td { padding: 6px 8px; border: 1px solid #ddd; }");
+            html.AppendLine("tr:nth-child(even) { background-color: #f9f9f9; }");
+            html.AppendLine(".amount { text-align: right; }");
+            html.AppendLine(".project-header { background-color: #e3f2fd; padding: 10px; margin-bottom: 15px; border-radius: 4px; }");
+            html.AppendLine("</style>");
+            html.AppendLine("</head>");
+            html.AppendLine("<body>");
+
+            // Header
+            html.AppendLine("<h1>Annual Infrastructure Program (AIP) Report</h1>");
+            html.AppendLine("<div class='header-info'>");
+            html.AppendLine($"<p><strong>Program ID:</strong> {System.Net.WebUtility.HtmlEncode(data.Program.ProgramId)}</p>");
+            html.AppendLine($"<p><strong>Stage Name:</strong> {System.Net.WebUtility.HtmlEncode(data.Program.StageName)}</p>");
+            html.AppendLine($"<p><strong>Report Generated:</strong> {DateTime.Now:MMMM dd, yyyy hh:mm tt}</p>");
+            html.AppendLine($"<p><strong>Total Projects:</strong> {data.Program.ProjectList.Count}</p>");
+            html.AppendLine("</div>");
+
+            // Projects
+            foreach (var project in data.Program.ProjectList)
+            {
+                html.AppendLine("<div class='project-section'>");
+                
+                // Project Header
+                html.AppendLine("<div class='project-header'>");
+                html.AppendLine($"<h2>Project: {System.Net.WebUtility.HtmlEncode(project.ProjectId)}</h2>");
+                html.AppendLine($"<p><strong>Category:</strong> {System.Net.WebUtility.HtmlEncode(project.ProjectCategory)}</p>");
+                html.AppendLine($"<p><strong>Region:</strong> {System.Net.WebUtility.HtmlEncode(project.Region)}</p>");
+                html.AppendLine("</div>");
+
+                // Component Costs
+                if (project.ComponentCosts.Any())
+                {
+                    html.AppendLine("<h3>Component Costs</h3>");
+                    html.AppendLine("<table>");
+                    html.AppendLine("<thead><tr><th>Component ID</th><th>Description</th><th>Amount</th></tr></thead>");
+                    html.AppendLine("<tbody>");
+                    
+                    decimal totalAmount = 0;
+                    foreach (var component in project.ComponentCosts)
+                    {
+                        totalAmount += (decimal)component.Amount;
+                        html.AppendLine("<tr>");
+                        html.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(component.ComponentId)}</td>");
+                        html.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(component.Description)}</td>");
+                        html.AppendLine($"<td class='amount'>{component.Amount:N2}</td>");
+                        html.AppendLine("</tr>");
+                    }
+                    
+                    html.AppendLine("<tr style='font-weight: bold; background-color: #e8f5e9;'>");
+                    html.AppendLine("<td colspan='2' style='text-align: right;'>Total:</td>");
+                    html.AppendLine($"<td class='amount'>{totalAmount:N2}</td>");
+                    html.AppendLine("</tr>");
+                    html.AppendLine("</tbody>");
+                    html.AppendLine("</table>");
+                }
+
+                // Major Work Items
+                if (project.MajorItems.Any())
+                {
+                    html.AppendLine("<h3>Major Work Items</h3>");
+                    html.AppendLine("<table>");
+                    html.AppendLine("<thead><tr><th>Component ID</th><th>Measure</th><th>Description</th></tr></thead>");
+                    html.AppendLine("<tbody>");
+                    
+                    foreach (var item in project.MajorItems)
+                    {
+                        html.AppendLine("<tr>");
+                        html.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(item.ComponentId)}</td>");
+                        html.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(item.Measure)}</td>");
+                        html.AppendLine($"<td>{System.Net.WebUtility.HtmlEncode(item.Description)}</td>");
+                        html.AppendLine("</tr>");
+                    }
+                    
+                    html.AppendLine("</tbody>");
+                    html.AppendLine("</table>");
+                }
+
+                html.AppendLine("</div>");
+            }
+
+            html.AppendLine("</body>");
+            html.AppendLine("</html>");
+
+            return html.ToString();
         }
         private string ExcelToHtml(string filePath)
         {

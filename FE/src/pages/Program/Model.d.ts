@@ -153,3 +153,8 @@ export interface ProgramList {
 	IsPublished: boolean;
 }
 
+export interface AIPReportParams {
+  ProgramId: string;
+  StageName: string;
+  Region: string;
+}
