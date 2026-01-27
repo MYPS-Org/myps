@@ -12,7 +12,7 @@ namespace DBHelper.Models.Table
         [Key]
         public int Id { get; set; }
         [Required]
-        [MaxLength(50)]
+        [MaxLength(200)]
         public string TransactionId { get; set; } = string.Empty;
         [Required]
         [MaxLength(100)]
@@ -23,8 +23,8 @@ namespace DBHelper.Models.Table
         [Required]
         [MaxLength(10)]
         public string ComponentId { get; set; } = string.Empty;
-        [Required]
-        public string Description { get; set; } = string.Empty;
+        //[Required]
+        public string? Description { get; set; } = string.Empty;
         [Required]
         public Double Amount { get; set; }
         [Required]

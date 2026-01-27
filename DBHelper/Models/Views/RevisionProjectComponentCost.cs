@@ -15,7 +15,7 @@ namespace DBHelper.Models.Views
         public string ProjectId { get; set; } = string.Empty;
         public string ComponentType { get; set; } = string.Empty;
         public string ComponentId { get; set; } = string.Empty;
-        public string Description { get; set; } = string.Empty;
+        public string? Description { get; set; }
         public Double Amount { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
