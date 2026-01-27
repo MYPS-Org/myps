@@ -30,6 +30,9 @@ import MultiYearDetails from './pages/MultiYear/views/MultiYearDetails';
 import ModificationDetails from './pages/Modification/views/ModificationDetails';
 import MYProjectDetails from './pages/MultiYear/views/MYProjectDetails';
 import ViewRevision from './pages/Modification/views/ViewRevision';
+import MultiYearReports from './pages/Reports/MultiYearReports';
+import ProgramReports from './pages/Reports/ProgramReports';
+import ProjectReports from './pages/Reports/ProjectReports';
 
 // import AddProgram from './pages/Program/Views/AddProgram';
 function App() {
@@ -190,6 +193,32 @@ function App() {
 										</ProtectedRoute>
 									}
 								/>
+								{/* Report Generations */}
+								<Route 
+									path="/reports/multiyear" 
+									element={
+										<ProtectedRoute>
+											<MultiYearReports />
+										</ProtectedRoute>
+									}
+								/>
+								<Route
+									path="/reports/programs"
+									element={
+										<ProtectedRoute>
+											<ProgramReports />
+										</ProtectedRoute>
+									}
+								/>
+								<Route
+									path="/reports/projects"
+									element={
+										<ProtectedRoute>
+											<ProjectReports />
+										</ProtectedRoute>
+									}
+								/>
+								{/* Settings Routes */}
 								<Route 
 									path="/settings" 
 									element={
