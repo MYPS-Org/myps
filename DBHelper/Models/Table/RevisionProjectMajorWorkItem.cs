@@ -12,13 +12,13 @@ namespace DBHelper.Models.Table
         [Required]
         public int Id { get; set; }
         [Required]
-        [MaxLength(50)]
+        [MaxLength(200)]
         public string TransactionId { get; set; } = string.Empty;
         [Required]
         [MaxLength(100)]
         public string ProjectId { get; set; } = string.Empty;
         [Required]
-        [MaxLength(100)]
+        [MaxLength(500)]
         public string ReferenceId { get; set; } = string.Empty;
         [Required]
         [MaxLength(50)]
