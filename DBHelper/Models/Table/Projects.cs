@@ -24,6 +24,6 @@ namespace DBHelper.Models.Table
         [Required]
         public DateTime CreatedDate { get; set; }
         [Required]
-        public bool IsDeleted { get; set; }
+        public bool IsDeleted { get; set; } = false;
     }
 }

@@ -12,11 +12,21 @@ namespace DBHelper.Models.Table
         [Key]
         public int Id { get; set; }
         [Required]
-        [MaxLength(50)]
+        [MaxLength(100)]
         public string TransactionId { get; set; } = string.Empty;
+        [Required]
+        public bool IsActive { get; set; }
+        [Required]
+        public int ProjectRevisionId { get; set; }
+        [MaxLength(200)]
+        public string? ReferenceId { get; set; }
         [Required]
         [MaxLength(200)]
         public string ProjectId { get; set; } = string.Empty;
+        [MaxLength(200)]
+        public string? AlternateId { get; set; }
+        [MaxLength(200)]
+        public string? ExternalId { get; set; }
         [MaxLength(200)]
         public string? MYId { get; set; }
         [MaxLength(100)]
@@ -44,8 +54,9 @@ namespace DBHelper.Models.Table
         [Required]
         [MaxLength(20)]
         public string DEO { get; set; } = string.Empty;
-        public int? ImplementationMode { get; set; }
         [Required]
-        public bool EmergencyMode { get; set; }
+        public int Agency { get; set; }
+        public int? ImplementationMode { get; set; }
+        public int? EmergencyMode { get; set; }
     }
 }

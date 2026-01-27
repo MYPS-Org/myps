@@ -8,18 +8,17 @@ using System.Threading.Tasks;
 
 namespace DBHelper.Models.Table
 {
-    public class ProjectImplementingOfficeEnum
+    public class OptionProjectComponent
     {
         [Key]
         public int Id { get; set; }
-        [Required]
-        [MaxLength(100)]
-        public string ParticipantId { get; set; } = string.Empty;
-        [Required]
-        [MaxLength(100)]
-        public string OrgName { get; set; } = string.Empty;
-        [Required]
         [MaxLength(10)]
-        public string OrgType { get; set; } = string.Empty;
+        public string? ComponentId { get; set; }
+        [MaxLength(200)]
+        public string? ComponentName { get; set; }
+        [Required]
+        public bool ExportToPCMA { get; set; } = false;
+        [Required]
+        public bool IsDeleted { get; set; } = false;
     }
 }

@@ -37,7 +37,6 @@ namespace WebAPI.Controllers.Projects
     {
         public ProjectDetails ProjectDetails { get; set; } = new ProjectDetails();
         public List<ProjectComponentCostDTO> ComponentCosts { get; set; } = new List<ProjectComponentCostDTO>();
-        public List<ProjectComponentCostYearDTO> ComponentCostYear { get; set; } = new List<ProjectComponentCostYearDTO>();
         public List<ProjectMajorWorkItemDTO> MajorItemOfWorks { get; set; } = new List<ProjectMajorWorkItemDTO>();
         public List<ProjectMajorWorkLocationsDTO> MajorItemLocations { get; set; } = new List<ProjectMajorWorkLocationsDTO>();
         public List<ProjectNotes> ProjectNotes { get; set; } = new List<ProjectNotes>();
@@ -46,13 +45,11 @@ namespace WebAPI.Controllers.Projects
     }
     public class ProjectComponentCostDTO
     {
+        [Key]
+        public int Id { get; set; }
         [Required]
-        public long Id { get; set; }
-        [Required]
+        [MaxLength(100)]
         public string ProjectId { get; set; } = string.Empty;
-        [Required]
-        [MaxLength(200)]
-        public string ReferenceId { get; set; } = string.Empty;
         [Required]
         [MaxLength(100)]
         public string ComponentType { get; set; } = string.Empty;
@@ -61,20 +58,34 @@ namespace WebAPI.Controllers.Projects
         public string ComponentId { get; set; } = string.Empty;
         public string? Description { get; set; }
         [Required]
-        public Double Total { get; set; }
-    }
-    public class ProjectComponentCostYearDTO
-    {
-        [Required]
-        public long Id { get; set; }
-        public string ParentId { get; set; } = string.Empty;
-        [Required]
-        public int CostYear { get; set; }
-        [Required]
-        public Double Cost { get; set; }
+        public Double Amount { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
+        [Required]
+        [MaxLength(10)]
+        public string StageName { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(100)]
+        public string CreatedBy { get; set; } = string.Empty;
+        [Required]
+        public DateTime CreatedDate { get; set; }
+        [MaxLength(100)]
+        public string? UpdatedBy { get; set; }
+        public DateTime? UpdatedDate { get; set; }
+        public bool IsDeleted { get; set; } = false;
     }
+    //public class ProjectComponentCostYearDTO
+    //{
+    //    [Required]
+    //    public long Id { get; set; }
+    //    public string ParentId { get; set; } = string.Empty;
+    //    [Required]
+    //    public int CostYear { get; set; }
+    //    [Required]
+    //    public Double Cost { get; set; }
+    //    public DateTime? StartDate { get; set; }
+    //    public DateTime? EndDate { get; set; }
+    //}
     public class ProjectMajorWorkItemDTO
     {
         [Required]
@@ -95,6 +106,8 @@ namespace WebAPI.Controllers.Projects
         [Required]
         [MaxLength(50)]
         public string InfraType { get; set; } = string.Empty;
+        [Required]
+        public bool IsDeleted { get; set; } = false;
     }
     public class ProjectMajorWorkLocationsDTO
     {
@@ -127,6 +140,8 @@ namespace WebAPI.Controllers.Projects
         public string? EndStationLimit { get; set; }
         public Double? EndChainage { get; set; }
         public Double? StartChainage { get; set; }
+        [Required]
+        public bool IsDeleted { get; set; } = false;
     }
     public class AddNotesDTO : ProjectDetailsDTO
     {
@@ -171,5 +186,7 @@ namespace WebAPI.Controllers.Projects
         public Double Amount { get; set; }
         [Required]
         public Double Percentage { get; set; }
+        [Required]
+        public bool IsDeleted { get; set; } = false;
     }
 }

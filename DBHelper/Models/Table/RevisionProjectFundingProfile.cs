@@ -12,7 +12,7 @@ namespace DBHelper.Models.Table
         [Key]
         public int Id { get; set; }
         [Required]
-        [MaxLength(50)]
+        [MaxLength(200)]
         public string TransactionId { get; set; } = string.Empty;
         [Required]
         [MaxLength(100)]
@@ -27,5 +27,7 @@ namespace DBHelper.Models.Table
         public Double Amount { get; set; }
         [Required]
         public Double Percentage { get; set; }
+        [Required]
+        public bool IsDeleted { get; set; } = false;
     }
 }

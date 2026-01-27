@@ -3,5 +3,5 @@ using System.ComponentModel.DataAnnotations;
 
 namespace DBHelper.Models.Table
 {
-    public class ProgramStageEnum: TableEnum { }
+    public class OptionProjectDetailedDesign : TableEnum { }
 }

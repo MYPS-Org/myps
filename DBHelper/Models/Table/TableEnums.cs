@@ -8,12 +8,11 @@ namespace DBHelper.Models.Table
         [Key]
         public int Id { get; set; }
         [Required]
-        public int Enum { get; set; }
+        public int NameId { get; set; }
         [Required]
         [MaxLength(50)]
         public string Name { get; set; } = string.Empty;
-        [Required]
         [MaxLength(500)]
-        public string Description { get; set; } = string.Empty;
+        public string? Description { get; set; } = string.Empty;
     }
 }

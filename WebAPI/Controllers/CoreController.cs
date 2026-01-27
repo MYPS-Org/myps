@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using System.Collections.Concurrent;
 using System.Diagnostics;
@@ -36,24 +37,31 @@ namespace WebAPI.Controllers
         {
             try
             {
-                if (!context.ModelState.IsValid)
+                if (context.ModelState.Root.ValidationState == ModelValidationState.Unvalidated)
                 {
                     string errors = ValidateModel(context.ModelState);
-
-                    var response = new
+                    if (!string.IsNullOrEmpty(errors))
                     {
-                        status = 400,
-                        Title = "Validation failed",
-                        Message = errors
-                    };
-                    context.Result = new BadRequestObjectResult(response);
+                        var response = new
+                        {
+                            status = 400,
+                            Title = "Validation failed",
+                            Message = errors
+                        };
+                        context.Result = new BadRequestObjectResult(response);
+                    }
                 }
                 var controllerActionDescriptor = context.ActionDescriptor as ControllerActionDescriptor;
                 bool hasAllowAnonymous = context.ActionDescriptor.EndpointMetadata
                     .Any(meta => meta is AllowAnonymousAttribute);
 
                 bool IsAuthenticated = (HttpContext.User.Identity != null) ? HttpContext.User.Identity.IsAuthenticated : true;
-                string userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+                /*
+                    DPC: macatangayac
+                    RPC: olegalml
+                    AUC: jimeneznr
+                 */
+                string userId = User.FindFirstValue(ClaimTypes.NameIdentifier);// ?? "macatangayac";
                 if (!hasAllowAnonymous || IsAuthenticated || !string.IsNullOrEmpty(userId))
                 {
                     var user = _db.vUsers.FirstOrDefault(x => x.UserId == userId && x.IsActive == true);
@@ -78,10 +86,21 @@ namespace WebAPI.Controllers
             Guid errorReferenceId = Guid.NewGuid();
             try
             {
-                string message = $"\n\n/========================= MYPS ERROR EVENT STARTS HERE =========================/" +
-                    $"\n\n[{errorReferenceId}] \n\nMessage: {ex.Message}\n\nStackRace:{ex.StackTrace}\n\n" +
-                    $"/========================= MYPS ERROR EVENT ENDS HERE =========================/\n\n";
-                EventLog.WriteEntry("Application", message, EventLogEntryType.Error);
+                string Header = "\n\n/========================= MYPS ERROR EVENT STARTS HERE =========================/\n\n";
+                string Body = $"[{errorReferenceId}]\n\nException: [[EXCEPTION]]\n\n";
+                string Footer = "/========================= MYPS ERROR EVENT ENDS HERE =========================/\n\n";
+                if (ex is DbUpdateException dbEx)
+                {
+                    Body = Body.Replace("[[EXCEPTION]]", dbEx.ToString());
+                }
+                else
+                {
+                    Body = Body.Replace("[[EXCEPTION]]", ex.ToString());
+                }
+                
+                string Message = Header + Body + Footer;
+
+                EventLog.WriteEntry("Application", Message, EventLogEntryType.Error);
                 string ErrorId = errorReferenceId.ToString();
                 return new BadRequestObjectResult(
                     new

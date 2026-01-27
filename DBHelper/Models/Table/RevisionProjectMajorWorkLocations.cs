@@ -12,7 +12,7 @@ namespace DBHelper.Models.Table
         [Key]
         public int Id { get; set; }
         [Required]
-        [MaxLength(50)]
+        [MaxLength(200)]
         public string TransactionId { get; set; } = string.Empty;
         [Required]
         [MaxLength(100)]
@@ -37,5 +37,7 @@ namespace DBHelper.Models.Table
         public string? EndStationLimit { get; set; }
         public Double? EndChainage { get; set; }
         public Double? StartChainage { get; set; }
+        [Required]
+        public bool IsDeleted { get; set; } = false;
     }
 }
