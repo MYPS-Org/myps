@@ -80,13 +80,13 @@ namespace WebAPI.Controllers.Revision
         public Double Amount { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
-        [Required]
+        //[Required]
         [MaxLength(10)]
-        public string StageName { get; set; } = string.Empty;
-        [Required]
+        public string StageName { get; set; } = "GAA-R";
+        //[Required]
         [MaxLength(100)]
         public string CreatedBy { get; set; } = string.Empty;
-        [Required]
+        //[Required]
         public DateTime CreatedDate { get; set; }
         [MaxLength(100)]
         public string? UpdatedBy { get; set; }

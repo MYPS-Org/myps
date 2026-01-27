@@ -7,6 +7,9 @@ namespace DBHelper.Models.Table
         [Key]
         public int Id { get; set; }
         [Required]
+        [MaxLength(200)]
+        public string ProgramRevisionId { get; set; } = string.Empty;
+        [Required]
         [MaxLength(100)]
         public string TransactionId { get; set; } = string.Empty;
         [Required]

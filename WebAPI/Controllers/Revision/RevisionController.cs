@@ -126,6 +126,7 @@ namespace WebAPI.Controllers.Revision
             {
                 var RevisionTransation = dto.TransactionId.Split('-');
                 string ProjectId = RevisionTransation[0];
+                var prog = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == ProjectId);
                 var Project = await _db.vProjectDetails
                 .FromSqlInterpolated($"SELECT * FROM fProjectDetails({ProjectId}) fp WHERE fp.StageName = 'GAA-R' AND fp.ProjectId = {ProjectId}")
                 .AsNoTracking()
@@ -429,9 +430,9 @@ namespace WebAPI.Controllers.Revision
                 var Doc = await _db.tProjectSupportingDocs.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
                 var SupportingDoc = await _db.tDropdownSupportingDocs.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync();
 
-                var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && !x.IsDeleted).ToListAsync();
+                //var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && !x.IsDeleted).ToListAsync();
 
-                //var ComponentCost = await _db.vRevisionProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
+                var ComponentCost = await _db.vProjectComponentCostStatus.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
                 //var ComponentCostYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentCost.Select(a => a.ReferenceId).Contains(x.ParentId)).ToListAsync();
 
                 var MajorItemOfWork = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && !x.IsDeleted).ToListAsync();
@@ -739,7 +740,7 @@ namespace WebAPI.Controllers.Revision
                                     ComponentId = SelectedComponent.ComponentId,
                                     Description = SelectedComponent.Description,
                                     Amount = SelectedComponent.Amount,
-                                    IsDeleted = CanDelete ? component.IsDeleted : false
+                                    IsDeleted = CanDelete ? component.IsDeleted : false,
                                 }
                             });
                         }
@@ -763,7 +764,7 @@ namespace WebAPI.Controllers.Revision
                         ComponentId = x.ComponentId,
                         Description = x.Description,
                         Amount = x.Amount,
-                        IsDeleted = false
+                        IsDeleted = false,
                     }));
                 }
                 #endregion
@@ -849,7 +850,6 @@ namespace WebAPI.Controllers.Revision
                             }
                             NewMajorWorkLocations.Add(new RevisionProjectMajorWorkLocations
                             {
-                                Id = UpdateMajorWorkLocation.Id,
                                 TransactionId = TransactionId,
                                 ParentId = UpdateMajorWorkLocation.ParentId,
                                 InfraId = UpdateMajorWorkLocation.InfraId,
@@ -891,7 +891,7 @@ namespace WebAPI.Controllers.Revision
                             StartStationLimit = x.StartStationLimit,
                             EndStationLimit = x.EndStationLimit,
                             EndChainage = x.EndChainage,
-                            StartChainage = x.StartChainage
+                            StartChainage = x.StartChainage,
                         }));
                     }
                 }
@@ -907,6 +907,7 @@ namespace WebAPI.Controllers.Revision
                 bool isCOUser = _Session.UserGroups.Contains("AUC");
                 await _db.tRevisionDetails.AddAsync(new RevisionDetails
                 {
+                    ProgramRevisionId = 
                     TransactionId = TransactionId,
                     RevisionGroupId = RevisionCategory.RevisionGroupId,
                     CategoryId = dto.RevisionDetails.CategoryId,
@@ -1195,6 +1196,14 @@ namespace WebAPI.Controllers.Revision
                         RevisionDetails.COStatus = dto.Status;
                         RevisionDetails.COApprover = _Session.UserId;
                         RevisionDetails.COApprovedDate = CurrentDate;
+                        //var SelectedProject
+                        //if (dto.Status == EnumRevisionStatus.Approved) {
+                        //    var ComponentsAffected = await _db.vProjectComponentStatus.AsNoTracking().Where(x => x.ProjectId == RevisionDetails.ProjectId && x.ConstructionStatusName == "" && x.Stat).ToListAsync();
+                        //    await _db.tRevisionDetailsComponentsStatus.AddAsync(new RevisionDetailsComponentsStatus
+                        //    {
+                        //        TransactionId = dto.TransactionId,
+                        //    });
+                        //}
                     }
                     _db.tRevisionDetails.Update(RevisionDetails);
                 }

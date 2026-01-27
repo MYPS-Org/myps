@@ -23,8 +23,8 @@ namespace DBHelper.Models.Table
         [Required]
         [MaxLength(10)]
         public string ComponentId { get; set; } = string.Empty;
-        [Required]
-        public string Description { get; set; } = string.Empty;
+        //[Required]
+        public string? Description { get; set; } = string.Empty;
         [Required]
         public Double Amount { get; set; }
         [Required]
