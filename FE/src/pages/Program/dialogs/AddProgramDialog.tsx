@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { Dialog, DialogTitle, DialogPanel } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
-import type { ProgramEnums, ProgramModel } from '../Model';
+import type { ProgramEnums, ProgramModel, TableEnum } from '../Model';
 import { addProgram } from '../Service'; // Adjust the import path as necessary
 import XMarkIcon from '@heroicons/react/24/outline/XMarkIcon';
 import { useNavigate } from 'react-router-dom';
@@ -14,8 +14,8 @@ interface AddProgramDialogProps {
   onSubmit: (program: ProgramModel) => void;
   programEnums?: {
     // Statuses: ProgramEnums[];
-    Stages: ProgramEnums[];
-    Types: ProgramEnums[];
+    Stages: TableEnum[];
+    Types: TableEnum[];
     Groups: ProgramEnums[];
     DataSecurity: ProgramEnums[];
   };
@@ -73,7 +73,7 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
       }
       const response = await addProgram(payload);
       onSubmit(formData); // Call the onSubmit prop with the form data
-      const StageName = Stage.find(stage => stage.Enum === formData.Stage)?.Name || '';
+      const StageName = Stage.find(stage => stage.NameId === formData.Stage)?.Name || '';
       if (response && response.Data && response.Data.Id) {
         showToast({
           type: 'success',
@@ -96,12 +96,12 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
       
       // Auto-generate name when Stage or YearStart changes
       if (field === 'Stage' || field === 'YearStart' || field === 'Type') {
-        const selectedStage = Stage.find(stage => stage.Enum === (field === 'Stage' ? value : newFormData.Stage));
+        const selectedStage = Stage.find(stage => stage.NameId === (field === 'Stage' ? value : newFormData.Stage));
         const stageName = selectedStage ? selectedStage.Name : '';
         const yearStart = field === 'YearStart' ? value : newFormData.YearStart;
         newFormData.Name = stageName + ' ' + yearStart;
         // Auto-skip logic for stages 5-11
-        if (field === 'Stage' && selectedStage && selectedStage.Enum >= 5 && selectedStage.Enum <= 11) {
+        if (field === 'Stage' && selectedStage && selectedStage.NameId >= 5 && selectedStage.NameId <= 11) {
           newFormData.IsSkipped = true;
           setSkipped(true);
         } else if (field === 'Stage') {
@@ -260,7 +260,7 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
                   Select Type
                 </option>
                 {Type.map((type) => (
-                  <option key={type.Id} value={type.Enum}>
+                  <option key={type.Id} value={type.NameId}>
                     {type.Name}
                   </option>
                 ))}
@@ -297,7 +297,7 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
                   Select Stage
                 </option>
                 {Stage.map((stage) => (
-                  <option key={stage.Id} value={stage.Enum}>
+                  <option key={stage.Id} value={stage.NameId}>
                     {stage.Name}
                   </option>
                 ))}
@@ -365,7 +365,7 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
             <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-md p-3">
               {Object.keys(groupedDataSecurity).map((orgType) => {
                 const groupItems = groupedDataSecurity[orgType].filter(item =>
-                  item.OrgName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  item.Name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                   item.ParticipantId?.toLowerCase().includes(searchTerm.toLowerCase())
                 );
                 
@@ -405,7 +405,7 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
                           />
                           <div className="flex flex-col">
                             <span className="text-sm text-gray-700 font-medium">
-                              {item.OrgName}
+                              {item.Name}
                             </span>
                             {/* <span className="text-xs text-gray-500">
                               {item.ParticipantId}
@@ -424,7 +424,7 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
               )}
               {Object.keys(groupedDataSecurity).every(orgType => 
                 groupedDataSecurity[orgType].filter(item =>
-                  item.OrgName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  item.Name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                   item.ParticipantId?.toLowerCase().includes(searchTerm.toLowerCase())
                 ).length === 0
               ) && searchTerm && (

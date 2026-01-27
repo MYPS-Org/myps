@@ -360,9 +360,9 @@ const ProgramDetail: React.FC = () => {
     return (
       <div className="mx-auto p-6">
         <div className="animate-pulse">
-          <div className="h-8 bg-gray-300 rounded w-1/3 mb-4"></div>
-          <div className="h-4 bg-gray-300 rounded w-full mb-2"></div>
-          <div className="h-4 bg-gray-300 rounded w-2/3"></div>
+          <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
+          <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
+          <div className="h-4 bg-gray-200 rounded w-2/3"></div>
         </div>
       </div>
     );
@@ -398,6 +398,7 @@ const ProgramDetail: React.FC = () => {
                   onChange={(e) => handleChange('YearStart', e.target.value)}
                   value={programEnums?.Details.YearStart}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
+                  disabled
                 />
               </div>
               <div>
@@ -432,7 +433,7 @@ const ProgramDetail: React.FC = () => {
                   type="text" // Changed to "text" to allow formatted currency strings
                   value={programEnums?.Details.Cost?.FormatToCurrency()}
                   readOnly
-                  className="w-full text-left px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
+                  className="w-full text-left px-3 py-2 border border-gray-300 rounded-md bg-gray-200 text-gray-900"
                 />
               </div>
               <div>
@@ -445,7 +446,7 @@ const ProgramDetail: React.FC = () => {
                     disabled={!programEnums?.IsActive}
                   >
                     {programEnums?.Dropdowns.Statuses.map((status) => (
-                      <option key={status.Id} value={status.Id}>
+                      <option key={status.Id} value={status.NameId}>
                         {status.Name}
                       </option>
                     ))}
@@ -460,7 +461,7 @@ const ProgramDetail: React.FC = () => {
                 <input type="text" 
                   value={programEnums?.Details.StageName}
                   disabled
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-200 text-gray-900"
                 />
                 {/* <select name="programStage" id="programStage" className='w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900'>
                   {programEnums?.Dropdowns.Stages.map((stage) => (
@@ -475,7 +476,8 @@ const ProgramDetail: React.FC = () => {
                 <select 
                   value={programEnums?.Details.UserGroup}
                   onChange={(e) => handleChange('UserGroup', Number(e.target.value))}
-                  className='w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900'>
+                  className='w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-200 text-gray-900'
+                  disabled>
                   {programEnums?.Dropdowns.Groups.map((group) => (
                     <option key={group.Id} value={group.Id}>
                       {group.GroupName}
@@ -486,7 +488,7 @@ const ProgramDetail: React.FC = () => {
             </div>
 
             {/* Data Security Multiple Select */}
-            <div className="mb-6 border border-gray-200 rounded-lg">
+            <div className="mb-6 border border-gray-300 rounded-lg">
               <div className="flex items-center justify-between p-3 bg-gray-50 border-b border-gray-200 rounded-t-lg">
                 <button
                   type="button"
@@ -525,7 +527,7 @@ const ProgramDetail: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleChange('DataSecurityGroup', [])}
-                      className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                      className="text-xs px-2 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-200"
                     >
                       Clear All
                     </button>
@@ -550,7 +552,7 @@ const ProgramDetail: React.FC = () => {
                   <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-md p-3">
                 {Object.keys(groupedDataSecurity).map((orgType) => {
                   const groupItems = groupedDataSecurity[orgType].filter(item =>
-                    item.OrgName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    item.Name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                     item.ParticipantId?.toLowerCase().includes(searchTerm.toLowerCase())
                   );
                   
@@ -590,7 +592,7 @@ const ProgramDetail: React.FC = () => {
                             />
                             <div className="flex flex-col">
                               <span className="text-sm text-gray-700 font-medium">
-                                {item.OrgName}
+                                {item.Name}
                               </span>
                               {/* <span className="text-xs text-gray-500">
                                 {item.ParticipantId}
@@ -609,7 +611,7 @@ const ProgramDetail: React.FC = () => {
                 )}
                 {Object.keys(groupedDataSecurity).every(orgType => 
                   groupedDataSecurity[orgType].filter(item =>
-                    item.OrgName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    item.Name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                     item.ParticipantId?.toLowerCase().includes(searchTerm.toLowerCase())
                   ).length === 0
                 ) && searchTerm && (
@@ -632,7 +634,7 @@ const ProgramDetail: React.FC = () => {
                   // value={programEnums?.Details.User}
                   value={programEnums?.Details.CreatedDate.StringToDate()}
                   readOnly
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-200 text-gray-900"
                 />
               </div>
               <div>
@@ -641,7 +643,7 @@ const ProgramDetail: React.FC = () => {
                   // value={programEnums?.Details.User}
                   value={programEnums?.Details.CreatedBy}
                   readOnly
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-200 text-gray-900"
                 />
               </div>
             </div>
@@ -706,7 +708,7 @@ const ProgramDetail: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsActionDropdownOpen(!isActionDropdownOpen)}
-                className="inline-flex items-center gap-x-1.5 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                className="inline-flex items-center gap-x-1.5 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-100 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
               >
                 <Cog6ToothIcon className="-ml-0.5 h-5 w-5 text-gray-400" aria-hidden="true" />
                 Actions

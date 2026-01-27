@@ -1,23 +1,29 @@
 import { useEffect, useState } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
-import { useDropDownData } from "../hooks/useDropDown";
 import { XMarkIcon, DocumentArrowUpIcon, DocumentIcon } from '@heroicons/react/24/outline';
-import type { ProjectDetails, ComponentCost, ComponentCostYear, MajorItemOfWork, MajorItemLocations, FundingProfile } from '../../Project/Model';
-import { submitModificationRequest } from '../Service';
+import type { ProjectDetails, ComponentCost, MajorItemOfWork, MajorItemLocations, FundingProfile } from '../../Project/Model';
+import { submitModificationRequest, updateRevisionRequestStatus } from '../Service';
 import { useToast } from '../../../components/toaster/ToasterContext';
+import { useAuth } from '../../../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { useAtomValue } from 'jotai';
+import { transactionIdAtom } from '../store/routeContextStore';
 
 interface ReviseProjectDialogProps {
     isOpen: boolean;
     onClose: () => void;
     project: ProjectDetails;
     componentCosts: ComponentCost[];
-    componentCostYear: ComponentCostYear[];
     majorItemOfWorks: MajorItemOfWork[];
     majorItemLocations: MajorItemLocations[];
     fundingProfile: FundingProfile[];
     revisionCategory?: string;
     revisionReason?: string;
+    reasonId?: number;
+    categoryId?: number;
+    revisionGroupId?: number;
+    projectStatus?: any;
 }
 
 const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({ 
@@ -25,18 +31,19 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
     onClose, 
     project,
     componentCosts,
-    componentCostYear,
     majorItemOfWorks,
     majorItemLocations,
     fundingProfile,
     revisionCategory,
-    revisionReason
+    revisionReason,
+    reasonId,
+    categoryId,
+    revisionGroupId,
+    projectStatus
 }) => {
-    const {
-        initializeData
-    } = useDropDownData();
-
+    const navigate = useNavigate()
     const { showToast } = useToast();
+    const { user } = useAuth(); // Get user from auth context
     const [approvalDate, setApprovalDate] = useState<string>('');
     const [approvalDocument, setApprovalDocument] = useState<{
         Name: string;
@@ -44,18 +51,21 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
         ContentType: string;
         DataUrl: string;
     } | null>(null);
-    const [revisionType] = useState<string>('modification');
+    const [revisionType] = useState<string>('');
+    const [isCertified, setIsCertified] = useState<boolean>(false);
+
+    console.log('ReviseProjectDialog - Received IDs:', { categoryId, revisionGroupId, reasonId });
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-    useEffect(() => {
-        initializeData();
-    }, [initializeData]);
+    const transactionId = useAtomValue(transactionIdAtom); // Get transactionId from atom
+
 
     // Reset form when modal opens
     useEffect(() => {
         if (isOpen) {
             setApprovalDate('');
             setApprovalDocument(null);
+            setIsCertified(false);
         }
     }, [isOpen]);
 
@@ -88,6 +98,19 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         
+        // Calculate totals for validation
+        const totalComponentCost = componentCosts.reduce((sum, cost) => cost.IsDeleted ? sum : sum + (cost.Amount || 0), 0);
+        const totalFundingAmount = fundingProfile.reduce((sum, funding) => sum + (funding.Amount || 0), 0);
+        
+        // Validation: Check if funding profile total matches component costs total
+        if (Math.abs(totalFundingAmount - totalComponentCost) > 0.01) { // Allow for small floating point differences
+            showToast({
+                type: 'error',
+                message: `Funding profile total (₱${totalFundingAmount.toLocaleString()}) must equal component costs total (₱${totalComponentCost.toLocaleString()}).`
+            });
+            return;
+        }
+        
         // Validation
         if (!approvalDate) {
             showToast({
@@ -105,25 +128,40 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
             return;
         }
 
+        // Only require certification if user is from Implementing Office
+        if ((user?.UserGroups === 'DPC' && !isCertified) || (user?.UserGroups === 'AUC' && !isCertified)) {
+            showToast({
+                type: 'error',
+                message: 'Please certify that the attached document is accurate and aligned with the revisions.'
+            });
+            return;
+        }
+
         setIsSubmitting(true);
+
+        const isImplementingOffice = user?.UserGroups === 'DPC' || user?.UserGroups === 'RPC';
+        const isAuc = user?.UserGroups === 'AUC';
+
+        const shouldCreateNewRevision = isImplementingOffice || (isAuc && !transactionId);
 
         try {
             // Prepare the payload
             const payload = {
                 RevisionDetails: {
                     RevisionCategory: revisionCategory || revisionType,
-                    RevisionReason: revisionReason || '',
+                    ReasonId:  reasonId || 0,
                     ApprovalDate: approvalDate,
                     ApprovedDocument: {
                         Name: approvalDocument.Name,
                         Extension: approvalDocument.Extension,
                         ContentType: approvalDocument.ContentType,
                         DataUrl: approvalDocument.DataUrl
-                    }
+                    },
+                    PackageStatus: projectStatus?.PackageStatus,
+                    ConstructionStatus: projectStatus?.ConstructionStatus
                 },
                 ProjectDetails: project,
                 ComponentCosts: componentCosts,
-                ComponentCostYear: componentCostYear,
                 MajorItemOfWorks: majorItemOfWorks,
                 MajorItemLocations: majorItemLocations,
                 FundingProfile: fundingProfile,
@@ -131,18 +169,59 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
 
             console.log('Submitting modification request with payload:', payload);
 
-            await submitModificationRequest(payload);
+            if (shouldCreateNewRevision) {
+                // Implementing Office: Submit new modification request
+                await submitModificationRequest(payload);
+                
+                showToast({
+                    type: 'success',
+                    message: 'Modification request submitted successfully.'
+                });
 
-            showToast({
-                type: 'success',
-                message: 'Modification request submitted successfully.'
-            });
+                // Reset form
+                setApprovalDate('');
+                setApprovalDocument(null);
+                setIsCertified(false);
 
-            // Reset form
-            setApprovalDate('');
-            setApprovalDocument(null);
+                onClose();
+                // Navigate to the newly created revision view
+                // navigate('/revision/view/' + (response?.Data?.TransactionId || ''));
+                navigate('/revision');
+            } else {
+                // AUC approving an existing revision
+                if (!transactionId) {
+                    showToast({
+                        type: 'error',
+                        message: 'Transaction ID is missing for approving the revision.'
+                    });
+                    return;
+                }
+                await updateRevisionRequestStatus(
+                    transactionId, 
+                    1,
+                    {
+                        Name: approvalDocument.Name,
+                        Extension: approvalDocument.Extension,
+                        ContentType: approvalDocument.ContentType,
+                        DataUrl: approvalDocument.DataUrl
+                    },
+                    approvalDate
+                ); // 1 = Approved
+                
+                showToast({
+                    type: 'success',
+                    message: 'Revision approved successfully.'
+                });
 
-            onClose();
+                // Reset form
+                setApprovalDate('');
+                setApprovalDocument(null);
+                setIsCertified(false);
+
+                onClose();
+                // Navigate back to modification list
+                navigate('/revision');
+            }
         } catch (error) {
             console.error('Error submitting modification request:', error);
             showToast({
@@ -165,7 +244,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
                     <div>
                         <DialogTitle className="text-lg font-semibold text-gray-900">
-                            Modify Project
+                            {revisionCategory} Project
                         </DialogTitle>
                         <p className="text-sm text-gray-600 mt-1">
                             {project.ProjectId}
@@ -197,7 +276,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
                             </div>
                         </div>
                     </div>
-
+                    
                     {/* Modification Details */}
                     {(revisionCategory || revisionReason) && (
                         <div className='bg-blue-50 p-4 rounded-lg space-y-2'>
@@ -221,6 +300,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
 
                     {/* Revision Details */}
                     <div className='space-y-2'>
+                        
                         <div className='flex justify-between gap-5 items-center'>
                             <label className='w-1/3 block text-sm font-medium text-gray-700'>
                                 *Date of Approval :
@@ -267,11 +347,29 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
                             </div>
                         </div>
                     </div>
+
+                    {/* Certification Checkbox */}
+                    {(user?.UserGroups === 'AUC' || user?.UserGroups === 'DPC') && approvalDocument && (
+                    <div className='bg-amber-50 border border-amber-200 p-4 rounded-lg'>
+                        <label className='flex items-start gap-3 cursor-pointer'>
+                            <input 
+                                type="checkbox"
+                                checked={isCertified}
+                                onChange={(e) => setIsCertified(e.target.checked)}
+                                className='mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500'
+                            />
+                            <span className='text-sm text-gray-700 flex-1'>
+                                I hereby certify that the attached approval document is accurate, complete, and aligned with the revisions being submitted for this project.
+                            </span>
+                        </label>
+                    </div>
+                    )}
+
                     <div className='pt-4 border border-gray-100 rounded-2xl px-4 flex justify-end gap-5'>
                         <Button
                             type="submit"
                             color="blue"
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || ((user?.UserGroups === 'DPC' || user?.UserGroups === 'AUC') && !isCertified)}
                         >
                             {isSubmitting ? 'Submitting...' : 'Submit'}
                         </Button>

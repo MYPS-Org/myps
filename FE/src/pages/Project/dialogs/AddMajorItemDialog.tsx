@@ -13,6 +13,7 @@ interface AddMajorItemDialogProps {
     YearOfWork: number;
     WorkTypeId: number;
     InfraType: string;
+    IsDeleted: boolean;
   }) => void;
   componentCosts: ComponentCost[];
   programDetails?: ProgramList;
@@ -23,6 +24,7 @@ interface AddMajorItemDialogProps {
     YearOfWork: number;
     WorkTypeId: number;
     InfraType: string;
+    IsDeleted: boolean; 
   };
   existingMajorItems?: Array<{ ComponentId: string }>;
 }
@@ -42,7 +44,8 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
     ComponentId: '',
     YearOfWork: programDetails?.YearStart || new Date().getFullYear(),
     WorkTypeId: 0,
-    InfraType: ''
+    InfraType: '',
+    IsDeleted: false
   });
 
   const [availableWorkTypes, setAvailableWorkTypes] = useState<ScopeOfWorkEnum[]>([]);
@@ -56,29 +59,30 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
         ComponentId: '',
         YearOfWork: programDetails ? programDetails.YearStart : new Date().getFullYear(),
         WorkTypeId: 0,
-        InfraType: ''
+        InfraType: '',
+        IsDeleted: false
       });
     }
   }, [mode, initialData, isOpen]);
 
   // Update available work types when InfraType changes
   useEffect(() => {
-    if (formData.InfraType && dropDowns) {
-      const filtered = dropDowns.filter(scope => scope.InfraType === formData.InfraType);
-      setAvailableWorkTypes(filtered);
-      
-      // Reset WorkTypeId if current selection is not available for new InfraType
-      if (formData.WorkTypeId > 0) {
-        const isCurrentWorkTypeValid = filtered.some(scope => scope.Enum === formData.WorkTypeId);
-        if (!isCurrentWorkTypeValid) {
-          setFormData(prev => ({ ...prev, WorkTypeId: 0 }));
-        }
-      }
-    } else {
+    if (!formData.InfraType || !dropDowns) {
       setAvailableWorkTypes([]);
-      setFormData(prev => ({ ...prev, WorkTypeId: 0 }));
+      return;
     }
+
+    setAvailableWorkTypes(
+      dropDowns.filter(scope => scope.InfraType === formData.InfraType)
+    );
   }, [formData.InfraType, dropDowns]);
+
+  // 2️⃣ Reset WorkTypeId ONLY when InfraType changes
+  useEffect(() => {
+    setFormData(prev =>
+      prev.WorkTypeId === 0 ? prev : { ...prev, WorkTypeId: 0 }
+    );
+  }, [formData.InfraType]);
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -89,7 +93,8 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
       ComponentId: '',
       YearOfWork: new Date().getFullYear(),
       WorkTypeId: 0,
-      InfraType: ''
+      InfraType: '',
+      IsDeleted: false
     });
     onClose();
   };
@@ -133,12 +138,25 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
 
   // Filter out already selected ComponentIds (but allow the current one when editing)
   const availableComponentCosts = componentCosts.filter(cost => {
+    // Always exclude EAO, EXC, SAV component IDs regardless of mode or reason
+    const excludedComponents = ['EAO', 'EXC', 'SAV', 'COS'];
+    const componentId = cost.ComponentId?.toUpperCase();
+    const isExcluded = excludedComponents.includes(componentId);
+    
+    // Don't show excluded components even in edit mode
+    if (isExcluded) {
+      return false;
+    }
+    
     // When editing, allow the current ComponentId to remain in the list
     if (mode === 'edit' && initialData && cost.ComponentId === initialData.ComponentId) {
       return true;
     }
+    
     // For add mode or other components in edit mode, filter out already selected ones
-    return !existingMajorItems.some(item => item.ComponentId === cost.ComponentId);
+    const notAlreadySelected = !existingMajorItems.some(item => item.ComponentId === cost.ComponentId);
+    
+    return notAlreadySelected;
   });
 
   return (

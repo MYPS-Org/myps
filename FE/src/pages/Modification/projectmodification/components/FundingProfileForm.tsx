@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import type { FundingProfile, ProjectFormPayload } from "../../../Project/Model.d";
+import type { FieldRules } from "../../Model";
 import { Button } from "../../../../components/tailwindui/button";
 import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from "../../../../components/tailwindui/table";
@@ -13,6 +14,7 @@ interface FundingProfileFormProps {
   onDelete: (index: number) => void;
   onTotalAmountChange?: (totalAmount: number) => void; // Optional callback for total amount change
   disabled?: boolean;
+  fieldRules?: FieldRules;
 }
 
 const FundingProfileForm: React.FC<FundingProfileFormProps> = ({ 
@@ -22,49 +24,67 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
   onDelete,
   initialData,
   onTotalAmountChange = () => {}, // Default to no-op if not provided
-  disabled = false
+  disabled = false,
+  fieldRules
 }) => {
   const [errors, setErrors] = useState<{ [key: number]: string }>({});
   const [totalPercentage, setTotalPercentage] = useState(0);
   const [totalAmount, setTotalAmount] = useState(0);
   const [displayValues, setDisplayValues] = useState<{ [key: number]: string }>({});
+  const [percentageBalancer, setPercentageBalancer] = useState(0);
 
   // Calculate total percentage and amount, then auto-update percentages
   useEffect(() => {
-    const totalAmt = fundingProfiles.reduce((sum, profile) => sum + (profile.Amount || 0), 0);
+    const totalAmt = fundingProfiles
+      .filter(p => !p.IsDeleted)
+      .reduce((sum, p) => sum + (p.Amount || 0), 0);
     setTotalAmount(totalAmt);
 
     // Create updated profiles with recalculated percentages
-    fundingProfiles.forEach((profile, index) => {
-      if (totalAmt > 0) {
-        const calculatedPercentage = ((profile.Amount || 0) / totalAmt) * 100;
-        const roundedPercentage = Math.round(calculatedPercentage * 100) / 100; // Round to 2 decimal places
-        
-        // Only update if the percentage has changed to avoid infinite loops
-        if (profile.Percentage !== roundedPercentage) {
-          // Update the profile with new percentage
-          onEdit(index, { ...profile, Percentage: roundedPercentage });
+    let hasChanges = false;
+
+    const updatedProfiles = fundingProfiles.map((profile) => {
+      // Skip deleted items
+      if (profile.IsDeleted) return profile;
+      
+      if (totalAmt === 0) {
+        if(profile.Percentage !== 0) {
+          hasChanges = true;
+          return { ...profile, Percentage: 0 };
         }
-      } else {
-        // If total amount is 0, set percentage to 0
-        if (profile.Percentage !== 0) {
-          onEdit(index, { ...profile, Percentage: 0 });
-        }
+        return profile;
       }
+
+      const calculated = ((profile.Amount || 0) / totalAmt) * 100;
+      const rounded = Math.round(calculated * 100) / 100; // Round to 2 decimal places
+
+      if (profile.Percentage !== rounded) {
+        hasChanges = true;
+        return { ...profile, Percentage: rounded };
+      }
+      return profile;
     });
 
-    // Calculate total percentage for display using the current state
-    // We need to use a setTimeout to ensure state updates are processed first
-    setTimeout(() => {
-      const total = fundingProfiles.reduce((sum, profile) => sum + (profile.Percentage || 0), 0);
-      const roundedTotal = Math.round(total * 100) / 100;
-      setTotalPercentage(roundedTotal);
-    }, 0);
+    if (hasChanges) {
+      updatedProfiles.forEach((profile, index) => {
+        onEdit(index, profile);
+      });
+    }
+
+    // Calculate total percentage and balancer to fix floating-point errors
+    const totalPct = updatedProfiles
+      .filter(p => !p.IsDeleted)
+      .reduce((sum, p) => sum + (p.Percentage || 0), 0);
+    setTotalPercentage(totalPct);
+
+    // Balancer compensates for rounding errors (e.g., 3 items at 33.33% = 99.99%, balancer = 0.01%)
+    const balancer = totalAmt > 0 ? Math.round((100 - totalPct) * 100) / 100 : 0;
+    setPercentageBalancer(balancer);
 
     if (onTotalAmountChange) {
       onTotalAmountChange(totalAmt);
     }
-  }, [fundingProfiles]); // Trigger when array length or amounts change
+  });
 
   useEffect(() => {
     const newDisplayValues: { [key: number]: string } = {};
@@ -120,11 +140,32 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
   };
 
   const getTotalPercentageColor = () => {
+    const adjustedTotal = totalPercentage + percentageBalancer;
     // Use Math.abs to check if the difference is within a small tolerance (0.01)
-    if (Math.abs(totalPercentage - 100) < 0.01) return "text-green-600";
-    if (totalPercentage > 100) return "text-red-600";
+    if (Math.abs(adjustedTotal - 100) < 0.01) return "text-green-600";
+    if (adjustedTotal > 100) return "text-red-600";
     return "text-yellow-600";
   };
+
+  const isFromDatabase = useCallback((funding: FundingProfile) => {
+    // FundingProfile only has Id, no ReferenceId
+    return funding.Id && funding.Id > 0;
+  }, []);
+
+  const canAdd = useCallback(() => {
+    if (!fieldRules) return true;
+    if (!fieldRules.FundingProfileRules) return true;
+    if (!fieldRules.FundingProfileRules.CRUD) return true;
+    return fieldRules.FundingProfileRules.CRUD.CanAdd ?? true;
+  }, [fieldRules]);
+
+  const canDelete = useCallback((funding: FundingProfile) => {
+    if (!isFromDatabase(funding)) return true;
+    if (!fieldRules) return false;
+    if (!fieldRules.FundingProfileRules) return false;
+    if (!fieldRules.FundingProfileRules.CRUD) return false;
+    return fieldRules.FundingProfileRules.CRUD.CanDelete ?? false;
+  }, [isFromDatabase, fieldRules]);
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -143,7 +184,7 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
             Total Amount: {totalAmount.FormatToCurrency()}
           </div>
           
-          <Button color="blue" onClick={onAdd} disabled={disabled}>
+          <Button color="blue" onClick={onAdd} disabled={!canAdd}>
               <PlusIcon className="w-4 h-4 mr-1" />
               Add Funding
           </Button>
@@ -161,8 +202,9 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
             </TableRow>
         </TableHead>
         <TableBody>
-            {fundingProfiles.map((profile, index) => (
-              
+            {fundingProfiles.map((profile, index) => {
+              if (profile.IsDeleted) return null;
+              return (
             <TableRow key={profile.Id === 0 ? `new-${index}` : profile.Id}>
                 <TableCell className="w-1/3">
                   <select
@@ -185,7 +227,7 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
                   <select
                     name="agreement"
                     value={profile.Agreement}
-                    onChange={(e) => onEdit(index, { ...profile, Agreement: Number(e.target.value) })}
+                    onChange={(e) => onEdit(index, { ...profile, Agreement: String(e.target.value) })}
                     className={`${getDisabledClass(disabled)} w-full px-2 py-1 border border-gray-300 rounded truncate`}
                     // style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
                     disabled={!profile.Source || disabled} // Disable if no source selected
@@ -194,7 +236,7 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
                     {initialData?.Dropdowns?.Agreements
                       ?.filter((agreement) => agreement.SourceOrg === profile.Source) // Filter by selected source
                       .map((agreement) => (
-                        <option key={agreement.Id} value={agreement.Id}>
+                        <option key={agreement.Id} value={agreement.Code}>
                           {agreement.Name}
                         </option>
                       ))}
@@ -233,14 +275,16 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
                 <TableCell>
                   <button
                     onClick={() => onDelete(index)}
-                    className={`text-red-600 hover:text-red-800 ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
-                    disabled={disabled}
+                    className={`text-red-600 hover:text-red-800 ${disabled || !canDelete(profile) ? 'cursor-not-allowed opacity-50' : ''}`}
+                    disabled={disabled || !canDelete(profile)}
+                    title={canDelete(profile) ? "Delete funding profile" : "Cannot delete funding profile"}
                   >
                     <TrashIcon className="w-4 h-4" />
                   </button>
                 </TableCell>
             </TableRow>
-            ))}
+            );
+            })}
         </TableBody>
         </Table>
         

@@ -13,8 +13,9 @@ import ModificationReasonTable from './ModificationReasonTable';
 import CostTypeTable from './CostTypeTable';
 import OtherInfraTable from './OtherInfraTable';
 import TypeOfWorkTable from './TypeOfWorkTable';
+import RevisionFieldPermissionTable from './RevisionFieldPermissionTable';
 
-type TableType = 'Category' | 'Thrust' | 'ProjectOrigin' | 'MajorWorkCategory' | 'MultiCriteriaAnalysis' | 'FundingSource' | 'ModificationValidationDates' | 'ModificationCategory' | 'ModificationReason' | 'CostType' | 'OtherInfra' | 'TypeOfWork' | '';
+type TableType = 'Category' | 'Thrust' | 'ProjectOrigin' | 'MajorWorkCategory' | 'MultiCriteriaAnalysis' | 'FundingSource' | 'ModificationValidationDates' | 'ModificationCategory' | 'ModificationReason' | 'CostType' | 'OtherInfra' | 'TypeOfWork' | 'RevisionFieldPermission' | '';
 
 const CodeTables: React.FC = () => {
   const [selectedTable, setSelectedTable] = useState<TableType>('');
@@ -43,6 +44,8 @@ const CodeTables: React.FC = () => {
         return <ModificationCategoryTable />;
       case 'ModificationReason':
         return <ModificationReasonTable />;
+      case 'RevisionFieldPermission':
+        return <RevisionFieldPermissionTable />;
       case 'CostType':
         return <CostTypeTable />;
       case 'OtherInfra':
@@ -86,6 +89,7 @@ const CodeTables: React.FC = () => {
                 <option value="CostType">Cost Type</option>
                 <option value="OtherInfra">Other Infrastructure</option>
                 <option value="TypeOfWork">Type of Work</option>
+                <option value="RevisionFieldPermission">Revision Field Permission</option>
               </select>
             </div>
         </div>

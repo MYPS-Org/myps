@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formValidation, type FormValidationError } from '../../../../utils/FormValidation';
 import { projectDetailsRules } from '../../../Project/rules/projectDetailsRules';
+
 import type { 
   ProjectDetails, 
   ComponentCost, 
@@ -9,19 +10,16 @@ import type {
   FundingProfile, 
   Activity, 
   TransactionLog,
-  ProjectFormPayload,
   ProjectEnums,
   Dropdowns,
-  ComponentCostYear,
   InfraData,
-  MajorItemOfWorksWithDropdown,
   MajorItemOfWork,
   MajorItemLocations,
   ProjectSupportingDocs
 } from '../../../Project/Model.d';
 
 import { Button } from '../../../../components/tailwindui/button';
-import MetroManilaMap from '../../../../components/map/MetroManilaMap';
+import MapRenderer from '../../../../components/map/MapRenderer';
 
 //Sub-components
 import ProgramDetailsForm from './ProgramDetailsForm';
@@ -31,37 +29,63 @@ import MajorItemOfWorksForm from './MajorItemOfWorksForm';
 import NotesForm from './NotesForm';
 import FundingProfileForm from './FundingProfileForm';
 import ActivitySection from './ActivitySection';
-import { addProjectDetails, getProjectEnums, updateEntireProject } from '../../../Project/Service';
+import { addProjectDetails, getProjectEnums, updateEntireProject, fetchProjectGeoJSON } from '../../../Project/Service';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import type { ProgramList } from '../../../Program/Model';
 import { useToast } from '../../../../components/toaster/ToasterContext';
-import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/react';
-import { categoryData } from '../../../Modification/mockData/Dropdown';
 import ReviseProjectDialog from '../../dialogs/RevisedProjectDialog';
 import ApproveModifyDialog from '../../dialogs/ApproveModifyDialog';
 import ForReviewModifyDialog from '../../dialogs/ForReviewModifyDialog';
-import RuleManager from '../../rules/RuleManager';
+// import TerminationDialog from '../../dialogs/TerminationDialog';
+import ExcessPrompt from '../../dialogs/ExcessPrompt';
+import RejectModifyDialog from '../../dialogs/RejectModifyDialog';
+
 import RevisionForm from './RevisionForm';
+import { checkExcessComponent } from '../../conditions/ExcessComponentAutomation';
+import addExcessComponent from '../../conditions/AddExcessComponent';
+import { applyTerminationNoDisbursementAutomation } from '../../conditions/TerminationNoDisbursementAutomation';
+
+import { useAuth } from '../../../../contexts/AuthContext';
+import { useFieldPermissions } from '../../hooks/useFieldPermissions';
+import type { RevisionProjectPayload } from '../../Model';
+// import { updateRevisionRequestStatus } from '../../Service'; 
+import ResubmitRevisionDialog from '../../dialogs/ResubmitRevisionDialog';
+
+import { useAtom } from 'jotai';
+import {
+  componentCostsAtom
+} from '../../atoms/componentCosts.atom';
+import { useComponentCosts } from '../../hooks/useComponentCosts';
+
+import { useMajorItemOfWorks } from '../../hooks/useMajorItemOfWorks';
+import { RevisionActionButtons } from '../../../../components/actionButtons/RevisionActionButtons';
+
 
 interface ProjectFormProps {
-  initialData?: ProjectFormPayload;
-  mode?: 'add' | 'edit';
+  initialData?: RevisionProjectPayload;
+  mode?: 'add' | 'edit' | 'view';
   initialProgramId?: string;
   category?: string;
   reason?: string;
+  reasonId?: number;
+  categoryId?: number;
+  revisionGroupId?: number;
+  fieldLabels?: Record<string, any>;
+  onActionSuccess?: () => void;
 }
 
-const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', initialProgramId, category, reason }) => {
-
+const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', initialProgramId, category, reason, reasonId, categoryId, revisionGroupId, fieldLabels: _fieldLabels, onActionSuccess }) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [savingSection, setSavingSection] = useState<string | null>(null);
   const [projectEnums, setProjectEnums] = useState<ProjectEnums | null>(null);
   const [updateAllProject, setUpdateAllProject] = useState<boolean>(false);
-  const [updateUnlockProject, setUpdateUnlockProject] = useState<boolean>(false);
-  const [updateApproveProject, setUpdateApproveProject] = useState<boolean>(false);
-  const [updateReviseProject, setUpdateReviseProject] = useState<boolean>(false);
-  const [updateForReviewProject, setUpdateForReviewProject] = useState<boolean>(false);
+  const [updateApproveProject] = useState<boolean>(false);
+  const [rejectDialogProject] = useState<boolean>(false);
+  const [updateReviseProject] = useState<boolean>(false);
+  const [updateResubmitRevision] = useState<boolean>(false);
+  const [updateForReviewProject] = useState<boolean>(false);
   // const [reviseProject, setReviseProject] = useState<boolean>(false);
   const [errors, setErrors] = useState<FormValidationError<ProjectDetails>>({});
   //toaster here
@@ -71,8 +95,19 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
   // Determine category and reason based on whether modification is submitted (in database) or not
   // If modification exists in database, use those values; otherwise use props from project module
-  const modificationCategory = initialData?.ModificationCategory || category;
-  const modificationReason = initialData?.ModificationReason || reason;
+  // Memoize these to prevent recreating on every render which causes infinite loops
+  const modificationCategory = useMemo(() => 
+    initialData?.Category.CategoryName || category,
+    [initialData?.Category.CategoryName, category]
+  );
+  const modificationReason = useMemo(() => 
+    initialData?.Reason.Reason || reason,
+    [initialData?.Reason.Reason, reason]
+  );
+  const modificationReasonId = useMemo(() => 
+    initialData?.Reason.ReasonId || reasonId,
+    [initialData?.Reason.ReasonId, reasonId]
+  );
 
   // toggle state for Program Details section
   const [isProgramOpen, setIsProgramOpen] = useState<boolean>(true);
@@ -80,8 +115,21 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const [isMapOpen, setIsMapOpen] = useState<boolean>(true);
   // set isRevisedProjectDialogOpen
   const [isRevisedProjectDialogOpen, setIsRevisedProjectDialogOpen] = useState<boolean>(false);
+  const [isResubmitRevisionDialogOpen, setIsResubmitRevisionDialogOpen] = useState<boolean>(false);
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState<boolean>(false);
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState<boolean>(false);
   const [isForReviewDialogOpen, setIsForReviewDialogOpen] = useState<boolean>(false);
+  // const [isTerminationDialogOpen, setIsTerminationDialogOpen] = useState<boolean>(false);
+  const [isExcessPromptOpen, setIsExcessPromptOpen] = useState<boolean>(false);
+  const [excessComponentData, setExcessComponentData] = useState<{ excessAmount: number; message: string } | null>(null);
+
+  // get the status of Revision
+  // #region Revision Status Text
+  const revisionStatus = initialData?.ProjectStatus?.RevisionStatus;
+  // #endregion
+
+  // set GeoJSON data for map
+  const [geoJsonData, setGeoJsonData] = useState<GeoJSON.FeatureCollection | null>(null);
   
   // SetMaxAmount in ComponentCostForm
   const [maxAmountCost, setMaxAmountCost] = useState<number>(0);
@@ -119,7 +167,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       UACS: '',
       MYCAApprovalDate: '',
       IslandCode: '',
-      RevisionNumber: 0,
+      RevisionId: 0,
       Description: '',
       Category: 0,
       Thrust: 0,
@@ -132,75 +180,59 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       Region: '',
       Agency: 0,
       ImplementationMode: 0,
-      EmergencyMode: false,
+      EmergencyMode: 0,
       Feasibility: 0,
-      DetailedDesign: false,
-      RowAvailable: false,
+      DetailedDesign: 0,
+      RowAvailable: 0,
       Tier: 1,
     }
   );
 
-  // Load Allowed Fields
+  // Load Allowed Fields using Jotai
   // #region Modification Set Fields
-  const [fieldPermissions, setFieldPermissions] = useState<any>(null);
-  const [showRandomizeButton, setShowRandomizeButton] = useState(true);
-  const [pcmaStatus, setPcmaStatus] = useState<string>('');
-  const [packageStatus, setPackageStatus] = useState<string>('');
+  const {
+    pcmaStatus,
+    packageStatus,
+    currentCase,
+    permissions,
+    fieldRules
+  } = useFieldPermissions();
 
+  // #region GEOJSON DATA FOR MAP
+  // Fetch GeoJSON data for map rendering
   useEffect(() => {
-    if (pcmaStatus && packageStatus) {
-      const currentCase = RuleManager.determineCase(pcmaStatus, packageStatus, modificationCategory);
-      const editableFields = RuleManager.getEditableFieldsForCase(currentCase, modificationCategory, modificationReason);
-      setFieldPermissions({
-          pcmaStatus,
-          packageStatus,
-          case: currentCase,
-          category: modificationCategory || 'modification',
-          reason: modificationReason,
-          editableFields
-      });
-    } else {
-      const result = RuleManager.runRandomization(modificationCategory, modificationReason);
-      setFieldPermissions(result);
-    }
-  }, [pcmaStatus, packageStatus, modificationCategory, modificationReason]);
-  // Function to handle randomization for testing
-  const handleRandomizeStatus = () => {
-      const result = RuleManager.runRandomization(category, reason);
-      setFieldPermissions(result);
-      console.log('New Field Permissions for', category, 'with reason:', reason, ':', result);
-  };
+    const loadMapData = async () => {
+      if (mode === 'edit' && initialData?.ProjectDetails?.ProjectId && initialData?.ProgramDetails?.ProgramId) {
+        try {
+          const response = await fetchProjectGeoJSON(
+            initialData.ProjectDetails.ProjectId,
+            initialData.ProgramDetails.ProgramId
+          );
+          if (response.Data) {
+            setGeoJsonData(response.Data);
+          }
+        } catch (error) {
+          console.error('Error loading map data:', error);
+          // Gracefully handle error - map will show "No data available"
+        }
+      }
+    };
 
-  const setCaseA = () => {
-      const result = RuleManager.setCaseA(modificationCategory, modificationReason);
-      setFieldPermissions(result);
-      console.log('Case A for', modificationCategory, 'with reason:', modificationReason, ':', result);
-  };
-  const setCaseB = () => {
-      const result = RuleManager.setCaseB(modificationCategory, modificationReason);
-      setFieldPermissions(result);
-      console.log('Case B for', modificationCategory, 'with reason:', modificationReason, ':', result);
-  };
-  const setCaseC = () => {
-      const result = RuleManager.setCaseC(modificationCategory, modificationReason);
-      setFieldPermissions(result);
-      console.log('Case C for', modificationCategory, 'with reason:', modificationReason, ':', result);
-  };
+    loadMapData();
+  }, [mode, initialData?.ProjectDetails?.ProjectId, initialData?.ProgramDetails?.ProgramId]);
   // #endregion
 
   useEffect(() => {
     // Load project enums
     const loadProjectEnums = async () => {
       try {
-        const response = await getProjectEnums();
-        console.log('Project Enums:', response.Data);
+        const response = await getProjectEnums()
         setProjectEnums(response.Data);
       } catch (error) {
         console.error('Error loading project enums:', error);
       }
     };
     loadProjectEnums();
-    // loadInfrastructureData();
 
     // Set program details if in edit mode and initialData is present
     if (mode === 'edit' && initialData?.ProgramDetails) {
@@ -227,59 +259,77 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     }
   }, [initialProgramId, projectEnums?.Programs]);
 
-  const [componentCosts, setComponentCosts] = useState<ComponentCost[]>(
-    initialData?.ComponentCosts || []
-  );
+  // #region State and Handlers
+  // Component Costs: use Jotai atoms instead of local state ===
+  const [componentCosts, setComponentCosts] = useAtom(componentCostsAtom);
+  const { add: addComponentCost, update: updateComponentCost, removeByIndex: deleteComponentCost } = useComponentCosts();
 
-   const [componentCostsYear, setComponentCostsYear] = useState<ComponentCostYear[]>(
-    initialData?.ComponentCostPerYear || []
-  );
-
-  // Combine componentCosts and componentCostsYear for UI - using useMemo to ensure proper recalculation
-  const componentCostsWithYears = React.useMemo(() => {
-    console.log('Recalculating componentCostsWithYears:', { componentCosts, componentCostsYear });
-    return (componentCosts || []).map(cost => ({
-      ...cost,
-      CostPerYear: (componentCostsYear || []).filter(year => year.ParentId === cost.ReferenceId)
-    }));
-  }, [componentCosts, componentCostsYear]);
-
-  // Debug effect to monitor componentCosts state changes
+  // Seed atoms from initialData when editing an existing revision
   useEffect(() => {
-    console.log('ComponentCosts state changed:', componentCosts);
-    console.log('ComponentCostsWithYears recalculated:', componentCostsWithYears);
-  }, [componentCosts, componentCostsWithYears]);
+    if (mode === 'edit' && initialData) {
+      setComponentCosts((initialData.ComponentCosts || []).map(cost => ({
+        ...cost,
+        ProjectId: (cost.ProjectId || '').replace(/\s+/g, '')
+      })));
+    }
+  }, [mode, initialData, setComponentCosts]);
 
-  const [majorItems, setMajorItems] = useState<MajorItemOfWorksWithDropdown[]>(() => {
-    if (!initialData?.MajorItemOfWorks) return [];
-    
-    // Transform backend MajorItemOfWork[] to MajorItemOfWorksWithDropdown[]
-    // Combine with MajorItemLocations from the separate array
-    return initialData.MajorItemOfWorks.map(item => {
-      // Find MajorItemLocations that belong to this MajorItem via ParentId matching ReferenceId
-      const itemWorkLocations = (initialData.MajorItemLocations || []).filter(
-        location => location.ParentId === item.ReferenceId
-      );
-      
-      return {
-        ...item,
-        // Ensure required fields exist
-        TargetUnitId: item.TargetUnitId || 0,
-        TargetUnit: item.TargetUnit || '',
-        MajorItemLocations: itemWorkLocations, // Combine WorkLocations from separate array
-        DropdownData: initialData?.Dropdowns?.ScopeOfWorks?.filter(scope => scope.InfraType === item.InfraType) || []
-      };
-    });
-  });
+  // Major Items of Work: use Jotai atoms instead of local state ===
+  const {
+    majorItems,
+    seedFromInitialData,
+    addMajorItem,
+    editMajorItem,
+    deleteMajorItem
+  } = useMajorItemOfWorks();
 
-  // Debug effect to monitor majorItems state changes  
   useEffect(() => {
-    console.log('MajorItems state changed:', majorItems);
-  }, [majorItems]);
+    seedFromInitialData(initialData);
+  }, [initialData]);
 
-  // const [notes, setNotes] = useState<ProjectNote[]>(
-  //   initialData?.ProjectNotes || []
-  // );
+  // #region Termination - No Disbursement Automation
+  // Apply automation when reasonId is 37 (Termination - No Disbursement)
+  useEffect(() => {
+    if (mode !== 'edit' || !initialData) return;
+
+    const automation = applyTerminationNoDisbursementAutomation(
+      reasonId,
+      componentCosts,
+      projectDetails.ProjectId || '',
+      initialData?.ProgramDetails?.StageName || '',
+      user?.UserId
+    );
+
+    if (automation.shouldApply && automation.terminatedCount > 0) {
+      console.log('Applying Termination - No Disbursement automation:', {
+        terminatedCount: automation.terminatedCount,
+        totalAmount: automation.totalTerminatedAmount,
+        excessComponent: automation.excessComponent
+      });
+
+      // Update component costs: set terminated components to 0
+      setComponentCosts(automation.updatedComponents);
+
+      // Add excess component if there's a terminated amount
+      if (automation.excessComponent) {
+        // Check if EXC component already exists to avoid duplicates
+        const hasExcessComponent = componentCosts.some(
+          c => c.ComponentId === 'EXC' && !c.IsDeleted
+        );
+
+        if (!hasExcessComponent) {
+          addComponentCost(automation.excessComponent);
+          
+          showToast({
+            type: 'info',
+            message: `${automation.terminatedCount} terminated component(s) set to ₱0. Excess component created for ₱${automation.totalTerminatedAmount.toLocaleString('en-PH')}`
+          });
+        }
+      }
+    }
+  }, [reasonId, mode, initialData?.ComponentCosts]);
+  // #endregion
+
   const [docs, setDocs] = useState<ProjectSupportingDocs[]>(
     initialData?.Docs || []
   );
@@ -315,7 +365,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     Agreements: [],
     Sources: [],
     ScopeOfWorks: [],
-    SupportingDocs: []
+    SupportingDocs: [],
+    Revisions: { Headers: [], Reasons: [], Categories: [] }
   });
 
   const [infraData] = useState<InfraData>({
@@ -333,21 +384,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     initialData?.TransactionLogs || []
   );
 
-  // Sample project location (you can update this based on your project data)
-  const getProjectLocation = () => {
-    // You can map city codes or project data to coordinates later
-    // For now, return a sample location in Metro Manila
-    return {
-      lat: 14.6091,
-      lng: 121.0223,
-      name: projectDetails.Description || "Project Location"
-    };
-  };
-
-  // const handleGoBack = () => {
-  //   navigate('/projects');
-  // };
-
   const handleProjectDetailsChange = (field: keyof ProjectDetails, value: any) => {
     setProjectDetails(prev => ({ ...prev, [field]: value }));
     
@@ -358,151 +394,98 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   };
 
   const handleProgramDetailsChange = (updatedProgramDetails: ProgramList) => {
-    console.log('Program details changed in ProjectForm:', updatedProgramDetails);
     setProgramDetails(updatedProgramDetails);
     
     // Update project details with program information
     setProjectDetails(prev => ({
       ...prev,
       ProgramId: updatedProgramDetails.ProgramId,
-      // You can add other program-related fields here if needed
     }));
-    console.log('Project details updated with ProgramId:', updatedProgramDetails.ProgramId);
   };
 
-  // #region Component Costs
-  const handleAddComponentCost = (newCost: ComponentCost, newCostYear?: ComponentCostYear) => {
-    console.log('=== ADDING COMPONENT COST ===');
-    console.log('New cost:', newCost);
-    console.log('New cost year:', newCostYear);
-    console.log('Current componentCosts before add:', componentCosts);
-    
-    // Generate a temporary ID for new cost (will be replaced when saved)
-    const tempId = Date.now().toString(); // Simple temp ID
-    const costWithId = { ...newCost, ReferenceId: tempId };
-    
-    setComponentCosts(prev => {
-      const updated = [...prev, costWithId];
-      console.log('Updated componentCosts:', updated);
-      return updated;
-    });
-    
-    // If ComponentCostYear data is provided, add it to the componentCostsYear array
-    if (newCostYear) {
-      const costYearWithParentId = { 
-        ...newCostYear, 
-        ParentId: tempId, // Link to the component cost
-        Id: Date.now() + 1 // Ensure unique ID
-      };
-      setComponentCostsYear(prev => {
-        const updated = [...prev, costYearWithParentId];
-        console.log('Updated componentCostsYear:', updated);
-        return updated;
-      });
-      console.log('Added component cost year to staging:', costYearWithParentId);
-    }
-    
-    console.log('Added component cost to staging:', costWithId);
+  // #region Component Costs handlers (now using atoms)
+  const handleAddComponentCost = (newCost: ComponentCost) => {
+    addComponentCost(newCost);
   };
 
   const handleEditComponentCost = (index: number, updatedCost: ComponentCost) => {
-    console.log('=== EDITING COMPONENT COST ===');
-    console.log('Index:', index);
-    console.log('Updated cost:', updatedCost);
-    console.log('Current componentCosts before edit:', componentCosts);
-    
-    setComponentCosts(prev => {
-      const updated = prev.map((cost, i) => i === index ? updatedCost : cost);
-      console.log('Updated componentCosts after edit:', updated);
-      return updated;
-    });
-    console.log('Updated component cost in staging:', updatedCost);
-  };
-
-  const handleDeleteComponentCost = (index: number) => {
-    console.log('=== DELETING COMPONENT COST ===');
-    console.log('Index:', index);
-    console.log('Current componentCosts before delete:', componentCosts);
-    
-    const costToDelete = componentCosts[index];
-    if (costToDelete) {
-      setComponentCosts(prev => {
-        const updated = prev.filter((_, i) => i !== index);
-        console.log('Updated componentCosts after delete:', updated);
-        return updated;
-      });
-      // Also remove related ComponentCostYear entries
-      setComponentCostsYear(prev => {
-        const updated = prev.filter(year => year.ParentId !== costToDelete.ReferenceId);
-        console.log('Updated componentCostsYear after delete:', updated);
-        return updated;
-      });
-      console.log('Deleted component cost from staging:', costToDelete);
+    const existingCost = componentCosts[index];
+    if (existingCost?.ComponentId) {
+      updateComponentCost(String(existingCost.ComponentId), updatedCost);
     }
   };
 
-  // Handlers for ComponentCostYear (these will be used when we implement year-by-year cost breakdown)
-  // const handleAddComponentCostYear = (parentId: number, newCostYear: ComponentCostYear) => {
-  //   setComponentCostsYear(prev => [...prev, { ...newCostYear, ParentId: parentId }]);
-  //   console.log('Added component cost year to staging:', newCostYear);
-  // };
-
-  // const handleEditComponentCostYear = (costYearId: number, updatedCostYear: ComponentCostYear) => {
-  //   setComponentCostsYear(prev => prev.map(year => year.Id === costYearId ? updatedCostYear : year));
-  //   console.log('Updated component cost year in staging:', updatedCostYear);
-  // };
-
-  // const handleDeleteComponentCostYear = (costYearId: number) => {
-  //   setComponentCostsYear(prev => prev.filter(year => year.Id !== costYearId));
-  //   console.log('Deleted component cost year from staging:', costYearId);
-  // };
+  const handleDeleteComponentCost = (index: number) => {
+    const costToDelete = componentCosts[index];
+    if (!costToDelete) return;
+    
+    // CASCADE DELETE: Find all related major items and their work locations
+    const relatedMajorItems = majorItems.filter(
+      item => item.ComponentId === costToDelete.ComponentId && !item.IsDeleted
+    );
+    
+    if (relatedMajorItems.length > 0) {
+      const confirmMessage = `Deleting this component will also delete ${relatedMajorItems.length} related major item(s) and their work locations.\n\nDo you want to proceed?`;
+      if (!window.confirm(confirmMessage)) {
+        return; // User cancelled
+      }
+    }
+    
+    // Delete the component cost
+    deleteComponentCost(index);
+    
+    // Cascade delete: Delete all related major items (which will cascade to their locations)
+    relatedMajorItems.forEach((item) => {
+      const actualIndex = majorItems.findIndex(
+        mi => mi.ComponentId === item.ComponentId && 
+              mi.WorkTypeId === item.WorkTypeId && 
+              mi.YearOfWork === item.YearOfWork &&
+              mi.ReferenceId === item.ReferenceId
+      );
+      if (actualIndex !== -1) {
+        deleteMajorItem(actualIndex);
+      }
+    });
+    
+    console.log('Deleted component cost and cascaded to related major items:', costToDelete);
+  };
   // #endregion
 
-  // #region Major Items of Work
-  const handleAddMajorItem = () => {
-    // Generate a unique temporary ReferenceId for linking WorkLocations
-    const tempReferenceId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  // #region Excess Component Handling
+  const handleExcessPromptConfirm = () => {
+    // User confirmed - create EXC component
+    if (excessComponentData) {
+      const excComponent = addExcessComponent({
+        projectId: projectDetails.ProjectId || '',
+        stageName: initialData?.ProgramDetails?.StageName || '',
+        amount: excessComponentData.excessAmount,
+        description: 'Excess',
+        createdBy: user?.UserId || user?.UserId
+      });
+
+      // add via hook method
+      addComponentCost(excComponent);
+      showToast({
+        type: 'success',
+        message: 'EXC component created successfully'
+      });
+    }
+    setExcessComponentData(null);
+  };
+
+  const handleExcessPromptCancel = () => {
+    // User cancelled - do nothing, just close the dialog
+    setExcessComponentData(null);
     
-    const newItem: MajorItemOfWorksWithDropdown = {
-      Id: 0, // Temporary ID
-      ProjectId: '',
-      ReferenceId: tempReferenceId, // Use generated temp ID
-      ComponentId: '',
-      YearOfWork: 0,
-      WorkTypeId: 0,
-      InfraType: '',
-      TargetUnitId: 0,
-      TargetUnit: '',
-      CreatedBy: '',
-      MajorItemLocations: [], // Initialize empty work locations
-      DropdownData: []
-    };
-    setMajorItems(prev => [...prev, newItem]);
-    console.log('Added major item to staging:', newItem);
-  };
-
-  const handleEditMajorItem = (index: number, updatedItem: MajorItemOfWorksWithDropdown) => {
-    // console.log('ProjectForm: Editing major item at index', index);
-    // console.log('ProjectForm: Updated item received:', updatedItem);
-    setMajorItems(prev => {
-      const newItems = prev.map((item, i) => i === index ? updatedItem : item);
-      // console.log('ProjectForm: New majorItems state:', newItems);
-      return newItems;
+    showToast({
+      type: 'info',
+      message: 'Component addition cancelled'
     });
-    // console.log('Updated major item in staging:', updatedItem);
   };
-
-  const handleDeleteMajorItem = (index: number) => {
-    const itemToDelete = majorItems[index];
-    setMajorItems(prev => prev.filter((_, i) => i !== index));
-    console.log('Deleted major item from staging:', itemToDelete);
-  };
-// #endregion
-
-// #region Docs
+  // #endregion
+  
+  // #region Docs
   const handleAddDoc = (newDoc: ProjectSupportingDocs) => {
-    console.log('ProjectForm: Adding doc:', newDoc);
-    console.log('ProjectForm: Current docs before:', docs);
     setDocs(prev => {
       const newDocs = [...prev, newDoc];
       console.log('ProjectForm: New docs after adding:', newDocs);
@@ -515,22 +498,29 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   };
 
   const handleDeleteDoc = (doc: ProjectSupportingDocs) => {
-    setDocs(prev => prev.filter(selected => selected.Id !== doc.Id));
+    if (doc.Id === 0) {
+      // New item - hard delete (remove from array)
+      setDocs(prev => prev.filter(selected => selected.Id !== doc.Id));
+    } else {
+      // Existing item - soft delete (mark as deleted)
+      setDocs(prev => prev.map(d => d.Id === doc.Id ? { ...d, IsDeleted: true } : d));
+    }
   };
-// #endregion
+  // #endregion
 
-// #region Funding Profiles
+  // #region Funding Profiles
   const handleAddFundingProfile = () => {
     const newProfile: FundingProfile = {
       Id: 0, // Temporary ID
       ProjectId: projectDetails.ProjectId || '',
       StageName: initialData?.ProgramDetails?.StageName || '',
       Source: '',
-      Agreement: 0,
+      Agreement: '',
       Percentage: 0,
       Amount: 0,
       CreatedBy: '',
-      CreatedDate: new Date().toISOString().split('T')[0]
+      CreatedDate: new Date().toISOString().split('T')[0],
+      IsDeleted: false,
     };
     setFundingProfiles(prev => [...prev, newProfile]);
     console.log('Added funding profile to staging:', newProfile);
@@ -549,12 +539,19 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
   const handleDeleteFundingProfile = (index: number) => {
     const profileToDelete = fundingProfiles[index];
-    setFundingProfiles(prev => prev.filter((_, i) => i !== index));
+    if (profileToDelete.Id === 0) {
+      // New item - hard delete (remove from array)
+      setFundingProfiles(prev => prev.filter((_, i) => i !== index));
+    } else {
+      // Existing item - soft delete (mark as deleted)
+      setFundingProfiles(prev => prev.map((profile, i) => 
+        i === index ? { ...profile, IsDeleted: true } : profile
+      ));
+    }
     console.log('Deleted funding profile from staging:', profileToDelete);
   };
-// #endregion
+  // #endregion
 
-  // Handler for adding new project (only for 'add' mode)
   const handleSaveProjectDetails = async () => {
     if (mode !== 'add') return; // Only allow saving new projects in add mode
     
@@ -573,7 +570,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       console.log('Adding new project details:', projectDetails);
       const response = await addProjectDetails({
         ...projectDetails,
-        EmergencyMode: projectDetails.EmergencyMode ? true : false,
+        EmergencyMode: projectDetails.EmergencyMode,
       });
       
       if (response.Data.ProjectId && response.Data.StageName) {
@@ -599,22 +596,23 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     
     // If there are validation errors, don't proceed with update
     if (Object.keys(validationErrors).length > 0) {
-      console.log('Validation errors found:', validationErrors);
+      // console.log('Validation errors found:', validationErrors);
       return;
     }
 
     // Collect all business validation errors
     const businessValidationErrors: string[] = [];
 
-    // Check funding percentage validation
+    // Check funding percentage validation with tolerance for floating-point rounding errors
     const roundedTotal = Math.round(totalPercentage * 100) / 100;
-    if (roundedTotal !== 100) {
+    // Use tolerance of 0.03 to account for rounding (e.g., 3 items at 33.33% = 99.99%)
+    if (Math.abs(roundedTotal - 100) >= 0.03) {
       businessValidationErrors.push(`Total funding percentage must equal 100%. Current total: ${roundedTotal.toFixed(1)}%`);
     }
 
     // Check component cost validation
     if (maxAmountCost && maxAmountCost > 0) {
-      const totalComponentCost = componentCosts.reduce((sum, cost) => sum + (cost.Total || 0), 0);
+      const totalComponentCost = componentCosts.reduce((sum, cost) => sum + (cost.Amount || 0), 0);
       
       if (totalComponentCost > maxAmountCost) {
         const exceeded = totalComponentCost - maxAmountCost;
@@ -636,14 +634,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     setUpdateAllProject(true);
     
     try {
-      console.log('=== STAGING DATA BEFORE UPDATE ===');
-      console.log('Component Costs:', componentCosts);
-      console.log('Component Cost Years:', componentCostsYear);
-      console.log('Major Items:', majorItems);
-      console.log('Funding Profiles:', fundingProfiles);
-      
-      // Prepare data for backend matching the expected payload structure
-      
       // Transform majorItems into separate MajorItemOfWorks and WorkLocations arrays
       const majorItemsForPayload: MajorItemOfWork[] = [];
       const workLocationsForPayload: MajorItemLocations[] = [];
@@ -653,15 +643,16 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         const majorItemPayload: MajorItemOfWork = {
           Id: item.Id,
           ProjectId: initialData?.ProjectDetails.ProjectId || '',
+          ReferenceId: item.ReferenceId,
           StageName: initialData?.ProgramDetails.StageName || '',
           ComponentId: item.ComponentId,
-          ReferenceId: item.ReferenceId,
           YearOfWork: item.YearOfWork,
           WorkTypeId: item.WorkTypeId,
           InfraType: item.InfraType,
           TargetUnitId: item.TargetUnitId,
           TargetUnit: item.TargetUnit,
-          CreatedBy: item.CreatedBy
+          CreatedBy: item.CreatedBy,
+          IsDeleted: item.IsDeleted || false
         };
         majorItemsForPayload.push(majorItemPayload);
         
@@ -682,44 +673,34 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           ...projectDetails,
           // Add missing required fields for the expected payload
           ProgramName: programDetails.Name || '',
-          EmergencyMode: projectDetails.EmergencyMode ? true : false,
-          CreatedBy: projectDetails.CreatedBy || 'SYSTEM',
+          EmergencyMode: projectDetails.EmergencyMode,
+          CreatedBy: projectDetails.CreatedBy || user?.UserId,
           CreatedDate: projectDetails.CreatedDate || new Date().toISOString(),
-          UpdatedBy: 'SYSTEM', // Set current user
+          UpdatedBy: user?.UserId,
           UpdatedDate: new Date().toISOString(),
         },
         ComponentCosts: componentCosts.map(cost => ({
           Id: cost.Id,
-          ProjectId: cost.ProjectId || projectDetails.ProjectId || '',
+          ProjectId: (cost.ProjectId || projectDetails.ProjectId || '').replace(/\s+/g, ''),
           StageName: initialData?.ProgramDetails?.StageName || '',
-          ReferenceId: cost.ReferenceId || '',
           ComponentType: cost.ComponentType || '',
           ComponentId: cost.ComponentId || '',
           Description: cost.Description || '',
-          Total: cost.Total || 0,
-          CreatedBy: cost.CreatedBy || 'SYSTEM',
+          Amount: cost.Amount || 0,
+          StartDate: cost.StartDate || null,
+          EndDate: cost.EndDate || null,
+          CreatedBy: cost.CreatedBy || user?.UserId,
           CreatedDate: cost.CreatedDate || new Date().toISOString(),
-          UpdatedBy: 'SYSTEM',
+          UpdatedBy: user?.UserId,
           UpdatedDate: new Date().toISOString(),
-        })),
-        ComponentCostYear: componentCostsYear.map(year => ({
-          Id: year.Id,
-          ParentId: year.ParentId,
-          CostYear: year.CostYear,
-          Cost: year.Cost,
-          StartDate: year.StartDate || new Date().toISOString(),
-          EndDate: year.EndDate || new Date().toISOString()
+          IsDeleted: cost.IsDeleted || false
         })),
         MajorItemOfWorks: majorItemsForPayload,
         MajorItemLocations: workLocationsForPayload,
-        // ProjectNotes: notes, // Include ProjectNotes as it's in the expected payload
         FundingProfile: fundingProfiles.map(profile => ({
           ...profile, StageName: initialData?.ProgramDetails?.StageName || '',
         }))
       };
-
-      console.log('=== SENDING TO BACKEND (MATCHING EXPECTED PAYLOAD) ===');
-      console.log('Update payload:', payload);
 
       await updateEntireProject(payload);
 
@@ -728,45 +709,57 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           message: 'Project updated successfully.'
       });
 
-      // Backend only returns success message, not the updated data
-      // So we keep the current state as is after successful update
-      console.log('=== PROJECT UPDATE SUCCESSFUL ===');
-      console.log('Keeping current state after successful update');
-      console.log('Current Component Costs:', componentCosts);
-      console.log('Current Component Cost Years:', componentCostsYear);
-      console.log('Current Major Items:', majorItems);
-      console.log('Current Funding Profiles:', fundingProfiles);
+      // console.log('=== PROJECT UPDATE SUCCESSFUL ===');
+      // console.log('Keeping current state after successful update');
+      // console.log('Current Component Costs:', componentCosts);
+      // console.log('Current Component Cost Years:', componentCostsYear);
+      // console.log('Current Major Items:', majorItems);
+      // console.log('Current Funding Profiles:', fundingProfiles);
 
     } catch (error) {
       showToast({
           type: 'error',
           message: 'Failed to fetch projects.'
       });
-      
-      // Don't use alert() - use proper error state instead
-      // console.error('Update failed with error:', errorMessage);
     } finally {
       setUpdateAllProject(false);
     }
   };
 
-  const handleSubmitModify = () => {
-    setIsRevisedProjectDialogOpen(true);
+  const handleSubmitModify = (type: string) => {
+    const totalComponentCost = componentCosts.reduce((sum, cost) => cost.IsDeleted ? sum : sum + (cost.Amount || 0), 0);
+    
+    // Calculate total funding profile amount
+    const totalFundingAmount = fundingProfiles.reduce((sum, profile) => 
+      profile.IsDeleted ? sum : sum + (profile.Amount || 0), 0
+    );
+    
+    // Use funding profile total amount as the project cost for comparison
+    const projectCost = totalFundingAmount > 0 ? totalFundingAmount : (programDetails.Cost || 0);
+    
+    const excessCheck = checkExcessComponent(modificationCategory, projectCost, totalComponentCost);
+    
+    if (excessCheck && excessCheck.shouldPrompt) {
+      // Store the excess data and show prompt
+      setExcessComponentData({
+        excessAmount: excessCheck.excessAmount,
+        message: excessCheck.message
+      });
+      setIsExcessPromptOpen(true);
+      // We'll open the ReviseProjectDialog after user confirms
+      return;
+    }
+    (type === 'new' || type === 'approve') ? setIsRevisedProjectDialogOpen(true) : setIsResubmitRevisionDialogOpen(true);
   }
 
   const handleApproveModification = async () => {
-    // TODO: Implement the actual approval API call
     console.log('Approving modification for:', {
       project: projectDetails,
       category: modificationCategory,
       reason: modificationReason
     });
     
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Here you would call your actual API service
-    // await approveModificationRequest(projectDetails.ProjectId, modificationCategory, modificationReason);
     
     showToast({
       type: 'success',
@@ -774,86 +767,181 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     });
   }
 
-  const handleForReviewModification = async (reviewComments: string) => {
-    // TODO: Implement the actual review request API call
-    console.log('Sending for review:', {
+  const handleTerminationSubmit = async (hasUnfinishedWork: boolean) => {
+    console.log('Termination submitted:', {
       project: projectDetails,
       category: modificationCategory,
       reason: modificationReason,
-      comments: reviewComments
+      hasUnfinishedWork: hasUnfinishedWork
     });
     
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
     
-    // Here you would call your actual API service
-    // await sendForReviewModificationRequest(projectDetails.ProjectId, reviewComments);
+    alert(`Termination request submitted!\n\nHas Unfinished Work Balance: ${hasUnfinishedWork ? 'Yes' : 'No'}\n\nProject: ${projectDetails.ProjectId}\nCategory: ${modificationCategory}\nReason: ${modificationReason}`);
     
     showToast({
       type: 'success',
-      message: 'Request sent for review successfully'
+      message: 'Termination request submitted successfully'
     });
   }
 
-  return (
+  const handleRejectModification = async (rejectionReason: string) => {
+    console.log('Rejecting modification:', {
+      project: projectDetails,
+      category: modificationCategory,
+      reason: modificationReason,
+      rejectionReason: rejectionReason
+    });
     
-    <div className="overflow-hidden max-w-10xl mx-auto p-6 space-y-6">
-        <div className='flex items-center justify-between mb-6'>
-            {/* Breadcrumb */}
-            {/* <nav className="flex items-center text-sm text-left text-gray-500">
-                <span>MYPS Admin</span>
-                <span className="mx-2">&gt;</span>
-                <span 
-                className="text-blue-600 hover:text-blue-800 cursor-pointer"
-                onClick={handleGoBack}
-                >
-                Project Revision
-                </span>
-                <span className="mx-2">&gt;</span>
-                <span>{mode === 'add' ? 'Add Project' : 'Edit Project'}</span>
-                <span className="mx-2">&gt;</span>
-            </nav> */}
-            <div>
-              
-            </div>
-            <div className="flex space-x-3">
-                {mode === 'edit' && (
-                  <>
-                    <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify()} disabled={updateReviseProject}>
-                      {updateReviseProject ? 'Submitting...' : 'Submit Modify Request'}
-                    </Button>
-                  </>
-                )}
-                {mode === 'edit' && (
-                  <>
-                    <Button color="green" className='cursor-pointer' onClick={() => setIsApproveDialogOpen(true)} disabled={updateApproveProject}>
-                      {updateApproveProject ? 'Approving...' : 'Approve'}
-                    </Button>
-                  </>
-                )}
-                {mode === 'edit' && (
-                  <>
-                    <Button color="amber" className='cursor-pointer' onClick={() => setIsForReviewDialogOpen(true)} disabled={updateForReviewProject}>
-                      {updateForReviewProject ? 'Initializing...' : 'For Review'}
-                    </Button>
-                  </>
-                )}
-                {mode === 'edit' && initialData?.IsActive === true && initialData?.ProgramDetails?.StageId !== 10 && (
-                  <>
-                    <Button color="orange" className='cursor-pointer' onClick={handleUpdateProject} disabled={updateAllProject}>
-                      {updateAllProject ? 'Updating...' : 'Update Project'}
-                    </Button>
-                  </>
-                )}
-                {mode === 'edit' && initialData?.IsActive === true && initialData?.IsModify === true && (
-                  <>
-                    <Button color="orange" className='cursor-pointer' onClick={handleUpdateProject} disabled={updateAllProject}>
-                      {updateAllProject ? 'Updating...' : 'Update Project'}
-                    </Button>
-                  </>
-                )}
-            </div>
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    showToast({
+      type: 'success',
+      message: 'Modification rejected successfully'
+    });
+  }
+
+  useEffect(() => {
+    const normalizedCategory = modificationCategory?.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
+    
+    if (normalizedCategory !== 'termination') return;
+
+    const hasTerminatedComponent = 
+      initialData?.ComponentsStatus?.some(comp => 
+        comp.ConstructionStatusName
+          ?.toLowerCase()
+          .trim() === 'terminated'
+      ) || false;
+
+    if (!hasTerminatedComponent) {
+      showToast({
+        type: 'info',
+        message: 'No terminated components found for this project.'
+      });
+      navigate(`/projects/project-details/${projectDetails?.ProjectId}:${projectDetails?.StageName}`); // Go back to previous page /project
+    }
+  }, [modificationCategory, mode]);
+
+  return (
+    <div className="overflow-hidden w-full mx-auto p-6 space-y-6">
+      <div className='flex items-center justify-between mb-6'>
+        <div></div>
+        <div className="flex space-x-3">
+          <RevisionActionButtons
+            mode={mode}
+            userGroup={user?.UserGroups}
+            initialData={initialData}
+            loading={{
+              revise: updateReviseProject,
+              resubmit: updateResubmitRevision,
+              approve: updateApproveProject,
+              review: updateForReviewProject,
+              reject: rejectDialogProject,
+              update: updateAllProject,
+            }}
+            actions={{
+              submit: handleSubmitModify,
+              update: handleUpdateProject,
+              openApprove: () => setIsApproveDialogOpen(true),
+              openReview: () => setIsForReviewDialogOpen(true),
+              openReject: () => setIsRejectDialogOpen(true),
+            }}
+          />
         </div>
+        {/* <div className="flex space-x-3">
+          {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus == null && (user?.UserGroups === 'AUC' ) && (
+            <>
+              <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify('new')} disabled={updateReviseProject}>
+                {updateReviseProject ? 'Submitting...' : 'Submit Revision Request to CO'}
+              </Button>
+            </>
+          )}
+          {mode === 'edit' && (initialData?.RevisionDetails?.RegionStatus == 3 || initialData?.RevisionDetails?.COStatus == 3) && (user?.UserGroups === 'DPC' ) && (
+            <>
+              <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify('resubmit')} disabled={updateResubmitRevision}>
+                {updateReviseProject ? 'Submitting...' : 'Re-Submit Revision'}
+              </Button>
+            </>
+          )}
+          {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus == null && (user?.UserGroups === 'DPC' ) && (
+            <>
+              <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify('new')} disabled={updateReviseProject}>
+                {updateReviseProject ? 'Submitting...' : 'Submit Revision Request to RO'}
+              </Button>
+            </>
+          )}
+          {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus === 0 && (user?.UserGroups === 'DPC' ) && (
+            <>
+              <Button color="yellow" className='cursor-pointer' disabled={updateReviseProject}>
+                {updateReviseProject ? 'Submitting...' : 'Pending RO Approval'}
+              </Button>
+            </>
+          )}
+          {mode === 'edit' && (initialData?.RevisionDetails?.COStatus === 0 && initialData?.RevisionDetails?.RegionStatus === 1) && (user?.UserGroups === 'DPC' ) && (
+            <>
+              <Button color="yellow" className='cursor-pointer' disabled={updateReviseProject}>
+                {updateReviseProject ? 'Submitting...' : 'Pending CO Approval'}
+              </Button>
+            </>
+          )}
+          {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus === 0 && (user?.UserGroups === 'RPC' ) && (
+            <>
+              <Button color="green" className='cursor-pointer' onClick={() => setIsApproveDialogOpen(true)} disabled={updateReviseProject}>
+                {updateReviseProject ? 'Submitting...' : 'Submit Revision Request CO'}
+              </Button>
+            </>
+          )}
+          {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus === 0 && user?.UserGroups === 'RPC' && (
+            <>
+              <Button color="amber" className='cursor-pointer' onClick={() => setIsForReviewDialogOpen(true)} disabled={updateForReviewProject}>
+                {updateForReviewProject ? 'Initializing...' : 'For Correction'}
+              </Button>
+            </>
+          )}
+          {mode === 'edit' && user?.UserGroups === 'AUC' && initialData?.RevisionDetails?.COStatus == 0 && (
+            <>
+              <Button color="green" className='cursor-pointer' onClick={() => handleSubmitModify('approve')} disabled={updateApproveProject}>
+                {updateApproveProject ? 'Approving...' : 'Approve'}
+              </Button>
+            </>
+          )}
+          {mode === 'edit' && initialData?.RevisionDetails?.COStatus == 0 && user?.UserGroups === 'AUC' && (
+            <>
+              <Button color="amber" className='cursor-pointer' onClick={() => setIsForReviewDialogOpen(true)} disabled={updateForReviewProject}>
+                {updateForReviewProject ? 'Initializing...' : 'For Correction'}
+              </Button>
+            </>
+          )}
+          {mode === 'edit' && initialData?.RevisionDetails?.COStatus == 0 && user?.UserGroups === 'AUC' && (
+            <>
+              <Button color="red" className='cursor-pointer' onClick={() => setIsRejectDialogOpen(true)} disabled={rejectDialogProject}>
+                {rejectDialogProject ? 'Rejecting...' : 'Disapprove'}
+              </Button>
+            </>
+          )}
+          {mode === 'edit' && initialData?.RevisionDetails?.RegionStatus === 0 && user?.UserGroups === 'RPC' && (
+            <>
+              <Button color="red" className='cursor-pointer' onClick={() => setIsRejectDialogOpen(true)} disabled={rejectDialogProject}>
+                {rejectDialogProject ? 'Rejecting...' : 'Disapprove'}
+              </Button>
+            </>
+          )}
+          {mode === 'edit' && initialData?.IsActive === true && initialData?.ProgramDetails?.StageId !== 10 && (
+            <>
+              <Button color="orange" className='cursor-pointer' onClick={handleUpdateProject} disabled={updateAllProject}>
+                {updateAllProject ? 'Updating...' : 'Update Project'}
+              </Button>
+            </>
+          )}
+          {mode === 'edit' && initialData?.IsActive === true && initialData?.IsModify === true && (
+            <>
+              <Button color="orange" className='cursor-pointer' onClick={handleUpdateProject} disabled={updateAllProject}>
+                {updateAllProject ? 'Updating...' : 'Update Project'}
+              </Button>
+            </>
+          )}
+        </div> */}
+      </div>
 
       {/* Map Section */}
       <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
@@ -862,7 +950,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           onClick={() => setIsMapOpen(!isMapOpen)}
         >
           <h3 className="text-lg font-semibold leading-7 text-gray-900">
-            Project Location - Metro Manila
+            Project Location
           </h3>
           {isMapOpen ? (
             <ChevronDownIcon className="h-5 w-5 text-gray-500" />
@@ -872,10 +960,21 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         </div>
         {isMapOpen && (
           <div className="p-4">
-            <MetroManilaMap 
-              projectLocation={getProjectLocation()}
-              height="400px"
+            <MapRenderer 
+              geoJsonData={geoJsonData}
+              projectId={initialData?.ProjectDetails?.ProjectId}
+              programId={initialData?.ProgramDetails?.ProgramId}
+              height="500px"
             />
+          </div>
+        )}
+      </div>
+
+      <div>
+        {category && reasonId && (
+          <div className="text-sm text-gray-600">
+            <span className="font-semibold">Modification Category:</span> {category} &nbsp; | &nbsp; 
+            <span className="font-semibold">Modification Reason:</span> {reasonId}
           </div>
         )}
       </div>
@@ -883,33 +982,15 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       {/* Revision Details */}
       <div className='bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl'>
         <RevisionForm
-          category={fieldPermissions?.category || modificationCategory}
+          category={permissions?.category || modificationCategory}
           reason={modificationReason}
-          projectDetails={projectDetails}
-          componentCosts={componentCosts}
-          componentCostYear={componentCostsYear}
-          majorItemOfWorks={majorItems.map(item => ({
-            Id: item.Id,
-            ProjectId: item.ProjectId,
-            StageName: initialData?.ProgramDetails.StageName || '',
-            ComponentId: item.ComponentId,
-            ReferenceId: item.ReferenceId,
-            YearOfWork: item.YearOfWork,
-            WorkTypeId: item.WorkTypeId,
-            InfraType: item.InfraType,
-            TargetUnitId: item.TargetUnitId,
-            TargetUnit: item.TargetUnit,
-            CreatedBy: item.CreatedBy
-          }))}
-          majorItemLocations={majorItems.flatMap(item => 
-            (item.MajorItemLocations || []).map(location => ({
-              ...location,
-              ParentId: item.ReferenceId,
-              ProjectId: item.ProjectId || '',
-              StageName: initialData?.ProgramDetails.StageName || ''
-            }))
-          )}
-          fundingProfile={fundingProfiles}
+          revisionDocs={initialData?.RevisionDocs}
+          forCorrectionsDetails={initialData?.ForCorrectionsDetails}
+          fieldRules={fieldRules}
+          pcmaStatus={pcmaStatus}
+          packageStatus={packageStatus}
+          currentCase={currentCase}
+          statusName={revisionStatus}
         />
       </div>
 
@@ -957,45 +1038,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           {isProjectOpen && (
             <>
               <div className="px-4 py-6 sm:p-8">
-                {/* PCMA Permission Status - FOR TESTING */}
-                {fieldPermissions && (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-                        <div className="flex justify-between items-center">
-                            <div>
-                                <h4 className="text-sm font-semibold text-yellow-800">PCMA Permission Status</h4>
-                                <p className="text-xs text-yellow-700">
-                                    Status: <span className="font-medium">{fieldPermissions.pcmaStatus}</span> | 
-                                    Package: <span className="font-medium">{fieldPermissions.packageStatus}</span> | 
-                                    Case: <span className="font-medium">{fieldPermissions.case}</span> |
-                                    Category: <span className="font-medium">{fieldPermissions.category || category}</span>
-                                </p>
-                                <p className="text-xs text-yellow-700 mt-1">
-                                    Editable Fields: {fieldPermissions.editableFields.length} fields allowed
-                                </p>
-                            </div>
-                            <div className="flex space-x-2">
-                              <button 
-                                  onClick={setCaseA}
-                                  className="px-3 py-1 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700"
-                              >
-                                  Case A ({category})
-                              </button>
-                              <button 
-                                  onClick={setCaseB}
-                                  className="px-3 py-1 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700"
-                              >
-                                  Case B ({category})
-                              </button>
-                              <button 
-                                  onClick={setCaseC}
-                                  className="px-3 py-1 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700"
-                              >
-                                  Case C ({category})
-                              </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
                 <ProjectDetailsForm
                   projectDetails={projectDetails}
                   onChange={handleProjectDetailsChange}
@@ -1004,7 +1046,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                   mode={mode}
                   errors={errors}
                   disabled={isDisabled}
-                  fieldPermissions={fieldPermissions}
+                  fieldRules={fieldRules}
+                  pcmaStatus={pcmaStatus}
+                  packageStatus={packageStatus}
+                  currentCase={currentCase}
                   category={modificationCategory}
                 />
               </div>
@@ -1027,119 +1072,122 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
       {mode === 'edit' && (
         <>
-      {/* Funding Profile Section */}
-        <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
-          <div className="px-4 py-6 sm:p-8">
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold leading-7 text-gray-900">Funding Profiles</h3>
+          {/* Funding Profile Section */}
+          <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
+            <div className="px-4 py-6 sm:p-8">
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold leading-7 text-gray-900">Funding Profiles</h3>
+              </div>
+              <FundingProfileForm
+                fundingProfiles={fundingProfiles}
+                onAdd={handleAddFundingProfile}
+                onEdit={handleEditFundingProfile}
+                onDelete={handleDeleteFundingProfile}
+                initialData={initialData ? { ...initialData, Dropdowns } : undefined}
+                onTotalAmountChange={setMaxAmountCost}
+                disabled={isDisabled}
+              />
             </div>
-            <FundingProfileForm
-              fundingProfiles={fundingProfiles}
-              onAdd={handleAddFundingProfile}
-              onEdit={handleEditFundingProfile}
-              onDelete={handleDeleteFundingProfile}
-              initialData={initialData ? { ...initialData, Dropdowns } : undefined}
-              onTotalAmountChange={setMaxAmountCost}
-              disabled={isDisabled}
-            />
           </div>
-        </div>
 
-      {/* Component Cost Section - Fill this first to populate Major Items */}
-      <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
-        <div className="px-4 py-6 sm:p-8">
-          <div className="mb-4">
-            <h3 className="text-lg font-semibold leading-7 text-gray-900">Component Costs</h3>
-            <p className="text-sm text-blue-600 font-medium">⚠️ Add component costs first - they are required for Major Items of Work</p>
-          </div>
-          <ComponentCostForm
-            componentCosts={componentCostsWithYears}
-            onAdd={handleAddComponentCost}
-            onEdit={handleEditComponentCost}
-            onDelete={handleDeleteComponentCost}
-            initialData={initialData}
-            maxAmountCost={maxAmountCost}
-            disabled={isDisabled}
-            fieldPermissions={fieldPermissions}
-          />
-        </div>
-      </div>
-
-      {/* Major Item of Work Section */}
-      <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
-        <div className="px-4 py-6 sm:p-8">
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold leading-7 text-gray-900">Major Items of Work</h3>
-          </div>
-          <MajorItemOfWorksForm
-            majorItems={majorItems}
-            projectId={initialData?.ProjectDetails.ProjectId || ''}
-            componentCosts={componentCosts}
-            infraData={infraData}
-            onAdd={handleAddMajorItem}
-            onEdit={handleEditMajorItem}
-            onDelete={handleDeleteMajorItem}
-            dropDowns={initialData?.Dropdowns?.ScopeOfWorks}
-            programDetails={initialData?.ProgramDetails}
-            disabled={isDisabled}
-            fieldPermissions={fieldPermissions}
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-6">
-        {/* Notes Section */}
-        <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
-          <div className="px-4 py-6 sm:p-8">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-semibold leading-7 text-gray-900">Supporting Documents</h3>
+          {/* Component Cost Section - Fill this first to populate Major Items */}
+          <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
+            <div className="px-4 py-6 sm:p-8">
+              <div className="mb-4 text-center">
+                <h2 className="text-lg font-semibold leading-7 text-gray-900">Component Costs</h2>
+                <p className="text-sm text-blue-600 font-medium">⚠️ Add component costs first - they are required for Major Items of Work</p>
+              </div>
+              <ComponentCostForm
+                componentCosts={componentCosts}
+                onAdd={handleAddComponentCost}
+                onEdit={handleEditComponentCost}
+                onDelete={handleDeleteComponentCost}
+                initialData={initialData}
+                maxAmountCost={maxAmountCost}
+                fieldRules={fieldRules ?? undefined}
+                category={modificationCategory}
+                reason={modificationReason}
+                reasonId={modificationReasonId}
+              />
             </div>
-            <NotesForm
-              docs={docs}
-              onAdd={handleAddDoc}
-              onEdit={handleEditDoc}
-              onDelete={handleDeleteDoc}
-              initialData={initialData}
-              dropDownOptions={initialData?.Dropdowns?.SupportingDocs}
-              disabled={isDisabled}
-            />
           </div>
-        </div>
 
-        
-      </div>
+          {/* Major Item of Work Section */}
+          <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
+            <div className="px-4 py-6 sm:p-8">
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold leading-7 text-gray-900">Major Items of Work</h3>
+              </div>
+              <MajorItemOfWorksForm
+                majorItems={majorItems}
+                projectId={initialData?.ProjectDetails.ProjectId || ''}
+                componentCosts={componentCosts}
+                infraData={infraData}
+                onAdd={addMajorItem}
+                onEdit={editMajorItem}
+                onDelete={deleteMajorItem}
+                programDetails={initialData?.ProgramDetails}
+                dropDowns={initialData?.Dropdowns?.ScopeOfWorks}
+                fieldRules={fieldRules}
+              />
+            </div>
+          </div>
 
-      {/* Activities Section */}
-      <ActivitySection activities={activities} transactionLogs={transactionLogs} />
-      </>
+          <div className="grid grid-cols-1 gap-6">
+            {/* Notes Section */}
+            <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl">
+              <div className="px-4 py-6 sm:p-8">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-lg font-semibold leading-7 text-gray-900">Supporting Documents</h3>
+                </div>
+                <NotesForm
+                  docs={docs}
+                  onAdd={handleAddDoc}
+                  onEdit={handleEditDoc}
+                  onDelete={handleDeleteDoc}
+                  initialData={initialData}
+                  dropDownOptions={initialData?.Dropdowns?.SupportingDocs}
+                  disabled={isDisabled}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Activities Section */}
+          <ActivitySection activities={activities} transactionLogs={transactionLogs} />
+        </>
       )}
 
-      {/* Modify Project Modal */}
+      {/* Modals and Dialogs */}
       {isRevisedProjectDialogOpen && (<ReviseProjectDialog
+        projectStatus={initialData?.ProjectStatus}
         isOpen={isRevisedProjectDialogOpen}
         onClose={() => setIsRevisedProjectDialogOpen(false)}
-        revisionCategory={modificationCategory}
+        revisionCategory={permissions?.category || modificationCategory}
         revisionReason={modificationReason}
-        project={initialData?.ProjectDetails || projectDetails}
+        reasonId={modificationReasonId}
+        categoryId={categoryId}
+        revisionGroupId={revisionGroupId}
+        project={projectDetails}
         componentCosts={componentCosts}
-        componentCostYear={componentCostsYear}
         majorItemOfWorks={majorItems.map(item => ({
           Id: item.Id,
           ProjectId: item.ProjectId,
+          ReferenceId: item.ReferenceId,
           StageName: initialData?.ProgramDetails.StageName || '',
           ComponentId: item.ComponentId,
-          ReferenceId: item.ReferenceId,
           YearOfWork: item.YearOfWork,
           WorkTypeId: item.WorkTypeId,
           InfraType: item.InfraType,
           TargetUnitId: item.TargetUnitId,
           TargetUnit: item.TargetUnit,
-          CreatedBy: item.CreatedBy
+          CreatedBy: item.CreatedBy,
+          IsDeleted: item.IsDeleted || false
         }))}
         majorItemLocations={majorItems.flatMap(item => 
           (item.MajorItemLocations || []).map(location => ({
             ...location,
-            ParentId: item.ReferenceId,
+            ParentId: item.ComponentId,
             ProjectId: item.ProjectId || '',
             StageName: initialData?.ProgramDetails.StageName || ''
           }))
@@ -1147,29 +1195,97 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         fundingProfile={fundingProfiles}
       />)}
 
-      {/* Approve Modification Modal */}
+      {isResubmitRevisionDialogOpen && (<ResubmitRevisionDialog
+        projectStatus={initialData?.ProjectStatus}
+        isOpen={isResubmitRevisionDialogOpen}
+        onClose={() => setIsResubmitRevisionDialogOpen(false)}
+        revisionCategory={permissions?.category || modificationCategory}
+        revisionReason={modificationReason}
+        reasonId={modificationReasonId}
+        categoryId={categoryId}
+        revisionGroupId={revisionGroupId}
+        project={projectDetails}
+        componentCosts={componentCosts}
+        majorItemOfWorks={majorItems.map(item => ({
+          Id: item.Id,
+          ProjectId: item.ProjectId,
+          ReferenceId: item.ReferenceId,
+          StageName: initialData?.ProgramDetails.StageName || '',
+          ComponentId: item.ComponentId,
+          YearOfWork: item.YearOfWork,
+          WorkTypeId: item.WorkTypeId,
+          InfraType: item.InfraType,
+          TargetUnitId: item.TargetUnitId,
+          TargetUnit: item.TargetUnit,
+          CreatedBy: item.CreatedBy,
+          IsDeleted: item.IsDeleted || false
+        }))}
+        majorItemLocations={majorItems.flatMap(item => 
+          (item.MajorItemLocations || []).map(location => ({
+            ...location,
+            ParentId: item.ComponentId,
+            ProjectId: item.ProjectId || '',
+            StageName: initialData?.ProgramDetails.StageName || ''
+          }))
+        )}
+        fundingProfile={fundingProfiles}
+      />)}
+
       {isApproveDialogOpen && (
         <ApproveModifyDialog
           isOpen={isApproveDialogOpen}
           onClose={() => setIsApproveDialogOpen(false)}
           project={initialData?.ProjectDetails || projectDetails}
-          category={modificationCategory}
+          category={permissions?.category || modificationCategory}
           reason={modificationReason}
           onApprove={handleApproveModification}
+          onSuccess={onActionSuccess}
         />
       )}
 
-      {/* For Review Modification Modal */}
       {isForReviewDialogOpen && (
         <ForReviewModifyDialog
           isOpen={isForReviewDialogOpen}
           onClose={() => setIsForReviewDialogOpen(false)}
           project={initialData?.ProjectDetails || projectDetails}
-          category={modificationCategory}
+          category={permissions?.category || modificationCategory}
           reason={modificationReason}
-          onSubmitForReview={handleForReviewModification}
+          onSuccess={onActionSuccess}
         />
       )}
+
+      {isRejectDialogOpen && (
+        <RejectModifyDialog
+          isOpen={isRejectDialogOpen}
+          onClose={() => setIsRejectDialogOpen(false)}
+          project={initialData?.ProjectDetails || projectDetails}
+          category={permissions?.category || modificationCategory}
+          reason={modificationReason}
+          onReject={handleRejectModification}
+          onSuccess={onActionSuccess}
+        />
+      )}
+
+      {isExcessPromptOpen && excessComponentData && (
+        <ExcessPrompt
+          isOpen={isExcessPromptOpen}
+          onClose={() => setIsExcessPromptOpen(false)}
+          onConfirm={handleExcessPromptConfirm}
+          onCancel={handleExcessPromptCancel}
+          projectCost={programDetails.Cost || 0}
+          totalComponentCost={componentCosts.reduce((sum, cost) => sum + (cost.Amount || 0), 0)}
+          excessAmount={excessComponentData.excessAmount}
+        />
+      )}
+
+      {/* {isTerminationDialogOpen && (
+        <TerminationDialog
+          isOpen={isTerminationDialogOpen}
+          onClose={() => setIsTerminationDialogOpen(false)}
+          project={initialData?.ProjectDetails || projectDetails}
+          onSubmitTermination={handleTerminationSubmit}
+        />
+      )} */}
     </div>
   );
 };

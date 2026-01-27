@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../../contexts/AuthContext';
 import { formValidation, type FormValidationError } from '../../../utils/FormValidation';
 import { projectDetailsRules } from '../rules/projectDetailsRules';
 import type { 
@@ -12,16 +13,15 @@ import type {
   ProjectFormPayload,
   ProjectEnums,
   Dropdowns,
-  ComponentCostYear,
   InfraData,
   MajorItemOfWorksWithDropdown,
   MajorItemOfWork,
   MajorItemLocations,
-  ProjectSupportingDocs
+  ProjectSupportingDocs,
 } from '../Model.d';
 
 import { Button } from '../../../components/tailwindui/button';
-import MetroManilaMap from '../../../components/map/MetroManilaMap';
+import MapRenderer from '../../../components/map/MapRenderer';
 
 //Sub-components
 import ProgramDetailsForm from './ProgramDetailsForm';
@@ -31,14 +31,14 @@ import MajorItemOfWorksForm from './MajorItemOfWorksForm';
 import NotesForm from './NotesForm';
 import FundingProfileForm from './FundingProfileForm';
 import ActivitySection from './ActivitySection';
-import { addProjectDetails, getProjectEnums, updateEntireProject } from '../Service';
+import { addProjectDetails, getProjectEnums, updateEntireProject, fetchProjectGeoJSON } from '../Service';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import type { ProgramList } from '../../Program/Model';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/react';
-import { categoryData } from '../../Modification/mockData/Dropdown';
 
 import RevisionDialog from '../dialogs/RevisionDialog';
+import SaveProjectConfirmDialog from '../dialogs/SaveProjectConfirmDialog';
 
 interface ProjectFormProps {
   initialData?: ProjectFormPayload;
@@ -49,17 +49,24 @@ interface ProjectFormProps {
 const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', initialProgramId }) => {
 
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [savingSection, setSavingSection] = useState<string | null>(null);
   const [projectEnums, setProjectEnums] = useState<ProjectEnums | null>(null);
   const [updateAllProject, setUpdateAllProject] = useState<boolean>(false);
-  const [updateUnlockProject, setUpdateUnlockProject] = useState<boolean>(false);
+  const [geoJsonData, setGeoJsonData] = useState<GeoJSON.FeatureCollection | null>(null);
+  const [reviseProject] = useState<boolean>(false);
+  const [updateUnlockProject] = useState<boolean>(false);
   // const [reviseProject, setReviseProject] = useState<boolean>(false);
   const [errors, setErrors] = useState<FormValidationError<ProjectDetails>>({});
   //toaster here
   const { showToast } = useToast();
   // DisableFields if status === approved
-  const isDisabled = Number(initialData?.ProgramDetails?.Status) === 2;
+  // const isDisabled = Number(initialData?.ProgramDetails?.Status) === 1;
+  const isDisabled = Boolean(
+    (initialData?.IsActive === false) ||
+    Number(initialData?.ProgramDetails?.StageId) === 10
+  );
 
   // toggle state for Program Details section
   const [isProgramOpen, setIsProgramOpen] = useState<boolean>(true);
@@ -68,7 +75,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
   // Dialog state
   const [ isRevisionOpen, setIsRevisionOpen ] = useState<boolean>(false);
-  const [ selectedRevisionCategory, setSelectedRevisionCategory ] = useState<number>(0);
+  const [ selectedRevHeaderId, setSelectedRevHeaderId ] = useState<number>(0);
+  const [ isConfirmDialogOpen, setIsConfirmDialogOpen ] = useState<boolean>(false);
+
   
   // SetMaxAmount in ComponentCostForm
   const [maxAmountCost, setMaxAmountCost] = useState<number>(0);
@@ -106,7 +115,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       UACS: '',
       // MYCAApprovalDate: '',
       IslandCode: '',
-      RevisionNumber: 0,
+      RevisionId: 0,
       Description: '',
       Category: 0,
       Thrust: 0,
@@ -120,10 +129,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       Region: '',
       Agency: 0,
       ImplementationMode: 0,
-      EmergencyMode: false,
+      EmergencyMode: 0,
       Feasibility: 0,
-      DetailedDesign: false,
-      RowAvailable: false,
+      DetailedDesign: 0,
+      RowAvailable: 0,
       Tier: 1,
     }
   );
@@ -171,6 +180,31 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     }
   }, [mode, initialData]);
 
+  // Fetch GeoJSON data for map rendering
+  useEffect(() => {
+    const loadMapData = async () => {
+      if (mode === 'edit' && initialData?.ProjectDetails?.ProjectId && initialData?.ProgramDetails?.ProgramId) {
+        try {
+          // alert('loading map data' + initialData?.ProjectDetails?.ProjectId + ' ' + initialData?.ProgramDetails?.ProgramId);
+          const response = await fetchProjectGeoJSON(
+            initialData.ProjectDetails.ProjectId,
+            initialData.ProgramDetails.ProgramId
+            // 'P00906380VS',
+            // 'P_CO-PS-635_01302025_100232'
+          );
+          if (response.Data) {
+            setGeoJsonData(response.Data);
+          }
+        } catch (error) {
+          console.error('Error loading map data:', error);
+          // Gracefully handle error - map will show "No data available"
+        }
+      }
+    };
+
+    loadMapData();
+  }, [mode, initialData?.ProjectDetails?.ProjectId, initialData?.ProgramDetails?.ProgramId]);
+
   // Separate useEffect to handle initialProgramId
   useEffect(() => {
     if (initialProgramId && projectEnums?.Programs) {
@@ -194,24 +228,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     initialData?.ComponentCosts || []
   );
 
-   const [componentCostsYear, setComponentCostsYear] = useState<ComponentCostYear[]>(
-    initialData?.ComponentCostPerYear || []
-  );
-
-  // Combine componentCosts and componentCostsYear for UI - using useMemo to ensure proper recalculation
-  const componentCostsWithYears = React.useMemo(() => {
-    console.log('Recalculating componentCostsWithYears:', { componentCosts, componentCostsYear });
-    return (componentCosts || []).map(cost => ({
-      ...cost,
-      CostPerYear: (componentCostsYear || []).filter(year => year.ParentId === cost.ReferenceId)
-    }));
-  }, [componentCosts, componentCostsYear]);
-
   // Debug effect to monitor componentCosts state changes
   useEffect(() => {
     console.log('ComponentCosts state changed:', componentCosts);
-    console.log('ComponentCostsWithYears recalculated:', componentCostsWithYears);
-  }, [componentCosts, componentCostsWithYears]);
+  }, [componentCosts]);
 
   const [majorItems, setMajorItems] = useState<MajorItemOfWorksWithDropdown[]>(() => {
     if (!initialData?.MajorItemOfWorks) return [];
@@ -219,7 +239,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     // Transform backend MajorItemOfWork[] to MajorItemOfWorksWithDropdown[]
     // Combine with MajorItemLocations from the separate array
     return initialData.MajorItemOfWorks.map(item => {
-      // Find MajorItemLocations that belong to this MajorItem via ParentId matching ReferenceId
+      // Find MajorItemLocations that belong to this MajorItem via ParentId matching ComponentId
       const itemWorkLocations = (initialData.MajorItemLocations || []).filter(
         location => location.ParentId === item.ReferenceId
       );
@@ -278,7 +298,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     Agreements: [],
     Sources: [],
     ScopeOfWorks: [],
-    SupportingDocs: []
+    SupportingDocs: [],
+    Revisions: { Headers: [], Reasons: [], Categories: [] }
   });
 
   const [infraData] = useState<InfraData>({
@@ -295,17 +316,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const [transactionLogs] = useState<TransactionLog[]>(
     initialData?.TransactionLogs || []
   );
-
-  // Sample project location (you can update this based on your project data)
-  const getProjectLocation = () => {
-    // You can map city codes or project data to coordinates later
-    // For now, return a sample location in Metro Manila
-    return {
-      lat: 14.6091,
-      lng: 121.0223,
-      name: projectDetails.Description || "Project Location"
-    };
-  };
 
   // const handleGoBack = () => {
   //   navigate('/projects');
@@ -334,38 +344,18 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   };
 
   // #region Component Costs
-  const handleAddComponentCost = (newCost: ComponentCost, newCostYear?: ComponentCostYear) => {
+  const handleAddComponentCost = (newCost: ComponentCost) => {
     console.log('=== ADDING COMPONENT COST ===');
     console.log('New cost:', newCost);
-    console.log('New cost year:', newCostYear);
     console.log('Current componentCosts before add:', componentCosts);
     
-    // Generate a temporary ID for new cost (will be replaced when saved)
-    const tempId = Date.now().toString(); // Simple temp ID
-    const costWithId = { ...newCost, ReferenceId: tempId };
-    
     setComponentCosts(prev => {
-      const updated = [...prev, costWithId];
+      const updated = [...prev, newCost];
       console.log('Updated componentCosts:', updated);
       return updated;
     });
     
-    // If ComponentCostYear data is provided, add it to the componentCostsYear array
-    if (newCostYear) {
-      const costYearWithParentId = { 
-        ...newCostYear, 
-        ParentId: tempId, // Link to the component cost
-        Id: Date.now() + 1 // Ensure unique ID
-      };
-      setComponentCostsYear(prev => {
-        const updated = [...prev, costYearWithParentId];
-        console.log('Updated componentCostsYear:', updated);
-        return updated;
-      });
-      console.log('Added component cost year to staging:', costYearWithParentId);
-    }
-    
-    console.log('Added component cost to staging:', costWithId);
+    console.log('Added component cost to staging:', newCost);
   };
 
   const handleEditComponentCost = (index: number, updatedCost: ComponentCost) => {
@@ -383,42 +373,56 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   };
 
   const handleDeleteComponentCost = (index: number) => {
-    console.log('=== DELETING COMPONENT COST ===');
-    console.log('Index:', index);
-    console.log('Current componentCosts before delete:', componentCosts);
-    
     const costToDelete = componentCosts[index];
     if (costToDelete) {
-      setComponentCosts(prev => {
-        const updated = prev.filter((_, i) => i !== index);
-        console.log('Updated componentCosts after delete:', updated);
-        return updated;
-      });
-      // Also remove related ComponentCostYear entries
-      setComponentCostsYear(prev => {
-        const updated = prev.filter(year => year.ParentId !== costToDelete.ReferenceId);
-        console.log('Updated componentCostsYear after delete:', updated);
-        return updated;
-      });
-      console.log('Deleted component cost from staging:', costToDelete);
+      // CASCADE DELETE: Find all related major items and their work locations
+      const relatedMajorItems = majorItems.filter(
+        item => item.ComponentId === costToDelete.ComponentId && !item.IsDeleted
+      );
+      
+      if (relatedMajorItems.length > 0) {
+        const confirmMessage = `Deleting this component will also delete ${relatedMajorItems.length} related major item(s) and their work locations.\n\nDo you want to proceed?`;
+        if (!window.confirm(confirmMessage)) {
+          return; // User cancelled
+        }
+      }
+
+      if (costToDelete.Id === 0) {
+        // Hard delete for new items not yet saved to database
+        setComponentCosts(prev => prev.filter((_, i) => i !== index));
+        
+        // Cascade hard delete: Remove all related major items and their locations
+        setMajorItems(prev => prev.filter(item => item.ComponentId !== costToDelete.ComponentId));
+        
+        console.log('Hard deleted (removed) component cost and related major items:', costToDelete);
+      } else {
+        // Soft delete for existing database items
+        setComponentCosts(prev => prev.map((cost, i) => 
+          i === index ? { ...cost, IsDeleted: true } : cost
+        ));
+        
+        // Cascade soft delete: Mark all related major items as deleted
+        // This will also cascade to their work locations since they're part of MajorItemLocations array
+        setMajorItems(prev => prev.map(item => {
+          if (item.ComponentId === costToDelete.ComponentId && !item.IsDeleted) {
+            // Soft delete the major item and all its work locations
+            return {
+              ...item,
+              IsDeleted: true,
+              MajorItemLocations: item.MajorItemLocations?.map(location => ({
+                ...location,
+                IsDeleted: true
+              }))
+            };
+          }
+          return item;
+        }));
+        
+        console.log('Soft deleted (IsDeleted=true) component cost and cascaded to related major items:', costToDelete);
+      }
     }
   };
 
-  // Handlers for ComponentCostYear (these will be used when we implement year-by-year cost breakdown)
-  // const handleAddComponentCostYear = (parentId: number, newCostYear: ComponentCostYear) => {
-  //   setComponentCostsYear(prev => [...prev, { ...newCostYear, ParentId: parentId }]);
-  //   console.log('Added component cost year to staging:', newCostYear);
-  // };
-
-  // const handleEditComponentCostYear = (costYearId: number, updatedCostYear: ComponentCostYear) => {
-  //   setComponentCostsYear(prev => prev.map(year => year.Id === costYearId ? updatedCostYear : year));
-  //   console.log('Updated component cost year in staging:', updatedCostYear);
-  // };
-
-  // const handleDeleteComponentCostYear = (costYearId: number) => {
-  //   setComponentCostsYear(prev => prev.filter(year => year.Id !== costYearId));
-  //   console.log('Deleted component cost year from staging:', costYearId);
-  // };
   // #endregion
 
   // #region Major Items of Work
@@ -429,7 +433,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     const newItem: MajorItemOfWorksWithDropdown = {
       Id: 0, // Temporary ID
       ProjectId: '',
-      ReferenceId: tempReferenceId, // Use generated temp ID
+      ReferenceId: tempReferenceId, // Use generated temp ID for linking work locations
       ComponentId: '',
       YearOfWork: 0,
       WorkTypeId: 0,
@@ -438,7 +442,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       TargetUnit: '',
       CreatedBy: '',
       MajorItemLocations: [], // Initialize empty work locations
-      DropdownData: []
+      DropdownData: [],
+      IsDeleted: false
     };
     setMajorItems(prev => [...prev, newItem]);
     console.log('Added major item to staging:', newItem);
@@ -457,8 +462,19 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
   const handleDeleteMajorItem = (index: number) => {
     const itemToDelete = majorItems[index];
-    setMajorItems(prev => prev.filter((_, i) => i !== index));
-    console.log('Deleted major item from staging:', itemToDelete);
+    if (itemToDelete) {
+      if (itemToDelete.Id === 0) {
+        // Hard delete for new items not yet saved to database
+        setMajorItems(prev => prev.filter((_, i) => i !== index));
+        console.log('Hard deleted (removed) new major item:', itemToDelete);
+      } else {
+        // Soft delete for existing database items
+        setMajorItems(prev => prev.map((item, i) => 
+          i === index ? { ...item, IsDeleted: true } : item
+        ));
+        console.log('Soft deleted (IsDeleted=true) existing major item:', itemToDelete);
+      }
+    }
   };
 // #endregion
 
@@ -478,7 +494,15 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   };
 
   const handleDeleteDoc = (doc: ProjectSupportingDocs) => {
-    setDocs(prev => prev.filter(selected => selected.Id !== doc.Id));
+    if (doc.Id === 0) {
+      // Hard delete for new items not yet saved to database
+      setDocs(prev => prev.filter(selected => selected !== doc));
+      console.log('Hard deleted (removed) new document:', doc);
+    } else {
+      // Soft delete for existing database items - mark as deleted
+      setDocs(prev => prev.map(d => d.Id === doc.Id ? { ...d, IsDeleted: true } : d));
+      console.log('Soft deleted (IsDeleted=true) existing document:', doc);
+    }
   };
 // #endregion
 
@@ -489,11 +513,12 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       ProjectId: projectDetails.ProjectId || '',
       StageName: initialData?.ProgramDetails?.StageName || '',
       Source: '',
-      Agreement: 0,
+      Agreement: '',
       Percentage: 0,
       Amount: 0,
       CreatedBy: '',
-      CreatedDate: new Date().toISOString().split('T')[0]
+      CreatedDate: new Date().toISOString().split('T')[0],
+      IsDeleted: false
     };
     setFundingProfiles(prev => [...prev, newProfile]);
     console.log('Added funding profile to staging:', newProfile);
@@ -512,8 +537,19 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
   const handleDeleteFundingProfile = (index: number) => {
     const profileToDelete = fundingProfiles[index];
-    setFundingProfiles(prev => prev.filter((_, i) => i !== index));
-    console.log('Deleted funding profile from staging:', profileToDelete);
+    if (profileToDelete) {
+      if (profileToDelete.Id === 0) {
+        // Hard delete for new items not yet saved to database
+        setFundingProfiles(prev => prev.filter((_, i) => i !== index));
+        console.log('Hard deleted (removed) new funding profile:', profileToDelete);
+      } else {
+        // Soft delete for existing database items
+        setFundingProfiles(prev => prev.map((profile, i) => 
+          i === index ? { ...profile, IsDeleted: true } : profile
+        ));
+        console.log('Soft deleted (IsDeleted=true) existing funding profile:', profileToDelete);
+      }
+    }
   };
 // #endregion
 
@@ -531,6 +567,12 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       return;
     }
     
+    // Show confirmation dialog
+    setIsConfirmDialogOpen(true);
+  };
+
+  // Actual save logic after confirmation
+  const confirmSaveProject = async () => {
     setSavingSection('projectDetails');
     try {
       console.log('Adding new project details:', projectDetails);
@@ -539,8 +581,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         Province: projectDetails.Province ? projectDetails.Province.toString() : '',
         City: projectDetails.City ? projectDetails.City.toString() : '',
         LegislativeDistrict: projectDetails.LegislativeDistrict ? projectDetails.LegislativeDistrict.toString() : '',
-        EmergencyMode: projectDetails.EmergencyMode ? true : false,
-      });
+          EmergencyMode: projectDetails.EmergencyMode,
+        });
       
       if (response.Data.ProjectId && response.Data.StageName) {
         navigate(`/projects/project-details/${response.Data.ProjectId}:${response.Data.StageName}`);
@@ -551,6 +593,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           type: 'error',
           message: 'Failed to add project details.'
       });
+      throw error;
     } finally {
       setSavingSection(null);
     }
@@ -572,15 +615,16 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     // Collect all business validation errors
     const businessValidationErrors: string[] = [];
 
-    // Check funding percentage validation
+    // Check funding percentage validation with tolerance for floating-point rounding errors
     const roundedTotal = Math.round(totalPercentage * 100) / 100;
-    if (roundedTotal !== 100) {
+    // Use tolerance of 0.03 to account for rounding (e.g., 3 items at 33.33% = 99.99%)
+    if (Math.abs(roundedTotal - 100) >= 0.03) {
       businessValidationErrors.push(`Total funding percentage must equal 100%. Current total: ${roundedTotal.toFixed(1)}%`);
     }
 
     // Check component cost validation
     if (maxAmountCost && maxAmountCost > 0) {
-      const totalComponentCost = componentCosts.reduce((sum, cost) => sum + (cost.Total || 0), 0);
+      const totalComponentCost = componentCosts.reduce((sum, cost) => cost.IsDeleted ? sum : sum + (cost.Amount || 0), 0);
       
       if (totalComponentCost !== maxAmountCost) {
         if (totalComponentCost < maxAmountCost) {
@@ -604,12 +648,17 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       return;
     }
     
+    // Show confirmation dialog
+    setIsConfirmDialogOpen(true);
+  };
+
+  // Actual update logic after confirmation
+  const confirmUpdateProject = async () => {
     setUpdateAllProject(true);
     
     try {
       console.log('=== STAGING DATA BEFORE UPDATE ===');
       console.log('Component Costs:', componentCosts);
-      console.log('Component Cost Years:', componentCostsYear);
       console.log('Major Items:', majorItems);
       console.log('Funding Profiles:', fundingProfiles);
       
@@ -624,24 +673,25 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         const majorItemPayload: MajorItemOfWork = {
           Id: item.Id,
           ProjectId: initialData?.ProjectDetails.ProjectId || '',
+          ReferenceId: item.ReferenceId,
           StageName: initialData?.ProgramDetails.StageName || '',
           ComponentId: item.ComponentId,
-          ReferenceId: item.ReferenceId,
           YearOfWork: item.YearOfWork,
           WorkTypeId: item.WorkTypeId,
           InfraType: item.InfraType,
           TargetUnitId: item.TargetUnitId,
           TargetUnit: item.TargetUnit,
-          CreatedBy: item.CreatedBy
+          CreatedBy: item.CreatedBy,
+          IsDeleted: item.IsDeleted
         };
         majorItemsForPayload.push(majorItemPayload);
         
-        // Add MajorItemLocations with ParentId referencing the MajorItem's ReferenceId
+        // Add MajorItemLocations with ParentId referencing the MajorItem's ComponentId
         if (item.MajorItemLocations && item.MajorItemLocations.length > 0) {
           item.MajorItemLocations.forEach(location => {
             const workLocationPayload: MajorItemLocations = {
               ...location,
-              ParentId: item.ReferenceId // Link to MajorItem via ReferenceId
+              ParentId: item.ReferenceId // Link to MajorItem via ComponentId
             };
             workLocationsForPayload.push(workLocationPayload);
           });
@@ -656,33 +706,27 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           City: projectDetails.City ? projectDetails.City.toString() : '',
           LegislativeDistrict: projectDetails.LegislativeDistrict ? projectDetails.LegislativeDistrict.toString() : '',
           ProgramName: programDetails.Name || '',
-          EmergencyMode: projectDetails.EmergencyMode ? true : false,
-          CreatedBy: projectDetails.CreatedBy || 'SYSTEM',
+          EmergencyMode: projectDetails.EmergencyMode,
+          CreatedBy: projectDetails.CreatedBy || user?.UserId,
           CreatedDate: projectDetails.CreatedDate || new Date().toISOString(),
-          UpdatedBy: 'SYSTEM', // Set current user
+          UpdatedBy: user?.UserId, // Set current user
           UpdatedDate: new Date().toISOString(),
         },
         ComponentCosts: componentCosts.map(cost => ({
           Id: cost.Id,
           ProjectId: cost.ProjectId || projectDetails.ProjectId || '',
           StageName: initialData?.ProgramDetails?.StageName || '',
-          ReferenceId: cost.ReferenceId || '',
           ComponentType: cost.ComponentType || '',
           ComponentId: cost.ComponentId || '',
           Description: cost.Description || '',
-          Total: cost.Total || 0,
+          Amount: cost.Amount || 0,
+          StartDate: cost.StartDate || new Date().toISOString(),
+          EndDate: cost.EndDate || new Date().toISOString(),
           CreatedBy: cost.CreatedBy || 'SYSTEM',
           CreatedDate: cost.CreatedDate || new Date().toISOString(),
           UpdatedBy: 'SYSTEM',
           UpdatedDate: new Date().toISOString(),
-        })),
-        ComponentCostYear: componentCostsYear.map(year => ({
-          Id: year.Id,
-          ParentId: year.ParentId,
-          CostYear: year.CostYear,
-          Cost: year.Cost,
-          StartDate: year.StartDate || new Date().toISOString(),
-          EndDate: year.EndDate || new Date().toISOString()
+          IsDeleted: cost.IsDeleted || false
         })),
         MajorItemOfWorks: majorItemsForPayload,
         MajorItemLocations: workLocationsForPayload,
@@ -692,9 +736,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         }))
       };
 
-      console.log('=== SENDING TO BACKEND (MATCHING EXPECTED PAYLOAD) ===');
-      console.log('Update payload:', payload);
-
       await updateEntireProject(payload);
 
       showToast({
@@ -702,25 +743,18 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           message: 'Project updated successfully.'
       });
 
-      // Backend only returns success message, not the updated data
-      // So we keep the current state as is after successful update
-      console.log('=== PROJECT UPDATE SUCCESSFUL ===');
-      console.log('Keeping current state after successful update');
-      console.log('Current Component Costs:', componentCosts);
-      console.log('Current Component Cost Years:', componentCostsYear);
-      console.log('Current Major Items:', majorItems);
-      console.log('Current Funding Profiles:', fundingProfiles);
-
     } catch (error) {
       showToast({
           type: 'error',
           message: 'Failed to fetch projects.'
       });
-      
-      // Don't use alert() - use proper error state instead
-      // console.error('Update failed with error:', errorMessage);
     } finally {
       setUpdateAllProject(false);
+      
+      // Refresh the project by re-navigating to the same page
+      if (initialData?.ProjectDetails?.ProjectId && initialData?.ProgramDetails?.StageName) {
+        navigate(`/projects/project-details/${initialData.ProjectDetails.ProjectId}:${initialData.ProgramDetails.StageName}`);
+      }
     }
   };
 
@@ -732,10 +766,11 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     }
     if (revisionTypeId){
       // Open the modification dialog
-      setSelectedRevisionCategory(revisionTypeId);
+      setSelectedRevHeaderId(revisionTypeId);
+      console.log(`Opening revision dialog for Project ${projectId}, Stage ${stageName}, Revision Type ${revisionTypeDescription} (${revisionTypeId})`);
       setIsRevisionOpen(true);
     }else {
-      navigate(`/revision/${projectId}`, { state: { stageName, revisionTypeId, revisionTypeDescription } });
+      alert('Please select a valid revision type to proceed.');
     }
     
 
@@ -794,11 +829,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                     </Button>
                   </>
                 )}
-                {/* {mode === 'edit' && initialData?.ProgramDetails?.StageId === 9 && (
-                  <Button color="yellow" className='cursor-pointer' onClick={() => handleReviseProject(initialData?.ProjectDetails?.ProjectId ?? '', initialData?.ProgramDetails?.StageName ?? '')} disabled={updateAllProject}>
-                    {reviseProject ? 'Revisioning...' : 'Revise Project'}
-                  </Button>
-                )} */}
                 {mode === 'edit' && initialData?.ProgramDetails?.StageId === 10 && (
                   <Menu as="div" className="relative inline-block text-left">
                     <MenuButton
@@ -806,30 +836,28 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                       color='yellow' 
                       className='cursor-pointer'
                     >
-                     {updateAllProject ? 'Revisioning...' : 'Revise Project'}
+                     {reviseProject ? 'Revisioning...' : 'Revise Project'}
                       <ChevronDownIcon className="h-4 w-4" />
                     </MenuButton>
                     <MenuItems className="absolute right-0 z-10 mt-2 w-80 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
                       <div className="py-1">
-                        {categoryData.filter((revisionType) => revisionType.ObsoleteFlag !== 1)
-                          .sort((a, b) => a.CodeDescription.localeCompare(b.CodeDescription)) // Sort alphabetically
-                          .map((revisionType) => (
-                          <MenuItem key={revisionType.Id}>
+                        {Dropdowns?.Revisions?.Headers.map((types) => (
+                          <MenuItem key={types.Id}>
                             {({ active }) => (
                               <button
                                 onClick={() => handleReviseProject(
                                   initialData?.ProjectDetails?.ProjectId ?? '', 
                                   initialData?.ProgramDetails?.StageName ?? '',
-                                  revisionType.Id,
-                                  revisionType.CodeDescription
+                                  types.Id,
+                                  types.RevisionName
                                 )}
                                 className={`${
                                   active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'
                                 } group flex w-full items-center px-4 py-2 text-sm text-left hover:bg-gray-50`}
-                                disabled={updateAllProject}
+                                disabled={reviseProject}
                               >
                                 <div className="flex flex-col">
-                                  <span className="font-medium">{revisionType.CodeDescription}</span>
+                                  <span className="font-medium">{types.RevisionName}</span>
                                   {/* <span className="text-xs text-gray-500">ID: {revisionType.Id}</span> */}
                                 </div>
                               </button>
@@ -850,7 +878,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           onClick={() => setIsMapOpen(!isMapOpen)}
         >
           <h3 className="text-lg font-semibold leading-7 text-gray-900">
-            Project Location - Metro Manila
+            Project Location Map
           </h3>
           {isMapOpen ? (
             <ChevronDownIcon className="h-5 w-5 text-gray-500" />
@@ -860,9 +888,11 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         </div>
         {isMapOpen && (
           <div className="p-4">
-            <MetroManilaMap 
-              projectLocation={getProjectLocation()}
-              height="400px"
+            <MapRenderer 
+              geoJsonData={geoJsonData}
+              projectId={initialData?.ProjectDetails?.ProjectId}
+              programId={initialData?.ProgramDetails?.ProgramId}
+              height="500px"
             />
           </div>
         )}
@@ -967,7 +997,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             <p className="text-sm text-blue-600 font-medium">⚠️ Add component costs first - they are required for Major Items of Work</p>
           </div>
           <ComponentCostForm
-            componentCosts={componentCostsWithYears}
+            componentCosts={componentCosts}
             onAdd={handleAddComponentCost}
             onEdit={handleEditComponentCost}
             onDelete={handleDeleteComponentCost}
@@ -1032,7 +1062,19 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         onClose={() => setIsRevisionOpen(false)}
         projectId={initialData?.ProjectDetails.ProjectId || ''}
         stageName={initialData?.ProgramDetails?.StageName || ''}
-        category={selectedRevisionCategory}
+        selectedRevHeaderId={selectedRevHeaderId}
+        revHeaders={Dropdowns?.Revisions?.Headers}
+        categories={Dropdowns?.Revisions?.Categories}
+        reasons={Dropdowns?.Revisions?.Reasons}
+      />
+
+      {/* Save/Update Confirmation Dialog */}
+      <SaveProjectConfirmDialog
+        isOpen={isConfirmDialogOpen}
+        onClose={() => setIsConfirmDialogOpen(false)}
+        onConfirm={mode === 'add' ? confirmSaveProject : confirmUpdateProject}
+        mode={mode}
+        projectName={projectDetails.ProjectId || 'Untitled Project'}
       />
 
     </div>

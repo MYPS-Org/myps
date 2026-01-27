@@ -22,13 +22,17 @@ import CodeTables from './pages/CodeTables/Views/CodeTables';
 import { ModalProvider } from './components/Modal/ModalContext';
 import GlobalModal from './components/Modal/Modal';
 import { ToasterProvider } from './components/toaster/ToasterContext';
+import { HttpClientSetup } from './components/HttpClientSetup';
 import Rbia from './pages/Rbia/Views/Rbia';
 import ModificationList from './pages/Modification/views/ModifcationList';
 import MultiYear from './pages/MultiYear/views/MultiYear';
 import MultiYearDetails from './pages/MultiYear/views/MultiYearDetails';
-import ModifyProject from './pages/Modification/views/ModifyProject';
 import ModificationDetails from './pages/Modification/views/ModificationDetails';
 import MYProjectDetails from './pages/MultiYear/views/MYProjectDetails';
+import ViewRevision from './pages/Modification/views/ViewRevision';
+import MultiYearReports from './pages/Reports/MultiYearReports';
+import ProgramReports from './pages/Reports/ProgramReports';
+import ProjectReports from './pages/Reports/ProjectReports';
 
 // import AddProgram from './pages/Program/Views/AddProgram';
 function App() {
@@ -36,6 +40,7 @@ function App() {
 		<>
 		    <ModalProvider>
 				<ToasterProvider>
+					<HttpClientSetup />
 				<ThemeProvider>
 					<AuthProvider>
 					<Router>
@@ -117,7 +122,7 @@ function App() {
 									} 
 								/>
 								<Route 
-									path="/revision" 
+									path="/modification/list" 
 									element={
 										<ProtectedRoute>
 											<ModificationList />
@@ -125,18 +130,28 @@ function App() {
 									} 
 								/>
 								<Route 
+									path="/revision" 
+									element={
+										<ProtectedRoute>
+											<ModificationList />
+										</ProtectedRoute>
+									} 
+								/>
+								{/* View existing revisions - uses transactionId */}
+								<Route 
+									path="/revision/view/:modificationType/:transactionId" 
+									element={
+										<ProtectedRoute>
+											<ViewRevision />
+										</ProtectedRoute>
+									} 
+								/>
+								{/* Edit/Create new modification (from project module) - uses project:stage */}
+								<Route 
 									path="/revision/:modificationType/:project" 
 									element={<ProtectedRoute>
 										<ModificationDetails />
 										</ProtectedRoute>}
-								/>
-								<Route 
-									path="/revision/:projectId" 
-									element={
-										<ProtectedRoute>
-											<ModifyProject />
-										</ProtectedRoute>
-									} 
 								/>
 								<Route 
 									path="/project-groups" 
@@ -178,6 +193,32 @@ function App() {
 										</ProtectedRoute>
 									}
 								/>
+								{/* Report Generations */}
+								<Route 
+									path="/reports/multiyear" 
+									element={
+										<ProtectedRoute>
+											<MultiYearReports />
+										</ProtectedRoute>
+									}
+								/>
+								<Route
+									path="/reports/programs"
+									element={
+										<ProtectedRoute>
+											<ProgramReports />
+										</ProtectedRoute>
+									}
+								/>
+								<Route
+									path="/reports/projects"
+									element={
+										<ProtectedRoute>
+											<ProjectReports />
+										</ProtectedRoute>
+									}
+								/>
+								{/* Settings Routes */}
 								<Route 
 									path="/settings" 
 									element={

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button } from '../../../components/tailwindui/button';
-import { PlusIcon, TrashIcon, PencilIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, TrashIcon, PencilIcon, DocumentDuplicateIcon } from '@heroicons/react/24/outline';
 import AddInfraDialog from '../dialogs/AddInfraDialog';
 import { mockInfraData } from '../dialogs/mockInfraData';
 import { generateInfraId, shouldAutoGenerateInfraId, getInfraTypePrefix } from '../../../utils/infraIdGenerator';
@@ -81,8 +81,8 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
       TargetUnitId: workTypeId,
       TargetUnit: actualTargetUnit,
       Length: 0,
-      To: 0,
-      From: 0,
+      EndChainage: 0,
+      StartChainage: 0,
       StartX: '',
       StartY: '',
       EndX: '',
@@ -90,8 +90,30 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
       PhysicalTarget: null,
       StartStationLimit: '',
       EndStationLimit: '',
+      IsDeleted: false
     };
     onAdd(newWorkLocation);
+  };
+
+  const handleCopyWorkLocation = (index: number) => {
+    const locationToCopy = workLocations[index];
+    
+    // Create a copy with new ID and potentially modified InfraId
+    const copiedLocation: MajorItemLocations = {
+      ...locationToCopy,
+      Id: 0, // New temporary ID
+      // Generate new InfraId if auto-generated type, otherwise keep the same
+      InfraId: shouldAutoGenerateInfraId(infraType) 
+        ? generateInfraId(infraType) 
+        : locationToCopy.InfraId,
+      // Append "(Copy)" to detailed scope to indicate it's a duplicate
+      DetailedScope: locationToCopy.DetailedScope 
+        ? `${locationToCopy.DetailedScope} (Copy)`
+        : '(Copy)',
+      IsDeleted: false
+    };
+    
+    onAdd(copiedLocation);
   };
 
   const handleEditWorkLocation = (index: number) => {
@@ -118,8 +140,8 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
         TargetUnitId: workTypeId,
         TargetUnit: actualTargetUnit,
         Length: 0,
-        To: 0,
-        From: 0,
+        EndChainage: 0,
+        StartChainage: 0,
         StartX: '',
         StartY: '',
         EndX: '',
@@ -127,6 +149,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
         PhysicalTarget: null,
         StartStationLimit: '',
         EndStationLimit: '',
+        IsDeleted: false
       };
       onAdd(newWorkLocation);
     } else if (editingIndex !== null) {
@@ -178,9 +201,11 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
 
   // Calculate total physical target for all work locations
   const getTotalPhysicalTarget = (): number => {
-    return workLocations.reduce((total, location) => {
-      return total + (location.PhysicalTarget || 0);
-    }, 0);
+    return workLocations
+      .filter(location => !location.IsDeleted)
+      .reduce((total, location) => {
+        return total + (location.PhysicalTarget || 0);
+      }, 0);
   };
 
   // Format number with commas
@@ -199,7 +224,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
     const infraTypeLower = infraType?.toLowerCase();
     
     if (infraTypeLower === 'road' || infraTypeLower === 'roads') {
-      return ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget', 'StartStationLimit', 'EndStationLimit', 'From','To', 'Length'];
+      return ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget', 'StartStationLimit', 'EndStationLimit', 'StartChainage','EndChainage', 'Length'];
     } else if (infraTypeLower === 'bridge' || infraTypeLower === 'bridges') {
       return ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget'];
     } else if (infraTypeLower === 'CoS' || infraTypeLower === 'non-infra') {
@@ -356,7 +381,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
         return (
           <div key={fieldName} className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
-              Start Station (km)
+              Start Station
             </label>
             <input
               type="text"
@@ -373,7 +398,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
         return (
           <div key={fieldName} className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
-              End Station (km)
+              End Station
             </label>
             <input
               type="text"
@@ -386,17 +411,17 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
           </div>
         );
       
-      case 'To': 
+      case 'EndChainage': 
         return (
           <div key={fieldName} className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
-              To (km)
+              End Chainage (m)
             </label>
             <input
               type="number"
-              value={location.To}
+              value={location.EndChainage ?? ''}
               onFocus={handleNumberFocus}
-              onChange={(e) => handleFieldChange(index, 'To', e.target.value)}
+              onChange={(e) => handleFieldChange(index, 'EndChainage', e.target.value)}
               className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-right ${getDisabledClass(disabled)}`}
               placeholder="To..."
               disabled={disabled}
@@ -404,17 +429,17 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
           </div>
         );
 
-      case 'From':
+      case 'StartChainage':
         return (
           <div key={fieldName} className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
-              From (km)
+              Start Chainage (m)
             </label>
             <input
               type="number"
-              value={location.From}
+              value={location.StartChainage ?? ''}
               onFocus={handleNumberFocus}
-              onChange={(e) => handleFieldChange(index, 'From', e.target.value)}
+              onChange={(e) => handleFieldChange(index, 'StartChainage', e.target.value)}
               className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-right ${getDisabledClass(disabled)}`}  
               placeholder="From..."
               disabled={disabled}
@@ -492,9 +517,9 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
       case 'Length':
         // Get length from InfraId if available, otherwise use current value or 0
         // const infraLength = location.InfraId ? getInfraLength(location.InfraId) : '';
-        const infraLength = location.From - location.To !== 0 ? Math.abs(location.To - location.From).toString() : '';
-        const currentLength = location.Length !== null && location.Length !== undefined ? location.Length.toString() : '';
-        const displayLength = currentLength || infraLength || '0';
+        const infraLength = location.StartChainage - location.EndChainage !== 0 ? Math.abs(location.EndChainage - location.StartChainage).toString() : '';
+        // const currentLength = location.Length !== null && location.Length !== undefined ? location.Length.toString() : '';
+        const displayLength = /*currentLength ||*/ infraLength || '0';
         
         return (
           <div key={fieldName} className="space-y-2">
@@ -553,10 +578,11 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
         )} */}
       </div>
 
-      {workLocations.length > 0 ? (
+      {workLocations.filter(loc => !loc.IsDeleted).length > 0 ? (
         
         <div className="space-y-6">
           {workLocations.map((location, index) => {
+            if (location.IsDeleted) return null;
             const fields = getFieldsForInfraType();
             return (
               <div
@@ -572,15 +598,27 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
                       </span>
                     )}
                   </h5>
-                  <Button
-                    color="red"
-                    onClick={() => onDelete(index)}
-                    className={`flex items-center px-3 py-1 text-xs ${getDisabledClass(disabled)}`}
-                    disabled={disabled}
-                  >
-                    <TrashIcon className="w-3 h-3 mr-1" />
-                    Remove
-                  </Button>
+                  <div className="flex space-x-2">
+                    <Button
+                      color="blue"
+                      onClick={() => handleCopyWorkLocation(index)}
+                      className={`flex items-center px-3 py-1 text-xs ${getDisabledClass(disabled)}`}
+                      disabled={disabled}
+                      title="Duplicate this location"
+                    >
+                      <DocumentDuplicateIcon className="w-3 h-3 mr-1" />
+                      Copy
+                    </Button>
+                    <Button
+                      color="red"
+                      onClick={() => onDelete(index)}
+                      className={`flex items-center px-3 py-1 text-xs ${getDisabledClass(disabled)}`}
+                      disabled={disabled}
+                    >
+                      <TrashIcon className="w-3 h-3 mr-1" />
+                      Remove
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

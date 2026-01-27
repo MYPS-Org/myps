@@ -5,6 +5,10 @@ import XMarkIcon from '@heroicons/react/24/outline/XMarkIcon';
 import ExclamationTriangleIcon from '@heroicons/react/24/outline/ExclamationTriangleIcon';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import type { ProjectDetails } from '../../Project/Model';
+import { updateRevisionRequestStatus } from '../Service';
+import { transactionIdAtom } from '../store/routeContextStore';
+import { useAtomValue } from 'jotai';
+import { useNavigate } from 'react-router-dom';
 
 interface ForReviewModifyDialogProps {
     isOpen: boolean;
@@ -12,7 +16,7 @@ interface ForReviewModifyDialogProps {
     project: ProjectDetails;
     category?: string;
     reason?: string;
-    onSubmitForReview: (reviewComments: string) => Promise<void>;
+    onSuccess?: () => void;
 }
 
 const ForReviewModifyDialog: React.FC<ForReviewModifyDialogProps> = ({ 
@@ -21,11 +25,13 @@ const ForReviewModifyDialog: React.FC<ForReviewModifyDialogProps> = ({
     project,
     category,
     reason,
-    onSubmitForReview
+    onSuccess
 }) => {
     const { showToast } = useToast();
+    const navigate = useNavigate();
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
     const [reviewComments, setReviewComments] = useState<string>('');
+    const transactionId = useAtomValue(transactionIdAtom);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -42,7 +48,7 @@ const ForReviewModifyDialog: React.FC<ForReviewModifyDialogProps> = ({
         setIsSubmitting(true);
         
         try {
-            await onSubmitForReview(reviewComments);
+            await updateRevisionRequestStatus(transactionId, 3, undefined, undefined, reviewComments);
             
             showToast({
                 type: 'success',
@@ -51,6 +57,13 @@ const ForReviewModifyDialog: React.FC<ForReviewModifyDialogProps> = ({
             
             setReviewComments('');
             onClose();
+            
+            // Call onSuccess callback if provided, otherwise navigate to list
+            if (onSuccess) {
+                onSuccess();
+            } else {
+                navigate('/modification/list');
+            }
         } catch (error) {
             console.error('Error submitting for review:', error);
             showToast({
@@ -75,7 +88,7 @@ const ForReviewModifyDialog: React.FC<ForReviewModifyDialogProps> = ({
                         <div className="flex items-center gap-3">
                             <ExclamationTriangleIcon className="h-6 w-6 text-amber-600" />
                             <DialogTitle className="text-lg font-semibold text-gray-900">
-                                Request Changes for Modification
+                                Request Changes for {category}
                             </DialogTitle>
                         </div>
                         <button
@@ -110,7 +123,7 @@ const ForReviewModifyDialog: React.FC<ForReviewModifyDialogProps> = ({
                                     </div>
                                     <div>
                                         <span className="font-medium text-gray-700">Revision Number:</span>
-                                        <p className="text-gray-600">{project.RevisionNumber}</p>
+                                        <p className="text-gray-600">{transactionId}</p>
                                     </div>
                                     <div className="col-span-2">
                                         <span className="font-medium text-gray-700">Description:</span>
@@ -121,7 +134,7 @@ const ForReviewModifyDialog: React.FC<ForReviewModifyDialogProps> = ({
 
                             {/* Modification Details */}
                             <div className="bg-blue-50 p-4 rounded-lg space-y-3">
-                                <h4 className="text-sm font-semibold text-gray-900">Modification Details</h4>
+                                <h4 className="text-sm font-semibold text-gray-900">{category} Details</h4>
                                 <div className="grid grid-cols-2 gap-4 text-sm">
                                     {category && (
                                         <div>

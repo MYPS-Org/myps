@@ -34,8 +34,6 @@ const NotesForm: React.FC<NotesFormProps> = ({
 
   const handleAddNote = (docs: ProjectSupportingDocs) => {
     if (disabled) return;
-    console.log('Adding new document to table:', docs);
-    console.log('Current documents before adding:', docs);
     try {
       onAdd(docs);
       setIsAddNoteModalOpen(false);
@@ -53,7 +51,6 @@ const NotesForm: React.FC<NotesFormProps> = ({
   };
 
   const handleDeleteDoc = async (doc: ProjectSupportingDocs) => {
-    console.log('Deleting document:', doc);
     try {
       const deletedDoc = await deleteDoc(doc); // Pass as array
       if (deletedDoc) {
@@ -70,6 +67,14 @@ const NotesForm: React.FC<NotesFormProps> = ({
           message: 'Failed to delete document.'
       });
     }
+  };
+
+  const getFilePath = (filePath?: string) => {
+    if (!filePath) return '#';
+    return new URL(
+      filePath,
+      import.meta.env.VITE_API_BASE_URL
+    )
   };
 
   return (
@@ -93,11 +98,19 @@ const NotesForm: React.FC<NotesFormProps> = ({
           </TableRow>
         </TableHead>
         <TableBody>
-          {docs.map((doc, index) => (
+          {docs.map((doc, index) => {
+            if (doc.IsDeleted) return null;
+            return (
             <TableRow key={`${doc.Id}-${index}-${doc.CreatedDate}`}>
               <TableCell className="w-lg text-center">
                 {doc.FileName && (
-                  <span className="text-xs text-gray-500 mt-1 cursor-pointer !underline" onClick={() => window.open(`/${doc.FilePath}`, '_blank')}>{doc.FileName}</span>
+                  <a href={getFilePath(doc.FilePath).toString()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-gray-500 mt-1 underline cursor-pointer"
+                  >
+                    {doc.FileName}
+                  </a>
                 )}
               </TableCell>
               <TableCell className="text-center">
@@ -119,7 +132,8 @@ const NotesForm: React.FC<NotesFormProps> = ({
                 </button>
               </TableCell>
             </TableRow>
-          ))}
+            );
+          })}
         </TableBody>
       </Table>
 

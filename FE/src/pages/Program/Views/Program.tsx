@@ -29,14 +29,15 @@ import {
     ChevronRightIcon,
     XMarkIcon
 } from '@heroicons/react/24/outline'; // Adjust the import path as necessary
+import type { TableEnum } from '../../Project/Model';
 
 const Program: React.FC = () => {
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(false);
     const [programEnums, setProgramEnums] = useState<{
         // Statuses: ProgramEnums[];
-        Stages: ProgramEnums[];
-        Types: ProgramEnums[];
+        Stages: TableEnum[];
+        Types: TableEnum[];
         Groups: ProgramEnums[];
         DataSecurity: ProgramEnums[];
     } | null>(null);
@@ -52,7 +53,7 @@ const Program: React.FC = () => {
         const getPrograms = async () => {
             setIsLoading(true);
             try {
-                const response = await fetchProgram(ProgramData);
+                const response = await fetchProgram(ProgramFilters);
                 setProgramData(response.Data);
             } catch (error) {
                 console.error('Error fetching programs:', error);
@@ -74,6 +75,9 @@ const Program: React.FC = () => {
     const [ProgramFilters, setProgramFilters] = useState<ProgramPagination>({
             filters: {
                 Name: '',
+                YearStart: '',
+                GroupName: '',
+                StageName: '',
             },
             sortField: '',
             sortDirection: 1,
@@ -132,7 +136,22 @@ const Program: React.FC = () => {
                 const isCurrentlyExpanded = expandedRows.has(programId);
                 
                 // Toggle the expanded state for this row
-                setExpandedRows(prev => {
+                if (isCurrentlyExpanded) {
+                    setExpandedRows(new Set())
+                } else {
+                    setExpandedRows(new Set([programId]));
+                    if (!stageLists[programId]) {
+                        const response = await fetchStagesByProgramId(programId);
+                        setStageLists(prev => ({
+                            ...prev,
+                            [programId]: response.Data
+                        }));
+                    }
+                }
+                /**
+                 * use this code to allow multiple rows expanded at the same time
+                 */
+                /** setExpandedRows(prev => {
                     const newExpanded = new Set(prev);
                     if (newExpanded.has(programId)) {
                         newExpanded.delete(programId);
@@ -142,7 +161,7 @@ const Program: React.FC = () => {
                     return newExpanded;
                 });
 
-                // Only fetch data if we're expanding (not collapsing) and data doesn't already exist
+                Only fetch data if we're expanding (not collapsing) and data doesn't already exist
                 if (!isCurrentlyExpanded && !stageLists[programId]) {
                     const response = await fetchStagesByProgramId(programId);
                     setStageLists(prev => ({
@@ -150,6 +169,7 @@ const Program: React.FC = () => {
                         [programId]: response.Data
                     }));
                 }
+                */
             }
         } catch (error) {
             console.error('Error toggling program details:', error);
@@ -498,7 +518,7 @@ const Program: React.FC = () => {
                         )
                     }
                 </Pagination>
-                    <div className='mb-3.5'>
+                    <div className='mb-3.5 text-center'>
                         {
                             ProgramData.lists.length > 0 ? (
                                 <p className="text-sm text-gray-500">
@@ -532,16 +552,17 @@ const Program: React.FC = () => {
             {selectedProgram && (
                 <DeleteProgramDialog
                     isOpen={isDeleteProgramOpen}
-                    onClose={() => setIsDeleteProgramOpen(false)}
-                    program={ProgramData.lists?.find((program: any) => program.ProgramId === selectedProgram) as any} // Cast to match expected type
-                    onSubmit={(programId: any) => {
-                        setProgramData(prev => ({
-                            ...prev,
-                            lists: prev.lists.filter(program => program.ProgramId !== programId),
-                            total: prev.total - 1
-                        }));
+                    onClose={() => {
+                        setIsDeleteProgramOpen(false);
+                        setSelectedProgram(null);
                     }}
-            />
+                    program={ProgramData.lists?.find((program: any) => program.ProgramId === selectedProgram) as any}
+                    onDeleteSuccess={async () => {
+                        // Refresh program list after deletion
+                        const response = await fetchProgram(ProgramFilters);
+                        setProgramData(response.Data);
+                    }}
+                />
             )}
         </div>
     );

@@ -37,7 +37,6 @@ import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import type { ProgramList } from '../../../Program/Model';
 import { useToast } from '../../../../components/toaster/ToasterContext';
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/react';
-import { categoryData } from '../../../Modification/mockData/Dropdown';
 
 interface ProjectFormProps {
   initialData?: ProjectFormPayload;
@@ -503,7 +502,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       ProjectId: projectDetails.ProjectId || '',
       StageName: initialData?.ProgramDetails?.StageName || '',
       Source: '',
-      Agreement: 0,
+      Agreement: '',
       Percentage: 0,
       Amount: 0,
       CreatedBy: '',
@@ -800,45 +799,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                     {reviseProject ? 'Revisioning...' : 'Revise Project'}
                   </Button>
                 )} */}
-                {mode === 'edit' && initialData?.ProgramDetails?.StageId === 10 && (
-                  <Menu as="div" className="relative inline-block text-left">
-                    <MenuButton
-                      as={Button}
-                      color='yellow' 
-                      className='cursor-pointer'
-                    >
-                     {updateAllProject ? 'Revisioning...' : 'Revise Project'}
-                      <ChevronDownIcon className="h-4 w-4" />
-                    </MenuButton>
-                    <MenuItems className="absolute right-0 z-10 mt-2 w-80 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-                      <div className="py-1">
-                        {categoryData.filter((revisionType) => revisionType.Obsolete !== true).map((revisionType) => (
-                          <MenuItem key={revisionType.Id}>
-                            {({ active }) => (
-                              <button
-                                onClick={() => handleReviseProject(
-                                  initialData?.ProjectDetails?.ProjectId ?? '', 
-                                  initialData?.ProgramDetails?.StageName ?? '',
-                                  revisionType.Id,
-                                  revisionType.CodeDescription
-                                )}
-                                className={`${
-                                  active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'
-                                } group flex w-full items-center px-4 py-2 text-sm text-left hover:bg-gray-50`}
-                                disabled={updateAllProject}
-                              >
-                                <div className="flex flex-col">
-                                  <span className="font-medium">{revisionType.CodeDescription}</span>
-                                  {/* <span className="text-xs text-gray-500">ID: {revisionType.Id}</span> */}
-                                </div>
-                              </button>
-                            )}
-                          </MenuItem>
-                        ))}
-                      </div>
-                    </MenuItems>
-                  </Menu>
-                )}
+                
             </div>
         </div>
 

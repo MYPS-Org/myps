@@ -92,23 +92,25 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
   };
 
   const baseClasses = `
-    relative w-full mt-1 px-3 py-2 border rounded-md truncate
+    w-full min-w-0 overflow-hidden box-border mt-1 border rounded-md
     ${error ? 'border-red-500' : 'border-gray-300'}
     ${disabled ? 'bg-gray-100 cursor-not-allowed opacity-70' : 'bg-white hover:border-gray-400'}
     ${className}
   `.trim();
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="relative w-full" ref={dropdownRef}>
       <div
         className={baseClasses}
         onClick={handleToggle}
       >
-        <div className="flex items-center justify-between">
-          <span className={`${selectedOption ? 'text-gray-900' : 'text-gray-500'} truncate`}>
-            {selectedOption ? selectedOption.label : placeholder}
-          </span>
-          <div className="flex items-center ml-2">
+        <div className="flex items-center overflow-hidden px-3 py-2">
+          <div className="flex-1 min-w-0">
+            <span className={`block overflow-hidden text-ellipsis whitespace-nowrap ${selectedOption ? 'text-gray-900' : 'text-gray-500'}`}>
+              {selectedOption ? selectedOption.label : placeholder}
+            </span>
+          </div>
+          <div className="flex items-center ml-2 flex-shrink-0">
             {allowClear && selectedOption && !disabled && (
               <button
                 type="button"

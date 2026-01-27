@@ -13,7 +13,9 @@ const DashboardLayout: React.FC = () => (
         <AppNavbar/>
         </div>
         <main className="overflow-auto transition-colors duration-200">
-            <Outlet/>
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 max-w-[1600px]">
+              <Outlet/>
+            </div>
         </main>
     </div>
   </div>

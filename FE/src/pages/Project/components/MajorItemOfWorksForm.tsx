@@ -111,6 +111,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     YearOfWork: number;
     WorkTypeId: number;
     InfraType: string;
+    IsDeleted: boolean;
   }) => {
     if (isAddingNewMajorItem) {
       // Generate a unique temporary ReferenceId for linking WorkLocations
@@ -120,7 +121,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
       const newMajorItem: MajorItemOfWorksWithDropdown = {
         Id: 0, // Temporary ID
         ProjectId: projectId,
-        ReferenceId: tempReferenceId, // Use generated temp ID
+        ReferenceId: tempReferenceId, // Use generated temp ID for linking work locations
         ComponentId: majorItemData.ComponentId,
         YearOfWork: majorItemData.YearOfWork,
         WorkTypeId: majorItemData.WorkTypeId,
@@ -129,7 +130,8 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
         TargetUnit: getTargetUnitName(majorItemData.WorkTypeId),
         CreatedBy: '',
         DropdownData: dropDowns?.filter(x => x.InfraType === majorItemData.InfraType) || [],
-        MajorItemLocations: [] // Initialize empty work locations array
+        MajorItemLocations: [], // Initialize empty work locations array
+        IsDeleted: majorItemData.IsDeleted,
       };
       
       // Use the parent's onAdd method first, then update the last item
@@ -209,7 +211,18 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
   };
 
   const handleDeleteWorkLocation = (majorItemIndex: number, workLocationIndex: number) => {
-    const updatedWorkLocations = (majorItems[majorItemIndex].MajorItemLocations || []).filter((_, i) => i !== workLocationIndex);
+    const locationToDelete = majorItems[majorItemIndex].MajorItemLocations?.[workLocationIndex];
+    
+    let updatedWorkLocations;
+    if (locationToDelete?.Id === 0) {
+      // Hard delete for new items not yet saved to database
+      updatedWorkLocations = (majorItems[majorItemIndex].MajorItemLocations || []).filter((_, i) => i !== workLocationIndex);
+    } else {
+      // Soft delete for existing database items
+      updatedWorkLocations = (majorItems[majorItemIndex].MajorItemLocations || []).map((loc, i) => 
+        i === workLocationIndex ? { ...loc, IsDeleted: true } : loc
+      );
+    }
     
     const updatedItem = {
       ...majorItems[majorItemIndex],
@@ -228,9 +241,11 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
 
   // Calculate total physical target for a major item
   const getTotalPhysicalTarget = (majorItem: MajorItemOfWorksWithDropdown): number => {
-    return majorItem.MajorItemLocations?.reduce((total, location) => {
-      return total + (location.PhysicalTarget || 0);
-    }, 0) || 0;
+    return majorItem.MajorItemLocations
+      ?.filter(location => !location.IsDeleted)
+      .reduce((total, location) => {
+        return total + (location.PhysicalTarget || 0);
+      }, 0) || 0;
   };
 
   // Calculate per unit cost for a major item
@@ -240,9 +255,9 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     
     // Find the corresponding component cost
     const componentCost = componentCosts?.find(cost => cost.ComponentId === majorItem.ComponentId);
-    if (!componentCost || !componentCost.Total) return 0;
+    if (!componentCost || !componentCost.Amount) return 0;
     
-    return componentCost.Total / totalPhysicalTarget;
+    return componentCost.Amount / totalPhysicalTarget;
   };
 
   // Format currency helper function
@@ -280,7 +295,9 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
             </TableRow>
           </TableHead>
           <TableBody>
-            {majorItems.map((item, index) => (
+            {majorItems.map((item, index) => {
+              if (item.IsDeleted) return null;
+              return (
               <React.Fragment key={item.Id || index}>
                 <TableRow className="border-b">
                   <TableCell>
@@ -377,7 +394,8 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                   </TableRow>
                 )}
               </React.Fragment>
-            ))}
+              );
+            })}
           </TableBody>
         </Table>
       </div>
@@ -399,6 +417,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
           YearOfWork: majorItems[editingMajorItemIndex].YearOfWork,
           WorkTypeId: majorItems[editingMajorItemIndex].WorkTypeId,
           InfraType: majorItems[editingMajorItemIndex].InfraType,
+          IsDeleted: majorItems[editingMajorItemIndex].IsDeleted,
         } : undefined}
         existingMajorItems={majorItems.map(item => ({ ComponentId: item.ComponentId }))}
         programDetails={programDetails}

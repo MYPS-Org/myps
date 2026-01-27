@@ -1,5 +1,5 @@
 import { httpClient, type ApiResponse } from "../../services/httpClient";
-import type { ProjectLists, ProgramDetails, ComponentCost, ComponentCostYear, ProjectDetails, MajorItemOfWork, MajorItemLocations, FundingProfile, ProjectNote, ProjectEnums, ProjectFormPayload, ProjectPagination, AddNotes, InfraData, ProjectSupportingDocs, ProjectRevisionList } from "./Model.d";
+import type { ProjectLists, ProgramDetails, ComponentCost, ProjectDetails, MajorItemOfWork, MajorItemLocations, FundingProfile, ProjectNote, ProjectEnums, ProjectFormPayload, ProjectPagination, AddNotes, InfraData, ProjectSupportingDocs, ProjectRevisionList } from "./Model.d";
 
 // #region INITIALIZE Project Lists
 export const fetchProject = async (data: ProjectPagination) => {
@@ -92,7 +92,6 @@ export const updateProjectDetails = async (projectDetails: ProjectDetails) => {
 export const updateEntireProject = async (payload: {
     ProjectDetails: ProjectDetails;
     ComponentCosts: ComponentCost[];
-    ComponentCostYear: ComponentCostYear[];
     MajorItemOfWorks: MajorItemOfWork[];
     MajorItemLocations: MajorItemLocations[];
     FundingProfile: FundingProfile[];
@@ -307,6 +306,37 @@ export const fetchProjectStagesByProjectId = async (projectId: string) => {
             Status: 200,
             Message: "No revisions found"
         }
+    }
+};
+// #endregion
+
+// #region GeoJSON Data
+export const fetchProjectGeoJSON = async (projectId: string, programId: string) => {
+    try {
+        // Using external API endpoint with query parameters
+        const apiUrl = `http://192.168.1.93:8000/api_v1.0/project/features?project_id=${projectId}&program_id=${programId}`;
+        
+        const response = await fetch(apiUrl, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        return {
+            Data: data,
+            Status: response.status,
+            Message: 'Success'
+        };
+    } catch (error) {
+        console.error('Error fetching GeoJSON data:', error);
+        throw error;
     }
 };
 // #endregion

@@ -14,7 +14,7 @@ class SignalRService {
 
     try {
       await this.connection.start();
-      console.log('SignalR Connected');
+      // console.log('SignalR Connected');
     } catch (error) {
       console.error('SignalR Connection Error:', error);
     }
