@@ -849,7 +849,7 @@ const ProgramDetail: React.FC = () => {
               </TableRow>
             </TableHead>
             
-            {/* <TableBody className="bg-white divide-y divide-gray-200">
+            <TableBody className="bg-white divide-y divide-gray-200">
               {programEnums.Projects.map((project) => (
                 <TableRow key={project.Id} className="hover:bg-gray-50">
                   <TableCell className="px-6 py-4 whitespace-nowrap">
@@ -884,7 +884,7 @@ const ProgramDetail: React.FC = () => {
                   )}
                 </TableRow>
               ))}
-            </TableBody> */}
+            </TableBody>
           </Table>
         </div>
       </div>
