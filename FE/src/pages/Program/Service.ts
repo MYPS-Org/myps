@@ -162,8 +162,20 @@ export const downloadAIPReport = async (params: { ProgramId: string; StageName: 
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
-        const data = await response.blob();
-        return data;
+        const blob = await response.blob();
+        
+        // Extract filename from Content-Disposition header
+        const contentDisposition = response.headers.get('content-disposition');
+        let filename = `AIP_Report_${params.ProgramId}_${params.Region}_${new Date().getTime()}.pdf`;
+        
+        if (contentDisposition) {
+            const filenameMatch = contentDisposition.match(/filename\*?=['"]?(?:UTF-\d['"]*)?([^;\r\n"']*)['"]?;?/i);
+            if (filenameMatch && filenameMatch[1]) {
+                filename = decodeURIComponent(filenameMatch[1].replace(/['"]/g, ''));
+            }
+        }
+        
+        return { blob, filename };
     } catch (error) {
         console.error('Error downloading AIP report:', error);
         throw error;

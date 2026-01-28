@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 
 import type { ProgramDetailsEnums, AIPReportParams } from '../Model.d'; // Adjust the import path as necessary
 import { Button } from '../../../components/tailwindui/button';
-import { editProgram, fetchProgramById, publishToPCMA, generateAIPReport } from '../Service';
+import { editProgram, fetchProgramById, publishToPCMA, generateAIPReport, downloadAIPReport } from '../Service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
 import { ChevronDownIcon, ChevronRightIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
 import { useToast } from '../../../components/toaster/ToasterContext';
@@ -367,21 +367,32 @@ const ProgramDetail: React.FC = () => {
     try {
       setIsLoading(true);
       
-      // Generate and get report data
-      const response = await generateAIPReport(params);
-      console.log('AIP Report Data:', response);
+      // Download PDF blob from API
+      const { blob, filename } = await downloadAIPReport(params);
+
+      console.log(blob, filename)
+      
+      // Create download link for PDF
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
       
       showToast({
         type: 'success',
-        message: 'AIP Report generated successfully.',
+        message: 'AIP Report PDF downloaded successfully.',
       });
       
       setIsAIPReportDialogOpen(false);
     } catch (error) {
-      console.error('Error generating AIP report:', error);
+      console.error('Error downloading AIP report:', error);
       showToast({
         type: 'error',
-        message: 'Failed to generate AIP report. Please try again.',
+        message: 'Failed to download AIP report. Please try again.',
       });
     } finally {
       setIsLoading(false);
