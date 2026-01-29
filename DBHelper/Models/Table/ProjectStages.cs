@@ -15,6 +15,10 @@ namespace DBHelper.Models.Table
         [Key]
         public int Id { get; set; }
         [Required]
+        [MaxLength(100)]
+        public string ReferenceId { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(200)]
         public string ProgramId { get; set; } = string.Empty;
         [Required]
         public int RevisionId { get; set; }

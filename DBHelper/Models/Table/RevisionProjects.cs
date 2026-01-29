@@ -12,6 +12,8 @@ namespace DBHelper.Models.Table
         [Key]
         public int Id { get; set; }
         [Required]
+        public bool IsActive { get; set; } = false;
+        [Required]
         [MaxLength(100)]
         public string TransactionId { get; set; } = string.Empty;
         [MaxLength(200)]

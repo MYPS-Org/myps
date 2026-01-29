@@ -56,7 +56,7 @@ namespace WebAPI.Controllers.Projects
                 if (dto.page < 1) dto.page = 1;
                 if (dto.limit < 1) dto.limit = 10;
 
-                var baseQuery = _db.vProjects.AsNoTracking();
+                var baseQuery = _db.vProjectLatestStage.AsNoTracking();
 
                 // Apply sorting and pagination
                 dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "Id";
@@ -71,12 +71,12 @@ namespace WebAPI.Controllers.Projects
                 // Get total count of filtered results (before pagination)
                 var totalRecords = await baseQuery.CountAsync();
 
-                IOrderedQueryable<DBHelper.Models.Views.Projects> sortedQuery = dto.sortDirection == sortDirectionList.ASC
+                IOrderedQueryable<DBHelper.Models.Views.ProjectLatestStage> sortedQuery = dto.sortDirection == sortDirectionList.ASC
                         ? baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField))
                         : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField));
 
                 // Apply pagination and execute query
-                List<DBHelper.Models.Views.Projects> permissionLists = await sortedQuery
+                List<DBHelper.Models.Views.ProjectLatestStage> permissionLists = await sortedQuery
                    .Skip((dto.page - 1) * dto.limit)
                    .Take(dto.limit)
                    .ToListAsync();
@@ -115,28 +115,30 @@ namespace WebAPI.Controllers.Projects
         {
             try
             {
-                var Stage = await _db.vProjectDetails
-                .FromSqlInterpolated($"SELECT * FROM fProjectDetails({dto.ProjectId}) fp WHERE fp.ReferenceId = {dto.ProjectId}")
-                .AsNoTracking().Select(x => new ProjectPerStage()
-                {
-                    Id = x.Id,
-                    ProgramId = x.ProgramId,
-                    ProgramName = x.ProgramName,
-                    StageId = x.StageId,
-                    StageName = x.StageName,
-                    ReferenceId = x.ReferenceId,
-                    ProjectId = x.ProjectId,
-                    Description = x.Description,
-                    Thrust = _db.tProjectThrustLists.FirstOrDefault(a => a.PAPKey == x.Thrust)!.ThrustDescription ?? x.Thrust.ToString(),
-                    Category = _db.tOptionProjectCategory.FirstOrDefault(a => a.CategoryId == x.Category)!.CategoryName ?? x.Category.ToString(),
-                    City = _db.tOptionAdminAreaCityMunicipality.FirstOrDefault(a => a.Code == x.City)!.Name ?? x.City.ToString(),
-                    LegislativeDistrict = _db.tOptionAdminAreaCongressionalDistrict.FirstOrDefault(a => a.Code == x.LegislativeDistrict)!.Name ?? x.LegislativeDistrict.ToString(),
-                    Cost = _db.tProjectComponentCost.Where(a => a.ProjectId == x.ReferenceId && a.StageName == x.StageName).Sum(a => a.Amount),
-                    CreatedBy = x.CreatedBy,
-                    CreatedDate = x.CreatedDate,
+                //var Stage = await _db.vProjectDetails
+                //.FromSqlInterpolated($"SELECT * FROM ProjectPerStages({dto.ProjectId}) fp WHERE fp.ReferenceId = {dto.ProjectId}")
+                //.AsNoTracking().Select(x => new ProjectPerStage()
+                //{
+                //    Id = x.Id,
+                //    ProgramId = x.ProgramId,
+                //    ProgramName = x.ProgramName,
+                //    StageId = x.StageId,
+                //    StageName = x.StageName,
+                //    ReferenceId = x.ReferenceId,
+                //    ProjectId = x.ProjectId,
+                //    Description = x.Description,
+                //    Thrust = _db.tProjectThrustLists.FirstOrDefault(a => a.PAPKey == x.Thrust)!.ThrustDescription ?? x.Thrust.ToString(),
+                //    Category = _db.tOptionProjectCategory.FirstOrDefault(a => a.CategoryId == x.Category)!.CategoryName ?? x.Category.ToString(),
+                //    City = _db.tOptionAdminAreaCityMunicipality.FirstOrDefault(a => a.Code == x.City)!.Name ?? x.City.ToString(),
+                //    LegislativeDistrict = _db.tOptionAdminAreaCongressionalDistrict.FirstOrDefault(a => a.Code == x.LegislativeDistrict)!.Name ?? x.LegislativeDistrict.ToString(),
+                //    Cost = _db.tProjectComponentCost.Where(a => a.ProjectId == x.ReferenceId && a.StageName == x.StageName).Sum(a => a.Amount),
+                //    CreatedBy = x.CreatedBy,
+                //    CreatedDate = x.CreatedDate,
 
-                }).ToListAsync();
-                 return Ok(new
+                //}).ToListAsync();
+                string ProjectId = (dto.ProjectId.Contains("B") ? dto.ProjectId : $"B{dto.ProjectId}");
+                var Stage = await _db.vProjectPerStages.AsNoTracking().Where(x => x.ReferenceId == ProjectId || x.ReferenceId == dto.ProjectId).ToListAsync();
+                return Ok(new
                 {
                     Stages = Stage
                 });
@@ -398,6 +400,7 @@ namespace WebAPI.Controllers.Projects
         {
             try
             {
+                //var Project = await _db.tProjectRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dto.)
                 var Project = await _db.vProjectDetails
                 .FromSqlInterpolated($"SELECT * FROM fProjectDetails({dto.ProjectId}) fp WHERE fp.StageName = {dto.StageName} AND fp.ProjectId = {dto.ProjectId}")
                 .AsNoTracking()
@@ -426,7 +429,7 @@ namespace WebAPI.Controllers.Projects
                 var ComponentCost = await _db.tProjectComponentCost.FromSqlInterpolated($"SELECT * FROM fProjectComponentCost({Project.ProjectId}) fp WHERE fp.StageName = {Project.StageName}").AsNoTracking().ToListAsync();
                 //var ComponentCostYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentCost.Select(a => a.ReferenceId).Contains(x.ParentId)).ToListAsync();
 
-                var MajorItemOfWork = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && x.RevisedNumber == Project.RevisedNumber && x.IsDeleted == false).ToListAsync();
+                var MajorItemOfWork = await _db.tProjectMajorWorkItem.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkItem({Project.ProjectId}) fp WHERE fp.StageName = {Project.StageName}").AsNoTracking().ToListAsync();
                 HashSet<string> ItemParents = MajorItemOfWork.Select(x => x.ReferenceId).ToHashSet();
                 var MajorWorkLocation = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => ItemParents.Contains(x.ParentId) && x.IsDeleted == false).ToListAsync();
 
@@ -554,6 +557,86 @@ namespace WebAPI.Controllers.Projects
                 bool HasCostUpdate = false;
 
                 #region Update Project Details
+                if (Project.MYId != dto.ProjectDetails?.MYId)
+                {
+                    hasUpdated = true;
+                    transactionLogs.Add(new TransactionLog
+                    {
+                        TransactionId = Project.ProjectId!,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tProjectRevisions",
+                        AffectedColumn = "MYId",
+                        NewValue = dto.ProjectDetails!.MYId!,
+                        OldValue = Project.MYId ?? "",
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    });
+                    Project.MYId = dto.ProjectDetails!.MYId;
+                }
+                if (Project.AlternateId != dto.ProjectDetails?.AlternateId)
+                {
+                    hasUpdated = true;
+                    transactionLogs.Add(new TransactionLog
+                    {
+                        TransactionId = Project.ProjectId!,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tProjectRevisions",
+                        AffectedColumn = "AlternateId",
+                        NewValue = dto.ProjectDetails!.AlternateId!,
+                        OldValue = Project.AlternateId ?? "",
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    });
+                    Project.AlternateId = dto.ProjectDetails!.AlternateId;
+                }
+                if (Project.ExternalId != dto.ProjectDetails?.ExternalId)
+                {
+                    hasUpdated = true;
+                    transactionLogs.Add(new TransactionLog
+                    {
+                        TransactionId = Project.ProjectId!,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tProjectRevisions",
+                        AffectedColumn = "ExternalId",
+                        NewValue = dto.ProjectDetails!.ExternalId!,
+                        OldValue = Project.ExternalId ?? "",
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    });
+                    Project.ExternalId = dto.ProjectDetails!.ExternalId;
+                }
+                if (Project.UACS != dto.ProjectDetails?.UACS)
+                {
+                    hasUpdated = true;
+                    transactionLogs.Add(new TransactionLog
+                    {
+                        TransactionId = Project.ProjectId!,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tProjectRevisions",
+                        AffectedColumn = "UACS",
+                        NewValue = dto.ProjectDetails!.UACS!,
+                        OldValue = Project.UACS ?? "",
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    });
+                    Project.UACS = dto.ProjectDetails!.UACS;
+                }
+                if (Project.Tier != dto.ProjectDetails?.Tier)
+                {
+                    hasUpdated = true;
+                    transactionLogs.Add(new TransactionLog
+                    {
+                        TransactionId = Project.ProjectId!,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tProjectRevisions",
+                        AffectedColumn = "Tier",
+                        NewValue = dto.ProjectDetails!.Tier.ToString(),
+                        OldValue = Project.Tier.ToString() ?? "",
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    });
+                    Project.Tier = dto.ProjectDetails!.Tier;
+                }
                 if (Project.Description != dto.ProjectDetails?.Description)
                 {
                     hasUpdated = true;

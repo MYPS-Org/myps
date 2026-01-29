@@ -98,16 +98,17 @@ namespace WebAPI.Controllers.Programs
                 var totalRecords = await baseQuery.CountAsync();
 
                 // Apply sorting and pagination
-                dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "Id";
+                dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "YearStart";
                 var sortedQuery = dto.sortDirection == sortDirectionList.ASC
                         ? baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField))
                         : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField));
 
                 // Apply pagination and execute query
                 List<DBHelper.Models.Views.Programs> permissionLists = await sortedQuery
-                   .Skip((dto.page - 1) * dto.limit)
-                   .Take(dto.limit)
-                   .ToListAsync();
+                    .OrderBy(x => x.Name)
+                    .Skip((dto.page - 1) * dto.limit)
+                    .Take(dto.limit)
+                    .ToListAsync();
 
                 var totalPages = (int)Math.Ceiling((double)totalRecords / dto.limit);
 
@@ -282,13 +283,12 @@ namespace WebAPI.Controllers.Programs
                     return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' with Stage {dto.StageName} does not exist in the Programs table. Please contact administrator!", Title = "Program not found" });
                 }
                 //var ProjectLists = await _db.vProjects.AsNoTracking().Where(x => x.ProgramId == dto.ProgramId && x.StageName == dto.StageName).ToListAsync();
-                var ProjectLists = await _db.vProjectDetails
+                var ProjectLists = await _db.fProjectsPerStage
                 .FromSqlInterpolated($"SELECT * FROM fProjectsPerStage({dto.ProgramId}) fp WHERE fp.StageName = {dto.StageName}")
                 .AsNoTracking().Select(x => new ProjectPerStage()
                 {
                     Id = x.Id,
                     ProgramId = x.ProgramId,
-                    StageId = x.StageId,
                     StageName = x.StageName!,
                     ReferenceId = x.ReferenceId,
                     ProjectId = x.ProjectId,
@@ -606,7 +606,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Program Stage '{dto.Stage}' is not valid!", Title = "Invalid Stage" });
                 }
-                var checkProjects = await _db.vProjectDetails
+                var checkProjects = await _db.fProjectsPerStage
                 .FromSqlInterpolated($"SELECT * FROM fProjectsPerStage({dto.ProgramId}) fp WHERE fp.StageId = {checkStage.StageId}")
                 .AsNoTracking()
                 .ToListAsync();
@@ -749,7 +749,7 @@ namespace WebAPI.Controllers.Programs
                             MYId = project.MYId,
                             UACS = project.UACS,
                             MYCAApprovalDate = project.MYCAApprovalDate,
-                            RevisionNumber = project.RevisionNumber + 1,
+                            RevisionNumber = 1,
                             Description = project.Description,
                             Category = project.Category,
                             Thrust = project.Thrust,

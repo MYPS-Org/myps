@@ -61,7 +61,7 @@ namespace WebAPI.Controllers
                     RPC: olegalml
                     AUC: jimeneznr
                  */
-                string userId = User.FindFirstValue(ClaimTypes.NameIdentifier);// ?? "macatangayac";
+                string userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "jimeneznr";
                 if (!hasAllowAnonymous || IsAuthenticated || !string.IsNullOrEmpty(userId))
                 {
                     var user = _db.vUsers.FirstOrDefault(x => x.UserId == userId && x.IsActive == true);
