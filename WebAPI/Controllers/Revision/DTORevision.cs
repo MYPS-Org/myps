@@ -113,6 +113,11 @@ namespace WebAPI.Controllers.Revision
         [Required]
         [MaxLength(50)]
         public string InfraType { get; set; } = string.Empty;
+        public string? StageName { get; set; } = string.Empty;
+        public string? CreatedBy { get; set; } = string.Empty;
+        public DateTime? CreatedDate { get; set; } = DateTime.UtcNow;
+        public string? UpdatedBy { get; set; } = string.Empty;
+        public DateTime? UpdatedDate { get; set; } = DateTime.UtcNow;
         public bool IsDeleted { get; set; } = false;
     }
     public class RevisionMajorWorkLocationsDTO
@@ -146,6 +151,10 @@ namespace WebAPI.Controllers.Revision
         public string? EndStationLimit { get; set; }
         public double? EndChainage { get; set; }
         public double? StartChainage { get; set; }
+        public string? CreatedBy { get; set; } = string.Empty;
+        public DateTime? CreatedDate { get; set; } = DateTime.UtcNow;
+        public string? UpdatedBy { get; set; } = string.Empty;
+        public DateTime? UpdatedDate { get; set; } = DateTime.UtcNow;
         public bool IsDeleted { get; set; } = false;
     }
     public class RevisionFundingProfileDTO

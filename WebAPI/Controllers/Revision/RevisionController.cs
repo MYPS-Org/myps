@@ -233,7 +233,8 @@ namespace WebAPI.Controllers.Revision
                 var MajorItemOfWork = await _db.tProjectMajorWorkItem.FromSqlInterpolated($"SELECT * FROM fPendingProjectMajorWorkItem({dto.TransactionId}) fp WHERE fp.StageName = {Project.StageName}").AsNoTracking().ToListAsync();
                 //var MajorItemOfWork = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && x.RevisedNumber == RevisedNumber).ToListAsync();
                 HashSet<string> ItemParents = MajorItemOfWork.Select(x => x.ReferenceId).ToHashSet();
-                var MajorWorkLocation = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => ItemParents.Contains(x.ParentId)).ToListAsync();
+                var MajorWorkLocation = await _db.tProjectMajorWorkLocations.FromSqlInterpolated($"SELECT * FROM fPendingProjectMajorWorkLocations({dto.TransactionId})").AsNoTracking().Where(x => ItemParents.Contains(x.ParentId)).ToListAsync();
+                //var MajorWorkLocation = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => ItemParents.Contains(x.ParentId)).ToListAsync();
 
 
                 var Notes = await _db.tProjectNotes.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
@@ -618,13 +619,15 @@ namespace WebAPI.Controllers.Revision
                 }
                 Project.IsRevised = true;
                 Project.RevisedNumber = (Project.RevisedNumber ?? 0) + 1;
-                string TransactionId = ProjectStage.ProgramId + "-" + 1;
-                var HasTransactionId = await _db.tRevisionDetails.Where(x => ProjectStage.ProgramId.Contains(x.TransactionId)).OrderByDescending(x => x.Id).FirstOrDefaultAsync();
+                string TransactionId = Project.ProjectId + "-" + 1;
+                var HasTransactionId = await _db.tRevisionDetails.Where(x => x.TransactionId.Contains(Project.ProjectId + "-")).OrderByDescending(x => x.Id).FirstOrDefaultAsync();
                 if (HasTransactionId != null)
                 {
                     var SplitTransaction = HasTransactionId.TransactionId.Split("-");
-                    TransactionId = ProjectStage.ProgramId + "-" + (int.Parse(SplitTransaction[1]) + 1).ToString();
+                    TransactionId = Project.ProjectId + "-" + (int.Parse(SplitTransaction[1]) + 1).ToString();
                 }
+                bool isROUser = _Session.UserGroups.Contains("RPC");
+                bool isCOUser = _Session.UserGroups.Contains("AUC");
                 #endregion
                 #region ProjectRevision
                 var ProjectDetailsRules = jsonRules.ProjectDetailsRules.GetType()
@@ -653,6 +656,7 @@ namespace WebAPI.Controllers.Revision
                     NewRevisionProject.DEO = RevisionProject.DEO;
                     NewRevisionProject.ImplementationMode = RevisionProject.ImplementationMode;
                     NewRevisionProject.EmergencyMode = RevisionProject.EmergencyMode;
+                    NewRevisionProject.IsActive = isCOUser ? true : false;
                 }
                 #endregion
                 #region FundingProfile
@@ -782,7 +786,7 @@ namespace WebAPI.Controllers.Revision
                 var MajorItemIds = dto.MajorItemOfWorks.Where(x => x.Id != 0).Select(x => x.Id);
                 var MajorWorkItem = await _db.tProjectMajorWorkItem.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkItem({Project.ProjectId}) fp WHERE fp.StageName = {ProjectStage.StageName}").AsNoTracking().ToListAsync();
                 //var MajorWorkItem = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && MajorItemIds.Contains(x.Id)).ToListAsync();
-                var MajorWorkLocations = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => MajorWorkItem.Select(c => c.ReferenceId).Contains(x.ParentId)).ToListAsync();
+                var MajorWorkLocations = await _db.tProjectMajorWorkLocations.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkLocations({Project.ProjectId})").AsNoTracking().Where(x => MajorWorkItem.Select(c => c.ReferenceId).Contains(x.ParentId)).ToListAsync();
                 var MajorWorkItemRules = jsonRules.MajorItemOfWorkRules.Fields.GetType()
                 .GetProperties()
                 .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
@@ -914,11 +918,9 @@ namespace WebAPI.Controllers.Revision
                 await _db.tRevisionProjectMajorWorkItem.AddRangeAsync(NewMajorWorkItem);
                 await _db.tRevisionProjectMajorWorkLocations.AddRangeAsync(NewMajorWorkLocations);
 
-                bool isROUser = _Session.UserGroups.Contains("RPC");
-                bool isCOUser = _Session.UserGroups.Contains("AUC");
                 await _db.tRevisionDetails.AddAsync(new RevisionDetails
                 {
-                    ProgramRevisionId = 
+                    ProgramRevisionId = ProjectStage.ProgramId + "-1",
                     TransactionId = TransactionId,
                     RevisionGroupId = RevisionCategory.RevisionGroupId,
                     CategoryId = dto.RevisionDetails.CategoryId,
@@ -947,6 +949,22 @@ namespace WebAPI.Controllers.Revision
                     DocumentName = DocumentName,
                     IsApprovedDocument = false
                 });
+                if (isCOUser && RevisionRules.RevisionGroupId == 9)
+                {
+                    var entities = NewComponent
+                    .Where(x => !x.IsDeleted)
+                    .Select(x => new RevisionDetailsComponentsStatus
+                    {
+                        TransactionId = TransactionId,
+                        ComponentId = x.ComponentId,
+                        ConstructionStatusCode = 252,
+                        ConstructionStatusName = dto.RevisionDetails.ConstructionStatus,
+                        IsPackaged = dto.RevisionDetails.PackageStatus == "Packaged"
+                    })
+                    .ToList();
+
+                    await _db.tRevisionDetailsComponentsStatus.AddRangeAsync(entities);
+                }
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
                 #region Commented Email Notification
@@ -1219,13 +1237,23 @@ namespace WebAPI.Controllers.Revision
                         {
                             OldRevisionProjects.IsActive = false;
                         }
-                        //if (dto.Status == EnumRevisionStatus.Approved) {
-                        //    var ComponentsAffected = await _db.vProjectComponentStatus.AsNoTracking().Where(x => x.ProjectId == RevisionDetails.ProjectId && x.ConstructionStatusName == "" && x.Stat).ToListAsync();
-                        //    await _db.tRevisionDetailsComponentsStatus.AddAsync(new RevisionDetailsComponentsStatus
-                        //    {
-                        //        TransactionId = dto.TransactionId,
-                        //    });
-                        //}
+                        if (dto.Status == EnumRevisionStatus.Approved && RevisionDetails.RevisionGroupId == 9)
+                        {
+                            var entities = await _db.tProjectComponentCost.FromSqlInterpolated($@"
+                                    SELECT *
+                                    FROM fPendingProjectComponentsCost({SelectedProjectRevision.TransactionId}) fp
+                                    WHERE fp.IsDeleted = 0").ToListAsync();
+                            var status = _db.vProjectComponentCostStatus.Where(x => entities.Select(y => y.ComponentId).Contains(x.ComponentId) && x.ProjectId == SelectedProjectRevision.ProjectId);
+
+                            await _db.tRevisionDetailsComponentsStatus.AddRangeAsync(entities.Select(x => new RevisionDetailsComponentsStatus
+                            {
+                                TransactionId = dto.TransactionId,
+                                ComponentId = x.ComponentId,
+                                ConstructionStatusCode = 252,
+                                ConstructionStatusName = "Terminated",
+                                IsPackaged = status.FirstOrDefault(a => a.ComponentId == x.ComponentId)?.PackedStatusName == "Packaged"
+                            }));
+                        }
                     }
                     _db.tRevisionDetails.Update(RevisionDetails);
                     _db.tRevisionProjects.Update(SelectedProjectRevision);
