@@ -6,6 +6,8 @@ import { XMarkIcon } from '@heroicons/react/24/outline';
 import { handleCurrencyBlur, handleCurrencyChange } from '../../../utils/GlobalFunctions';
 import { useFieldPermissionState } from '../hooks/useFieldPermissions';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useAtomValue } from 'jotai';
+import { componentCostsAtom } from '../atoms/componentCosts.atom';
 
 interface ComponentCostDialogProps {
   isOpen: boolean;
@@ -73,6 +75,39 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   });
 
   const [displayValue, setDisplayValue] = useState('');
+
+  // Get all component costs from Jotai atom (seeded from API)
+  const allComponentCosts = useAtomValue(componentCostsAtom);
+
+  // Get terminated Civil Works components for Change of Creditor dropdown
+  const getTerminatedCivilWorksOptions = useMemo(() => {
+    if (!isChangeOfCreditor || !allComponentCosts || allComponentCosts.length === 0) return [];
+    
+    // Filter for terminated Civil Works components
+    const terminatedCWComponents = allComponentCosts
+      .filter((cost: ComponentCost) => {
+        const isTerminated = cost.ConstructionStatusName?.toLowerCase() === 'terminated';
+        const isCivilWorks = cost.ComponentType?.toLowerCase() === 'civil works';
+        return isTerminated && isCivilWorks && !cost.IsDeleted;
+      })
+      .map((cost: ComponentCost) => cost.ComponentId)
+      .filter(Boolean);
+
+    // Generate options with alphabet suffix (e.g., CW1A, CW2A, CW3A)
+    const options = terminatedCWComponents.map((componentId: string) => {
+      // Find the next available alphabet suffix
+      const baseId = componentId; // e.g., "CW1"
+      const existingWithSuffix = componentCosts.filter(c => 
+        c.ComponentId?.startsWith(baseId) && c.ComponentId !== baseId && !c.IsDeleted
+      );
+      
+      // Generate next alphabet (A, B, C, etc.)
+      const nextLetter = String.fromCharCode(65 + existingWithSuffix.length); // 65 = 'A'
+      return `${baseId}${nextLetter}`;
+    });
+
+    return options;
+  }, [isChangeOfCreditor, allComponentCosts, componentCosts]);
 
   // Get field permissions state
   const permissionState = useFieldPermissionState();
@@ -202,10 +237,10 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
       console.log('Selected component:', componentCosts);
       const matchingCount = componentCosts.filter(item => item.ComponentType === value && !item.IsDeleted).length;
       
-      // Create the new ID: "DR-1", "DR-2", etc.
+      // Create the new ID: "CW1", "CW2", etc.
       generatedId = `${selectedComponent.ComponentId}${matchingCount + 1}`;
     }
-    // ✅ Save into formData so it's actually submitted
+    // Save into formData so it's actually submitted
     handleChange('ComponentId', generatedId);
   }
 
@@ -329,27 +364,49 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Component ID {isChangeOfCreditor && <span className="text-xs text-gray-500">(Manual Input)</span>}
+                            Component ID 
+                            {isChangeOfCreditor && formData.ComponentType?.toLowerCase() === 'civil works' && (
+                              <span className="text-xs text-gray-500"> (Select from terminated components)</span>
+                            )}
                         </label>
-                        <input 
+                        {isChangeOfCreditor && formData.ComponentType?.toLowerCase() === 'civil works' ? (
+                          // Dropdown for terminated Civil Works components
+                          getTerminatedCivilWorksOptions.length > 0 ? (
+                            <select
+                              className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500'
+                              value={formData.ComponentId}
+                              onChange={(e) => handleChange('ComponentId', e.target.value)}
+                            >
+                              <option value="">Select Component ID</option>
+                              {getTerminatedCivilWorksOptions.map((option: any) => (
+                                <option key={option} value={option}>
+                                  {option}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500">
+                              No terminated Civil Works components available
+                            </div>
+                          )
+                        ) : isChangeOfCreditor ? (
+                          // Manual input for other component types when Change of Creditor
+                          <input 
                             className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500'
                             type="text" 
                             value={formData.ComponentId}
                             onChange={(e) => handleChange('ComponentId', e.target.value)}
-                            readOnly={!isChangeOfCreditor}
-                            placeholder={isChangeOfCreditor ? "Enter Component ID" : ""}
-                        />
-                    {/* <select 
-                    className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500'
-                    value={formData.ComponentId}
-                    onChange={(e) => handleChange('ComponentId', e.target.value)}
-                    >
-                        {componentTypes.map((type: any) => (
-                            <option key={type.Id} value={type.Id}>
-                                {type.Name}
-                            </option>
-                        ))}
-                    </select> */}
+                            placeholder="Enter Component ID"
+                          />
+                        ) : (
+                          // Auto-generated for normal flow
+                          <input 
+                            className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50'
+                            type="text" 
+                            value={formData.ComponentId}
+                            readOnly
+                          />
+                        )}
                     </div>
                 </div>
 
