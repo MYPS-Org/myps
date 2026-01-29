@@ -3,6 +3,7 @@ import { Button } from '../../../components/tailwindui/button';
 import { PlusIcon, TrashIcon, PencilIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { Table, TableHead, TableRow, TableHeader, TableBody, TableCell } from '../../../components/tailwindui/table';
 import AddMajorItemDialog from '../dialogs/AddMajorItemDialog';
+import DeleteMajorItemDialog from '../dialogs/deleteDialogs/DeleteMajorItemDialog';
 import WorkLocationTable from './WorkLocationTable';
 import type { 
   MajorItemOfWorksWithDropdown, 
@@ -43,6 +44,11 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
   const [editingMajorItemIndex, setEditingMajorItemIndex] = useState<number | null>(null);
   const [isAddingNewMajorItem, setIsAddingNewMajorItem] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+  
+  // Delete dialog state
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deletingMajorItem, setDeletingMajorItem] = useState<MajorItemOfWorksWithDropdown | null>(null);
+  const [deletingIndex, setDeletingIndex] = useState<number | null>(null);
 
   // Debug: Monitor when majorItems prop changes
   useEffect(() => {
@@ -104,6 +110,23 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     setIsAddingNewMajorItem(false);
     setEditingMajorItemIndex(index);
     setMajorItemDialogOpen(true);
+  };
+
+  const handleOpenDeleteDialog = (index: number) => {
+    setDeletingMajorItem(majorItems[index]);
+    setDeletingIndex(index);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleCloseDeleteDialog = () => {
+    setIsDeleteDialogOpen(false);
+    setDeletingMajorItem(null);
+    setDeletingIndex(null);
+  };
+
+  const handleConfirmDelete = (index: number) => {
+    onDelete(index);
+    handleCloseDeleteDialog();
   };
 
   const handleMajorItemDialogSubmit = (majorItemData: {
@@ -357,7 +380,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                       </Button>
                       <Button
                         color="red"
-                        onClick={() => onDelete(index)}
+                        onClick={() => handleOpenDeleteDialog(index)}
                         className={`text-xs px-2 py-1 ${getDisabledClass(disabled)}`}
                         disabled={disabled}
                       >
@@ -421,6 +444,22 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
         } : undefined}
         existingMajorItems={majorItems.map(item => ({ ComponentId: item.ComponentId }))}
         programDetails={programDetails}
+      />
+
+      {/* Delete Major Item Dialog */}
+      <DeleteMajorItemDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={handleCloseDeleteDialog}
+        onConfirmDelete={handleConfirmDelete}
+        majorItem={deletingMajorItem ? {
+          ComponentId: deletingMajorItem.ComponentId,
+          WorkTypeId: deletingMajorItem.WorkTypeId,
+          YearOfWork: deletingMajorItem.YearOfWork,
+          InfraType: deletingMajorItem.InfraType,
+          TargetUnit: deletingMajorItem.TargetUnit,
+          MajorItemLocations: deletingMajorItem.MajorItemLocations
+        } : null}
+        deleteIndex={deletingIndex}
       />
     </div>
   );

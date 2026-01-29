@@ -716,15 +716,15 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           Id: cost.Id,
           ProjectId: cost.ProjectId || projectDetails.ProjectId || '',
           StageName: initialData?.ProgramDetails?.StageName || '',
-          ComponentType: cost.ComponentType || '',
-          ComponentId: cost.ComponentId || '',
-          Description: cost.Description || '',
+          ComponentType: cost.ComponentType,
+          ComponentId: cost.ComponentId,
+          Description: cost.Description,
           Amount: cost.Amount || 0,
           StartDate: cost.StartDate || new Date().toISOString(),
           EndDate: cost.EndDate || new Date().toISOString(),
-          CreatedBy: cost.CreatedBy || 'SYSTEM',
+          CreatedBy: cost.CreatedBy || '',
           CreatedDate: cost.CreatedDate || new Date().toISOString(),
-          UpdatedBy: 'SYSTEM',
+          UpdatedBy: '',
           UpdatedDate: new Date().toISOString(),
           IsDeleted: cost.IsDeleted || false
         })),
@@ -732,7 +732,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         MajorItemLocations: workLocationsForPayload,
         // ProjectNotes: notes, // Include ProjectNotes as it's in the expected payload
         FundingProfile: fundingProfiles.map(profile => ({
-          ...profile, StageName: initialData?.ProgramDetails?.StageName || '',
+          ...profile,
+          StageName: initialData?.ProgramDetails?.StageName || '',
+          Amount: profile.Amount || 0,
+          
         }))
       };
 
@@ -998,6 +1001,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           </div>
           <ComponentCostForm
             componentCosts={componentCosts}
+            majorItems={majorItems}
             onAdd={handleAddComponentCost}
             onEdit={handleEditComponentCost}
             onDelete={handleDeleteComponentCost}
@@ -1074,7 +1078,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         onClose={() => setIsConfirmDialogOpen(false)}
         onConfirm={mode === 'add' ? confirmSaveProject : confirmUpdateProject}
         mode={mode}
-        projectName={projectDetails.ProjectId || 'Untitled Project'}
+        projectName={projectDetails.Description}
       />
 
     </div>

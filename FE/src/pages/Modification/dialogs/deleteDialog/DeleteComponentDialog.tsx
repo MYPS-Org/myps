@@ -4,15 +4,16 @@ import { Button } from '../../../../components/tailwindui/button';
 import { XMarkIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { useToast } from '../../../../components/toaster/ToasterContext';
 import { useState } from 'react';
-import type { ComponentCostWithYears } from '../../../Project/Model';
+import type { ComponentCost } from '../../../Project/Model';
 
 interface DeleteComponentDialogProps {
   isOpen: boolean;
-  component: ComponentCostWithYears | null;
+  component: ComponentCost | null;
   index: number | null;
   projectId?: string;
   onClose: () => void;
   onConfirmDelete: (index?: number) => Promise<void> | void;
+  relatedMajorItemsCount?: number; // Number of related major items that will be deleted
 }
 
 const DeleteComponentDialog: React.FC<DeleteComponentDialogProps> = ({
@@ -21,6 +22,7 @@ const DeleteComponentDialog: React.FC<DeleteComponentDialogProps> = ({
   index: deleteIndex,
   onClose: closeDialog,
   onConfirmDelete,
+  relatedMajorItemsCount = 0,
 }) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const { showToast } = useToast();
@@ -115,7 +117,7 @@ const DeleteComponentDialog: React.FC<DeleteComponentDialogProps> = ({
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Total Cost:</span>
-                    <span className="font-medium text-red-600">₱{formatCurrency(selectedComponent.Total || 0)}</span>
+                    <span className="font-medium text-red-600">₱{formatCurrency(selectedComponent.Amount || 0)}</span>
                   </div>
                   {selectedComponent.Description && (
                     <div className="pt-2 border-t">
@@ -125,6 +127,21 @@ const DeleteComponentDialog: React.FC<DeleteComponentDialogProps> = ({
                   )}
                 </div>
               </div>
+
+              {/* Cascade Delete Warning */}
+              {relatedMajorItemsCount > 0 && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-4">
+                  <div className="flex">
+                    <ExclamationTriangleIcon className="h-5 w-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+                    <div className="ml-2">
+                      <h5 className="text-sm font-medium text-yellow-800">Cascade Delete Warning</h5>
+                      <p className="text-sm text-yellow-600 mt-1">
+                        Deleting this component will also delete <span className="font-semibold">{relatedMajorItemsCount} related major item(s)</span> and their work locations.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

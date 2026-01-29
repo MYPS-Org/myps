@@ -1,13 +1,15 @@
-import React, { useState } from "react";
-import type { ComponentCost } from "../Model";
+import React, { useState, useMemo } from "react";
+import type { ComponentCost, MajorItemOfWorksWithDropdown } from "../Model";
 import { Button } from "../../../components/tailwindui/button";
 import { PlusIcon, TrashIcon, PencilIcon } from "@heroicons/react/24/outline";
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from "../../../components/tailwindui/table";
 import { ComponentCostDialog } from "../dialogs";
+import DeleteComponentDialog from "../dialogs/deleteDialogs/DeleteComponentDialog";
 import { getDisabledClass } from "../../../utils/GlobalFunctions";
 
 interface ComponentCostFormProps {
   componentCosts: ComponentCost[];
+  majorItems?: MajorItemOfWorksWithDropdown[]; // Add majorItems to calculate related items
   onAdd: (cost: ComponentCost) => void;
   onEdit: (index: number, updatedCost: ComponentCost) => void;
   onDelete: (index: number) => void;
@@ -18,6 +20,7 @@ interface ComponentCostFormProps {
 
 const ComponentCostForm: React.FC<ComponentCostFormProps> = ({ 
   componentCosts, 
+  majorItems = [],
   onAdd, 
   onEdit, 
   onDelete,
@@ -28,9 +31,24 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
+  
+  // Delete dialog state
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deletingComponent, setDeletingComponent] = useState<ComponentCost | null>(null);
+  const [deletingIndex, setDeletingIndex] = useState<number | null>(null);
+  
   const formatCurrency = (amount: number) => {
     return amount.toLocaleString('en-PH');
   };
+  
+  // Calculate related major items count for the selected component
+  const relatedMajorItemsCount = useMemo(() => {
+    if (!deletingComponent || !majorItems) return 0;
+    return majorItems.filter(
+      item => item.ComponentId === deletingComponent.ComponentId && !item.IsDeleted
+    ).length;
+  }, [deletingComponent, majorItems]);
+
     // console.log('Rine => ', initialData)
   const handleOpenAddModal = () => {
     setModalMode('add');
@@ -48,6 +66,25 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingIndex(null);
+  };
+
+  const handleOpenDeleteDialog = (index: number) => {
+    setDeletingComponent(componentCosts[index]);
+    setDeletingIndex(index);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleCloseDeleteDialog = () => {
+    setIsDeleteDialogOpen(false);
+    setDeletingComponent(null);
+    setDeletingIndex(null);
+  };
+
+  const handleConfirmDelete = async (index?: number) => {
+    if (index !== null && index !== undefined) {
+      onDelete(index);
+    }
+    handleCloseDeleteDialog();
   };
 
   const handleSaveCost = (cost: ComponentCost) => {
@@ -255,7 +292,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
                         <PencilIcon className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => onDelete(index)}
+                        onClick={() => handleOpenDeleteDialog(index)}
                         className={`text-red-600 hover:text-red-800 ${getDisabledClass(disabled)}`}
                         title="Delete"
                         disabled={disabled}
@@ -282,6 +319,17 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
           componentCosts={componentCosts}
           ProjectId={initialData?.ProjectDetails?.ProjectId}
           maxAmountCost={maxAmountCost}
+        />
+
+        {/* Delete Dialog */}
+        <DeleteComponentDialog
+          isOpen={isDeleteDialogOpen}
+          component={deletingComponent}
+          index={deletingIndex}
+          onClose={handleCloseDeleteDialog}
+          onConfirmDelete={handleConfirmDelete}
+          projectId={initialData?.ProjectDetails?.ProjectId}
+          relatedMajorItemsCount={relatedMajorItemsCount}
         />
       </div>
   );

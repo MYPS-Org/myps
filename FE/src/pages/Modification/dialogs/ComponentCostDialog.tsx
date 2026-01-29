@@ -286,22 +286,22 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   };
 
     const handleReset = () => {
-        setFormData({
-            Id: 0,
-            ProjectId: '',
-            ComponentType: '',
-            ComponentId: '',
-            Description: '',
-            Amount: 0,
-            StageName: '',
-            StartDate: null,
-            EndDate: null,
-            IsDeleted: false,
-            CreatedBy: '',
-            CreatedDate: new Date().toISOString(),
-            UpdatedBy: '',
-            UpdatedDate: new Date().toISOString(),
-        });
+      setFormData({
+          Id: 0,
+          ProjectId: '',
+          ComponentType: '',
+          ComponentId: '',
+          Description: '',
+          Amount: 0,
+          StageName: '',
+          StartDate: null,
+          EndDate: null,
+          IsDeleted: false,
+          CreatedBy: '',
+          CreatedDate: new Date().toISOString(),
+          UpdatedBy: '',
+          UpdatedDate: new Date().toISOString(),
+      });
     };
 
   const handleClose = () => {

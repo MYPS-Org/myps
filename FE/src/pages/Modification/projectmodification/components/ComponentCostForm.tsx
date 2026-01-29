@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import type { ComponentCost } from "../../../Project/Model.d";
 import type { FieldRules } from "../../Model";
 import { Button } from "../../../../components/tailwindui/button";
@@ -8,6 +8,7 @@ import ComponentCostDialog from "../../dialogs/ComponentCostDialog";
 import DeleteComponentDialog from "../../dialogs/deleteDialog/DeleteComponentDialog";
 
 import { useComponentCosts } from "../../hooks/useComponentCosts";
+import { useMajorItemOfWorks } from "../../hooks/useMajorItemOfWorks";
 
 interface ComponentCostFormProps {
   componentCosts?: ComponentCost[];
@@ -48,12 +49,23 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
     confirmDelete
   } = useComponentCosts();
 
+  // Get major items to calculate cascade delete count
+  const { majorItems } = useMajorItemOfWorks();
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
 
   const normalizedCategory = category?.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
   const isChangeOfCreditor = normalizedCategory === 'changeofcreditor';
+
+  // Calculate related major items count for the selected component
+  const relatedMajorItemsCount = useMemo(() => {
+    if (!selectedForDelete) return 0;
+    return majorItems.filter(
+      item => item.ComponentId === selectedForDelete.ComponentId && !item.IsDeleted
+    ).length;
+  }, [selectedForDelete, majorItems]);
 
   const formatCurrency = (amount: number) => amount.toLocaleString('en-PH');
 
@@ -298,6 +310,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
         onClose={closeDelete}
         onConfirmDelete={confirmDelete}
         projectId={initialData?.ProjectDetails?.ProjectId}
+        relatedMajorItemsCount={relatedMajorItemsCount}
       />
     </div>
   );

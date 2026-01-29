@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '../../../components/tailwindui/button';
 import { PlusIcon, TrashIcon, PencilIcon, DocumentDuplicateIcon } from '@heroicons/react/24/outline';
 import AddInfraDialog from '../dialogs/AddInfraDialog';
+import DeleteWorkLocationDialog from '../dialogs/deleteDialogs/DeleteWorkLocationDialog';
 import { mockInfraData } from '../dialogs/mockInfraData';
 import { generateInfraId, shouldAutoGenerateInfraId, getInfraTypePrefix } from '../../../utils/infraIdGenerator';
 import type { MajorItemLocations, InfraData, ScopeOfWorkEnum, MajorItemOfWork } from '../Model.d';
@@ -46,6 +47,11 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
   const [infraDialogOpen, setInfraDialogOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [isAddingNew, setIsAddingNew] = useState(false);
+  
+  // Delete dialog state
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deletingWorkLocation, setDeletingWorkLocation] = useState<MajorItemLocations | null>(null);
+  const [deletingIndex, setDeletingIndex] = useState<number | null>(null);
 
   // Helper function to get target unit name from workTypeId when targetUnit prop is empty
   const getTargetUnitName = (workTypeId: number): string => {
@@ -122,6 +128,23 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
       setEditingIndex(index);
       setInfraDialogOpen(true);
     }
+  };
+
+  const handleOpenDeleteDialog = (index: number) => {
+    setDeletingWorkLocation(workLocations[index]);
+    setDeletingIndex(index);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleCloseDeleteDialog = () => {
+    setIsDeleteDialogOpen(false);
+    setDeletingWorkLocation(null);
+    setDeletingIndex(null);
+  };
+
+  const handleConfirmDelete = (index: number) => {
+    onDelete(index);
+    handleCloseDeleteDialog();
   };
 
   const handleInfraSelect = (infraId: string, _infraName: string, _infraType: string) => {
@@ -611,7 +634,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
                     </Button>
                     <Button
                       color="red"
-                      onClick={() => onDelete(index)}
+                      onClick={() => handleOpenDeleteDialog(index)}
                       className={`flex items-center px-3 py-1 text-xs ${getDisabledClass(disabled)}`}
                       disabled={disabled}
                     >
@@ -701,6 +724,16 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
           mode="add"
         />
       )}
+
+      {/* Delete Work Location Dialog */}
+      <DeleteWorkLocationDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={handleCloseDeleteDialog}
+        onConfirmDelete={handleConfirmDelete}
+        workLocation={deletingWorkLocation}
+        deleteIndex={deletingIndex}
+        infraType={infraType}
+      />
     </div>
   );
 };
