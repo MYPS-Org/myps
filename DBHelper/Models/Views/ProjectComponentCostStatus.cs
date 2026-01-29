@@ -18,7 +18,6 @@ namespace DBHelper.Models.Views
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
         public bool IsDeleted { get; set; }
-        public int? RevisedNumber { get; set; }
         public int? ConstructionStatusCode { get; set; }
         public string? ConstructionStatusName { get; set; }
         public bool? PackedStatusCode { get; set; }

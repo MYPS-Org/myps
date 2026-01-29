@@ -77,6 +77,7 @@ namespace DBHelper.Models.Table
         public string CreatedBy { get; set; } = string.Empty;
         [Required]
         public DateTime CreatedDate { get; set; }
+        [Required]
         public bool IsDeleted { get; set; } = false;
     }
 }
