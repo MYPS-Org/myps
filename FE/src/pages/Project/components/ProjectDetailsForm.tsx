@@ -369,7 +369,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     <div className="grid grid-cols-3 gap-5 border-t-2 pt-4 border-gray-200">
                         <div className="w-full flex flex-col text-left gap-2">
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.Category ? 'text-red-500' : 'text-gray-600'}`}>*Category:</label>
+                                <label className={`w-1/3 ${errors.Category ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>Category:</label>
                                 <div className="w-2/3 min-w-0">
                                     <SearchableDropdown
                                         options={formatDropdownOptions(
@@ -392,7 +392,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.Thrust ? 'text-red-500' : 'text-gray-600'}`}>*Sub-Category:</label>
+                                <label className={`w-1/3 ${errors.Thrust ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>Sub-Category:</label>
                                 <div className='w-2/3 min-w-0'>
                                     <SearchableDropdown
                                         options={formatDropdownOptions(
@@ -429,7 +429,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
                     <div className="grid grid-cols-1 gap-2">
                         <div className='w-full flex text-left gap-2'>
-                            <label className={`w-1/9 ${errors.Description ? 'text-red-500' : 'text-gray-600'}`}>*Description:</label>
+                            <label className={`w-1/9 ${errors.Description ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>Description:</label>
                             <div className="w-8/9">
                                 <textarea
                                     value={projectDetails?.Description}
@@ -453,7 +453,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     <div className="grid grid-cols-3 gap-5">
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.Province ? 'text-red-500' : 'text-gray-600'}`}>Province:</label>
+                                <label className={`w-1/3 ${errors.Province ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>Province:</label>
                                 <div className="w-2/3">
                                     <SearchableDropdown
                                         options={formatDropdownOptions(projectEnums?.Provinces || [], 'GdbId', 'Name', 'Id')}
@@ -471,7 +471,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.City ? 'text-red-500' : 'text-gray-600'}`}>*City/Municipality:</label>
+                                <label className={`w-1/3 ${errors.City ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>City/Municipality:</label>
                                 <div className="w-2/3">
                                     <SearchableDropdown
                                         options={formatDropdownOptions(filteredCities || [], 'GdbId', 'Name', 'Id')}
@@ -489,7 +489,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.LegislativeDistrict ? 'text-red-500' : 'text-gray-600'}`}>*Legislative District:</label>
+                                <label className={`w-1/3 ${errors.LegislativeDistrict ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>Legislative District:</label>
                                 <div className="w-2/3">
                                     <SearchableDropdown
                                        options={formatDropdownOptions(filteredLegislativeDistricts || [], 'GdbId', 'Name', 'Id')}
@@ -517,7 +517,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.DEO ? 'text-red-500' : 'text-gray-600'}`}>*District Engineering Office:</label>
+                                <label className={`w-1/3 ${errors.DEO ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>District Engineering Office:</label>
                                 <div className='w-2/3'>
                                     <SearchableDropdown
                                         options={formatDropdownOptions(filteredDEOs || [], 'ParticipantId', 'Name')}
@@ -535,7 +535,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.Region ? 'text-red-500' : 'text-gray-600'}`}>Region:</label>
+                                <label className={`w-1/3 ${errors.Region ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>Region:</label>
                                 <div className='w-2/3'>
                                     <SearchableDropdown
                                         options={formatDropdownOptions(
@@ -560,7 +560,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     <div className="grid grid-cols-2 gap-5">
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.ImplementingOffice ? 'text-red-500' : 'text-gray-600'}`}>*Implementing Office:</label>
+                                <label className={`w-1/3 ${errors.ImplementingOffice ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>Implementing Office:</label>
                                 <div className="w-2/3">
                                     <SearchableDropdown
                                         options={formatDropdownOptions(
@@ -582,7 +582,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.OperatingUnit ? 'text-red-500' : 'text-gray-600'}`}>*Operating Unit:</label>
+                                <label className={`w-1/3 ${errors.OperatingUnit ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>Operating Unit:</label>
                                 <div className="w-2/3">
                                     <SearchableDropdown
                                         options={formatDropdownOptions(filteredOUs || [], 'ParticipantId', 'Name')}
@@ -602,7 +602,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     <div className='grid grid-cols-2 gap-5'>
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.RegionWide ? 'text-red-500' : 'text-gray-600'}`}>Region Wide:</label>
+                                <label className={`w-1/3 ${errors.RegionWide ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>Region Wide:</label>
                                 <select 
                                     value={projectDetails?.RegionWide} 
                                     onChange={(e) => handleInputChange('RegionWide', e.target.value ? parseInt(e.target.value) : undefined)}
@@ -635,7 +635,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     <div className="grid grid-cols-2 gap-5">
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.Origin ? 'text-red-500' : 'text-gray-600'}`}>Origin:</label>
+                                <label className={`w-1/3 ${errors.Origin ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>Origin:</label>
                                 <div className='w-2/3'>
                                     <SearchableDropdown
                                         options={formatDropdownOptions(projectEnums?.Origins || [],
@@ -672,7 +672,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                         
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.Agency ? 'text-red-500' : 'text-gray-600'}`}>Originating Agency:</label>
+                                <label className={`w-1/3 ${errors.Agency ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>Originating Agency:</label>
                                 <div className='w-2/3'>
                                     <SearchableDropdown
                                         options={formatDropdownOptions(projectEnums?.Agencies || [],
@@ -702,7 +702,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     <div className="grid grid-cols-3 gap-5">
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.ImplementationMode ? 'text-red-500' : 'text-gray-600'}`}>Implementation Mode:</label>
+                                <label className={`w-1/3 ${errors.ImplementationMode ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>Implementation Mode:</label>
                                 <select
                                     value={projectDetails?.ImplementationMode}
                                     onChange={(e) => handleInputChange('ImplementationMode', parseInt(e.target.value))}
@@ -721,7 +721,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.EmergencyMode ? 'text-red-500' : 'text-gray-600'}`}>Emergency Mode:</label>
+                                <label className={`w-1/3 ${errors.EmergencyMode ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>Emergency Mode:</label>
                                 <select 
                                     name="EmergencyMode" 
                                     id="EmergencyMode" 
@@ -742,7 +742,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`flex-1/3 ${errors.RowAvailable ? 'text-red-500' : 'text-gray-600'}`}>ROW Available:</label>
+                                <label className={`flex-1/3 ${errors.RowAvailable ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>ROW Available:</label>
                                 <select 
                                     value={projectDetails?.RowAvailable} 
                                     onChange={(e) => handleInputChange('RowAvailable', parseInt(e.target.value))}
@@ -768,9 +768,9 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     <div className='grid grid-cols-2 gap-5'>
                         <div className="w-full flex flex-col text-left gap-2">
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.Feasibility ? 'text-red-500' : 'text-gray-600'}`}>Feasibility Study:</label>
+                                <label className={`w-1/3 ${errors.Feasibility ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500'>*</span>Feasibility Study:</label>
                                 <select 
-                                    value={projectDetails?.Feasibility || ''} 
+                                    value={projectDetails?.Feasibility} 
                                     onChange={(e) => handleInputChange('Feasibility', e.target.value ? parseInt(e.target.value) : undefined)}
                                     className={`w-2/3 mt-1 px-3 py-2 border ${errors.Feasibility ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
                                     disabled={disabled}
@@ -802,7 +802,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     <div className="grid grid-cols-2 gap-5">
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.DetailedDesign ? 'text-red-500' : 'text-gray-600'}`}>Detailed Design:</label>
+                                <label className={`w-1/3 ${errors.DetailedDesign ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>Detailed Design:</label>
                                 <select 
                                     value={projectDetails?.DetailedDesign} 
                                     onChange={(e) => handleInputChange('DetailedDesign', parseInt(e.target.value))}
