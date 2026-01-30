@@ -34,14 +34,6 @@ const DeleteWorkLocationDialog: React.FC<DeleteWorkLocationDialogProps> = ({
   const [, closeDialog] = useAtom(closeDeleteWorkLocationDialogAtom);
   const [, setDeletingState] = useAtom(setDeletingWorkLocationStateAtom);
 
-  // Debug logging
-  console.log('DeleteWorkLocationDialog render:', { 
-    canShowDialog, 
-    isOpen, 
-    selectedWorkLocation: selectedWorkLocation?.InfraId, 
-    deleteIndex 
-  });
-
   const handleClose = () => {
     if (!isDeleting) {
       closeDialog();

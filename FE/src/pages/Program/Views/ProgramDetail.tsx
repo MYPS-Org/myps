@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 
 import type { ProgramDetailsEnums, AIPReportParams } from '../Model.d'; // Adjust the import path as necessary
 import { Button } from '../../../components/tailwindui/button';
-import { editProgram, fetchProgramById, publishToPCMA, generateAIPReport, downloadAIPReport } from '../Service';
+import { editProgram, fetchProgramById, publishToPCMA, downloadAIPReport } from '../Service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
 import { ChevronDownIcon, ChevronRightIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
 import { useToast } from '../../../components/toaster/ToasterContext';

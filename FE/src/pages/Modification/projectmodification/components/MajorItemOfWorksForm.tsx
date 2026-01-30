@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '../../../../components/tailwindui/button';
-import { PlusIcon, TrashIcon, PencilIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, TrashIcon, PencilIcon, ChevronDownIcon, ChevronRightIcon, DocumentDuplicateIcon } from '@heroicons/react/24/outline';
 import { Table, TableHead, TableRow, TableHeader, TableBody, TableCell } from '../../../../components/tailwindui/table';
 import AddMajorItemDialog from '../../dialogs/AddMajorItemDialog';
 import DeleteMajorItemDialog from '../../dialogs/deleteDialog/DeleteMajorItemDialog';
+import CopyMajorItemDialog from '../../dialogs/CopyMajorItemDialog';
 import WorkLocationTable from './WorkLocationTable';
 import type { 
   MajorItemOfWorksWithDropdown, 
@@ -52,6 +53,8 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [majorItemToDelete, setMajorItemToDelete] = useState<MajorItemOfWorksWithDropdown | null>(null);
+  const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false);
+  const [majorItemToCopy, setMajorItemToCopy] = useState<MajorItemOfWorksWithDropdown | null>(null);
 
   // Use props if provided, otherwise fallback to hook
   const items = propMajorItems ?? hookItems;
@@ -166,6 +169,50 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     setIsDeleteOpen(false);
     setDeletingMajorItemIndex(null);
     setMajorItemToDelete(null);
+  };
+
+  const handleCopyMajorItem = (index: number) => {
+    setMajorItemToCopy(items[index]);
+    setIsCopyDialogOpen(true);
+  };
+
+  const handleConfirmCopyMajorItem = (newComponentId: string) => {
+    if (!majorItemToCopy) return;
+
+    // Generate a unique temporary ReferenceId for the copied major item
+    const tempReferenceId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // Create a copy of the major item with the new component ID (without locations initially)
+    const copiedMajorItem: MajorItemOfWorksWithDropdown = {
+      ...majorItemToCopy,
+      Id: 0, // New item, so reset ID
+      ComponentId: newComponentId, // Use the selected component
+      ReferenceId: tempReferenceId, // New reference ID for linking
+      MajorItemLocations: [], // Will be added separately via atoms
+      CreatedBy: '', // Will be set on save
+      IsDeleted: false,
+    };
+
+    // Add the copied major item first
+    callAdd(copiedMajorItem);
+
+    // Then add all work locations separately using the hook
+    const locationsToAdd = majorItemToCopy.MajorItemLocations?.filter(loc => !loc.IsDeleted) || [];
+    locationsToAdd.forEach(location => {
+      const copiedLocation: MajorItemLocations = {
+        ...location,
+        Id: 0, // Reset ID for new location
+        ParentId: tempReferenceId, // Link to new major item
+        IsDeleted: false,
+      };
+      
+      // Add each location via the hook
+      addWorkLocation(copiedLocation);
+    });
+
+    // Close dialog
+    setIsCopyDialogOpen(false);
+    setMajorItemToCopy(null);
   };
 
   const handleMajorItemDialogSubmit = (majorItemData: {
@@ -349,14 +396,24 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                         color="blue"
                         onClick={() => handleEditMajorItem(index)}
                         className="text-xs px-2 py-1"
+                        title="Edit"
                       >
                         <PencilIcon className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        color="cyan"
+                        onClick={() => handleCopyMajorItem(index)}
+                        className="text-xs px-2 py-1"
+                        title="Copy to another component"
+                      >
+                        <DocumentDuplicateIcon className="w-3 h-3" />
                       </Button>
                       <Button
                         color="red"
                         onClick={() => handleDeleteMajorItem(index)}
                         className={`text-xs px-2 py-1 ${getDisabledClass(!canDeleteMajorItem())}`}
                         disabled={!canDeleteMajorItem()}
+                        title="Delete"
                       >
                         <TrashIcon className="w-3 h-3" />
                       </Button>
@@ -431,6 +488,19 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
         onConfirmDelete={handleConfirmDeleteMajorItem}
         majorItem={majorItemToDelete}
         deleteIndex={deletingMajorItemIndex}
+      />
+
+      {/* Copy Major Item Dialog */}
+      <CopyMajorItemDialog
+        isOpen={isCopyDialogOpen}
+        onClose={() => {
+          setIsCopyDialogOpen(false);
+          setMajorItemToCopy(null);
+        }}
+        onConfirm={handleConfirmCopyMajorItem}
+        majorItemToCopy={majorItemToCopy}
+        componentCosts={componentCosts}
+        existingMajorItems={items.map(item => ({ ComponentId: item.ComponentId }))}
       />
     </div>
   );

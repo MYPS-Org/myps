@@ -634,6 +634,17 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     setUpdateAllProject(true);
     
     try {
+      console.log('=== COMPONENT COSTS BEFORE PAYLOAD ===');
+      console.log('Total count:', componentCosts.length);
+      componentCosts.forEach((cost, index) => {
+        console.log(`[${index}] ${cost.ComponentId}:`, {
+          Id: cost.Id,
+          IsDeleted: cost.IsDeleted,
+          Amount: cost.Amount
+        });
+      });
+      console.log('======================================');
+      
       // Transform majorItems into separate MajorItemOfWorks and WorkLocations arrays
       const majorItemsForPayload: MajorItemOfWork[] = [];
       const workLocationsForPayload: MajorItemLocations[] = [];
@@ -652,7 +663,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           TargetUnitId: item.TargetUnitId,
           TargetUnit: item.TargetUnit,
           CreatedBy: item.CreatedBy,
-          IsDeleted: item.IsDeleted || false
+          IsDeleted: item.IsDeleted
         };
         majorItemsForPayload.push(majorItemPayload);
         
@@ -693,7 +704,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           CreatedDate: cost.CreatedDate || new Date().toISOString(),
           UpdatedBy: user?.UserId,
           UpdatedDate: new Date().toISOString(),
-          IsDeleted: cost.IsDeleted || false
+          IsDeleted: cost.IsDeleted
         })),
         MajorItemOfWorks: majorItemsForPayload,
         MajorItemLocations: workLocationsForPayload,
@@ -767,23 +778,23 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     });
   }
 
-  const handleTerminationSubmit = async (hasUnfinishedWork: boolean) => {
-    console.log('Termination submitted:', {
-      project: projectDetails,
-      category: modificationCategory,
-      reason: modificationReason,
-      hasUnfinishedWork: hasUnfinishedWork
-    });
+  // const handleTerminationSubmit = async (hasUnfinishedWork: boolean) => {
+  //   console.log('Termination submitted:', {
+  //     project: projectDetails,
+  //     category: modificationCategory,
+  //     reason: modificationReason,
+  //     hasUnfinishedWork: hasUnfinishedWork
+  //   });
     
-    await new Promise(resolve => setTimeout(resolve, 1000));
+  //   await new Promise(resolve => setTimeout(resolve, 1000));
     
-    alert(`Termination request submitted!\n\nHas Unfinished Work Balance: ${hasUnfinishedWork ? 'Yes' : 'No'}\n\nProject: ${projectDetails.ProjectId}\nCategory: ${modificationCategory}\nReason: ${modificationReason}`);
+  //   alert(`Termination request submitted!\n\nHas Unfinished Work Balance: ${hasUnfinishedWork ? 'Yes' : 'No'}\n\nProject: ${projectDetails.ProjectId}\nCategory: ${modificationCategory}\nReason: ${modificationReason}`);
     
-    showToast({
-      type: 'success',
-      message: 'Termination request submitted successfully'
-    });
-  }
+  //   showToast({
+  //     type: 'success',
+  //     message: 'Termination request submitted successfully'
+  //   });
+  // }
 
   const handleRejectModification = async (rejectionReason: string) => {
     console.log('Rejecting modification:', {
@@ -1173,8 +1184,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         majorItemOfWorks={majorItems.map(item => ({
           Id: item.Id,
           ProjectId: item.ProjectId,
-          ReferenceId: item.ReferenceId,
-          StageName: initialData?.ProgramDetails.StageName || '',
+          ReferenceId: item.ProjectId + "-" + item.ComponentId + "-" + initialData?.ProgramDetails.StageName,
+          StageName: initialData?.ProgramDetails.StageName,
           ComponentId: item.ComponentId,
           YearOfWork: item.YearOfWork,
           WorkTypeId: item.WorkTypeId,
@@ -1187,7 +1198,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         majorItemLocations={majorItems.flatMap(item => 
           (item.MajorItemLocations || []).map(location => ({
             ...location,
-            ParentId: item.ComponentId,
+            ParentId: item.ProjectId + "-" + item.ComponentId + "-" + initialData?.ProgramDetails.StageName,
             ProjectId: item.ProjectId || '',
             StageName: initialData?.ProgramDetails.StageName || ''
           }))

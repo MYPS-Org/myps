@@ -58,22 +58,33 @@ export function useComponentCosts() {
     if (!selectedForDelete || deleteIndex === null || isDeleting) return;
     try {
       setIsDeleting(true);
-      const componentId = selectedForDelete.ComponentId;
-      if (componentId) {
-        // Use conditional delete based on Id
-        if (selectedForDelete.Id === 0) {
-          // New item - hard delete
-          remove(componentId);
-        } else {
-          // Existing item - soft delete
-          removeByIndex(deleteIndex);
-        }
+      
+      // Check if item has a database ID (considering undefined, null, or 0 as "no ID")
+      const hasDbId = selectedForDelete.Id && selectedForDelete.Id > 0;
+      
+      console.log('Deleting component:', {
+        componentId: selectedForDelete.ComponentId,
+        id: selectedForDelete.Id,
+        hasDbId,
+        deleteIndex
+      });
+      
+      if (!hasDbId) {
+        // New item (not saved to database) - hard delete (remove from array)
+        console.log('Hard delete - removing from array');
+        setCosts(prev => prev.filter((_, i) => i !== deleteIndex));
+      } else {
+        // Existing item (from database) - soft delete (set IsDeleted = true, keep in payload)
+        console.log('Soft delete - marking IsDeleted = true');
+        setCosts(prev => prev.map((cost, i) => 
+          i === deleteIndex ? { ...cost, IsDeleted: true } : cost
+        ));
       }
     } finally {
       setIsDeleting(false);
       closeDelete();
     }
-  }, [selectedForDelete, deleteIndex, isDeleting, remove, removeByIndex, closeDelete]);
+  }, [selectedForDelete, deleteIndex, isDeleting, setCosts, closeDelete]);
 
   return {
     // read

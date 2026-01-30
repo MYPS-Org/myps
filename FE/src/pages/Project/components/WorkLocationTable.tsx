@@ -223,18 +223,18 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
   };
 
   // Calculate total physical target for all work locations
-  const getTotalPhysicalTarget = (): number => {
-    return workLocations
-      .filter(location => !location.IsDeleted)
-      .reduce((total, location) => {
-        return total + (location.PhysicalTarget || 0);
-      }, 0);
-  };
+  // const getTotalPhysicalTarget = (): number => {
+  //   return workLocations
+  //     .filter(location => !location.IsDeleted)
+  //     .reduce((total, location) => {
+  //       return total + (location.PhysicalTarget || 0);
+  //     }, 0);
+  // };
 
   // Format number with commas
-  const formatNumber = (num: number): string => {
-    return num.toLocaleString('en-PH');
-  };
+  // const formatNumber = (num: number): string => {
+  //   return num.toLocaleString('en-PH');
+  // };
 
   const handleNumberFocus = (e: React.FocusEvent<HTMLInputElement>) => {
     if (e.target.value === '0') {

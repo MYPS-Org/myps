@@ -94,20 +94,37 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
       .filter(Boolean);
 
     // Generate options with alphabet suffix (e.g., CW1A, CW2A, CW3A)
-    const options = terminatedCWComponents.map((componentId: string) => {
-      // Find the next available alphabet suffix
+    const allOptions: string[] = [];
+    
+    terminatedCWComponents.forEach((componentId: string) => {
       const baseId = componentId; // e.g., "CW1"
-      const existingWithSuffix = componentCosts.filter(c => 
-        c.ComponentId?.startsWith(baseId) && c.ComponentId !== baseId && !c.IsDeleted
-      );
       
-      // Generate next alphabet (A, B, C, etc.)
+      // Find existing components with this base ID (excluding the one being edited)
+      const existingWithSuffix = componentCosts.filter(c => {
+        const matchesBase = c.ComponentId?.startsWith(baseId) && c.ComponentId !== baseId && !c.IsDeleted;
+        // When editing, exclude the current component from the count
+        const isCurrentlyEditing = mode === 'edit' && editingCost && c.ComponentId === editingCost.ComponentId;
+        return matchesBase && !isCurrentlyEditing;
+      });
+      
+      // If in edit mode and current component starts with this base, include it
+      if (mode === 'edit' && editingCost?.ComponentId?.startsWith(baseId) && editingCost.ComponentId !== baseId) {
+        allOptions.push(editingCost.ComponentId);
+      }
+      
+      // Generate next available alphabet (A, B, C, etc.)
       const nextLetter = String.fromCharCode(65 + existingWithSuffix.length); // 65 = 'A'
-      return `${baseId}${nextLetter}`;
+      const nextOption = `${baseId}${nextLetter}`;
+      
+      // Only add if not already in options (avoid duplicates)
+      if (!allOptions.includes(nextOption)) {
+        allOptions.push(nextOption);
+      }
     });
 
-    return options;
-  }, [isChangeOfCreditor, allComponentCosts, componentCosts]);
+    // Remove duplicates and sort
+    return [...new Set(allOptions)].sort();
+  }, [isChangeOfCreditor, allComponentCosts, componentCosts, mode, editingCost]);
 
   // Get field permissions state
   const permissionState = useFieldPermissionState();
