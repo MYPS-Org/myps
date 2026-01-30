@@ -349,6 +349,15 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found or not in GAA-R stage!", Title = "Invalid Project" });
                 }
+                var ProjectComponentsStatus = await _db.vProjectComponentStatus.AsNoTracking().Where(x => x.ProjectId == dto.ProjectId).ToListAsync();
+                if (dto.RevisionHeader == 9 || dto.RevisionHeader == 16 || dto.RevisionReason == 47)
+                {
+                    var hasTerminated = ProjectComponentsStatus.FirstOrDefault(x => x.ConstructionStatusName == "Terminated");
+                    if(hasTerminated == null)
+                    {
+                        return new BadRequestObjectResult(new { Message = "Project has no terminated components", Title = "No Terminated Components" });
+                    }
+                }
 
                 var HasPendingModification = await _db.vRevisionLists.AsNoTracking()
                     .FirstOrDefaultAsync(x => x.TransactionId.Contains(dto.ProjectId) && x.COStatus != EnumRevisionStatus.Approved);
@@ -357,7 +366,6 @@ namespace WebAPI.Controllers.Revision
                     return new BadRequestObjectResult(new { Message = $"There is a pending {HasPendingModification.RevisionName} request for this project. Please wait for the current request to be processed before submitting a new one.", Title = "Pending Modification Request" });
                 }
                 #region Validate PCMA Status
-                var ProjectComponentsStatus = await _db.vProjectComponentStatus.AsNoTracking().Where(x => x.ProjectId == dto.ProjectId).ToListAsync();
                 if(ProjectComponentsStatus == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found in PCMA", Title = "Project Not Found" });
@@ -379,6 +387,11 @@ namespace WebAPI.Controllers.Revision
                     var HasNYS = ProjectComponentsStatus.Where(x => x.ConstructionStatusName == "Not Yet Started");
                     HasOnGoing = HasNYS.FirstOrDefault(x => NYSCondition.Contains(x.ConstructionStatusName));
                     if (HasOnGoing == null) ConStatus = "Not Yet Started";
+                    #endregion
+
+                    #region Terminated
+                    var ProjectTerminated = ProjectComponentsStatus.Where(x => x.ConstructionStatusName != "Terminated" && string.IsNullOrEmpty(x.ConstructionStatusName));
+                    if (ProjectTerminated != null) ConStatus = "Terminated";
                     #endregion
                 }
                 #endregion
@@ -443,7 +456,7 @@ namespace WebAPI.Controllers.Revision
                 var MajorItemOfWork = await _db.tProjectMajorWorkItem.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkItem({Project.ProjectId}) fp WHERE fp.StageName = {Project.StageName}").AsNoTracking().ToListAsync();
                 //var MajorItemOfWork = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && !x.IsDeleted).ToListAsync();
                 HashSet<string> ItemParents = MajorItemOfWork.Select(x => x.ReferenceId).ToHashSet();
-                var MajorWorkLocation = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => ItemParents.Contains(x.ParentId) && !x.IsDeleted).ToListAsync();
+                var MajorWorkLocation = await _db.tProjectMajorWorkLocations.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkLocations({Project.ProjectId})").AsNoTracking().Where(x => ItemParents.Contains(x.ParentId) && !x.IsDeleted).ToListAsync();
 
 
                 var Notes = await _db.tProjectNotes.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
@@ -949,21 +962,30 @@ namespace WebAPI.Controllers.Revision
                     DocumentName = DocumentName,
                     IsApprovedDocument = false
                 });
-                if (isCOUser && RevisionRules.RevisionGroupId == 9)
+                if (isCOUser)
                 {
-                    var entities = NewComponent
-                    .Where(x => !x.IsDeleted)
-                    .Select(x => new RevisionDetailsComponentsStatus
+                    if (RevisionRules.RevisionGroupId == 9)
                     {
-                        TransactionId = TransactionId,
-                        ComponentId = x.ComponentId,
-                        ConstructionStatusCode = 252,
-                        ConstructionStatusName = dto.RevisionDetails.ConstructionStatus,
-                        IsPackaged = dto.RevisionDetails.PackageStatus == "Packaged"
-                    })
-                    .ToList();
+                        var entities = NewComponent
+                        .Where(x => !x.IsDeleted)
+                        .Select(x => new RevisionDetailsComponentsStatus
+                        {
+                            TransactionId = TransactionId,
+                            ComponentId = x.ComponentId,
+                            ConstructionStatusCode = 252,
+                            ConstructionStatusName = dto.RevisionDetails.ConstructionStatus,
+                            IsPackaged = dto.RevisionDetails.PackageStatus == "Packaged"
+                        })
+                        .ToList();
 
-                    await _db.tRevisionDetailsComponentsStatus.AddRangeAsync(entities);
+                        await _db.tRevisionDetailsComponentsStatus.AddRangeAsync(entities);
+                    }
+                    var ExistingProjectRevisions = await _db.tRevisionProjects.FirstOrDefaultAsync(x => x.IsActive == true && x.ProjectId == dto.ProjectDetails.ProjectId);
+                    if (ExistingProjectRevisions != null)
+                    {
+                        ExistingProjectRevisions.IsActive = false;
+                        _db.tRevisionProjects.Update(ExistingProjectRevisions);
+                    }
                 }
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
@@ -1237,22 +1259,31 @@ namespace WebAPI.Controllers.Revision
                         {
                             OldRevisionProjects.IsActive = false;
                         }
-                        if (dto.Status == EnumRevisionStatus.Approved && RevisionDetails.RevisionGroupId == 9)
+                        if (dto.Status == EnumRevisionStatus.Approved)
                         {
-                            var entities = await _db.tProjectComponentCost.FromSqlInterpolated($@"
+                            if (RevisionDetails.RevisionGroupId == 9)
+                            {
+                                var entities = await _db.tProjectComponentCost.FromSqlInterpolated($@"
                                     SELECT *
                                     FROM fPendingProjectComponentsCost({SelectedProjectRevision.TransactionId}) fp
                                     WHERE fp.IsDeleted = 0").ToListAsync();
-                            var status = _db.vProjectComponentCostStatus.Where(x => entities.Select(y => y.ComponentId).Contains(x.ComponentId) && x.ProjectId == SelectedProjectRevision.ProjectId);
+                                var status = _db.vProjectComponentCostStatus.Where(x => entities.Select(y => y.ComponentId).Contains(x.ComponentId) && x.ProjectId == SelectedProjectRevision.ProjectId);
 
-                            await _db.tRevisionDetailsComponentsStatus.AddRangeAsync(entities.Select(x => new RevisionDetailsComponentsStatus
+                                await _db.tRevisionDetailsComponentsStatus.AddRangeAsync(entities.Select(x => new RevisionDetailsComponentsStatus
+                                {
+                                    TransactionId = dto.TransactionId,
+                                    ComponentId = x.ComponentId,
+                                    ConstructionStatusCode = 252,
+                                    ConstructionStatusName = "Terminated",
+                                    IsPackaged = status.FirstOrDefault(a => a.ComponentId == x.ComponentId)?.PackedStatusName == "Packaged"
+                                }));
+                            }
+                            var ExistingProjectRevisions = await _db.tRevisionProjects.FirstOrDefaultAsync(x => x.IsActive == true && x.ProjectId == SelectedProjectRevision.ProjectId);
+                            if (ExistingProjectRevisions != null)
                             {
-                                TransactionId = dto.TransactionId,
-                                ComponentId = x.ComponentId,
-                                ConstructionStatusCode = 252,
-                                ConstructionStatusName = "Terminated",
-                                IsPackaged = status.FirstOrDefault(a => a.ComponentId == x.ComponentId)?.PackedStatusName == "Packaged"
-                            }));
+                                ExistingProjectRevisions.IsActive = false;
+                                _db.tRevisionProjects.Update(ExistingProjectRevisions);
+                            }
                         }
                     }
                     _db.tRevisionDetails.Update(RevisionDetails);
