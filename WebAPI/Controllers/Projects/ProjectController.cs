@@ -1204,7 +1204,7 @@ namespace WebAPI.Controllers.Projects
                                 if (ExistingItem.ComponentType != item.ComponentType)
                                 {
                                     ComponentUpdate = true;
-                                    var Component = await _db.tOptionProjectComponent.FirstOrDefaultAsync(x => x.ComponentId == item.ComponentType);
+                                    var Component = await _db.tOptionProjectComponent.FirstOrDefaultAsync(x => x.ComponentName == item.ComponentType);
                                     if (Component == null)
                                     {
                                         return new BadRequestObjectResult(new { Message = $"Selected Component '{item.ComponentType}' is not valid!", Title = "Invalid Component" });
