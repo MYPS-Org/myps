@@ -2,3 +2,4 @@
 export { default as AddProgramDialog } from './AddProgramDialog';
 export { default as DeleteProgramDialog } from './DeleteProgramDialog';
 export { default as NextStageDialog } from './NextStageDialog';
+export { FilterDialogProgramList } from './FilterDialogProgramList';

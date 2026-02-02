@@ -17,7 +17,7 @@ interface PaginationResponse<T> {
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '../../../components/tailwindui/table'; // Adjust the import path as necessary
 
 // #region Import Dialogs
-import { AddProgramDialog, DeleteProgramDialog } from '../dialogs';
+import { AddProgramDialog, DeleteProgramDialog, FilterDialogProgramList } from '../dialogs';
 // #endregion
 
 import { Button } from '../../../components/tailwindui/button'; // Adjust the import path as necessary
@@ -27,7 +27,8 @@ import {
     TrashIcon,
     ChevronDownIcon,
     ChevronRightIcon,
-    XMarkIcon
+    XMarkIcon,
+    FunnelIcon
 } from '@heroicons/react/24/outline'; // Adjust the import path as necessary
 import type { TableEnum } from '../../Project/Model';
 
@@ -44,6 +45,7 @@ const Program: React.FC = () => {
 
     const [isAddProgramOpen, setIsAddProgramOpen] = useState(false);
     const [isDeleteProgramOpen, setIsDeleteProgramOpen] = useState(false);
+    const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
     const [selectedProgram, setSelectedProgram] = useState<string | null>(); // Initialize with an empty string or a default value
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set()); // Track expanded rows
     const [stageLists, setStageLists] = useState<Record<string, StageList>>({}); // Store stages per program ID
@@ -73,17 +75,17 @@ const Program: React.FC = () => {
     });
 
     const [ProgramFilters, setProgramFilters] = useState<ProgramPagination>({
-            filters: {
-                Name: '',
-                YearStart: '',
-                GroupName: '',
-                StageName: '',
-            },
-            sortField: '',
-            sortDirection: 1,
-            page: 1,
-            limit: 20
-        });
+        filters: {
+            Name: '',
+            YearStart: '',
+            GroupName: '',
+            StageName: '',
+        },
+        sortField: '',
+        sortDirection: 1,
+        page: 1,
+        limit: 10
+    });
 
     const handleOpenDialog = async () => {
         try {
@@ -98,19 +100,7 @@ const Program: React.FC = () => {
         }
     };
 
-    // Helper function to map status numbers to strings
-    // const getStatusString = (statusId: number): string => {
-    //     const statusMap: { [key: number]: string } = {
-    //         1: 'Working',
-    //         2: 'Approved', 
-    //         3: 'Pending',
-    //         4: 'Rejected',
-    //         5: 'Proposed'
-    //     };
-    //     return statusMap[statusId] || 'Unknown';
-    // };
 
-    // Helper function to render status badge
     const getStatusBadge = (status: string) => {
         const statusColors = {
             'Working': 'bg-orange-100 text-orange-800 border-orange-200',
@@ -242,6 +232,34 @@ const Program: React.FC = () => {
         }
     };
 
+    const handleOpenFilterDialog = async () => {
+        try {
+            if (!programEnums) {
+                setIsLoading(true);
+                const response = await fetchProgramEnums();
+                setProgramEnums(response.Data);
+                setIsLoading(false);
+            }
+            setIsFilterDialogOpen(true);
+        } catch (error) {
+            console.error('Error fetching program enums:', error);
+            setIsLoading(false);
+        }
+    };
+
+    const handleApplyFilters = async (filters: ProgramPagination) => {
+        setProgramFilters(filters);
+        try {
+            setIsLoading(true);
+            const response = await fetchProgram(filters);
+            setProgramData(response.Data);
+        } catch (error) {
+            console.error('Error applying filters:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const Paginate = async (page: number) => {
         try {
             const response = await fetchProgram({
@@ -330,6 +348,20 @@ const Program: React.FC = () => {
                                         </Button>
                                     )}
                                 </div>
+                                <Button 
+                                    color="zinc" 
+                                    onClick={handleOpenFilterDialog}
+                                    disabled={isLoading}
+                                    className="text-xs px-3 py-1.5"
+                                >
+                                    <FunnelIcon className="w-4 h-4 mr-1" />
+                                    Filters
+                                    {(ProgramFilters.filters?.YearStart || ProgramFilters.filters?.GroupName || ProgramFilters.filters?.StageName) && (
+                                        <span className="ml-1.5 bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                                            {[ProgramFilters.filters?.YearStart, ProgramFilters.filters?.GroupName, ProgramFilters.filters?.StageName].filter(Boolean).length}
+                                        </span>
+                                    )}
+                                </Button>
                                 <Button color="blue" onClick={handleOpenDialog} disabled={isLoading} className="text-xs px-3 py-1.5">
                                     <PlusIcon className="w-4 h-4 mr-1" />
                                     {isLoading ? 'Loading...' : 'Add Program'}
@@ -564,6 +596,15 @@ const Program: React.FC = () => {
                     }}
                 />
             )}
+
+            {/* Filter Dialog */}
+            <FilterDialogProgramList
+                isOpen={isFilterDialogOpen}
+                onClose={() => setIsFilterDialogOpen(false)}
+                currentFilters={ProgramFilters}
+                programEnums={programEnums || undefined}
+                onApplyFilters={handleApplyFilters}
+            />
         </div>
     );
 }

@@ -9,6 +9,7 @@ interface CopyMajorItemDialogProps {
   onClose: () => void;
   onConfirm: (newComponentId: string) => void;
   majorItemToCopy: MajorItemOfWorksWithDropdown | null;
+  majorItemList?: MajorItemOfWorksWithDropdown[];
   componentCosts: ComponentCost[];
   existingMajorItems: Array<{ ComponentId: string }>;
 }
@@ -20,6 +21,7 @@ const CopyMajorItemDialog: React.FC<CopyMajorItemDialogProps> = ({
   majorItemToCopy,
   componentCosts,
   existingMajorItems,
+  majorItemList,
 }) => {
   const [selectedComponentId, setSelectedComponentId] = useState('');
 
@@ -34,9 +36,9 @@ const CopyMajorItemDialog: React.FC<CopyMajorItemDialogProps> = ({
   const availableComponentCosts = useMemo(() => {
     return componentCosts.filter(cost => {
       // Exclude deleted components
-      if (cost.IsDeleted) {
-        return false;
-      }
+    //   if (cost.IsDeleted) {
+    //     return false;
+    //   }
       
       // Always exclude EAO, EXC, SAV component IDs
       const excludedComponents = ['EAO', 'EXC', 'SAV', 'CoS'];
@@ -44,6 +46,8 @@ const CopyMajorItemDialog: React.FC<CopyMajorItemDialogProps> = ({
       if (excludedComponents.includes(componentId)) {
         return false;
       }
+      
+      const exemption = majorItemList?.find(m => m.IsDeleted ? true : false && m.ComponentId === cost.ComponentId);
       
       // Exclude components that already have major items
       const alreadyUsed = existingMajorItems.some(item => item.ComponentId === cost.ComponentId);
