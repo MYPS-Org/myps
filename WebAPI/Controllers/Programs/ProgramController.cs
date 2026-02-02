@@ -157,7 +157,7 @@ namespace WebAPI.Controllers.Programs
 
                 var Type = await _db.tOptionProgramType.AsNoTracking().ToListAsync();
                 var Group = await _db.tGroups.ToListAsync();
-                string[] includes = { "C", "R", "PMO", "PMOC", "B" };
+                string[] includes = { "CO", "R", "UPMO", "PMOC", "B" };
                 var Security = await _db.vAdminImplementingOffice.AsNoTracking().Where(x => includes.Contains(x.OrgType)).ToListAsync();
                 return Ok(new
                 {
@@ -194,7 +194,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Program Type '{dto.Type}' is not valid!", Title = "Invalid Type" });
                 }
-                string[] includes = { "C", "R", "PMO", "PMOC", "B" };
+                string[] includes = { "CO", "R", "UPMO", "PMOC", "B" };
                 var GetSecurityGroup = await _db.vAdminImplementingOffice.AsNoTracking().Where(x => includes.Contains(x.OrgType)).Select(x => x.ParticipantId).ToListAsync();
                 var CheckItems = dto.DataSecurityGroup.Where(x => !GetSecurityGroup.Contains(x));
                 if (CheckItems.Count() > 0)
@@ -306,7 +306,7 @@ namespace WebAPI.Controllers.Programs
                 var AvailableTypes = await _db.tOptionProgramType.AsNoTracking().ToListAsync();
                 var AvailableStatuses = await _db.tOptionProgramStatus.AsNoTracking().ToListAsync();
                 var AvailableGroups = await _db.tGroups.AsNoTracking().ToListAsync();
-                string[] includes = { "C", "R", "PMO", "PMOC", "B" };
+                string[] includes = { "CO", "R", "UPMO", "PMOC", "B" };
                 var Security = await _db.vAdminImplementingOffice.AsNoTracking().Where(x => includes.Contains(x.OrgType)).ToListAsync();
                 var response = new
                 {
@@ -468,7 +468,7 @@ namespace WebAPI.Controllers.Programs
                         CreatedDate = CurrentDate
                     });
                 }
-                string[] includes = { "C", "R", "PMO", "PMOC", "B" };
+                string[] includes = { "CO", "R", "UPMO", "PMOC", "B" };
                 //Pedning
                 var GetSecurityGroup = await _db.vAdminImplementingOffice.AsNoTracking().ToListAsync();
                 var CheckItems = dto.DataSecurityGroup.Where(x => !GetSecurityGroup.Select(x => x.ParticipantId).Contains(x));

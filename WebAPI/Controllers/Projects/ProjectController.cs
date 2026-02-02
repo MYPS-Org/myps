@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.EntityFrameworkCore.Scaffolding.Metadata;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
+using OfficeOpenXml;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Reflection;
@@ -555,6 +556,48 @@ namespace WebAPI.Controllers.Projects
                     return new BadRequestObjectResult(new { Message = "Program not found for this project!", Title = "Program Not Found" });
                 }
                 bool HasCostUpdate = false;
+
+                #region Field Validations
+                #region Project
+                if (string.IsNullOrEmpty(dto.ProjectDetails.Province))
+                {
+                    return new BadRequestObjectResult(new { Message = "Please select valid Province", Title = "Province is required!" });
+                }
+                #endregion
+                #region Funding Profile
+                var BlankFunding = dto.FundingProfile.Where(x => x.Amount <= 0).ToList();
+                if(!BlankFunding.IsNullOrEmpty())
+                {
+                    return new BadRequestObjectResult(new { Message = "Funding Profile contains invalid amount(s). Please check and try again.", Title = "Invalid Funding Profile Amount" });
+                }
+                var BlankFundingSource = dto.FundingProfile.Where(x => string.IsNullOrEmpty(x.Source)).ToList();
+                if (!BlankFundingSource.IsNullOrEmpty())
+                {
+                    return new BadRequestObjectResult(new { Message = "Funding Profile contains invalid source(s). Please check and try again.", Title = "Invalid Funding Profile Source" });
+                }
+                var BlankFundingAgreement = dto.FundingProfile.Where(x => string.IsNullOrEmpty(x.Agreement)).ToList();
+                if (!BlankFundingAgreement.IsNullOrEmpty())
+                {
+                    return new BadRequestObjectResult(new { Message = "Funding Profile contains invalid agreement(s). Please check and try again.", Title = "Invalid Funding Profile Agreement" });
+                }
+                #endregion
+                #region Component Cost
+                var BlankComponentCost = dto.ComponentCosts.Where(x => x.Amount <= 0 && x.Id == 0).ToList();
+                if (!BlankComponentCost.IsNullOrEmpty())
+                {
+                    return new BadRequestObjectResult(new { Message = "Component Cost contains invalid amount(s). Please check and try again.", Title = "Invalid Component Cost Amount" });
+                }
+                var BlankComponentType = dto.ComponentCosts.Where(x => string.IsNullOrEmpty(x.ComponentType)).ToList();
+                if (!BlankComponentType.IsNullOrEmpty())
+                {
+                    return new BadRequestObjectResult(new { Message = "Component Cost contains invalid component type(s). Please check and try again.", Title = "Invalid Component Cost Type" });
+                }
+                #endregion
+                #region Major Work Item
+                #endregion
+                #region Major Work Location
+                #endregion
+                #endregion
 
                 #region Update Project Details
                 if (Project.MYId != dto.ProjectDetails?.MYId)

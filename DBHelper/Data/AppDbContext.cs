@@ -29,6 +29,7 @@ namespace DBHelper.Data
         public DbSet<Models.Table.ProjectThrustLists> tProjectThrustLists { get; set; }
         public DbSet<Models.Table.OptionProjectOrigin> tOptionProjectOrigin { get; set; }
         public DbSet<Models.Table.OptionAdminAreaCityMunicipality> tOptionAdminAreaCityMunicipality { get; set; }
+        public DbSet<Models.Table.OptionAdminBureau> tOptionAdminBureau { get; set; }
         public DbSet<Models.Table.OptionAdminAreaCongressionalDistrict> tOptionAdminAreaCongressionalDistrict { get; set; }
         public DbSet<Models.Table.OptionAdminAreaDistrictEngineeringOffice> tOptionAdminAreaDistrictEngineeringOffice { get; set; }
         public DbSet<Models.Table.OptionAdminAreaRegion> tOptionAdminAreaRegion { get; set; }
