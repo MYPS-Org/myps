@@ -563,8 +563,14 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     
     // If there are validation errors, don't proceed with save
     if (Object.keys(validationErrors).length > 0) {
-      console.log('Validation errors found:', validationErrors);
-      return;
+        // Show errors in a toast
+        Object.values(validationErrors).forEach((error) => {
+            showToast({
+                type: 'error',
+                message: error,
+            });
+        });
+        return;
     }
     
     // Show confirmation dialog
@@ -608,7 +614,13 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     
     // If there are validation errors, don't proceed with update
     if (Object.keys(validationErrors).length > 0) {
-      console.log('Validation errors found:', validationErrors);
+      // Show errors in a toast
+      Object.values(validationErrors).forEach((error) => {
+          showToast({
+              type: 'error',
+              message: error,
+          });
+      });
       return;
     }
 
