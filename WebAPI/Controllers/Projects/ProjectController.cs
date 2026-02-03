@@ -218,6 +218,11 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = $"Implementation Mode is required!", Title = "Invalid Implementation Mode" });
                 }
+                var ValidateDescription = await _db.tProjectRevisions.FirstOrDefaultAsync(x => x.Description == dto.Description);
+                if (ValidateDescription != null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Description: {dto.Description} already exist in {ValidateDescription.ProjectId}", Title = "Description Exists" });
+                }
                 #endregion
                 var Program = await _db.vPrograms.FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
                 if (Program == null)
@@ -542,6 +547,11 @@ namespace WebAPI.Controllers.Projects
                 DateTime CurrentDate = DateTime.UtcNow;
                 List<TransactionLog> transactionLogs = new List<TransactionLog>();
 
+                var ValidateDescription = await _db.tProjectRevisions.FirstOrDefaultAsync(x => x.Description == dto.ProjectDetails.Description);
+                if (ValidateDescription != null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Description: {dto.ProjectDetails.Description} already exist in {ValidateDescription.ProjectId}", Title = "Description Exists" });
+                }
                 var Project = await _db.vProjectDetails
                 .FromSqlInterpolated($"SELECT * FROM fProjectDetails({dto.ProjectDetails.ProjectId}) fp WHERE fp.ProjectId = {dto.ProjectDetails.ProjectId} AND fp.StageName = {dto.ProjectDetails.StageName}")
                 .AsNoTracking()
