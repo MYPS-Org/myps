@@ -25,7 +25,7 @@ namespace DBHelper.Models.Table
         [Required]
         public string[] DataSecurityGroup { get; set; } = new string[] { };
         [Required]
-        public int UserGroup { get; set; }
+        public int[] UserGroup { get; set; } = new int[] { };
         [Required]
         public EnumProgramStatus Status { get; set; }
         [Required]

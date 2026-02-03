@@ -16,9 +16,8 @@ namespace DBHelper.Models.Views
         public bool IsSkipped { get; set; }
         public string? SkipReason { get; set; }
         public string? Name { get; set; }
-        public string? GroupName { get; set; }
         public string[] DataSecurityGroup { get; set; } = new string[] { };
-        public int UserGroup { get; set; }
+        public int[] UserGroup { get; set; } = new int[] { };
         public string? Status { get; set; }
         public string? Type { get; set; }
         public Double? Cost { get; set; }
