@@ -17,7 +17,7 @@ namespace DBHelper.Models.Functions
         public string Thrust { get; set; } = string.Empty;
         public string City { get; set; } = string.Empty;
         public string LegislativeDistrict { get; set; } = string.Empty;
-        public string UpdatedBy { get; set; } = string.Empty;
-        public DateTime UpdatedDate { get; set; }
+        public string CreatedBy { get; set; } = string.Empty;
+        public DateTime CreatedDate { get; set; }
     }
 }
