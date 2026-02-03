@@ -1,14 +1,17 @@
 import { Dialog, DialogTitle, DialogPanel } from "@headlessui/react";
-import { TagIcon } from "@heroicons/react/24/outline";
+import { TagIcon, TrashIcon, EyeSlashIcon, CheckCircleIcon } from "@heroicons/react/24/outline";
 import { Button } from "../../../components/tailwindui/button";
 import { useState } from "react";
+
+type BatchAction = 'tag' | 'delete' | 'unpublish' | 'publish';
 
 interface BatchTagDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (tags: string) => void;
+  onSubmit: (projectIds: string, action: BatchAction) => void;
   programId: string;
   programName: string;
+  action?: BatchAction;
 }
 
 const BatchTagDialog: React.FC<BatchTagDialogProps> = ({
@@ -17,23 +20,75 @@ const BatchTagDialog: React.FC<BatchTagDialogProps> = ({
   onSubmit,
   programId,
   programName,
+  action = 'tag',
 }) => {
-  const [tags, setTags] = useState('');
+  const [projectIds, setProjectIds] = useState('');
   const [error, setError] = useState('');
 
+  const getActionConfig = () => {
+    switch (action) {
+      case 'delete':
+        return {
+          title: 'Batch Delete Projects',
+          description: 'Delete multiple projects at once. This action cannot be undone.',
+          icon: TrashIcon,
+          iconColor: 'text-red-600',
+          iconBg: 'bg-red-100',
+          buttonText: 'Delete Projects',
+          buttonColor: 'red' as const,
+          placeholder: 'Enter project IDs to delete...',
+        };
+      case 'unpublish':
+        return {
+          title: 'Batch Unpublish Projects',
+          description: 'Mark multiple projects as unpublished. These projects will not be visible in published reports.',
+          icon: EyeSlashIcon,
+          iconColor: 'text-orange-600',
+          iconBg: 'bg-orange-100',
+          buttonText: 'Unpublish Projects',
+          buttonColor: 'orange' as const,
+          placeholder: 'Enter project IDs to unpublish...',
+        };
+      case 'publish':
+        return {
+          title: 'Batch Publish Projects',
+          description: 'Mark multiple projects as published. These projects will be included in published reports.',
+          icon: CheckCircleIcon,
+          iconColor: 'text-green-600',
+          iconBg: 'bg-green-100',
+          buttonText: 'Publish Projects',
+          buttonColor: 'green' as const,
+          placeholder: 'Enter project IDs to publish...',
+        };
+      default:
+        return {
+          title: 'Batch Tagging for Projects',
+          description: 'Add tags to all projects within this program. Tags help categorize and organize projects for better management and reporting.',
+          icon: TagIcon,
+          iconColor: 'text-blue-600',
+          iconBg: 'bg-blue-100',
+          buttonText: 'Apply Tags',
+          buttonColor: 'blue' as const,
+          placeholder: 'Enter project IDs to tag...',
+        };
+    }
+  };
+
+  const config = getActionConfig();
+
   const handleSubmit = () => {
-    if (!tags.trim()) {
-      setError('Please enter tags before submitting.');
+    if (!projectIds.trim()) {
+      setError('Please enter project IDs before submitting.');
       return;
     }
     
     setError('');
-    onSubmit(tags.trim());
+    onSubmit(projectIds.trim(), action);
     handleClose();
   };
 
   const handleClose = () => {
-    setTags('');
+    setProjectIds('');
     setError('');
     onClose();
   };
@@ -45,38 +100,34 @@ const BatchTagDialog: React.FC<BatchTagDialogProps> = ({
       <div className="fixed inset-0 flex items-center justify-center p-4">
         <DialogPanel className="mx-auto max-w-2xl w-full rounded-lg bg-white p-6 shadow-xl">
           <div className="flex items-start gap-4">
-            {/* <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-blue-100">
-              <TagIcon className="h-6 w-6 text-blue-600" aria-hidden="true" />
-            </div> */}
-            
             <div className="flex-1">
               <DialogTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <TagIcon className="h-6 w-6 text-blue-600" aria-hidden="true" /> Batch Tagging for Projects
+                <config.icon className={`h-6 w-6 ${config.iconColor}`} aria-hidden="true" />
+                {config.title}
               </DialogTitle>
               
               <div className="mt-3 text-sm text-gray-600">
                 <p className="mb-4">
-                  Add tags to all projects within this program. Tags help categorize and organize projects for better management and reporting.
+                  {config.description}
                 </p>
                 
                 <div className="bg-gray-50 rounded-md p-3 space-y-1 mb-4">
-                  {/* <p><span className="font-medium">Program ID:</span> {programId}</p> */}
                   <p><span className="font-medium">Program Name:</span> {programName}</p>
                 </div>
 
                 <div className="space-y-2">
-                  <label htmlFor="tags" className="block text-sm font-medium text-gray-700">
+                  <label htmlFor="projectIds" className="block text-sm font-medium text-gray-700">
                     Project IDs <span className="text-red-500">*</span>
                   </label>
                   <textarea
-                    id="tags"
+                    id="projectIds"
                     rows={4}
-                    value={tags}
+                    value={projectIds}
                     onChange={(e) => {
-                      setTags(e.target.value);
+                      setProjectIds(e.target.value);
                       if (error) setError('');
                     }}
-                    placeholder="Enter project IDs (e.g., P0011xxxxx)&#10;&#10;You can enter multiple project IDs separated by commas, spaces, or line breaks."
+                    placeholder={`${config.placeholder}&#10;&#10;You can enter multiple project IDs separated by commas, spaces, or line breaks.&#10;Example: P0011xxxxx, P0011yyyyy`}
                     className={`w-full px-3 py-2 border ${
                       error ? 'border-red-500' : 'border-gray-300'
                     } rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none`}
@@ -85,7 +136,7 @@ const BatchTagDialog: React.FC<BatchTagDialogProps> = ({
                     <p className="text-sm text-red-600 mt-1">{error}</p>
                   )}
                   <p className="text-xs text-gray-500 mt-1">
-                    <strong>Tip:</strong> You can copy list of projects on your list and paste it here.
+                    <strong>Tip:</strong> You can copy list of projects from your list and paste it here.
                   </p>
                 </div>
               </div>
@@ -98,10 +149,10 @@ const BatchTagDialog: React.FC<BatchTagDialogProps> = ({
                   Cancel
                 </Button>
                 <Button
-                  color="blue"
+                  color={config.buttonColor}
                   onClick={handleSubmit}
                 >
-                  Apply Tags
+                  {config.buttonText}
                 </Button>
               </div>
             </div>

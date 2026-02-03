@@ -9,7 +9,7 @@ export interface ProgramModel {
 	AddedName?: string;
 	YearStart: number;
 	YearEnd: number;
-	UserGroup: number;
+	UserGroup: number[];
 	IsSkipped: boolean;
 	SkipReason: string;
 	DataSecurityGroup?: string[];
@@ -57,7 +57,7 @@ export interface ProgramDetails {
 	IsSkipped: boolean;
 	IsPublished: boolean;
 	SkipReason: string;
-	UserGroup: number;
+	UserGroup: number[];
 	RegionCode: string;
 	Status: number;
 	Type: number;

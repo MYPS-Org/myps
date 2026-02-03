@@ -6,13 +6,14 @@ import type { ProgramDetailsEnums, AIPReportParams } from '../Model.d'; // Adjus
 import { Button } from '../../../components/tailwindui/button';
 import { editProgram, fetchProgramById, publishToPCMA, downloadAIPReport } from '../Service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
-import { ChevronDownIcon, ChevronRightIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
+import { ChevronDownIcon, ChevronRightIcon, Cog6ToothIcon, TagIcon } from '@heroicons/react/24/outline';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import NextStageDialog from '../dialogs/NextStageDialog';
 import MetroManilaMap from '../../../components/map/MetroManilaMap';
 import AIPReportDialog from '../dialogs/AIPReportDialog';
 import PublishProgramDialog from '../dialogs/PublishProgramDialog';
 import BatchTagDialog from '../dialogs/BatchTagDialog';
+import CheckboxList from '../../../components/ui/CheckboxList';
 // import { formatCurrency } from '../../../utils/GlobalFunctions';
 // import { Badge } from '../../../components/tailwindui/badge';
 
@@ -34,7 +35,7 @@ const ProgramDetail: React.FC = () => {
         IsSkipped: false,
       IsPublished: false,
         SkipReason: '',
-        UserGroup: 0,
+        UserGroup: [],
         RegionCode: '',
         Status: 0,
         Type: 0,
@@ -68,7 +69,7 @@ const ProgramDetail: React.FC = () => {
         IsSkipped: false,
         SkipReason: '',
         IsPublished: false,
-        UserGroup: 0,
+        UserGroup: [],
         RegionCode: '',
         Status: 0,
         Type: 0,
@@ -93,12 +94,14 @@ const ProgramDetail: React.FC = () => {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isDataSecurityExpanded, setIsDataSecurityExpanded] = useState(false);
+  // const [isDataSecurityExpanded, setIsDataSecurityExpanded] = useState(false);
   const [isNextStageDialogOpen, setIsNextStageDialogOpen] = useState(false);
   const [isActionDropdownOpen, setIsActionDropdownOpen] = useState(false);
   const [isAIPReportDialogOpen, setIsAIPReportDialogOpen] = useState(false);
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
   const [isBatchTagDialogOpen, setIsBatchTagDialogOpen] = useState(false);
+  const [isBatchTagDropDownOpen, setIsBatchTagDropDownOpen] = useState(false);
+  const [batchAction, setBatchAction] = useState<'tag' | 'delete' | 'unpublish' | 'publish'>('tag');
   
   // Group data security by OrgType
   const groupedDataSecurity = useMemo(() => {
@@ -183,6 +186,19 @@ const ProgramDetail: React.FC = () => {
         DataSecurityGroup: (prev.Details.DataSecurityGroup || []).includes(dataSecurityId)
           ? (prev.Details.DataSecurityGroup || []).filter(id => id !== dataSecurityId)
           : [...(prev.Details.DataSecurityGroup || []), dataSecurityId]
+      }
+    }));
+  };
+
+  const handleUserGroupToggle = (userGroupId: string) => {
+    const numericId = parseInt(userGroupId);
+    setProgramEnums(prev => ({
+      ...prev,
+      Details: {
+        ...prev.Details,
+        UserGroup: (prev.Details.UserGroup || []).includes(numericId)
+          ? (prev.Details.UserGroup || []).filter(id => id !== numericId)
+          : [...(prev.Details.UserGroup || []), numericId]
       }
     }));
   };
@@ -274,8 +290,23 @@ const ProgramDetail: React.FC = () => {
     
     // Helper function to compare arrays
     const arraysEqual = (arr1: string[] = [], arr2: string[] = []) => {
+      if (!Array.isArray(arr1) || !Array.isArray(arr2)) return arr1 === arr2;
       if (arr1.length !== arr2.length) return false;
-      return arr1.sort().every((val, index) => val === arr2.sort()[index]);
+      const sorted1 = [...arr1].sort();
+      const sorted2 = [...arr2].sort();
+      return sorted1.every((val, index) => val === sorted2[index]);
+    };
+
+    // Helper function to compare number arrays
+    const numberArraysEqual = (arr1: number[] | number = [], arr2: number[] | number = []) => {
+      // Handle if they're not arrays (backward compatibility)
+      if (!Array.isArray(arr1) || !Array.isArray(arr2)) {
+        return arr1 === arr2;
+      }
+      if (arr1.length !== arr2.length) return false;
+      const sorted1 = [...arr1].sort((a, b) => a - b);
+      const sorted2 = [...arr2].sort((a, b) => a - b);
+      return sorted1.every((val, index) => val === sorted2[index]);
     };
     
     // Check if any editable field has changed
@@ -285,7 +316,7 @@ const ProgramDetail: React.FC = () => {
       currentDetails.YearEnd === defaultDetails.YearEnd &&
       currentDetails.Status === defaultDetails.Status &&
       currentDetails.Type === defaultDetails.Type &&
-      currentDetails.UserGroup === defaultDetails.UserGroup &&
+      numberArraysEqual(currentDetails.UserGroup, defaultDetails.UserGroup) &&
       arraysEqual(currentDetails.DataSecurityGroup, defaultDetails.DataSecurityGroup)
     );
   };
@@ -355,31 +386,59 @@ const ProgramDetail: React.FC = () => {
     setIsActionDropdownOpen(false);
   };
 
-  const handleBatchTagging = () => {
+  const handleBatchTagging = (action: 'tag' | 'delete' | 'unpublish' | 'publish' = 'tag') => {
+    setBatchAction(action);
     setIsBatchTagDialogOpen(true);
     setIsActionDropdownOpen(false);
+    setIsBatchTagDropDownOpen(false);
   };
 
-  const handleBatchTagSubmit = async (tags: string) => {
+  const handleBatchTagSubmit = async (projectIds: string, action: 'tag' | 'delete' | 'unpublish' | 'publish') => {
     try {
       setIsLoading(true);
-      // TODO: Call your API endpoint here with the tags
-      // await batchTagProjects(programEnums?.Details.ProgramId, tags);
       
-      console.log('Batch tagging projects with:', tags);
-      
-      showToast({
-        type: 'success',
-        message: 'Tags applied successfully to all projects.',
-      });
+      // TODO: Call your API endpoint here based on action type
+      switch (action) {
+        case 'delete':
+          // await batchDeleteProjects(programEnums?.Details.ProgramId, projectIds);
+          console.log('Batch deleting projects:', projectIds);
+          showToast({
+            type: 'success',
+            message: 'Projects deleted successfully.',
+          });
+          break;
+        case 'unpublish':
+          // await batchUnpublishProjects(programEnums?.Details.ProgramId, projectIds);
+          console.log('Batch unpublishing projects:', projectIds);
+          showToast({
+            type: 'success',
+            message: 'Projects unpublished successfully.',
+          });
+          break;
+        case 'publish':
+          // await batchPublishProjects(programEnums?.Details.ProgramId, projectIds);
+          console.log('Batch publishing projects:', projectIds);
+          showToast({
+            type: 'success',
+            message: 'Projects published successfully.',
+          });
+          break;
+        default:
+          // await batchTagProjects(programEnums?.Details.ProgramId, projectIds);
+          console.log('Batch tagging projects with:', projectIds);
+          showToast({
+            type: 'success',
+            message: 'Tags applied successfully to all projects.',
+          });
+      }
       
       // Optionally refresh the program details
       // await fetchProgramDetail(programEnums?.Details.ProgramId, programEnums?.Details.StageName);
     } catch (error) {
-      console.error('Error applying batch tags:', error);
+      console.error(`Error performing batch ${action}:`, error);
       showToast({
         type: 'error',
-        message: 'Failed to apply tags. Please try again.',
+        message: `Failed to ${action} projects. Please try again.`,
       });
     } finally {
       setIsLoading(false);
@@ -538,177 +597,52 @@ const ProgramDetail: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-left text-sm font-medium text-gray-700 mb-1">Program Stage</label>
-                <input type="text" 
-                  value={programEnums?.Details.StageName}
-                  disabled
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-200 text-gray-900"
-                />
-                {/* <select name="programStage" id="programStage" className='w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900'>
-                  {programEnums?.Dropdowns.Stages.map((stage) => (
-                    <option key={stage.Id} value={stage.Id}>
-                      {stage.Name}
-                    </option>
-                  ))}
-                </select> */}
-              </div>
-              <div>
-                <label className="block text-left text-sm font-medium text-gray-700 mb-1">User Group</label>
-                <select 
-                  value={programEnums?.Details.UserGroup}
-                  onChange={(e) => handleChange('UserGroup', Number(e.target.value))}
-                  className='w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-200 text-gray-900'
-                  disabled>
-                  {programEnums?.Dropdowns.Groups.map((group) => (
-                    <option key={group.Id} value={group.Id}>
-                      {group.GroupName}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+            {/* User Group Multiple Select */}
+            <CheckboxList
+              title="User Groups"
+              items={(programEnums?.Dropdowns.Groups || []).map(group => ({
+                id: group.Id?.toString() || '',
+                name: group.GroupName ?? '',
+              }))}
+              selectedIds={(Array.isArray(programEnums?.Details.UserGroup) ? programEnums.Details.UserGroup : []).map(id => id?.toString() || '')}
+              onToggle={handleUserGroupToggle}
+              onSelectAll={() => {
+                const allGroupIds = programEnums?.Dropdowns.Groups.map(g => g.Id) || [];
+                handleChange('UserGroup', allGroupIds);
+              }}
+              onClearAll={() => handleChange('UserGroup', [])}
+              idKey="id"
+              nameKey="name"
+              searchPlaceholder="Search user groups..."
+              emptyMessage="No user groups available"
+              disabled={!programEnums?.IsActive}
+            />
 
             {/* Data Security Multiple Select */}
-            <div className="mb-6 border border-gray-300 rounded-lg">
-              <div className="flex items-center justify-between p-3 bg-gray-50 border-b border-gray-200 rounded-t-lg">
-                <button
-                  type="button"
-                  onClick={() => setIsDataSecurityExpanded(!isDataSecurityExpanded)}
-                  className="flex items-center text-sm font-medium text-gray-700 hover:text-gray-900 focus:outline-none transition-colors duration-200"
-                >
-                  {isDataSecurityExpanded ? (
-                    <ChevronDownIcon className="w-4 h-4 mr-2 text-gray-500 transition-transform duration-200" />
-                  ) : (
-                    <ChevronRightIcon className="w-4 h-4 mr-2 text-gray-500 transition-transform duration-200" />
-                  )}
-                  Data Security Access
-                  <span className={`ml-2 text-xs font-normal ${
-                    (programEnums?.Details.DataSecurityGroup || []).length > 0 
-                      ? 'text-blue-600 bg-blue-100 px-2 py-1 rounded-full' 
-                      : 'text-gray-500'
-                  }`}>
-                    {(programEnums?.Details.DataSecurityGroup || []).length > 0 
-                      ? `${(programEnums?.Details.DataSecurityGroup || []).length} selected`
-                      : 'None selected'
-                    }
-                  </span>
-                </button>
-                {isDataSecurityExpanded && (
-                  <div className="flex space-x-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const allDataSecurityIds = programEnums?.Dropdowns.DataSecurity.map(item => item.ParticipantId ?? '') || [];
-                        handleChange('DataSecurityGroup', allDataSecurityIds);
-                      }}
-                      className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                    >
-                      Select All
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleChange('DataSecurityGroup', [])}
-                      className="text-xs px-2 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-200"
-                    >
-                      Clear All
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <div className={`transition-all duration-300 ease-in-out overflow-hidden ${
-                isDataSecurityExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
-              }`}>
-                <div className="p-4">
-                  <div className="mb-4">
-                  <input
-                    type="text"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Search organizations..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
-                  />
-                </div>
-
-                  <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-md p-3">
-                {Object.keys(groupedDataSecurity).map((orgType) => {
-                  const groupItems = groupedDataSecurity[orgType].filter(item =>
-                    item.Name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    item.ParticipantId?.toLowerCase().includes(searchTerm.toLowerCase())
-                  );
-                  
-                  if (groupItems.length === 0) return null;
-                  
-                  return (
-                    <div key={orgType} className="mb-6">
-                      <div className="flex items-center space-x-2 mb-3 pb-2 border-b border-gray-200">
-                        <input
-                          type="checkbox"
-                          checked={isGroupSelected(orgType)}
-                          ref={(input) => {
-                            if (input) input.indeterminate = isGroupPartiallySelected(orgType);
-                          }}
-                          onChange={() => handleGroupToggle(orgType)}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                        />
-                        <h4 className="font-semibold text-gray-800">
-                          {orgType === 'C' ? 'Central Office' : 
-                           orgType === 'R' ? 'Regional Offices' : 
-                           orgType === 'B' ? 'Bureaus' :
-                           orgType === 'PMO' ? 'Project Management Offices' : 
-                           orgType}
-                        </h4>
-                        <span className="text-xs text-gray-500">
-                          ({groupItems.length} organizations)
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-1 gap-2 ml-6">
-                        {groupItems.map((item) => (
-                          <label key={item.Id} className="flex items-center space-x-2">
-                            <input
-                              type="checkbox"
-                              checked={(programEnums?.Details.DataSecurityGroup || []).includes(item.ParticipantId ?? '')}
-                              onChange={() => handleDataSecurityToggle(item.ParticipantId ?? '')}
-                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                            />
-                            <div className="flex flex-col">
-                              <span className="text-sm text-gray-700 font-medium">
-                                {item.Name}
-                              </span>
-                              {/* <span className="text-xs text-gray-500">
-                                {item.ParticipantId}
-                              </span> */}
-                            </div>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-                {(programEnums?.Dropdowns.DataSecurity || []).length === 0 && (
-                  <div className="text-center py-4 text-gray-500">
-                    No data security options available
-                  </div>
-                )}
-                {Object.keys(groupedDataSecurity).every(orgType => 
-                  groupedDataSecurity[orgType].filter(item =>
-                    item.Name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    item.ParticipantId?.toLowerCase().includes(searchTerm.toLowerCase())
-                  ).length === 0
-                ) && searchTerm && (
-                  <div className="text-center py-4 text-gray-500">
-                    No organizations found matching "{searchTerm}"
-                  </div>
-                )}
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Selected: {(programEnums?.Details.DataSecurityGroup || []).length} organizations
-                  </p>
-                </div>
-              </div>
-            </div>
+            <CheckboxList
+              title="Data Security Access"
+              items={(programEnums?.Dropdowns.DataSecurity || []).map(item => ({
+                id: item.ParticipantId ?? '',
+                name: item.Name ?? '',
+                groupType: item.OrgType === 'C' ? 'Central Office' : 
+                           item.OrgType === 'R' ? 'Regional Offices' : 
+                           item.OrgType === 'B' ? 'Bureaus' :
+                           item.OrgType === 'PMO' ? 'Project Management Offices' : 
+                           item.OrgType || 'Other'
+              }))}
+              selectedIds={programEnums?.Details.DataSecurityGroup || []}
+              onToggle={handleDataSecurityToggle}
+              onSelectAll={() => {
+                const allDataSecurityIds = programEnums?.Dropdowns.DataSecurity.map(item => item.ParticipantId ?? '') || [];
+                handleChange('DataSecurityGroup', allDataSecurityIds);
+              }}
+              onClearAll={() => handleChange('DataSecurityGroup', [])}
+              groupBy="groupType"
+              idKey="id"
+              nameKey="name"
+              searchPlaceholder="Search organizations..."
+              emptyMessage="No data security options available"
+            />
 
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -791,6 +725,70 @@ const ProgramDetail: React.FC = () => {
             <div className="relative">
               <button
                 type="button"
+                onClick={() => setIsBatchTagDropDownOpen(!isBatchTagDropDownOpen)}
+                className="inline-flex items-center gap-x-1.5 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-100 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+              >
+                <TagIcon  className="-ml-0.5 h-5 w-5 text-gray-400" aria-hidden="true" />
+                Batch Tags
+                <ChevronDownIcon className="-mr-1 h-5 w-5 text-gray-400" aria-hidden="true" />
+              </button>
+
+              {isBatchTagDropDownOpen && (
+                <>
+                  {/* Backdrop */}
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setIsBatchTagDropDownOpen(false)}
+                  />
+                  
+                  {/* Batch Actions Menu */}
+                  <div className="absolute left-0 top-full z-20 mt-2 w-56 origin-top-left rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                    <div className="py-1">
+                      <button
+                        onClick={() => handleBatchTagging('tag')}
+                        className="group flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-blue-500 hover:text-white"
+                      >
+                        <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-white" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6z" />
+                        </svg>
+                        Batch Tag
+                      </button>
+                      <button
+                        onClick={() => handleBatchTagging('delete')}
+                        className="group flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-red-500 hover:text-white"
+                      >
+                        <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-white" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                        </svg>
+                        Batch Delete
+                      </button>
+                      <button
+                        onClick={() => handleBatchTagging('unpublish')}
+                        className="group flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-orange-500 hover:text-white"
+                      >
+                        <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-white" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+                        </svg>
+                        Batch Don't Publish
+                      </button>
+                      <button
+                        onClick={() => handleBatchTagging('publish')}
+                        className="group flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-green-500 hover:text-white"
+                      >
+                        <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-white" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Batch Publish
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="relative">
+              <button
+                type="button"
                 onClick={() => setIsActionDropdownOpen(!isActionDropdownOpen)}
                 className="inline-flex items-center gap-x-1.5 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-100 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
               >
@@ -807,18 +805,9 @@ const ProgramDetail: React.FC = () => {
                     onClick={() => setIsActionDropdownOpen(false)}
                   />
                   
-                  {/* Dropdown Menu */}
-                  <div className="absolute right-0 z-20 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                  {/* Import Export Menu */}
+                  <div className="absolute right-0 top-full z-20 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
                     <div className="py-1">
-                      <button
-                        onClick={handleBatchTagging}
-                        className="group flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-blue-500 hover:text-white"
-                      >
-                        <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-white" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                        </svg>
-                        Batch Tagging
-                      </button>
                       <button
                         onClick={handleDownloadTemplate}
                         className="group flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-blue-500 hover:text-white"
@@ -899,7 +888,7 @@ const ProgramDetail: React.FC = () => {
               </TableRow>
             </TableHead>
             
-            {/* <TableBody className="bg-white divide-y divide-gray-200">
+            <TableBody className="bg-white divide-y divide-gray-200">
               {programEnums.Projects.map((project) => (
                 <TableRow key={project.Id} className="hover:bg-gray-50">
                   <TableCell className="px-6 py-4 whitespace-nowrap">
@@ -923,7 +912,7 @@ const ProgramDetail: React.FC = () => {
                     {project.LegislativeDistrict}
                   </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-20">
-                    {project.CreatedDate.StringToDate()}
+                    {project.CreatedDate?.StringToDate() || 'N/A'}
                   </TableCell>
                   { programEnums?.IsActive && programEnums?.Details?.StageId === 10 && programEnums?.Details?.IsPublished && (
                   <TableCell className='px-6 py-4 whitespace-nowrap text-sm font-medium text-center'>
@@ -934,7 +923,7 @@ const ProgramDetail: React.FC = () => {
                   )}
                 </TableRow>
               ))}
-            </TableBody> */}
+            </TableBody>
           </Table>
         </div>
       </div>
@@ -981,6 +970,7 @@ const ProgramDetail: React.FC = () => {
           onSubmit={handleBatchTagSubmit}
           programId={programEnums?.Details.ProgramId}
           programName={programEnums?.Details.Name}
+          action={batchAction}
         />
       )}
     </div>
