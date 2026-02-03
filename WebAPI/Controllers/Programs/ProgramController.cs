@@ -100,13 +100,14 @@ namespace WebAPI.Controllers.Programs
 
                 // Apply sorting and pagination
                 dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "YearStart";
-                var sortedQuery = dto.sortDirection == sortDirectionList.ASC
+                var sortedQuery = dto.sortDirection == sortDirectionList.DESC
                         ? baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField))
                         : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField));
 
                 // Apply pagination and execute query
                 List<DBHelper.Models.Views.Programs> permissionLists = await sortedQuery
                     .OrderBy(x => x.Name)
+                    //.OrderByDescending(x => x.YearStart)
                     .Skip((dto.page - 1) * dto.limit)
                     .Take(dto.limit)
                     .ToListAsync();
@@ -632,7 +633,8 @@ namespace WebAPI.Controllers.Programs
                                 //Total = x.Total,
                                 StageName = checkStageType.Name,
                                 CreatedBy = x.CreatedBy,
-                                CreatedDate = x.CreatedDate
+                                CreatedDate = x.CreatedDate,
+                                IsDeleted = x.IsDeleted
                             }));
                             //NewComponentPerYear.AddRange(ComponentsPerYear.Select(x => new ProjectComponentCostYear()
                             //{
@@ -661,7 +663,8 @@ namespace WebAPI.Controllers.Programs
                                 InfraType = x.InfraType,
                                 StageName = checkStageType.Name,
                                 CreatedBy = x.CreatedBy,
-                                CreatedDate = x.CreatedDate
+                                CreatedDate = x.CreatedDate,
+                                IsDeleted = x.IsDeleted
                             }));
                             NewMajorLocations.AddRange(MajorLocations.Select(x => new ProjectMajorWorkLocations()
                             {
@@ -680,7 +683,8 @@ namespace WebAPI.Controllers.Programs
                                 EndChainage = x.EndChainage,
                                 StartChainage = x.StartChainage,
                                 CreatedBy = x.CreatedBy,
-                                CreatedDate = x.CreatedDate
+                                CreatedDate = x.CreatedDate,
+                                IsDeleted = x.IsDeleted
                             }));
                             await _db.tProjectMajorWorkItem.AddRangeAsync(NewMajorItems);
                             await _db.tProjectMajorWorkLocations.AddRangeAsync(NewMajorLocations);
@@ -699,7 +703,8 @@ namespace WebAPI.Controllers.Programs
                                 Percentage = x.Percentage,
                                 StageName = checkStageType.Name,
                                 CreatedBy = x.CreatedBy,
-                                CreatedDate = x.CreatedDate
+                                CreatedDate = x.CreatedDate,
+                                IsDeleted = x.IsDeleted
                             }));
                             await _db.tProjectFundingProfile.AddRangeAsync(NewFundingProfiles);
                         }
@@ -756,7 +761,8 @@ namespace WebAPI.Controllers.Programs
                             RowAvailable = project.RowAvailable,
                             RegionWide = project.RegionWide,
                             CreatedBy = _Session.UserId,
-                            CreatedDate = CurrentDate
+                            CreatedDate = CurrentDate,
+                            IsDeleted = project.IsDeleted
                         }));
                         await _db.tProjectRevisions.AddRangeAsync(NewRevisions);
                         checkRevisions.Status = EnumProgramStatus.Approved;

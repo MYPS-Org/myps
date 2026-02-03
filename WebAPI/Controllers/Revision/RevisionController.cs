@@ -653,8 +653,13 @@ namespace WebAPI.Controllers.Revision
                 if (ProjectDetailsRules.Count > 0)
                 {
                     var RevisionProject = ProjectDetailsRules.UpdateRevisionData(NewProjectRevision, Project);
+                    NewRevisionProject.RevisionId = RevisionProject.Id;
+                    NewRevisionProject.IsActive = isCOUser ? true : false;
                     NewRevisionProject.TransactionId = TransactionId;
+                    NewRevisionProject.ReferenceId = RevisionProject.ReferenceId;
                     NewRevisionProject.ProjectId = RevisionProject.ProjectId;
+                    NewRevisionProject.AlternateId = RevisionProject.AlternateId;
+                    NewRevisionProject.ExternalId = RevisionProject.ExternalId;
                     NewRevisionProject.MYId = RevisionProject.MYId;
                     NewRevisionProject.UACS = RevisionProject.UACS;
                     NewRevisionProject.MYCAApprovalDate = RevisionProject.MYCAApprovalDate;
@@ -663,13 +668,24 @@ namespace WebAPI.Controllers.Revision
                     NewRevisionProject.Thrust = RevisionProject.Thrust;
                     NewRevisionProject.Origin = RevisionProject.Origin;
                     NewRevisionProject.City = RevisionProject.City;
+                    NewRevisionProject.Province = RevisionProject.Province;
                     NewRevisionProject.LegislativeDistrict = RevisionProject.LegislativeDistrict;
                     NewRevisionProject.OperatingUnit = RevisionProject.OperatingUnit;
                     NewRevisionProject.ImplementingOffice = RevisionProject.ImplementingOffice;
                     NewRevisionProject.DEO = RevisionProject.DEO;
+                    NewRevisionProject.Region = RevisionProject.Region;
+                    NewRevisionProject.Agency = RevisionProject.Agency;
                     NewRevisionProject.ImplementationMode = RevisionProject.ImplementationMode;
                     NewRevisionProject.EmergencyMode = RevisionProject.EmergencyMode;
-                    NewRevisionProject.IsActive = isCOUser ? true : false;
+                    NewRevisionProject.IslandCode = RevisionProject.IslandCode;
+                    NewRevisionProject.Feasibility = RevisionProject.Feasibility;
+                    NewRevisionProject.FeasibilityDate = RevisionProject.FeasibilityDate;
+                    NewRevisionProject.DetailedDesign = RevisionProject.DetailedDesign;
+                    NewRevisionProject.DetailedDesignDate = RevisionProject.DetailedDesignDate;
+                    NewRevisionProject.RowAvailable = RevisionProject.RowAvailable;
+                    NewRevisionProject.RegionWide = RevisionProject.RegionWide;
+                    NewRevisionProject.Tier = RevisionProject.Tier;
+                    NewRevisionProject.IsDeleted = RevisionProject.IsDeleted;
                 }
                 #endregion
                 #region FundingProfile

@@ -1170,7 +1170,7 @@ namespace WebAPI.Controllers.Projects
                 #region Update Component Cost
                 var CostToBeDeleted = dto.ComponentCosts.Where(x => x.IsDeleted == true && x.Id > 0).Select(x => x.Id).ToHashSet<int>();
                 var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && !x.IsDeleted).ToListAsync();
-                var NewComponentCostData = dto.ComponentCosts.Where(x => x.Id == 0);
+                var NewComponentCostData = dto.ComponentCosts.Where(x => x.Id == 0 && !x.IsDeleted);
                 #region New Component Cost
                 if (NewComponentCostData.Count() > 0)
                 {
