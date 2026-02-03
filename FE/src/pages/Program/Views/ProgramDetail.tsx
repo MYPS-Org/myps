@@ -11,6 +11,8 @@ import { useToast } from '../../../components/toaster/ToasterContext';
 import NextStageDialog from '../dialogs/NextStageDialog';
 import MetroManilaMap from '../../../components/map/MetroManilaMap';
 import AIPReportDialog from '../dialogs/AIPReportDialog';
+import PublishProgramDialog from '../dialogs/PublishProgramDialog';
+import BatchTagDialog from '../dialogs/BatchTagDialog';
 // import { formatCurrency } from '../../../utils/GlobalFunctions';
 // import { Badge } from '../../../components/tailwindui/badge';
 
@@ -95,6 +97,8 @@ const ProgramDetail: React.FC = () => {
   const [isNextStageDialogOpen, setIsNextStageDialogOpen] = useState(false);
   const [isActionDropdownOpen, setIsActionDropdownOpen] = useState(false);
   const [isAIPReportDialogOpen, setIsAIPReportDialogOpen] = useState(false);
+  const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
+  const [isBatchTagDialogOpen, setIsBatchTagDialogOpen] = useState(false);
   
   // Group data security by OrgType
   const groupedDataSecurity = useMemo(() => {
@@ -305,14 +309,19 @@ const ProgramDetail: React.FC = () => {
     }
   };
 
-  const handlePublishToPCMA = async() => {
+  const handlePublishToPCMA = () => {
+    if (programEnums?.Details.Status !== 1 || programEnums?.Details.StageId !== 10) return;
+    setIsPublishDialogOpen(true);
+  };
+
+  const handleConfirmPublish = async() => {
     try {
-      if (programEnums?.Details.Status !== 1 && programEnums?.Details.StageId !== 9) return;
       await publishToPCMA(programEnums?.Details.ProgramId);
       showToast({
         type: 'success',
         message: 'Program published to PCMA successfully.',
       });
+      await fetchProgramDetail(programEnums?.Details.ProgramId, programEnums?.Details.StageName);
     } catch (error) {
       console.error('Error publishing program to PCMA:', error);
       showToast({
@@ -344,6 +353,37 @@ const ProgramDetail: React.FC = () => {
     // TODO: Implement download template functionality
     console.log('Download Template clicked');
     setIsActionDropdownOpen(false);
+  };
+
+  const handleBatchTagging = () => {
+    setIsBatchTagDialogOpen(true);
+    setIsActionDropdownOpen(false);
+  };
+
+  const handleBatchTagSubmit = async (tags: string) => {
+    try {
+      setIsLoading(true);
+      // TODO: Call your API endpoint here with the tags
+      // await batchTagProjects(programEnums?.Details.ProgramId, tags);
+      
+      console.log('Batch tagging projects with:', tags);
+      
+      showToast({
+        type: 'success',
+        message: 'Tags applied successfully to all projects.',
+      });
+      
+      // Optionally refresh the program details
+      // await fetchProgramDetail(programEnums?.Details.ProgramId, programEnums?.Details.StageName);
+    } catch (error) {
+      console.error('Error applying batch tags:', error);
+      showToast({
+        type: 'error',
+        message: 'Failed to apply tags. Please try again.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleImportProjects = () => {
@@ -721,11 +761,12 @@ const ProgramDetail: React.FC = () => {
                   Program Location - Metro Manila
                 </h3>
               </div>
-              <div className="p-4">
-                <MetroManilaMap 
+              <div className="p-4 h-[400px] text-lg flex items-center justify-center border border-gray-200 rounded-b-lg bg-gray-100">
+                This section is for Future Map Integration 
+                {/* <MetroManilaMap 
                   projectLocation={getProgramLocation()}
                   height="400px"
-                />
+                /> */}
               </div>
             </div>
           </div>
@@ -769,6 +810,15 @@ const ProgramDetail: React.FC = () => {
                   {/* Dropdown Menu */}
                   <div className="absolute right-0 z-20 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
                     <div className="py-1">
+                      <button
+                        onClick={handleBatchTagging}
+                        className="group flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-blue-500 hover:text-white"
+                      >
+                        <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-white" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                        </svg>
+                        Batch Tagging
+                      </button>
                       <button
                         onClick={handleDownloadTemplate}
                         className="group flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-blue-500 hover:text-white"
@@ -849,7 +899,7 @@ const ProgramDetail: React.FC = () => {
               </TableRow>
             </TableHead>
             
-            <TableBody className="bg-white divide-y divide-gray-200">
+            {/* <TableBody className="bg-white divide-y divide-gray-200">
               {programEnums.Projects.map((project) => (
                 <TableRow key={project.Id} className="hover:bg-gray-50">
                   <TableCell className="px-6 py-4 whitespace-nowrap">
@@ -884,7 +934,7 @@ const ProgramDetail: React.FC = () => {
                   )}
                 </TableRow>
               ))}
-            </TableBody>
+            </TableBody> */}
           </Table>
         </div>
       </div>
@@ -907,7 +957,30 @@ const ProgramDetail: React.FC = () => {
           onClose={() => setIsAIPReportDialogOpen(false)}
           onGenerate={handleGenerateAIPReport}
           programId={programEnums?.Details.ProgramId}
+          programName={programEnums?.Details.Name}
           stageName={programEnums?.Details.StageName}
+        />
+      )}
+
+      {/* Publish Program Dialog */}
+      {isPublishDialogOpen && (
+        <PublishProgramDialog
+          isOpen={isPublishDialogOpen}
+          onClose={() => setIsPublishDialogOpen(false)}
+          onConfirm={handleConfirmPublish}
+          programName={programEnums?.Details.Name}
+          programId={programEnums?.Details.ProgramId}
+        />
+      )}
+
+      {/* Batch Tag Dialog */}
+      {isBatchTagDialogOpen && (
+        <BatchTagDialog
+          isOpen={isBatchTagDialogOpen}
+          onClose={() => setIsBatchTagDialogOpen(false)}
+          onSubmit={handleBatchTagSubmit}
+          programId={programEnums?.Details.ProgramId}
+          programName={programEnums?.Details.Name}
         />
       )}
     </div>

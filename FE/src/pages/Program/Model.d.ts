@@ -155,6 +155,7 @@ export interface ProgramList {
 
 export interface AIPReportParams {
   ProgramId: string;
+  ProgramName?: string;
   StageName: string;
   Region: string;
 }

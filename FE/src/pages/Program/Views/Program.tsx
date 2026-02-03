@@ -349,12 +349,12 @@ const Program: React.FC = () => {
                                     )}
                                 </div>
                                 <Button 
-                                    color="zinc" 
+                                    color="yellow" 
                                     onClick={handleOpenFilterDialog}
                                     disabled={isLoading}
                                     className="text-xs px-3 py-1.5"
                                 >
-                                    <FunnelIcon className="w-4 h-4 mr-1" />
+                                    <FunnelIcon className="w-4 h-4 mr-1 text-white" />
                                     Filters
                                     {(ProgramFilters.filters?.YearStart || ProgramFilters.filters?.GroupName || ProgramFilters.filters?.StageName) && (
                                         <span className="ml-1.5 bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">

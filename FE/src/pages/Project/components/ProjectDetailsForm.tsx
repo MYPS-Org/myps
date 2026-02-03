@@ -240,6 +240,32 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             }
             onChange(field, value);
         }
+        else if (field === 'ImplementingOffice') {
+            // When IO changes, clear OU if it doesn't belong to the new IO
+            let newOU = projectDetails?.OperatingUnit;
+            
+            if (newOU && value) {
+                const selectedIO = projectEnums?.IOs?.find((io) => io.ParticipantId === value.toString());
+                if (selectedIO) {
+                    // Check if current OU belongs to the new IO
+                    const ouBelongsToIO = projectEnums?.OperatingUnits?.find(
+                        (ou) => ou.ParticipantId === newOU && 
+                        (ou.ParticipantId === selectedIO.ParticipantId || (selectedIO.OrgType === 'UPMO' && ou.OrgType === 'CO'))
+                    );
+                    if (!ouBelongsToIO) {
+                        newOU = undefined;
+                    }
+                }
+            } else if (!value) {
+                // If IO is cleared, also clear OU
+                newOU = undefined;
+            }
+            
+            onChange(field, value);
+            if (newOU !== projectDetails?.OperatingUnit) {
+                onChange('OperatingUnit', newOU);
+            }
+        }
         else {
             onChange(field, value);
         }

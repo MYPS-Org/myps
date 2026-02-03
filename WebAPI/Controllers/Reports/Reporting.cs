@@ -98,6 +98,11 @@ namespace WebAPI.Controllers.Revision
         {
             var query = _db.AIPBase.AsNoTracking().AsQueryable();
 
+            if (!string.IsNullOrEmpty(request.ProgramName))
+            {
+                query = query.Where(x => x.ProgramName == request.ProgramName);
+            }
+
             if (!string.IsNullOrEmpty(request.ProgramId))
             {
                 query = query.Where(x => x.ProgramId == request.ProgramId);
@@ -120,7 +125,8 @@ namespace WebAPI.Controllers.Revision
                 return new DTOProgramProjectDetailsResponse
                 {
                     Program = new DTOProgramDetails
-                    {
+                    {  
+                        ProgramName = request.ProgramName ?? "",
                         ProgramId = request.ProgramId ?? "",
                         StageName = request.StageName ?? "",
                         ProjectList = new List<DTOProjectInfo>()
@@ -129,7 +135,7 @@ namespace WebAPI.Controllers.Revision
             }
 
             // Group and transform the data
-            var programGroup = results.GroupBy(x => new { x.ProgramId, x.StageName }).First();
+            var programGroup = results.GroupBy(x => new { x.ProgramId, x.ProgramName, x.StageName }).First();
 
             var projectList = results
                 .GroupBy(x => new { x.ProjectId, x.ProjectCategory, x.Region })
@@ -163,6 +169,7 @@ namespace WebAPI.Controllers.Revision
             {
                 Program = new DTOProgramDetails
                 {
+                    ProgramName = programGroup.Key.ProgramName,
                     ProgramId = programGroup.Key.ProgramId,
                     StageName = programGroup.Key.StageName,
                     ProjectList = projectList
@@ -198,7 +205,7 @@ namespace WebAPI.Controllers.Revision
             // Header
             html.AppendLine("<h1>Annual Infrastructure Program (AIP) Report</h1>");
             html.AppendLine("<div class='header-info'>");
-            html.AppendLine($"<p><strong>Program ID:</strong> {System.Net.WebUtility.HtmlEncode(data.Program.ProgramId)}</p>");
+            html.AppendLine($"<p><strong>Program ID:</strong> {System.Net.WebUtility.HtmlEncode(data.Program.ProgramName)}</p>");
             html.AppendLine($"<p><strong>Stage Name:</strong> {System.Net.WebUtility.HtmlEncode(data.Program.StageName)}</p>");
             html.AppendLine($"<p><strong>Report Generated:</strong> {DateTime.Now:MMMM dd, yyyy hh:mm tt}</p>");
             html.AppendLine($"<p><strong>Total Projects:</strong> {data.Program.ProjectList.Count}</p>");

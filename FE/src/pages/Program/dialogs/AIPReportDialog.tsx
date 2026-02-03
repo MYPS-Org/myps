@@ -9,6 +9,7 @@ interface AIPReportDialogProps {
   onClose: () => void;
   onGenerate: (params: AIPReportParams) => void;
   programId?: string;
+  programName?: string;
   stageName?: string;
   regions?: string[];
 }
@@ -18,11 +19,13 @@ const AIPReportDialog: React.FC<AIPReportDialogProps> = ({
   onClose,
   onGenerate,
   programId = '',
+  programName = '',
   stageName = '',
   regions = []
 }) => {
   const [formData, setFormData] = useState<AIPReportParams>({
     ProgramId: programId,
+    ProgramName: programName,
     StageName: stageName,
     Region: ''
   });
@@ -33,12 +36,13 @@ const AIPReportDialog: React.FC<AIPReportDialogProps> = ({
     if (isOpen) {
       setFormData({
         ProgramId: programId,
+        ProgramName: programName,
         StageName: stageName,
         Region: ''
       });
       setErrors({});
     }
-  }, [isOpen, programId, stageName]);
+  }, [isOpen, programId, programName, stageName]);
 
   const handleChange = (field: keyof AIPReportParams, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -137,23 +141,23 @@ const AIPReportDialog: React.FC<AIPReportDialogProps> = ({
                 </DialogTitle>
 
                 <div className="mt-4 space-y-4">
-                  {/* Program ID */}
+                  {/* Program Name */}
                   <div>
-                    <label htmlFor="programId" className="block text-sm font-medium text-gray-700 mb-1">
-                      Program ID <span className="text-red-500">*</span>
+                    <label htmlFor="programName" className="block text-sm font-medium text-gray-700 mb-1">
+                      Program Name <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
-                      id="programId"
-                      value={formData.ProgramId}
-                      onChange={(e) => handleChange('ProgramId', e.target.value)}
+                      id="programName"
+                      value={formData.ProgramName}
+                      onChange={(e) => handleChange('ProgramName', e.target.value)}
                       className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                        errors.ProgramId ? 'border-red-300' : 'border-gray-300'
+                        errors.ProgramName ? 'border-red-300' : 'border-gray-300'
                       }`}
-                      placeholder="Enter Program ID"
+                      placeholder="Enter Program Name"
                     />
-                    {errors.ProgramId && (
-                      <p className="mt-1 text-sm text-red-600">{errors.ProgramId}</p>
+                    {errors.ProgramName && (
+                      <p className="mt-1 text-sm text-red-600">{errors.ProgramName}</p>
                     )}
                   </div>
 

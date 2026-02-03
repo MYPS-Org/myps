@@ -5,6 +5,7 @@ namespace DBHelper.Models.Views
     [Table("vAIPBase")]
     public class AIPBase
     {
+        public string ProgramName { get; set; } = string.Empty;
         public string ProgramId { get; set; } = string.Empty;
         public string StageName { get; set; } = string.Empty;
         public string ProjectId { get; set; } = string.Empty;

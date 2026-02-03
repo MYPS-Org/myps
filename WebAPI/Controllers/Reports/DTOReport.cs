@@ -18,6 +18,7 @@ namespace WebAPI.Controllers.Revision
     }
     public class DTOReportAIPFilter
     {
+        public string ProgramName { get; set; }
         public string ProgramId { get; set; }
         public string StageName { get; set; }
         public string Region { get; set; }
@@ -30,6 +31,7 @@ namespace WebAPI.Controllers.Revision
 
     public class DTOProgramDetails
     {
+        public string ProgramName { get; set; }
         public string ProgramId { get; set; }
         public string StageName { get; set; }
         public List<DTOProjectInfo> ProjectList { get; set; } = new List<DTOProjectInfo>();

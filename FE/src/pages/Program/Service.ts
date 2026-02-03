@@ -125,7 +125,7 @@ export const publishToPCMA = async (programId: string) => {
     }
 }
 
-export const generateAIPReport = async (params: { ProgramId: string; StageName: string; Region: string }) => {
+export const generateAIPReport = async (params: { ProgramName?: string; ProgramId: string; StageName: string; Region: string }) => {
     try {
         const apiURL = 'https://localhost:44331/api/Reporting/GetProgramProjectDetails';
         const response = await fetch(apiURL, {
@@ -148,7 +148,7 @@ export const generateAIPReport = async (params: { ProgramId: string; StageName: 
     }
 };
 
-export const downloadAIPReport = async (params: { ProgramId: string; StageName: string; Region: string }) => {
+export const downloadAIPReport = async (params: { ProgramName?: string; ProgramId: string; StageName: string; Region: string }) => {
     try {
         // const apiURL = 'https://localhost:44331/api/Reporting/DownloadProgramProjectDetailsPDF';
         // const response = await fetch(apiURL, {
@@ -175,3 +175,15 @@ export const downloadAIPReport = async (params: { ProgramId: string; StageName: 
         throw error;
     }
 };
+
+export const batchTagProjects = async (data: { Tags: string[] }) => {
+    try {
+        const request = await httpClient.post('/Project/BatchTagProjects', data, {
+            preloaderMessage: 'Tagging projects...'
+        });
+        return request;
+    } catch (ErrorResponse) {
+        console.error('Error tagging projects:', ErrorResponse);
+        throw ErrorResponse;
+    }
+}
