@@ -12,6 +12,8 @@ namespace DBHelper.Models.Table
         [Key]
         public int Id { get; set; }
         [Required]
+        public int RevisionId { get; set; }
+        [Required]
         public bool IsActive { get; set; } = false;
         [Required]
         [MaxLength(100)]
@@ -30,8 +32,6 @@ namespace DBHelper.Models.Table
         [MaxLength(100)]
         public string? UACS { get; set; }
         public DateTime? MYCAApprovalDate { get; set; }
-        [Required]
-        public int RevisionNumber { get; set; }
         [Required]
         public string Description { get; set; } = string.Empty;
         [Required]

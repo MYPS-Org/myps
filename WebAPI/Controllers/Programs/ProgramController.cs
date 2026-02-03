@@ -285,7 +285,7 @@ namespace WebAPI.Controllers.Programs
                 }
                 //var ProjectLists = await _db.vProjects.AsNoTracking().Where(x => x.ProgramId == dto.ProgramId && x.StageName == dto.StageName).ToListAsync();
                 var ProjectLists = await _db.fProjectsPerStage
-                .FromSqlInterpolated($"SELECT * FROM fProjectsPerStage({dto.ProgramId}) fp WHERE fp.StageName = {dto.StageName}").AsNoTracking().ToListAsync();
+                .FromSqlInterpolated($"SELECT * FROM fProjectsInProgram({dto.ProgramId}) fp WHERE fp.StageName = {dto.StageName}").AsNoTracking().ToListAsync();
                 var AvailableStages = await _db.tOptionProgramStage.AsNoTracking().ToListAsync();
                 var AvailableTypes = await _db.tOptionProgramType.AsNoTracking().ToListAsync();
                 var AvailableStatuses = await _db.tOptionProgramStatus.AsNoTracking().ToListAsync();
@@ -591,7 +591,7 @@ namespace WebAPI.Controllers.Programs
                     return new BadRequestObjectResult(new { Message = $"Program Stage '{dto.Stage}' is not valid!", Title = "Invalid Stage" });
                 }
                 var checkProjects = await _db.fProjectsPerStage
-                .FromSqlInterpolated($"SELECT * FROM fProjectsPerStage({dto.ProgramId}) fp WHERE fp.StageId = {checkStage.StageId}")
+                .FromSqlInterpolated($"SELECT * FROM fProjectsInProgram({dto.ProgramId}) fp WHERE fp.StageId = {checkStage.StageId}")
                 .AsNoTracking()
                 .ToListAsync();
                 if (checkProjects.Count > 0)
