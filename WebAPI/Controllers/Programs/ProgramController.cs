@@ -2,7 +2,6 @@
 using DBHelper.Data;
 using DBHelper.Models.API;
 using DBHelper.Models.Enums;
-using DBHelper.Models.Sql;
 using DBHelper.Models.Table;
 using DBHelper.Models.Views;
 using Helpers;
@@ -171,19 +170,6 @@ namespace WebAPI.Controllers.Programs
             }
             catch (Exception ex)
             {
-                return ExceptionHandler(ex);
-            }
-        }
-        [AllowAnonymous]
-        [HttpPost]
-        public async Task<IActionResult> aa()
-        {
-            try
-            {
-                await _db.QueryFromFile<ProjectsInProgram>("ProjectsInProgram", "AND ps.ProgramId = 'PR20260110596' AND ps.StageName = 'GAA'").ToListAsync();
-                return Ok();
-            }
-            catch (Exception ex) {
                 return ExceptionHandler(ex);
             }
         }
