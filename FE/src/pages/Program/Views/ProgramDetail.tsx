@@ -753,7 +753,7 @@ const ProgramDetail: React.FC = () => {
                           <path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6z" />
                         </svg>
                         Batch Tag
-                      </button>
+                      </button>f
                       <button
                         onClick={() => handleBatchTagging('delete')}
                         className="group flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-red-500 hover:text-white"

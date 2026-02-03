@@ -5,6 +5,7 @@ import type { ComponentCost, ComponentTypeEnum } from '../Model';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { handleCurrencyBlur, handleCurrencyChange } from '../../../utils/GlobalFunctions';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useToast } from '../../../components/toaster/ToasterContext';
 
 
 interface ComponentCostDialogProps {
@@ -31,6 +32,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   maxAmountCost
 }) => {
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [formData, setFormData] = useState({
     Id: 0,
     ProjectId: ProjectId,
@@ -157,6 +159,30 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if(formData.ComponentType === '' || formData.ComponentId === '') {
+      showToast({
+        type: 'error',
+        message: 'Please select a Component Type.'
+      });
+      return;
+    }
+
+    if(formData.Description.trim() === '') {
+      showToast({
+        type: 'error',
+        message: 'Please enter a Description.'
+      });
+      return;
+    }
+
+    if(formData.Amount <= 0) {
+      showToast({
+        type: 'error',
+        message: 'Amount must be greater than zero.'
+      });
+      return;
+    }
     
     try {
         // Validate if the total would exceed max amount cost

@@ -66,7 +66,7 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
     }
 
     // Calculate total percentage and balancer to fix floating-point errors
-    const totalPct = updatedProfiles.reduce((sum, p) => sum + (p.Percentage || 0), 0);
+    const totalPct = updatedProfiles.reduce((sum, p) => p.IsDeleted ? sum : sum + (p.Percentage || 0), 0);
     setTotalPercentage(totalPct);
 
     // Balancer compensates for rounding errors (e.g., 3 items at 33.33% = 99.99%, balancer = 0.01%)
@@ -76,7 +76,7 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
     if (onTotalAmountChange) {
       onTotalAmountChange(totalAmt);
     }
-  });
+  }, [fundingProfiles, onEdit, onTotalAmountChange]);
 
   useEffect(() => {
     const newDisplayValues: { [key: number]: string } = {};

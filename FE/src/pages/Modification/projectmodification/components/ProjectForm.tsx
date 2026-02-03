@@ -343,7 +343,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
   // Calculate total percentage whenever fundingProfiles change
   useEffect(() => {
-    const total = fundingProfiles.reduce((sum, profile) => sum + (profile.Percentage || 0), 0);
+    const total = fundingProfiles.reduce((sum, profile) => profile?.IsDeleted ? sum : sum + (profile.Percentage || 0), 0);
     setTotalPercentage(total);
   }, [fundingProfiles]);
 
