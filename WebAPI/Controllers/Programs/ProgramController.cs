@@ -2,14 +2,16 @@
 using DBHelper.Data;
 using DBHelper.Models.API;
 using DBHelper.Models.Enums;
+using DBHelper.Models.Sql;
 using DBHelper.Models.Table;
 using DBHelper.Models.Views;
 using Helpers;
+using Helpers.API;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Reflection;
-using Helpers.API;
+using System.Security.Cryptography;
 
 namespace WebAPI.Controllers.Programs
 {
@@ -174,6 +176,19 @@ namespace WebAPI.Controllers.Programs
         }
         [AllowAnonymous]
         [HttpPost]
+        public async Task<IActionResult> aa()
+        {
+            try
+            {
+                await _db.QueryFromFile<ProjectsInProgram>("ProjectsInProgram", "AND ps.ProgramId = 'PR20260110596' AND ps.StageName = 'GAA'").ToListAsync();
+                return Ok();
+            }
+            catch (Exception ex) {
+                return ExceptionHandler(ex);
+            }
+        }
+        [AllowAnonymous]
+        [HttpPost]
         public async Task<IActionResult> AddProgram([FromBody] AddProgramDTO dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -284,24 +299,7 @@ namespace WebAPI.Controllers.Programs
                 }
                 //var ProjectLists = await _db.vProjects.AsNoTracking().Where(x => x.ProgramId == dto.ProgramId && x.StageName == dto.StageName).ToListAsync();
                 var ProjectLists = await _db.fProjectsPerStage
-                .FromSqlInterpolated($"SELECT * FROM fProjectsPerStage({dto.ProgramId}) fp WHERE fp.StageName = {dto.StageName}")
-                .AsNoTracking().Select(x => new ProjectPerStage()
-                {
-                    Id = x.Id,
-                    ProgramId = x.ProgramId,
-                    StageName = x.StageName!,
-                    ReferenceId = x.ReferenceId,
-                    ProjectId = x.ProjectId,
-                    Description = x.Description,
-                    Thrust = _db.tProjectThrustLists.FirstOrDefault(a => a.PAPKey == x.Thrust)!.ThrustDescription ?? x.Thrust.ToString(),
-                    Category = _db.tOptionProjectCategory.FirstOrDefault(a => a.CategoryId == x.Category)!.CategoryName ?? x.Category.ToString(),
-                    City = _db.tOptionAdminAreaCityMunicipality.FirstOrDefault(a => a.Code == x.City.ToString())!.Name ?? x.City.ToString(),
-                    LegislativeDistrict = _db.tOptionAdminAreaCongressionalDistrict.FirstOrDefault(a => a.Code == x.LegislativeDistrict.ToString())!.Name ?? x.LegislativeDistrict.ToString(),
-                    Cost = _db.tProjectComponentCost.Where(a => a.ProjectId == x.ReferenceId && a.StageName == x.StageName).Sum(a => a.Amount),
-                    CreatedBy = x.CreatedBy,
-                    CreatedDate = x.CreatedDate,
-
-                }).ToListAsync();
+                .FromSqlInterpolated($"SELECT * FROM fProjectsPerStage({dto.ProgramId}) fp WHERE fp.StageName = {dto.StageName}").AsNoTracking().ToListAsync();
                 var AvailableStages = await _db.tOptionProgramStage.AsNoTracking().ToListAsync();
                 var AvailableTypes = await _db.tOptionProgramType.AsNoTracking().ToListAsync();
                 var AvailableStatuses = await _db.tOptionProgramStatus.AsNoTracking().ToListAsync();
@@ -613,7 +611,7 @@ namespace WebAPI.Controllers.Programs
                 if (checkProjects.Count > 0)
                 {
                     HashSet<string> projectIds = checkProjects.Select(p => p.ProjectId!).ToHashSet();
-                    HashSet<int> RevisionIds = checkProjects.Select(p => p.RevisionId!).ToHashSet();
+                    HashSet<int> RevisionIds = checkProjects.Select(p => p.Id!).ToHashSet();
                     var ProjectRevisions = await _db.tProjectRevisions.AsNoTracking().Where(x => RevisionIds.Contains(x.Id)).ToListAsync();
 
                     var Components = await _db.tProjectComponentCost.AsNoTracking().Where(x => projectIds.Contains(x.ProjectId) && x.StageName == checkStage.StageName).ToListAsync();
@@ -795,6 +793,7 @@ namespace WebAPI.Controllers.Programs
                         var newStages = NewRevisions.Select(pr => new ProjectStages
                         {
                             ProgramId = dto.ProgramId,
+                            ReferenceId = pr.ReferenceId,
                             RevisionId = pr.Id,
                             StageId = checkStage.StageId.UpdateStage(),
                             StageName = checkStageType.Name,

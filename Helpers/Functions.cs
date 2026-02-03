@@ -2,11 +2,13 @@
 using DBHelper.Models.Enums;
 using DBHelper.Models.Extra;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using OfficeOpenXml;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats;
 using SixLabors.ImageSharp.PixelFormats;
+using System.Collections.Concurrent;
 using System.ComponentModel.DataAnnotations;
 using System.Drawing;
 using System.Net;
@@ -22,6 +24,24 @@ namespace Helpers
 {
     public static class Functions
     {
+        private static readonly ConcurrentDictionary<string, string> _sqlCache = new();
+        public static IQueryable<T> QueryFromFile<T>(
+            this DbContext db,
+            string sqlFilePath, string? query) where T : class
+        {
+            var sql = _sqlCache.GetOrAdd(
+                Path.Combine(Appsetting.Resources.Main, "Sql", sqlFilePath+".sql"),
+                path => File.ReadAllText(path)
+            );
+
+            // Wrap to guarantee composability
+            var composableSql = $@"{sql}
+            {query}";
+
+            return db.Set<T>()
+                     .FromSqlRaw(composableSql)
+                     .AsNoTracking(); // critical for speed
+        }
         public static string UpdateReferenceId(this string Current, string StageName)
         {
             var parts = Current.Split('-');

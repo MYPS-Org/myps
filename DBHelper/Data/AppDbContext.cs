@@ -1,4 +1,5 @@
-﻿using DBHelper.Models.Views;
+﻿using DBHelper.Models.Sql;
+using DBHelper.Models.Views;
 using Microsoft.EntityFrameworkCore;
 
 namespace DBHelper.Data
@@ -111,6 +112,13 @@ namespace DBHelper.Data
             modelBuilder.Entity<AdminImplementingOffice>().HasNoKey().ToView("vAdminImplementingOffice");
             modelBuilder.Entity<GetProjectCategoryVersions>().HasNoKey().ToView("vGetProjectCategoryVersions");
             modelBuilder.Entity<ProjectComponentStatus>().HasNoKey().ToView("vProjectComponentStatus");
+            #region SQL Raw Models
+            modelBuilder.Entity<ProjectsInProgram>(e =>
+            {
+                e.ToView(null);
+            });
+            #endregion
+
             base.OnModelCreating(modelBuilder);
         }
     }
