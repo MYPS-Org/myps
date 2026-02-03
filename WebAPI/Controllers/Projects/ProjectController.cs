@@ -610,8 +610,8 @@ namespace WebAPI.Controllers.Projects
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "MYId",
-                        NewValue = dto.ProjectDetails!.MYId!,
-                        OldValue = Project.MYId ?? "",
+                        NewValue = $"Stage: {Program.StageName} Value: {dto.ProjectDetails!.MYId!}",
+                        OldValue = $"Stage: {Program.StageName} Value: {Project.MYId!}",
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
@@ -626,8 +626,8 @@ namespace WebAPI.Controllers.Projects
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "AlternateId",
-                        NewValue = dto.ProjectDetails!.AlternateId!,
-                        OldValue = Project.AlternateId ?? "",
+                        NewValue = $"Stage: {Program.StageName} Value: {dto.ProjectDetails!.AlternateId!}",
+                        OldValue = $"Stage: {Program.StageName} Value: {Project.AlternateId!}",
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
@@ -642,8 +642,8 @@ namespace WebAPI.Controllers.Projects
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "ExternalId",
-                        NewValue = dto.ProjectDetails!.ExternalId!,
-                        OldValue = Project.ExternalId ?? "",
+                        NewValue = $"Stage: {Program.StageName} Value: {dto.ProjectDetails!.ExternalId!}",
+                        OldValue = $"Stage: {Program.StageName} Value: {Project.ExternalId!}",
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
@@ -658,8 +658,8 @@ namespace WebAPI.Controllers.Projects
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "UACS",
-                        NewValue = dto.ProjectDetails!.UACS!,
-                        OldValue = Project.UACS ?? "",
+                        NewValue = $"Stage: {Program.StageName} Value: {dto.ProjectDetails!.UACS!}",
+                        OldValue = $"Stage: {Program.StageName} Value: {Project.UACS!}",
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
@@ -674,8 +674,8 @@ namespace WebAPI.Controllers.Projects
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "Tier",
-                        NewValue = dto.ProjectDetails!.Tier.ToString(),
-                        OldValue = Project.Tier.ToString() ?? "",
+                        NewValue = $"Stage: {Program.StageName} Value: {dto.ProjectDetails!.Tier.ToString()}",
+                        OldValue = $"Stage: {Program.StageName} Value: {Project.Tier.ToString()}",
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
@@ -689,9 +689,9 @@ namespace WebAPI.Controllers.Projects
                         TransactionId = Project.ProjectId!,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
-                        AffectedColumn = "Name",
-                        NewValue = dto.ProjectDetails!.Description!,
-                        OldValue = Project.Description ?? "",
+                        AffectedColumn = "Description",
+                        NewValue = $"Stage: {Program.StageName} Value: {dto.ProjectDetails!.Description!}",
+                        OldValue = $"Stage: {Program.StageName} Value: {Project.Description!}",
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
@@ -712,8 +712,8 @@ namespace WebAPI.Controllers.Projects
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "Category",
-                        NewValue = Category.CategoryName,
-                        OldValue = OldCategory?.CategoryName ?? "",
+                        NewValue = $"Stage: {Program.StageName} Value: {Category.CategoryName}",
+                        OldValue = $"Stage: {Program.StageName} Value: {OldCategory?.CategoryName}",
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
@@ -734,8 +734,8 @@ namespace WebAPI.Controllers.Projects
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "Thrust",
-                        NewValue = Thrust.SubProgramName,
-                        OldValue = OldThrust?.SubProgramName ?? "",
+                        NewValue = $"Stage: {Program.StageName} Value: {Thrust.SubProgramName}",
+                        OldValue = $"Stage: {Program.StageName} Value: {OldThrust?.SubProgramName}",
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
@@ -756,8 +756,8 @@ namespace WebAPI.Controllers.Projects
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "Thrust",
-                        NewValue = Origin.Name,
-                        OldValue = OldOrigin?.Name ?? "",
+                        NewValue = $"Stage: {Program.StageName} Value: {Origin.Name!}",
+                        OldValue = $"Stage: {Program.StageName} Value: {OldOrigin?.Name!}",
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
@@ -778,8 +778,8 @@ namespace WebAPI.Controllers.Projects
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "City",
-                        NewValue = City.Name,
-                        OldValue = OldCity?.Name ?? "",
+                        NewValue = $"Stage: {Program.StageName} Value: {City.Name!}",
+                        OldValue = $"Stage: {Program.StageName} Value: {OldCity?.Name}",
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
@@ -821,8 +821,8 @@ namespace WebAPI.Controllers.Projects
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "LegislativeDistrict",
-                        NewValue = LD.Name,
-                        OldValue = OldLD?.Name ?? "",
+                        NewValue = $"Stage: {Program.StageName} Value: {LD.Name!}",
+                        OldValue = $"Stage: {Program.StageName} Value: {OldLD?.Name!}",
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
@@ -845,8 +845,8 @@ namespace WebAPI.Controllers.Projects
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "OperatingUnit",
-                        NewValue = OperatingUnit.Name!,
-                        OldValue = OldOperatingUnit?.Name ?? "",
+                        NewValue = $"Stage: {Program.StageName} Value: {OperatingUnit.Name!}",
+                        OldValue = $"Stage: {Program.StageName} Value: {OperatingUnit?.Name!}",
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
@@ -867,8 +867,8 @@ namespace WebAPI.Controllers.Projects
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "ImplementingOffice",
-                        NewValue = IO.Name,
-                        OldValue = OldIO?.Name ?? "",
+                        NewValue = $"Stage: {Program.StageName} Value: {IO.Name!}",
+                        OldValue = $"Stage: {Program.StageName} Value: {OldIO?.Name!}",
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
@@ -927,8 +927,8 @@ namespace WebAPI.Controllers.Projects
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "Agency",
-                        NewValue = Agency.Name,
-                        OldValue = OldAgency?.Name ?? "",
+                        NewValue = $"Stage: {Program.StageName} Value: {Agency.Name!}",
+                        OldValue = $"Stage: {Program.StageName} Value: {OldAgency?.Name!}",
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
@@ -953,8 +953,8 @@ namespace WebAPI.Controllers.Projects
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "ImplementationMode",
-                        NewValue = ImplementationMode.Name,
-                        OldValue = OldImplementationMode?.Name ?? "",
+                        NewValue = $"Stage: {Program.StageName} Value: {ImplementationMode.Name!}",
+                        OldValue = $"Stage: {Program.StageName} Value: {OldImplementationMode?.Name!}",
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
@@ -975,8 +975,8 @@ namespace WebAPI.Controllers.Projects
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "EmergencyMode",
-                        NewValue = EmergencyMode.Name,
-                        OldValue = OldEmergencyMode?.Name ?? "",
+                        NewValue = $"Stage: {Program.StageName} Value: {EmergencyMode.Name!}",
+                        OldValue = $"Stage: {Program.StageName} Value: {OldEmergencyMode?.Name!}",
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
@@ -1001,8 +1001,8 @@ namespace WebAPI.Controllers.Projects
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "Feasibility",
-                        NewValue = Feasib.Name,
-                        OldValue = OldFeasibility?.Name ?? "",
+                        NewValue = $"Stage: {Program.StageName} Value: {Feasib.Name!}",
+                        OldValue = $"Stage: {Program.StageName} Value: {OldFeasibility?.Name!}",
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
@@ -1017,8 +1017,8 @@ namespace WebAPI.Controllers.Projects
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "FeasibilityDate",
-                        NewValue = dto.ProjectDetails?.FeasibilityDate?.ToString("mm/dd/yyyy") ?? "",
-                        OldValue = Project?.FeasibilityDate?.ToString("mm/dd/yyyy") ?? "",
+                        NewValue = $"Stage: {Program.StageName} Value: {dto.ProjectDetails?.FeasibilityDate?.ToString("mm/dd/yyyy")}",
+                        OldValue = $"Stage: {Program.StageName} Value: {Project?.FeasibilityDate?.ToString("mm/dd/yyyy")}",
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
@@ -1039,8 +1039,8 @@ namespace WebAPI.Controllers.Projects
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "DetailedDesign",
-                        NewValue = DetailedDesign.Name ?? "",
-                        OldValue = OldDetailedDesign?.Name ?? "",
+                        NewValue = $"Stage: {Program.StageName} Value: {DetailedDesign.Name!}",
+                        OldValue = $"Stage: {Program.StageName} Value: {OldDetailedDesign?.Name!}",
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
@@ -1055,8 +1055,8 @@ namespace WebAPI.Controllers.Projects
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "DetailedDesignDate",
-                        NewValue = dto.ProjectDetails?.DetailedDesignDate?.ToString("mm/dd/yyyy") ?? "",
-                        OldValue = Project?.DetailedDesignDate?.ToString("mm/dd/yyyy") ?? "",
+                        NewValue = $"Stage: {Program.StageName} Value: {dto.ProjectDetails?.DetailedDesignDate?.ToString("mm/dd/yyyy")}",
+                        OldValue = $"Stage: {Program.StageName} Value: {Project?.DetailedDesignDate?.ToString("mm/dd/yyyy")}",
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
@@ -1077,8 +1077,8 @@ namespace WebAPI.Controllers.Projects
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
                         AffectedColumn = "RowAvailable",
-                        NewValue = RowAvailable.Name,
-                        OldValue = OldRowAvailable?.Name ?? "",
+                        NewValue = $"Stage: {Program.StageName} Value: {RowAvailable.Name!}",
+                        OldValue = $"Stage: {Program.StageName} Value: {OldRowAvailable?.Name!}",
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
@@ -1092,9 +1092,9 @@ namespace WebAPI.Controllers.Projects
                         TransactionId = Project.ProjectId!,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
-                        AffectedColumn = "RowAvailable",
-                        NewValue = dto.ProjectDetails?.RegionWide.ToString(),
-                        OldValue = Project.RegionWide.ToString() ?? "",
+                        AffectedColumn = "RegionWide",
+                        NewValue = $"Stage: {Program.StageName} Value: {dto.ProjectDetails?.RegionWide.ToString()!}",
+                        OldValue = $"Stage: {Program.StageName} Value: {Project.RegionWide.ToString()!}",
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
@@ -1108,9 +1108,9 @@ namespace WebAPI.Controllers.Projects
                         TransactionId = Project.ProjectId!,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tProjectRevisions",
-                        AffectedColumn = "RowAvailable",
-                        NewValue = dto.ProjectDetails?.Tier.ToString(),
-                        OldValue = Project.Tier.ToString() ?? "",
+                        AffectedColumn = "Tier",
+                        NewValue = $"Stage: {Program.StageName} Value: {dto.ProjectDetails?.Tier.ToString()!}",
+                        OldValue = $"Stage: {Program.StageName} Value: {Project.Tier.ToString()!}",
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
