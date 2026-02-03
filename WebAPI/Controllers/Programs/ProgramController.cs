@@ -286,7 +286,11 @@ namespace WebAPI.Controllers.Programs
                 }
                 //var ProjectLists = await _db.vProjects.AsNoTracking().Where(x => x.ProgramId == dto.ProgramId && x.StageName == dto.StageName).ToListAsync();
                 var ProjectLists = await _db.fProjectsPerStage
-                .FromSqlInterpolated($"SELECT * FROM fProjectsInProgram({dto.ProgramId}) fp WHERE fp.StageName = {dto.StageName}").AsNoTracking().ToListAsync();
+                .FromSqlInterpolated($"SELECT * FROM fProjectsInProgram({dto.ProgramId}) fp WHERE fp.StageName = {dto.StageName}").AsNoTracking()
+                    .OrderByDescending(x => x.Id)
+                    .Skip(0 * 15)
+                    .Take(15)
+                    .ToListAsync();
                 var AvailableStages = await _db.tOptionProgramStage.AsNoTracking().ToListAsync();
                 var AvailableTypes = await _db.tOptionProgramType.AsNoTracking().ToListAsync();
                 var AvailableStatuses = await _db.tOptionProgramStatus.AsNoTracking().ToListAsync();
