@@ -898,17 +898,18 @@ namespace WebAPI.Controllers.Programs
                     await transaction.CommitAsync();
                     return Ok(new
                     {
-                        Message = "Projects unpublished successfully",
-                        Title = "Unpublish Complete"
+                        Message = "The selected projects have been excluded from automatic publication to PCMA.",
+                        Title = "Restrict Publishing Successful"
                     });
                 }
                 var notExisting = projectIds
                     .Where(x => !existingSet.Contains(x))
                     .ToArray();
-                return new BadRequestObjectResult(new
+
+                return Ok(new
                 {
-                    Message = checkProjects,
-                    Title = "Project Link Missing"
+                    Message = "The selected projects have been excluded from automatic publication to PCMA.",
+                    Title = "Restrict Publishing Successful"
                 });
             }
             catch (Exception ex)
