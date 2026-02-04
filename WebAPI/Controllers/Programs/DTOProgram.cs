@@ -85,4 +85,19 @@ namespace WebAPI.Controllers.Programs
         public EnumProgramStage Stage { get; set; }
         public string Name { get; set; } = string.Empty;
     }
+    public class BatchUnpublishTaggingDTO
+    {
+        public string ProgramId { get; set; } = string.Empty;
+        public string ProjectIds { get; set; } = string.Empty;
+    }
+    public class BatchPublishTaggingDTO
+    {
+        public string ProgramId { get; set; } = string.Empty;
+        public string ProjectIds { get; set; } = string.Empty;
+    }
+    public class BatchDeleteTaggingDTO
+    {
+        public string ProgramId { get; set; } = string.Empty;
+        public string ProjectIds { get; set; } = string.Empty;
+    }
 }
