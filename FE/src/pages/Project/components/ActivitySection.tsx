@@ -57,8 +57,8 @@ const ActivitySection: React.FC<ActivitySectionProps> = ({ activities, transacti
     return (
       <div className="mt-2 p-3 bg-white rounded border">
         <div className="text-xs text-gray-600 mb-2">
-          <span className="font-medium">Table:</span> {log.AffectedTable} | 
-          <span className="font-medium ml-2">Column:</span> {log.AffectedColumn}
+          {/* <span className="font-medium">Table:</span> {log.AffectedTable} | 
+          <span className="font-medium ml-2">Column:</span> {log.AffectedColumn} */}
         </div>
         
         {log.TypeOfTransaction.toLowerCase() === 'delete' && oldData && typeof oldData === 'object' ? (
@@ -74,11 +74,11 @@ const ActivitySection: React.FC<ActivitySectionProps> = ({ activities, transacti
             </div>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-2 grid grid-cols-2 gap-4">
             {log.OldValue && (
               <div>
                 <p className="text-xs font-medium text-gray-700">Old Value:</p>
-                <p className="text-xs bg-red-50 p-2 rounded border-l-4 border-red-400">
+                <p className="text-xs bg-red-50 p-2 rounded border-l-4 border-red-400 truncate">
                   {log.OldValue}
                 </p>
               </div>
@@ -86,7 +86,7 @@ const ActivitySection: React.FC<ActivitySectionProps> = ({ activities, transacti
             {log.NewValue && (
               <div>
                 <p className="text-xs font-medium text-gray-700">New Value:</p>
-                <p className="text-xs bg-green-50 p-2 rounded border-l-4 border-green-400">
+                <p className="text-xs bg-green-50 p-2 rounded border-l-4 border-green-400 truncate">
                   {log.NewValue}
                 </p>
               </div>

@@ -176,14 +176,36 @@ export const downloadAIPReport = async (params: { ProgramName?: string; ProgramI
     }
 };
 
-export const batchTagProjects = async (data: { Tags: string[] }) => {
+export const batchDeleteTags = async (data: { Tags: string[] }) => {
     try {
-        const request = await httpClient.post('/Project/BatchTagProjects', data, {
-            preloaderMessage: 'Tagging projects...'
+        const request = await httpClient.post('/Program/BatchDeleteTags', data, {
+            preloaderMessage: 'Deleting tags from projects...'
         });
         return request;
     } catch (ErrorResponse) {
-        console.error('Error tagging projects:', ErrorResponse);
+        console.error('Error deleting tags from projects:', ErrorResponse);
+        throw ErrorResponse;
+    }
+}
+export const batchPublish = async (data: { Tags: string[] }) => {
+    try {
+        const request = await httpClient.post('/Program/BatchPublish', data, {
+            preloaderMessage: 'Publishing projects...'
+        });
+        return request;
+    } catch (ErrorResponse) {
+        console.error('Error publishing projects:', ErrorResponse);
+        throw ErrorResponse;
+    }
+}
+export const batchUnpublishTagging = async (data: { ProgramId: string; ProjectIds: string }) => {
+    try {
+        const request = await httpClient.post('/Program/BatchUnpublishTagging', data, {
+            preloaderMessage: 'Unpublishing projects...'
+        });
+        return request;
+    } catch (ErrorResponse) {
+        console.error('Error unpublishing projects:', ErrorResponse);
         throw ErrorResponse;
     }
 }

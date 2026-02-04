@@ -202,7 +202,7 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
               </div>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-5">
+          <div className="grid grid-cols-3 gap-5">
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">Start Year</label>
               <input
@@ -213,7 +213,7 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
                 required
               />
             </div>
-            <div>
+            <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">Program Type</label>
               <select
                 value={formData.Type}
@@ -230,8 +230,6 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
                 ))}
               </select>
             </div>
-          </div>
-          <div className="mb-4 grid grid-cols-2 gap-5">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Program Stage</label>
               <select

@@ -8,7 +8,7 @@ type BatchAction = 'tag' | 'delete' | 'unpublish' | 'publish';
 interface BatchTagDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (projectIds: string, action: BatchAction) => void;
+  onSubmit: (programId: string, projectIds: string, action: BatchAction) => void;
   programId: string;
   programName: string;
   action?: BatchAction;
@@ -83,7 +83,7 @@ const BatchTagDialog: React.FC<BatchTagDialogProps> = ({
     }
     
     setError('');
-    onSubmit(projectIds.trim(), action);
+    onSubmit(programId, projectIds, action);
     handleClose();
   };
 
@@ -127,7 +127,7 @@ const BatchTagDialog: React.FC<BatchTagDialogProps> = ({
                       setProjectIds(e.target.value);
                       if (error) setError('');
                     }}
-                    placeholder={`${config.placeholder}&#10;&#10;You can enter multiple project IDs separated by commas, spaces, or line breaks.&#10;Example: P0011xxxxx, P0011yyyyy`}
+                    placeholder={`${config.placeholder}&#10;&#10;You can enter multiple project IDs separated by colons, commas, spaces, or line breaks;Example: P0011xxxxx, P0011yyyyy`}
                     className={`w-full px-3 py-2 border ${
                       error ? 'border-red-500' : 'border-gray-300'
                     } rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none`}
