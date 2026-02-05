@@ -1714,7 +1714,7 @@ namespace WebAPI.Controllers.Projects
                     foreach (var location in newMajorItems)
                     {
                         string oldId = location.ReferenceId;
-                        location.ReferenceId = Project.ProjectId + "-" + ("tCountSequence").GenerateCode();
+                        location.ReferenceId = Project.ProjectId + "-" + location.ComponentId;
                         if (locationLookup.TryGetValue(oldId, out var children))
                         {
                             children.ForEach(x => x.ParentId = location.ReferenceId);

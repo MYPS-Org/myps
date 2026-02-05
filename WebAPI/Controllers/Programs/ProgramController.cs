@@ -850,7 +850,7 @@ namespace WebAPI.Controllers.Programs
         }
         [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> BatchUnpublishTagging([FromBody] BatchUnpublishTaggingDTO dto)
+        public async Task<IActionResult> BatchRestrictPublish([FromBody] BatchUnpublishTaggingDTO dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -879,26 +879,175 @@ namespace WebAPI.Controllers.Programs
                 .AsNoTracking()
                 .ToListAsync(); 
                 var existingSet = new HashSet<string>(
-
                     checkProjects.Select(a => a.ProjectId),
                     StringComparer.OrdinalIgnoreCase
                 );
-                if(existingSet.Count == projectIds.Length)
+                var MissingProjectIds = projectIds
+                    .Where(x => !existingSet.Contains(x))
+                    .ToArray();
+                if (existingSet.Count() > 0)
                 {
                     HashSet<int> RevisionIds = checkProjects.Select(p => p.Id!).ToHashSet();
-                    var projectsToUpdate = await _db.tProjectStages
-                        .Where(ps => RevisionIds.Contains(ps.RevisionId))
+                    var projectsToUpdate = await _db.tProjectRevisions
+                        .Where(ps => RevisionIds.Contains(ps.Id))
                         .ToListAsync();
                     foreach (var projectStage in projectsToUpdate)
                     {
-                        projectStage.IsPublished = false;
+                        projectStage.CanPublish = false;
                     }
-                    _db.tProjectStages.UpdateRange(projectsToUpdate);
+                    _db.tProjectRevisions.UpdateRange(projectsToUpdate);
                     await _db.SaveChangesAsync();
                     await transaction.CommitAsync();
+
                     return Ok(new
                     {
-                        Message = "The selected projects have been excluded from automatic publication to PCMA.",
+                        Message = $"The selected projects have been excluded from automatic publication to PCMA.\n\nList of missing Projects:{string.Join("\n", MissingProjectIds)}",
+                        Title = "Restrict Publishing Successful"
+                    });
+                }
+                var notExisting = projectIds
+                    .Where(x => !existingSet.Contains(x))
+                    .ToArray();
+
+                return Ok(new
+                {
+                    Message = "The selected projects have been excluded from automatic publication to PCMA.",
+                    Title = "Restrict Publishing Successful"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> BatchAllowPublish([FromBody] BatchUnpublishTaggingDTO dto)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                DateTime CurrentDate = DateTime.UtcNow;
+                var checkProgram = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
+                if (checkProgram == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Programs table. Please contact administrator!", Title = "Program not found" });
+                }
+                char[] delimiters = { ';', ',', '.', '&', ' ', '\n' };
+                var projectIds = dto.ProjectIds
+                .Split(delimiters, StringSplitOptions.RemoveEmptyEntries)
+                .Select(x => x.Trim())
+                .ToArray();
+
+                var projectIdsJson = System.Text.Json.JsonSerializer.Serialize(projectIds);
+
+                var checkProjects = await _db.fProjectsPerStage
+                .FromSqlInterpolated($@"
+                    SELECT *
+                    FROM dbo.fProjectsInProgram({dto.ProgramId}) fp
+                    WHERE fp.StageName = {checkProgram.StageName}
+                      AND fp.ProjectId IN (SELECT [value] FROM OPENJSON({projectIdsJson}))
+                ")
+                .AsNoTracking()
+                .ToListAsync(); 
+                var existingSet = new HashSet<string>(
+                    checkProjects.Select(a => a.ProjectId),
+                    StringComparer.OrdinalIgnoreCase
+                );
+                var MissingProjectIds = projectIds
+                    .Where(x => !existingSet.Contains(x))
+                    .ToArray();
+                if (existingSet.Count() > 0)
+                {
+                    HashSet<int> RevisionIds = checkProjects.Select(p => p.Id!).ToHashSet();
+                    var projectsToUpdate = await _db.tProjectRevisions
+                        .Where(ps => RevisionIds.Contains(ps.Id))
+                        .ToListAsync();
+                    foreach (var projectStage in projectsToUpdate)
+                    {
+                        projectStage.CanPublish = true;
+                    }
+                    _db.tProjectRevisions.UpdateRange(projectsToUpdate);
+                    await _db.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    return Ok(new
+                    {
+                        Message = $"The selected projects have been excluded from automatic publication to PCMA.\n\nList of missing Projects:{string.Join("\n", MissingProjectIds)}",
+                        Title = "Restrict Publishing Successful"
+                    });
+                }
+                var notExisting = projectIds
+                    .Where(x => !existingSet.Contains(x))
+                    .ToArray();
+
+                return Ok(new
+                {
+                    Message = "The selected projects have been excluded from automatic publication to PCMA.",
+                    Title = "Restrict Publishing Successful"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> BatchDelete([FromBody] BatchUnpublishTaggingDTO dto)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                DateTime CurrentDate = DateTime.UtcNow;
+                var checkProgram = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
+                if (checkProgram == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Programs table. Please contact administrator!", Title = "Program not found" });
+                }
+                char[] delimiters = { ';', ',', '.', '&', ' ', '\n' };
+                var projectIds = dto.ProjectIds
+                .Split(delimiters, StringSplitOptions.RemoveEmptyEntries)
+                .Select(x => x.Trim())
+                .ToArray();
+
+                var projectIdsJson = System.Text.Json.JsonSerializer.Serialize(projectIds);
+
+                var checkProjects = await _db.fProjectsPerStage
+                .FromSqlInterpolated($@"
+                    SELECT *
+                    FROM dbo.fProjectsInProgram({dto.ProgramId}) fp
+                    WHERE fp.StageName = {checkProgram.StageName}
+                      AND fp.ProjectId IN (SELECT [value] FROM OPENJSON({projectIdsJson}))
+                ")
+                .AsNoTracking()
+                .ToListAsync(); 
+                var existingSet = new HashSet<string>(
+                    checkProjects.Select(a => a.ProjectId),
+                    StringComparer.OrdinalIgnoreCase
+                );
+                var MissingProjectIds = projectIds
+                    .Where(x => !existingSet.Contains(x))
+                    .ToArray();
+                if (existingSet.Count() > 0)
+                {
+                    HashSet<int> RevisionIds = checkProjects.Select(p => p.Id!).ToHashSet();
+                    var projectsToUpdate = await _db.tProjectRevisions
+                        .Where(ps => RevisionIds.Contains(ps.Id))
+                        .ToListAsync();
+                    foreach (var projectStage in projectsToUpdate)
+                    {
+                        projectStage.IsDeleted = true;
+                    }
+                    _db.tProjectRevisions.UpdateRange(projectsToUpdate);
+                    await _db.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    return Ok(new
+                    {
+                        Message = $"The selected projects have been excluded from automatic publication to PCMA.\n\nList of missing Projects:{string.Join("\n", MissingProjectIds)}",
                         Title = "Restrict Publishing Successful"
                     });
                 }

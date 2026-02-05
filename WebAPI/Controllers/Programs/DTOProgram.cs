@@ -87,17 +87,11 @@ namespace WebAPI.Controllers.Programs
     }
     public class BatchUnpublishTaggingDTO
     {
+        [Required]
         public string ProgramId { get; set; } = string.Empty;
+        [Required]
         public string ProjectIds { get; set; } = string.Empty;
     }
-    public class BatchPublishTaggingDTO
-    {
-        public string ProgramId { get; set; } = string.Empty;
-        public string ProjectIds { get; set; } = string.Empty;
-    }
-    public class BatchDeleteTaggingDTO
-    {
-        public string ProgramId { get; set; } = string.Empty;
-        public string ProjectIds { get; set; } = string.Empty;
-    }
+    public class BatchPublishTaggingDTO : BatchUnpublishTaggingDTO { }
+    public class BatchDeleteTaggingDTO : BatchUnpublishTaggingDTO { }
 }
