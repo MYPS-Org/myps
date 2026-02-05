@@ -176,36 +176,36 @@ export const downloadAIPReport = async (params: { ProgramName?: string; ProgramI
     }
 };
 
-export const batchDeleteTags = async (data: { Tags: string[] }) => {
+export const batchDeleteProjects = async (data: { ProgramId: string; ProjectIds: string  }) => {
     try {
-        const request = await httpClient.post('/Program/BatchDeleteTags', data, {
-            preloaderMessage: 'Deleting tags from projects...'
+        const request = await httpClient.post('/Program/BatchDelete', data, {
+            preloaderMessage: 'Deleting projects...'
         });
         return request;
     } catch (ErrorResponse) {
-        console.error('Error deleting tags from projects:', ErrorResponse);
+        console.error('Error deleting projects:', ErrorResponse);
         throw ErrorResponse;
     }
 }
-export const batchPublish = async (data: { Tags: string[] }) => {
+export const batchAllowPublishing = async (data: { ProgramId: string; ProjectIds: string  }) => {
     try {
-        const request = await httpClient.post('/Program/BatchPublish', data, {
-            preloaderMessage: 'Publishing projects...'
+        const request = await httpClient.post('/Program/BatchAllowPublish', data, {
+            preloaderMessage: 'Allowing publishing of projects...'
         });
         return request;
     } catch (ErrorResponse) {
-        console.error('Error publishing projects:', ErrorResponse);
+        console.error('Error allowing publishing of projects:', ErrorResponse);
         throw ErrorResponse;
     }
 }
-export const batchUnpublishTagging = async (data: { ProgramId: string; ProjectIds: string }) => {
+export const batchRestrictPublishing = async (data: { ProgramId: string; ProjectIds: string }) => {
     try {
-        const request = await httpClient.post('/Program/BatchUnpublishTagging', data, {
-            preloaderMessage: 'Unpublishing projects...'
+        const request = await httpClient.post('/Program/BatchRestrictPublish', data, {
+            preloaderMessage: 'Restricting publishing of projects...'
         });
         return request;
     } catch (ErrorResponse) {
-        console.error('Error unpublishing projects:', ErrorResponse);
+        console.error('Error restricting publishing of projects:', ErrorResponse);
         throw ErrorResponse;
     }
 }

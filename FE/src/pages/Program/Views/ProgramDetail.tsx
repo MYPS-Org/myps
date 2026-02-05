@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 
 import type { ProgramDetailsEnums, AIPReportParams } from '../Model.d'; // Adjust the import path as necessary
 import { Button } from '../../../components/tailwindui/button';
-import { editProgram, fetchProgramById, publishToPCMA, downloadAIPReport, batchUnpublishTagging } from '../Service';
+import { editProgram, fetchProgramById, publishToPCMA, downloadAIPReport, batchAllowPublishing, batchDeleteProjects, batchRestrictPublishing } from '../Service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
 import { ChevronDownIcon, Cog6ToothIcon, TagIcon } from '@heroicons/react/24/outline';
 import { useToast } from '../../../components/toaster/ToasterContext';
@@ -400,7 +400,7 @@ const ProgramDetail: React.FC = () => {
       // TODO: Call your API endpoint here based on action type
       switch (action) {
         case 'delete':
-          // await batchDeleteProjects(programEnums?.Details.ProgramId, projectIds);
+          await batchDeleteProjects({ ProgramId: programId, ProjectIds: projectIds });
           console.log('Batch deleting projects:', projectIds);
           showToast({
             type: 'success',
@@ -408,19 +408,19 @@ const ProgramDetail: React.FC = () => {
           });
           break;
         case 'unpublish':
-          await batchUnpublishTagging({ ProgramId: programId, ProjectIds: projectIds });
-          console.log('Batch unpublishing projects:', projectIds);
+          await batchRestrictPublishing({ ProgramId: programId, ProjectIds: projectIds });
+          console.log('Batch restricting publishing of projects:', projectIds);
           showToast({
             type: 'success',
-            message: 'Projects unpublished successfully.',
+            message: 'Projects publishing restricted successfully.',
           });
           break;
         case 'publish':
-          // await batchPublishProjects(programEnums?.Details.ProgramId, projectIds);
-          console.log('Batch publishing projects:', projectIds);
+          await batchAllowPublishing({ ProgramId: programId, ProjectIds: projectIds });
+          console.log('Batch allowing publishing of projects:', projectIds);
           showToast({
             type: 'success',
-            message: 'Projects published successfully.',
+            message: 'Projects publishing allowed successfully.',
           });
           break;
         default:
