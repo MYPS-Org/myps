@@ -40,23 +40,23 @@ const BatchTagDialog: React.FC<BatchTagDialogProps> = ({
         };
       case 'unpublish':
         return {
-          title: 'Batch Unpublish Projects',
-          description: 'Mark multiple projects as unpublished. These projects will not be visible in published reports.',
+          title: 'Restrict Projects from Publishing',
+          description: 'Mark multiple projects as dont publish. These projects will not be visible in published reports.',
           icon: EyeSlashIcon,
           iconColor: 'text-orange-600',
           iconBg: 'bg-orange-100',
-          buttonText: 'Unpublish Projects',
+          buttonText: 'Restrict Publishing',
           buttonColor: 'orange' as const,
           placeholder: 'Enter project IDs to unpublish...',
         };
       case 'publish':
         return {
-          title: 'Batch Publish Projects',
-          description: 'Mark multiple projects as published. These projects will be included in published reports.',
+          title: 'Mark Projects as ready to Publish',
+          description: 'Mark multiple projects as ready to publish. These projects will be included in published reports.',
           icon: CheckCircleIcon,
           iconColor: 'text-green-600',
           iconBg: 'bg-green-100',
-          buttonText: 'Publish Projects',
+          buttonText: 'Mark as Ready to Publish',
           buttonColor: 'green' as const,
           placeholder: 'Enter project IDs to publish...',
         };
