@@ -1496,8 +1496,8 @@ namespace WebAPI.Controllers.Projects
                                             TypeOfTransaction = "Update",
                                             AffectedTable = "tProjectMajorWorkLocations",
                                             AffectedColumn = "StartX",
-                                            NewValue = loc.StartX ?? "",
-                                            OldValue = ExistingLoc.StartX ?? "",
+                                            NewValue = loc.StartX.ToString() ?? "",
+                                            OldValue = ExistingLoc.StartX.ToString() ?? "",
                                             CreatedBy = _Session.UserId,
                                             CreatedDate = CurrentDate
                                         });
@@ -1512,8 +1512,8 @@ namespace WebAPI.Controllers.Projects
                                             TypeOfTransaction = "Update",
                                             AffectedTable = "tProjectMajorWorkLocations",
                                             AffectedColumn = "StartY",
-                                            NewValue = loc.StartY ?? "",
-                                            OldValue = ExistingLoc.StartY ?? "",
+                                            NewValue = loc.StartY.ToString() ?? "",
+                                            OldValue = ExistingLoc.StartY.ToString() ?? "",
                                             CreatedBy = _Session.UserId,
                                             CreatedDate = CurrentDate
                                         });
@@ -1528,8 +1528,8 @@ namespace WebAPI.Controllers.Projects
                                             TypeOfTransaction = "Update",
                                             AffectedTable = "tProjectMajorWorkLocations",
                                             AffectedColumn = "EndX",
-                                            NewValue = loc.EndX ?? "",
-                                            OldValue = ExistingLoc.EndX ?? "",
+                                            NewValue = loc.EndX.ToString() ?? "",
+                                            OldValue = ExistingLoc.EndX.ToString() ?? "",
                                             CreatedBy = _Session.UserId,
                                             CreatedDate = CurrentDate
                                         });
@@ -1544,8 +1544,8 @@ namespace WebAPI.Controllers.Projects
                                             TypeOfTransaction = "Update",
                                             AffectedTable = "tProjectMajorWorkLocations",
                                             AffectedColumn = "EndY",
-                                            NewValue = loc.EndY ?? "",
-                                            OldValue = ExistingLoc.EndY ?? "",
+                                            NewValue = loc.EndY.ToString() ?? "",
+                                            OldValue = ExistingLoc.EndY.ToString() ?? "",
                                             CreatedBy = _Session.UserId,
                                             CreatedDate = CurrentDate
                                         });

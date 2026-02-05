@@ -2204,8 +2204,8 @@ namespace WebAPI.Controllers.Revision
                                         TypeOfTransaction = "Update",
                                         AffectedTable = "tRevisionProjectMajorWorkLocations",
                                         AffectedColumn = "StartX",
-                                        OldValue = OldSelectedComponent.StartX,
-                                        NewValue = UpdateMajorWorkLocation.StartX,
+                                        OldValue = OldSelectedComponent.StartX.ToString(),
+                                        NewValue = UpdateMajorWorkLocation.StartX.ToString(),
                                         CreatedBy = _Session.UserId,
                                         CreatedDate = CurrentDate
                                     });
@@ -2219,8 +2219,8 @@ namespace WebAPI.Controllers.Revision
                                         TypeOfTransaction = "Update",
                                         AffectedTable = "tRevisionProjectMajorWorkLocations",
                                         AffectedColumn = "StartY",
-                                        OldValue = OldSelectedComponent.StartY,
-                                        NewValue = UpdateMajorWorkLocation.StartY,
+                                        OldValue = OldSelectedComponent.StartY.ToString(),
+                                        NewValue = UpdateMajorWorkLocation.StartY.ToString(),
                                         CreatedBy = _Session.UserId,
                                         CreatedDate = CurrentDate
                                     });
@@ -2234,8 +2234,8 @@ namespace WebAPI.Controllers.Revision
                                         TypeOfTransaction = "Update",
                                         AffectedTable = "tRevisionProjectMajorWorkLocations",
                                         AffectedColumn = "EndX",
-                                        OldValue = OldSelectedComponent.EndX,
-                                        NewValue = UpdateMajorWorkLocation.EndX,
+                                        OldValue = OldSelectedComponent.EndX.ToString(),
+                                        NewValue = UpdateMajorWorkLocation.EndX.ToString(),
                                         CreatedBy = _Session.UserId,
                                         CreatedDate = CurrentDate
                                     });
@@ -2249,8 +2249,8 @@ namespace WebAPI.Controllers.Revision
                                         TypeOfTransaction = "Update",
                                         AffectedTable = "tRevisionProjectMajorWorkLocations",
                                         AffectedColumn = "EndY",
-                                        OldValue = OldSelectedComponent.EndY,
-                                        NewValue = UpdateMajorWorkLocation.EndY,
+                                        OldValue = OldSelectedComponent.EndY.ToString(),
+                                        NewValue = UpdateMajorWorkLocation.EndY.ToString(),
                                         CreatedBy = _Session.UserId,
                                         CreatedDate = CurrentDate
                                     });

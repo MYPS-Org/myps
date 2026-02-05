@@ -135,14 +135,14 @@ namespace WebAPI.Controllers.Revision
         public int TargetUnitId { get; set; }
         [MaxLength(100)]
         public string TargetUnit { get; set; } = string.Empty;
-        [MaxLength(100)]
-        public string? StartX { get; set; }
-        [MaxLength(100)]
-        public string? StartY { get; set; }
-        [MaxLength(100)]
-        public string? EndX { get; set; }
-        [MaxLength(100)]
-        public string? EndY { get; set; }
+        [Required]
+        public double? StartX { get; set; }
+        [Required]
+        public double? StartY { get; set; }
+        [Required]
+        public double? EndX { get; set; }
+        [Required]
+        public double? EndY { get; set; }
         [Required]
         public double? PhysicalTarget { get; set; }
         [MaxLength(100)]
