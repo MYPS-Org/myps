@@ -314,10 +314,10 @@ export interface MajorItemLocations {
 	Length?: number | null;
 	EndChainage: number;
 	StartChainage: number;
-	StartX: string;
-	StartY: string;
-	EndX: string;
-	EndY: string;
+	StartX: number;
+	StartY: number;
+	EndX: number;
+	EndY: number;
 	StartStationLimit: string;
 	EndStationLimit: string;
 	IsDeleted: boolean;

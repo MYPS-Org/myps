@@ -630,6 +630,48 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                 `Major Item ${majorIndex + 1}, Location ${locIndex + 1} (${location.InfraId || 'Unknown'}): Length must be greater than 0. Current value: ${length}`
               );
             }
+
+            // Validate coordinate bounds
+            const maxX = 126.8072562;
+            const minX = 114.0952145;
+            const maxY = 21.3217806;
+            const minY = 4.4149;
+
+            // Check StartX
+            if (location.StartX !== null && location.StartX !== undefined && location.StartX !== 0) {
+              if (location.StartX < minX || location.StartX > maxX) {
+                businessValidationErrors.push(
+                  `Major Item ${majorIndex + 1}, Location ${locIndex + 1} (${location.InfraId || 'Unknown'}): Start X coordinate (${location.StartX}) is out of valid range (${minX} - ${maxX})`
+                );
+              }
+            }
+
+            // Check StartY
+            if (location.StartY !== null && location.StartY !== undefined && location.StartY !== 0) {
+              if (location.StartY < minY || location.StartY > maxY) {
+                businessValidationErrors.push(
+                  `Major Item ${majorIndex + 1}, Location ${locIndex + 1} (${location.InfraId || 'Unknown'}): Start Y coordinate (${location.StartY}) is out of valid range (${minY} - ${maxY})`
+                );
+              }
+            }
+
+            // Check EndX
+            if (location.EndX !== null && location.EndX !== undefined && location.EndX !== 0) {
+              if (location.EndX < minX || location.EndX > maxX) {
+                businessValidationErrors.push(
+                  `Major Item ${majorIndex + 1}, Location ${locIndex + 1} (${location.InfraId || 'Unknown'}): End X coordinate (${location.EndX}) is out of valid range (${minX} - ${maxX})`
+                );
+              }
+            }
+
+            // Check EndY
+            if (location.EndY !== null && location.EndY !== undefined && location.EndY !== 0) {
+              if (location.EndY < minY || location.EndY > maxY) {
+                businessValidationErrors.push(
+                  `Major Item ${majorIndex + 1}, Location ${locIndex + 1} (${location.InfraId || 'Unknown'}): End Y coordinate (${location.EndY}) is out of valid range (${minY} - ${maxY})`
+                );
+              }
+            }
           }
         });
       }

@@ -615,7 +615,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                         value={projectDetails?.OperatingUnit || ''}
                                         onChange={(value) => handleInputChange('OperatingUnit', value === '' ? undefined : value.toString())}
                                         placeholder="Select Operating Unit"
-                                        disabled={disabled}
+                                        disabled={disabled || !projectDetails?.ImplementingOffice}
                                         error={!!errors.OperatingUnit}
                                         allowClear={true}
                                         searchPlaceholder="Search operating units..."
