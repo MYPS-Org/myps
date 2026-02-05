@@ -25,6 +25,12 @@ namespace Helpers
     public static class Functions
     {
         private static readonly ConcurrentDictionary<string, string> _sqlCache = new();
+        public static DateTime CurrentDate()
+        {
+            var tz = TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila");
+            return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
+
+        }
         public static IQueryable<T> QueryFromFile<T>(
             this DbContext db,
             string sqlFilePath, string? query) where T : class

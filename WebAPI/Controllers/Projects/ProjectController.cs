@@ -18,6 +18,7 @@ using System.Data.SqlClient;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using System.Xml;
 namespace WebAPI.Controllers.Projects
 {
     [ApiController]
@@ -138,6 +139,8 @@ namespace WebAPI.Controllers.Projects
 
                 //}).ToListAsync();
                 string ProjectId = (dto.ProjectId.Contains("B") ? dto.ProjectId : $"B{dto.ProjectId}");
+                //var Stage = await _db.tProjectStages.AsNoTracking().FirstOrDefaultAsync(x => x.ReferenceId == ProjectId || x.ReferenceId == dto.ProjectId);
+                //var Projects = await _db.fProjectsPerStage.FromSqlInterpolated($"SELECT * FROM fProjectsInProgram({Stage.ProgramId}) fp WHERE fp.ReferenceId = {Stage.ReferenceId}").AsNoTracking().ToListAsync();
                 var Stage = await _db.vProjectPerStages.AsNoTracking().Where(x => x.ReferenceId == ProjectId || x.ReferenceId == dto.ProjectId).ToListAsync();
                 return Ok(new
                 {
@@ -158,7 +161,7 @@ namespace WebAPI.Controllers.Projects
             try
             {
                 var AvailablePrograms = await _db.vProgramDetails.AsNoTracking().Where(x => x.IsPublished != true).ToListAsync();
-                int CurrentYear = (int)DateTime.UtcNow.Year;
+                int CurrentYear = (int)Functions.CurrentDate().Year;
                 var Category = await _db.tOptionProjectCategory.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.CategoryName).ToListAsync();
                 var Thrust = await _db.tProjectThrustLists.AsNoTracking().OrderBy(x => x.ThrustDescription).ToListAsync();
                 var Origin = await _db.tOptionProjectOrigin.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
@@ -208,7 +211,7 @@ namespace WebAPI.Controllers.Projects
             var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                DateTime CurrentDate = DateTime.UtcNow;
+                DateTime CurrentDate = Functions.CurrentDate();;
                 #region Field Validation
                 if (dto.Feasibility == 0)
                 {
@@ -218,12 +221,15 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = $"Implementation Mode is required!", Title = "Invalid Implementation Mode" });
                 }
-                var ValidateDescription = await _db.tProjectRevisions.FirstOrDefaultAsync(x => x.Description == dto.Description);
+                var ValidateDescription = await _db.tProjectRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Description == dto.Description);
                 if (ValidateDescription != null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Description: {dto.Description} already exist in {ValidateDescription.ProjectId}", Title = "Description Exists" });
+                    var ValidateProgram = await _db.tProjectStages.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionId == ValidateDescription.Id && x.ProgramId == dto.ProgramId);
+                    if(ValidateProgram != null)
+                    {
+                        return new BadRequestObjectResult(new { Message = $"Description: {dto.Description} already exist in {ValidateDescription.ProjectId}", Title = "Description Exists" });
+                    }
                 }
-                #endregion
                 var Program = await _db.vPrograms.FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
                 if (Program == null)
                 {
@@ -313,6 +319,7 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = $"Selected Detailed Design '{dto.EmergencyMode}' is not valid!", Title = "Invalid Detailed Design" });
                 }
+                #endregion
                 string FirstSegment = ProgramDetails.StageName.GenerateProjec1stSegment();
                 string SecondSegment = ProgramDetails.YearStart.GenerateProjec2ndSegment();
                 Random rand = new Random();
@@ -427,7 +434,7 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = "Program not found for this project!", Title = "Program Not Found" });
                 }
-                int CurrentYear = (int)DateTime.UtcNow.Year;
+                int CurrentYear = (int)Functions.CurrentDate().Year;
                 var Doc = await _db.tProjectSupportingDocs.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
                 var SupportingDoc = await _db.tDropdownSupportingDocs.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync();
 
@@ -544,14 +551,18 @@ namespace WebAPI.Controllers.Projects
             try
             {
                 bool hasUpdated = false;
-                DateTime CurrentDate = DateTime.UtcNow;
+                DateTime CurrentDate = Functions.CurrentDate();;
                 List<TransactionLog> transactionLogs = new List<TransactionLog>();
 
                 var ValidateDescription = await _db.tProjectRevisions.FirstOrDefaultAsync(x => x.Description == dto.ProjectDetails.Description && x.ReferenceId != dto.ProjectDetails
                 .ReferenceId && !x.IsDeleted);
                 if (ValidateDescription != null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Description: {dto.ProjectDetails.Description} already exist in {ValidateDescription.ProjectId}", Title = "Description Exists" });
+                    var ValidateProgram = await _db.tProjectStages.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionId == ValidateDescription.Id && x.ProgramId == dto.ProjectDetails.ProgramId);
+                    if (ValidateProgram != null)
+                    {
+                        return new BadRequestObjectResult(new { Message = $"Description: {dto.ProjectDetails.Description} already exist in {ValidateDescription.ProjectId}", Title = "Description Exists" });
+                    }
                 }
                 var Project = await _db.vProjectDetails
                 .FromSqlInterpolated($"SELECT * FROM fProjectDetails({dto.ProjectDetails.ProjectId}) fp WHERE fp.ProjectId = {dto.ProjectDetails.ProjectId} AND fp.StageName = {dto.ProjectDetails.StageName}")
@@ -1895,8 +1906,7 @@ namespace WebAPI.Controllers.Projects
                 await _db.SaveChangesAsync();
                 if (HasCostUpdate)
                 {
-                    var Projects = await _db.vProjectDetails.FromSqlInterpolated($"SELECT * FROM fProjectDetails({Program.ProgramId}) fp WHERE fp.StageName = {Program.StageName}").AsNoTracking().ToListAsync();
-                    HashSet<string> ProjectIds = Projects.Select(x => x.ProjectId!).ToHashSet();
+                    HashSet<string> ProjectIds = _db.fProjectsPerStage.FromSqlInterpolated($"SELECT * FROM fProjectsInProgram({Program.ProgramId}) fp WHERE fp.StageName = {Program.StageName}").AsNoTracking().Select(x => x.ProjectId!).ToHashSet();
                     double ProgramAmount = _db.tProjectComponentCost.AsNoTracking().Where(x => ProjectIds.Contains(x.ProjectId) && x.IsDeleted == false && x.StageName == Program.StageName && !CostToBeDeleted.Contains(x.Id)).Sum(x => x.Amount);
                     //var param = new Dictionary<string, object> { { "@ProgramId", Program.ProgramId },{ "@StageName", Program.StageName } };
                     //double? Totals = Sql.NormalQuery<double?>(
@@ -1968,7 +1978,7 @@ namespace WebAPI.Controllers.Projects
                     FilePath = FilePath,
                     Description = Regex.Replace(dto.Description, @"\s+", " "),
                     CreatedBy = _Session.UserId,
-                    CreatedDate = DateTime.UtcNow
+                    CreatedDate = Functions.CurrentDate()
                 };
                 await _db.tProjectNotes.AddAsync(AddNotes);
                 await _db.SaveChangesAsync();
@@ -2014,7 +2024,7 @@ namespace WebAPI.Controllers.Projects
                     NewValue = "",
                     OldValue = JsonConvert.SerializeObject(Note),
                     CreatedBy = _Session.UserId,
-                    CreatedDate = DateTime.UtcNow
+                    CreatedDate = Functions.CurrentDate()
                 });
                 _db.tProjectNotes.Remove(Note);
                 await _db.SaveChangesAsync();
@@ -2069,7 +2079,7 @@ namespace WebAPI.Controllers.Projects
                     FilePath = FilePath,
                     Description = Regex.Replace(dto.Description, @"\s+", " "),
                     CreatedBy = _Session.UserId,
-                    CreatedDate = DateTime.UtcNow
+                    CreatedDate = Functions.CurrentDate()
                 };
                 await _db.tProjectSupportingDocs.AddAsync(AddSupporting);
                 await _db.SaveChangesAsync();
@@ -2115,7 +2125,7 @@ namespace WebAPI.Controllers.Projects
                     NewValue = "",
                     OldValue = JsonConvert.SerializeObject(Note),
                     CreatedBy = _Session.UserId,
-                    CreatedDate = DateTime.UtcNow
+                    CreatedDate = Functions.CurrentDate()
                 });
                 _db.tProjectSupportingDocs.Remove(Note);
                 await _db.SaveChangesAsync();

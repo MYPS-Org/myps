@@ -144,7 +144,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Classification '{dto.Classification}' is not valid!", Title = "Invalid Classification" });
                 }
-                DateTime currentDate = DateTime.UtcNow;
+                DateTime currentDate = Functions.CurrentDate();;
                 string UserId = _Session.UserId;
                 List<TransactionLog> Transactions = new List<TransactionLog>();
                 if(checkRoad.RoadId != dto.RoadId)
@@ -237,7 +237,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Classification '{dto.Classification}' is not valid!", Title = "Invalid Classification" });
                 }
-                DateTime currentDate = DateTime.UtcNow;
+                DateTime currentDate = Functions.CurrentDate();;
                 string UserId = _Session.UserId;
                 var newFutureRoad = new DBHelper.Models.Table.FutureRoads()
                 {
@@ -373,7 +373,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"DEO '{dto.DEO}' is not valid!", Title = "Invalid DEO" });
                 }
-                DateTime currentDate = DateTime.UtcNow;
+                DateTime currentDate = Functions.CurrentDate();;
                 string UserId = _Session.UserId;
                 var newFutureRoadSection = new DBHelper.Models.Table.FutureRoadSections()
                 {
@@ -426,7 +426,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"DEO {dto.RoadId} does exist in the system.", Title = "Invalid DEO" });
                 }
-                DateTime currentDate = DateTime.UtcNow;
+                DateTime currentDate = Functions.CurrentDate();;
                 string UserId = _Session.UserId;
                 List<TransactionLog> Transactions = new List<TransactionLog>();
                 if (checkRoad.RoadId != dto.RoadId)
@@ -641,7 +641,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Road Section '{dto.RoadSectionId}' is not valid!", Title = "Invalid Road Section" });
                 }
-                DateTime currentDate = DateTime.UtcNow;
+                DateTime currentDate = Functions.CurrentDate();;
                 string UserId = _Session.UserId;
                 var newFutureBridge = new DBHelper.Models.Table.FutureBridge()
                 {
@@ -697,7 +697,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Bridge Name {dto.Name} already exist in the system.", Title = "Invalid Bridge Name" });
                 }
-                DateTime currentDate = DateTime.UtcNow;
+                DateTime currentDate = Functions.CurrentDate();;
                 string UserId = _Session.UserId;
                 List<TransactionLog> Transactions = new List<TransactionLog>();
                 if (checkBridge.RoadSectionId != dto.RoadSectionId)

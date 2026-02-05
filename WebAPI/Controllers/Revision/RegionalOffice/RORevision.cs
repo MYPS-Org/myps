@@ -24,7 +24,7 @@ namespace WebAPI.Controllers.Revision.RegionalOffice
         {
             try
             {
-                DateTime CurrentDate = DateTime.UtcNow;
+                DateTime CurrentDate = Functions.CurrentDate();;
                 var CheckRevision = await _db.tProjectRevisions.AsNoTracking().Where(x => x.ProjectId == dto.ProjectId && x.IsRevised == true).OrderByDescending(x => x.RevisedNumber).FirstOrDefaultAsync();
                 if (CheckRevision == null)
                 {

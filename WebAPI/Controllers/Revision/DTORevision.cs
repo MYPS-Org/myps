@@ -54,7 +54,7 @@ namespace WebAPI.Controllers.Revision
         [Required]
         public int ReasonId { get; set; }
         [Required]
-        public DateTime ApprovalDate { get; set; } = DateTime.UtcNow;
+        public DateTime ApprovalDate { get; set; }
         [Required]
         public FileUpload ApprovedDocument { get; set; } = new FileUpload();
         [Required]
@@ -115,9 +115,9 @@ namespace WebAPI.Controllers.Revision
         public string InfraType { get; set; } = string.Empty;
         public string? StageName { get; set; } = string.Empty;
         public string? CreatedBy { get; set; } = string.Empty;
-        public DateTime? CreatedDate { get; set; } = DateTime.UtcNow;
+        public DateTime? CreatedDate { get; set; }
         public string? UpdatedBy { get; set; } = string.Empty;
-        public DateTime? UpdatedDate { get; set; } = DateTime.UtcNow;
+        public DateTime? UpdatedDate { get; set; }
         public bool IsDeleted { get; set; } = false;
     }
     public class RevisionMajorWorkLocationsDTO
@@ -152,9 +152,9 @@ namespace WebAPI.Controllers.Revision
         public double? EndChainage { get; set; }
         public double? StartChainage { get; set; }
         public string? CreatedBy { get; set; } = string.Empty;
-        public DateTime? CreatedDate { get; set; } = DateTime.UtcNow;
+        public DateTime? CreatedDate { get; set; }
         public string? UpdatedBy { get; set; } = string.Empty;
-        public DateTime? UpdatedDate { get; set; } = DateTime.UtcNow;
+        public DateTime? UpdatedDate { get; set; }
         public bool IsDeleted { get; set; } = false;
     }
     public class RevisionFundingProfileDTO

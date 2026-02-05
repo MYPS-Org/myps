@@ -37,6 +37,6 @@ namespace DBHelper.Models.Table
         [MaxLength(100)]
         public string CreatedBy { get; set; } = string.Empty;
         [Required]
-        public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedDate { get; set; }
     }
 }

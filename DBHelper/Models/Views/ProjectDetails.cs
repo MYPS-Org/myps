@@ -30,7 +30,7 @@ namespace DBHelper.Models.Views
         public string ImplementingOffice { get; set; } = string.Empty;
         public string DEO { get; set; } = string.Empty;
         public string Region { get; set; } = string.Empty;
-        public int Agency { get; set; }
+        public int? Agency { get; set; }
         public int? ImplementationMode { get; set; }
         public int? EmergencyMode { get; set; }
         public string? IslandCode { get; set; }

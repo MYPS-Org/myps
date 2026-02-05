@@ -118,7 +118,7 @@ namespace WebAPI.Controllers.ProjectGroup
                     Description = dto.Description,
                     UserGroup = dto.UserGroup,
                     CreatedBy = _Session.UserId ?? "TEST",
-                    CreatedDate = DateTime.UtcNow
+                    CreatedDate = Functions.CurrentDate()
                 };
                 await _db.tProjectGroups.AddAsync(NewGroup);
                 await _db.SaveChangesAsync();
@@ -155,7 +155,7 @@ namespace WebAPI.Controllers.ProjectGroup
                     .Where(x => x.GroupId == dto.GroupId)
                     .ToListAsync();
                 var transactionLogs = new List<TransactionLog>();
-                DateTime CurrentDate = DateTime.UtcNow;
+                DateTime CurrentDate = Functions.CurrentDate();;
                 transactionLogs.Add(new TransactionLog
                 {
                     TransactionId = dto.GroupId,
@@ -271,7 +271,7 @@ namespace WebAPI.Controllers.ProjectGroup
                         GroupId = dto.GroupId,
                         ProjectId = x.ReferenceId,
                         CreatedBy = _Session.UserId ?? "TEST",
-                        CreatedDate = DateTime.UtcNow
+                        CreatedDate = Functions.CurrentDate()
                     };
                 }));
                 await _db.SaveChangesAsync();
@@ -317,7 +317,7 @@ namespace WebAPI.Controllers.ProjectGroup
                     NewValue = "",
                     OldValue = JsonConvert.SerializeObject(ExistingProject),
                     CreatedBy = _Session.UserId,
-                    CreatedDate = DateTime.UtcNow
+                    CreatedDate = Functions.CurrentDate()
                 });
                 _db.tProjectsInGroup.Remove(ExistingProject!);
                 await _db.SaveChangesAsync();
@@ -389,7 +389,7 @@ namespace WebAPI.Controllers.ProjectGroup
                     return new BadRequestObjectResult(new { Message = "Project Group not found!", Title = "Not Found" });
                 }
                 var transactionLogs = new List<TransactionLog>();
-                DateTime CurrentDate = DateTime.UtcNow;
+                DateTime CurrentDate = Functions.CurrentDate();;
                 #region Update Group Details
                 bool hasChangesInDetails = false;
                 if (GroupDetail.Description != dto.GroupDetails.Description)

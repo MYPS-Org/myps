@@ -222,7 +222,7 @@ namespace WebAPI.Controllers.Revision
                 #endregion
 
                 #region Full Project Details
-                int CurrentYear = (int)DateTime.UtcNow.Year;
+                int CurrentYear = (int)Functions.CurrentDate().Year;
                 var Doc = await _db.tProjectSupportingDocs.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
                 var SupportingDoc = await _db.tDropdownSupportingDocs.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync();
 
@@ -443,7 +443,7 @@ namespace WebAPI.Controllers.Revision
                 #endregion
 
                 #region Full Project Details
-                int CurrentYear = (int)DateTime.UtcNow.Year;
+                int CurrentYear = (int)Functions.CurrentDate().Year;
                 var Doc = await _db.tProjectSupportingDocs.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
                 var SupportingDoc = await _db.tDropdownSupportingDocs.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.Name).ToListAsync();
 
@@ -577,7 +577,7 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = "Approved Document file size exceeds the maximum limit of 50 MB!", Title = "File Size Exceeded" });
                 }
-                DateTime CurrentDate = DateTime.UtcNow;
+                DateTime CurrentDate = Functions.CurrentDate();;
                 var NewRevisionProject = new RevisionProjects();
 
                 var NewFundingProfile = new List<RevisionProjectFundingProfile>();
@@ -1228,7 +1228,7 @@ namespace WebAPI.Controllers.Revision
             var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                DateTime CurrentDate = DateTime.UtcNow;
+                DateTime CurrentDate = Functions.CurrentDate();;
                 var RevisionDetails = await _db.tRevisionDetails.AsNoTracking().FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId && (x.RegionStatus != EnumRevisionStatus.Rejected || x.COStatus != EnumRevisionStatus.Rejected));
                 if(RevisionDetails == null)
                 {
@@ -1363,7 +1363,7 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = "Approved Document file size exceeds the maximum limit of 50 MB!", Title = "File Size Exceeded" });
                 }
-                DateTime CurrentDate = DateTime.UtcNow;
+                DateTime CurrentDate = Functions.CurrentDate();;
                 var TransactionLog = new List<RevisionTransactionLog>();
                 #region Validating Created Revision Project Data
                 var ExistingRevision = await _db.tRevisionDetails.AsNoTracking().FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId && (x.RegionStatus == EnumRevisionStatus.ForCorrection || x.COStatus == EnumRevisionStatus.ForCorrection));

@@ -205,7 +205,7 @@ namespace WebAPI.Controllers.Programs
                     return new BadRequestObjectResult(new { Message = $"Please provide a reason for skipping stage of this program.", Title = "Skip Reason Required" });
                 }
                 string ReferenceId = "PR" + ("tCountSequence").GenerateCode();
-                DateTime currentDate = DateTime.UtcNow;
+                DateTime currentDate = Functions.CurrentDate();;
                 string UserId = _Session.UserId;
                 var newProgram = new DBHelper.Models.Table.Programs()
                 {
@@ -360,7 +360,7 @@ namespace WebAPI.Controllers.Programs
                     NewValue = "true",
                     OldValue = "false",
                     CreatedBy = _Session.UserId,
-                    CreatedDate = DateTime.UtcNow
+                    CreatedDate = Functions.CurrentDate()
 
                 };
                 _db.tPrograms.Update(program);
@@ -422,7 +422,7 @@ namespace WebAPI.Controllers.Programs
                     });
                 }
                 List<TransactionLog> transactionLogs = new List<TransactionLog>();
-                DateTime CurrentDate = DateTime.UtcNow;
+                DateTime CurrentDate = Functions.CurrentDate();;
                 if (string.IsNullOrEmpty(dto.Name)) { return new BadRequestObjectResult(new { Message = $"Program name field cannot be empty!", Title = "Update Failed" }); }
                 var NewProgramVersion = new ProgramRevisions()
                 {
@@ -571,7 +571,7 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                DateTime CurrentDate = DateTime.UtcNow;
+                DateTime CurrentDate = Functions.CurrentDate();;
                 var checkProgram = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
                 if (checkProgram == null)
                 {
@@ -855,7 +855,7 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                DateTime CurrentDate = DateTime.UtcNow;
+                DateTime CurrentDate = Functions.CurrentDate();;
                 var checkProgram = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
                 if (checkProgram == null)
                 {
@@ -928,7 +928,7 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                DateTime CurrentDate = DateTime.UtcNow;
+                DateTime CurrentDate = Functions.CurrentDate();;
                 var checkProgram = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
                 if (checkProgram == null)
                 {
@@ -1001,7 +1001,7 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                DateTime CurrentDate = DateTime.UtcNow;
+                DateTime CurrentDate = Functions.CurrentDate();;
                 var checkProgram = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
                 if (checkProgram == null)
                 {
