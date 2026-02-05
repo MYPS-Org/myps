@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
@@ -48,7 +48,7 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
     IsDeleted: false
   });
 
-  const [availableWorkTypes, setAvailableWorkTypes] = useState<ScopeOfWorkEnum[]>([]);
+  // const [availableWorkTypes, setAvailableWorkTypes] = useState<ScopeOfWorkEnum[]>([]);
 
   // Initialize form data
   useEffect(() => {
@@ -66,17 +66,17 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
   }, [mode, initialData, isOpen, programDetails]);
 
   // Update available work types when InfraType changes
-  useEffect(() => {
-    if (!formData.InfraType || !dropDowns) {
-      setAvailableWorkTypes([]);
-      return;
-    }
+  const availableWorkTypes = useMemo<ScopeOfWorkEnum[]>(() => {
+    if (!formData.InfraType || !dropDowns) return [];
 
-    setAvailableWorkTypes(dropDowns.filter(
-      scope => scope.InfraType === formData.InfraType && 
-      (formData.ComponentId !== "ROW" || scope.Description === "ROW Acquisition")
-    ));
-  }, [formData.InfraType, dropDowns, formData.ComponentId]);
+    return dropDowns.filter(
+      scope =>
+        scope.InfraType === formData.InfraType &&
+        (formData.ComponentId !== "ROW" ||
+          scope.Description === "ROW Acquisition")
+    );
+  }, [formData.InfraType, formData.ComponentId, dropDowns]);
+
 
   const handleInputChange = (field: string, value: any) => {
     // If changing InfraType, reset WorkTypeId

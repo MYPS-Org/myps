@@ -43,7 +43,7 @@ export const getRevisionNavigationPath = (
         return `/revision/termination/${baseParams}`;
         default:
             // Fallback to modification details
-            return `/revision/modification-details/${baseParams}`;
+            return `/projects/project-details/${baseParams}`;
     }
 };
 

@@ -772,28 +772,21 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         ProjectDetails: {
           ...projectDetails,
           // Add missing required fields for the expected payload
-          Province: projectDetails.Province ? projectDetails.Province.toString() : '',
-          City: projectDetails.City ? projectDetails.City.toString() : '',
-          LegislativeDistrict: projectDetails.LegislativeDistrict ? projectDetails.LegislativeDistrict.toString() : '',
-          ProgramName: programDetails.Name || '',
-          EmergencyMode: projectDetails.EmergencyMode,
-          CreatedBy: projectDetails.CreatedBy || user?.UserId,
-          CreatedDate: projectDetails.CreatedDate || new Date().toISOString(),
           UpdatedBy: user?.UserId, // Set current user
           UpdatedDate: new Date().toISOString(),
         },
         ComponentCosts: componentCosts.map(cost => ({
           Id: cost.Id,
-          ProjectId: cost.ProjectId || projectDetails.ProjectId || '',
-          StageName: initialData?.ProgramDetails?.StageName || '',
+          ProjectId: cost.ProjectId ,
+          StageName: initialData?.ProgramDetails?.StageName,
           ComponentType: cost.ComponentType,
           ComponentId: cost.ComponentId,
           Description: cost.Description,
-          Amount: cost.Amount || 0,
-          StartDate: cost.StartDate || new Date().toISOString(),
-          EndDate: cost.EndDate || new Date().toISOString(),
-          CreatedBy: cost.CreatedBy || '',
-          CreatedDate: cost.CreatedDate || new Date().toISOString(),
+          Amount: cost.Amount,
+          StartDate: cost.StartDate,
+          EndDate: cost.EndDate,
+          CreatedBy: cost.CreatedBy,
+          CreatedDate: cost.CreatedDate,
           UpdatedBy: '',
           UpdatedDate: new Date().toISOString(),
           IsDeleted: cost.IsDeleted || false
@@ -803,8 +796,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         // ProjectNotes: notes, // Include ProjectNotes as it's in the expected payload
         FundingProfile: fundingProfiles.map(profile => ({
           ...profile,
-          StageName: initialData?.ProgramDetails?.StageName || '',
-          Amount: profile.Amount || 0,
+          StageName: initialData?.ProgramDetails?.StageName,
+          Amount: profile.Amount,
           
         }))
       };

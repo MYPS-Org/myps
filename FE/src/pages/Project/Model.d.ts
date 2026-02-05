@@ -269,7 +269,7 @@ export interface ComponentCost {
 	ComponentId: string;
 	Description?: string;
 	Amount: number;
-	StageName: string;
+	StageName?: string;
 	StartDate?: string | null;
 	EndDate?: string | null;
 	IsDeleted: boolean;

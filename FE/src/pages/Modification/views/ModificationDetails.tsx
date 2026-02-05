@@ -31,19 +31,19 @@ const ModifyProject: React.FC = () => {
     // console.log('ModificationDetails - Category ID:', selectedCategoryId);
     // console.log('ModificationDetails - Revision Group ID:', selectedRevisionGroupId);
 
-    // Set modification context once on mount from navigation state
+    // Set modification context when navigation state changes
     useEffect(() => {
         setModificationContext({
             category: categoryDesc || '',
             reason: reasonDesc || '',
             reasonId: selectedReasonId
         });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // Empty deps - set once on mount only from initial navigation state
+    }, [categoryDesc, reasonDesc, selectedReasonId, setModificationContext]);
 
     useEffect(() => {
         // Load project data based on ID
         const loadProjectData = async () => {
+            setIsLoading(true);
             try {
                 if (id && id.length == 2) {
                     // console.log('Loading project details for:', id[0], id[1]); // Debug log
@@ -59,49 +59,29 @@ const ModifyProject: React.FC = () => {
         };
 
         loadProjectData();
-    }, [id]);
+    }, [id, selectedRevisionGroupId, selectedCategoryId, selectedReasonId]);
 
     
     const fetchProjectDetails = useCallback(async (projectId: string, _stageName: string) => {
         try {
-            // console.log('Calling fetchRevisionData with:', { 
-            //     ProjectId: projectId, 
-            //     RevisionGroupId: selectedRevisionGroupId,
-            //     CategoryId: selectedCategoryId,
-            //     ReasonId: selectedReasonId 
-            // });
             const response = await fetchRevisionData(
                 projectId,
                 selectedRevisionGroupId,
                 selectedCategoryId,
                 selectedReasonId
             );
-            // console.log('Revision data response:', response);
             
             const data = response.Data as RevisionProjectPayload;
             setInitialData(data);
 
-            // Debug: Check what properties exist in the response
-            // console.log('=== RESPONSE DATA STRUCTURE ===');
-            // console.log('All keys in response.Data:', Object.keys(data));
-            // console.log('ProjectComponentStatus:', data.ComponentsStatus);
-            // console.log('ComponentsStatus (if exists):', (data as any).ComponentsStatus);
-            // console.log('===============================');
-
             // Get ProjectStatus directly from API response
             if (data.ProjectStatus) {
-                // console.log('=== PROJECT STATUS FROM API ===');
-                // console.log('ProjectStatus:', data.ProjectStatus);
-                // console.log('Construction Status:', data.ProjectStatus.ConstructionStatus);
-                // console.log('Package Status:', data.ProjectStatus.PackageStatus);
                 
                 // Set the status to Jotai atoms directly from API
                 setStatusFromAPI(
                     data.ProjectStatus.ConstructionStatus,
                     data.ProjectStatus.PackageStatus
                 );
-                // console.log('Status set to Jotai atoms from API ProjectStatus');
-                // console.log('===============================');
             } else {
                 console.warn('No ProjectStatus found in response');
             }
@@ -109,11 +89,6 @@ const ModifyProject: React.FC = () => {
             // Parse and set field rules from API
             if (data.Rules && data.Rules.Field) {
                 try {
-                    // console.log('=== FIELD RULES FROM API ===');
-                    // console.log('Raw Field string:', data.Rules.Field);
-                    // console.log('Field string type:', typeof data.Rules.Field);
-                    // console.log('Field string length:', data.Rules.Field.length);
-                    
                     // Try to parse
                     let parsedRules: FieldRules;
                     try {
@@ -142,16 +117,12 @@ const ModifyProject: React.FC = () => {
                         parsedRules = JSON.parse(repairedJson) as FieldRules;
                         console.log('✓ Successfully parsed repaired JSON');
                     }
-                    
-                    // console.log('✓ Successfully parsed Field Rules');
-                    // console.log('Parsed Field Rules:', parsedRules);
-                    // console.log('Parsed keys:', Object.keys(parsedRules));
-                    
+
                     setFieldRules(parsedRules);
                     // console.log('✓ Field rules set to Jotai atoms');
                     // console.log('===========================');
                 } catch (parseError) {
-                    console.error('❌ ERROR PARSING FIELD RULES JSON (even after repair attempt)');
+                    console.error('ERROR PARSING FIELD RULES JSON (even after repair attempt)');
                     console.error('Parse Error:', parseError);
                     console.error('Error message:', (parseError as Error).message);
                     console.error('Raw string that failed to parse:', data.Rules.Field);
@@ -179,9 +150,10 @@ const ModifyProject: React.FC = () => {
             }
 
         } catch (error) {
+            console.error('Error fetching project details:', error);
             setTimeout(() => {
-                navigate('/revision');
-            }, 3000);
+                navigate('/revision'); // Go back to previous page
+            }, 2000);
         } finally {
             setIsLoading(false);
         }

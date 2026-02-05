@@ -48,7 +48,7 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
 
   const [formData, setFormData] = useState(defaultFormData);
 
-  const [availableWorkTypes, setAvailableWorkTypes] = useState<ScopeOfWorkEnum[]>([]);
+  // const [availableWorkTypes, setAvailableWorkTypes] = useState<ScopeOfWorkEnum[]>([]);
 
   // Get field permissions state
   const permissionState = useFieldPermissionState();
@@ -93,17 +93,17 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
   }, [mode, initialData, isOpen, programDetails]);
 
   // Update available work types when InfraType changes
-  useEffect(() => {
-    if (!formData.InfraType || !dropDowns) {
-      setAvailableWorkTypes([]);
-      return;
-    }
+  const availableWorkTypes = useMemo<ScopeOfWorkEnum[]>(() => {
+    if (!formData.InfraType || !dropDowns) return [];
 
-    setAvailableWorkTypes(dropDowns.filter(
-      scope => scope.InfraType === formData.InfraType && 
-      (formData.ComponentId !== "ROW" || scope.Description === "ROW Acquisition")
-    ));
-  }, [formData.InfraType, dropDowns, formData.ComponentId]);
+    return dropDowns.filter(
+      scope =>
+        scope.InfraType === formData.InfraType &&
+        (formData.ComponentId !== "ROW" ||
+          scope.Description === "ROW Acquisition")
+    );
+  }, [formData.InfraType, formData.ComponentId, dropDowns]);
+
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -149,9 +149,7 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
   };
 
   // Get unique infrastructure types from dropdowns
-  const infraTypes = formData.ComponentId === "ROW"
-  ? [...new Set(dropDowns?.filter(scope => scope.Description === "ROW Acquisition").map(scope => scope.InfraType) || [])]
-  : [...new Set(dropDowns?.map(scope => scope.InfraType) || [])];
+  const infraTypes = [...new Set(dropDowns?.map(scope => scope.InfraType) || [])];
 
   // Filter out already selected ComponentIds (but allow the current one when editing)
   const availableComponentCosts = componentCosts.filter(cost => {

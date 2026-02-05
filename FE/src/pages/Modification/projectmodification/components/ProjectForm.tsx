@@ -883,7 +883,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
     if (!hasTerminatedComponent) {
       showToast({
-        type: 'info',
+        type: 'error',
         message: 'No terminated components found for this project.'
       });
       navigate(`/projects/project-details/${projectDetails?.ProjectId}:${projectDetails?.StageName}`); // Go back to previous page /project
