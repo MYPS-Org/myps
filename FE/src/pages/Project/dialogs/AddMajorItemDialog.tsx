@@ -72,9 +72,20 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
       return;
     }
 
-    setAvailableWorkTypes(
-      dropDowns.filter(scope => scope.InfraType === formData.InfraType)
-    );
+    setAvailableWorkTypes(dropDowns.filter(
+      scope => scope.InfraType === formData.InfraType && 
+      (formData.ComponentId !== "ROW" || scope.Description === "ROW Acquisition")
+    ));
+
+    // if(formData.ComponentId === "ROW") {
+    //   setAvailableWorkTypes(
+    //     dropDowns.filter(scope => scope.InfraType === formData.InfraType && scope.Description === "ROW Acquisition")
+    //   );
+    // } else {
+    //   setAvailableWorkTypes(
+    //     dropDowns.filter(scope => scope.InfraType === formData.InfraType)
+    //   );
+    // }
   }, [formData.InfraType, dropDowns]);
 
   // 2️⃣ Reset WorkTypeId ONLY when InfraType changes
@@ -134,8 +145,10 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
   };
 
   // Get unique infrastructure types from dropdowns
-  const infraTypes = [...new Set(dropDowns?.map(scope => scope.InfraType) || [])];
-
+  const infraTypes = formData.ComponentId === "ROW"
+  ? [...new Set(dropDowns?.filter(scope => scope.Description === "ROW Acquisition").map(scope => scope.InfraType) || [])]
+  : [...new Set(dropDowns?.map(scope => scope.InfraType) || [])];
+  
   // Filter out already selected ComponentIds (but allow the current one when editing)
   const availableComponentCosts = componentCosts.filter(cost => {
     // Always exclude EAO, EXC, SAV component IDs regardless of mode or reason

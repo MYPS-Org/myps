@@ -649,6 +649,22 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       }
     }
 
+    // Check major item locations length validation
+    majorItems.forEach((majorItem, majorIndex) => {
+      if (!majorItem.IsDeleted && majorItem.MajorItemLocations) {
+        majorItem.MajorItemLocations.forEach((location, locIndex) => {
+          if (!location.IsDeleted) {
+            const length = location.Length ?? 0;
+            if (length <= 0) {
+              businessValidationErrors.push(
+                `Major Item ${majorIndex + 1}, Location ${locIndex + 1} (${location.InfraId || 'Unknown'}): Length must be greater than 0. Current value: ${length}`
+              );
+            }
+          }
+        });
+      }
+    });
+
     // If there are any business validation errors, show each one separately and return
     if (businessValidationErrors.length > 0) {
       businessValidationErrors.forEach(errorMessage => {

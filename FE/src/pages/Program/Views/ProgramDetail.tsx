@@ -889,7 +889,7 @@ const ProgramDetail: React.FC = () => {
             </TableHead>
             
             <TableBody className="bg-white divide-y divide-gray-200">
-              {programEnums.Projects.map((project) => (
+              {programEnums?.Projects ? programEnums.Projects.map((project) => (
                 <TableRow key={project.Id} className="hover:bg-gray-50">
                   <TableCell className="px-6 py-4 whitespace-nowrap">
                     <button onClick={() => handleViewProject(project.ProjectId, project.StageName)} className="text-blue-600 hover:text-blue-800 font-medium cursor-pointer">
@@ -922,7 +922,14 @@ const ProgramDetail: React.FC = () => {
                   </TableCell>
                   )} */}
                 </TableRow>
-              ))}
+              ))
+            : (
+              <TableRow>
+                <TableCell colSpan={8} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                  No projects available for this program.
+                </TableCell>
+              </TableRow>
+            )}
             </TableBody>
           </Table>
         </div>
