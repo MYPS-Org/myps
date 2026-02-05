@@ -188,6 +188,18 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
 
   const handleFieldChange = (index: number, field: keyof MajorItemLocations, value: any) => {
     const updatedWorkLocation = { ...workLocations[index], [field]: value };
+    
+    // Auto-calculate Length when chainages are updated
+    if (field === 'StartChainage' || field === 'EndChainage') {
+      const startChainage = field === 'StartChainage' ? Number(value) : Number(workLocations[index].StartChainage);
+      const endChainage = field === 'EndChainage' ? Number(value) : Number(workLocations[index].EndChainage);
+      
+      // Calculate and update length if both chainages have values
+      if (!isNaN(startChainage) && !isNaN(endChainage)) {
+        updatedWorkLocation.Length = endChainage - startChainage;
+      }
+    }
+    
     onEdit(index, updatedWorkLocation);
   };
 
@@ -509,11 +521,19 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
           </div>
         );
       case 'Length':
-        // Get length from InfraId if available, otherwise use current value or 0
-        // const infraLength = location.InfraId ? getInfraLength(location.InfraId) : '';
-        const infraLength = location.StartChainage - location.EndChainage !== 0 ? Math.abs(location.EndChainage - location.StartChainage).toString() : '';
-        // const currentLength = location.Length !== null && location.Length !== undefined ? location.Length.toString() : '';
-        const displayLength = infraLength || '0';
+        // Calculate difference between chainages (can be negative)
+        const difference = location.EndChainage - location.StartChainage;
+        const absoluteDifference = Math.abs(difference);
+        
+        // Check if both chainages are provided (including 0 as valid value)
+        const hasChainages = (location.StartChainage !== null && location.StartChainage !== undefined) 
+          && (location.EndChainage !== null && location.EndChainage !== undefined);
+        
+        // Use calculated difference if chainages are provided, otherwise show empty
+        const displayLength = hasChainages ? difference.toString() : '';
+        
+        // Show warning if chainages are provided and there's a difference
+        const shouldShowWarning = hasChainages && absoluteDifference > 0;
         
         return (
           <div key={fieldName} className="space-y-2">
@@ -524,22 +544,15 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
               type="number"
               value={displayLength}
               onChange={(e) => handleFieldChange(index, 'Length', e.target.value ? Number(e.target.value) : null)}
-              onFocus={(e) => {
-                // Auto-populate from InfraId if field is empty or 0
-                if ((!e.target.value || e.target.value === '0') && location.InfraId && infraLength) {
-                  handleFieldChange(index, 'Length', Number(infraLength));
-                }
-                handleNumberFocus(e);
-              }}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(!isLengthEditable || disabled)}`}
+              onFocus={handleNumberFocus}
+              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
               placeholder="Length in meters..."
-              min="0"
               step="0.01"
-              disabled={!isLengthEditable || disabled}
+              disabled={disabled}
             />
-            {location.InfraId && infraLength && (
-              <div className="text-xs text-blue-600">
-                Auto-detected length: {infraLength} meters (from {location.InfraId})
+            {shouldShowWarning && (
+              <div className="text-xs text-red-600">
+                The length is calculated as the difference between Start Chainage and End Chainage: {difference} meters (absolute: {absoluteDifference} meters).
               </div>
             )}
           </div>

@@ -63,7 +63,7 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
         IsDeleted: false
       });
     }
-  }, [mode, initialData, isOpen]);
+  }, [mode, initialData, isOpen, programDetails]);
 
   // Update available work types when InfraType changes
   useEffect(() => {
@@ -76,27 +76,15 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
       scope => scope.InfraType === formData.InfraType && 
       (formData.ComponentId !== "ROW" || scope.Description === "ROW Acquisition")
     ));
-
-    // if(formData.ComponentId === "ROW") {
-    //   setAvailableWorkTypes(
-    //     dropDowns.filter(scope => scope.InfraType === formData.InfraType && scope.Description === "ROW Acquisition")
-    //   );
-    // } else {
-    //   setAvailableWorkTypes(
-    //     dropDowns.filter(scope => scope.InfraType === formData.InfraType)
-    //   );
-    // }
-  }, [formData.InfraType, dropDowns]);
-
-  // 2️⃣ Reset WorkTypeId ONLY when InfraType changes
-  useEffect(() => {
-    setFormData(prev =>
-      prev.WorkTypeId === 0 ? prev : { ...prev, WorkTypeId: 0 }
-    );
-  }, [formData.InfraType]);
+  }, [formData.InfraType, dropDowns, formData.ComponentId]);
 
   const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    // If changing InfraType, reset WorkTypeId
+    if (field === 'InfraType' && value !== formData.InfraType) {
+      setFormData(prev => ({ ...prev, [field]: value, WorkTypeId: 0 }));
+    } else {
+      setFormData(prev => ({ ...prev, [field]: value }));
+    }
   };
 
   const handleClose = () => {

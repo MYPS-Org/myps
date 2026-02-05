@@ -94,22 +94,16 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
 
   // Update available work types when InfraType changes
   useEffect(() => {
-    if (formData.InfraType && dropDowns) {
-      const filtered = dropDowns.filter(scope => scope.InfraType === formData.InfraType);
-      setAvailableWorkTypes(filtered);
-      
-      // Reset WorkTypeId if current selection is not available for new InfraType
-      if (formData.WorkTypeId > 0) {
-        const isCurrentWorkTypeValid = filtered.some(scope => scope.Enum === formData.WorkTypeId);
-        if (!isCurrentWorkTypeValid) {
-          setFormData(prev => ({ ...prev, WorkTypeId: 0 }));
-        }
-      }
-    } else {
+    if (!formData.InfraType || !dropDowns) {
       setAvailableWorkTypes([]);
-      setFormData(prev => ({ ...prev, WorkTypeId: 0 }));
+      return;
     }
-  }, [formData.InfraType, formData.WorkTypeId, dropDowns]);
+
+    setAvailableWorkTypes(dropDowns.filter(
+      scope => scope.InfraType === formData.InfraType && 
+      (formData.ComponentId !== "ROW" || scope.Description === "ROW Acquisition")
+    ));
+  }, [formData.InfraType, dropDowns, formData.ComponentId]);
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -155,7 +149,9 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
   };
 
   // Get unique infrastructure types from dropdowns
-  const infraTypes = [...new Set(dropDowns?.map(scope => scope.InfraType) || [])];
+  const infraTypes = formData.ComponentId === "ROW"
+  ? [...new Set(dropDowns?.filter(scope => scope.Description === "ROW Acquisition").map(scope => scope.InfraType) || [])]
+  : [...new Set(dropDowns?.map(scope => scope.InfraType) || [])];
 
   // Filter out already selected ComponentIds (but allow the current one when editing)
   const availableComponentCosts = componentCosts.filter(cost => {
