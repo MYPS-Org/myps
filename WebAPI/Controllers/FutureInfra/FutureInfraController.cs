@@ -139,7 +139,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Road name {dto.Name} already exist in the system. Please use other name", Title = "Invalid Road Name" });
                 }
-                var checkClassification = await _db.tFutureRoadsClassification.AsNoTracking().FirstOrDefaultAsync(x => x.Classification == dto.Classification);
+                var checkClassification = await _db.tFutureRoadsClassification.AsNoTracking().FirstOrDefaultAsync(x => x.ClassificationId == dto.Classification);
                 if(checkClassification == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Classification '{dto.Classification}' is not valid!", Title = "Invalid Classification" });
@@ -179,14 +179,16 @@ namespace WebAPI.Controllers.Programs
                 }
                 if (checkRoad.Classification != dto.Classification)
                 {
+                    var NewClassification = await _db.tFutureRoadsClassification.FirstOrDefaultAsync(x => x.ClassificationId == dto.Classification);
+                    var OldClassification = await _db.tFutureRoadsClassification.FirstOrDefaultAsync(x => x.ClassificationId == checkRoad.Classification);
                     Transactions.Add(new TransactionLog
                     {
                         TransactionId = checkRoad.RoadId,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tFutureRoads",
                         AffectedColumn = "Classification",
-                        OldValue = checkRoad.Classification,
-                        NewValue = dto.Classification,
+                        OldValue = OldClassification?.Classification,
+                        NewValue = NewClassification?.Classification,
                         CreatedBy = UserId,
                         CreatedDate = currentDate
                     });
@@ -230,7 +232,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Future Road ID '{dto.Name}' already exists in the System!", Title = "Road ID Already Exists" });
                 }
-                var checkClassification = await _db.tFutureRoadsClassification.AsNoTracking().FirstOrDefaultAsync(x => x.Classification == dto.Classification);
+                var checkClassification = await _db.tFutureRoadsClassification.AsNoTracking().FirstOrDefaultAsync(x => x.ClassificationId == dto.Classification);
                 if(checkClassification == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Classification '{dto.Classification}' is not valid!", Title = "Invalid Classification" });
@@ -649,6 +651,7 @@ namespace WebAPI.Controllers.Programs
                     From = dto.From,
                     Length = dto.Length,
                     CarriageWay = dto.CarriageWay,
+                    OverallWidth = dto.OverallWidth,
                     CreatedBy = UserId,
                     CreatedDate = currentDate,
                 };
@@ -731,7 +734,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     Transactions.Add(new TransactionLog
                     {
-                        TransactionId = checkBridge.Name,
+                        TransactionId = checkBridge.BridgeId,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tFutureBridge",
                         AffectedColumn = "Name",
@@ -746,12 +749,12 @@ namespace WebAPI.Controllers.Programs
                 {
                     Transactions.Add(new TransactionLog
                     {
-                        TransactionId = checkBridge.From,
+                        TransactionId = checkBridge.BridgeId,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tFutureBridge",
                         AffectedColumn = "From",
-                        OldValue = checkBridge.From,
-                        NewValue = dto.From,
+                        OldValue = checkBridge.From.ToString(),
+                        NewValue = dto.From.ToString(),
                         CreatedBy = UserId,
                         CreatedDate = currentDate
                     });
@@ -761,12 +764,12 @@ namespace WebAPI.Controllers.Programs
                 {
                     Transactions.Add(new TransactionLog
                     {
-                        TransactionId = checkBridge.Length,
+                        TransactionId = checkBridge.BridgeId,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tFutureBridge",
                         AffectedColumn = "Length",
-                        OldValue = checkBridge.Length,
-                        NewValue = dto.Length,
+                        OldValue = checkBridge.Length.ToString(),
+                        NewValue = dto.Length.ToString(),
                         CreatedBy = UserId,
                         CreatedDate = currentDate
                     });
@@ -776,12 +779,12 @@ namespace WebAPI.Controllers.Programs
                 {
                     Transactions.Add(new TransactionLog
                     {
-                        TransactionId = checkBridge.CarriageWay,
+                        TransactionId = checkBridge.BridgeId,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tFutureBridge",
                         AffectedColumn = "CarriageWay",
-                        OldValue = checkBridge.CarriageWay,
-                        NewValue = dto.CarriageWay,
+                        OldValue = checkBridge.CarriageWay.ToString(),
+                        NewValue = dto.CarriageWay.ToString(),
                         CreatedBy = UserId,
                         CreatedDate = currentDate
                     });

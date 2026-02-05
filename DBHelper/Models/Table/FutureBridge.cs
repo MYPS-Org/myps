@@ -12,6 +12,10 @@ namespace DBHelper.Models.Table
         [Key]
         public int Id { get; set; }
         [Required]
+        public int NetworkStatusId { get; set; }
+        [Required]
+        public int InfraExistingOrFutureId { get; set; }
+        [Required]
         [MaxLength(100)]
         public string RoadSectionId { get; set; } = string.Empty;
         [Required]
@@ -21,14 +25,12 @@ namespace DBHelper.Models.Table
         [MaxLength(200)]
         public string Name { get; set; } = string.Empty;
         [Required]
-        [MaxLength(100)]
-        public string From { get; set; } = string.Empty;
+        public Double From { get; set; }
         [Required]
-        [MaxLength(100)]
-        public string Length { get; set; } = string.Empty;
+        public Double Length { get; set; }
+        public Double? CarriageWay { get; set; }
         [Required]
-        [MaxLength(100)]
-        public string CarriageWay { get; set; } = string.Empty;
+        public Double OverallWidth { get; set; }
         [Required]
         [MaxLength(200)]
         public string CreatedBy { get; set; } = string.Empty;

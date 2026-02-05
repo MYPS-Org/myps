@@ -12,14 +12,17 @@ namespace DBHelper.Models.Table
         [Key]
         public int Id { get; set; }
         [Required]
+        public int NetworkStatusId { get; set; }
+        [Required]
+        public int InfraExistingOrFutureId { get; set; }
+        [Required]
         [MaxLength(100)]
         public string RoadId { get; set; } = string.Empty;
         [Required]
         [MaxLength(200)]
         public string Name { get; set; } = string.Empty;
         [Required]
-        [MaxLength(100)]
-        public string Classification { get; set; } = string.Empty;
+        public int Classification { get; set; }
         [Required]
         [MaxLength(200)]
         public string CreatedBy { get; set; } = string.Empty;
