@@ -1142,13 +1142,13 @@ namespace WebAPI.Controllers.Projects
                         MYId = Project.MYId,
                         UACS = Project.UACS,
                         MYCAApprovalDate = Project.MYCAApprovalDate,
-                        IslandCode = Project.IslandCode!,
                         RevisionNumber = LatestRevision!.RevisionNumber! + 1,
                         Description = Project!.Description!,
                         Category = Project!.Category,
                         Thrust = Project!.Thrust,
                         Origin = Project!.Origin,
                         City = Project!.City,
+                        Province = Project.Province!,
                         LegislativeDistrict = Project!.LegislativeDistrict,
                         OperatingUnit = Project!.OperatingUnit!,
                         ImplementingOffice = Project!.ImplementingOffice!,
@@ -1157,11 +1157,16 @@ namespace WebAPI.Controllers.Projects
                         Agency = (int)Project.Agency!,
                         ImplementationMode = Project.ImplementationMode,
                         EmergencyMode = (int)Project.EmergencyMode!,
+                        IslandCode = Project.IslandCode!,
                         Feasibility = Project.Feasibility,
+                        FeasibilityDate = Project.FeasibilityDate,
                         DetailedDesign = (int)Project.DetailedDesign!,
                         RowAvailable = (int)Project.RowAvailable!,
+                        RegionWide = Project.RegionWide,
+                        Tier = Project.Tier,
                         CreatedBy = _Session.UserId,
-                        CreatedDate = CurrentDate
+                        CreatedDate = CurrentDate,
+                        CanPublish = Project.CanPublish
                     };
                     await _db.tProjectRevisions.AddAsync(NewRevision);
                     await _db.SaveChangesAsync();
