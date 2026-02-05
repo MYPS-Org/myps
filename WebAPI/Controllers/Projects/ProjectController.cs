@@ -548,7 +548,7 @@ namespace WebAPI.Controllers.Projects
                 List<TransactionLog> transactionLogs = new List<TransactionLog>();
 
                 var ValidateDescription = await _db.tProjectRevisions.FirstOrDefaultAsync(x => x.Description == dto.ProjectDetails.Description && x.ReferenceId != dto.ProjectDetails
-                .ReferenceId);
+                .ReferenceId && !x.IsDeleted);
                 if (ValidateDescription != null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Description: {dto.ProjectDetails.Description} already exist in {ValidateDescription.ProjectId}", Title = "Description Exists" });
