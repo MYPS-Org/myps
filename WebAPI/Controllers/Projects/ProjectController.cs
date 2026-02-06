@@ -1141,8 +1141,7 @@ namespace WebAPI.Controllers.Projects
                 if (hasUpdated)
                 {
                     var LatestRevision = await _db.tProjectRevisions.AsNoTracking()
-                        .Where(x => x.ProjectId == Project.ProjectId)
-                        .OrderByDescending(x => x.RevisionNumber)
+                        .Where(x => x.Id == Project.RevisionId)
                         .FirstOrDefaultAsync();
                     var NewRevision = new ProjectRevisions()
                     {
@@ -1153,7 +1152,7 @@ namespace WebAPI.Controllers.Projects
                         MYId = Project.MYId,
                         UACS = Project.UACS,
                         MYCAApprovalDate = Project.MYCAApprovalDate,
-                        RevisionNumber = LatestRevision!.RevisionNumber! + 1,
+                        RevisionNumber = LatestRevision!.RevisionNumber + 1,
                         Description = Project!.Description!,
                         Category = Project!.Category,
                         Thrust = Project!.Thrust,

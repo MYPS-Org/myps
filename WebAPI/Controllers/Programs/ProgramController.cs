@@ -454,8 +454,23 @@ namespace WebAPI.Controllers.Programs
                         CreatedDate = CurrentDate
                     });
                 }
+                if (dto.UserGroup != NewProgramVersion.UserGroup && NewProgramVersion.UserGroup.Count() > 0)
+                {
+                    hasUpdated = true;
+                    NewProgramVersion.UserGroup = dto.UserGroup;
+                    transactionLogs.Add(new TransactionLog
+                    {
+                        TransactionId = dto.ProgramId,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tProgramRevisions",
+                        AffectedColumn = "UserGroup",
+                        NewValue = string.Join(", ", dto.UserGroup),
+                        OldValue = string.Join(", ", NewProgramVersion.UserGroup),
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    });
+                }
                 string[] includes = { "CO", "R", "UPMO", "PMOC", "B" };
-                //Pedning
                 var GetSecurityGroup = await _db.vAdminImplementingOffice.AsNoTracking().ToListAsync();
                 var CheckItems = dto.DataSecurityGroup.Where(x => !GetSecurityGroup.Select(x => x.ParticipantId).Contains(x));
                 if (CheckItems.Count() > 0)
