@@ -442,7 +442,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
           InfraType: majorItems[editingMajorItemIndex].InfraType,
           IsDeleted: majorItems[editingMajorItemIndex].IsDeleted,
         } : undefined}
-        existingMajorItems={majorItems.map(item => ({ ComponentId: item.ComponentId }))}
+        existingMajorItems={majorItems.filter(item => !item.IsDeleted).map(item => ({ ComponentId: item.ComponentId }))}
         programDetails={programDetails}
       />
 

@@ -170,7 +170,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
             <h2 className="text-lg font-semibold text-gray-900">Component Cost</h2>
             <Button color="blue" onClick={handleOpenAddModal} disabled={disabled}>
                 <PlusIcon className="w-4 h-4 mr-1" />
-                Add Cost
+                Add Component
             </Button>
         </div>
 

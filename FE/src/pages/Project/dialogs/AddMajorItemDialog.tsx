@@ -4,6 +4,7 @@ import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import type { ComponentCost, ScopeOfWorkEnum } from '../Model.d';
 import type { ProgramList } from '../../Program/Model';
+import { getDisabledClass } from '../../../utils/GlobalFunctions';
 
 interface AddMajorItemDialogProps {
   isOpen: boolean;
@@ -184,8 +185,9 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
               <select
                 value={formData.ComponentId}
                 onChange={(e) => handleInputChange('ComponentId', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 text-sm"
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 text-sm ${getDisabledClass(mode === 'edit')}`}
                 required
+                disabled={mode === 'edit'} // Disable component selection in edit mode
               >
                 <option value="">Select Component</option>
                 {availableComponentCosts.map((cost) => (
@@ -225,8 +227,9 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
               <select
                 value={formData.InfraType}
                 onChange={(e) => handleInputChange('InfraType', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 text-sm"
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 text-sm ${getDisabledClass(mode === 'edit')}`}
                 required
+                disabled={mode === 'edit'} // Disable infrastructure type selection in edit mode
               >
                 <option value="">Select Infrastructure Type</option>
                 {infraTypes.map((type) => (
@@ -245,8 +248,8 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
               <select
                 value={formData.WorkTypeId}
                 onChange={(e) => handleInputChange('WorkTypeId', parseInt(e.target.value) || 0)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 text-sm"
-                disabled={!formData.InfraType}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 text-sm ${getDisabledClass(mode === 'edit')}`}
+                disabled={!formData.InfraType || mode === 'edit'}
                 required
               >
                 <option value={0}>
