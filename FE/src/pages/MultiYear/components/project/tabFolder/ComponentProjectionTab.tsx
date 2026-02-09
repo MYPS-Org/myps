@@ -1,6 +1,6 @@
 import React from 'react';
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '../../../../../components/tailwindui/table';
-import type { ComponentCostWithYears } from '../../../../Project/Model.d';
+import type { ComponentCostWithYears } from '../../../Model.d';
 
 interface AnnualProjectData {
   id: number;
@@ -131,7 +131,7 @@ const ComponentProjectionTab: React.FC<ComponentProjectionTabProps> = ({
       {/* Summary Cards */}
       <div className="grid grid-cols-2 gap-4 mb-6">
         <div className="bg-blue-50 p-4 rounded-lg">
-          <div className="text-sm text-gray-600">Multi-Year Projected</div>
+          <div className="text-sm text-gray-600">Multi-Year Budget</div>
           <div className="text-lg font-semibold text-blue-600">
             ₱{formatCurrency(projectedData.reduce((sum, item) => sum + item.total, 0))}
           </div>

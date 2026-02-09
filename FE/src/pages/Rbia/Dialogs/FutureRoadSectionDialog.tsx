@@ -20,8 +20,10 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
     Id: 0,
     RoadId: road?.RoadId || "", // Pre-fill with road ID if provided
     RoadSectionId: "",
-    RoadLength: '',
+    RoadLength: 0,
     DEO: '',
+    NetworkStatusId: 0,
+    InfraExistingOrFutureId: 0,
     CreatedBy: '',
     CreatedDate: '',
     UpdatedBy: '',
@@ -46,7 +48,7 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
       const payload = {
         RoadId: formData.RoadId,
         RoadSectionId: formData.RoadSectionId,
-        RoadLength: formData.RoadLength,
+        RoadLength: formData.RoadLength.toString(),
         DEO: formData.DEO
       };
       const updatePayload = {...formData, Id: formData.Id};
@@ -87,8 +89,10 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
       Id: 0,
       RoadId: road?.RoadId || "", // Preserve road ID if passed
       RoadSectionId: "",
-      RoadLength: "",
+      RoadLength: 0,
       DEO: "",
+      NetworkStatusId: 0,
+      InfraExistingOrFutureId: 0,
       CreatedBy: '',
       CreatedDate: '',
       UpdatedBy: '',
@@ -181,17 +185,15 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
                 Length (km) <span className="text-red-500">*</span>
               </label>
               <input
-                type="number"
-                step="0.1"
-                min="0.1"
+                type="text"
                 value={formData.RoadLength}
                 onChange={(e) => handleChange('RoadLength', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
                 required
-                placeholder="Enter section length in kilometers"
+                placeholder="Enter section length in kilometers (e.g., 5.2)"
               />
               <p className="text-xs text-gray-500 mt-1">
-                Length must be greater than 0 km
+                Enter the road section length as a decimal number
               </p>
             </div>
 
@@ -206,10 +208,10 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                 required
               >
-                <option value={0}>Select Engineering District</option>
+                <option value="">Select Engineering District</option>
                 {Array.isArray(initRoadSections) && initRoadSections.map((deo) => (
-                  <option key={deo.Id} value={deo.DeoCode}>
-                    {deo.DeoName}
+                  <option key={deo.Id} value={deo.ParticipantId}>
+                    {deo.Name}
                   </option>
                 ))}
               </select>

@@ -129,7 +129,8 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
         TargetUnit: getTargetUnitName(majorItemData.WorkTypeId),
         CreatedBy: '',
         DropdownData: dropDowns?.filter(x => x.InfraType === majorItemData.InfraType) || [],
-        MajorItemLocations: [] // Initialize empty work locations array
+        MajorItemLocations: [], // Initialize empty work locations array
+        IsDeleted: false,
       };
       
       // Use the parent's onAdd method first, then update the last item
@@ -365,6 +366,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
           YearOfWork: majorItems[editingMajorItemIndex].YearOfWork,
           WorkTypeId: majorItems[editingMajorItemIndex].WorkTypeId,
           InfraType: majorItems[editingMajorItemIndex].InfraType,
+          IsDeleted: majorItems[editingMajorItemIndex].IsDeleted,
         } : undefined}
         existingMajorItems={majorItems.map(item => ({ ComponentId: item.ComponentId }))}
         programDetails={programDetails}

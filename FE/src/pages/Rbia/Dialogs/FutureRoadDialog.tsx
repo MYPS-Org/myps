@@ -20,7 +20,9 @@ const FutureRoadDialog: React.FC<FutureRoadDialogProps> = ({ onClose }) => {
     Id: 0,
     RoadId: "",
     Name: "",
-    Classification: "",
+    NetworkStatusId: 0,
+    Classification: 0,
+    InfraExistingOrFutureId: 0,
     CreatedBy: '',
     CreatedDate: '',
     UpdatedBy: '',
@@ -54,7 +56,7 @@ const FutureRoadDialog: React.FC<FutureRoadDialogProps> = ({ onClose }) => {
       const roadPayload = {
         RoadId: formData.RoadId,
         Name: formData.Name,
-        Classification: formData.Classification
+        Classification: formData.Classification.toString(), // Convert to string if API expects string
       };
 
       const updatePayload = {...formData, Id: formData.Id};
@@ -95,7 +97,9 @@ const FutureRoadDialog: React.FC<FutureRoadDialogProps> = ({ onClose }) => {
       Id: 0,
       RoadId: "",
       Name: "",
-      Classification: "",
+      Classification: 0,
+      NetworkStatusId: 0,
+      InfraExistingOrFutureId: 0,
       CreatedBy: '',
       CreatedDate: '',
       UpdatedBy: '',
@@ -171,7 +175,7 @@ const FutureRoadDialog: React.FC<FutureRoadDialogProps> = ({ onClose }) => {
                 <option value="">Select classification...</option>
                 {Array.isArray(roadClassifications) && roadClassifications.length > 0 ? (
                   roadClassifications.map((classification) => (
-                    <option key={classification.Id} value={classification.Classification}>
+                    <option key={classification.Id} value={classification.Id}>
                       {classification.Classification}
                     </option>
                   ))

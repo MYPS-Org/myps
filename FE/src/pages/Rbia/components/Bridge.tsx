@@ -11,6 +11,7 @@ import { useBridgeData } from "../hooks/useBridgeData";
 import FutureBridgeDialog from "../Dialogs/FutureBridgeDialog";
 import DeleteBridgeDialog from "../Dialogs/DeleteBridgeDialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../components/tailwindui/table";
+import { Pagination, PaginationList, PaginationNext, PaginationPrevious, PaginationPage, PaginationGap } from "../../../components/tailwindui/pagination";
 // Simple Badge component
 const Badge: React.FC<{ children: React.ReactNode; className?: string; color?: string }> = ({ 
   children, 
@@ -285,40 +286,55 @@ const FutureBridgeList: React.FC = () => {
       </div>
 
       {/* Pagination */}
-      {bridgeData.totalPages > 1 && (
-        <div className="px-6 py-4 border-t border-gray-200">
-          <div className="flex justify-center">
-            <div className="flex space-x-1">
-              <Button
-                color="white"
-                onClick={() => Paginate(bridgeData.page - 1)}
-                disabled={bridgeData.page === 1 || isLoading}
-              >
-                Previous
-              </Button>
-              
-              {Array.from({ length: bridgeData.totalPages }, (_, i) => i + 1).map((pageNum) => (
-                <Button
-                  key={pageNum}
-                  color={pageNum === bridgeData.page ? "blue" : "white"}
-                  onClick={() => Paginate(pageNum)}
-                  disabled={isLoading}
-                >
-                  {pageNum}
-                </Button>
-              ))}
-              
-              <Button
-                color="white"
-                onClick={() => Paginate(bridgeData.page + 1)}
-                disabled={bridgeData.page === bridgeData.totalPages || isLoading}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Pagination className="my-6">
+        {bridgeData.totalPages > 1 && (
+          <>
+            <PaginationPrevious 
+              onClick={async () => await Paginate(1)}
+              disabled={bridgeData.page <= 1 || isLoading}
+            >
+              First
+            </PaginationPrevious>
+            <PaginationList>
+              {Array.from({ length: bridgeData.totalPages }, (_, i) => {
+                const pageNum = i + 1;
+                const currentPage = bridgeData.page;
+                const totalPages = bridgeData.totalPages;
+                
+                // Show first page, last page, current page, and pages around current
+                if (
+                  pageNum === 1 ||
+                  pageNum === totalPages ||
+                  (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+                ) {
+                  return (
+                    <PaginationPage
+                      key={pageNum}
+                      onClick={async () => await Paginate(pageNum)}
+                      current={pageNum === currentPage}
+                      // disabled={isLoading}
+                    >
+                      {pageNum}
+                    </PaginationPage>
+                  );
+                } else if (
+                  pageNum === currentPage - 2 ||
+                  pageNum === currentPage + 2
+                ) {
+                  return <PaginationGap key={pageNum} />;
+                }
+                return null;
+              })}
+            </PaginationList>
+            <PaginationNext 
+              onClick={async () => await Paginate(bridgeData.totalPages)}
+              disabled={bridgeData.page >= bridgeData.totalPages || isLoading}
+            >
+              Last
+            </PaginationNext>
+          </>
+        )}
+      </Pagination>
 
       {/* Footer info */}
       <div className='mb-3.5 px-6 py-4 border-t border-gray-200'>

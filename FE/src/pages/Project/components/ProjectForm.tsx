@@ -654,10 +654,13 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       if (!majorItem.IsDeleted && majorItem.MajorItemLocations) {
         majorItem.MajorItemLocations.forEach((location, locIndex) => {
           if (!location.IsDeleted) {
-            const length = location.Length ?? 0;
+            const length = location.Length ?? null;
+            if (length === null || length === undefined) {
+              return; // Skip validation if length is null/undefined
+            }
             if (length <= 0) {
               businessValidationErrors.push(
-                `Major Item ${majorIndex + 1}, Location ${locIndex + 1} (${location.InfraId || 'Unknown'}): Length must be greater than 0. Current value: ${length}`
+                `Major Item Component ${majorItem.ComponentId}, Location ${locIndex + 1} (${location.InfraId || 'Unknown'}): Length must be greater than 0. Current value: ${length}`
               );
             }
 

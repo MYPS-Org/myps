@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import type { ComponentCost, ComponentCostWithYears, ComponentCostYear } from "../../../Project/Model.d";
+import type { ComponentCost, ComponentCostWithYears, ComponentCostYear } from "../../Model.d";
 import { Button } from "../../../../components/tailwindui/button";
 import { PlusIcon, TrashIcon, PencilIcon } from "@heroicons/react/24/outline";
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from "../../../../components/tailwindui/table";

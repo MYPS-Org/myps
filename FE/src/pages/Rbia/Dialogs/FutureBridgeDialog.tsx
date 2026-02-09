@@ -20,9 +20,12 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
     RoadSectionId: roadSection?.RoadSectionId || '', // Pre-fill with road section ID if provided
     BridgeId: "",
     Name: "",
-    From: "",
-    Length: "",
-    CarriageWay: "",
+    From: 0,
+    Length: 0,
+    CarriageWay: 0,
+    OverallWidth: 0,
+    NetworkStatusId: 0,
+    InfraExistingOrFutureId: 0,
     CreatedBy: '',
     CreatedDate: '',
     UpdatedBy: '',
@@ -49,6 +52,9 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
         BridgeId: formData.BridgeId,
         Name: formData.Name,
         From: formData.From,
+        OverallWidth: formData.OverallWidth,
+        NetworkStatusId: formData.NetworkStatusId,
+        InfraExistingOrFutureId: formData.InfraExistingOrFutureId,
         Length: formData.Length,
         CarriageWay: formData.CarriageWay
       }
@@ -91,9 +97,12 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
       RoadSectionId: "",
       BridgeId: "",
       Name: "",
-      From: "",
-      Length: "",
-      CarriageWay: "",
+      From: 0,
+      Length: 0,
+      CarriageWay: 0,
+      OverallWidth: 0,
+      NetworkStatusId: 0,
+      InfraExistingOrFutureId: 0,
       CreatedBy: '',
       CreatedDate: '',
       UpdatedBy: '',
@@ -200,9 +209,11 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
                 From Chainage (km) <span className="text-red-500">*</span>
               </label>
               <input
-                type="text"
+                type="number"
+                step="0.01"
+                min="0"
                 value={formData.From}
-                onChange={(e) => handleChange('From', e.target.value)}
+                onChange={(e) => handleChange('From', Number(e.target.value))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
                 required
                 placeholder="Enter starting chainage in kilometers"
@@ -218,9 +229,11 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
                 Bridge Length (m) <span className="text-red-500">*</span>
               </label>
               <input
-                type="text"
+                type="number"
+                step="0.01"
+                min="0.01"
                 value={formData.Length}
-                onChange={(e) => handleChange('Length', e.target.value)}
+                onChange={(e) => handleChange('Length', Number(e.target.value))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
                 required
                 placeholder="Enter bridge length in meters"
@@ -236,15 +249,16 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
                 Weight of Carriage Ways (Kg) <span className="text-red-500">*</span>
               </label>
               <input
-                type="text"
-                value={formData.CarriageWay}
-                onChange={(e) => handleChange('CarriageWay', e.target.value)}
+                type="number"
+                step="1"
+                min="0"
+                value={formData.CarriageWay || ''}
+                onChange={(e) => handleChange('CarriageWay', e.target.value ? Number(e.target.value) : undefined)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
                 required
-                placeholder="Enter number of carriage ways"
+                placeholder="Enter weight capacity of carriage ways"
               />
               <p className="text-xs text-gray-500 mt-1">
-                {/* Number of carriage ways (typically 1-4, maximum 10) */}
                 Total weight capacity of the bridge's carriage ways in kilograms
               </p>
             </div>

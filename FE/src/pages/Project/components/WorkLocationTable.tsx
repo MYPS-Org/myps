@@ -69,7 +69,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
   };
 
   const maxX = 126.8072562;
-  const minX = 114.0952145;
+  const minX = 116.8879;
   const maxY = 21.3217806;
   const minY = 4.4149;
 
@@ -91,7 +91,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
       DetailedScope: '',
       TargetUnitId: workTypeId,
       TargetUnit: actualTargetUnit,
-      Length: 0,
+      Length: null,
       EndChainage: 0,
       StartChainage: 0,
       StartX: 0,
@@ -167,7 +167,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
         DetailedScope: '',
         TargetUnitId: workTypeId,
         TargetUnit: actualTargetUnit,
-        Length: 0,
+        Length: null,
         EndChainage: 0,
         StartChainage: 0,
         StartX: 0,
@@ -547,14 +547,14 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
         return (
           <div key={fieldName} className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
-              End X Coordinate
+              End X Coordinate <span className="text-xs text-gray-500">(Optional for point features)</span>
             </label>
             <input
               type="number"
-              value={location.EndX}
-              onChange={(e) => handleFieldChange(index, 'EndX', e.target.value)}
+              value={location.EndX || ''}
+              onChange={(e) => handleFieldChange(index, 'EndX', e.target.value ? Number(e.target.value) : null)}
               className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
-              placeholder="End X coordinate..."
+              placeholder="End X coordinate (leave empty for point)..."
               min={minX}
               max={maxX}
               disabled={disabled}
@@ -567,14 +567,14 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
         return (
           <div key={fieldName} className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
-              End Y Coordinate
+              End Y Coordinate <span className="text-xs text-gray-500">(Optional for point features)</span>
             </label>
             <input
               type="number"
-              value={location.EndY}
-              onChange={(e) => handleFieldChange(index, 'EndY', e.target.value)}
+              value={location.EndY || ''}
+              onChange={(e) => handleFieldChange(index, 'EndY', e.target.value ? Number(e.target.value) : null)}
               className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
-              placeholder="End Y coordinate..."
+              placeholder="End Y coordinate (leave empty for point)..."
               min={minY}
               max={maxY}
               disabled={disabled}
@@ -593,31 +593,32 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
           && (location.EndChainage !== null && location.EndChainage !== undefined);
         
         // Use calculated difference if chainages are provided, otherwise show empty
-        const displayLength = hasChainages ? difference.toString() : '';
+        const displayLength = hasChainages ? difference.toString() : (location.Length !== null && location.Length !== undefined ? location.Length.toString() : '');
         
-        // Show warning if chainages are provided and there's a difference
-        const shouldShowWarning = hasChainages && absoluteDifference > 0;
+        // Show info message if chainages are provided
+        const shouldShowInfo = hasChainages && absoluteDifference > 0;
         
         return (
           <div key={fieldName} className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
-              Length (meters)
+              Length (meters) <span className="text-xs text-gray-500">(Display Only)</span>
             </label>
             <input
               type="number"
               value={displayLength}
-              onChange={(e) => handleFieldChange(index, 'Length', e.target.value ? Number(e.target.value) : null)}
-              onFocus={handleNumberFocus}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
-              placeholder="Length in meters..."
+              readOnly
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-50 cursor-not-allowed"
+              placeholder="Auto-calculated or from infrastructure..."
               step="0.01"
-              disabled={disabled}
             />
-            {shouldShowWarning && (
-              <div className="text-xs text-red-600">
-                The length is calculated as the difference between Start Chainage and End Chainage: {difference} meters (absolute: {absoluteDifference} meters).
+            {shouldShowInfo && (
+              <div className="text-xs text-blue-600">
+                Auto-calculated from chainages: {difference} meters (absolute: {absoluteDifference} meters)
               </div>
             )}
+            {/* <div className="text-xs text-gray-500">
+              Length is for reference only and not saved to backend
+            </div> */}
           </div>
         );
       default:
@@ -719,7 +720,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
                 ) : (
                   <div className="mt-4 p-3 bg-yellow-50 rounded-md">
                     <div className="text-sm text-yellow-700">
-                      <strong>Other Infrastructure:</strong> Use coordinate fields to define precise location boundaries.
+                      <strong>Other Infrastructure:</strong> Use coordinate fields to define location. Fill Start X/Y for point features, or add End X/Y for line/area features.
                     </div>
                   </div>
                 )}

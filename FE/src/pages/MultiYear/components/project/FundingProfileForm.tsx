@@ -185,7 +185,7 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
                   <select
                     name="agreement"
                     value={profile.Agreement}
-                    onChange={(e) => onEdit(index, { ...profile, Agreement: Number(e.target.value) })}
+                    onChange={(e) => onEdit(index, { ...profile, Agreement: e.target.value })}
                     className={`${getDisabledClass(disabled)} w-full px-2 py-1 border border-gray-300 rounded truncate`}
                     // style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
                     disabled={!profile.Source || disabled} // Disable if no source selected
