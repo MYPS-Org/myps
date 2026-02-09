@@ -227,7 +227,7 @@ namespace WebAPI.Controllers.Projects
                     var ValidateProgram = await _db.tProjectStages.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionId == ValidateDescription.Id && x.ProgramId == dto.ProgramId);
                     if(ValidateProgram != null)
                     {
-                        return new BadRequestObjectResult(new { Message = $"Description: {dto.Description} already exist in {ValidateDescription.ProjectId}! Do you still want to proceed?", Title = "Description Exists" });
+                        return new BadRequestObjectResult(new { Message = $"Description: {dto.Description} already exist in {ValidateDescription.ProjectId}! Do you still want to proceed?", Title = "Description Exists", Type = "Prompt" });
                     }
                 }
                 var Program = await _db.vPrograms.FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
@@ -561,7 +561,7 @@ namespace WebAPI.Controllers.Projects
                     var ValidateProgram = await _db.tProjectStages.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionId == ValidateDescription.Id && x.ProgramId == dto.ProjectDetails.ProgramId);
                     if (ValidateProgram != null)
                     {
-                        return new BadRequestObjectResult(new { Message = $"Description: {dto.ProjectDetails.Description} already exist in {ValidateDescription.ProjectId}! Do you still want to proceed?", Title = "Description Exists" });
+                        return new BadRequestObjectResult(new { Message = $"Description: {dto.ProjectDetails.Description} already exist in {ValidateDescription.ProjectId}! Do you still want to proceed?", Title = "Description Exists", Type = "Prompt" });
                     }
                 }
                 var Project = await _db.vProjectDetails
