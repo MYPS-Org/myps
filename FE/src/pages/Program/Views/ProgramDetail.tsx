@@ -432,8 +432,8 @@ const ProgramDetail: React.FC = () => {
           });
       }
       
-      // Optionally refresh the program details
-      // await fetchProgramDetail(programEnums?.Details.ProgramId, programEnums?.Details.StageName);
+      // Refresh the program details to show updated data
+      await fetchProgramDetail(programEnums?.Details.ProgramId, programEnums?.Details.StageName);
     } catch (error) {
       console.error(`Error performing batch ${action}:`, error);
       showToast({
@@ -763,24 +763,28 @@ const ProgramDetail: React.FC = () => {
                         </svg>
                         Batch Delete
                       </button>
-                      <button
-                        onClick={() => handleBatchTagging('unpublish')}
-                        className="group flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-orange-500 hover:text-white"
-                      >
-                        <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-white" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
-                        </svg>
-                        Restrict Publishing
-                      </button>
-                      <button
-                        onClick={() => handleBatchTagging('publish')}
-                        className="group flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-green-500 hover:text-white"
-                      >
-                        <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-white" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        Unrestrict Publish
-                      </button>
+                      {programEnums.IsActive && programEnums.Details.StageId === 10 && defaultProgramEnums.Details.Status === 1 && (
+                        <>
+                        <button
+                          onClick={() => handleBatchTagging('unpublish')}
+                          className="group flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-orange-500 hover:text-white"
+                        >
+                          <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-white" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+                          </svg>
+                          Restrict Publishing
+                        </button>
+                        <button
+                          onClick={() => handleBatchTagging('publish')}
+                          className="group flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-green-500 hover:text-white"
+                        >
+                          <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-white" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Unrestrict Publish
+                        </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </>
@@ -869,16 +873,16 @@ const ProgramDetail: React.FC = () => {
                   SubProgram
                 </TableHeader>
                 <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  City
+                  Implementing Office
                 </TableHeader>
                 <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Legislative District
+                  Operating Unit
                 </TableHeader>
                 {/* <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Total Project Cost
                 </TableHeader> */}
                 <TableHeader className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Created Date
+                  Publishable
                 </TableHeader>
                 {/* { programEnums?.IsActive && programEnums?.Details?.StageId === 10 && (
                 <TableHeader className='px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider'>
@@ -906,13 +910,13 @@ const ProgramDetail: React.FC = () => {
                     {project.Thrust}
                   </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {project.City}
+                    {project.ImplementingOffice}
                   </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {project.LegislativeDistrict}
+                    {project.OperatingUnit}
                   </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-20">
-                    {project.CreatedDate?.StringToDate() || 'N/A'}
+                    {project.IsPublishable ? 'Yes' : 'No'}
                   </TableCell>
                   {/* { programEnums?.IsActive && programEnums?.Details?.StageId === 10 && programEnums?.Details?.IsPublished && (
                   <TableCell className='px-6 py-4 whitespace-nowrap text-sm font-medium text-center'>

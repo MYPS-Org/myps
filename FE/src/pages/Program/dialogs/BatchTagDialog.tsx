@@ -2,6 +2,7 @@ import { Dialog, DialogTitle, DialogPanel } from "@headlessui/react";
 import { TagIcon, TrashIcon, EyeSlashIcon, CheckCircleIcon } from "@heroicons/react/24/outline";
 import { Button } from "../../../components/tailwindui/button";
 import { useState } from "react";
+import ConfirmDialogBatch from "./ConfirmDialogBatch";
 
 type BatchAction = 'tag' | 'delete' | 'unpublish' | 'publish';
 
@@ -24,6 +25,7 @@ const BatchTagDialog: React.FC<BatchTagDialogProps> = ({
 }) => {
   const [projectIds, setProjectIds] = useState('');
   const [error, setError] = useState('');
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
 
   const getActionConfig = () => {
     switch (action) {
@@ -83,6 +85,11 @@ const BatchTagDialog: React.FC<BatchTagDialogProps> = ({
     }
     
     setError('');
+    // Open confirmation dialog instead of directly submitting
+    setIsConfirmDialogOpen(true);
+  };
+
+  const handleConfirmSubmit = () => {
     onSubmit(programId, projectIds, action);
     handleClose();
   };
@@ -90,7 +97,16 @@ const BatchTagDialog: React.FC<BatchTagDialogProps> = ({
   const handleClose = () => {
     setProjectIds('');
     setError('');
+    setIsConfirmDialogOpen(false);
     onClose();
+  };
+
+  // Parse project count for confirmation dialog
+  const getProjectCount = (): number => {
+    return projectIds
+      .split(/[,;\s\n]+/)
+      .map(id => id.trim())
+      .filter(id => id.length > 0).length;
   };
 
   return (
@@ -159,6 +175,17 @@ const BatchTagDialog: React.FC<BatchTagDialogProps> = ({
           </div>
         </DialogPanel>
       </div>
+
+      {/* Confirmation Dialog */}
+      <ConfirmDialogBatch
+        isOpen={isConfirmDialogOpen}
+        onClose={() => setIsConfirmDialogOpen(false)}
+        onConfirm={handleConfirmSubmit}
+        action={action}
+        programName={programName}
+        projectIds={projectIds}
+        projectCount={getProjectCount()}
+      />
     </Dialog>
   );
 };

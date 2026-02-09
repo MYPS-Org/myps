@@ -99,7 +99,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     YearEnd: 0,
     CreatedBy: '',
     CreatedDate: '',
-    IsPublished: false,
+    IsPublishable: false,
+    // IsPublished: false,
   });
 
   const [projectDetails, setProjectDetails] = useState<ProjectDetails>(

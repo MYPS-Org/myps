@@ -150,7 +150,8 @@ export interface ProgramList {
 	YearEnd: number;
 	CreatedBy: string;
 	CreatedDate: string;
-	IsPublished: boolean;
+	// IsPublished: boolean;
+	IsPublishable: boolean;
 }
 
 export interface AIPReportParams {
