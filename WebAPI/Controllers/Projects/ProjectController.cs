@@ -1176,7 +1176,7 @@ namespace WebAPI.Controllers.Projects
                         Tier = Project.Tier,
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate,
-                        CanPublish = Project.CanPublish
+                        IsPublishable = Project.IsPublishable
                     };
                     await _db.tProjectRevisions.AddAsync(NewRevision);
                     await _db.SaveChangesAsync();

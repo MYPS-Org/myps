@@ -908,7 +908,7 @@ namespace WebAPI.Controllers.Programs
                         .ToListAsync();
                     foreach (var projectStage in projectsToUpdate)
                     {
-                        projectStage.CanPublish = false;
+                        projectStage.IsPublishable = false;
                     }
                     _db.tProjectRevisions.UpdateRange(projectsToUpdate);
                     await _db.SaveChangesAsync();
@@ -981,7 +981,7 @@ namespace WebAPI.Controllers.Programs
                         .ToListAsync();
                     foreach (var projectStage in projectsToUpdate)
                     {
-                        projectStage.CanPublish = true;
+                        projectStage.IsPublishable = true;
                     }
                     _db.tProjectRevisions.UpdateRange(projectsToUpdate);
                     await _db.SaveChangesAsync();

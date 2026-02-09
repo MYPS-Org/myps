@@ -82,7 +82,11 @@ namespace WebAPI.Controllers.Programs
                     baseQuery = baseQuery.Where(e => e.RoadId.ToString() == dto.Filters.RoadId);
 
                 if (!string.IsNullOrEmpty(dto.Filters?.Classification))
-                    baseQuery = baseQuery.Where(e => e.Classification.ToString() == dto.Filters.Classification);
+                {
+                    var FilteredClassification = await _db.tFutureRoadsClassification.AsNoTracking().FirstOrDefaultAsync(x => x.Classification == dto.Filters.Classification);
+                    int ClassificationId = FilteredClassification != null ? FilteredClassification.ClassificationId : 0;
+                    baseQuery = baseQuery.Where(e => e.Classification == ClassificationId);
+                }
 
                 // Get total count of filtered results (before pagination)
                 var totalRecords = await baseQuery.CountAsync();

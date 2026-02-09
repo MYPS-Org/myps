@@ -45,7 +45,7 @@ namespace DBHelper.Models.Views
         public int? RevisedNumber { get; set; }
         public string CreatedBy { get; set; } = string.Empty;
         public DateTime? CreatedDate { get; set; }
-        public bool CanPublish { get; set; } = false;
+        public bool IsPublishable { get; set; } = false;
         public bool IsDeleted { get; set; } = false;
     }
 }

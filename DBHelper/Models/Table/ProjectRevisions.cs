@@ -80,6 +80,6 @@ namespace DBHelper.Models.Table
         [Required]
         public bool IsDeleted { get; set; } = false;
         [Required]
-        public bool CanPublish { get; set; } = false;
+        public bool IsPublishable { get; set; } = false;
     }
 }
