@@ -25,6 +25,7 @@ namespace WebAPI.Controllers.Projects
     }
     public class AddProjectDTO : ProjectDetails
     {
+        public bool IsAllowedToProceed { get; set; } = false;
     }
     public class ProjectDetailsDTO
     {
@@ -42,6 +43,7 @@ namespace WebAPI.Controllers.Projects
         public List<ProjectNotes> ProjectNotes { get; set; } = new List<ProjectNotes>();
         public List<ProjectSupportingDocs> Docs { get; set; } = new List<ProjectSupportingDocs>();
         public List<FundingProfileDTO> FundingProfile { get; set; } = new List<FundingProfileDTO>();
+        public bool IsAllowedToProceed { get; set; } = false;
     }
     public class ProjectComponentCostDTO
     {

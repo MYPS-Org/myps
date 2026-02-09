@@ -785,7 +785,7 @@ namespace WebAPI.Controllers.Programs
                             CreatedBy = _Session.UserId,
                             CreatedDate = CurrentDate,
                             IsDeleted = project.IsDeleted,
-                            IsPublishable = Functions.ValidateProjectForPublish(project, Components.FirstOrDefault(x => x.StartDate == null || x.EndDate == null && x.ProjectId == project.ProjectId && !x.IsDeleted))
+                            IsPublishable = (dto.Stage.ToString() == "GAA-R" && Functions.ValidateProjectForPublish(project, Components.FirstOrDefault(x => x.StartDate == null || x.EndDate == null && x.ProjectId == project.ProjectId && !x.IsDeleted)))
                         }));
                         await _db.tProjectRevisions.AddRangeAsync(NewRevisions);
                         checkRevisions.Status = EnumProgramStatus.Approved;

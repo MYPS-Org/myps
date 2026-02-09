@@ -222,12 +222,12 @@ namespace WebAPI.Controllers.Projects
                     return new BadRequestObjectResult(new { Message = $"Implementation Mode is required!", Title = "Invalid Implementation Mode" });
                 }
                 var ValidateDescription = await _db.tProjectRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Description == dto.Description);
-                if (ValidateDescription != null)
+                if (ValidateDescription != null && !dto.IsAllowedToProceed)
                 {
                     var ValidateProgram = await _db.tProjectStages.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionId == ValidateDescription.Id && x.ProgramId == dto.ProgramId);
                     if(ValidateProgram != null)
                     {
-                        return new BadRequestObjectResult(new { Message = $"Description: {dto.Description} already exist in {ValidateDescription.ProjectId}", Title = "Description Exists" });
+                        return new BadRequestObjectResult(new { Message = $"Description: {dto.Description} already exist in {ValidateDescription.ProjectId}! Do you still want to proceed?", Title = "Description Exists" });
                     }
                 }
                 var Program = await _db.vPrograms.FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
@@ -556,12 +556,12 @@ namespace WebAPI.Controllers.Projects
 
                 var ValidateDescription = await _db.tProjectRevisions.FirstOrDefaultAsync(x => x.Description == dto.ProjectDetails.Description && x.ReferenceId != dto.ProjectDetails
                 .ReferenceId && !x.IsDeleted);
-                if (ValidateDescription != null)
+                if (ValidateDescription != null && !dto.IsAllowedToProceed)
                 {
                     var ValidateProgram = await _db.tProjectStages.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionId == ValidateDescription.Id && x.ProgramId == dto.ProjectDetails.ProgramId);
                     if (ValidateProgram != null)
                     {
-                        return new BadRequestObjectResult(new { Message = $"Description: {dto.ProjectDetails.Description} already exist in {ValidateDescription.ProjectId}", Title = "Description Exists" });
+                        return new BadRequestObjectResult(new { Message = $"Description: {dto.ProjectDetails.Description} already exist in {ValidateDescription.ProjectId}! Do you still want to proceed?", Title = "Description Exists" });
                     }
                 }
                 var Project = await _db.vProjectDetails
