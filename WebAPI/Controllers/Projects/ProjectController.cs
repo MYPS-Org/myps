@@ -1641,6 +1641,22 @@ namespace WebAPI.Controllers.Projects
                                         });
                                         ExistingLoc.StartChainage = loc.StartChainage;
                                     }
+                                    if(ExistingLoc.Length != loc.Length)
+                                    {
+                                        hasLocUpdate = true;
+                                        transactionLogs.Add(new TransactionLog
+                                        {
+                                            TransactionId = Project.ProjectId!,
+                                            TypeOfTransaction = "Update",
+                                            AffectedTable = "tProjectMajorWorkLocations",
+                                            AffectedColumn = "Length",
+                                            NewValue = loc.Length.ToString() ?? "",
+                                            OldValue = ExistingLoc.Length.ToString() ?? "",
+                                            CreatedBy = _Session.UserId,
+                                            CreatedDate = CurrentDate
+                                        });
+                                        ExistingLoc.Length = loc.Length;
+                                    }
                                     if (loc.IsDeleted == true)
                                     {
                                         hasLocUpdate = true;
@@ -1708,6 +1724,7 @@ namespace WebAPI.Controllers.Projects
                                 EndStationLimit = item.EndStationLimit,
                                 EndChainage = item.EndChainage,
                                 StartChainage = item.StartChainage,
+                                Length = item.Length,
                                 CreatedBy = _Session.UserId,
                                 CreatedDate = CurrentDate
                             }));
@@ -1763,6 +1780,7 @@ namespace WebAPI.Controllers.Projects
                         EndStationLimit = item.EndStationLimit,
                         EndChainage = item.EndChainage,
                         StartChainage = item.StartChainage,
+                        Length = item.Length,
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     }));

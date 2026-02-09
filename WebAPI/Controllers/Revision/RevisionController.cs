@@ -909,6 +909,7 @@ namespace WebAPI.Controllers.Revision
                                 EndStationLimit = UpdateMajorWorkLocation.EndStationLimit,
                                 EndChainage = UpdateMajorWorkLocation.EndChainage,
                                 StartChainage = UpdateMajorWorkLocation.StartChainage,
+                                Length = UpdateMajorWorkLocation.Length,
                                 IsDeleted = (CanDelete) ? location.IsDeleted : false
                             });
                         }

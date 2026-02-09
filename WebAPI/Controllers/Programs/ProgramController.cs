@@ -700,6 +700,7 @@ namespace WebAPI.Controllers.Programs
                                 StartChainage = x.StartChainage,
                                 CreatedBy = x.CreatedBy,
                                 CreatedDate = x.CreatedDate,
+                                Length = x.Length,
                                 IsDeleted = x.IsDeleted
                             }));
                             await _db.tProjectMajorWorkItem.AddRangeAsync(NewMajorItems);
@@ -776,6 +777,9 @@ namespace WebAPI.Controllers.Programs
                             DetailedDesignDate = project.DetailedDesignDate,
                             RowAvailable = project.RowAvailable,
                             RegionWide = project.RegionWide,
+                            Tier = project.Tier,
+                            IsRevised = false,
+                            RevisedNumber = null,
                             CreatedBy = _Session.UserId,
                             CreatedDate = CurrentDate,
                             IsDeleted = project.IsDeleted

@@ -140,6 +140,7 @@ namespace WebAPI.Controllers.Projects
         public string? EndStationLimit { get; set; }
         public Double? EndChainage { get; set; }
         public Double? StartChainage { get; set; }
+        public Double? Length { get; set; }
         [Required]
         public bool IsDeleted { get; set; } = false;
     }

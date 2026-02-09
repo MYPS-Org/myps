@@ -1,6 +1,7 @@
 ﻿using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Extra;
+using DBHelper.Models.Views;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
@@ -16,6 +17,7 @@ using System.Net.Http.Json;
 using System.Net.Mail;
 using System.Net.NetworkInformation;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using static Dapper.SqlMapper;
@@ -47,6 +49,30 @@ namespace Helpers
             return db.Set<T>()
                      .FromSqlRaw(composableSql)
                      .AsNoTracking(); // critical for speed
+        }
+        public static List<T> QueryFile<T>(
+            DbContext db,
+            string sqlFilePath,
+            Dictionary<string, object>? parameters = null) where T : class
+        {
+            var sql = _sqlCache.GetOrAdd(
+                Path.Combine(Appsetting.Resources.Main, "Sql", sqlFilePath + ".sql"),
+                path => File.ReadAllText(path)
+            );
+
+            var parameterizedSql = sql;
+            if (parameters != null && parameters.Count > 0)
+            {
+                foreach (var param in parameters)
+                {
+                    parameterizedSql = parameterizedSql.Replace($"{{{param.Key}}}", param.Key);
+                }
+            }
+
+            return db.Set<T>()
+                     .FromSqlRaw(parameterizedSql, parameters?.Values.ToArray() ?? Array.Empty<object>())
+                     .AsNoTracking()
+                     .ToList();
         }
         public static string UpdateReferenceId(this string Current, string StageName)
         {
@@ -433,6 +459,69 @@ namespace Helpers
             }
 
             return destinationData;
+        }
+        public static List<ProjectValidation> ValidateProjectForPublish(DBHelper.Models.Table.ProjectRevisions pr, DBHelper.Models.Table.ProjectComponentCost pc)
+        {
+            var validation = new List<ProjectValidation>();
+            if (pr == null)
+            {
+
+                validation.Add(new ProjectValidation()
+                {
+                    IsValid = false,
+                    Message = "Project revision data is missing."
+                });
+                return validation;
+            }
+            #region Project Location Validation
+            string ProjectLocation = string.Empty;
+            if (string.IsNullOrEmpty(pr.DEO)) {
+                ProjectLocation = "ProjectLocation: DEO field is required.";
+            }
+            if (string.IsNullOrEmpty(pr.LegislativeDistrict)) {
+                ProjectLocation = string.IsNullOrEmpty(ProjectLocation) ? "ProjectLocation: Legislative District field is required." : ProjectLocation + " Legislative District field is required.";
+            }
+            if (string.IsNullOrEmpty(pr.ImplementingOffice)) {
+                ProjectLocation = string.IsNullOrEmpty(ProjectLocation) ? "ProjectLocation: Implementing Office field is required." : ProjectLocation + " Implementing Office field is required.";
+            }
+            if (string.IsNullOrEmpty(pr.OperatingUnit)) {
+                ProjectLocation = string.IsNullOrEmpty(ProjectLocation) ? "ProjectLocation: Operating Unit field is required." : ProjectLocation + " Operating Unit field is required.";
+            }
+            if(!string.IsNullOrEmpty(ProjectLocation))
+            {
+                validation.Add(new ProjectValidation()
+                {
+                    IsValid = false,
+                    Message = ProjectLocation
+                });
+            }
+            #endregion
+            #region Component Cost Validation
+            string ComponentCost = string.Empty;
+            if (pc.StartDate == null)
+            {
+                ComponentCost = "Project Implementation Plan: Start Date field is required.";
+            }
+            if (pc.EndDate == null)
+            {
+                ComponentCost = string.IsNullOrEmpty(ComponentCost) ? "Project Implementation Plan: End Date field is required." : ComponentCost + " End Date field is required.";
+            }
+            if(!string.IsNullOrEmpty(ComponentCost))
+            {
+                validation.Add(new ProjectValidation()
+                {
+                    IsValid = false,
+                    Message = ComponentCost
+                });
+            }
+            #endregion
+            /*
+            ProjectLocation: DEO LD Municipality IO OU
+            Project Implementation Plan: Planned Start Date Planned End Date
+            OverLapping Projects: GIS
+            Major Items of Work: Validated Major Work Locations
+             */
+            return validation;
         }
     }
 }

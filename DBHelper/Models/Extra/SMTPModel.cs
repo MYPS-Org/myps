@@ -10,7 +10,7 @@ namespace DBHelper.Models.Extra
     public class SMTPModel
     {
         public string? Recipient { get; set; } = string.Empty;
-        public string Subject { get; set; } = "KOJ Express";
+        public string Subject { get; set; } = "MYPS Web";
         public string? Body { get; set; } = string.Empty;
         public string? CCAddress { get; set; } = string.Empty;
         public List<dynamic>? Files { get; set; } = null;
