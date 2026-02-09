@@ -111,14 +111,24 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
         setFilteredIOs(availableIOs);
 
-        // Filter OU based on selected IO
+        // Filter OU based on selected IO and DEO
         if(projectDetails?.ImplementingOffice) {
             const selectedIO = projectEnums.IOs?.find((io) => io.ParticipantId === projectDetails.ImplementingOffice);
+            const selectedDEO = projectEnums.DEOs?.find((deo) => deo.ParticipantId === projectDetails.DEO?.toString());
             console.log('Selected IO for OU filtering:', selectedIO);
+            console.log('Selected DEO for OU filtering:', selectedDEO);
+            
             if (selectedIO) {
-                // Show OUs that belong to the selected IO or are Central Office (CO)
+                // Show only 3 options:
+                // 1. CO (Central Office)
+                // 2. OU matching DEO's ParticipantId
+                // 3. IF UPMO match the DEO participant ID
                 availableOUs = projectEnums.OperatingUnits?.filter(
-                    (ou) => ou.ParticipantId === selectedIO.ParticipantId || (selectedIO.OrgType === 'UPMO' || ou.OrgType === 'CO')
+                    (ou) => 
+                        ou.OrgType === 'CO' ||
+                        selectedDEO?.RegionParticipantId === ou.ParticipantId ||
+                        selectedIO.ParticipantId === ou.ParticipantId ||
+                        (selectedIO.OrgType === 'UPMO' ? selectedDEO?.ParticipantId === ou.ParticipantId : false) // If UPMO is selected, show OU matching its ParticipantId
                 ) || [];
                 console.log('Filtered OUs:', availableOUs);
             }
