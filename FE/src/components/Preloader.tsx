@@ -24,7 +24,7 @@ const Preloader: React.FC = () => {
   if (!preloaderState.loading) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center">
+    <div className="z-999 fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center">
       <div className="bg-white rounded-xl p-8 shadow-2xl flex flex-col items-center gap-4 max-w-sm mx-4">
         <div className="relative">
           <svg 

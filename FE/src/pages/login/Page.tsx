@@ -3,17 +3,19 @@ import { useAuth } from '../../contexts/AuthContext';
 import { authService, type LoginRequest } from './Service';
 import { Input } from '../../components/tailwindui/input';
 import { Text } from '../../components/tailwindui/text';
-import LoginWebp from '../../assets/webp/login.webp';
+import Logo from '../../assets/img/logo.png';
+// import { useNavigate } from 'react-router-dom';
 
 const LoginForm: React.FC = () => {
   const [credentials, setCredentials] = useState<LoginRequest>({
-	username: '',
-	password: ''
+	UserName: '',
+	Password: ''
   });
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
+//   const [rememberMe, setRememberMe] = useState(false);
   const { validateSession } = useAuth();
+//   const Navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
 	e.preventDefault();
@@ -51,8 +53,8 @@ const LoginForm: React.FC = () => {
 					<Input
 						id="username"
 						type="text"
-						value={credentials.username}
-						onChange={handleInputChange('username')}
+						value={credentials.UserName}
+						onChange={handleInputChange('UserName')}
 						required
 						autoComplete="username"
 						disabled={isLoading}
@@ -64,8 +66,8 @@ const LoginForm: React.FC = () => {
 					<Input
 						id="password"
 						type="password"
-						value={credentials.password}
-						onChange={handleInputChange('password')}
+						value={credentials.Password}
+						onChange={handleInputChange('Password')}
 						required
 						autoComplete="current-password"
 						disabled={isLoading}
@@ -73,8 +75,8 @@ const LoginForm: React.FC = () => {
 						placeholder="••••••••••••"
 					/>
 					</div>
-					<div className="flex items-center justify-between text-sm">
-					<label className="flex items-center gap-2">
+					<div className="flex flex-col items-center justify-between text-sm">
+					{/* <label className="flex items-center gap-2">
 						<input
 						type="checkbox"
 						checked={rememberMe}
@@ -82,8 +84,7 @@ const LoginForm: React.FC = () => {
 						className="accent-violet-600"
 						/>
 						<span className="text-gray-700">Remember me</span>
-					</label>
-					<a href="#" className="text-violet-600 hover:underline font-medium">Forgot Password?</a>
+					</label> */}
 					</div>
 					{error && (
 					<div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
@@ -94,18 +95,12 @@ const LoginForm: React.FC = () => {
 					</div>
 					)}
 					
-					<button className='!bg-[#051344] !w-full !h-[50px] !rounded-md !text-white hover:!bg-[#051344]/80 !cursor-pointer'>Sign In</button>
-					<div className="text-center mt-4">
-						<Text className="text-xs text-gray-500">
-							Don&apos;t have an account?{' '}
-							<a href="#" className="text-violet-600 hover:underline font-medium">Sign Up</a>
-						</Text>
-					</div>
+					<button className='!bg-[#f0750f] !w-full !h-[50px] !rounded-md !text-white hover:!bg-[#4726ae]/80 !cursor-pointer'>Sign In</button>
 				</form>
 				</div>
 				{/* Right: Illustration */}
-				<div className="bg-[#051344]/80 hidden md:flex w-1/2 items-center justify-center relative">
-				<img src={LoginWebp} className="w-4/5 h-auto text-white" />
+				<div className="white hidden md:flex w-1/2 items-center justify-center relative">
+				<img src={Logo} className="w-4/5 h-auto text-white" />
 			</div>
 		</div>
 	</div>

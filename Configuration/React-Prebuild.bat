@@ -1,1 +1,0 @@
-cd ../FE && npm run build

@@ -17,26 +17,38 @@ namespace WebAPI.Controllers
             var controllerActionDescriptor = context.ActionDescriptor as ControllerActionDescriptor;
             var hasAnonymous = controllerActionDescriptor?.MethodInfo
                 .GetCustomAttributes(typeof(AllowAnonymousAttribute), true)
-                .Any() ?? false;
+                .Any() ?? true;// false;
 
-            bool isAuthenticated = httpContext.User.Identity?.IsAuthenticated ?? false;
-            if (!hasAnonymous && isAuthenticated)
+            // If the action allows anonymous access, skip authorization
+            if (hasAnonymous)
             {
-                var userRoleClaim = httpContext.User.Claims
-                    .FirstOrDefault(c => c.Type == ClaimTypes.Role);
+                return;
+            }
 
-                var userId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier);
-                if (string.IsNullOrWhiteSpace(userId?.Value))
+            bool isAuthenticated = httpContext.User.Identity?.IsAuthenticated ?? true;// false;
+            if (!isAuthenticated)
+            {
+                var responseObj = new
                 {
-                    var responseObj = new
-                    {
-                        message = "Unauthorized",
-                        data = new { Authenticated = false },
-                        user = new { }
-                    };
-                    context.Result = new JsonResult(responseObj);
-                    return;
-                }
+                    message = "Unauthorized",
+                    data = new { Authenticated = false },
+                    user = new { }
+                };
+                context.Result = new UnauthorizedObjectResult(responseObj);
+                return;
+            }
+
+            var userId = httpContext.User.FindFirst(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(userId?.Value))
+            {
+                var responseObj = new
+                {
+                    message = "Unauthorized",
+                    data = new { Authenticated = false },
+                    user = new { }
+                };
+                context.Result = new UnauthorizedObjectResult(responseObj);
+                return;
             }
         }
     }

@@ -1,45 +1,118 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using DBHelper.Models;
+﻿using DBHelper.Models.Views;
 using Microsoft.EntityFrameworkCore;
 
 namespace DBHelper.Data
 {
     public class AppDbContext : DbContext
     {
-        public DbSet<User> tUsers { get; set; }
-        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) {
+            this.Database.SetCommandTimeout(TimeSpan.FromMinutes(30));
+        }
+        #region Tables
+        public DbSet<Models.Table.Users> tUsers { get; set; }
+        public DbSet<Models.Table.PermissionGroups> tPermissionGroups { get; set; }
+        public DbSet<Models.Table.Permissions> tPermissions { get; set; }
+        public DbSet<Models.Table.GroupRoles> tGroupRoles { get; set; }
+        public DbSet<Models.Table.UserGroups> tUserGroups { get; set; }
+        public DbSet<Models.Table.Groups> tGroups { get; set; }
+        public DbSet<Models.Table.ImplementingOffice> tImplementingOffice { get; set; }
+        public DbSet<Models.Table.Programs> tPrograms { get; set; }
+        public DbSet<Models.Table.ProgramStages> tProgramStages { get; set; }
+        public DbSet<Models.Table.ProgramRevisions> tProgramRevisions { get; set; }
+        public DbSet<Models.Table.OptionProgramStage> tOptionProgramStage { get; set; }
+        public DbSet<Models.Table.OptionProgramType> tOptionProgramType { get; set; }
+        public DbSet<Models.Table.OptionProgramStatus> tOptionProgramStatus { get; set; }
+        public DbSet<Models.Table.Projects> tProjects { get; set; }
+        public DbSet<Models.Table.ProjectRevisions> tProjectRevisions { get; set; }
+        public DbSet<Models.Table.ProjectStages> tProjectStages { get; set; }
+        public DbSet<Models.Table.OptionProjectCategory> tOptionProjectCategory { get; set; }
+        public DbSet<Models.Table.ProjectThrustLists> tProjectThrustLists { get; set; }
+        public DbSet<Models.Table.OptionProjectOrigin> tOptionProjectOrigin { get; set; }
+        public DbSet<Models.Table.OptionAdminAreaCityMunicipality> tOptionAdminAreaCityMunicipality { get; set; }
+        public DbSet<Models.Table.OptionAdminBureau> tOptionAdminBureau { get; set; }
+        public DbSet<Models.Table.OptionAdminAreaCongressionalDistrict> tOptionAdminAreaCongressionalDistrict { get; set; }
+        public DbSet<Models.Table.OptionAdminAreaDistrictEngineeringOffice> tOptionAdminAreaDistrictEngineeringOffice { get; set; }
+        public DbSet<Models.Table.OptionAdminAreaRegion> tOptionAdminAreaRegion { get; set; }
+        public DbSet<Models.Table.OptionProjectImplementationMode> tOptionProjectImplementationMode { get; set; }
+        public DbSet<Models.Table.OptionProjectEmergencyMode> tOptionProjectEmergencyMode { get; set; }
+        public DbSet<Models.Table.OptionProjectFeasibilityStudy> tOptionProjectFeasibilityStudy { get; set; }
+        public DbSet<Models.Table.OptionProjectDetailedDesign> tOptionProjectDetailedDesign { get; set; }
+        public DbSet<Models.Table.OptionProjectRowAvailable> tOptionProjectRowAvailable { get; set; }
+        public DbSet<Models.Table.OptionRegionWide> tOptionRegionWide { get; set; }
+        public DbSet<Models.Table.OptionProjectAgency> tOptionProjectAgency { get; set; }
+        public DbSet<Models.Table.OptionProjectComponent> tOptionProjectComponent { get; set; }
+        public DbSet<Models.Table.ProjectComponentCost> tProjectComponentCost { get; set; }
+        public DbSet<Models.Table.TransactionLog> tTransactionLog { get; set; }
+        public DbSet<Models.Table.ProjectScopeOfWorkEnum> tProjectScopeOfWorkEnum { get; set; }
+        public DbSet<Models.Table.ProjectMajorWorkItem> tProjectMajorWorkItem { get; set; }
+        public DbSet<Models.Table.ProjectMajorWorkLocations> tProjectMajorWorkLocations { get; set; }
+        public DbSet<Models.Table.ProjectNotes> tProjectNotes { get; set; }
+        public DbSet<Models.Table.ProjectSupportingDocs> tProjectSupportingDocs { get; set; }
+        public DbSet<Models.Table.ProjectFundingProfile> tProjectFundingProfile { get; set; }
+        public DbSet<Models.Table.ProjectFundingAgreementLists> tProjectFundingAgreementLists { get; set; }
+        public DbSet<Models.Table.ProjectFundingSource> tProjectFundingSource { get; set; }
+        public DbSet<Models.Table.OptionFundingSource> tOptionFundingSource { get; set; }
+        public DbSet<Models.Table.OptionFundingAgreement> tOptionFundingAgreement { get; set; }
+        public DbSet<Models.Table.InfraType> tInfraType { get; set; }
+        public DbSet<Models.Table.ProjectsInGroup> tProjectsInGroup { get; set; }
+        public DbSet<Models.Table.ProjectGroups> tProjectGroups { get; set; }
+        public DbSet<Models.Table.OptionAdminAreaProvince> tOptionAdminAreaProvince { get; set; }
+        public DbSet<Models.Table.DropdownSupportingDocs> tDropdownSupportingDocs { get; set; }
+        public DbSet<Models.Table.FutureRoads> tFutureRoads { get; set; }
+        public DbSet<Models.Table.FutureRoadsClassification> tFutureRoadsClassification { get; set; }
+        public DbSet<Models.Table.FutureRoadSections> tFutureRoadSections { get; set; }
+        public DbSet<Models.Table.FutureBridge> tFutureBridge { get; set; }
+        public DbSet<Models.Table.PCMARevisions> tPCMARevisions { get; set; }
+        public DbSet<Models.Table.PCMARevisionDetails> tPCMARevisionDetails { get; set; }
+        public DbSet<Models.Table.PCMARevisionChangelogs> tPCMARevisionChangelogs { get; set; }
+        public DbSet<Models.Table.RevisionDetails> tRevisionDetails { get; set; }
+        public DbSet<Models.Table.RevisionDocuments> tRevisionDocuments { get; set; }
+        public DbSet<Models.Table.RevisionForCorrectionDetails> tRevisionForCorrectionDetails { get; set; }
+        public DbSet<Models.Table.OptionRevisionHeader> tOptionRevisionHeader { get; set; }
+        public DbSet<Models.Table.OptionRevisionReasons> tOptionRevisionReasons { get; set; }
+        public DbSet<Models.Table.OptionRevisionCategory> tOptionRevisionCategory { get; set; }
+        public DbSet<Models.Table.OptionRevisionStatus> tOptionRevisionStatus { get; set; }
+        public DbSet<Models.Table.OptionRevisionDocuments> tOptionRevisionDocuments { get; set; }
+        public DbSet<Models.Table.RevisionTransactionLog> tRevisionTransactionLog { get; set; }
+        public DbSet<Models.Table.RevisionProjects> tRevisionProjects { get; set; }
+        public DbSet<Models.Table.RevisionProjectFundingProfile> tRevisionProjectFundingProfile { get; set; }
+        public DbSet<Models.Table.RevisionProjectComponentCost> tRevisionProjectComponentCost { get; set; }
+        public DbSet<Models.Table.RevisionProjectMajorWorkItem> tRevisionProjectMajorWorkItem { get; set; }
+        public DbSet<Models.Table.RevisionProjectMajorWorkLocations> tRevisionProjectMajorWorkLocations { get; set; }
+        public DbSet<Models.Table.RevisionDetailsComponentsStatus> tRevisionDetailsComponentsStatus { get; set; }
+        #endregion
+        #region Views
+        public DbSet<Models.Views.Users> vUsers { get; set; }
+        public DbSet<Models.Views.UserGroups> vUserGroups { get; set; }
+        public DbSet<Models.Views.Permissions> vPermissions { get; set; }
+        public DbSet<Models.Views.Programs> vPrograms { get; set; }
+        public DbSet<Models.Views.ProgramDetails> vProgramDetails { get; set; }
+        public DbSet<Models.Views.Projects> vProjects { get; set; }
+        public DbSet<Models.Views.ProjectDetails> vProjectDetails { get; set; }
+        public DbSet<Models.Views.ProjectGroups> vProjectGroups { get; set; }
+        public DbSet<Models.Views.ProjectsInGroup> vProjectsInGroup { get; set; }
+        public DbSet<Models.Views.AdminOperatingUnit> vAdminOperatingUnit { get; set; }
+        public DbSet<Models.Views.AdminImplementingOffice> vAdminImplementingOffice { get; set; }
+        public DbSet<Models.Views.GetProjectCategoryVersions> vGetProjectCategoryVersions { get; set; }
+        public DbSet<Models.Views.RevisionRules> vRevisionRules { get; set; }
+        public DbSet<Models.Views.ProjectComponentStatus> vProjectComponentStatus { get; set; }
+        public DbSet<Models.Views.RevisionLists> vRevisionLists { get; set; }
+        public DbSet<Models.Views.ProjectComponentCostStatus> vProjectComponentCostStatus { get; set; }
+        public DbSet<Models.Views.RevisionProjectComponentCost> vRevisionProjectComponentCost { get; set; }
+        public DbSet<Models.Views.ProjectPerStages> vProjectPerStages { get; set; }
+        public DbSet<Models.Views.ProjectLatestStage> vProjectLatestStage { get; set; }
+        #endregion
+        #region Functions
+        public DbSet<Models.Functions.ProjectsPerStage> fProjectsPerStage { get; set; }
+        #endregion
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<AdminOperatingUnit>().HasNoKey().ToView("vAdminOperatingUnit");
+            modelBuilder.Entity<AdminImplementingOffice>().HasNoKey().ToView("vAdminImplementingOffice");
+            modelBuilder.Entity<GetProjectCategoryVersions>().HasNoKey().ToView("vGetProjectCategoryVersions");
+            modelBuilder.Entity<ProjectComponentStatus>().HasNoKey().ToView("vProjectComponentStatus");
 
-        //protected override void OnModelCreating(ModelBuilder modelBuilder)
-        //{
-        //    base.OnModelCreating(modelBuilder);
-
-            // Define relationships
-            //modelBuilder.Entity<Project>()
-            //    .HasOne(p => p.User)
-            //    .WithMany()
-            //    .HasForeignKey(p => p.UserId);
-
-            //modelBuilder.Entity<Project>()
-            //    .HasOne(p => p.ProgramStage)
-            //    .WithMany(ps => ps.Projects)
-            //    .HasForeignKey(p => p.ProgramStageId);
-
-            //modelBuilder.Entity<ProgramStage>()
-            //    .HasOne(ps => ps.Program)
-            //    .WithMany(p => p.ProgramStages)
-            //    .HasForeignKey(ps => ps.ProgramId);
-
-            //// Seed program stages if needed
-            //modelBuilder.Entity<Program>().HasData(
-            //    new Program { ProgramId = "RBP", ProgramName = "RBP", ProgramDescription = "Research-Based Program", ProgramStage = "1" },
-            //    new Program { ProgramId = "UWP", ProgramName = "UWP", ProgramDescription = "Upstream Work Program", ProgramStage = "2" },
-            //    // Add other program stages
-            //    new Program { ProgramId = "GAA", ProgramName = "GAA", ProgramDescription = "General Appropriations Act", ProgramStage = "9" }
-            //);
-        //}
+            base.OnModelCreating(modelBuilder);
+        }
     }
 }

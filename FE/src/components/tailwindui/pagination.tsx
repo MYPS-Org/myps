@@ -11,13 +11,14 @@ export function Pagination({
 }
 
 export function PaginationPrevious({
-  href = null,
+  onClick,
+  disabled = false,
   className,
   children = 'Previous',
-}: React.PropsWithChildren<{ href?: string | null; className?: string }>) {
+}: React.PropsWithChildren<{ onClick?: () => void; disabled?: boolean; className?: string }>) {
   return (
     <span className={clsx(className, 'grow basis-0')}>
-      <Button {...(href === null ? { disabled: true } : { href })} plain aria-label="Previous page">
+      <Button onClick={onClick} disabled={disabled} plain aria-label="Previous page" className='cursor-pointer'>
         <svg className="stroke-current" data-slot="icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
           <path
             d="M2.75 8H13.25M2.75 8L5.25 5.5M2.75 8L5.25 10.5"
@@ -26,21 +27,22 @@ export function PaginationPrevious({
             strokeLinejoin="round"
           />
         </svg>
-        {children}
+        <span className='text-gray-500'>{children}</span>
       </Button>
     </span>
   )
 }
 
 export function PaginationNext({
-  href = null,
+  onClick,
+  disabled = false,
   className,
   children = 'Next',
-}: React.PropsWithChildren<{ href?: string | null; className?: string }>) {
+}: React.PropsWithChildren<{ onClick?: () => void; disabled?: boolean; className?: string }>) {
   return (
-    <span className={clsx(className, 'flex grow basis-0 justify-end')}>
-      <Button {...(href === null ? { disabled: true } : { href })} plain aria-label="Next page">
-        {children}
+    <span className={clsx(className, 'flex grow basis-0 justify-center')}>
+      <Button onClick={onClick} disabled={disabled} plain aria-label="Next page" className='cursor-pointer'>
+        <span className='text-gray-500'>{children}</span>
         <svg className="stroke-current" data-slot="icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
           <path
             d="M13.25 8L2.75 8M13.25 8L10.75 10.5M13.25 8L10.75 5.5"
@@ -59,24 +61,24 @@ export function PaginationList({ className, ...props }: React.ComponentPropsWith
 }
 
 export function PaginationPage({
-  href,
+  onClick,
   className,
   current = false,
   children,
-}: React.PropsWithChildren<{ href: string; className?: string; current?: boolean }>) {
+}: React.PropsWithChildren<{ onClick?: () => void; className?: string; current?: boolean }>) {
   return (
     <Button
-      href={href}
+      onClick={onClick}
       plain
       aria-label={`Page ${children}`}
       aria-current={current ? 'page' : undefined}
       className={clsx(
         className,
-        'min-w-9 before:absolute before:-inset-px before:rounded-lg',
-        current && 'before:bg-zinc-950/5 dark:before:bg-white/10'
+        'min-w-9 before:absolute before:-inset-px before:rounded-lg cursor-pointer',
+        current && 'before:bg-zinc-950/5'
       )}
     >
-      <span className="-mx-0.5">{children}</span>
+      <span className="-mx-0.5 text-gray-500">{children}</span>
     </Button>
   )
 }
@@ -90,7 +92,7 @@ export function PaginationGap({
     <span
       aria-hidden="true"
       {...props}
-      className={clsx(className, 'w-9 text-center text-sm/6 font-semibold text-zinc-950 select-none dark:text-white')}
+      className={clsx(className, 'w-9 text-center text-sm/6 font-semibold text-zinc-950 select-none')}
     >
       {children}
     </span>
