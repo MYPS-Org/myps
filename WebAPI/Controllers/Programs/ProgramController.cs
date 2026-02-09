@@ -9,6 +9,8 @@ using Helpers.API;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using OfficeOpenXml.Sparkline;
+using System.ComponentModel;
 using System.Reflection;
 using System.Security.Cryptography;
 
@@ -782,7 +784,8 @@ namespace WebAPI.Controllers.Programs
                             RevisedNumber = null,
                             CreatedBy = _Session.UserId,
                             CreatedDate = CurrentDate,
-                            IsDeleted = project.IsDeleted
+                            IsDeleted = project.IsDeleted,
+                            IsPublishable = Functions.ValidateProjectForPublish(project, Components.FirstOrDefault(x => x.StartDate == null || x.EndDate == null && x.ProjectId == project.ProjectId && !x.IsDeleted))
                         }));
                         await _db.tProjectRevisions.AddRangeAsync(NewRevisions);
                         checkRevisions.Status = EnumProgramStatus.Approved;
