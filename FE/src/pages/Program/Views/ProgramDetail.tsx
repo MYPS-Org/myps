@@ -104,16 +104,16 @@ const ProgramDetail: React.FC = () => {
   const [batchAction, setBatchAction] = useState<'tag' | 'delete' | 'unpublish' | 'publish'>('tag');
   
   // Group data security by OrgType
-  const groupedDataSecurity = useMemo(() => {
-    return (programEnums?.Dropdowns.DataSecurity || []).reduce((acc, item) => {
-      const orgType = item.OrgType || 'Other';
-      if (!acc[orgType]) {
-        acc[orgType] = [];
-      }
-      acc[orgType].push(item);
-      return acc;
-    }, {} as {[key: string]: typeof programEnums.Dropdowns.DataSecurity});
-  }, [programEnums?.Dropdowns.DataSecurity]);
+  // const groupedDataSecurity = useMemo(() => {
+  //   return (programEnums?.Dropdowns.DataSecurity || []).reduce((acc, item) => {
+  //     const orgType = item.OrgType || 'Other';
+  //     if (!acc[orgType]) {
+  //       acc[orgType] = [];
+  //     }
+  //     acc[orgType].push(item);
+  //     return acc;
+  //   }, {} as {[key: string]: typeof programEnums.Dropdowns.DataSecurity});
+  // }, [programEnums?.Dropdowns.DataSecurity]);
 
   useEffect(() => {
     const loadProgramDetail = async () => {
@@ -164,10 +164,6 @@ const ProgramDetail: React.FC = () => {
       navigate(`/projects/addproject?programId=${programEnums?.Details.ProgramId}&stageName=${programEnums?.Details.StageName}`);
   };
 
-  // const handleBack = () => {
-  //   navigate('/programs');
-  // };
-
   const handleChange = (field: string, value: any) => {
     setProgramEnums(prev => ({
       ...prev,
@@ -204,13 +200,13 @@ const ProgramDetail: React.FC = () => {
   };
 
   // Helper function to check if all items in a group are selected
-  const isGroupSelected = (orgType: string): boolean => {
-    const groupItems = groupedDataSecurity[orgType] || [];
-    const currentDataSecurityGroup = programEnums?.Details.DataSecurityGroup || [];
-    return groupItems.length > 0 && groupItems.every(item => 
-      currentDataSecurityGroup.includes(item.ParticipantId ?? '')
-    );
-  };
+  // const isGroupSelected = (orgType: string): boolean => {
+  //   const groupItems = groupedDataSecurity[orgType] || [];
+  //   const currentDataSecurityGroup = programEnums?.Details.DataSecurityGroup || [];
+  //   return groupItems.length > 0 && groupItems.every(item => 
+  //     currentDataSecurityGroup.includes(item.ParticipantId ?? '')
+  //   );
+  // };
 
   // Helper function to check if some items in a group are selected
   // const isGroupPartiallySelected = (orgType: string): boolean => {
@@ -376,9 +372,9 @@ const ProgramDetail: React.FC = () => {
     }
   };
 
-  const handleModifyProject = (projectId: string, stageName: string) => {
-    alert('Modify Project clicked'+ ' ' + projectId + ' at stage ' + stageName);
-  };
+  // const handleModifyProject = (projectId: string, stageName: string) => {
+  //   alert('Modify Project clicked'+ ' ' + projectId + ' at stage ' + stageName);
+  // };
 
   const handleDownloadTemplate = () => {
     // TODO: Implement download template functionality

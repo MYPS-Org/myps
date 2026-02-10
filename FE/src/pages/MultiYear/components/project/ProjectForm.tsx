@@ -12,7 +12,7 @@ import type {
   ProjectFormPayload,
   ProjectEnums,
   Dropdowns,
-  ComponentCostYear,
+  // ComponentCostYear,
   InfraData,
   MajorItemOfWorksWithDropdown,
   MajorItemOfWork,
@@ -57,7 +57,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   //toaster here
   const { showToast } = useToast();
   // DisableFields if status === approved
-  const isDisabled = Number(initialData?.ProgramDetails?.Status) === 1;
+  const isDisabled = initialData?.IsActive === true;
 
   // toggle state for Program Details section
   const [isProgramOpen, setIsProgramOpen] = useState<boolean>(true);
@@ -84,7 +84,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     YearEnd: 0,
     CreatedBy: '',
     CreatedDate: '',
-    IsPublished: false,
+    IsPublishable: false,
+    // IsPublished: false,
   });
 
   const [projectDetails, setProjectDetails] = useState<ProjectDetails>(
@@ -100,7 +101,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       UACS: '',
       // MYCAApprovalDate: '',
       IslandCode: '',
-      RevisionNumber: 0,
+      // RevisionNumber: 0,
       Description: '',
       Category: 0,
       Thrust: 0,
@@ -114,10 +115,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       Region: '',
       Agency: 0,
       ImplementationMode: 0,
-      EmergencyMode: false,
+      EmergencyMode: 0,
       Feasibility: 0,
-      DetailedDesign: false,
-      RowAvailable: false,
+      DetailedDesign: 0,
+      RowAvailable: 0,
       Tier: 1,
     }
   );
@@ -914,7 +915,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
               onDelete={handleDeleteFundingProfile}
               initialData={initialData ? { ...initialData, Dropdowns } : undefined}
               onTotalAmountChange={setMaxAmountCost}
-              disabled={isDisabled}
+              disabled={!isDisabled}
             />
           </div>
         </div>
@@ -933,7 +934,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             onDelete={handleDeleteComponentCost}
             initialData={initialData}
             maxAmountCost={maxAmountCost}
-            disabled={isDisabled}
+            disabled={!isDisabled}
           />
         </div>
       </div>

@@ -285,6 +285,15 @@ export interface ComponentCost {
 	UpdatedBy?: string;
 	UpdatedDate?: string;
 }
+
+export interface ComponentCostYear {
+	Year: number;
+	Amount: number;
+	StartDate?: string | null;
+	EndDate?: string | null;
+	IsDeleted: boolean;
+}
+
 // #endregion ComponentCost
 export interface MajorItemOfWorksWithDropdown extends MajorItemOfWork {
 	DropdownData: ScopeOfWorkEnum[];
