@@ -10,6 +10,7 @@ export interface PreloaderState {
 export interface ApiResponse<T = any> {
     Data: T;
     Message?: string;
+    Type?: string;
     Title?: string;
     Status: number;
 }

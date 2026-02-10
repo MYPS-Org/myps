@@ -55,7 +55,7 @@ export const getProjectEnums = async () => {
 // #region Project Details
 export const addProjectDetails = async (projectDetails: ProjectDetails) => {
     try {
-        const response = await httpClient.post<{ProjectId: string, StageName: string, Title: string, Message: string}>(`/Project/addproject/`, projectDetails, {
+        const response = await httpClient.post<{ProjectId: string, StageName: string, Type: string, Title: string, Message: string}>(`/Project/addproject/`, projectDetails, {
             preloaderMessage: 'Adding project details...'
         });
         return response;
@@ -95,9 +95,10 @@ export const updateEntireProject = async (payload: {
     MajorItemOfWorks: MajorItemOfWork[];
     MajorItemLocations: MajorItemLocations[];
     FundingProfile: FundingProfile[];
+    IsAllowedToProceed: boolean;
 }) => {
     try {
-        const response = await httpClient.post(`/Project/UpdateProjectDetails/`, payload, {
+        const response = await httpClient.post<{Type: string, Message: string, Title: string}>(`/Project/UpdateProjectDetails/`, payload, {
             preloaderMessage: 'Updating entire project...'
         });
         return response;

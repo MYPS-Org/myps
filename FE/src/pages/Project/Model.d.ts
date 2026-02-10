@@ -124,6 +124,7 @@ export interface ProjectDetails {
 	CreatedDate?: string;
 	UpdatedBy?: string;
 	UpdatedDate?: string;
+	IsAllowedToProceed?: boolean;
 }
 export interface ProjectLists {
 	Id: number;

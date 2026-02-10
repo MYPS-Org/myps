@@ -39,14 +39,16 @@ import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/react';
 
 import RevisionDialog from '../dialogs/RevisionDialog';
 import SaveProjectConfirmDialog from '../dialogs/SaveProjectConfirmDialog';
+import ProceedAddProject from '../dialogs/ProceedAddProject';
 
 interface ProjectFormProps {
   initialData?: ProjectFormPayload;
   mode?: 'add' | 'edit';
   initialProgramId?: string;
+  initialStageName?: string;
 }
 
-const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', initialProgramId }) => {
+const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', initialProgramId, initialStageName }) => {
 
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -77,6 +79,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const [ isRevisionOpen, setIsRevisionOpen ] = useState<boolean>(false);
   const [ selectedRevHeaderId, setSelectedRevHeaderId ] = useState<number>(0);
   const [ isConfirmDialogOpen, setIsConfirmDialogOpen ] = useState<boolean>(false);
+  const [ isProceedDialogOpen, setIsProceedDialogOpen ] = useState<boolean>(false);
+  const [ proceedMessage, setProceedMessage ] = useState<string>('');
 
   
   // SetMaxAmount in ComponentCostForm
@@ -210,7 +214,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   useEffect(() => {
     if (initialProgramId && projectEnums?.Programs) {
       const selectedProgram = projectEnums.Programs.find(
-        program => program.ProgramId === initialProgramId
+        program => program.ProgramId === initialProgramId && program.StageName === initialStageName
       );
       if (selectedProgram) {
         setProgramDetails(selectedProgram);
@@ -219,12 +223,11 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           ...prev,
           ProgramId: selectedProgram.ProgramId,
           ProgramName: selectedProgram.Name,
-          StageName: selectedProgram.StageName || ''
+          StageName: initialStageName || '',
         }));
       }
     }
-  }, [initialProgramId, projectEnums?.Programs]);
-
+  }, [initialProgramId, initialStageName, projectEnums?.Programs]);
   const [componentCosts, setComponentCosts] = useState<ComponentCost[]>(
     initialData?.ComponentCosts || []
   );
@@ -579,19 +582,30 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   };
 
   // Actual save logic after confirmation
-  const confirmSaveProject = async () => {
+  const confirmSaveProject = async (allowProceed: boolean = false) => {
     setSavingSection('projectDetails');
     try {
-      console.log('Adding new project details:', projectDetails);
-      const response = await addProjectDetails({
+      const payload = {
         ...projectDetails,
-        Province: projectDetails.Province ? projectDetails.Province.toString() : '',
-        City: projectDetails.City ? projectDetails.City.toString() : '',
-        LegislativeDistrict: projectDetails.LegislativeDistrict ? projectDetails.LegislativeDistrict.toString() : '',
-          EmergencyMode: projectDetails.EmergencyMode,
-        });
+        IsAllowedToProceed: allowProceed
+      };
       
+      const response = await addProjectDetails(payload);
+      
+      if (response.Data?.Type === 'Prompt' && !allowProceed)
+      {
+        console.log('Showing proceed dialog...');
+        // Show custom dialog instead of window.confirm
+        setProceedMessage(response.Data.Message);
+        setIsProceedDialogOpen(true);
+        return;
+      }
+
       if (response.Data.ProjectId && response.Data.StageName) {
+        showToast({
+          type: 'success',
+          message: 'Project created successfully.'
+        });
         navigate(`/projects/project-details/${response.Data.ProjectId}:${response.Data.StageName}`);
       }
     } catch (error) {
@@ -603,6 +617,16 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       throw error;
     } finally {
       setSavingSection(null);
+    }
+  };
+
+  // Handler for proceed anyway confirmation
+  const handleProceedAnyway = async () => {
+    setIsProceedDialogOpen(false);
+    if (mode === 'add') {
+      await confirmSaveProject(true); // Retry with IsAllowedToProceed = true
+    } else {
+      await confirmUpdateProject(true); // Retry update with IsAllowedToProceed = true
     }
   };
 
@@ -727,14 +751,14 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   };
 
   // Actual update logic after confirmation
-  const confirmUpdateProject = async () => {
+  const confirmUpdateProject = async (allowProceed: boolean = false) => {
     setUpdateAllProject(true);
     
     try {
-      console.log('=== STAGING DATA BEFORE UPDATE ===');
-      console.log('Component Costs:', componentCosts);
-      console.log('Major Items:', majorItems);
-      console.log('Funding Profiles:', fundingProfiles);
+      // console.log('=== STAGING DATA BEFORE UPDATE ===');
+      // console.log('Component Costs:', componentCosts);
+      // console.log('Major Items:', majorItems);
+      // console.log('Funding Profiles:', fundingProfiles);
       
       // Prepare data for backend matching the expected payload structure
       
@@ -802,11 +826,24 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           ...profile,
           StageName: initialData?.ProgramDetails?.StageName,
           Amount: profile.Amount,
-          
-        }))
+        })),
+        IsAllowedToProceed: allowProceed
       };
 
-      await updateEntireProject(payload);
+      const response = await updateEntireProject(payload);
+      
+      console.log('=== UPDATE RESPONSE RECEIVED ===');
+      console.log('Response Type:', response.Data?.Type);
+      console.log('Response Message:', response.Data?.Message);
+      
+      if (response.Data?.Type === 'Prompt' && !allowProceed)
+      {
+        console.log('Showing proceed dialog for update...');
+        // Show custom dialog instead of window.confirm
+        setProceedMessage(response.Data.Message);
+        setIsProceedDialogOpen(true);
+        return;
+      }
 
       showToast({
           type: 'success',
@@ -991,6 +1028,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                 mode={mode}
                 projectEnums={projectEnums || undefined}
                 initialData={initialData}
+                initialStageName={initialStageName}
               />
             </div>
           )}
@@ -1143,8 +1181,17 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       <SaveProjectConfirmDialog
         isOpen={isConfirmDialogOpen}
         onClose={() => setIsConfirmDialogOpen(false)}
-        onConfirm={mode === 'add' ? confirmSaveProject : confirmUpdateProject}
+        onConfirm={mode === 'add' ? () => confirmSaveProject(false) : () => confirmUpdateProject(false)}
         mode={mode}
+        projectName={projectDetails.Description}
+      />
+
+      {/* Proceed Anyway Dialog */}
+      <ProceedAddProject
+        isOpen={isProceedDialogOpen}
+        onClose={() => setIsProceedDialogOpen(false)}
+        onConfirm={handleProceedAnyway}
+        message={proceedMessage}
         projectName={projectDetails.Description}
       />
 
