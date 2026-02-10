@@ -221,13 +221,14 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = $"Implementation Mode is required!", Title = "Invalid Implementation Mode" });
                 }
-                var ValidateDescription = await _db.tProjectRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Description == dto.Description);
-                if (ValidateDescription != null && !dto.IsAllowedToProceed)
+                var ValidateProject = await _db.tProjectStages.AsNoTracking().Where(x => x.ProgramId == dto.ProgramId && x.StageName == dto.StageName).ToListAsync();
+                if (ValidateProject != null && !dto.IsAllowedToProceed)
                 {
-                    var ValidateProgram = await _db.tProjectStages.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionId == ValidateDescription.Id && x.ProgramId == dto.ProgramId);
+                    var RevisionIds = ValidateProject.Select(x => x.RevisionId).ToList();
+                    var ValidateProgram = await _db.tProjectRevisions.AsNoTracking().FirstOrDefaultAsync(x => RevisionIds.Contains(x.Id) && x.Description == dto.Description);
                     if(ValidateProgram != null)
                     {
-                        return new BadRequestObjectResult(new { Message = $"Description: {dto.Description} already exist in {ValidateDescription.ProjectId}! Do you still want to proceed?", Title = "Description Exists", Type = "Prompt" });
+                        return Ok(new { Message = $"Description: {dto.Description} already exist in {ValidateProgram.ProjectId}! Do you still want to proceed?", Title = "Description Exists", Type = "Prompt" });
                     }
                 }
                 var Program = await _db.vPrograms.FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
@@ -554,14 +555,14 @@ namespace WebAPI.Controllers.Projects
                 DateTime CurrentDate = Functions.CurrentDate();;
                 List<TransactionLog> transactionLogs = new List<TransactionLog>();
 
-                var ValidateDescription = await _db.tProjectRevisions.FirstOrDefaultAsync(x => x.Description == dto.ProjectDetails.Description && x.ReferenceId != dto.ProjectDetails
-                .ReferenceId && !x.IsDeleted);
-                if (ValidateDescription != null && !dto.IsAllowedToProceed)
+                var ValidateProject = await _db.tProjectStages.AsNoTracking().Where(x => x.ProgramId == dto.ProjectDetails.ProgramId && x.StageName == dto.ProjectDetails.StageName).ToListAsync();
+                if (ValidateProject != null && !dto.IsAllowedToProceed)
                 {
-                    var ValidateProgram = await _db.tProjectStages.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionId == ValidateDescription.Id && x.ProgramId == dto.ProjectDetails.ProgramId);
+                    var RevisionIds = ValidateProject.Select(x => x.RevisionId).ToList();
+                    var ValidateProgram = await _db.tProjectRevisions.AsNoTracking().FirstOrDefaultAsync(x => RevisionIds.Contains(x.Id) && x.Description == dto.ProjectDetails.Description);
                     if (ValidateProgram != null)
                     {
-                        return new BadRequestObjectResult(new { Message = $"Description: {dto.ProjectDetails.Description} already exist in {ValidateDescription.ProjectId}! Do you still want to proceed?", Title = "Description Exists", Type = "Prompt" });
+                        return Ok(new { Message = $"Description: {dto.ProjectDetails.Description} already exist in {ValidateProgram.ProjectId}! Do you still want to proceed?", Title = "Description Exists", Type = "Prompt" });
                     }
                 }
                 var Project = await _db.vProjectDetails
