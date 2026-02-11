@@ -233,9 +233,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   );
 
   // Debug effect to monitor componentCosts state changes
-  useEffect(() => {
-    console.log('ComponentCosts state changed:', componentCosts);
-  }, [componentCosts]);
+  // useEffect(() => {
+  //   console.log('ComponentCosts state changed:', componentCosts);
+  // }, [componentCosts]);
 
   const [majorItems, setMajorItems] = useState<MajorItemOfWorksWithDropdown[]>(() => {
     if (!initialData?.MajorItemOfWorks) return [];
@@ -260,9 +260,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   });
 
   // Debug effect to monitor majorItems state changes  
-  useEffect(() => {
-    console.log('MajorItems state changed:', majorItems);
-  }, [majorItems]);
+  // useEffect(() => {
+  //   console.log('MajorItems state changed:', majorItems);
+  // }, [majorItems]);
 
   // const [notes, setNotes] = useState<ProjectNote[]>(
   //   initialData?.ProjectNotes || []
@@ -536,7 +536,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       prev.map((profile, i) => i === index ? profileWithResetId : profile)
     );
     
-    console.log('Updated funding profile in staging:', profileWithResetId);
+    // console.log('Updated funding profile in staging:', profileWithResetId);
   };
 
   const handleDeleteFundingProfile = (index: number) => {

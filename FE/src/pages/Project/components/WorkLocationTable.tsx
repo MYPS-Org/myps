@@ -3,7 +3,6 @@ import { Button } from '../../../components/tailwindui/button';
 import { PlusIcon, TrashIcon, PencilIcon, DocumentDuplicateIcon } from '@heroicons/react/24/outline';
 import AddInfraDialog from '../dialogs/AddInfraDialog';
 import DeleteWorkLocationDialog from '../dialogs/deleteDialogs/DeleteWorkLocationDialog';
-import { mockInfraData } from '../dialogs/mockInfraData';
 import { generateInfraId, shouldAutoGenerateInfraId, getInfraTypePrefix } from '../../../utils/infraIdGenerator';
 import type { MajorItemLocations, InfraData, ScopeOfWorkEnum, MajorItemOfWork } from '../Model.d';
 import type { ProgramList } from '../../Program/Model';
@@ -284,24 +283,16 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
   const getInfraLength = (infraId: string) => {
     if (!infraId) return '';
     
-    // Use mock data for now (same as AddInfraDialog)
-    const data = mockInfraData;
-    
-    // Check in RoadSections
-    const roadSection = data.RoadSections?.find(road => road.SectionId === infraId);
-    if (roadSection) return roadSection.SectionLength?.toString() || '';
-    
-    // Check in Bridges
-    const bridge = data.Bridges?.find(bridge => bridge.BridgeId === infraId);
-    if (bridge) return bridge.Length?.toString() || '';
-    
-    // Check in FCS (might not have length properties)
-    const fcs = data.FCS?.find(f => f.FCSId === infraId);
-    if (fcs) return ''; // FCS typically don't have length
-    
-    // Check in OtherInfra (might not have length properties)  
-    const other = data.OtherInfra?.find(o => o.InfraId === infraId);
-    if (other) return ''; // Other infra might not have standardized length
+    // Check in infraData if available
+    if (infraData) {
+      // Check in RoadSections
+      const roadSection = infraData.RoadSections?.find(road => road.RoadSectionId === infraId);
+      if (roadSection) return roadSection.RoadLength?.toString() || '';
+      
+      // Check in Bridges
+      const bridge = infraData.Bridges?.find(bridge => bridge.BridgeId === infraId);
+      if (bridge) return bridge.Length?.toString() || '';
+    }
     
     return '';
   };

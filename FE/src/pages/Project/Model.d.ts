@@ -242,10 +242,10 @@ export interface OtherInfra {
 }
 
 export interface InfraData {
-	RoadSections: RoadSections[];
-	Bridges: Bridge[];
-	FCS: FCS[];
-	OtherInfra: OtherInfra[];
+	RoadSections?: import('../Rbia/Model.d').FutureRoadSections[];
+	Bridges?: import('../Rbia/Model.d').FutureBridge[];
+	FCS?: any[];
+	OtherInfra?: any[];
 }
 
 // #region Notes

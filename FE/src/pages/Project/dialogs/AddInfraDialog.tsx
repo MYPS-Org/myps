@@ -4,7 +4,8 @@ import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '../../../components/tailwindui/table';
 import type { InfraData } from '../Model.d';
-import { mockInfraData } from './mockInfraData';
+import { fetchRoadSectionData, fetchBridgeData } from '../../Rbia/Service';
+import type { FutureRoadSections, FutureBridge } from '../../Rbia/Model.d';
 
 interface AddInfraDialogProps {
   isOpen: boolean;
@@ -41,6 +42,9 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
     length?: number;
   } | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [roadSections, setRoadSections] = useState<FutureRoadSections[]>([]);
+  const [bridges, setBridges] = useState<FutureBridge[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -49,6 +53,50 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
       setActiveTab(getInitialTab());
     }
   }, [isOpen, infraType]);
+
+  // Fetch data when tab changes or dialog opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchInfraData();
+    }
+  }, [isOpen, activeTab]);
+
+  const fetchInfraData = async () => {
+    setLoading(true);
+    try {
+      if (activeTab === 'road') {
+        const response = await fetchRoadSectionData({
+          filters: {
+            RoadId: '',
+            RoadSectionId: '',
+            DEO: ''
+          },
+          sortField: '',
+          sortDirection: 1,
+          page: 1,
+          limit: 20
+        });
+        setRoadSections(response.Data.lists || []);
+      } else if (activeTab === 'bridge') {
+        const response = await fetchBridgeData({
+          filters: {
+            RoadSectionId: '',
+            BridgeId: '',
+            Name: ''
+          },
+          sortField: '',
+          sortDirection: 1,
+          page: 1,
+          limit: 20
+        });
+        setBridges(response.Data.lists || []);
+      }
+    } catch (error) {
+      console.error('Error fetching infrastructure data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleClose = () => {
     setSelectedInfra(null);
@@ -103,8 +151,15 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
   };
 
   const renderRoadSections = () => {
-    const data = /*initialData?.RoadSections ||*/ mockInfraData.RoadSections;
-    const filteredData = filterData(data, ['SectionId', 'CDOName', 'RoadId']);
+    const filteredData = filterData(roadSections, ['RoadSectionId', 'DEO', 'RoadId']);
+    
+    if (loading) {
+      return <div className="text-center py-8">Loading road sections...</div>;
+    }
+
+    if (filteredData.length === 0) {
+      return <div className="text-center py-8 text-gray-500">No road sections found</div>;
+    }
     
     return (
       <div className="space-y-4">
@@ -114,7 +169,7 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
               <TableHeader>Select</TableHeader>
               <TableHeader>Section ID</TableHeader>
               <TableHeader>Road ID</TableHeader>
-              <TableHeader>CDO Name</TableHeader>
+              <TableHeader>DEO</TableHeader>
               <TableHeader>Length (km)</TableHeader>
               <TableHeader>Network Status</TableHeader>
             </TableRow>
@@ -126,21 +181,21 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
                   <input
                     type="radio"
                     name="infraSelection"
-                    value={road.SectionId}
-                    checked={selectedInfra?.id === road.SectionId}
-                    onChange={() => handleInfraSelect(road.SectionId, `${road.CDOName} - ${road.RoadId}`, 'Roads')}
+                    value={road.RoadSectionId}
+                    checked={selectedInfra?.id === road.RoadSectionId}
+                    onChange={() => handleInfraSelect(road.RoadSectionId, `${road.DEO} - ${road.RoadId}`, 'Roads')}
                     className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300"
                   />
                 </TableCell>
-                <TableCell className="font-medium">{road.SectionId}</TableCell>
+                <TableCell className="font-medium">{road.RoadSectionId}</TableCell>
                 <TableCell>{road.RoadId}</TableCell>
-                <TableCell>{road.CDOName}</TableCell>
-                <TableCell>{road.SectionLength}</TableCell>
+                <TableCell>{road.DEO}</TableCell>
+                <TableCell>{road.RoadLength}</TableCell>
                 <TableCell>
                   <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                    road.NetworkStatus === 1 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                    road.NetworkStatusId === 1 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                   }`}>
-                    {road.NetworkStatus === 1 ? 'Active' : 'Inactive'}
+                    {road.NetworkStatusId === 1 ? 'Active' : 'Inactive'}
                   </span>
                 </TableCell>
               </TableRow>
@@ -152,8 +207,15 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
   };
 
   const renderBridges = () => {
-    const data = /*initialData?.Bridges ||*/ mockInfraData.Bridges;
-    const filteredData = filterData(data, ['BridgeId', 'BridgeName', 'Location']);
+    const filteredData = filterData(bridges, ['BridgeId', 'Name', 'RoadSectionId']);
+    
+    if (loading) {
+      return <div className="text-center py-8">Loading bridges...</div>;
+    }
+
+    if (filteredData.length === 0) {
+      return <div className="text-center py-8 text-gray-500">No bridges found</div>;
+    }
     
     return (
       <div className="space-y-4">
@@ -163,9 +225,9 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
               <TableHeader>Select</TableHeader>
               <TableHeader>Bridge ID</TableHeader>
               <TableHeader>Bridge Name</TableHeader>
-              <TableHeader>Location</TableHeader>
+              <TableHeader>Road Section ID</TableHeader>
               <TableHeader>Length (m)</TableHeader>
-              <TableHeader>Width (m)</TableHeader>
+              <TableHeader>Overall Width (m)</TableHeader>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -177,15 +239,15 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
                     name="infraSelection"
                     value={bridge.BridgeId}
                     checked={selectedInfra?.id === bridge.BridgeId}
-                    onChange={() => handleInfraSelect(bridge.BridgeId, bridge.BridgeName, 'Bridges')}
+                    onChange={() => handleInfraSelect(bridge.BridgeId, bridge.Name, 'Bridges')}
                     className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300"
                   />
                 </TableCell>
                 <TableCell className="font-medium">{bridge.BridgeId}</TableCell>
-                <TableCell>{bridge.BridgeName}</TableCell>
-                <TableCell>{bridge.Location}</TableCell>
+                <TableCell>{bridge.Name}</TableCell>
+                <TableCell>{bridge.RoadSectionId}</TableCell>
                 <TableCell>{bridge.Length}</TableCell>
-                <TableCell>{bridge.Width}</TableCell>
+                <TableCell>{bridge.OverallWidth}</TableCell>
               </TableRow>
             ))}
           </TableBody>

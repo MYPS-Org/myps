@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import type { FundingProfile, ProjectFormPayload } from "../Model";
 import { Button } from "../../../components/tailwindui/button";
 import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
@@ -29,9 +29,30 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
   const [totalAmount, setTotalAmount] = useState(0);
   const [displayValues, setDisplayValues] = useState<{ [key: number]: string }>({});
   const [percentageBalancer, setPercentageBalancer] = useState(0);
+  
+  // Use refs to avoid dependency issues
+  const onEditRef = useRef(onEdit);
+  const onTotalAmountChangeRef = useRef(onTotalAmountChange);
+  const previousAmountsRef = useRef<string>('');
+  
+  useEffect(() => {
+    onEditRef.current = onEdit;
+    onTotalAmountChangeRef.current = onTotalAmountChange;
+  }, [onEdit, onTotalAmountChange]);
 
   // Calculate total percentage and amount, then auto-update percentages
   useEffect(() => {
+    // Create a snapshot of current amounts to check if they've changed
+    const currentAmounts = fundingProfiles
+      .map(p => `${p.Id}-${p.Amount}-${p.IsDeleted}`)
+      .join('|');
+    
+    // Skip if amounts haven't changed
+    if (previousAmountsRef.current === currentAmounts) {
+      return;
+    }
+    previousAmountsRef.current = currentAmounts;
+
     const totalAmt = fundingProfiles
       .filter(p => !p.IsDeleted)
       .reduce((sum, p) => sum + (p.Amount || 0), 0);
@@ -60,8 +81,11 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
     });
 
     if (hasChanges) {
-      updatedProfiles.forEach((profile, index) => {
-        onEdit(index, profile);
+      // Use requestAnimationFrame to batch updates and avoid blocking
+      requestAnimationFrame(() => {
+        updatedProfiles.forEach((profile, index) => {
+          onEditRef.current(index, profile);
+        });
       });
     }
 
@@ -73,10 +97,10 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
     const balancer = totalAmt > 0 ? Math.round((100 - totalPct) * 100) / 100 : 0;
     setPercentageBalancer(balancer);
 
-    if (onTotalAmountChange) {
-      onTotalAmountChange(totalAmt);
+    if (onTotalAmountChangeRef.current) {
+      onTotalAmountChangeRef.current(totalAmt);
     }
-  }, [fundingProfiles, onEdit, onTotalAmountChange]);
+  }, [fundingProfiles]);
 
   useEffect(() => {
     const newDisplayValues: { [key: number]: string } = {};

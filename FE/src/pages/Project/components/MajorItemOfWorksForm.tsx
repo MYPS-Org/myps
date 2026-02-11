@@ -196,9 +196,9 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
   };
 
   const getComponentDescription = (componentId: string): string => {
-    console.log('Looking for component with ID:', componentId, 'in componentCosts:', componentCosts);
+    // console.log('Looking for component with ID:', componentId, 'in componentCosts:', componentCosts);
     const component = componentCosts?.find(cost => cost.ComponentId === componentId);
-    console.log('Found component:', component);
+    // console.log('Found component:', component);
     // Return the description or the componentId as fallback
     return component?.ComponentId || component?.ComponentId || componentId || 'Unknown Component';
   };

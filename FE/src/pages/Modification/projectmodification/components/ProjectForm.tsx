@@ -151,7 +151,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     YearEnd: 0,
     CreatedBy: '',
     CreatedDate: '',
-    IsPublished: false,
+    IsPublishable: false,
   });
 
   const [projectDetails, setProjectDetails] = useState<ProjectDetails>(
@@ -527,14 +527,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   };
 
   const handleEditFundingProfile = (index: number, updatedProfile: FundingProfile) => {
-    // Force Id to 0 for all funding profiles to treat as new records
-    const profileWithResetId = { ...updatedProfile, Id: 0 };
-    
     setFundingProfiles(prev => 
-      prev.map((profile, i) => i === index ? profileWithResetId : profile)
+      prev.map((profile, i) => i === index ? { ...profile, ...updatedProfile } : profile)
     );
-    
-    console.log('Updated funding profile in staging:', profileWithResetId);
   };
 
   const handleDeleteFundingProfile = (index: number) => {
@@ -767,7 +762,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         MajorItemLocations: workLocationsForPayload,
         FundingProfile: fundingProfiles.map(profile => ({
           ...profile, StageName: initialData?.ProgramDetails?.StageName || '',
-        }))
+        })),
+        IsAllowedToProceed: true // This flag can be used by the backend to determine if the update should proceed or if there are issues that need to be addressed
       };
 
       await updateEntireProject(payload);
@@ -1154,6 +1150,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                 initialData={initialData ? { ...initialData, Dropdowns } : undefined}
                 onTotalAmountChange={setMaxAmountCost}
                 disabled={isDisabled}
+                fieldRules={fieldRules}
               />
             </div>
           </div>

@@ -288,8 +288,8 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
     const data = mockInfraData;
     
     // Check in RoadSections
-    const roadSection = data.RoadSections?.find(road => road.SectionId === infraId);
-    if (roadSection) return roadSection.SectionLength?.toString() || '';
+    const roadSection = data.RoadSections?.find(road => road.RoadSectionId === infraId);
+    if (roadSection) return roadSection.RoadLength?.toString() || '';
     
     // Check in Bridges
     const bridge = data.Bridges?.find(bridge => bridge.BridgeId === infraId);
@@ -315,7 +315,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
   //     }, 0);
   // };
 
-  // Format number with commas
+  // Format number with commas0
   // const formatNumber = (num: number): string => {
   //   return num.toLocaleString('en-PH');
   // };

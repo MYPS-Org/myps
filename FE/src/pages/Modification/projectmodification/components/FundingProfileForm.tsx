@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import type { FundingProfile, ProjectFormPayload } from "../../../Project/Model.d";
 import type { FieldRules } from "../../Model";
 import { Button } from "../../../../components/tailwindui/button";
@@ -14,7 +14,7 @@ interface FundingProfileFormProps {
   onDelete: (index: number) => void;
   onTotalAmountChange?: (totalAmount: number) => void; // Optional callback for total amount change
   disabled?: boolean;
-  fieldRules?: FieldRules;
+  fieldRules: FieldRules | null; // Add fieldRules to props
 }
 
 const FundingProfileForm: React.FC<FundingProfileFormProps> = ({ 
@@ -32,9 +32,65 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
   const [totalAmount, setTotalAmount] = useState(0);
   const [displayValues, setDisplayValues] = useState<{ [key: number]: string }>({});
   const [percentageBalancer, setPercentageBalancer] = useState(0);
+  
+  // Use refs to avoid dependency issues
+  const onEditRef = useRef(onEdit);
+  const onTotalAmountChangeRef = useRef(onTotalAmountChange);
+  const previousAmountsRef = useRef<string>('');
+  
+  useEffect(() => {
+    onEditRef.current = onEdit;
+    onTotalAmountChangeRef.current = onTotalAmountChange;
+  }, [onEdit, onTotalAmountChange]);
+
+  // Helper function to build field permissions map from fieldRules
+  const fieldPermissionsMap = useMemo(() => {
+    if (!fieldRules) return {};
+
+    const permissions: Record<string, boolean> = {};
+
+    // Root-level fields
+    for (const [key, value] of Object.entries(fieldRules)) {
+      if (typeof value === 'boolean') {
+        permissions[key] = value;
+      }
+    }
+
+    // Check FundingProfileRules specifically for funding profile fields
+    if (fieldRules.FundingProfileRules) {
+      const fundingRules = fieldRules.FundingProfileRules as any;
+      
+      // Get fields from FundingProfileRules.Fields
+      if (fundingRules.Fields) {
+        Object.assign(permissions, fundingRules.Fields);
+      }
+    }
+    return permissions;
+  }, [fieldRules]);
+
+  // Function to check if a specific field is editable
+  const isFieldEditable = useCallback((field: string) => {
+    return fieldPermissionsMap[field] === true;
+  }, [fieldPermissionsMap]);
+
+  // Individual field editability checks
+  const isSourceEditable = isFieldEditable('Source');
+  const isAgreementEditable = isFieldEditable('Agreement');
+  const isAmountEditable = isFieldEditable('Amount');
 
   // Calculate total percentage and amount, then auto-update percentages
   useEffect(() => {
+    // Create a snapshot of current amounts to check if they've changed
+    const currentAmounts = fundingProfiles
+      .map(p => `${p.Id}-${p.Amount}-${p.IsDeleted}`)
+      .join('|');
+    
+    // Skip if amounts haven't changed
+    if (previousAmountsRef.current === currentAmounts) {
+      return;
+    }
+    previousAmountsRef.current = currentAmounts;
+
     const totalAmt = fundingProfiles
       .filter(p => !p.IsDeleted)
       .reduce((sum, p) => sum + (p.Amount || 0), 0);
@@ -66,8 +122,11 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
     });
 
     if (hasChanges) {
-      updatedProfiles.forEach((profile, index) => {
-        onEdit(index, profile);
+      // Use requestAnimationFrame to batch updates and avoid blocking
+      requestAnimationFrame(() => {
+        updatedProfiles.forEach((profile, index) => {
+          onEditRef.current(index, profile);
+        });
       });
     }
 
@@ -81,10 +140,10 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
     const balancer = totalAmt > 0 ? Math.round((100 - totalPct) * 100) / 100 : 0;
     setPercentageBalancer(balancer);
 
-    if (onTotalAmountChange) {
-      onTotalAmountChange(totalAmt);
+    if (onTotalAmountChangeRef.current) {
+      onTotalAmountChangeRef.current(totalAmt);
     }
-  });
+  }, [fundingProfiles]);
 
   useEffect(() => {
     const newDisplayValues: { [key: number]: string } = {};
@@ -115,7 +174,7 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
 
   // Handle amount Changing in UI
   const handleAmountChange = (index: number, profile: FundingProfile, value: string) => {
-    if (disabled) return;
+    if (!isAmountEditable) return;
     const updateAmount = (field: string, numValue: number) => {
       onEdit(index, { ...profile, [field]: numValue });
     };
@@ -211,8 +270,8 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
                     name="source"
                     value={profile.Source}
                     onChange={(e) => onEdit(index, { ...profile, Source: String(e.target.value) })}
-                    className={`${getDisabledClass(disabled)} w-full px-2 py-1 border border-gray-300 rounded truncate`}
-                    disabled={disabled}
+                    className={`${getDisabledClass(!isSourceEditable)} w-full px-2 py-1 border border-gray-300 rounded truncate`}
+                    disabled={!isSourceEditable}
                     // style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
                   >
                     <option value="">Select Source</option>
@@ -228,9 +287,9 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
                     name="agreement"
                     value={profile.Agreement}
                     onChange={(e) => onEdit(index, { ...profile, Agreement: String(e.target.value) })}
-                    className={`${getDisabledClass(disabled)} w-full px-2 py-1 border border-gray-300 rounded truncate`}
+                    className={`${getDisabledClass(!isAgreementEditable)} w-full px-2 py-1 border border-gray-300 rounded truncate`}
                     // style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
-                    disabled={!profile.Source || disabled} // Disable if no source selected
+                    disabled={!profile.Source || !isAgreementEditable} // Disable if no source selected
                   >
                     <option value="">Select Agreement</option>
                     {initialData?.Dropdowns?.Agreements
@@ -249,9 +308,9 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
                     onChange={(e) => handleAmountChange(index, profile, e.target.value)}
                     onFocus={handleCurrencyFocus}
                     onBlur={(e) => handleCurrencyBlur(e, (value) => onEdit(index, { ...profile, Amount: value }))}
-                    className={`w-full px-2 py-1 border border-gray-300 rounded text-right ${getDisabledClass(disabled)}`}
+                    className={`w-full px-2 py-1 border border-gray-300 rounded text-right ${getDisabledClass(!isAmountEditable)}`}
                     placeholder="₱0.00"
-                    disabled={disabled}
+                    disabled={!isAmountEditable}
                    />
                 </TableCell>
                 <TableCell className="w-1/6">
@@ -275,8 +334,8 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
                 <TableCell>
                   <button
                     onClick={() => onDelete(index)}
-                    className={`text-red-600 hover:text-red-800 ${disabled || !canDelete(profile) ? 'cursor-not-allowed opacity-50' : ''}`}
-                    disabled={disabled || !canDelete(profile)}
+                    className={`text-red-600 hover:text-red-800 ${!canDelete(profile) ? 'cursor-not-allowed opacity-50' : ''}`}
+                    disabled={!canDelete(profile)}
                     title={canDelete(profile) ? "Delete funding profile" : "Cannot delete funding profile"}
                   >
                     <TrashIcon className="w-4 h-4" />

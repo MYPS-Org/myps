@@ -1,15 +1,15 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { Button } from '../../../../components/tailwindui/button';
-import { PlusIcon, TrashIcon, PencilIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, TrashIcon, PencilIcon, DocumentDuplicateIcon } from '@heroicons/react/24/outline';
 import AddInfraDialog from '../../../Project/dialogs/AddInfraDialog';
 import DeleteWorkLocationDialog from '../../dialogs/deleteDialog/DeleteWorkLocationDialog';
 import { useDeleteWorkLocationDialog } from '../../hooks/useDeleteWorkLocationDialog';
-import { mockInfraData } from '../../../Project/dialogs/mockInfraData';
 import { generateInfraId, shouldAutoGenerateInfraId, getInfraTypePrefix } from '../../../../utils/infraIdGenerator';
 import type { MajorItemLocations, InfraData, ScopeOfWorkEnum, MajorItemOfWork } from '../../../Project/Model.d';
 import type { ProgramList } from '../../../Program/Model';
 import type { FieldRules } from '../../Model';
 import { getDisabledClass } from '../../../../utils/GlobalFunctions';
+import { unitTypeMap } from '../../../Project/utils/unitTypes';
 
 interface WorkLocationTableProps {
   majorItemOfWorks: MajorItemOfWork;
@@ -108,6 +108,72 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
   // Get the actual target unit to use throughout the component
   const actualTargetUnit = getTargetUnitName(workTypeId);
 
+  // Helper function to check if a measure is length-based
+  const isLengthBasedMeasure = (measure: string): boolean => {
+    if (!measure) return false;
+    const normalizedMeasure = measure.toLowerCase();
+    return unitTypeMap[normalizedMeasure] === 'LENGTH';
+  };
+  
+  // Helper function to determine if Length field should be required
+  const isLengthRequired = (): boolean => {
+    // Rule 1: If InfraType is Roads, Length is ALWAYS required
+    if (infraType.toLowerCase() === 'roads' || infraType.toLowerCase() === 'road') {
+      return true;
+    }
+    // Rule 2: If Measure is length-based, Length is required
+    return isLengthBasedMeasure(actualTargetUnit);
+  };
+  
+  // Helper function to determine if Length field should be visible
+  const shouldShowLengthField = (): boolean => {
+    // Rule 1: If InfraType is Roads, always show Length field (with chainages)
+    if (infraType.toLowerCase() === 'roads' || infraType.toLowerCase() === 'road') {
+      return true;
+    }
+    // Rule 2: Show if Measure is length-based
+    return isLengthBasedMeasure(actualTargetUnit);
+  };
+  
+  // Helper function to validate Length value
+  const validateLength = (location: MajorItemLocations): { isValid: boolean; message: string } => {
+    const isRoads = infraType.toLowerCase() === 'roads' || infraType.toLowerCase() === 'road';
+    
+    if (isRoads) {
+      // For Roads: validate chainages
+      const hasChainages = (location.StartChainage !== null && location.StartChainage !== undefined) 
+        && (location.EndChainage !== null && location.EndChainage !== undefined);
+      
+      if (!hasChainages) {
+        return { isValid: false, message: 'Start and End chainage are required for Roads' };
+      }
+      
+      if (location.EndChainage <= location.StartChainage) {
+        return { isValid: false, message: 'End chainage must be greater than Start chainage' };
+      }
+      
+      return { isValid: true, message: '' };
+    } else if (isLengthBasedMeasure(actualTargetUnit)) {
+      // For non-Roads with length-based measure: validate length value
+      if (location.Length === null || location.Length === undefined || location.Length <= 0) {
+        return { isValid: false, message: `Length is required for ${actualTargetUnit}` };
+      }
+      
+      // Validate against min/max amounts
+      if (minAmount !== undefined && location.Length < minAmount) {
+        return { isValid: false, message: `Length must be at least ${minAmount}` };
+      }
+      
+      if (maxAmount !== undefined && location.Length > maxAmount) {
+        return { isValid: false, message: `Length must not exceed ${maxAmount}` };
+      }
+      
+      return { isValid: true, message: '' };
+    }
+    
+    return { isValid: true, message: '' };
+  };
+
   // Determine if we need to show the infrastructure dialog or just a text input
   const shouldUseInfraDialog = () => {
     return !shouldAutoGenerateInfraId(infraType);
@@ -146,6 +212,27 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
     onAdd(newWorkLocation);
   };
 
+  const handleCopyWorkLocation = (index: number) => {
+    const locationToCopy = workLocations[index];
+    
+    // Create a copy with new ID and potentially modified InfraId
+    const copiedLocation: MajorItemLocations = {
+      ...locationToCopy,
+      Id: 0, // New temporary ID
+      // Generate new InfraId if auto-generated type, otherwise keep the same
+      InfraId: shouldAutoGenerateInfraId(infraType) 
+        ? generateInfraId(infraType) 
+        : locationToCopy.InfraId,
+      // Append "(Copy)" to detailed scope to indicate it's a duplicate
+      DetailedScope: locationToCopy.DetailedScope 
+        ? `${locationToCopy.DetailedScope} (Copy)`
+        : '(Copy)',
+      IsDeleted: false
+    };
+    
+    onAdd(copiedLocation);
+  };
+
   const handleEditWorkLocation = (index: number) => {
     if (shouldUseInfraDialog()) {
       setIsAddingNew(false);
@@ -155,6 +242,10 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
   };
 
   const handleInfraSelect = (infraId: string, _infraName: string, _infraType: string) => {
+    // Get length from the selected infrastructure
+    const infraLength = getInfraLength(infraId);
+    const lengthValue = infraLength ? Number(infraLength) : null;
+
     if (isAddingNew) {
       // Create new work location
       const newWorkLocation: MajorItemLocations = {
@@ -165,6 +256,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
         DetailedScope: '',
         TargetUnitId: workTypeId,
         TargetUnit: actualTargetUnit,
+        Length: null,
         EndChainage: 0,
         StartChainage: 0,
         StartX: 0,
@@ -174,14 +266,17 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
         PhysicalTarget: null,
         StartStationLimit: '',
         EndStationLimit: '',
-        IsDeleted: false,
+        IsDeleted: false
       };
       onAdd(newWorkLocation);
     } else if (editingIndex !== null) {
       // Update existing work location
+      const currentLocation = workLocations[editingIndex];
       const updatedWorkLocation = {
-        ...workLocations[editingIndex],
+        ...currentLocation,
         InfraId: infraId,
+        // Only auto-populate length if current length is empty or 0
+        Length: (!currentLocation.Length || currentLocation.Length === 0) ? lengthValue : currentLocation.Length,
       };
       onEdit(editingIndex, updatedWorkLocation);
     }
@@ -211,24 +306,16 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
   const getInfraLength = (infraId: string) => {
     if (!infraId) return '';
     
-    // Use mock data for now (same as AddInfraDialog)
-    const data = mockInfraData;
-    
-    // Check in RoadSections
-    const roadSection = data.RoadSections?.find(road => road.SectionId === infraId);
-    if (roadSection) return roadSection.SectionLength?.toString() || '';
-    
-    // Check in Bridges
-    const bridge = data.Bridges?.find(bridge => bridge.BridgeId === infraId);
-    if (bridge) return bridge.Length?.toString() || '';
-    
-    // Check in FCS (might not have length properties)
-    const fcs = data.FCS?.find(f => f.FCSId === infraId);
-    if (fcs) return ''; // FCS typically don't have length
-    
-    // Check in OtherInfra (might not have length properties)  
-    const other = data.OtherInfra?.find(o => o.InfraId === infraId);
-    if (other) return ''; // Other infra might not have standardized length
+    // Check in infraData if available
+    if (infraData) {
+      // Check in RoadSections
+      const roadSection = infraData.RoadSections?.find(road => road.RoadSectionId === infraId);
+      if (roadSection) return roadSection.RoadLength?.toString() || '';
+      
+      // Check in Bridges
+      const bridge = infraData.Bridges?.find(bridge => bridge.BridgeId === infraId);
+      if (bridge) return bridge.Length?.toString() || '';
+    }
     
     return '';
   };
@@ -244,14 +331,20 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
     const infraTypeLower = infraType?.toLowerCase();
     
     if (infraTypeLower === 'road' || infraTypeLower === 'roads') {
-      return ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget', 'StartStationLimit', 'EndStationLimit', 'StartChainage', 'EndChainage', 'Length'];
+      // For Roads: Always include Length with chainages
+      return ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget', 'StartStationLimit', 'EndStationLimit', 'StartChainage','EndChainage', 'Length'];
     } else if (infraTypeLower === 'bridge' || infraTypeLower === 'bridges') {
-      return ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget'];
-    } else if (infraTypeLower === 'consultancy' || infraTypeLower === 'non-infra') {
-      return ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget'];
+      // For Bridges: Include Length only if measure is length-based
+      const baseFields = ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget'];
+      return shouldShowLengthField() ? [...baseFields, 'Length'] : baseFields;
+    } else if (infraTypeLower === 'cos' || infraTypeLower === 'non-infra') {
+      // For CoS/Non-Infra: Include Length only if measure is length-based
+      const baseFields = ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget'];
+      return shouldShowLengthField() ? [...baseFields, 'Length'] : baseFields;
     } else {
-      // Others - use coordinates
-      return ['InfraId','DetailedScope', 'TargetUnit','PhysicalTarget','StartX', 'StartY', 'EndX', 'EndY'];
+      // Others - use coordinates, include Length only if measure is length-based
+      const baseFields = ['InfraId','DetailedScope', 'TargetUnit','PhysicalTarget','StartX', 'StartY', 'EndX', 'EndY'];
+      return shouldShowLengthField() ? [...baseFields, 'Length'] : baseFields;
     }
   };
 
@@ -287,10 +380,17 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
               <input
                 type="text"
                 value={location.InfraId}
-                onChange={canSelectInfra ? undefined : (e) => handleFieldChange(index, 'InfraId', e.target.value)}
-              className={`flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(!isInfraIdEditable || disabled)}`}
-              placeholder={canSelectInfra ? "Click to select infrastructure..." : canAutoGenerate ? "Auto-generated or enter custom ID..." : "Enter infrastructure ID..."}
-              disabled={!isInfraIdEditable || disabled}
+                onChange={canSelectInfra ? undefined : (e) => {
+                  handleFieldChange(index, 'InfraId', e.target.value);
+                  // Auto-populate length if available and current length is empty or 0
+                  const newInfraLength = getInfraLength(e.target.value);
+                  if (newInfraLength && (!location.Length || location.Length === 0)) {
+                    handleFieldChange(index, 'Length', Number(newInfraLength));
+                  }
+                }}
+                className={`flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(!isInfraIdEditable || disabled)}`}
+                placeholder={canSelectInfra ? "Click to select infrastructure..." : canAutoGenerate ? "Auto-generated or enter custom ID..." : "Enter infrastructure ID..."}
+                disabled={!isInfraIdEditable || disabled}
                 readOnly={canSelectInfra}
               />
               {canSelectInfra && (
@@ -555,42 +655,100 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
         );
 
       case 'Length':
-        // Calculate difference between chainages (can be negative)
-        const difference = location.EndChainage - location.StartChainage;
-        const absoluteDifference = Math.abs(difference);
+        const isRoads = infraType.toLowerCase() === 'roads' || infraType.toLowerCase() === 'road';
+        const validation = validateLength(location);
         
-        // Check if both chainages are provided (including 0 as valid value)
-        const hasChainages = (location.StartChainage !== null && location.StartChainage !== undefined) 
-          && (location.EndChainage !== null && location.EndChainage !== undefined);
-        
-        // Use calculated difference if chainages are provided, otherwise show empty
-        const displayLength = hasChainages ? difference.toString() : '';
-        
-        // Show warning if chainages are provided and there's a difference
-        const shouldShowWarning = hasChainages && absoluteDifference > 0;
-        
-        return (
-          <div key={fieldName} className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">
-              Length (meters)
-            </label>
-            <input
-              type="number"
-              value={displayLength}
-              onChange={(e) => handleFieldChange(index, 'Length', e.target.value ? Number(e.target.value) : null)}
-              onFocus={handleNumberFocus}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
-              placeholder="Length in meters..."
-              step="0.01"
-              disabled={disabled}
-            />
-            {shouldShowWarning && (
-              <div className="text-xs text-red-600">
-                The length is calculated as the difference between Start Chainage and End Chainage: {difference} meters (absolute: {absoluteDifference} meters).
+        // For Roads: Calculate from chainages
+        if (isRoads) {
+          const difference = location.EndChainage - location.StartChainage;
+          const absoluteDifference = Math.abs(difference);
+          
+          // Check if both chainages are provided (including 0 as valid value)
+          const hasChainages = (location.StartChainage !== null && location.StartChainage !== undefined) 
+            && (location.EndChainage !== null && location.EndChainage !== undefined);
+          
+          // Use calculated difference if chainages are provided
+          const displayLength = hasChainages ? difference.toString() : '';
+          
+          // Show info or error message
+          const shouldShowInfo = hasChainages && absoluteDifference > 0;
+          const hasError = !validation.isValid;
+          
+          return (
+            <div key={fieldName} className="space-y-2">
+              <label className="block text-sm font-medium text-gray-900">
+                Length (km) <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                value={displayLength}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-100 cursor-not-allowed"
+                placeholder="Auto-calculated from chainages..."
+                readOnly
+                disabled
+              />
+              {shouldShowInfo && !hasError && (
+                <div className="text-xs text-blue-600 flex items-start">
+                  <svg className="w-4 h-4 mr-1 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                  <span>Calculated: {difference} km (End - Start = {location.EndChainage} - {location.StartChainage})</span>
+                </div>
+              )}
+              {hasError && (
+                <div className="text-xs text-red-600 flex items-start">
+                  <svg className="w-4 h-4 mr-1 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                  <span>{validation.message}</span>
+                </div>
+              )}
+              <div className="text-xs text-gray-500">
+                Length is automatically calculated from the difference between End and Start chainage
               </div>
-            )}
-          </div>
-        );
+            </div>
+          );
+        } else {
+          // For non-Roads: Simple numeric input
+          const displayLength = location.Length !== null && location.Length !== undefined ? location.Length.toString() : '';
+          const hasError = !validation.isValid && displayLength !== '';
+          const isRequired = isLengthRequired();
+          
+          return (
+            <div key={fieldName} className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Length (meters) {isRequired && <span className="text-red-500">*</span>}
+              </label>
+              <input
+                type="number"
+                value={displayLength}
+                onChange={(e) => handleFieldChange(index, 'Length', e.target.value ? Number(e.target.value) : null)}
+                onFocus={handleNumberFocus}
+                className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
+                  hasError ? 'border-red-500' : 'border-gray-300'
+                } ${getDisabledClass(!isLengthEditable || disabled)}`}
+                placeholder="Enter length in meters..."
+                step="0.01"
+                min={minAmount}
+                max={maxAmount}
+                disabled={!isLengthEditable || disabled}
+              />
+              {hasError && (
+                <div className="text-xs text-red-600 flex items-start">
+                  <svg className="w-4 h-4 mr-1 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                  <span>{validation.message}</span>
+                </div>
+              )}
+              {(maxAmount || minAmount) && (
+                <div className="text-xs text-gray-500">
+                  Range: {minAmount || 0} - {maxAmount || '∞'} meters
+                </div>
+              )}
+            </div>
+          );
+        }
 
       default:
         return null;
@@ -628,21 +786,33 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
                       </span>
                     )}
                   </h5>
-                  <Button
-                    color="red"
-                    onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      if (!disabled) {
-                        openDeleteDialog(location, index);
-                      }
-                    }}
-                    className={`flex items-center px-3 py-1 text-xs ${getDisabledClass(disabled)}`}
-                    disabled={disabled}
-                  >
-                    <TrashIcon className="w-3 h-3 mr-1" />
-                    Remove
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      color="blue"
+                      onClick={() => handleCopyWorkLocation(index)}
+                      className={`flex items-center px-3 py-1 text-xs ${getDisabledClass(disabled)}`}
+                      disabled={disabled}
+                      title="Copy this work location"
+                    >
+                      <DocumentDuplicateIcon className="w-3 h-3 mr-1" />
+                      Copy
+                    </Button>
+                    <Button
+                      color="red"
+                      onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (!disabled) {
+                          openDeleteDialog(location, index);
+                        }
+                      }}
+                      className={`flex items-center px-3 py-1 text-xs ${getDisabledClass(disabled)}`}
+                      disabled={disabled}
+                    >
+                      <TrashIcon className="w-3 h-3 mr-1" />
+                      Remove
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
