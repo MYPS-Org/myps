@@ -10,6 +10,23 @@ export interface ProjectFilter {
   ProjectId?: string;
 }
 
+export interface MultiYearFormPayload {
+  IsModify?: boolean;
+  IsActive: boolean;
+  IsUnlock?: boolean;
+  ProgramDetails: ProgramList;
+  ProjectDetails: ProjectDetails;
+  ComponentCosts: ComponentCostWithYear[];
+  MajorItemOfWorks: MajorItemOfWork[];
+  MajorItemLocations: MajorItemLocations[];
+  ProjectNotes: ProjectNote[];
+  Docs: Docs[];
+  FundingProfile: FundingProfile[];
+  Dropdowns: Dropdowns;
+  Activities: Activity[];
+  TransactionLogs: TransactionLog[];
+}
+
 export interface ProjectFormPayload {
   IsModify?: boolean;
   IsActive: boolean;
@@ -261,6 +278,37 @@ export interface FileEntity {
 	Extension: string,
 	ContentType: string,
 	DataUrl: string
+}
+
+export interface ComponentCostNew {
+	Id: number;
+	ProjectId: string;
+	ComponentType: string;
+	ComponentId: string;
+	ReferenceId: string;
+	Description?: string;
+	Total: number;
+	StageName?: string;
+	IsDeleted: boolean;
+	RevisedNumber?: number;
+	ConstructionStatusCode?: number;
+	ConstructionStatusName?: string;
+	PackedStatusCode?: boolean;
+	PackedStatusName?: string;
+	CreatedBy: string;
+	CreatedDate: string;
+	UpdatedBy?: string;
+	UpdatedDate?: string;
+}
+
+export interface CostYear {
+	Id: number;
+	ParentId: string;
+	Year: number;
+	Amount: number;
+	StartDate?: string | null;
+	EndDate?: string | null;
+	IsDeleted: boolean;
 }
 
 // #region ComponentCost

@@ -4,7 +4,8 @@ import { formValidation, type FormValidationError } from '../../../../utils/Form
 import { projectDetailsRules } from '../../../Project/rules/projectDetailsRules';
 import type { 
   ProjectDetails, 
-  ComponentCost, 
+  ComponentCostNew,
+  CostYear,
   // ProjectNote,
   FundingProfile, 
   Activity, 
@@ -12,7 +13,6 @@ import type {
   ProjectFormPayload,
   ProjectEnums,
   Dropdowns,
-  // ComponentCostYear,
   InfraData,
   MajorItemOfWorksWithDropdown,
   MajorItemOfWork,
@@ -185,11 +185,11 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     }
   }, [initialProgramId, projectEnums?.Programs]);
 
-  const [componentCosts, setComponentCosts] = useState<ComponentCost[]>(
+  const [componentCosts, setComponentCosts] = useState<ComponentCostNew[]>(
     initialData?.ComponentCosts || []
   );
 
-   const [componentCostsYear, setComponentCostsYear] = useState<ComponentCostYear[]>(
+  const [componentCostsYear, setComponentCostsYear] = useState<CostYear[]>(
     initialData?.ComponentCostPerYear || []
   );
 
@@ -329,14 +329,14 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   };
 
   // #region Component Costs
-  const handleAddComponentCost = (newCost: ComponentCost, newCostYears?: ComponentCostYear[]) => {
+  const handleAddComponentCost = (newCost: ComponentCostNew, newCostYears?: CostYear[]) => {
     console.log('=== ADDING COMPONENT COST ===');
     console.log('New cost:', newCost);
     console.log('New cost years:', newCostYears);
     console.log('Current componentCosts before add:', componentCosts);
     
     // Generate a temporary ID for new cost (will be replaced when saved)
-    const tempId = Date.now().toString(); // Simple temp ID
+    const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const costWithId = { ...newCost, ReferenceId: tempId };
     
     setComponentCosts(prev => {
@@ -345,12 +345,12 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       return updated;
     });
     
-    // If ComponentCostYear data is provided, add all entries to the componentCostsYear array
+    // If CostYear data is provided, add all entries to the componentCostsYear array
     if (newCostYears && newCostYears.length > 0) {
-      const costYearsWithParentId = newCostYears.map((yearEntry, index) => ({ 
+      const costYearsWithParentId = newCostYears.map(yearEntry => ({ 
         ...yearEntry, 
-        ParentId: tempId, // Link to the component cost
-        Id: Date.now() + index + 1 // Ensure unique IDs
+        ParentId: tempId,
+        Id: 0 // Will be assigned by backend
       }));
       
       setComponentCostsYear(prev => {
@@ -364,7 +364,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     console.log('Added component cost to staging:', costWithId);
   };
 
-  const handleEditComponentCost = (index: number, updatedCost: ComponentCost, updatedCostYears?: ComponentCostYear[]) => {
+  const handleEditComponentCost = (index: number, updatedCost: ComponentCostNew, updatedCostYears?: CostYear[]) => {
     console.log('=== EDITING COMPONENT COST ===');
     console.log('Index:', index);
     console.log('Updated cost:', updatedCost);
@@ -403,18 +403,36 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     
     const costToDelete = componentCosts[index];
     if (costToDelete) {
-      setComponentCosts(prev => {
-        const updated = prev.filter((_, i) => i !== index);
-        console.log('Updated componentCosts after delete:', updated);
-        return updated;
-      });
-      // Also remove related ComponentCostYear entries
-      setComponentCostsYear(prev => {
-        const updated = prev.filter(year => year.ParentId !== costToDelete.ReferenceId);
-        console.log('Updated componentCostsYear after delete:', updated);
-        return updated;
-      });
-      console.log('Deleted component cost from staging:', costToDelete);
+      // CASCADE DELETE: Find all related major items
+      const relatedMajorItems = majorItems.filter(
+        item => item.ComponentId === costToDelete.ComponentId && !item.IsDeleted
+      );
+      
+      if (relatedMajorItems.length > 0) {
+        showToast({
+          type: 'error',
+          message: `Cannot delete component cost. ${relatedMajorItems.length} major item(s) of work are linked to this component.`
+        });
+        return;
+      }
+
+      if (costToDelete.Id === 0) {
+        // Hard delete for new items not yet saved to database
+        setComponentCosts(prev => prev.filter((_, i) => i !== index));
+        // Also hard delete related year entries
+        setComponentCostsYear(prev => prev.filter(year => year.ParentId !== costToDelete.ReferenceId));
+        console.log('Hard deleted (removed) new component cost:', costToDelete);
+      } else {
+        // Soft delete for existing database items - mark as deleted
+        setComponentCosts(prev => prev.map((cost, i) => 
+          i === index ? { ...cost, IsDeleted: true } : cost
+        ));
+        // Also soft delete related year entries
+        setComponentCostsYear(prev => prev.map(year => 
+          year.ParentId === costToDelete.ReferenceId ? { ...year, IsDeleted: true } : year
+        ));
+        console.log('Soft deleted (IsDeleted=true) existing component cost:', costToDelete);
+      }
     }
   };
 
@@ -471,8 +489,19 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
   const handleDeleteMajorItem = (index: number) => {
     const itemToDelete = majorItems[index];
-    setMajorItems(prev => prev.filter((_, i) => i !== index));
-    console.log('Deleted major item from staging:', itemToDelete);
+    if (itemToDelete) {
+      if (itemToDelete.Id === 0) {
+        // Hard delete for new items not yet saved to database
+        setMajorItems(prev => prev.filter((_, i) => i !== index));
+        console.log('Hard deleted (removed) new major item:', itemToDelete);
+      } else {
+        // Soft delete for existing database items - mark as deleted
+        setMajorItems(prev => prev.map((item, i) => 
+          i === index ? { ...item, IsDeleted: true } : item
+        ));
+        console.log('Soft deleted (IsDeleted=true) existing major item:', itemToDelete);
+      }
+    }
   };
 // #endregion
 
@@ -492,7 +521,15 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   };
 
   const handleDeleteDoc = (doc: ProjectSupportingDocs) => {
-    setDocs(prev => prev.filter(selected => selected.Id !== doc.Id));
+    if (doc.Id === 0) {
+      // Hard delete for new items not yet saved to database
+      setDocs(prev => prev.filter(selected => selected !== doc));
+      console.log('Hard deleted (removed) new document:', doc);
+    } else {
+      // Soft delete for existing database items - mark as deleted
+      setDocs(prev => prev.map(d => d.Id === doc.Id ? { ...d, IsDeleted: true } : d));
+      console.log('Soft deleted (IsDeleted=true) existing document:', doc);
+    }
   };
 // #endregion
 
@@ -507,7 +544,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       Percentage: 0,
       Amount: 0,
       CreatedBy: '',
-      CreatedDate: new Date().toISOString().split('T')[0]
+      CreatedDate: new Date().toISOString().split('T')[0],
+      IsDeleted: false
     };
     setFundingProfiles(prev => [...prev, newProfile]);
     console.log('Added funding profile to staging:', newProfile);
@@ -526,8 +564,19 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
   const handleDeleteFundingProfile = (index: number) => {
     const profileToDelete = fundingProfiles[index];
-    setFundingProfiles(prev => prev.filter((_, i) => i !== index));
-    console.log('Deleted funding profile from staging:', profileToDelete);
+    if (profileToDelete) {
+      if (profileToDelete.Id === 0) {
+        // Hard delete for new items not yet saved to database
+        setFundingProfiles(prev => prev.filter((_, i) => i !== index));
+        console.log('Hard deleted (removed) new funding profile:', profileToDelete);
+      } else {
+        // Soft delete for existing database items - mark as deleted
+        setFundingProfiles(prev => prev.map((profile, i) => 
+          i === index ? { ...profile, IsDeleted: true } : profile
+        ));
+        console.log('Soft deleted (IsDeleted=true) existing funding profile:', profileToDelete);
+      }
+    }
   };
 // #endregion
 
@@ -591,13 +640,72 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
     // Check component cost validation
     if (maxAmountCost && maxAmountCost > 0) {
-      const totalComponentCost = componentCosts.reduce((sum, cost) => sum + (cost.Total || 0), 0);
+      const totalComponentCost = componentCosts.reduce((sum, cost) => cost.IsDeleted ? sum : sum + (cost.Total || 0), 0);
       
-      if (totalComponentCost > maxAmountCost) {
-        const exceeded = totalComponentCost - maxAmountCost;
-        businessValidationErrors.push(`Total component cost (₱${totalComponentCost.toLocaleString('en-PH')}) exceeds the maximum budget (₱${maxAmountCost.toLocaleString('en-PH')}) by ₱${exceeded.toLocaleString('en-PH')}`);
+      if (totalComponentCost !== maxAmountCost) {
+        businessValidationErrors.push(
+          `Total component cost must equal program cost.\n` +
+          `Program Cost: ₱${maxAmountCost.toLocaleString()}\n` +
+          `Current Total: ₱${totalComponentCost.toLocaleString()}\n` +
+          `Difference: ₱${Math.abs(maxAmountCost - totalComponentCost).toLocaleString()}`
+        );
       }
     }
+
+    // Check major item locations length validation
+    majorItems.forEach((majorItem, majorIndex) => {
+      if (!majorItem.IsDeleted && majorItem.MajorItemLocations) {
+        const validLocations = majorItem.MajorItemLocations.filter(loc => !loc.IsDeleted);
+        
+        if (validLocations.length === 0) {
+          businessValidationErrors.push(
+            `Major Item #${majorIndex + 1} must have at least one work location.`
+          );
+        }
+
+        // Validate each work location has required fields
+        validLocations.forEach((location, locIndex) => {
+          const missingFields: string[] = [];
+          
+          if (!location.InfraId || location.InfraId.trim() === '') {
+            missingFields.push('Infrastructure ID');
+          }
+          if (!location.DetailedScope || location.DetailedScope.trim() === '') {
+            missingFields.push('Detailed Scope');
+          }
+          if (!location.TargetUnit || location.TargetUnit.trim() === '') {
+            missingFields.push('Target Unit');
+          }
+          if (location.PhysicalTarget === null || location.PhysicalTarget === undefined || location.PhysicalTarget <= 0) {
+            missingFields.push('Physical Target');
+          }
+
+          if (missingFields.length > 0) {
+            businessValidationErrors.push(
+              `Major Item #${majorIndex + 1}, Work Location #${locIndex + 1}: Missing required fields - ${missingFields.join(', ')}`
+            );
+          }
+
+          // Validate chainage values for applicable infrastructure types
+          const infraTypesRequiringChainage = ['Road Section', 'Bridge'];
+          if (infraTypesRequiringChainage.includes(majorItem.InfraType)) {
+            if (location.StartChainage >= location.EndChainage) {
+              businessValidationErrors.push(
+                `Major Item #${majorIndex + 1}, Work Location #${locIndex + 1}: Start chainage must be less than end chainage`
+              );
+            }
+            
+            // Calculate length from chainage
+            const chainageLength = location.EndChainage - location.StartChainage;
+            if (chainageLength <= 0) {
+              businessValidationErrors.push(
+                `Major Item #${majorIndex + 1}, Work Location #${locIndex + 1}: Invalid chainage values result in zero or negative length`
+              );
+            }
+          }
+        });
+      }
+    });
 
     // If there are any business validation errors, show each one separately and return
     if (businessValidationErrors.length > 0) {
@@ -638,7 +746,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           InfraType: item.InfraType,
           TargetUnitId: item.TargetUnitId,
           TargetUnit: item.TargetUnit,
-          CreatedBy: item.CreatedBy
+          CreatedBy: item.CreatedBy,
+          IsDeleted: item.IsDeleted || false
         };
         majorItemsForPayload.push(majorItemPayload);
         
@@ -674,18 +783,19 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           ComponentId: cost.ComponentId || '',
           Description: cost.Description || '',
           Total: cost.Total || 0,
+          IsDeleted: cost.IsDeleted || false,
           CreatedBy: cost.CreatedBy || 'SYSTEM',
           CreatedDate: cost.CreatedDate || new Date().toISOString(),
           UpdatedBy: 'SYSTEM',
           UpdatedDate: new Date().toISOString(),
         })),
         ComponentCostYear: componentCostsYear.map(year => ({
-          Id: year.Id,
           ParentId: year.ParentId,
-          CostYear: year.CostYear,
-          Cost: year.Cost,
-          StartDate: year.StartDate || new Date().toISOString(),
-          EndDate: year.EndDate || new Date().toISOString()
+          Year: year.Year,
+          Amount: year.Amount,
+          StartDate: year.StartDate || null,
+          EndDate: year.EndDate || null,
+          IsDeleted: year.IsDeleted || false
         })),
         MajorItemOfWorks: majorItemsForPayload,
         MajorItemLocations: workLocationsForPayload,
