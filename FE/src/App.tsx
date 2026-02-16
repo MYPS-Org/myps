@@ -33,6 +33,8 @@ import ViewRevision from './pages/Modification/views/ViewRevision';
 import MultiYearReports from './pages/Reports/MultiYearReports';
 import ProgramReports from './pages/Reports/ProgramReports';
 import ProjectReports from './pages/Reports/ProjectReports';
+import LumpSumList from './pages/LumpSum/Views/LumpSumList';
+import LumpSumDetails from './pages/LumpSum/Views/LumpSumDetails';
 
 // import AddProgram from './pages/Program/Views/AddProgram';
 function App() {
@@ -235,7 +237,24 @@ function App() {
 										</ProtectedRoute>
 									} 
 								/>
+								<Route
+								path='/lumpsum'
+								element={
+									<ProtectedRoute>
+										<LumpSumList />
+									</ProtectedRoute>
+								}/>
+								<Route
+								path='/lumpsum/:projectId'
+								element={
+									<ProtectedRoute>
+										<LumpSumDetails />
+									</ProtectedRoute>
+								}/>
 							</Route>
+
+
+							
 							
 							<Route 
 								path="/layout" 

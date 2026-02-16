@@ -44,7 +44,7 @@ const ConfirmDialogBatch: React.FC<ConfirmDialogBatchProps> = ({
         };
       case 'unpublish':
         return {
-          title: 'Confirm Unpublish Projects',
+          title: 'Confirm Restriction of Projects',
           message: 'You are about to mark the following projects as "Do Not Publish". They will be hidden from published reports.',
           warningLevel: 'warning' as const,
           icon: ExclamationTriangleIcon,

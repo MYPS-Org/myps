@@ -17,7 +17,8 @@ import type {
   MajorItemOfWorksWithDropdown,
   MajorItemOfWork,
   MajorItemLocations,
-  ProjectSupportingDocs
+  ProjectSupportingDocs,
+  MultiYearFormPayload,
 } from '../../../Project/Model.d';
 
 import { Button } from '../../../../components/tailwindui/button';
@@ -37,9 +38,10 @@ import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import type { ProgramList } from '../../../Program/Model';
 import { useToast } from '../../../../components/toaster/ToasterContext';
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/react';
+import { useAuth } from '../../../../contexts/AuthContext';
 
 interface ProjectFormProps {
-  initialData?: ProjectFormPayload;
+  initialData?: MultiYearFormPayload;
   mode?: 'add' | 'edit';
   initialProgramId?: string;
 }
@@ -47,6 +49,7 @@ interface ProjectFormProps {
 const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', initialProgramId }) => {
 
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [savingSection, setSavingSection] = useState<string | null>(null);
   const [projectEnums, setProjectEnums] = useState<ProjectEnums | null>(null);
@@ -190,7 +193,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   );
 
   const [componentCostsYear, setComponentCostsYear] = useState<CostYear[]>(
-    initialData?.ComponentCostPerYear || []
+    initialData?.CostYear || []
   );
 
   // Combine componentCosts and componentCostsYear for UI - using useMemo to ensure proper recalculation
@@ -470,7 +473,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       TargetUnit: '',
       CreatedBy: '',
       MajorItemLocations: [], // Initialize empty work locations
-      DropdownData: []
+      DropdownData: [],
+      IsDeleted: false
     };
     setMajorItems(prev => [...prev, newItem]);
     console.log('Added major item to staging:', newItem);
@@ -599,7 +603,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       console.log('Adding new project details:', projectDetails);
       const response = await addProjectDetails({
         ...projectDetails,
-        EmergencyMode: projectDetails.EmergencyMode ? true : false,
       });
       
       if (response.Data.ProjectId && response.Data.StageName) {
@@ -763,33 +766,30 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         }
       });
       
-      const payload = {
+      const payload: MultiYearFormPayload = {
         ProjectDetails: {
           ...projectDetails,
           // Add missing required fields for the expected payload
-          ProgramName: programDetails.Name || '',
-          EmergencyMode: projectDetails.EmergencyMode ? true : false,
-          CreatedBy: projectDetails.CreatedBy || 'SYSTEM',
-          CreatedDate: projectDetails.CreatedDate || new Date().toISOString(),
-          UpdatedBy: 'SYSTEM', // Set current user
+          UpdatedBy: user?.UserId, // Set current user
           UpdatedDate: new Date().toISOString(),
         },
         ComponentCosts: componentCosts.map(cost => ({
           Id: cost.Id,
-          ProjectId: cost.ProjectId || projectDetails.ProjectId || '',
-          StageName: initialData?.ProgramDetails?.StageName || '',
-          ReferenceId: cost.ReferenceId || '',
-          ComponentType: cost.ComponentType || '',
-          ComponentId: cost.ComponentId || '',
-          Description: cost.Description || '',
-          Total: cost.Total || 0,
+          ProjectId: cost.ProjectId,
+          StageName: initialData?.ProgramDetails?.StageName,
+          ReferenceId: cost.ReferenceId,
+          ComponentType: cost.ComponentType,
+          ComponentId: cost.ComponentId,
+          Description: cost.Description,
+          Total: cost.Total,
           IsDeleted: cost.IsDeleted || false,
           CreatedBy: cost.CreatedBy || 'SYSTEM',
           CreatedDate: cost.CreatedDate || new Date().toISOString(),
-          UpdatedBy: 'SYSTEM',
+          UpdatedBy: user?.UserId,
           UpdatedDate: new Date().toISOString(),
         })),
-        ComponentCostYear: componentCostsYear.map(year => ({
+        CostYear: componentCostsYear.map(year => ({
+          Id: 0,
           ParentId: year.ParentId,
           Year: year.Year,
           Amount: year.Amount,
@@ -801,8 +801,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         MajorItemLocations: workLocationsForPayload,
         // ProjectNotes: notes, // Include ProjectNotes as it's in the expected payload
         FundingProfile: fundingProfiles.map(profile => ({
-          ...profile, StageName: initialData?.ProgramDetails?.StageName || '',
-        }))
+          ...profile, StageName: initialData?.ProgramDetails?.StageName,
+        })),
+        IsAllowedToProceed: false // Assuming user is allowed to proceed
       };
 
       console.log('=== SENDING TO BACKEND (MATCHING EXPECTED PAYLOAD) ===');
@@ -1038,7 +1039,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             <p className="text-sm text-blue-600 font-medium">⚠️ Add component costs first - they are required for Major Items of Work</p>
           </div>
           <ComponentCostForm
-            componentCosts={componentCostsWithYears}
+            componentCosts={componentCosts}
             onAdd={handleAddComponentCost}
             onEdit={handleEditComponentCost}
             onDelete={handleDeleteComponentCost}

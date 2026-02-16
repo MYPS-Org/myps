@@ -16,7 +16,8 @@ export interface MultiYearFormPayload {
   IsUnlock?: boolean;
   ProgramDetails: ProgramList;
   ProjectDetails: ProjectDetails;
-  ComponentCosts: ComponentCostWithYear[];
+  ComponentCosts: ComponentCostNew[];
+  CostYear: CostYear[];
   MajorItemOfWorks: MajorItemOfWork[];
   MajorItemLocations: MajorItemLocations[];
   ProjectNotes: ProjectNote[];
@@ -25,6 +26,7 @@ export interface MultiYearFormPayload {
   Dropdowns: Dropdowns;
   Activities: Activity[];
   TransactionLogs: TransactionLog[];
+  IsAllowedToProceed?: boolean;
 }
 
 export interface ProjectFormPayload {

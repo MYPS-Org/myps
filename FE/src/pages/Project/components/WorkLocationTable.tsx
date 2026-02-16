@@ -134,10 +134,10 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
     return !shouldAutoGenerateInfraId(infraType);
   };
 
-  const maxX = 126.8072562;
-  const minX = 116.8879;
-  const maxY = 21.3217806;
-  const minY = 4.4149;
+  const maxX = 126.59666666666665;
+  const minX = 116.66666666666666;
+  const maxY = 21.1666666666666670;
+  const minY = 4.666666666666666;
 
   const handleAddWorkLocation = () => {
     // Generate InfraId automatically for non-selectable infrastructure types
@@ -343,13 +343,13 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
     if (coordinate === 'X') {
       return (
         <div className="text-xs text-gray-500">
-          Range: 116.8879 - 126.6050
+          Range: {minX} - {maxX}
         </div>
       )
     } else if (coordinate === 'Y') {
       return (
         <div className="text-xs text-gray-500">
-          Range: 4.4149 - 21.1218
+          Range: {minY} - {maxY}
         </div>
       )
     }

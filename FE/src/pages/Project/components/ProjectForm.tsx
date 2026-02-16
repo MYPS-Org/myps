@@ -690,10 +690,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             }
 
             // Validate coordinate bounds
-            const maxX = 126.8072562;
-            const minX = 114.0952145;
-            const maxY = 21.3217806;
-            const minY = 4.4149;
+            const maxX = 126.59666666666665;
+            const minX = 116.66666666666666;
+            const maxY = 21.1666666666666670;
+            const minY = 4.666666666666666;
 
             // Check StartX
             if (location.StartX !== null && location.StartX !== undefined && location.StartX !== 0) {

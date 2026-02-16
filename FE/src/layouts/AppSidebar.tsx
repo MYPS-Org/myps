@@ -112,6 +112,10 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 					<Square2StackIcon />
 					<SidebarLabel className="text-gray-500">Projects</SidebarLabel>
 				</SidebarItem>
+				<SidebarItem href="/lumpsum" current={currentPath === '/lumpsum'}>
+					<Square2StackIcon />
+					<SidebarLabel className="text-gray-500">Lump Sum</SidebarLabel>
+				</SidebarItem>
 				<SidebarItem href="/revision" current={currentPath === '/revision'}>
 					<Square2StackIcon />
 					<SidebarLabel className="text-gray-500">Revision</SidebarLabel>
