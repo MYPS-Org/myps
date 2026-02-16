@@ -209,23 +209,26 @@ export function SidebarDropdown({
   )
 
   return (
-    <div {...props} className={clsx(className, 'relative')}>
-      {hasCurrentChild && (
+    <div {...props} className={clsx(className, 'relative block')}>
+      {/* {hasCurrentChild && (
         <motion.span
           layoutId="current-indicator"
           className="absolute inset-y-2 -left-4 w-0.5 rounded-full bg-zinc-950"
         />
-      )}
+      )} */}
       {href ? (
         <Headless.CloseButton
           as={Link}
           href={href}
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={(e) => {
+            e.preventDefault();
+            setIsOpen(!isOpen);
+          }}
           className={buttonClasses}
           data-current={hasCurrentChild ? 'true' : undefined}
         >
           <TouchTarget>
-            {iconElements.map((icon, index) => 
+            {iconElements.length > 0 && iconElements.map((icon, index) => 
               React.cloneElement(icon, { 
                 key: index, 
                 'data-slot': 'icon' 
@@ -248,7 +251,7 @@ export function SidebarDropdown({
           data-current={hasCurrentChild ? 'true' : undefined}
         >
           <TouchTarget>
-            {iconElements.map((icon, index) => 
+            {iconElements.length > 0 && iconElements.map((icon, index) => 
               React.cloneElement(icon, { 
                 key: index, 
                 'data-slot': 'icon' 
@@ -273,7 +276,7 @@ export function SidebarDropdown({
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2, ease: 'easeInOut' }}
-            className="overflow-hidden"
+            className="overflow-hidden block"
           >
             <div className="ml-6 mt-1 space-y-1 border-l border-zinc-200 pl-4">
               {dropdownItems}
@@ -312,11 +315,11 @@ export function SidebarDropdownItem({
   )
 
   return (
-    <span className={clsx(className, 'relative')}>
+    <span className={clsx(className, 'relative block')}>
       {current && (
         <motion.span
           layoutId="current-dropdown-indicator"
-          className="absolute inset-y-1 -left-28 w-0.5 rounded-full bg-zinc-950"
+          className="absolute inset-y-0 w-0.5 rounded-full bg-zinc-950 transform -translate-x-[14px]"
         />
       )}
       {'href' in props ? (
@@ -334,7 +337,7 @@ export function SidebarDropdownItem({
           className={clsx('cursor-default', classes)}
           data-current={current ? 'true' : undefined}
         >
-          <TouchTarget>{children}rine?</TouchTarget>
+          <TouchTarget>{children}</TouchTarget>
         </Headless.Button>
       )}
     </span>
