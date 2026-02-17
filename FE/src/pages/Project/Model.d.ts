@@ -36,6 +36,7 @@ export interface ProjectFormPayload {
   ProgramDetails: ProgramList;
   ProjectDetails: ProjectDetails;
   ComponentCosts: ComponentCost[];
+  ComponentCostPerYear: ComponentCostPerYear[];
   MajorItemOfWorks: MajorItemOfWork[];
   MajorItemLocations: MajorItemLocations[];
   ProjectNotes: ProjectNote[];
@@ -336,11 +337,15 @@ export interface ComponentCost {
 	UpdatedDate?: string;
 }
 
-export interface ComponentCostYear {
-	Year: number;
-	Amount: number;
-	StartDate?: string | null;
-	EndDate?: string | null;
+export interface ComponentCostPerYear {
+	Id: number;
+	ParentId: string;
+	Amount?: number;
+	Year?: number;
+	StartDate?: string;
+	EndDate?: string;
+	CreatedBy: string;
+	CreatedDate: string;
 	IsDeleted: boolean;
 }
 
