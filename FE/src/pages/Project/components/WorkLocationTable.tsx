@@ -8,6 +8,7 @@ import type { MajorItemLocations, InfraData, ScopeOfWorkEnum, MajorItemOfWork } 
 import type { ProgramList } from '../../Program/Model';
 import { getDisabledClass } from '../../../utils/GlobalFunctions';
 import { unitTypeMap } from '../utils/unitTypes';
+import { defaultCoordinates } from '../utils/coordinates';
 
 interface WorkLocationTableProps {
   majorItemOfWorks: MajorItemOfWork;
@@ -343,13 +344,13 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
     if (coordinate === 'X') {
       return (
         <div className="text-xs text-gray-500">
-          Range: {minX} - {maxX}
+          Range: {defaultCoordinates.minX} - {defaultCoordinates.maxX}
         </div>
       )
     } else if (coordinate === 'Y') {
       return (
         <div className="text-xs text-gray-500">
-          Range: {minY} - {maxY}
+          Range: {defaultCoordinates.minY} - {defaultCoordinates.maxY}
         </div>
       )
     }

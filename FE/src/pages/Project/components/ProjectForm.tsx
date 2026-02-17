@@ -40,6 +40,7 @@ import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/react';
 import RevisionDialog from '../dialogs/RevisionDialog';
 import SaveProjectConfirmDialog from '../dialogs/SaveProjectConfirmDialog';
 import ProceedAddProject from '../dialogs/ProceedAddProject';
+import { defaultCoordinates } from '../utils/coordinates';
 
 interface ProjectFormProps {
   initialData?: ProjectFormPayload;
@@ -118,7 +119,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       ExternalId: '',
       MYId: '',
       UACS: '',
-      // MYCAApprovalDate: '',
+      MYCAApprovalDate: '',
       IslandCode: '',
       RevisionId: 0,
       Description: '',
@@ -157,24 +158,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         console.error('Error loading project enums:', error);
       }
     };
-
-    // Load infrastructure data
-    // const loadInfrastructureData = async () => {
-    //   try {
-    //     const response = await getInfrastructureData();
-    //     console.log('Infrastructure Data:', response.Data);
-    //     setInfraData(response.Data);
-    //   } catch (error) {
-    //     console.error('Error loading infrastructure data:', error);
-    //     // Set empty data on error to prevent crashes
-    //     setInfraData({
-    //       RoadSections: [],
-    //       Bridges: [],
-    //       FCS: [],
-    //       OtherInfra: []
-    //     });
-    //   }
-    // };
 
     loadProjectEnums();
     // loadInfrastructureData();
@@ -320,10 +303,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const [transactionLogs] = useState<TransactionLog[]>(
     initialData?.TransactionLogs || []
   );
-
-  // const handleGoBack = () => {
-  //   navigate('/projects');
-  // };
 
   const handleProjectDetailsChange = (field: keyof ProjectDetails, value: any) => {
     setProjectDetails(prev => ({ ...prev, [field]: value }));
@@ -535,8 +514,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     setFundingProfiles(prev => 
       prev.map((profile, i) => i === index ? profileWithResetId : profile)
     );
-    
-    // console.log('Updated funding profile in staging:', profileWithResetId);
   };
 
   const handleDeleteFundingProfile = (index: number) => {
@@ -689,44 +666,38 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
               );
             }
 
-            // Validate coordinate bounds
-            const maxX = 126.59666666666665;
-            const minX = 116.66666666666666;
-            const maxY = 21.1666666666666670;
-            const minY = 4.666666666666666;
-
             // Check StartX
             if (location.StartX !== null && location.StartX !== undefined && location.StartX !== 0) {
-              if (location.StartX < minX || location.StartX > maxX) {
+              if (location.StartX < defaultCoordinates.minX || location.StartX > defaultCoordinates.maxX) {
                 businessValidationErrors.push(
-                  `Major Item ${majorIndex + 1}, Location ${locIndex + 1} (${location.InfraId || 'Unknown'}): Start X coordinate (${location.StartX}) is out of valid range (${minX} - ${maxX})`
+                  `Major Item ${majorIndex + 1}, Location ${locIndex + 1} (${location.InfraId || 'Unknown'}): Start X coordinate (${location.StartX}) is out of valid range (${defaultCoordinates.minX} - ${defaultCoordinates.maxX})`
                 );
               }
             }
 
             // Check StartY
             if (location.StartY !== null && location.StartY !== undefined && location.StartY !== 0) {
-              if (location.StartY < minY || location.StartY > maxY) {
+              if (location.StartY < defaultCoordinates.minY || location.StartY > defaultCoordinates.maxY) {
                 businessValidationErrors.push(
-                  `Major Item ${majorIndex + 1}, Location ${locIndex + 1} (${location.InfraId || 'Unknown'}): Start Y coordinate (${location.StartY}) is out of valid range (${minY} - ${maxY})`
+                  `Major Item ${majorIndex + 1}, Location ${locIndex + 1} (${location.InfraId || 'Unknown'}): Start Y coordinate (${location.StartY}) is out of valid range (${defaultCoordinates.minY} - ${defaultCoordinates.maxY})`
                 );
               }
             }
 
             // Check EndX
             if (location.EndX !== null && location.EndX !== undefined && location.EndX !== 0) {
-              if (location.EndX < minX || location.EndX > maxX) {
+              if (location.EndX < defaultCoordinates.minX || location.EndX > defaultCoordinates.maxX) {
                 businessValidationErrors.push(
-                  `Major Item ${majorIndex + 1}, Location ${locIndex + 1} (${location.InfraId || 'Unknown'}): End X coordinate (${location.EndX}) is out of valid range (${minX} - ${maxX})`
+                  `Major Item ${majorIndex + 1}, Location ${locIndex + 1} (${location.InfraId || 'Unknown'}): End X coordinate (${location.EndX}) is out of valid range (${defaultCoordinates.minX} - ${defaultCoordinates.maxX})`
                 );
               }
             }
 
             // Check EndY
             if (location.EndY !== null && location.EndY !== undefined && location.EndY !== 0) {
-              if (location.EndY < minY || location.EndY > maxY) {
+              if (location.EndY < defaultCoordinates.minY || location.EndY > defaultCoordinates.maxY) {
                 businessValidationErrors.push(
-                  `Major Item ${majorIndex + 1}, Location ${locIndex + 1} (${location.InfraId || 'Unknown'}): End Y coordinate (${location.EndY}) is out of valid range (${minY} - ${maxY})`
+                  `Major Item ${majorIndex + 1}, Location ${locIndex + 1} (${location.InfraId || 'Unknown'}): End Y coordinate (${location.EndY}) is out of valid range (${defaultCoordinates.minY} - ${defaultCoordinates.maxY})`
                 );
               }
             }
@@ -914,7 +885,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             <div>
               
             </div>
-            <div className="flex space-x-3">
+            <div className="flex flex-col space-y-3 fixed top-4 left-4 z-50">
                 {mode === 'edit' && initialData?.IsActive === true && initialData?.IsUnlock === true && initialData?.ProgramDetails?.StageId !== 10 && (
                   <>
                     <Button color="red" className='cursor-pointer' onClick={() => handleLock(initialData?.ProjectDetails?.ProjectId ?? '', initialData?.ProgramDetails?.StageName ?? '')} disabled={updateAllProject}>
