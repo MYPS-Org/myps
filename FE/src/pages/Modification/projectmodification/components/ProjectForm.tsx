@@ -5,7 +5,8 @@ import { projectDetailsRules } from '../../../Project/rules/projectDetailsRules'
 
 import type { 
   ProjectDetails, 
-  ComponentCost, 
+  ComponentCost,
+  ComponentCostPerYear, 
   // ProjectNote,
   FundingProfile, 
   Activity, 
@@ -53,7 +54,8 @@ import ResubmitRevisionDialog from '../../dialogs/ResubmitRevisionDialog';
 
 import { useAtom } from 'jotai';
 import {
-  componentCostsAtom
+  componentCostsAtom,
+  componentCostPerYearAtom
 } from '../../atoms/componentCosts.atom';
 import { useComponentCosts } from '../../hooks/useComponentCosts';
 
@@ -262,17 +264,21 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   // #region State and Handlers
   // Component Costs: use Jotai atoms instead of local state ===
   const [componentCosts, setComponentCosts] = useAtom(componentCostsAtom);
-  const { add: addComponentCost, update: updateComponentCost, removeByIndex: deleteComponentCost } = useComponentCosts();
+  const [componentCostPerYear] = useAtom(componentCostPerYearAtom);
+  const { add: addComponentCost, update: updateComponentCost, removeByIndex: deleteComponentCost, seedFromInitial } = useComponentCosts();
 
-  // Seed atoms from initialData when editing an existing revision
+  // Seed atoms from initialData whenever it's available (not just in edit mode)
   useEffect(() => {
-    if (mode === 'edit' && initialData) {
-      setComponentCosts((initialData.ComponentCosts || []).map(cost => ({
-        ...cost,
-        ProjectId: (cost.ProjectId || '').replace(/\s+/g, '')
-      })));
+    if (initialData) {
+      seedFromInitial({
+        ComponentCosts: (initialData.ComponentCosts || []).map(cost => ({
+          ...cost,
+          ProjectId: (cost.ProjectId || '').replace(/\s+/g, '')
+        })),
+        ComponentCostPerYear: initialData.ComponentCostPerYear || []
+      });
     }
-  }, [mode, initialData, setComponentCosts]);
+  }, [mode, initialData, seedFromInitial]);
 
   // Major Items of Work: use Jotai atoms instead of local state ===
   const {
@@ -318,7 +324,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         );
 
         if (!hasExcessComponent) {
-          addComponentCost(automation.excessComponent);
+          addComponentCost(automation.excessComponent, []);
           
           showToast({
             type: 'info',
@@ -404,14 +410,14 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   };
 
   // #region Component Costs handlers (now using atoms)
-  const handleAddComponentCost = (newCost: ComponentCost) => {
-    addComponentCost(newCost);
+  const handleAddComponentCost = (newCost: ComponentCost, newCostPerYear: ComponentCostPerYear[]) => {
+    addComponentCost(newCost, newCostPerYear);
   };
 
-  const handleEditComponentCost = (index: number, updatedCost: ComponentCost) => {
+  const handleEditComponentCost = (index: number, updatedCost: ComponentCost, updatedCostPerYear: ComponentCostPerYear[]) => {
     const existingCost = componentCosts[index];
     if (existingCost?.ComponentId) {
-      updateComponentCost(String(existingCost.ComponentId), updatedCost);
+      updateComponentCost(String(existingCost.ComponentId), updatedCost, updatedCostPerYear);
     }
   };
 
@@ -464,7 +470,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       });
 
       // add via hook method
-      addComponentCost(excComponent);
+      addComponentCost(excComponent, []);
       showToast({
         type: 'success',
         message: 'EXC component created successfully'
@@ -607,7 +613,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
     // Check component cost validation
     if (maxAmountCost && maxAmountCost > 0) {
-      const totalComponentCost = componentCosts.reduce((sum, cost) => sum + (cost.Amount || 0), 0);
+      const totalComponentCost = componentCosts.reduce((sum, cost) => sum + (cost.Total || 0), 0);
       
       if (totalComponentCost > maxAmountCost) {
         const exceeded = totalComponentCost - maxAmountCost;
@@ -692,7 +698,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         console.log(`[${index}] ${cost.ComponentId}:`, {
           Id: cost.Id,
           IsDeleted: cost.IsDeleted,
-          Amount: cost.Amount
+          Total: cost.Total
         });
       });
       console.log('======================================');
@@ -749,14 +755,27 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           ComponentType: cost.ComponentType || '',
           ComponentId: cost.ComponentId || '',
           Description: cost.Description || '',
-          Amount: cost.Amount || 0,
-          StartDate: cost.StartDate || null,
-          EndDate: cost.EndDate || null,
+          CostId: cost.CostId || cost.ComponentId || '',
+          Total: cost.Total || 0,
           CreatedBy: cost.CreatedBy || user?.UserId,
           CreatedDate: cost.CreatedDate || new Date().toISOString(),
           UpdatedBy: user?.UserId,
           UpdatedDate: new Date().toISOString(),
           IsDeleted: cost.IsDeleted
+        })),
+        ComponentCostPerYear: componentCostPerYear.map(costPerYear => ({
+          Id: costPerYear.Id,
+          ComponentCostId: costPerYear.ComponentCostId,
+          StageName: initialData?.ProgramDetails?.StageName || '',
+          Amount: costPerYear.Amount,
+          Year: costPerYear.Year,
+          StartDate: costPerYear.StartDate,
+          EndDate: costPerYear.EndDate,
+          CreatedBy: costPerYear.CreatedBy || user?.UserId,
+          CreatedDate: costPerYear.CreatedDate || new Date().toISOString(),
+          UpdatedBy: user?.UserId,
+          UpdatedDate: new Date().toISOString(),
+          IsDeleted: costPerYear.IsDeleted || false
         })),
         MajorItemOfWorks: majorItemsForPayload,
         MajorItemLocations: workLocationsForPayload,
@@ -791,7 +810,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   };
 
   const handleSubmitModify = (type: string) => {
-    const totalComponentCost = componentCosts.reduce((sum, cost) => cost.IsDeleted ? sum : sum + (cost.Amount || 0), 0);
+    const totalComponentCost = componentCosts.reduce((sum, cost) => cost.IsDeleted ? sum : sum + (cost.Total || 0), 0);
     
     // Calculate total funding profile amount
     const totalFundingAmount = fundingProfiles.reduce((sum, profile) => 
@@ -1164,6 +1183,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
               </div>
               <ComponentCostForm
                 componentCosts={componentCosts}
+                componentCostPerYear={componentCostPerYear}
                 onAdd={handleAddComponentCost}
                 onEdit={handleEditComponentCost}
                 onDelete={handleDeleteComponentCost}
@@ -1235,6 +1255,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         revisionGroupId={revisionGroupId}
         project={projectDetails}
         componentCosts={componentCosts}
+        componentsCostPerYear={componentCostPerYear}
         majorItemOfWorks={majorItems.map(item => ({
           Id: item.Id,
           ProjectId: item.ProjectId,
@@ -1271,6 +1292,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         revisionGroupId={revisionGroupId}
         project={projectDetails}
         componentCosts={componentCosts}
+        componentsCostPerYear={componentCostPerYear}
         majorItemOfWorks={majorItems.map(item => ({
           Id: item.Id,
           ProjectId: item.ProjectId,
@@ -1338,7 +1360,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           onConfirm={handleExcessPromptConfirm}
           onCancel={handleExcessPromptCancel}
           projectCost={programDetails.Cost || 0}
-          totalComponentCost={componentCosts.reduce((sum, cost) => sum + (cost.Amount || 0), 0)}
+          totalComponentCost={componentCosts.reduce((sum, cost) => sum + (cost.Total || 0), 0)}
           excessAmount={excessComponentData.excessAmount}
         />
       )}

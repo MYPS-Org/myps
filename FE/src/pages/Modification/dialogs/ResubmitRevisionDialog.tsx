@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon} from '@heroicons/react/24/outline';
-import type { ProjectDetails, ComponentCost, MajorItemOfWork, MajorItemLocations, FundingProfile } from '../../Project/Model';
-import { ResubmitRevisionRequest, submitModificationRequest, updateRevisionRequestStatus } from '../Service';
+import type { ProjectDetails, ComponentCost, MajorItemOfWork, MajorItemLocations, FundingProfile, ComponentCostPerYear } from '../../Project/Model';
+import { ResubmitRevisionRequest } from '../Service';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -15,6 +15,7 @@ interface ReviseProjectDialogProps {
     onClose: () => void;
     project: ProjectDetails;
     componentCosts: ComponentCost[];
+    componentsCostPerYear: ComponentCostPerYear[];
     majorItemOfWorks: MajorItemOfWork[];
     majorItemLocations: MajorItemLocations[];
     fundingProfile: FundingProfile[];
@@ -31,6 +32,7 @@ const ResubmitRevisionDialog: React.FC<ReviseProjectDialogProps> = ({
     onClose, 
     project,
     componentCosts,
+    componentsCostPerYear,
     majorItemOfWorks,
     majorItemLocations,
     fundingProfile,
@@ -44,56 +46,13 @@ const ResubmitRevisionDialog: React.FC<ReviseProjectDialogProps> = ({
     const navigate = useNavigate()
     const { showToast } = useToast();
     const { user } = useAuth(); // Get user from auth context
-    const [approvalDate, setApprovalDate] = useState<string>('');
-    const [approvalDocument, setApprovalDocument] = useState<{
-        Name: string;
-        Extension: string;
-        ContentType: string;
-        DataUrl: string;
-    } | null>(null);
     const [revisionType] = useState<string>('');
-    const [isCertified, setIsCertified] = useState<boolean>(false);
 
     console.log('ReviseProjectDialog - Received IDs:', { categoryId, revisionGroupId, reasonId });
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
     const transactionId = useAtomValue(transactionIdAtom); // Get transactionId from atom
 
-
-    // Reset form when modal opens
-    useEffect(() => {
-        if (isOpen) {
-            setApprovalDate('');
-            setApprovalDocument(null);
-            setIsCertified(false);
-        }
-    }, [isOpen]);
-
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            // Check if file is PDF
-            if (file.type !== 'application/pdf') {
-                showToast({
-                    type: 'error',
-                    message: 'Please select a PDF file only.'
-                });
-                e.target.value = ''; // Clear the input
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setApprovalDocument({
-                    Name: file.name,
-                    Extension: file.name.split('.').pop() || '',
-                    ContentType: file.type,
-                    DataUrl: reader.result as string,
-                });
-            };
-            reader.readAsDataURL(file);
-        }
-    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -109,6 +68,7 @@ const ResubmitRevisionDialog: React.FC<ReviseProjectDialogProps> = ({
                 },
                 ProjectDetails: project,
                 ComponentCosts: componentCosts,
+                ComponentCostPerYear: componentsCostPerYear || [],
                 MajorItemOfWorks: majorItemOfWorks,
                 MajorItemLocations: majorItemLocations,
                 FundingProfile: fundingProfile,
@@ -116,11 +76,10 @@ const ResubmitRevisionDialog: React.FC<ReviseProjectDialogProps> = ({
 
             console.log('Submitting modification request with payload:', payload);
 
-            let response;
             //adjust this later
             if (user?.UserGroups === 'DPC') {
                 // Implementing Office: Submit new modification request
-                response = await ResubmitRevisionRequest(payload);
+                await ResubmitRevisionRequest(payload);
                 
                 showToast({
                     type: 'success',

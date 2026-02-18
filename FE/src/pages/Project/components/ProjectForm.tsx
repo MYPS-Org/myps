@@ -5,7 +5,8 @@ import { formValidation, type FormValidationError } from '../../../utils/FormVal
 import { projectDetailsRules } from '../rules/projectDetailsRules';
 import type { 
   ProjectDetails, 
-  ComponentCost, 
+  ComponentCost,
+  ComponentCostPerYear, 
   // ProjectNote,
   FundingProfile, 
   Activity, 
@@ -119,7 +120,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       ExternalId: '',
       MYId: '',
       UACS: '',
-      MYCAApprovalDate: '',
+      MYCAApprovalDate: null,
       IslandCode: '',
       RevisionId: 0,
       Description: '',
@@ -213,6 +214,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   }, [initialProgramId, initialStageName, projectEnums?.Programs]);
   const [componentCosts, setComponentCosts] = useState<ComponentCost[]>(
     initialData?.ComponentCosts || []
+  );
+
+  const [componentCostPerYear, setComponentCostPerYear] = useState<ComponentCostPerYear[]>(
+    initialData?.ComponentCostPerYear || []
   );
 
   // Debug effect to monitor componentCosts state changes
@@ -327,24 +332,33 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   };
 
   // #region Component Costs
-  const handleAddComponentCost = (newCost: ComponentCost) => {
+  const handleAddComponentCost = (newCost: ComponentCost, newCostPerYear: ComponentCostPerYear[]) => {
     console.log('=== ADDING COMPONENT COST ===');
     console.log('New cost:', newCost);
+    console.log('New cost per year:', newCostPerYear);
     console.log('Current componentCosts before add:', componentCosts);
     
     setComponentCosts(prev => {
       const updated = [...prev, newCost];
-      console.log('Updated componentCosts:', updated);
+      console.log('Updated componentCosts after add:', updated);
+      return updated;
+    });
+    
+    // Add per-year costs
+    setComponentCostPerYear(prev => {
+      const updated = [...prev, ...newCostPerYear];
+      console.log('Updated componentCostPerYear after add:', updated);
       return updated;
     });
     
     console.log('Added component cost to staging:', newCost);
   };
 
-  const handleEditComponentCost = (index: number, updatedCost: ComponentCost) => {
+  const handleEditComponentCost = (index: number, updatedCost: ComponentCost, updatedCostPerYear: ComponentCostPerYear[]) => {
     console.log('=== EDITING COMPONENT COST ===');
     console.log('Index:', index);
     console.log('Updated cost:', updatedCost);
+    console.log('Updated cost per year:', updatedCostPerYear);
     console.log('Current componentCosts before edit:', componentCosts);
     
     setComponentCosts(prev => {
@@ -352,6 +366,17 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       console.log('Updated componentCosts after edit:', updated);
       return updated;
     });
+    
+    // Update per-year costs for this component
+    setComponentCostPerYear(prev => {
+      // Remove existing per-year costs for this component
+      const filteredCosts = prev.filter(cost => cost.ComponentCostId !== updatedCost.CostId);
+      // Add updated per-year costs
+      const updated = [...filteredCosts, ...updatedCostPerYear];
+      console.log('Updated componentCostPerYear after edit:', updated);
+      return updated;
+    });
+    
     console.log('Updated component cost in staging:', updatedCost);
   };
 
@@ -374,15 +399,27 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         // Hard delete for new items not yet saved to database
         setComponentCosts(prev => prev.filter((_, i) => i !== index));
         
+        // Hard delete associated per-year costs
+        setComponentCostPerYear(prev => 
+          prev.filter(cost => cost.ComponentCostId !== costToDelete.CostId)
+        );
+        
         // Cascade hard delete: Remove all related major items and their locations
         setMajorItems(prev => prev.filter(item => item.ComponentId !== costToDelete.ComponentId));
         
-        console.log('Hard deleted (removed) component cost and related major items:', costToDelete);
+        console.log('Hard deleted (removed) component cost, per-year costs, and related major items:', costToDelete);
       } else {
         // Soft delete for existing database items
         setComponentCosts(prev => prev.map((cost, i) => 
           i === index ? { ...cost, IsDeleted: true } : cost
         ));
+        
+        // Soft delete associated per-year costs
+        setComponentCostPerYear(prev => 
+          prev.map(cost => 
+            cost.ComponentCostId === costToDelete.CostId ? { ...cost, IsDeleted: true } : cost
+          )
+        );
         
         // Cascade soft delete: Mark all related major items as deleted
         // This will also cascade to their work locations since they're part of MajorItemLocations array
@@ -401,7 +438,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           return item;
         }));
         
-        console.log('Soft deleted (IsDeleted=true) component cost and cascaded to related major items:', costToDelete);
+        console.log('Soft deleted (IsDeleted=true) component cost, per-year costs, and cascaded to related major items:', costToDelete);
       }
     }
   };
@@ -638,7 +675,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
     // Check component cost validation
     if (maxAmountCost && maxAmountCost > 0) {
-      const totalComponentCost = componentCosts.reduce((sum, cost) => cost.IsDeleted ? sum : sum + (cost.Amount || 0), 0);
+      const totalComponentCost = componentCosts.reduce((sum, cost) => cost.IsDeleted ? sum : sum + (cost.Total || 0), 0);
       
       if (totalComponentCost !== maxAmountCost) {
         if (totalComponentCost < maxAmountCost) {
@@ -776,19 +813,31 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         },
         ComponentCosts: componentCosts.map(cost => ({
           Id: cost.Id,
-          ProjectId: cost.ProjectId ,
+          ProjectId: cost.ProjectId,
+          CostId: cost.CostId,
           StageName: initialData?.ProgramDetails?.StageName,
           ComponentType: cost.ComponentType,
           ComponentId: cost.ComponentId,
           Description: cost.Description,
-          Amount: cost.Amount,
-          StartDate: cost.StartDate,
-          EndDate: cost.EndDate,
+          Total: cost.Total,
           CreatedBy: cost.CreatedBy,
           CreatedDate: cost.CreatedDate,
           UpdatedBy: '',
           UpdatedDate: new Date().toISOString(),
           IsDeleted: cost.IsDeleted || false
+        })),
+        ComponentCostPerYear: componentCostPerYear.map(costPerYear => ({
+          Id: costPerYear.Id,
+          ComponentCostId: costPerYear.ComponentCostId,
+          Amount: costPerYear.Amount,
+          Year: costPerYear.Year,
+          StartDate: costPerYear.StartDate,
+          EndDate: costPerYear.EndDate,
+          CreatedBy: costPerYear.CreatedBy,
+          CreatedDate: costPerYear.CreatedDate,
+          UpdatedBy: user?.UserId,
+          UpdatedDate: new Date().toISOString(),
+          IsDeleted: costPerYear.IsDeleted || false
         })),
         MajorItemOfWorks: majorItemsForPayload,
         MajorItemLocations: workLocationsForPayload,
@@ -885,7 +934,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             <div>
               
             </div>
-            <div className="flex flex-col space-y-3 fixed top-4 left-4 z-50">
+            {/* fixed top-4 right-4 z-50 */}
+            <div className="flex flex-col space-y-3 ">
                 {mode === 'edit' && initialData?.IsActive === true && initialData?.IsUnlock === true && initialData?.ProgramDetails?.StageId !== 10 && (
                   <>
                     <Button color="red" className='cursor-pointer' onClick={() => handleLock(initialData?.ProjectDetails?.ProjectId ?? '', initialData?.ProgramDetails?.StageName ?? '')} disabled={updateAllProject}>
@@ -1077,6 +1127,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           </div>
           <ComponentCostForm
             componentCosts={componentCosts}
+            componentCostPerYear={componentCostPerYear}
             majorItems={majorItems}
             onAdd={handleAddComponentCost}
             onEdit={handleEditComponentCost}

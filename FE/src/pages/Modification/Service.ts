@@ -1,5 +1,5 @@
 import { httpClient } from "../../services/httpClient";
-import type { ProjectDetails, ComponentCost, MajorItemOfWork, MajorItemLocations, FundingProfile } from "../Project/Model.d";
+import type { ProjectDetails, ComponentCost, MajorItemOfWork, MajorItemLocations, FundingProfile, ComponentCostPerYear } from "../Project/Model.d";
 import type { RevisionLists, RevisionPagination, RevisionProjectPayload } from "./Model";
 
 // export const fetchRevDropdownData = async () => {
@@ -26,6 +26,7 @@ export const submitModificationRequest = async (
         }
         ProjectDetails: ProjectDetails;
         ComponentCosts: ComponentCost[];
+        ComponentCostPerYear: ComponentCostPerYear[];
         MajorItemOfWorks: MajorItemOfWork[];
         MajorItemLocations: MajorItemLocations[];
         FundingProfile: FundingProfile[];
@@ -123,6 +124,7 @@ export const ResubmitRevisionRequest = async (
         },
         ProjectDetails: ProjectDetails;
         ComponentCosts: ComponentCost[];
+        ComponentCostPerYear: ComponentCostPerYear[];
         MajorItemOfWorks: MajorItemOfWork[];
         MajorItemLocations: MajorItemLocations[];
         FundingProfile: FundingProfile[];

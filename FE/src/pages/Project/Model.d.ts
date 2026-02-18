@@ -10,25 +10,6 @@ export interface ProjectFilter {
   ProjectId?: string;
 }
 
-export interface MultiYearFormPayload {
-  IsModify?: boolean;
-  IsActive: boolean;
-  IsUnlock?: boolean;
-  ProgramDetails: ProgramList;
-  ProjectDetails: ProjectDetails;
-  ComponentCosts: ComponentCostNew[];
-  CostYear: CostYear[];
-  MajorItemOfWorks: MajorItemOfWork[];
-  MajorItemLocations: MajorItemLocations[];
-  ProjectNotes: ProjectNote[];
-  Docs: Docs[];
-  FundingProfile: FundingProfile[];
-  Dropdowns: Dropdowns;
-  Activities: Activity[];
-  TransactionLogs: TransactionLog[];
-  IsAllowedToProceed?: boolean;
-}
-
 export interface ProjectFormPayload {
   IsModify?: boolean;
   IsActive: boolean;
@@ -116,7 +97,7 @@ export interface ProjectDetails {
 	ExternalId?: string;
 	MYId?: string;
 	UACS?: string;
-	MYCAApprovalDate?: string;
+	MYCAApprovalDate?: string | null;
 	IslandCode?: string;
 	RevisionId?: number;
 	Description?: string;
@@ -318,13 +299,12 @@ export interface CostYear {
 export interface ComponentCost {
 	Id: number;
 	ProjectId: string;
+	CostId: string;
 	ComponentType: string;
 	ComponentId: string;
 	Description?: string;
-	Amount: number;
+	Total: number;
 	StageName?: string;
-	StartDate?: string | null;
-	EndDate?: string | null;
 	IsDeleted: boolean;
 	RevisedNumber?: number;
 	ConstructionStatusCode?: number;
@@ -339,13 +319,16 @@ export interface ComponentCost {
 
 export interface ComponentCostPerYear {
 	Id: number;
-	ParentId: string;
+	ComponentCostId: string;
+	StageName?: string;
 	Amount?: number;
 	Year?: number;
-	StartDate?: string;
-	EndDate?: string;
+	StartDate?: string | null;
+	EndDate?: string | null;
 	CreatedBy: string;
 	CreatedDate: string;
+	UpdatedBy?: string;
+	UpdatedDate?: string;
 	IsDeleted: boolean;
 }
 
@@ -382,8 +365,8 @@ export interface MajorItemLocations {
 	StartChainage: number;
 	StartX: number;
 	StartY: number;
-	EndX: number;
-	EndY: number;
+	EndX: number | null;
+	EndY: number | null;
 	StartStationLimit: string;
 	EndStationLimit: string;
 	IsDeleted: boolean;

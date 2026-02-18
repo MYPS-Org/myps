@@ -1,14 +1,17 @@
 import { useCallback, useState } from 'react';
 import { useAtom } from 'jotai';
 import type {
-  ComponentCost
+  ComponentCost,
+  ComponentCostPerYear
 } from '../../Project/Model';
 import {
-  componentCostsAtom
+  componentCostsAtom,
+  componentCostPerYearAtom
 } from '../atoms/componentCosts.atom';
 
 export function useComponentCosts() {
   const [costs, setCosts] = useAtom(componentCostsAtom);
+  const [costPerYear, setCostPerYear] = useAtom(componentCostPerYearAtom);
 
   // Delete-dialog state (local to the component using this hook)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -16,17 +19,30 @@ export function useComponentCosts() {
   const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const seedFromInitial = useCallback((initial?: { ComponentCosts?: ComponentCost[] }) => {
+  const seedFromInitial = useCallback((initial?: { ComponentCosts?: ComponentCost[]; ComponentCostPerYear?: ComponentCostPerYear[] }) => {
     setCosts(initial?.ComponentCosts ? [...initial.ComponentCosts] : []);
-  }, [setCosts]);
+    setCostPerYear(initial?.ComponentCostPerYear ? [...initial.ComponentCostPerYear] : []);
+  }, [setCosts, setCostPerYear]);
 
-  const add = useCallback((cost: ComponentCost) => {
+  const add = useCallback((cost: ComponentCost, costPerYear?: ComponentCostPerYear[]) => {
     setCosts(prev => [...prev, cost]);
-  }, [setCosts]);
+    if (costPerYear && costPerYear.length > 0) {
+      setCostPerYear(prev => [...prev, ...costPerYear]);
+    }
+  }, [setCosts, setCostPerYear]);
 
-  const update = useCallback((componentId: string, updated: ComponentCost) => {
+  const update = useCallback((componentId: string, updated: ComponentCost, costPerYear?: ComponentCostPerYear[]) => {
     setCosts(prev => prev.map(c => c.ComponentId === componentId ? updated : c));
-  }, [setCosts]);
+    if (costPerYear !== undefined) {
+      // Use the CostId from the updated cost to filter per-year entries,
+      // because ComponentCostPerYear.ComponentCostId links to ComponentCost.CostId (not ComponentId)
+      const costId = updated.CostId || componentId;
+      setCostPerYear(prev => [
+        ...prev.filter(c => c.ComponentCostId !== costId),
+        ...costPerYear
+      ]);
+    }
+  }, [setCosts, setCostPerYear]);
 
   const remove = useCallback((componentId: string) => {
     setCosts(prev => prev.filter(c => c.ComponentId !== componentId));
@@ -38,7 +54,7 @@ export function useComponentCosts() {
     ));
   }, [setCosts]);
 
-  const total = useCallback(() => (costs || []).reduce((s, c) => s + (c.Amount || 0), 0), [costs]);
+  const total = useCallback(() => (costs || []).reduce((s, c) => s + (c.Total || 0), 0), [costs]);
 
   // Delete-dialog helpers
   const openDelete = useCallback((component: ComponentCost, index: number) => {
@@ -89,6 +105,7 @@ export function useComponentCosts() {
   return {
     // read
     costs,
+    costPerYear,
     // actions
     add,
     update,
@@ -104,7 +121,9 @@ export function useComponentCosts() {
     isDeleting,
     openDelete,
     closeDelete,
-    confirmDelete
+    confirmDelete,
+    // per-year cost actions
+    setCostPerYear
   } as const;
 }
 

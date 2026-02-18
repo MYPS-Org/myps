@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon, DocumentArrowUpIcon, DocumentIcon } from '@heroicons/react/24/outline';
-import type { ProjectDetails, ComponentCost, MajorItemOfWork, MajorItemLocations, FundingProfile } from '../../Project/Model';
+import type { ProjectDetails, ComponentCost, MajorItemOfWork, MajorItemLocations, FundingProfile, ComponentCostPerYear } from '../../Project/Model';
 import { submitModificationRequest, updateRevisionRequestStatus } from '../Service';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -15,6 +15,7 @@ interface ReviseProjectDialogProps {
     onClose: () => void;
     project: ProjectDetails;
     componentCosts: ComponentCost[];
+    componentsCostPerYear: ComponentCostPerYear[];
     majorItemOfWorks: MajorItemOfWork[];
     majorItemLocations: MajorItemLocations[];
     fundingProfile: FundingProfile[];
@@ -31,6 +32,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
     onClose, 
     project,
     componentCosts,
+    componentsCostPerYear,
     majorItemOfWorks,
     majorItemLocations,
     fundingProfile,
@@ -99,7 +101,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
         e.preventDefault();
         
         // Calculate totals for validation
-        const totalComponentCost = componentCosts.reduce((sum, cost) => cost.IsDeleted ? sum : sum + (cost.Amount || 0), 0);
+        const totalComponentCost = componentCosts.reduce((sum, cost) => cost.IsDeleted ? sum : sum + (cost.Total || 0), 0);
         const totalFundingAmount = fundingProfile.reduce((sum, funding) => sum + (funding.Amount || 0), 0);
         
         // Validation: Check if funding profile total matches component costs total
@@ -162,6 +164,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
                 },
                 ProjectDetails: project,
                 ComponentCosts: componentCosts,
+                ComponentCostPerYear: componentsCostPerYear || [],
                 MajorItemOfWorks: majorItemOfWorks,
                 MajorItemLocations: majorItemLocations,
                 FundingProfile: fundingProfile,

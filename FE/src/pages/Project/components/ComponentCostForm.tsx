@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import type { ComponentCost, MajorItemOfWorksWithDropdown } from "../Model";
+import type { ComponentCost, ComponentCostPerYear, MajorItemOfWorksWithDropdown } from "../Model";
 import { Button } from "../../../components/tailwindui/button";
 import { PlusIcon, TrashIcon, PencilIcon } from "@heroicons/react/24/outline";
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from "../../../components/tailwindui/table";
@@ -9,9 +9,10 @@ import { getDisabledClass } from "../../../utils/GlobalFunctions";
 
 interface ComponentCostFormProps {
   componentCosts: ComponentCost[];
+  componentCostPerYear?: ComponentCostPerYear[]; // Add per-year costs
   majorItems?: MajorItemOfWorksWithDropdown[]; // Add majorItems to calculate related items
-  onAdd: (cost: ComponentCost) => void;
-  onEdit: (index: number, updatedCost: ComponentCost) => void;
+  onAdd: (cost: ComponentCost, costPerYear: ComponentCostPerYear[]) => void;
+  onEdit: (index: number, updatedCost: ComponentCost, costPerYear: ComponentCostPerYear[]) => void;
   onDelete: (index: number) => void;
   initialData?: any; // Optional initial data for dropdowns or other purposes
   maxAmountCost?: number; // Optional prop to set max amount in ComponentCostForm
@@ -20,6 +21,7 @@ interface ComponentCostFormProps {
 
 const ComponentCostForm: React.FC<ComponentCostFormProps> = ({ 
   componentCosts, 
+  componentCostPerYear = [],
   majorItems = [],
   onAdd, 
   onEdit, 
@@ -87,7 +89,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
     handleCloseDeleteDialog();
   };
 
-  const handleSaveCost = (cost: ComponentCost) => {
+  const handleSaveCost = (cost: ComponentCost, costPerYear: ComponentCostPerYear[]) => {
     // Validate if adding/editing would exceed max amount cost
     if (maxAmountCost && maxAmountCost > 0) {
       let newTotalCost = 0;
@@ -96,15 +98,15 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
         // For add mode, calculate total with the new cost added
         newTotalCost = componentCosts
           .filter(c => !c.IsDeleted)
-          .reduce((sum, existingCost) => sum + (existingCost.Amount || 0), 0) + (cost.Amount || 0);
+          .reduce((sum, existingCost) => sum + (existingCost.Total || 0), 0) + (cost.Total || 0);
       } else if (modalMode === 'edit' && editingIndex !== null) {
         // For edit mode, replace the existing cost with the new one
         newTotalCost = componentCosts.reduce((sum, existingCost, index) => {
           if (existingCost.IsDeleted) return sum;
           if (index === editingIndex) {
-            return sum + (cost.Amount || 0);
+            return sum + (cost.Total || 0);
           }
-          return sum + (existingCost.Amount || 0);
+          return sum + (existingCost.Total || 0);
         }, 0);
       }
 
@@ -119,9 +121,9 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
     }
 
     if (modalMode === 'add') {
-      onAdd(cost);
+      onAdd(cost, costPerYear);
     } else if (modalMode === 'edit' && editingIndex !== null) {
-      onEdit(editingIndex, cost);
+      onEdit(editingIndex, cost, costPerYear);
     }
     handleCloseModal();
   };
@@ -130,7 +132,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
   const calculateTotalCosts = () => {
     const totalCost = componentCosts
       .filter(cost => !cost.IsDeleted)
-      .reduce((sum, cost) => sum + (cost.Amount || 0), 0);
+      .reduce((sum, cost) => sum + (cost.Total || 0), 0);
 
     return {
       totalCost,
@@ -276,7 +278,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
                       {cost.Description}
                     </div>
                   </TableCell>
-                  <TableCell>₱{formatCurrency(cost.Amount || 0)}</TableCell>
+                  <TableCell>₱{formatCurrency(cost.Total || 0)}</TableCell>
                   <TableCell>{cost.CreatedBy || '-'}</TableCell>
                   <TableCell>{cost.CreatedDate ? new Date(cost.CreatedDate).toLocaleDateString() : '-'}</TableCell>
                   <TableCell>{cost.UpdatedBy || '-'}</TableCell>
@@ -285,9 +287,8 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
                     <div className="flex space-x-2">
                       <button
                         onClick={() => handleOpenEditModal(index)}
-                        className={`text-blue-600 hover:text-blue-800 ${getDisabledClass(disabled)}`}
+                        className={`text-blue-600 hover:text-blue-800`}
                         title="Edit"
-                        disabled={disabled}
                       >
                         <PencilIcon className="w-4 h-4" />
                       </button>
@@ -314,11 +315,15 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
           onClose={handleCloseModal}
           onSave={handleSaveCost}
           editingCost={editingIndex !== null ? componentCosts[editingIndex] : undefined}
+          editingCostPerYear={editingIndex !== null && componentCosts[editingIndex] ? 
+            componentCostPerYear.filter(cost => cost.ComponentCostId === componentCosts[editingIndex].CostId && !cost.IsDeleted) : 
+            []}
           mode={modalMode}
           componentTypes={initialData?.Dropdowns?.ComponentTypes}
           componentCosts={componentCosts}
           ProjectId={initialData?.ProjectDetails?.ProjectId}
           maxAmountCost={maxAmountCost}
+          disabled={disabled}
         />
 
         {/* Delete Dialog */}

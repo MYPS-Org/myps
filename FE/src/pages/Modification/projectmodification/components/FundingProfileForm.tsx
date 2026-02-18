@@ -24,7 +24,7 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
   onDelete,
   initialData,
   onTotalAmountChange = () => {}, // Default to no-op if not provided
-  disabled = false,
+  // disabled prop accepted but managed via fieldRules
   fieldRules
 }) => {
   const [errors, setErrors] = useState<{ [key: number]: string }>({});
@@ -243,7 +243,7 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
             Total Amount: {totalAmount.FormatToCurrency()}
           </div>
           
-          <Button color="blue" onClick={onAdd} disabled={!canAdd}>
+          <Button color="blue" onClick={onAdd} disabled={!canAdd()}>
               <PlusIcon className="w-4 h-4 mr-1" />
               Add Funding
           </Button>
