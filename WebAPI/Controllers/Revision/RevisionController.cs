@@ -1020,7 +1020,7 @@ namespace WebAPI.Controllers.Revision
                     TransactionId = TransactionId,
                     DocumentPath = FilePath,
                     DocumentName = DocumentName,
-                    IsApprovedDocument = false
+                    IsApprovedDocument = isCOUser ? true : false
                 });
                 if (isCOUser)
                 {

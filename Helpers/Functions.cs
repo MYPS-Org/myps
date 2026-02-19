@@ -459,7 +459,7 @@ namespace Helpers
 
             return destinationData;
         }
-        public static bool ValidateProjectForPublish(DBHelper.Models.Table.ProjectRevisions pr, DBHelper.Models.Table.ProjectComponentCost? pc)
+        public static bool ValidateProjectForPublish(DBHelper.Models.Table.ProjectRevisions pr, List<DBHelper.Models.Table.ProjectComponentCostPerYear>? pc)
         {
             //var validation = new List<ProjectValidation>();
             if (pr == null)
@@ -467,13 +467,19 @@ namespace Helpers
                 return false;// validation;
             }
             #region Project Location Validation
-            string ProjectLocation = string.Empty;
             if (string.IsNullOrEmpty(pr.DEO) || string.IsNullOrEmpty(pr.LegislativeDistrict) || string.IsNullOrEmpty(pr.ImplementingOffice) || string.IsNullOrEmpty(pr.OperatingUnit)) {
                 return false;
             }
             #endregion
-            #region Component Cost Validation
-            string ComponentCost = string.Empty;
+            #region Component Cost Per Year Validation
+            if(pc != null)
+            {
+                var HasBlankData = pc.FirstOrDefault(x => x.Amount == null || x.Year == null || x.StartDate == null || x.EndDate == null);
+                if (HasBlankData != null)
+                {
+                    return false;
+                }
+            }
             #endregion
             return true;
         }

@@ -471,7 +471,7 @@ namespace WebAPI.Controllers.Projects
 
                 var Agreement = await _db.tOptionFundingAgreement.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var Source = await _db.tOptionFundingSource.AsNoTracking().Where(x => Agreement.Select(a => a.SourceOrg).Distinct().Contains(x.Organization)).OrderBy(x => x.Organization == "GOP" ? 0 : 1).ThenBy(x => x.Name).ToListAsync();
-
+                var InfraTypes = await _db.tOptionInfraType.AsNoTracking().OrderBy(x => x.InfraName).ToListAsync();
                 var ScopeOfWork = await _db.tProjectScopeOfWorkEnum.AsNoTracking().OrderBy(x => x.WorkCategory).ToListAsync();
                 var Transactions = await _db.tTransactionLog.AsNoTracking().Where(x => x.TransactionId == dto.ProjectId).ToListAsync();
                 List<OptionRevisionHeader> ReasonHeader = new List<OptionRevisionHeader>();
@@ -525,6 +525,7 @@ namespace WebAPI.Controllers.Projects
 
                         //Major Item Of Work
                         ScopeOfWorks = ScopeOfWork,
+                        InfraTypes = InfraTypes,
 
                         //Funding Profile
                         Agreements = Agreement,
@@ -606,7 +607,7 @@ namespace WebAPI.Controllers.Projects
                 }
                 #endregion
                 #region Component Cost
-                var BlankComponentCost = dto.ComponentCosts.Where(x => x.Total <= 0 && x.Id == 0).ToList();
+                var BlankComponentCost = dto.ComponentCosts.Where(x => x.Total < 1 && x.Id == 0).ToList();
                 if (!BlankComponentCost.IsNullOrEmpty())
                 {
                     return new BadRequestObjectResult(new { Message = "Component Cost contains invalid amount(s). Please check and try again.", Title = "Invalid Component Cost Amount" });

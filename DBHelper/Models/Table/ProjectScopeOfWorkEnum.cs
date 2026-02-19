@@ -16,7 +16,7 @@ namespace DBHelper.Models.Table
         public int Enum { get; set; }
         [Required]
         [MaxLength(50)]
-        public string InfraType { get; set; } = string.Empty;
+        public string[] InfraType { get; set; } = new string[] { };
         [Required]
         [MaxLength(50)]
         public string WorkCategory { get; set; } = string.Empty;
