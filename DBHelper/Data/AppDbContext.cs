@@ -42,6 +42,7 @@ namespace DBHelper.Data
         public DbSet<Models.Table.OptionProjectAgency> tOptionProjectAgency { get; set; }
         public DbSet<Models.Table.OptionProjectComponent> tOptionProjectComponent { get; set; }
         public DbSet<Models.Table.ProjectComponentCost> tProjectComponentCost { get; set; }
+        public DbSet<Models.Table.ProjectComponentCostPerYear> tProjectComponentCostPerYear { get; set; }
         public DbSet<Models.Table.TransactionLog> tTransactionLog { get; set; }
         public DbSet<Models.Table.ProjectScopeOfWorkEnum> tProjectScopeOfWorkEnum { get; set; }
         public DbSet<Models.Table.ProjectMajorWorkItem> tProjectMajorWorkItem { get; set; }
@@ -80,6 +81,7 @@ namespace DBHelper.Data
         public DbSet<Models.Table.RevisionProjectMajorWorkItem> tRevisionProjectMajorWorkItem { get; set; }
         public DbSet<Models.Table.RevisionProjectMajorWorkLocations> tRevisionProjectMajorWorkLocations { get; set; }
         public DbSet<Models.Table.RevisionDetailsComponentsStatus> tRevisionDetailsComponentsStatus { get; set; }
+        public DbSet<Models.Table.RevisionProjectComponentCostPerYear> tRevisionProjectComponentCostPerYear { get; set; }
         #endregion
         #region Views
         public DbSet<Models.Views.Users> vUsers { get; set; }
@@ -111,7 +113,6 @@ namespace DBHelper.Data
             modelBuilder.Entity<AdminImplementingOffice>().HasNoKey().ToView("vAdminImplementingOffice");
             modelBuilder.Entity<GetProjectCategoryVersions>().HasNoKey().ToView("vGetProjectCategoryVersions");
             modelBuilder.Entity<ProjectComponentStatus>().HasNoKey().ToView("vProjectComponentStatus");
-
             base.OnModelCreating(modelBuilder);
         }
     }

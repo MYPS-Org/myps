@@ -31,7 +31,6 @@ namespace Helpers
         {
             var tz = TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila");
             return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
-
         }
         public static IQueryable<T> QueryFromFile<T>(
             this DbContext db,
@@ -475,10 +474,6 @@ namespace Helpers
             #endregion
             #region Component Cost Validation
             string ComponentCost = string.Empty;
-            if (pc?.StartDate == null || pc?.EndDate == null)
-            {
-                return false;
-            }
             #endregion
             return true;
         }
@@ -510,14 +505,6 @@ namespace Helpers
             #endregion
             #region Component Cost Validation
             string ComponentCost = string.Empty;
-            if (pc?.StartDate == null)
-            {
-                ComponentCost = "Project Implementation Plan: Start Date field is required.";
-            }
-            if (pc?.EndDate == null)
-            {
-                ComponentCost = string.IsNullOrEmpty(ComponentCost) ? "Project Implementation Plan: End Date field is required." : ComponentCost + " End Date field is required.";
-            }
             if(!string.IsNullOrEmpty(ComponentCost))
             {
                 return false;

@@ -10,13 +10,12 @@ namespace DBHelper.Models.Views
     {
         public int Id { get; set; }
         public string ProjectId { get; set; } = string.Empty;
+        public string CostId { get; set; } = string.Empty;
         public string ComponentType { get; set; } = string.Empty;
         public string ComponentId { get; set; } = string.Empty;
         public string? Description { get; set; }
-        public Double Amount { get; set; }
+        public Double Total { get; set; }
         public string StageName { get; set; } = string.Empty;
-        public DateTime? StartDate { get; set; }
-        public DateTime? EndDate { get; set; }
         public bool IsDeleted { get; set; }
         public int? ConstructionStatusCode { get; set; }
         public string? ConstructionStatusName { get; set; }

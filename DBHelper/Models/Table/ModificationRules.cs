@@ -35,9 +35,8 @@ namespace DBHelper.Models.Table
     }
     public class FieldComponentCostYear
     {
-        public bool ParentId { get; set; } = false;
-        public bool CostYear { get; set; } = false;
-        public bool Cost { get; set; } = false;
+        public bool Year { get; set; } = false;
+        public bool Amount { get; set; } = false;
         public bool StartDate { get; set; } = false;
         public bool EndDate { get; set; } = false;
     }

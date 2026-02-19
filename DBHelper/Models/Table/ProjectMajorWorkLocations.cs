@@ -29,9 +29,7 @@ namespace DBHelper.Models.Table
         public Double? StartX { get; set; }
         [Required]
         public Double? StartY { get; set; }
-        [Required]
         public Double? EndX { get; set; }
-        [Required]
         public Double? EndY { get; set; }
         [Required]
         public Double? PhysicalTarget { get; set; }

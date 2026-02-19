@@ -13,6 +13,7 @@ using OfficeOpenXml.Sparkline;
 using System.ComponentModel;
 using System.Reflection;
 using System.Security.Cryptography;
+using System.Security.Cryptography.Xml;
 
 namespace WebAPI.Controllers.Programs
 {
@@ -350,9 +351,6 @@ namespace WebAPI.Controllers.Programs
                     (int)EnumProgramStage.RDIP,
                     (int)EnumProgramStage.PIP
                 };
-                if (ProgramStage.StageId == EnumProgramStage.RBP)
-                { }
-                program.IsDeleted = true;
                 var TransactionLog = new TransactionLog()
                 {
                     TransactionId = dto.ProgramId,
@@ -363,10 +361,31 @@ namespace WebAPI.Controllers.Programs
                     OldValue = "false",
                     CreatedBy = _Session.UserId,
                     CreatedDate = Functions.CurrentDate()
-
                 };
-                _db.tPrograms.Update(program);
                 await _db.tTransactionLog.AddRangeAsync(TransactionLog);
+                if (ProgramStage.StageId == EnumProgramStage.BP)
+                {
+                    var ProgramRevisions = await _db.tProgramRevisions.Where(x => x.ProgramId == program.ProgramId).ToListAsync();
+                    HashSet<int> ProgramRevisionIds = ProgramRevisions.Select(x => x.Id).ToHashSet();
+                    var ProgramStages = await _db.tProgramStages.Where(x => ProgramRevisionIds.Contains(x.RevisionId)).AsNoTracking().ToListAsync();
+                    var ProjectsInProgram = await _db.tProjects.Where(x => x.ProgramId == program.ProgramId).AsNoTracking().ToListAsync();
+                    HashSet<string> ReferenceIds = ProjectsInProgram.Select(x => x.ReferenceId).ToHashSet();
+                    var ProjectRevisions = await _db.tProjectRevisions.Where(x => ReferenceIds.Contains(x.ReferenceId)).AsNoTracking().ToListAsync();
+                    HashSet<int> RevisionIds = ProjectRevisions.Select(x => x.Id).ToHashSet();
+                    var ProjectStages = await _db.tProjectStages.Where(x => RevisionIds.Contains(x.RevisionId)).AsNoTracking().ToListAsync();
+
+                    _db.tPrograms.Remove(program);
+                    _db.tProgramRevisions.RemoveRange(ProgramRevisions);
+                    _db.tProgramStages.RemoveRange(ProgramStages);
+                    _db.tProjects.RemoveRange(ProjectsInProgram);
+                    _db.tProjectRevisions.RemoveRange(ProjectRevisions);
+                    _db.tProjectStages.RemoveRange(ProjectStages);
+                }
+                else
+                {
+                    program.IsDeleted = true;
+                    _db.tPrograms.Update(program);
+                }
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
                 return Ok(new
@@ -588,7 +607,7 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                DateTime CurrentDate = Functions.CurrentDate();;
+                DateTime CurrentDate = Functions.CurrentDate();
                 var checkProgram = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
                 if (checkProgram == null)
                 {
@@ -620,8 +639,8 @@ namespace WebAPI.Controllers.Programs
                     var ProjectRevisions = await _db.tProjectRevisions.AsNoTracking().Where(x => RevisionIds.Contains(x.Id)).ToListAsync();
 
                     var Components = await _db.tProjectComponentCost.AsNoTracking().Where(x => projectIds.Contains(x.ProjectId) && x.StageName == checkStage.StageName).ToListAsync();
-                    //HashSet<string> ComponentsRefs = Components.Select(pr => pr.ReferenceId).ToHashSet();
-                    //var ComponentsPerYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentsRefs.Contains(x.ParentId)).ToListAsync();
+                    HashSet<string> ComponentsRefs = Components.Select(pr => pr.CostId).ToHashSet();
+                    var ComponentsPerYear = await _db.tProjectComponentCostPerYear.AsNoTracking().Where(x => ComponentsRefs.Contains(x.ComponentCostId) && x.StageName == checkStage.StageName).ToListAsync();
 
                     var MajorItems = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => projectIds.Contains(x.ProjectId) && x.StageName == checkStage.StageName).ToListAsync();
                     HashSet<string> MajorItemsRefs = MajorItems.Select(pr => pr.ReferenceId).ToHashSet();
@@ -637,33 +656,35 @@ namespace WebAPI.Controllers.Programs
                         string FirstSegment = checkStageType.Name.GenerateProjec1stSegment();
                         #region Component Costs
                         List<DBHelper.Models.Table.ProjectComponentCost> NewComponent = new List<DBHelper.Models.Table.ProjectComponentCost>();
-                        //List<ProjectComponentCostYear> NewComponentPerYear = new List<ProjectComponentCostYear>();
+                        List<ProjectComponentCostPerYear> NewComponentPerYear = new List<ProjectComponentCostPerYear>();
                         if (Components.Count() > 0)
                         {
                             NewComponent.AddRange(Components.Select(x => new DBHelper.Models.Table.ProjectComponentCost()
                             {
                                 ProjectId = x.ProjectId.Replace("BP", FirstSegment),
-                                //ReferenceId = x.ReferenceId.UpdateReferenceId(FirstSegment),
+                                CostId = x.CostId,
                                 ComponentType = x.ComponentType,
                                 ComponentId = x.ComponentId,
                                 Description = x.Description,
-                                Amount = x.Amount,
-                                //Total = x.Total,
+                                Total = x.Total,
                                 StageName = checkStageType.Name,
                                 CreatedBy = x.CreatedBy,
                                 CreatedDate = x.CreatedDate,
                                 IsDeleted = x.IsDeleted
                             }));
-                            //NewComponentPerYear.AddRange(ComponentsPerYear.Select(x => new ProjectComponentCostYear()
-                            //{
-                            //    ParentId = x.ParentId.UpdateReferenceId(FirstSegment),
-                            //    CostYear = x.CostYear,
-                            //    Cost = x.Cost,
-                            //    StartDate = x.StartDate,
-                            //    EndDate = x.EndDate
-                            //}));
+                            NewComponentPerYear.AddRange(ComponentsPerYear.Select(x => new ProjectComponentCostPerYear()
+                            {
+                                ComponentCostId = x.ComponentCostId,
+                                Year = x.Year,
+                                Amount = x.Amount,
+                                StageName = checkStageType.Name,
+                                StartDate = x.StartDate,
+                                EndDate = x.EndDate,
+                                CreatedBy = x.CreatedBy,
+                                CreatedDate = x.CreatedDate
+                            }));
                             await _db.tProjectComponentCost.AddRangeAsync(NewComponent);
-                            //await _db.tProjectComponentCostYear.AddRangeAsync(NewComponentPerYear);
+                            await _db.tProjectComponentCostPerYear.AddRangeAsync(NewComponentPerYear);
                         }
                         #endregion
                         #region Major Items
@@ -785,7 +806,7 @@ namespace WebAPI.Controllers.Programs
                             CreatedBy = _Session.UserId,
                             CreatedDate = CurrentDate,
                             IsDeleted = project.IsDeleted,
-                            IsPublishable = (dto.Stage.ToString() == "GAA-R" && Functions.ValidateProjectForPublish(project, Components.FirstOrDefault(x => x.StartDate == null || x.EndDate == null && x.ProjectId == project.ProjectId && !x.IsDeleted)))
+                            IsPublishable = (dto.Stage.ToString() == "GAA-R" && Functions.ValidateProjectForPublish(project, Components.FirstOrDefault(x => x.ProjectId == project.ProjectId && !x.IsDeleted)))
                         }));
                         await _db.tProjectRevisions.AddRangeAsync(NewRevisions);
                         checkRevisions.Status = EnumProgramStatus.Approved;

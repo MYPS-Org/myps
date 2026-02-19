@@ -11,8 +11,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Xml;
 namespace WebAPI.Controllers.Revision
 {
     [ApiController]
@@ -228,7 +230,7 @@ namespace WebAPI.Controllers.Revision
 
                 //var ComponentCost = await _db.vRevisionProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.TransactionId == dto.TransactionId).ToListAsync();
                 var ComponentCost = await _db.tProjectComponentCost.FromSqlInterpolated($"SELECT * FROM fPendingProjectComponentCost({dto.TransactionId}) fp WHERE fp.StageName = {Project.StageName}").AsNoTracking().ToListAsync();
-                //var ComponentCostYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentCost.Select(a => a.ReferenceId).Contains(x.ParentId)).ToListAsync();
+                var ComponentCostYear = await _db.tProjectComponentCostPerYear.FromSqlInterpolated($"SELECT * FROM fPendingProjectComponentCostPerYear({dto.TransactionId}) fp WHERE fp.StageName = {Project.StageName}").AsNoTracking().ToListAsync();
 
                 var MajorItemOfWork = await _db.tProjectMajorWorkItem.FromSqlInterpolated($"SELECT * FROM fPendingProjectMajorWorkItem({dto.TransactionId}) fp WHERE fp.StageName = {Project.StageName}").AsNoTracking().ToListAsync();
                 //var MajorItemOfWork = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && x.RevisedNumber == RevisedNumber).ToListAsync();
@@ -289,7 +291,7 @@ namespace WebAPI.Controllers.Revision
                     ProgramDetails = Program,
                     ProjectDetails = Project,
                     ComponentCosts = ComponentCost,
-                    //ComponentCostPerYear = ComponentCostYear,
+                    ComponentCostPerYear = ComponentCostYear,
                     MajorItemOfWorks = MajorItemOfWork,
                     MajorItemLocations = MajorWorkLocation,
                     ProjectNotes = Notes,
@@ -449,9 +451,10 @@ namespace WebAPI.Controllers.Revision
 
                 //var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && !x.IsDeleted).ToListAsync();
 
+                
                 var ComponentCost = await _db.vProjectComponentCostStatus.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
                 //var ComponentCost = await _db.tProjectComponentCost.FromSqlInterpolated($"SELECT * FROM fProjectComponentCost({Project.ProjectId}) fp WHERE fp.StageName = {Project.StageName}").AsNoTracking().ToListAsync();
-                //var ComponentCostYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentCost.Select(a => a.ReferenceId).Contains(x.ParentId)).ToListAsync();
+                var ComponentCostYear = await _db.tProjectComponentCostPerYear.FromSqlInterpolated($"SELECT * FROM fProjectComponentCostPerYear({Project.ProjectId}) fp WHERE fp.StageName = {Project.StageName}").AsNoTracking().ToListAsync();
 
                 var MajorItemOfWork = await _db.tProjectMajorWorkItem.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkItem({Project.ProjectId}) fp WHERE fp.StageName = {Project.StageName}").AsNoTracking().ToListAsync();
                 //var MajorItemOfWork = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && !x.IsDeleted).ToListAsync();
@@ -509,7 +512,7 @@ namespace WebAPI.Controllers.Revision
                     ProgramDetails = Program,
                     ProjectDetails = Project,
                     ComponentCosts = ComponentCost,
-                    //ComponentCostPerYear = ComponentCostYear,
+                    ComponentCostPerYear = ComponentCostYear,
                     MajorItemOfWorks = MajorItemOfWork,
                     MajorItemLocations = MajorWorkLocation,
                     ProjectNotes = Notes,
@@ -582,6 +585,7 @@ namespace WebAPI.Controllers.Revision
 
                 var NewFundingProfile = new List<RevisionProjectFundingProfile>();
                 var NewComponent = new List<DBHelper.Models.Table.RevisionProjectComponentCost>();
+                var NewComponentPerYear = new List<DBHelper.Models.Table.RevisionProjectComponentCostPerYear>();
                 var TransactionLog = new List<RevisionTransactionLog>();
                 var NewMajorWorkItem = new List<RevisionProjectMajorWorkItem>();
                 var NewMajorWorkLocations = new List<RevisionProjectMajorWorkLocations>();
@@ -650,42 +654,43 @@ namespace WebAPI.Controllers.Revision
                 .Select(p => p.Name)
                 .ToList();
                 var NewProjectRevision = dto.ProjectDetails;
+                var ProjectRevision = new ProjectRevisions();
                 if (ProjectDetailsRules.Count > 0)
                 {
-                    var RevisionProject = ProjectDetailsRules.UpdateRevisionData(NewProjectRevision, Project);
-                    NewRevisionProject.RevisionId = RevisionProject.Id;
+                    ProjectRevision = ProjectDetailsRules.UpdateRevisionData(NewProjectRevision, Project);
+                    NewRevisionProject.RevisionId = ProjectRevision.Id;
                     NewRevisionProject.IsActive = isCOUser ? true : false;
                     NewRevisionProject.TransactionId = TransactionId;
-                    NewRevisionProject.ReferenceId = RevisionProject.ReferenceId;
-                    NewRevisionProject.ProjectId = RevisionProject.ProjectId;
-                    NewRevisionProject.AlternateId = RevisionProject.AlternateId;
-                    NewRevisionProject.ExternalId = RevisionProject.ExternalId;
-                    NewRevisionProject.MYId = RevisionProject.MYId;
-                    NewRevisionProject.UACS = RevisionProject.UACS;
-                    NewRevisionProject.MYCAApprovalDate = RevisionProject.MYCAApprovalDate;
-                    NewRevisionProject.Description = RevisionProject.Description;
-                    NewRevisionProject.Category = RevisionProject.Category;
-                    NewRevisionProject.Thrust = RevisionProject.Thrust;
-                    NewRevisionProject.Origin = RevisionProject.Origin;
-                    NewRevisionProject.City = RevisionProject.City;
-                    NewRevisionProject.Province = RevisionProject.Province;
-                    NewRevisionProject.LegislativeDistrict = RevisionProject.LegislativeDistrict;
-                    NewRevisionProject.OperatingUnit = RevisionProject.OperatingUnit;
-                    NewRevisionProject.ImplementingOffice = RevisionProject.ImplementingOffice;
-                    NewRevisionProject.DEO = RevisionProject.DEO;
-                    NewRevisionProject.Region = RevisionProject.Region;
-                    NewRevisionProject.Agency = RevisionProject.Agency;
-                    NewRevisionProject.ImplementationMode = RevisionProject.ImplementationMode;
-                    NewRevisionProject.EmergencyMode = RevisionProject.EmergencyMode;
-                    NewRevisionProject.IslandCode = RevisionProject.IslandCode;
-                    NewRevisionProject.Feasibility = RevisionProject.Feasibility;
-                    NewRevisionProject.FeasibilityDate = RevisionProject.FeasibilityDate;
-                    NewRevisionProject.DetailedDesign = RevisionProject.DetailedDesign;
-                    NewRevisionProject.DetailedDesignDate = RevisionProject.DetailedDesignDate;
-                    NewRevisionProject.RowAvailable = RevisionProject.RowAvailable;
-                    NewRevisionProject.RegionWide = RevisionProject.RegionWide;
-                    NewRevisionProject.Tier = RevisionProject.Tier;
-                    NewRevisionProject.IsDeleted = RevisionProject.IsDeleted;
+                    NewRevisionProject.ReferenceId = ProjectRevision.ReferenceId;
+                    NewRevisionProject.ProjectId = (RevisionRules.RevisionGroupId == 13) ? $"{ProjectRevision.ProjectId}-A" : ProjectRevision.ProjectId;
+                    NewRevisionProject.AlternateId = ProjectRevision.AlternateId;
+                    NewRevisionProject.ExternalId = ProjectRevision.ExternalId;
+                    NewRevisionProject.MYId = ProjectRevision.MYId;
+                    NewRevisionProject.UACS = ProjectRevision.UACS;
+                    NewRevisionProject.MYCAApprovalDate = ProjectRevision.MYCAApprovalDate;
+                    NewRevisionProject.Description = ProjectRevision.Description;
+                    NewRevisionProject.Category = ProjectRevision.Category;
+                    NewRevisionProject.Thrust = ProjectRevision.Thrust;
+                    NewRevisionProject.Origin = ProjectRevision.Origin;
+                    NewRevisionProject.City = ProjectRevision.City;
+                    NewRevisionProject.Province = ProjectRevision.Province;
+                    NewRevisionProject.LegislativeDistrict = ProjectRevision.LegislativeDistrict;
+                    NewRevisionProject.OperatingUnit = ProjectRevision.OperatingUnit;
+                    NewRevisionProject.ImplementingOffice = ProjectRevision.ImplementingOffice;
+                    NewRevisionProject.DEO = ProjectRevision.DEO;
+                    NewRevisionProject.Region = ProjectRevision.Region;
+                    NewRevisionProject.Agency = ProjectRevision.Agency;
+                    NewRevisionProject.ImplementationMode = ProjectRevision.ImplementationMode;
+                    NewRevisionProject.EmergencyMode = ProjectRevision.EmergencyMode;
+                    NewRevisionProject.IslandCode = ProjectRevision.IslandCode;
+                    NewRevisionProject.Feasibility = ProjectRevision.Feasibility;
+                    NewRevisionProject.FeasibilityDate = ProjectRevision.FeasibilityDate;
+                    NewRevisionProject.DetailedDesign = ProjectRevision.DetailedDesign;
+                    NewRevisionProject.DetailedDesignDate = ProjectRevision.DetailedDesignDate;
+                    NewRevisionProject.RowAvailable = ProjectRevision.RowAvailable;
+                    NewRevisionProject.RegionWide = ProjectRevision.RegionWide;
+                    NewRevisionProject.Tier = ProjectRevision.Tier;
+                    NewRevisionProject.IsDeleted = ProjectRevision.IsDeleted;
                 }
                 #endregion
                 #region FundingProfile
@@ -716,7 +721,7 @@ namespace WebAPI.Controllers.Revision
                             NewFundingProfile.Add(new RevisionProjectFundingProfile
                             {
                                 TransactionId = TransactionId,
-                                ProjectId = SelectedComponent.ProjectId,
+                                ProjectId = (RevisionRules.RevisionGroupId == 13) ? $"{SelectedComponent.ProjectId}-A" : SelectedComponent.ProjectId,
                                 Source = SelectedComponent.Source,
                                 Agreement = SelectedComponent.Agreement,
                                 Amount = SelectedComponent.Amount,
@@ -752,7 +757,7 @@ namespace WebAPI.Controllers.Revision
                 var CostIds = dto.ComponentCosts.Where(x => x.Id != 0).Select(x => x.Id).ToList();
                 //var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && CostIds.Contains(x.Id) && x.StageName == "GAA-R").ToListAsync();
                 var ComponentCost = await _db.tProjectComponentCost.FromSqlInterpolated($"SELECT * FROM fProjectComponentCost({Project.ProjectId}) fp WHERE fp.StageName = {ProjectStage.StageName}").AsNoTracking().ToListAsync();
-                //var ComponentCostYear = await _db.tProjectComponentCostYear.AsNoTracking().Where(x => ComponentCost.Select(c => c.ReferenceId).Contains(x.ParentId)).ToListAsync();
+                var ComponentCostYear = await _db.tProjectComponentCostPerYear.FromSqlInterpolated($"SELECT * FROM fProjectComponentCostPerYear({Project.ProjectId}) fp WHERE fp.StageName = {ProjectStage.StageName}").AsNoTracking().Where(x => ComponentCost.Select(c => c.CostId).Contains(x.ComponentCostId)).ToListAsync();
                 var ComponentCostRules = jsonRules.ComponentCostRules.Fields.GetType()
                 .GetProperties()
                 .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
@@ -779,34 +784,78 @@ namespace WebAPI.Controllers.Revision
                                 {
                                     TransactionId = TransactionId,
                                     ProjectId = SelectedComponent.ProjectId,
+                                    CostId = SelectedComponent.CostId,
                                     ComponentType = SelectedComponent.ComponentType,
                                     ComponentId = SelectedComponent.ComponentId,
                                     Description = SelectedComponent.Description,
-                                    Amount = SelectedComponent.Amount,
+                                    Total = SelectedComponent.Total,
                                     IsDeleted = CanDelete ? component.IsDeleted : false,
                                 }
                             });
                         }
                     }
-                    //if (jsonRules.ComponentCostRules.CRUD.CanDelete)
-                    //{
-                    //    NewComponent = NewComponent.Where(x => !UpdateComponentCost.Where(x => x.IsDeleted == true).Select(a => a.Id).Contains(x.Id)).Select(x =>
-                    //    {
-                    //        x.Id = 0; // reset PK for insert
-                    //        return x;
-                    //    }).ToList();
-                    //}
                 }
                 if (jsonRules.ComponentCostRules.CRUD.CanAdd)
                 {
                     NewComponent.AddRange(dto.ComponentCosts.Where(x => x.Id == 0).Select(x => new DBHelper.Models.Table.RevisionProjectComponentCost
                     {
                         TransactionId = TransactionId,
-                        ProjectId = Project.ProjectId,
+                        ProjectId = (RevisionRules.RevisionGroupId == 13) ? $"{Project.ProjectId}-A" : Project.ProjectId,
+                        CostId = x.CostId,
                         ComponentType = x.ComponentType,
                         ComponentId = x.ComponentId,
                         Description = x.Description,
+                        Total = x.Total,
+                        IsDeleted = false,
+                    }));
+                }
+                #endregion
+                #region ComponentCostYear
+                var UpdateComponentCostYear = dto.ComponentCostPerYear.Where(x => x.Id != 0).ToList();
+                var ComponentCostPerYearRules = jsonRules.ComponentCostRules.Fields.GetType()
+                .GetProperties()
+                .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
+                .Where(p => (bool?)p.GetValue(jsonRules.ComponentCostRules.Fields) == true)
+                .Select(p => p.Name)
+                .ToList();
+                if (UpdateComponentCostYear.Count > 0)
+                {
+                    bool CanDelete = jsonRules.ComponentCostRules.CRUD.CanDelete;
+                    foreach (var component in UpdateComponentCost)
+                    {
+                        var ComponentId = component.Id;
+                        var SelectedComponent = ComponentCostYear.FirstOrDefault(x => x.Id == ComponentId);
+
+                        if (SelectedComponent != null)
+                        {
+                            if (ComponentCostRules.Count > 0)
+                            {
+                                SelectedComponent = ComponentCostPerYearRules.UpdateRevisionData(component, SelectedComponent);
+                            }
+                            NewComponentPerYear.AddRange(new List<DBHelper.Models.Table.RevisionProjectComponentCostPerYear> {
+                                new DBHelper.Models.Table.RevisionProjectComponentCostPerYear
+                                {
+                                    TransactionId = TransactionId,
+                                    ComponentCostId = SelectedComponent.ComponentCostId,
+                                    Amount = (double)SelectedComponent.Amount!,
+                                    StartDate = (DateTime)SelectedComponent.StartDate!,
+                                    EndDate = (DateTime)SelectedComponent.EndDate!,
+                                    IsDeleted = CanDelete ? component.IsDeleted : false,
+                                }
+                            });
+                        }
+                    }
+                }
+                if (jsonRules.ComponentCostYearRules.CRUD.CanAdd)
+                {
+                    NewComponentPerYear.AddRange(dto.ComponentCostPerYear.Where(x => x.Id == 0).Select(x => new DBHelper.Models.Table.RevisionProjectComponentCostPerYear
+                    {
+                        TransactionId = TransactionId,
+                        ComponentCostId = x.ComponentCostId,
                         Amount = x.Amount,
+                        Year = x.Year,
+                        StartDate = x.StartDate,
+                        EndDate = x.EndDate,
                         IsDeleted = false,
                     }));
                 }
@@ -839,7 +888,7 @@ namespace WebAPI.Controllers.Revision
                             var OldSelectedComponent = new RevisionProjectMajorWorkItem
                             {
                                 TransactionId = TransactionId,
-                                ProjectId = UpdateMajorWorkItem.ProjectId,
+                                ProjectId = (RevisionRules.RevisionGroupId == 13) ? $"{UpdateMajorWorkItem.ProjectId}-A" : UpdateMajorWorkItem.ProjectId,
                                 ComponentId = UpdateMajorWorkItem.ComponentId,
                                 ReferenceId = UpdateMajorWorkItem.ReferenceId,
                                 YearOfWork = UpdateMajorWorkItem.YearOfWork,
@@ -941,12 +990,6 @@ namespace WebAPI.Controllers.Revision
                     }
                 }
                 #endregion
-                _db.tProjectRevisions.Update(Project);
-                await _db.tRevisionProjects.AddAsync(NewRevisionProject);
-                await _db.tRevisionProjectFundingProfile.AddRangeAsync(NewFundingProfile);
-                await _db.tRevisionProjectComponentCost.AddRangeAsync(NewComponent);
-                await _db.tRevisionProjectMajorWorkItem.AddRangeAsync(NewMajorWorkItem);
-                await _db.tRevisionProjectMajorWorkLocations.AddRangeAsync(NewMajorWorkLocations);
 
                 await _db.tRevisionDetails.AddAsync(new RevisionDetails
                 {
@@ -981,6 +1024,7 @@ namespace WebAPI.Controllers.Revision
                 });
                 if (isCOUser)
                 {
+                    //Termination
                     if (RevisionRules.RevisionGroupId == 9)
                     {
                         var entities = NewComponent
@@ -997,6 +1041,55 @@ namespace WebAPI.Controllers.Revision
 
                         await _db.tRevisionDetailsComponentsStatus.AddRangeAsync(entities);
                     }
+                    //Mode of Implementation
+                    else if (RevisionRules.RevisionGroupId == 13)
+                    {
+                        string NewProjectId = $"{Project.ProjectId}-A";
+                        var AddFromProjectHeader = new DBHelper.Models.Table.Projects
+                        {
+                            ProgramId = ProgramDetails.ProgramId,
+                            ReferenceId = NewProjectId,
+                            CreatedBy = _Session.UserId,
+                            CreatedDate = CurrentDate,
+                            IsDeleted = false
+                        };
+                        _db.tProjects.Add(AddFromProjectHeader);
+                        ProjectRevision.ProjectId = NewProjectId;
+                        ProjectRevision.Id = 0;
+                        _db.tProjectRevisions.Add(ProjectRevision);
+                        await _db.SaveChangesAsync();
+                        var AddProjectStage = new ProjectStages
+                        {
+                            ReferenceId = ProjectRevision.ReferenceId,
+                            ProgramId = ProgramDetails.ProgramId,
+                            RevisionId = ProjectRevision.Id,
+                            StageId = EnumProgramStage.GAAR,
+                            StageName = ProjectStage.StageName,
+                            CreatedBy = _Session.UserId,
+                            CreatedDate = CurrentDate,
+                            IsPublished = true
+                        };
+                        _db.tProjectStages.Add(AddProjectStage);
+                        NewFundingProfile.ForEach(x => { 
+                            x.ProjectId = NewProjectId;
+                        });
+                        NewComponent.ForEach(x => {
+                            x.ProjectId = NewProjectId;
+                        });
+                        NewMajorWorkItem.ForEach(x => {
+                            x.ProjectId = NewProjectId;
+                        });
+                    }
+                    else
+                    {
+                        _db.tProjectRevisions.Update(Project);
+                    }
+                    await _db.tRevisionProjects.AddAsync(NewRevisionProject);
+                    await _db.tRevisionProjectFundingProfile.AddRangeAsync(NewFundingProfile);
+                    await _db.tRevisionProjectComponentCost.AddRangeAsync(NewComponent);
+                    await _db.tRevisionProjectComponentCostPerYear.AddRangeAsync(NewComponentPerYear);
+                    await _db.tRevisionProjectMajorWorkItem.AddRangeAsync(NewMajorWorkItem);
+                    await _db.tRevisionProjectMajorWorkLocations.AddRangeAsync(NewMajorWorkLocations);
                     var ExistingProjectRevisions = await _db.tRevisionProjects.FirstOrDefaultAsync(x => x.IsActive == true && x.ProjectId == dto.ProjectDetails.ProjectId);
                     if (ExistingProjectRevisions != null)
                     {
@@ -1295,6 +1388,59 @@ namespace WebAPI.Controllers.Revision
                                     IsPackaged = status.FirstOrDefault(a => a.ComponentId == x.ComponentId)?.PackedStatusName == "Packaged"
                                 }));
                             }
+                            if (RevisionDetails.RevisionGroupId == 13)
+                            {
+                                var ProjectDetails = await _db.tRevisionProjects.FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId);
+                                if (ProjectDetails == null)
+                                {
+                                    return new BadRequestObjectResult(new { Message = $"Project details not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Project details not found" });
+                                }
+                                string NewProjectId = $"{ProjectDetails.ProjectId}-A";
+                                ProjectDetails.ProjectId = NewProjectId;
+                                var FundingProfile = await _db.tRevisionProjectFundingProfile.Where(x => x.TransactionId == dto.TransactionId).ToListAsync();
+                                if (FundingProfile == null)
+                                {
+                                    return new BadRequestObjectResult(new { Message = $"Revision funding profile not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision funding profile not found" });
+                                }
+                                FundingProfile.ForEach(x => { x.ProjectId = NewProjectId; });
+                                var ComponentCost = await _db.tRevisionProjectComponentCost.Where(x => x.TransactionId == dto.TransactionId).ToListAsync();
+                                if (ComponentCost == null)
+                                {
+                                    return new BadRequestObjectResult(new { Message = $"Revision component cost not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision component cost not found" });
+                                }
+                                ComponentCost.ForEach(x => { x.ProjectId = NewProjectId; });
+                                var MajorWorkItems = await _db.tRevisionProjectMajorWorkItem.Where(x => x.TransactionId == dto.TransactionId).ToListAsync();
+                                if (MajorWorkItems == null)
+                                {
+                                    return new BadRequestObjectResult(new { Message = $"Revision major work item not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision major work item not found" });
+                                }
+                                MajorWorkItems.ForEach(x => { x.ProjectId = NewProjectId; });
+                                var MajorWorkLocations = await _db.tRevisionProjectMajorWorkLocations.Where(x => x.TransactionId == dto.TransactionId).ToListAsync();
+                                if (MajorWorkLocations == null)
+                                {
+                                    return new BadRequestObjectResult(new { Message = $"Revision major work location not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision major work location not found" });
+                                }
+                                //MajorWorkLocations.Select(x => { x.ProjectId = $"{ProjectDetails.ProjectId}-A"; return x; }).ToList();
+                                var getProgramId = await _db.tProjects.FirstOrDefaultAsync(x => x.ReferenceId == $"B{ProjectDetails.ProjectId}");
+                                if(getProgramId == null)
+                                {
+                                    return new BadRequestObjectResult(new { Message = $"Program details not found for the given project reference ID,\n\n<b>Project Reference ID:</b> <i><u>B{ProjectDetails.ProjectId}</u></i> ", Title = "Program details not found" });
+                                }
+                                var AddFromProjectHeader = new DBHelper.Models.Table.Projects
+                                {
+                                    ProgramId = getProgramId.ProgramId,
+                                    ReferenceId = $"{ProjectDetails.ProjectId} -A",
+                                    CreatedBy = _Session.UserId,
+                                    CreatedDate = CurrentDate,
+                                    IsDeleted = false
+                                };
+                                _db.tRevisionProjects.Update(ProjectDetails);
+                                _db.tRevisionProjectFundingProfile.UpdateRange(FundingProfile);
+                                _db.tRevisionProjectComponentCost.UpdateRange(ComponentCost);
+                                _db.tRevisionProjectMajorWorkItem.UpdateRange(MajorWorkItems);
+                                _db.tRevisionProjectMajorWorkLocations.UpdateRange(MajorWorkLocations);
+                                _db.tProjects.Add(AddFromProjectHeader);
+                            }
                             var ExistingProjectRevisions = await _db.tRevisionProjects.FirstOrDefaultAsync(x => x.IsActive == true && x.ProjectId == SelectedProjectRevision.ProjectId);
                             if (ExistingProjectRevisions != null)
                             {
@@ -1385,6 +1531,11 @@ namespace WebAPI.Controllers.Revision
                 if(ExistingComponent == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Revision component cost not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision Component Cost not found" });
+                }
+                var ExistingComponentYear = await _db.tRevisionProjectComponentCostPerYear.Where(x => x.TransactionId == dto.TransactionId).ToListAsync();
+                if(ExistingComponentYear == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Revision component cost per year not found for the given transaction ID,\n\n<b>Transaction ID:</b> <i><u>{dto.TransactionId}</u></i> ", Title = "Revision Component Cost Per Year not found" });
                 }
                 var ExistingMajorWorkItem = await _db.tRevisionProjectMajorWorkItem.Where(x => x.TransactionId == dto.TransactionId).ToListAsync();
                 if(ExistingMajorWorkItem == null)
@@ -1820,21 +1971,20 @@ namespace WebAPI.Controllers.Revision
                     {
                         var ComponentId = component.Id;
                         var SelectedComponent = ExistingComponent.FirstOrDefault(x => x.Id == ComponentId);
-                        var OldSelectedComponent = new DBHelper.Models.Table.RevisionProjectComponentCost
-                        {
-                            Id = SelectedComponent.Id,
-                            TransactionId = SelectedComponent.TransactionId,
-                            ProjectId = SelectedComponent.ProjectId,
-                            ComponentType = SelectedComponent.ComponentType,
-                            ComponentId = SelectedComponent.ComponentId,
-                            Description = SelectedComponent.Description,
-                            Amount = SelectedComponent.Amount,
-                            StartDate = SelectedComponent.StartDate,
-                            EndDate = SelectedComponent.EndDate,
-                            IsDeleted = SelectedComponent.IsDeleted
-                        };
                         if (SelectedComponent != null)
                         {
+                            var OldSelectedComponent = new DBHelper.Models.Table.RevisionProjectComponentCost
+                            {
+                                Id = SelectedComponent.Id,
+                                TransactionId = SelectedComponent.TransactionId,
+                                ProjectId = SelectedComponent.ProjectId,
+                                CostId = SelectedComponent.CostId,
+                                ComponentType = SelectedComponent.ComponentType,
+                                ComponentId = SelectedComponent.ComponentId,
+                                Description = SelectedComponent.Description,
+                                Total = SelectedComponent.Total,
+                                IsDeleted = SelectedComponent.IsDeleted
+                            };
                             if (ComponentCostRules.Count > 0)
                             {
                                 SelectedComponent = ComponentCostRules.UpdateRevisionData(component, SelectedComponent);
@@ -1884,7 +2034,7 @@ namespace WebAPI.Controllers.Revision
                                     CreatedDate = CurrentDate
                                 });
                             }
-                            if (OldSelectedComponent.Amount != SelectedComponent.Amount)
+                            if (OldSelectedComponent.Total != SelectedComponent.Total)
                             {
                                 TransactionLog.Add(new RevisionTransactionLog
                                 {
@@ -1892,39 +2042,9 @@ namespace WebAPI.Controllers.Revision
                                     ReferenceId = dto.TransactionId,
                                     TypeOfTransaction = "Update",
                                     AffectedTable = "tRevisionProjectComponentCost",
-                                    AffectedColumn = "Amount",
-                                    OldValue = OldSelectedComponent.Amount.ToString(),
-                                    NewValue = SelectedComponent.Amount.ToString(),
-                                    CreatedBy = _Session.UserId,
-                                    CreatedDate = CurrentDate
-                                });
-                            }
-                            if (OldSelectedComponent.StartDate != SelectedComponent.StartDate)
-                            {
-                                TransactionLog.Add(new RevisionTransactionLog
-                                {
-                                    TransactionId = RevisionTransactionId,
-                                    ReferenceId = dto.TransactionId,
-                                    TypeOfTransaction = "Update",
-                                    AffectedTable = "tRevisionProjectComponentCost",
-                                    AffectedColumn = "StartDate",
-                                    OldValue = OldSelectedComponent.StartDate?.ToString("MM-dd-yyyy"),
-                                    NewValue = SelectedComponent.StartDate?.ToString("MM-dd-yyyy"),
-                                    CreatedBy = _Session.UserId,
-                                    CreatedDate = CurrentDate
-                                });
-                            }
-                            if (OldSelectedComponent.EndDate != SelectedComponent.EndDate)
-                            {
-                                TransactionLog.Add(new RevisionTransactionLog
-                                {
-                                    TransactionId = RevisionTransactionId,
-                                    ReferenceId = dto.TransactionId,
-                                    TypeOfTransaction = "Update",
-                                    AffectedTable = "tRevisionProjectComponentCost",
-                                    AffectedColumn = "EndDate",
-                                    OldValue = OldSelectedComponent.EndDate?.ToString("MM-dd-yyyy"),
-                                    NewValue = SelectedComponent.EndDate?.ToString("MM-dd-yyyy"),
+                                    AffectedColumn = "Total",
+                                    OldValue = OldSelectedComponent.Total.ToString(),
+                                    NewValue = SelectedComponent.Total.ToString(),
                                     CreatedBy = _Session.UserId,
                                     CreatedDate = CurrentDate
                                 });
@@ -1952,19 +2072,162 @@ namespace WebAPI.Controllers.Revision
                 }
                 if (jsonRules.ComponentCostRules.CRUD.CanAdd)
                 {
-                    ExistingComponent.AddRange(dto.ComponentCosts.Where(x => x.Id == 0).Select(x => new DBHelper.Models.Table.RevisionProjectComponentCost
+                    var NewCost = dto.ComponentCosts.Where(x => x.Id == 0);
+                    ExistingComponent.AddRange(NewCost.Select(x => new DBHelper.Models.Table.RevisionProjectComponentCost
                     {
                         TransactionId = dto.TransactionId,
+                        CostId = x.CostId,
                         ProjectId = Project.ProjectId,
                         ComponentType = x.ComponentType,
                         ComponentId = x.ComponentId,
                         Description = x.Description,
-                        Amount = x.Amount,
-                        StartDate = x.StartDate,
-                        EndDate = x.EndDate,
+                        Total = x.Total,
                         IsDeleted = false
                     }));
+                    if (jsonRules.ComponentCostYearRules.CRUD.CanAdd)
+                    {
+                        var CostIds = ExistingComponentYear.Select(x => x.ComponentCostId).ToList();
+                        var UpdatedCostYear = dto.ComponentCostPerYear.Where(x => x.Id == 0 && CostIds.Contains(x.ComponentCostId)).ToList();
+                        ExistingComponentYear.AddRange(UpdatedCostYear.Select(x => new RevisionProjectComponentCostPerYear
+                        {
+                            TransactionId = dto.TransactionId,
+                            ComponentCostId = x.ComponentCostId,
+                            Amount = x.Amount,
+                            Year = x.Year,
+                            StartDate = x.StartDate,
+                            EndDate = x.EndDate,
+                            IsDeleted = false
+                        }));
+                    }
                 }
+                #endregion
+                #region ComponentCostPerYear
+                    var ComponentCostPerYearRules = jsonRules.ComponentCostYearRules.Fields.GetType()
+                    .GetProperties()
+                    .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
+                    .Where(p => (bool?)p.GetValue(jsonRules.ComponentCostRules.Fields) == true)
+                    .Select(p => p.Name)
+                    .ToList();
+                var UpdateComponentCostPerYear = dto.ComponentCostPerYear.Where(x => x.Id != 0);
+                if(ExistingComponentYear.Count > 0)
+                {
+                    foreach (var component in UpdateComponentCostPerYear)
+                    {
+                        var ComponentCostYearId = component.Id;
+                        var SelectedComponentCostYear = ExistingComponentYear.FirstOrDefault(x => x.Id == ComponentCostYearId);
+                        if (SelectedComponentCostYear != null)
+                        {
+                            var OldSelectedComponentCostYear = new RevisionProjectComponentCostPerYear
+                            {
+                                Id = SelectedComponentCostYear.Id,
+                                TransactionId = SelectedComponentCostYear.TransactionId,
+                                ComponentCostId = SelectedComponentCostYear.ComponentCostId,
+                                Amount = SelectedComponentCostYear.Amount,
+                                Year = SelectedComponentCostYear.Year,
+                                StartDate = SelectedComponentCostYear.StartDate,
+                                EndDate = SelectedComponentCostYear.EndDate,
+                                IsDeleted = SelectedComponentCostYear.IsDeleted
+                            };
+                            if (ComponentCostPerYearRules.Count > 0)
+                            {
+                                SelectedComponentCostYear = ComponentCostPerYearRules.UpdateRevisionData(component, SelectedComponentCostYear);
+                            }
+                            if (OldSelectedComponentCostYear.Amount != SelectedComponentCostYear.Amount)
+                            {
+                                TransactionLog.Add(new RevisionTransactionLog
+                                {
+                                    TransactionId = RevisionTransactionId,
+                                    ReferenceId = dto.TransactionId,
+                                    TypeOfTransaction = "Update",
+                                    AffectedTable = "tRevisionProjectComponentCostPerYear",
+                                    AffectedColumn = "Amount",
+                                    OldValue = OldSelectedComponentCostYear.Amount.ToString(),
+                                    NewValue = SelectedComponentCostYear.Amount.ToString(),
+                                    CreatedBy = _Session.UserId,
+                                    CreatedDate = CurrentDate
+                                });
+                            }
+                            if (OldSelectedComponentCostYear.Year != SelectedComponentCostYear.Year)
+                            {
+                                TransactionLog.Add(new RevisionTransactionLog
+                                {
+                                    TransactionId = RevisionTransactionId,
+                                    ReferenceId = dto.TransactionId,
+                                    TypeOfTransaction = "Update",
+                                    AffectedTable = "tRevisionProjectComponentCostPerYear",
+                                    AffectedColumn = "Year",
+                                    OldValue = OldSelectedComponentCostYear.Year.ToString(),
+                                    NewValue = SelectedComponentCostYear.Year.ToString(),
+                                    CreatedBy = _Session.UserId,
+                                    CreatedDate = CurrentDate
+                                });
+                            }
+                            if (OldSelectedComponentCostYear.StartDate != SelectedComponentCostYear.StartDate)
+                            {
+                                TransactionLog.Add(new RevisionTransactionLog
+                                {
+                                    TransactionId = RevisionTransactionId,
+                                    ReferenceId = dto.TransactionId,
+                                    TypeOfTransaction = "Update",
+                                    AffectedTable = "tRevisionProjectComponentCostPerYear",
+                                    AffectedColumn = "StartDate",
+                                    OldValue = OldSelectedComponentCostYear.StartDate.ToString(),
+                                    NewValue = SelectedComponentCostYear.StartDate.ToString(),
+                                    CreatedBy = _Session.UserId,
+                                    CreatedDate = CurrentDate
+                                });
+                            }
+                            if (OldSelectedComponentCostYear.EndDate != SelectedComponentCostYear.EndDate)
+                            {
+                                TransactionLog.Add(new RevisionTransactionLog
+                                {
+                                    TransactionId = RevisionTransactionId,
+                                    ReferenceId = dto.TransactionId,
+                                    TypeOfTransaction = "Update",
+                                    AffectedTable = "tRevisionProjectComponentCostPerYear",
+                                    AffectedColumn = "EndDate",
+                                    OldValue = OldSelectedComponentCostYear.EndDate.ToString(),
+                                    NewValue = SelectedComponentCostYear.EndDate.ToString(),
+                                    CreatedBy = _Session.UserId,
+                                    CreatedDate = CurrentDate
+                                });
+                            }
+                            if (jsonRules.ComponentCostYearRules.CRUD.CanDelete && (SelectedComponentCostYear.IsDeleted != OldSelectedComponentCostYear.IsDeleted))
+                            {
+                                TransactionLog.Add(new RevisionTransactionLog
+                                {
+                                    TransactionId = RevisionTransactionId,
+                                    ReferenceId = dto.TransactionId,
+                                    TypeOfTransaction = "Update",
+                                    AffectedTable = "tRevisionProjectComponentCostPerYear",
+                                    AffectedColumn = "IsDeleted",
+                                    OldValue = (OldSelectedComponentCostYear.IsDeleted) ? "True" : "False",
+                                    NewValue = (SelectedComponentCostYear.IsDeleted) ? "True" : "False",
+                                    CreatedBy = _Session.UserId,
+                                    CreatedDate = CurrentDate
+                                });
+                            }
+                        }
+                        if (jsonRules.ComponentCostYearRules.CRUD.CanDelete)
+                        {
+                            var DeletedComponentCostPerYear = UpdateComponentCostPerYear.Where(x => x.IsDeleted == true).ToList();
+                            ExistingComponentYear = ExistingComponentYear.Where(x => !DeletedComponentCostPerYear.Select(x => x.Id).Contains(x.Id)).ToList();
+                            TransactionLog.AddRange(DeletedComponentCostPerYear.Select(x => new RevisionTransactionLog
+                            {
+                                TransactionId = RevisionTransactionId,
+                                ReferenceId = dto.TransactionId,
+                                TypeOfTransaction = "Delete",
+                                AffectedTable = "tRevisionProjectComponentCostPerYear",
+                                AffectedColumn = "Row",
+                                OldValue = JsonConvert.SerializeObject(x),
+                                NewValue = null,
+                                CreatedBy = _Session.UserId,
+                                CreatedDate = CurrentDate
+                            }));
+                        }
+                    }
+                }
+
                 #endregion
                 #region MajorWorkItem
                 var MajorWorkItemRules = jsonRules.MajorItemOfWorkRules.Fields.GetType()
@@ -2383,6 +2646,7 @@ namespace WebAPI.Controllers.Revision
                 _db.tRevisionProjects.Update(ExistingRevisionProject);
                 _db.tRevisionProjectFundingProfile.UpdateRange(ExistingFundingProfile);
                 _db.tRevisionProjectComponentCost.UpdateRange(ExistingComponent);
+                _db.tRevisionProjectComponentCostPerYear.UpdateRange(ExistingComponentYear);
                 _db.tRevisionProjectMajorWorkItem.UpdateRange(ExistingMajorWorkItem);
                 _db.tRevisionProjectMajorWorkLocations.UpdateRange(ExistingMajorWorkLocations);
 
