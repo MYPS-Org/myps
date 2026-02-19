@@ -17,30 +17,30 @@ export const getRevisionNavigationPath = (
     const baseParams = `${projectId}:${stageName}`;
     
     switch (revisionGroupId) {
-        case 1: // Additional Funding
-            return `/revision/additional-funding/${baseParams}`;
-        case 2: // Adjustment
+        case 1:
+            return `/revision/modification/${baseParams}`;
+        case 6:
             return `/revision/adjustment-details/${baseParams}`;
-        case 3: // Change in Authority to Implement
+        case 10:
+            return `/revision/additional-funding/${baseParams}`;
+        case 7: 
             return `/revision/change-in-authority/${baseParams}`;
-        case 4: // Change in Funding
+        case 12:
             return `/revision/change-in-funding/${baseParams}`;
-        case 5: // Change of Creditor
+        case 16:
             return `/revision/change-of-creditor/${baseParams}`;
-        case 6: // Expired Funding
-            return `/revision/expired-funding/${baseParams}`;
-        case 7: // For Savings - Partial Unutilized Balance
-            return `/revision/for-saving/${baseParams}`;
-        case 8: // Mode of Implementation
+        case 15:
+            return `/revision/expire-funding/${baseParams}`;
+        case 11:
+            return `/revision/for-savings/${baseParams}`;
+        case 13:
             return `/revision/mode-of-implementation/${baseParams}`;
-        case 9: // Modification Details
-            return `/revision/modification-details/${baseParams}`;
-            case 10: // Multi-Year Costing Changes
-        return `/revision/multi-year-costing-changes/${baseParams}`;
-            case 11: // Non-Implementable
-        return `/revision/non-implementable/${baseParams}`;
-            case 12: // Termination
-        return `/revision/termination/${baseParams}`;
+        case 14:
+            return `/revision/multi-year-costing-changes/${baseParams}`;
+        case 8:
+            return `/revision/non-implementable/${baseParams}`;
+        case 9:
+            return `/revision/termination/${baseParams}`;
         default:
             // Fallback to modification details
             return `/projects/project-details/${baseParams}`;

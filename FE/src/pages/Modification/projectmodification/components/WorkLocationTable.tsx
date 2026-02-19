@@ -721,71 +721,74 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
               <label className="block text-sm font-medium text-gray-900">
                 Length (km) <span className="text-red-500">*</span>
               </label>
-              <input
-                type="number"
-                value={displayLength}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-100 cursor-not-allowed"
-                placeholder="Auto-calculated from chainages..."
-                readOnly
-                disabled
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  value={displayLength}
+                  className={`w-full px-3 py-2 border rounded-md text-sm bg-gray-100 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-right ${
+                    hasError ? 'border-red-500' : 'border-gray-300'
+                  } ${getDisabledClass(disabled)}`}
+                  placeholder="Calculated from chainages"
+                  readOnly
+                  disabled={disabled}
+                />
+              </div>
               {shouldShowInfo && !hasError && (
-                <div className="text-xs text-blue-600 flex items-start">
-                  <svg className="w-4 h-4 mr-1 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <div className="text-xs text-blue-600 flex items-start gap-1">
+                  <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                   </svg>
-                  <span>Calculated: {difference} km (End - Start = {location.EndChainage} - {location.StartChainage})</span>
+                  <span>Auto-calculated: {absoluteDifference.toFixed(3)} km from chainages</span>
                 </div>
               )}
               {hasError && (
-                <div className="text-xs text-red-600 flex items-start">
-                  <svg className="w-4 h-4 mr-1 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <div className="text-xs text-red-600 flex items-start gap-1">
+                  <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                   </svg>
                   <span>{validation.message}</span>
                 </div>
               )}
               <div className="text-xs text-gray-500">
-                Length is automatically calculated from the difference between End and Start chainage
+                Calculated automatically from Start and End Chainage
               </div>
             </div>
           );
         } else {
-          // For non-Roads: Simple numeric input
+          // For non-Roads: Simple numeric input (no min/max constraints)
           const displayLength = location.Length !== null && location.Length !== undefined ? location.Length.toString() : '';
           const hasError = !validation.isValid && displayLength !== '';
           const isRequired = isLengthRequired();
           
           return (
             <div key={fieldName} className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Length (meters) {isRequired && <span className="text-red-500">*</span>}
+              <label className="block text-sm font-medium text-gray-900">
+                Length (Lineal meters) {isRequired && <span className="text-red-500">*</span>}
               </label>
-              <input
-                type="number"
-                value={displayLength}
-                onChange={(e) => handleFieldChange(index, 'Length', e.target.value ? Number(e.target.value) : null)}
-                onFocus={handleNumberFocus}
-                className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
-                  hasError ? 'border-red-500' : 'border-gray-300'
-                } ${getDisabledClass(!isLengthEditable || disabled)}`}
-                placeholder="Enter length in meters..."
-                step="0.01"
-                min={minAmount}
-                max={maxAmount}
-                disabled={!isLengthEditable || disabled}
-              />
+              <div className="relative">
+                <input
+                  type="number"
+                  value={displayLength}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    handleFieldChange(index, 'Length', value ? Number(value) : null);
+                  }}
+                  onFocus={handleNumberFocus}
+                  step="0.001"
+                  min={0.001}
+                  className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-right ${
+                    hasError ? 'border-red-500' : 'border-gray-300'
+                  } ${getDisabledClass(!isLengthEditable || disabled)}`}
+                  placeholder="Enter length in Lineal meters"
+                  disabled={!isLengthEditable || disabled}
+                />
+              </div>
               {hasError && (
-                <div className="text-xs text-red-600 flex items-start">
-                  <svg className="w-4 h-4 mr-1 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <div className="text-xs text-red-600 flex items-start gap-1">
+                  <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                   </svg>
                   <span>{validation.message}</span>
-                </div>
-              )}
-              {(maxAmount || minAmount) && (
-                <div className="text-xs text-gray-500">
-                  Range: {minAmount || 0} - {maxAmount || '∞'} meters
                 </div>
               )}
             </div>

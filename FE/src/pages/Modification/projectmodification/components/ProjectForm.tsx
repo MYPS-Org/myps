@@ -371,6 +371,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     Agreements: [],
     Sources: [],
     ScopeOfWorks: [],
+    InfraTypes: [],
     SupportingDocs: [],
     Revisions: { Headers: [], Reasons: [], Categories: [] }
   });

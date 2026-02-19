@@ -283,7 +283,7 @@ const ModificationList: React.FC = () => {
                                                 </span>
                                             )}
                                             {revision.RegionStatus == 1 && revision.COStatus != null && (
-                                                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${revision.COStatusName == 'Approved' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-red-800'}`}>
+                                                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${revision.RegionStatusName == 'Approved' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-red-800'}`}>
                                                     {revision.COStatusName}
                                                 </span>
                                             )}

@@ -50,7 +50,7 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
         YearEnd: 0,
         CreatedBy: '',
         CreatedDate: '',
-        IsPublished: false,
+        IsPublishable: false,
         };
         setProgramDetails(emptyProgramDetails);
         setSearchFormData('');

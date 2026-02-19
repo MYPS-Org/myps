@@ -318,6 +318,11 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     };
   };
 
+  const getInfraName = (infraTypeCode: string) => {
+    const infraType = infraTypeEnums?.find(infra => infra.InfraCode === infraTypeCode);
+    return infraType?.InfraName || '';
+  }
+
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
       <div className="flex justify-between items-center mb-4">
@@ -380,7 +385,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="text-sm">{item.InfraType}</div>
+                    <div className="text-sm">{getInfraName(item.InfraType)}</div>
                   </TableCell>
                   {/* <TableCell>
                     Unit cost here

@@ -46,6 +46,7 @@ export const getRevisionActions = ({
   loading,
   actions,
 }: Params): RevisionAction[] => [
+  // --- AUC ---
   {
     show: isEdit && userGroup === 'AUC' && regionStatus == null,
     color: 'green',
@@ -53,6 +54,59 @@ export const getRevisionActions = ({
     loading: loading.revise,
     onClick: () => actions.submit('new'),
   },
+  {
+    show: isEdit && userGroup === 'AUC' && coStatus == 0,
+    color: 'green',
+    label: 'Approve',
+    loading: loading.approve,
+    onClick: () => actions.submit('approve'),
+  },
+  {
+    show: isEdit && userGroup === 'AUC' && coStatus == 0,
+    color: 'amber',
+    label: 'For Correction',
+    loading: loading.review,
+    onClick: () => actions.openReview(),
+  },
+  {
+    show: isEdit && userGroup === 'AUC' && coStatus == 0,
+    color: 'red',
+    label: 'Disapprove',
+    loading: loading.reject,
+    onClick: () => actions.openReject(),
+  },
+
+  // --- RPC ---
+  {
+    show: isEdit && userGroup === 'RPC' && regionStatus == null,
+    color: 'green',
+    label: 'Submit Revision Request to CO',
+    loading: loading.revise,
+    onClick: () => actions.submit('new'),
+  },
+  {
+    show: isEdit && userGroup === 'RPC' && regionStatus == 0,
+    color: 'green',
+    label: 'Approve and Submit Revision to CO',
+    loading: loading.approve,
+    onClick: () => actions.openApprove(),
+  },
+  {
+    show: isEdit && userGroup === 'RPC' && regionStatus == 0,
+    color: 'amber',
+    label: 'For Correction',
+    loading: loading.review,
+    onClick: () => actions.openReview(),
+  },
+  {
+    show: isEdit && userGroup === 'RPC' && regionStatus == 0,
+    color: 'red',
+    label: 'Disapprove',
+    loading: loading.reject,
+    onClick: () => actions.openReject(),
+  },
+
+  // --- DPC ---
   {
     show: isEdit && userGroup === 'DPC' && regionStatus == null,
     color: 'green',
@@ -67,6 +121,8 @@ export const getRevisionActions = ({
     loading: loading.resubmit,
     onClick: () => actions.submit('resubmit'),
   },
+
+  // --- All ---
   {
     show: isEdit && isActive && (stageId !== 10 || isModify),
     color: 'orange',
