@@ -242,7 +242,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         TargetUnitId: item.TargetUnitId || 0,
         TargetUnit: item.TargetUnit || '',
         MajorItemLocations: itemWorkLocations, // Combine WorkLocations from separate array
-        DropdownData: initialData?.Dropdowns?.ScopeOfWorks?.filter(scope => scope.InfraType === item.InfraType) || []
+        DropdownData: initialData?.Dropdowns?.ScopeOfWorks?.filter(scope => scope.InfraType.includes(item.InfraType)) || []
       };
     });
   });
@@ -290,6 +290,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     Agreements: [],
     Sources: [],
     ScopeOfWorks: [],
+    InfraTypes: [],
     SupportingDocs: [],
     Revisions: { Headers: [], Reasons: [], Categories: [] }
   });
@@ -934,8 +935,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             <div>
               
             </div>
-            {/* fixed top-4 right-4 z-50 */}
-            <div className="flex flex-col space-y-3 ">
+            <div className="flex flex-col space-y-3 fixed top-8 right-6 z-50">
                 {mode === 'edit' && initialData?.IsActive === true && initialData?.IsUnlock === true && initialData?.ProgramDetails?.StageId !== 10 && (
                   <>
                     <Button color="red" className='cursor-pointer' onClick={() => handleLock(initialData?.ProjectDetails?.ProjectId ?? '', initialData?.ProgramDetails?.StageName ?? '')} disabled={updateAllProject}>
@@ -943,14 +943,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                     </Button>
                   </>
                 )}
-                {mode === 'edit' && initialData?.IsActive === true && initialData?.ProgramDetails?.StageId !== 10 && (
-                  <>
-                    <Button color="orange" className='cursor-pointer' onClick={handleUpdateProject} disabled={updateAllProject}>
-                      {updateAllProject ? 'Updating...' : 'Update Project'}
-                    </Button>
-                  </>
-                )}
-                {mode === 'edit' && initialData?.IsActive === true && initialData?.IsModify === true && (
+                {mode === 'edit' && (initialData?.IsActive === true || initialData?.IsModify === true) && initialData?.ProgramDetails?.StageId !== 10 && (
                   <>
                     <Button color="orange" className='cursor-pointer' onClick={handleUpdateProject} disabled={updateAllProject}>
                       {updateAllProject ? 'Updating...' : 'Update Project'}
@@ -1154,6 +1147,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             onEdit={handleEditMajorItem}
             onDelete={handleDeleteMajorItem}
             dropDowns={initialData?.Dropdowns?.ScopeOfWorks}
+            infraTypeEnums={initialData?.Dropdowns?.InfraTypes}
             programDetails={initialData?.ProgramDetails}
             disabled={isDisabled}
           />

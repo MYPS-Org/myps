@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import type { ComponentCost, ScopeOfWorkEnum } from '../Model.d';
+import type { ComponentCost, ScopeOfWorkEnum, InfraTypeEnum } from '../Model.d';
 import type { ProgramList } from '../../Program/Model';
 import { getDisabledClass } from '../../../utils/GlobalFunctions';
 
@@ -19,6 +19,7 @@ interface AddMajorItemDialogProps {
   componentCosts: ComponentCost[];
   programDetails?: ProgramList;
   dropDowns?: ScopeOfWorkEnum[];
+  infraTypeEnums?: InfraTypeEnum[];
   mode: 'add' | 'edit';
   initialData?: {
     ComponentId: string;
@@ -37,6 +38,7 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
   componentCosts,
   programDetails,
   dropDowns = [],
+  infraTypeEnums = [],
   mode,
   initialData,
   existingMajorItems = []
@@ -66,13 +68,13 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
     }
   }, [mode, initialData, isOpen, programDetails]);
 
-  // Update available work types when InfraType changes
+  // Filter available work types based on selected InfraType (InfraCode)
   const availableWorkTypes = useMemo<ScopeOfWorkEnum[]>(() => {
     if (!formData.InfraType || !dropDowns) return [];
 
     return dropDowns.filter(
       scope =>
-        scope.InfraType === formData.InfraType &&
+        scope.InfraType.includes(formData.InfraType) &&
         (formData.ComponentId !== "ROW" ||
           scope.Description === "ROW Acquisition")
     );
@@ -133,10 +135,12 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
     handleClose();
   };
 
-  // Get unique infrastructure types from dropdowns
-  const infraTypes = formData.ComponentId === "ROW"
-  ? [...new Set(dropDowns?.filter(scope => scope.Description === "ROW Acquisition").map(scope => scope.InfraType) || [])]
-  : [...new Set(dropDowns?.map(scope => scope.InfraType) || [])];
+  // Get infrastructure types: use InfraTypeEnum master list if available,
+  // otherwise fall back to extracting unique codes from ScopeOfWorks
+  const infraTypeOptions: InfraTypeEnum[] = infraTypeEnums.length > 0
+    ? infraTypeEnums
+    : [...new Set(dropDowns?.flatMap(scope => scope.InfraType) || [])]
+        .map((code, i) => ({ Id: i, InfraId: i, InfraCode: code, InfraName: code }));
   
   // Filter out already selected ComponentIds (but allow the current one when editing)
   const availableComponentCosts = componentCosts.filter(cost => {
@@ -232,9 +236,9 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
                 disabled={mode === 'edit'} // Disable infrastructure type selection in edit mode
               >
                 <option value="">Select Infrastructure Type</option>
-                {infraTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
+                {infraTypeOptions.map((infraType) => (
+                  <option key={infraType.InfraCode} value={infraType.InfraCode}>
+                    {infraType.InfraName}
                   </option>
                 ))}
               </select>

@@ -13,6 +13,7 @@ import NextStageDialog from '../dialogs/NextStageDialog';
 import AIPReportDialog from '../dialogs/AIPReportDialog';
 import PublishProgramDialog from '../dialogs/PublishProgramDialog';
 import BatchTagDialog from '../dialogs/BatchTagDialog';
+import AddExistingProjectDialog from '../dialogs/AddExistingProjectDialog';
 import CheckboxList from '../../../components/ui/CheckboxList';
 // import { formatCurrency } from '../../../utils/GlobalFunctions';
 // import { Badge } from '../../../components/tailwindui/badge';
@@ -102,6 +103,7 @@ const ProgramDetail: React.FC = () => {
   const [isBatchTagDialogOpen, setIsBatchTagDialogOpen] = useState(false);
   const [isBatchTagDropDownOpen, setIsBatchTagDropDownOpen] = useState(false);
   const [batchAction, setBatchAction] = useState<'tag' | 'delete' | 'unpublish' | 'publish'>('tag');
+  const [isAddExistingProjectDialogOpen, setIsAddExistingProjectDialogOpen] = useState(false);
   
   // Group data security by OrgType
   // const groupedDataSecurity = useMemo(() => {
@@ -161,7 +163,32 @@ const ProgramDetail: React.FC = () => {
     };
 
   const handleAddProject = () => {
-      navigate(`/projects/addproject?programId=${programEnums?.Details.ProgramId}&stageName=${programEnums?.Details.StageName}`);
+    navigate(`/projects/addproject?programId=${programEnums?.Details.ProgramId}&stageName=${programEnums?.Details.StageName}`);
+  };
+
+  const handleAddExistingProject = () => {
+setIsAddExistingProjectDialogOpen(true);
+  };
+
+  const handleAddExistingProjectSubmit = async (projectIds: string[]) => {
+    try {
+      setIsLoading(true);
+      // TODO: Call API to link selected projects to this program
+      console.log('Adding existing projects to program:', programEnums?.Details.ProgramId, projectIds);
+      showToast({
+        type: 'success',
+        message: `${projectIds.length} project${projectIds.length !== 1 ? 's' : ''} added successfully.`,
+      });
+      await fetchProgramDetail(programEnums?.Details.ProgramId, programEnums?.Details.StageName);
+    } catch (error) {
+      console.error('Error adding existing projects:', error);
+      showToast({
+        type: 'error',
+        message: 'Failed to add projects. Please try again.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleChange = (field: string, value: any) => {
@@ -718,6 +745,11 @@ const ProgramDetail: React.FC = () => {
                 Add Project
               </Button>
             )}
+            {programEnums.IsActive && programEnums?.Details?.StageId < 10 && (
+              <Button color="blue" onClick={handleAddExistingProject}>
+                Add Existing Project
+              </Button>
+            )}
             <div className="relative">
               <button
                 type="button"
@@ -978,6 +1010,17 @@ const ProgramDetail: React.FC = () => {
           programId={programEnums?.Details.ProgramId}
           programName={programEnums?.Details.Name}
           action={batchAction}
+        />
+      )}
+
+      {/* Add Existing Project Dialog */}
+      {isAddExistingProjectDialogOpen && (
+        <AddExistingProjectDialog
+          isOpen={isAddExistingProjectDialogOpen}
+          onClose={() => setIsAddExistingProjectDialogOpen(false)}
+          onSubmit={handleAddExistingProjectSubmit}
+          programId={programEnums?.Details.ProgramId}
+          programName={programEnums?.Details.Name}
         />
       )}
     </div>

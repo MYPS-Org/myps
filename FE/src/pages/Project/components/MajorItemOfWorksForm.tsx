@@ -10,6 +10,7 @@ import type {
   ComponentCost, 
   InfraData, 
   ScopeOfWorkEnum,
+  InfraTypeEnum,
   MajorItemLocations,
 } from '../Model.d';
 import type { ProgramList } from '../../Program/Model';
@@ -25,6 +26,7 @@ interface MajorItemOfWorksFormProps {
   onEdit: (index: number, updatedItem: MajorItemOfWorksWithDropdown) => void;
   onDelete: (index: number) => void;
   dropDowns?: ScopeOfWorkEnum[];
+  infraTypeEnums?: InfraTypeEnum[];
   disabled?: boolean;
 }
 
@@ -38,7 +40,8 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
   onEdit,
   onDelete,
   disabled = false,
-  dropDowns
+  dropDowns,
+  infraTypeEnums = [],
 }) => {
   const [majorItemDialogOpen, setMajorItemDialogOpen] = useState(false);
   const [editingMajorItemIndex, setEditingMajorItemIndex] = useState<number | null>(null);
@@ -57,7 +60,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     majorItems.forEach((item/*, index*/) => {
       // console.log(`Item ${index} - WorkTypeId:`, item.WorkTypeId, 'InfraType:', item.InfraType, 'DropdownData length:', item.DropdownData?.length);
       if (item.InfraType) {
-        /*const filtered = */dropDowns?.filter(x => x.InfraType === item.InfraType);
+        /*const filtered = */dropDowns?.filter(x => x.InfraType.includes(item.InfraType));
         // console.log(`Filtered dropdowns for InfraType '${item.InfraType}':`, filtered);
       }
     });
@@ -76,7 +79,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
       const updatedItems = majorItems.map((item, index) => {
         // If item has InfraType but no or empty DropdownData, update it
         if (item.InfraType && (!item.DropdownData || item.DropdownData.length === 0)) {
-          const filteredDropdowns = dropDowns.filter(x => x.InfraType === item.InfraType);
+          const filteredDropdowns = dropDowns.filter(x => x.InfraType.includes(item.InfraType));
           console.log(`Updating DropdownData for item ${index} with InfraType '${item.InfraType}':`, filteredDropdowns);
           hasUpdates = true;
           return {
@@ -152,7 +155,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
         TargetUnitId: majorItemData.WorkTypeId, // Same as WorkTypeId for now
         TargetUnit: getTargetUnitName(majorItemData.WorkTypeId),
         CreatedBy: '',
-        DropdownData: dropDowns?.filter(x => x.InfraType === majorItemData.InfraType) || [],
+        DropdownData: dropDowns?.filter(x => x.InfraType.includes(majorItemData.InfraType)) || [],
         MajorItemLocations: [], // Initialize empty work locations array
         IsDeleted: majorItemData.IsDeleted,
       };
@@ -175,14 +178,14 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
         InfraType: majorItemData.InfraType,
         TargetUnitId: majorItemData.WorkTypeId,
         TargetUnit: getTargetUnitName(majorItemData.WorkTypeId),
-        DropdownData: dropDowns?.filter(x => x.InfraType === majorItemData.InfraType) || [],
+        DropdownData: dropDowns?.filter(x => x.InfraType.includes(majorItemData.InfraType)) || [],
       };
       onEdit(editingMajorItemIndex, updatedItem);
     }
 
     setMajorItemDialogOpen(false);
     setEditingMajorItemIndex(null);
-    setIsAddingNewMajorItem(false);
+    setIsAddingNewMajorItem(false); 
   };
 
   const getTargetUnitName = (workTypeId: number): string => {
@@ -278,9 +281,9 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     
     // Find the corresponding component cost
     const componentCost = componentCosts?.find(cost => cost.ComponentId === majorItem.ComponentId);
-    if (!componentCost || !componentCost.Amount) return 0;
+    if (!componentCost || !componentCost.Total) return 0;
     
-    return componentCost.Amount / totalPhysicalTarget;
+    return componentCost.Total / totalPhysicalTarget;
   };
 
   // Format currency helper function
@@ -434,6 +437,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
         onAdd={handleMajorItemDialogSubmit}
         componentCosts={componentCosts}
         dropDowns={dropDowns}
+        infraTypeEnums={infraTypeEnums}
         mode={isAddingNewMajorItem ? 'add' : 'edit'}
         initialData={editingMajorItemIndex !== null ? {
           ComponentId: majorItems[editingMajorItemIndex].ComponentId,

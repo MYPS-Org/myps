@@ -3,7 +3,7 @@ import { Button } from '../../../components/tailwindui/button';
 import { PlusIcon, TrashIcon, PencilIcon, DocumentDuplicateIcon } from '@heroicons/react/24/outline';
 import AddInfraDialog from '../dialogs/AddInfraDialog';
 import DeleteWorkLocationDialog from '../dialogs/deleteDialogs/DeleteWorkLocationDialog';
-import { generateInfraId, shouldAutoGenerateInfraId, getInfraTypePrefix } from '../../../utils/infraIdGenerator';
+import { generateInfraId, shouldAutoGenerateInfraId, getInfraTypePrefix, isLocalInfraType, isRoadInfraType, isBridgeInfraType } from '../../../utils/infraIdGenerator';
 import type { MajorItemLocations, InfraData, ScopeOfWorkEnum, MajorItemOfWork } from '../Model.d';
 import type { ProgramList } from '../../Program/Model';
 import { getDisabledClass } from '../../../utils/GlobalFunctions';
@@ -45,6 +45,14 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
   disabled = false,
 }) => {
   const infraType = majorItemOfWorks.InfraType || '';
+
+  // InfraType guard helpers — based on InfraCode
+  // National Road: InfraCode 'R' (not local LR)
+  const isRoadType = (): boolean => isRoadInfraType(infraType);
+  // National Bridge: InfraCode 'B' (not local LB)
+  const isBridgeType = (): boolean => isBridgeInfraType(infraType);
+  // Local Infra: LR, LB, LFCS, LWW, etc. (L-prefix, ≥2 chars)
+  const isLocalType = (): boolean => isLocalInfraType(infraType);
   const [infraDialogOpen, setInfraDialogOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [isAddingNew, setIsAddingNew] = useState(false);
@@ -58,11 +66,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
   
   // Helper function to determine if Length field should be required
   const isLengthRequired = (): boolean => {
-    // Rule 1: If InfraType is Roads, Length is ALWAYS required
-    if (infraType.toLowerCase() === 'roads' || infraType.toLowerCase() === 'road') {
-      return true;
-    }
-    // Rule 2: If Measure is length-based, Length is required
+    if (isRoadType()) return true; // National road always requires length
     return isLengthBasedMeasure(actualTargetUnit);
   };
   
@@ -73,9 +77,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
   
   // Helper function to validate Length value
   const validateLength = (location: MajorItemLocations): { isValid: boolean; message: string } => {
-    const isRoads = infraType.toLowerCase() === 'roads' || infraType.toLowerCase() === 'road';
-
-    if (isRoads) {
+    if (isRoadType()) {
       // For Roads: validate chainages
       const hasChainages = (location.StartChainage !== null && location.StartChainage !== undefined) 
         && (location.EndChainage !== null && location.EndChainage !== undefined);
@@ -320,22 +322,24 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
 
   // Get fields based on infrastructure type
   const getFieldsForInfraType = () => {
-    const infraTypeLower = infraType?.toLowerCase();
-    
-    if (infraTypeLower === 'road' || infraTypeLower === 'roads') {
-      // For Roads: Always include Length with chainages
-      return ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget', 'StartStationLimit', 'EndStationLimit', 'StartChainage','EndChainage', 'Length'];
-    } else if (infraTypeLower === 'bridge' || infraTypeLower === 'bridges') {
-      // For Bridges: Include Length only if measure is length-based
+    if (isRoadType()) {
+      // National Road: chainages + station limits
+      return ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget', 'StartStationLimit', 'EndStationLimit', 'StartChainage', 'EndChainage', 'Length'];
+    } else if (isBridgeType()) {
+      // National Bridge: infra selection dialog, optional length
       const baseFields = ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget'];
       return shouldShowLengthField() ? [...baseFields, 'Length'] : baseFields;
-    } else if (infraTypeLower === 'cos' || infraTypeLower === 'non-infra') {
-      // For CoS/Non-Infra: Include Length only if measure is length-based
+    } else if (isLocalType()) {
+      // Local infra (LR, LB, LFCS, etc.): free-text ID + coordinates, NO chainage
+      const baseFields = ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget', 'StartX', 'StartY', 'EndX', 'EndY'];
+      return shouldShowLengthField() ? [...baseFields, 'Length'] : baseFields;
+    } else if (infraType.toLowerCase() === 'cos' || infraType.toLowerCase() === 'ni' || infraType.toLowerCase() === 'non-infra') {
+      // CoS / Non-Infra: no geo-coords
       const baseFields = ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget'];
       return shouldShowLengthField() ? [...baseFields, 'Length'] : baseFields;
     } else {
-      // Others - use coordinates, include Length only if measure is length-based
-      const baseFields = ['InfraId','DetailedScope', 'TargetUnit','PhysicalTarget','StartX', 'StartY', 'EndX', 'EndY'];
+      // All other infra: coordinate fields
+      const baseFields = ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget', 'StartX', 'StartY', 'EndX', 'EndY'];
       return shouldShowLengthField() ? [...baseFields, 'Length'] : baseFields;
     }
   };
@@ -380,7 +384,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
                     handleFieldChange(index, 'Length', Number(newInfraLength));
                   }
                 }}
-                className={`flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
+                className={`flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
                 placeholder={canSelectInfra ? "Click to select infrastructure..." : canAutoGenerate ? "Auto-generated or enter custom ID..." : "Enter infrastructure ID..."}
                 readOnly={canSelectInfra}
               />
@@ -436,7 +440,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
             <textarea
               value={location.DetailedScope}
               onChange={(e) => handleFieldChange(index, 'DetailedScope', e.target.value)}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
+              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
               placeholder="Enter detailed scope of work..."
               rows={3}
               disabled={disabled}
@@ -453,7 +457,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
             <input
               type="text"
               value={location.TargetUnit || actualTargetUnit}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-50 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
+              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
               placeholder="Target unit"
               readOnly
             />
@@ -486,7 +490,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
               onFocus={handleNumberFocus}
               max={maxAmount}
               min={minAmount}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
+              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
               placeholder="Enter target amount..."
               disabled={disabled}
             />
@@ -508,7 +512,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
               type="text"
               value={location.StartStationLimit}
               onChange={(e) => handleFieldChange(index, 'StartStationLimit', e.target.value)}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
+              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
               placeholder="Start station..."
               disabled={disabled}
             />
@@ -525,7 +529,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
               type="text"
               value={location.EndStationLimit}
               onChange={(e) => handleFieldChange(index, 'EndStationLimit', e.target.value)}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
+              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
               placeholder="End station..."
               disabled={disabled}
             />
@@ -543,7 +547,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
               value={location.EndChainage ?? ''}
               onFocus={handleNumberFocus}
               onChange={(e) => handleFieldChange(index, 'EndChainage', e.target.value)}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-right ${getDisabledClass(disabled)}`}
+              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-orange-500 text-right ${getDisabledClass(disabled)}`}
               placeholder="To..."
               disabled={disabled}
             />
@@ -561,14 +565,16 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
               value={location.StartChainage ?? ''}
               onFocus={handleNumberFocus}
               onChange={(e) => handleFieldChange(index, 'StartChainage', e.target.value)}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-right ${getDisabledClass(disabled)}`}  
+              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-orange-500 text-right ${getDisabledClass(disabled)}`}  
               placeholder="From..."
               disabled={disabled}
             />
           </div>
         );
 
-      case 'StartX':
+      case 'StartX': {
+        const startXVal = Number(location.StartX);
+        const startXOutOfRange = location.StartX !== null && location.StartX !== undefined && location.StartX !== 0 && (startXVal < minX || startXVal > maxX);
         return (
           <div key={fieldName} className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
@@ -578,17 +584,28 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
               type="number"
               value={location.StartX}
               onChange={(e) => handleFieldChange(index, 'StartX', e.target.value)}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
+              className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-orange-500 ${startXOutOfRange ? 'border-red-500 bg-red-50' : 'border-gray-300'} ${getDisabledClass(disabled)}`}
               placeholder="Start X coordinate..."
               min={minX}
               max={maxX}
               disabled={disabled}
             />
+            {startXOutOfRange && (
+              <div className="text-xs text-red-600 flex items-start gap-1">
+                <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+                <span>Value must be between {minX.toFixed(4)} and {maxX.toFixed(4)}</span>
+              </div>
+            )}
             {renderCoordinatesRange('X')}
           </div>
         );
+      }
 
-      case 'StartY':
+      case 'StartY': {
+        const startYVal = Number(location.StartY);
+        const startYOutOfRange = location.StartY !== null && location.StartY !== undefined && location.StartY !== 0 && (startYVal < minY || startYVal > maxY);
         return (
           <div key={fieldName} className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
@@ -598,17 +615,28 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
               type="number"
               value={location.StartY}
               onChange={(e) => handleFieldChange(index, 'StartY', e.target.value)}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
+              className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-orange-500 ${startYOutOfRange ? 'border-red-500 bg-red-50' : 'border-gray-300'} ${getDisabledClass(disabled)}`}
               placeholder="Start Y coordinate..."
               min={minY}
               max={maxY}
               disabled={disabled}
             />
+            {startYOutOfRange && (
+              <div className="text-xs text-red-600 flex items-start gap-1">
+                <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+                <span>Value must be between {minY.toFixed(4)} and {maxY.toFixed(4)}</span>
+              </div>
+            )}
             {renderCoordinatesRange('Y')}
           </div>
         );
+      }
 
-      case 'EndX':
+      case 'EndX': {
+        const endXVal = Number(location.EndX);
+        const endXOutOfRange = location.EndX !== null && location.EndX !== undefined && (endXVal < minX || endXVal > maxX);
         return (
           <div key={fieldName} className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
@@ -618,17 +646,28 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
               type="number"
               value={location.EndX || ''}
               onChange={(e) => handleFieldChange(index, 'EndX', e.target.value ? Number(e.target.value) : null)}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
+              className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-orange-500 ${endXOutOfRange ? 'border-red-500 bg-red-50' : 'border-gray-300'} ${getDisabledClass(disabled)}`}
               placeholder="End X coordinate (leave empty for point)..."
               min={minX}
               max={maxX}
               disabled={disabled}
             />
+            {endXOutOfRange && (
+              <div className="text-xs text-red-600 flex items-start gap-1">
+                <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+                <span>Value must be between {minX.toFixed(4)} and {maxX.toFixed(4)}</span>
+              </div>
+            )}
             {renderCoordinatesRange('X')}
           </div>
         );
+      }
 
-      case 'EndY':
+      case 'EndY': {
+        const endYVal = Number(location.EndY);
+        const endYOutOfRange = location.EndY !== null && location.EndY !== undefined && (endYVal < minY || endYVal > maxY);
         return (
           <div key={fieldName} className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
@@ -638,18 +677,27 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
               type="number"
               value={location.EndY || ''}
               onChange={(e) => handleFieldChange(index, 'EndY', e.target.value ? Number(e.target.value) : null)}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
+              className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-orange-500 ${endYOutOfRange ? 'border-red-500 bg-red-50' : 'border-gray-300'} ${getDisabledClass(disabled)}`}
               placeholder="End Y coordinate (leave empty for point)..."
               min={minY}
               max={maxY}
               disabled={disabled}
             />
+            {endYOutOfRange && (
+              <div className="text-xs text-red-600 flex items-start gap-1">
+                <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+                <span>Value must be between {minY.toFixed(4)} and {maxY.toFixed(4)}</span>
+              </div>
+            )}
             {renderCoordinatesRange('Y')}
           </div>
         );
+      }
       
-      case 'Length':
-        const isRoads = infraType.toLowerCase() === 'roads' || infraType.toLowerCase() === 'road';
+      case 'Length': {
+        const isRoads = isRoadType();
         const validation = validateLength(location);
         
         // For Roads: Calculate from chainages
@@ -677,7 +725,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
                 <input
                   type="text"
                   value={displayLength}
-                  className={`w-full px-3 py-2 border rounded-md text-sm bg-gray-100 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-right ${
+                  className={`w-full px-3 py-2 border rounded-md text-sm bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-orange-500 text-right ${
                     hasError ? 'border-red-500' : 'border-gray-300'
                   } ${getDisabledClass(disabled)}`}
                   placeholder="Calculated from chainages"
@@ -715,7 +763,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
           return (
             <div key={fieldName} className="space-y-2">
               <label className="block text-sm font-medium text-gray-900">
-                Length ({actualTargetUnit}) {isRequired && <span className="text-red-500">*</span>}
+                Length (Lineal meters) {isRequired && <span className="text-red-500">*</span>}
               </label>
               <div className="relative">
                 <input
@@ -727,12 +775,11 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
                   }}
                   onFocus={handleNumberFocus}
                   step="0.001"
-                  min={minAmount}
-                  max={maxAmount}
-                  className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-right ${
+                  min={0.001}
+                  className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-orange-500 text-right ${
                     hasError ? 'border-red-500' : 'border-gray-300'
                   } ${getDisabledClass(disabled)}`}
-                  placeholder={`Enter length in ${actualTargetUnit}...`}
+                  placeholder={`Enter length in Lineal meters`}
                   disabled={disabled}
                 />
               </div>
@@ -744,14 +791,10 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
                   <span>{validation.message}</span>
                 </div>
               )}
-              {(maxAmount || minAmount) && (
-                <div className="text-xs text-gray-500">
-                  Range: {minAmount || 0} - {maxAmount || '∞'} {actualTargetUnit}
-                </div>
-              )}
             </div>
           );
         }
+      }
       default:
         return null;
     }
@@ -828,7 +871,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
                 </div>
 
                 {/* Infrastructure Type Specific Information */}
-                {(infraType?.toLowerCase() === 'road' || infraType?.toLowerCase() === 'roads') ? (
+                {isRoadType() ? (
                   <div className="mt-4 p-3 bg-blue-50 rounded-md">
                     <div className="flex items-center">
                       <div className="text-sm text-blue-700">
@@ -836,16 +879,22 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
                       </div>
                     </div>
                   </div>
-                ) : (infraType?.toLowerCase() === 'bridge' || infraType?.toLowerCase() === 'bridges') ? (
+                ) : isBridgeType() ? (
                   <div className="mt-4 p-3 bg-green-50 rounded-md">
                     <div className="text-sm text-green-700">
                       <strong>Bridge Infrastructure:</strong> Length and target units are automatically determined based on the selected bridge.
                     </div>
                   </div>
-                ) : (infraType?.toLowerCase() === 'consultancy' || infraType?.toLowerCase() === 'non-infra') ? (
+                ) : isLocalType() ? (
+                  <div className="mt-4 p-3 bg-teal-50 rounded-md">
+                    <div className="text-sm text-teal-700">
+                      <strong>Local Infrastructure ({infraType}):</strong> Use coordinate fields to define location. An ID can be entered manually or auto-generated.
+                    </div>
+                  </div>
+                ) : (infraType?.toLowerCase() === 'cs' || infraType?.toLowerCase() === 'ni') ? (
                   <div className="mt-4 p-3 bg-orange-50 rounded-md">
                     <div className="text-sm text-orange-500">
-                      <strong>Consultancy Infrastructure:</strong> No Geo-Location available for this infrastructure.
+                      <strong>Consultancy / Non-Infra:</strong> No Geo-Location available for this infrastructure type.
                     </div>
                   </div>
                 ) : (

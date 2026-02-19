@@ -27,6 +27,29 @@ export const getInfraTypePrefix = (infraType: string): string => {
   
   // Define mappings for infrastructure type to prefix
   const prefixMappings: { [key: string]: string } = {
+    // Short InfraCodes (from JSON InfraTypes)
+    'r': 'RD',
+    'b': 'BR',
+    'lr': 'LRD',
+    'lb': 'LBR',
+    'lfcs': 'LFCS',
+    'lww': 'LWW',
+    'fcs': 'FCS',
+    'ww': 'WW',
+    'af': 'AF',
+    'cs': 'CS',
+    'ni': 'NI',
+    'dpw': 'DPW',
+    'ds': 'DS',
+    'h': 'HSP',
+    'mpb': 'MPB',
+    'ob': 'OTB',
+    'rs': 'RSS',
+    'rw': 'RWC',
+    'sb': 'SCH',
+    'ss': 'SPS',
+    'ws': 'WSS',
+    // Full names (legacy support)
     // Flood Control related
     'flood control system': 'FCS',
     'flood control systems': 'FCS',
@@ -119,20 +142,44 @@ const generateRandomId = (prefix: string): string => {
 };
 
 /**
+ * Checks if an InfraCode represents a Local infrastructure type (L-prefix, ≥2 chars)
+ * e.g. LR, LB, LFCS, LWW → true
+ */
+export const isLocalInfraType = (infraType: string): boolean => {
+  if (!infraType) return false;
+  const type = infraType.trim();
+  return type.length >= 2 && type.charAt(0).toUpperCase() === 'L';
+};
+
+/**
+ * Checks if an InfraCode represents a national Road type (R, Road, Roads)
+ */
+export const isRoadInfraType = (infraType: string): boolean => {
+  const type = infraType.toLowerCase().trim();
+  return type === 'r' || type === 'road' || type === 'roads';
+};
+
+/**
+ * Checks if an InfraCode represents a national Bridge type (B, Bridge, Bridges)
+ */
+export const isBridgeInfraType = (infraType: string): boolean => {
+  const type = infraType.toLowerCase().trim();
+  return type === 'b' || type === 'bridge' || type === 'bridges';
+};
+
+/**
  * Checks if an infrastructure type should use automatic ID generation
  * (i.e., not use the infrastructure selection dialog)
- * @param infraType - The infrastructure type
+ * @param infraType - The infrastructure type InfraCode (e.g. "R", "LR", "B")
  * @returns True if should auto-generate, false if should use selection dialog
  */
 export const shouldAutoGenerateInfraId = (infraType: string): boolean => {
   if (!infraType) return true;
-  
-  const type = infraType.toLowerCase().trim();
-  
-  // These types have predefined infrastructure that can be selected
-  const selectableTypes = ['road', 'roads', 'bridge', 'bridges'];
-  
-  return !selectableTypes.includes(type);
+  // Local infra (L-prefix) always auto-generate — no selection dialog
+  if (isLocalInfraType(infraType)) return true;
+  // National Road/Bridge use the selection dialog
+  if (isRoadInfraType(infraType) || isBridgeInfraType(infraType)) return false;
+  return true;
 };
 
 /**

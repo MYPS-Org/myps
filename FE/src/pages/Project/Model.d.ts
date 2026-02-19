@@ -190,12 +190,19 @@ export interface ProjectById {
 export interface ScopeOfWorkEnum {
 	Id: number;
 	Enum: number;
-	InfraType: string;
+	InfraType: string[];
 	WorkCategory: string;
 	Description: string;
 	Measure: number;
 	MaxAmount: number;
 	MinAmount: number;
+}
+
+export interface InfraTypeEnum {
+	Id: number;
+	InfraId: number;
+	InfraCode: string;
+	InfraName: string;
 }
 
 export interface RoadSections {
@@ -427,6 +434,7 @@ export interface Dropdowns {
 	Sources: SourceEnum[];
 	// Major Item of Works
 	ScopeOfWorks: ScopeOfWorkEnum[];
+	InfraTypes: InfraTypeEnum[];
 	SupportingDocs: DropdownSupportingDocs[];
 	Revisions?: RevisionDropdown;
 }
