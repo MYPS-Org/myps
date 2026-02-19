@@ -11,6 +11,7 @@ import type {
   ComponentCost, 
   InfraData, 
   ScopeOfWorkEnum,
+  InfraTypeEnum,
   MajorItemLocations,
 } from '../../../Project/Model.d';
 import type { ProgramList } from '../../../Program/Model.d';
@@ -29,6 +30,7 @@ interface MajorItemOfWorksFormProps {
   onEdit?: (index: number, updatedItem: MajorItemOfWorksWithDropdown) => void;
   onDelete?: (index: number) => void;
   dropDowns?: ScopeOfWorkEnum[];
+  infraTypeEnums?: InfraTypeEnum[];
   fieldRules?: FieldRules | null;
 }
 
@@ -42,6 +44,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
   onEdit: propOnEdit,
   onDelete: propOnDelete,
   dropDowns,
+  infraTypeEnums,
   fieldRules,
 }) => {
   const { addMajorItem: hookAdd, editMajorItem: hookEdit, deleteMajorItem: hookDelete, majorItems: hookItems } = useMajorItemOfWorks();
@@ -82,7 +85,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     items.forEach((item/*, index*/) => {
       // console.log(`Item ${index} - WorkTypeId:`, item.WorkTypeId, 'InfraType:', item.InfraType, 'DropdownData length:', item.DropdownData?.length);
       if (item.InfraType) {
-        /*const filtered = */dropDowns?.filter(x => x.InfraType === item.InfraType);
+        /*const filtered = */dropDowns?.filter(x => x.InfraType.includes(item.InfraType));
         // console.log(`Filtered dropdowns for InfraType '${item.InfraType}':`, filtered);
       }
     });
@@ -95,7 +98,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
       const updatedItems = items.map((item,) => {
         // If item has InfraType but no or empty DropdownData, update it
         if (item.InfraType && (!item.DropdownData || item.DropdownData.length === 0)) {
-          const filteredDropdowns = dropDowns.filter(x => x.InfraType === item.InfraType);
+          const filteredDropdowns = dropDowns.filter(x => x.InfraType.includes(item.InfraType));
           hasUpdates = true;
           return {
             ...item,
@@ -237,7 +240,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
         TargetUnitId: majorItemData.WorkTypeId, // Same as WorkTypeId for now
         TargetUnit: getTargetUnitName(majorItemData.WorkTypeId),
         CreatedBy: '',
-        DropdownData: dropDowns?.filter(x => x.InfraType === majorItemData.InfraType) || [],
+        DropdownData: dropDowns?.filter(x => x.InfraType.includes(majorItemData.InfraType)) || [],
         MajorItemLocations: [], // Initialize empty work locations array
         IsDeleted: false,
       };
@@ -254,7 +257,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
         InfraType: majorItemData.InfraType,
         TargetUnitId: majorItemData.WorkTypeId,
         TargetUnit: getTargetUnitName(majorItemData.WorkTypeId),
-        DropdownData: dropDowns?.filter(x => x.InfraType === majorItemData.InfraType) || [],
+        DropdownData: dropDowns?.filter(x => x.InfraType.includes(majorItemData.InfraType)) || [],
       };
       callEdit(editingMajorItemIndex, updatedItem);
     }
@@ -466,6 +469,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
         onAdd={handleMajorItemDialogSubmit}
         componentCosts={componentCosts}
         dropDowns={dropDowns}
+        infraTypeEnums={infraTypeEnums}
         mode={isAddingNewMajorItem ? 'add' : 'edit'}
         initialData={editingMajorItemIndex !== null ? {
           ComponentId: items[editingMajorItemIndex].ComponentId,

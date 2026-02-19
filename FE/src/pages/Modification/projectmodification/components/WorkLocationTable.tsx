@@ -4,12 +4,13 @@ import { PlusIcon, TrashIcon, PencilIcon, DocumentDuplicateIcon } from '@heroico
 import AddInfraDialog from '../../../Project/dialogs/AddInfraDialog';
 import DeleteWorkLocationDialog from '../../dialogs/deleteDialog/DeleteWorkLocationDialog';
 import { useDeleteWorkLocationDialog } from '../../hooks/useDeleteWorkLocationDialog';
-import { generateInfraId, shouldAutoGenerateInfraId, getInfraTypePrefix } from '../../../../utils/infraIdGenerator';
+import { generateInfraId, shouldAutoGenerateInfraId, getInfraTypePrefix, isLocalInfraType, isRoadInfraType, isBridgeInfraType } from '../../../../utils/infraIdGenerator';
 import type { MajorItemLocations, InfraData, ScopeOfWorkEnum, MajorItemOfWork } from '../../../Project/Model.d';
 import type { ProgramList } from '../../../Program/Model';
 import type { FieldRules } from '../../Model';
 import { getDisabledClass } from '../../../../utils/GlobalFunctions';
 import { unitTypeMap } from '../../../Project/utils/unitTypes';
+import { defaultCoordinates } from '../../../Project/utils/coordinates';
 
 interface WorkLocationTableProps {
   majorItemOfWorks: MajorItemOfWork;
@@ -48,6 +49,15 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
   fieldRules,
 }) => {
   const infraType = majorItemOfWorks.InfraType || '';
+
+  // InfraType guard helpers — based on InfraCode
+  // National Road: InfraCode 'R' (not local LR)
+  const isRoadType = (): boolean => isRoadInfraType(infraType);
+  // National Bridge: InfraCode 'B' (not local LB)
+  const isBridgeType = (): boolean => isBridgeInfraType(infraType);
+  // Local Infra: LR, LB, LFCS, LWW, etc. (L-prefix, ≥2 chars)
+  const isLocalType = (): boolean => isLocalInfraType(infraType);
+
   const [infraDialogOpen, setInfraDialogOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [isAddingNew, setIsAddingNew] = useState(false);
@@ -117,29 +127,18 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
   
   // Helper function to determine if Length field should be required
   const isLengthRequired = (): boolean => {
-    // Rule 1: If InfraType is Roads, Length is ALWAYS required
-    if (infraType.toLowerCase() === 'roads' || infraType.toLowerCase() === 'road') {
-      return true;
-    }
-    // Rule 2: If Measure is length-based, Length is required
+    if (isRoadType()) return true; // National road always requires length
     return isLengthBasedMeasure(actualTargetUnit);
   };
   
   // Helper function to determine if Length field should be visible
   const shouldShowLengthField = (): boolean => {
-    // Rule 1: If InfraType is Roads, always show Length field (with chainages)
-    if (infraType.toLowerCase() === 'roads' || infraType.toLowerCase() === 'road') {
-      return true;
-    }
-    // Rule 2: Show if Measure is length-based
-    return isLengthBasedMeasure(actualTargetUnit);
+    return true; // Always show the Length field
   };
   
   // Helper function to validate Length value
   const validateLength = (location: MajorItemLocations): { isValid: boolean; message: string } => {
-    const isRoads = infraType.toLowerCase() === 'roads' || infraType.toLowerCase() === 'road';
-    
-    if (isRoads) {
+    if (isRoadType()) {
       // For Roads: validate chainages
       const hasChainages = (location.StartChainage !== null && location.StartChainage !== undefined) 
         && (location.EndChainage !== null && location.EndChainage !== undefined);
@@ -179,10 +178,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
     return !shouldAutoGenerateInfraId(infraType);
   };
 
-  const maxX = 126.8072562;
-  const minX = 114.0952145;
-  const maxY = 21.3217806;
-  const minY = 4.4149;
+  const { maxX, minX, maxY, minY } = defaultCoordinates;
 
   const handleAddWorkLocation = () => {
     // Generate InfraId automatically for non-selectable infrastructure types
@@ -202,8 +198,8 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
       StartChainage: 0,
       StartX: 0,
       StartY: 0,
-      EndX: 0,
-      EndY: 0,
+      EndX: null,
+      EndY: null,
       PhysicalTarget: null,
       StartStationLimit: '',
       EndStationLimit: '',
@@ -328,22 +324,24 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
 
   // Get fields based on infrastructure type
   const getFieldsForInfraType = () => {
-    const infraTypeLower = infraType?.toLowerCase();
-    
-    if (infraTypeLower === 'road' || infraTypeLower === 'roads') {
-      // For Roads: Always include Length with chainages
-      return ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget', 'StartStationLimit', 'EndStationLimit', 'StartChainage','EndChainage', 'Length'];
-    } else if (infraTypeLower === 'bridge' || infraTypeLower === 'bridges') {
-      // For Bridges: Include Length only if measure is length-based
+    if (isRoadType()) {
+      // National Road: chainages + station limits
+      return ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget', 'StartStationLimit', 'EndStationLimit', 'StartChainage', 'EndChainage', 'Length'];
+    } else if (isBridgeType()) {
+      // National Bridge: infra selection dialog, optional length
       const baseFields = ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget'];
       return shouldShowLengthField() ? [...baseFields, 'Length'] : baseFields;
-    } else if (infraTypeLower === 'cos' || infraTypeLower === 'non-infra') {
-      // For CoS/Non-Infra: Include Length only if measure is length-based
+    } else if (isLocalType()) {
+      // Local infra (LR, LB, LFCS, etc.): free-text ID + coordinates, NO chainage
+      const baseFields = ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget', 'StartX', 'StartY', 'EndX', 'EndY'];
+      return shouldShowLengthField() ? [...baseFields, 'Length'] : baseFields;
+    } else if (infraType.toLowerCase() === 'cos' || infraType.toLowerCase() === 'ni' || infraType.toLowerCase() === 'non-infra') {
+      // CoS / Non-Infra: no geo-coords
       const baseFields = ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget'];
       return shouldShowLengthField() ? [...baseFields, 'Length'] : baseFields;
     } else {
-      // Others - use coordinates, include Length only if measure is length-based
-      const baseFields = ['InfraId','DetailedScope', 'TargetUnit','PhysicalTarget','StartX', 'StartY', 'EndX', 'EndY'];
+      // All other infra: coordinate fields
+      const baseFields = ['InfraId', 'DetailedScope', 'TargetUnit', 'PhysicalTarget', 'StartX', 'StartY', 'EndX', 'EndY'];
       return shouldShowLengthField() ? [...baseFields, 'Length'] : baseFields;
     }
   };
@@ -352,13 +350,13 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
     if (coordinate === 'X') {
       return (
         <div className="text-xs text-gray-500">
-          Range: 116.8879 - 126.6050
+          Range: {defaultCoordinates.minX} - {defaultCoordinates.maxX}
         </div>
       )
     } else if (coordinate === 'Y') {
       return (
         <div className="text-xs text-gray-500">
-          Range: 4.4149 - 21.1218
+          Range: {defaultCoordinates.minY} - {defaultCoordinates.maxY}
         </div>
       )
     }
@@ -574,7 +572,9 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
           </div>
         );
 
-      case 'StartX':
+      case 'StartX': {
+        const startXVal = Number(location.StartX);
+        const startXOutOfRange = location.StartX !== null && location.StartX !== undefined && location.StartX !== 0 && (startXVal < minX || startXVal > maxX);
         return (
           <div key={fieldName} className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
@@ -584,17 +584,28 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
               type="number"
               value={location.StartX}
               onChange={(e) => handleFieldChange(index, 'StartX', e.target.value)}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
+              className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${startXOutOfRange ? 'border-red-500 bg-red-50' : 'border-gray-300'} ${getDisabledClass(!isStartXEditable || disabled)}`}
               placeholder="Start X coordinate..."
               min={minX}
               max={maxX}
               disabled={!isStartXEditable || disabled}
             />
+            {startXOutOfRange && (
+              <div className="text-xs text-red-600 flex items-start gap-1">
+                <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+                <span>Value must be between {minX.toFixed(4)} and {maxX.toFixed(4)}</span>
+              </div>
+            )}
             {renderCoordinatesRange('X')}
           </div>
         );
+      }
 
-      case 'StartY':
+      case 'StartY': {
+        const startYVal = Number(location.StartY);
+        const startYOutOfRange = location.StartY !== null && location.StartY !== undefined && location.StartY !== 0 && (startYVal < minY || startYVal > maxY);
         return (
           <div key={fieldName} className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
@@ -604,58 +615,89 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
               type="number"
               value={location.StartY}
               onChange={(e) => handleFieldChange(index, 'StartY', e.target.value)}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
+              className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${startYOutOfRange ? 'border-red-500 bg-red-50' : 'border-gray-300'} ${getDisabledClass(!isStartYEditable || disabled)}`}
               placeholder="Start Y coordinate..."
               min={minY}
               max={maxY}
               disabled={!isStartYEditable || disabled}
             />
+            {startYOutOfRange && (
+              <div className="text-xs text-red-600 flex items-start gap-1">
+                <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+                <span>Value must be between {minY.toFixed(4)} and {maxY.toFixed(4)}</span>
+              </div>
+            )}
             {renderCoordinatesRange('Y')}
           </div>
         );
+      }
 
-      case 'EndX':
+      case 'EndX': {
+        const endXVal = Number(location.EndX);
+        const endXOutOfRange = location.EndX !== null && location.EndX !== undefined && location.EndX !== 0 && (endXVal < minX || endXVal > maxX);
         return (
           <div key={fieldName} className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
-              End X Coordinate
+              End X Coordinate <span className="text-xs text-gray-500">(Optional for point features)</span>
             </label>
             <input
               type="number"
-              value={location.EndX}
-              onChange={(e) => handleFieldChange(index, 'EndX', e.target.value)}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
-              placeholder="End X coordinate..."
+              value={location.EndX || ''}
+              onChange={(e) => handleFieldChange(index, 'EndX', e.target.value ? Number(e.target.value) : null)}
+              className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${endXOutOfRange ? 'border-red-500 bg-red-50' : 'border-gray-300'} ${getDisabledClass(!isEndXEditable || disabled)}`}
+              placeholder="End X coordinate (leave empty for point)..."
               min={minX}
               max={maxX}
               disabled={!isEndXEditable || disabled}
             />
+            {endXOutOfRange && (
+              <div className="text-xs text-red-600 flex items-start gap-1">
+                <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+                <span>Value must be between {minX.toFixed(4)} and {maxX.toFixed(4)}</span>
+              </div>
+            )}
             {renderCoordinatesRange('X')}
           </div>
         );
+      }
 
-      case 'EndY':
+      case 'EndY': {
+        const endYVal = Number(location.EndY);
+        const endYOutOfRange = location.EndY !== null && location.EndY !== undefined && location.EndY !== 0 && (endYVal < minY || endYVal > maxY);
         return (
           <div key={fieldName} className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
-              End Y Coordinate
+              End Y Coordinate <span className="text-xs text-gray-500">(Optional for point features)</span>
             </label>
             <input
               type="number"
-              value={location.EndY}
-              onChange={(e) => handleFieldChange(index, 'EndY', e.target.value)}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
-              placeholder="End Y coordinate..."
+              value={location.EndY || ''}
+              onChange={(e) => handleFieldChange(index, 'EndY', e.target.value ? Number(e.target.value) : null)}
+              className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${endYOutOfRange ? 'border-red-500 bg-red-50' : 'border-gray-300'} ${getDisabledClass(!isEndYEditable || disabled)}`}
+              placeholder="End Y coordinate (leave empty for point)..."
               min={minY}
               max={maxY}
               disabled={!isEndYEditable || disabled}
             />
+            {endYOutOfRange && (
+              <div className="text-xs text-red-600 flex items-start gap-1">
+                <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+                <span>Value must be between {minY.toFixed(4)} and {maxY.toFixed(4)}</span>
+              </div>
+            )}
             {renderCoordinatesRange('Y')}
           </div>
         );
+      }
 
-      case 'Length':
-        const isRoads = infraType.toLowerCase() === 'roads' || infraType.toLowerCase() === 'road';
+      case 'Length': {
+        const isRoads = isRoadType();
         const validation = validateLength(location);
         
         // For Roads: Calculate from chainages
@@ -749,6 +791,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
             </div>
           );
         }
+      }
 
       default:
         return null;

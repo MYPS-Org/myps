@@ -1213,6 +1213,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                 onDelete={deleteMajorItem}
                 programDetails={initialData?.ProgramDetails}
                 dropDowns={initialData?.Dropdowns?.ScopeOfWorks}
+                infraTypeEnums={initialData?.Dropdowns?.InfraTypes}
                 fieldRules={fieldRules}
               />
             </div>
