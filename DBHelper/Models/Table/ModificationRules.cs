@@ -103,8 +103,9 @@ namespace DBHelper.Models.Table
         public bool PhysicalTarget { get; set; } = false;
         public bool StartStationLimit { get; set; } = false;
         public bool EndStationLimit { get; set; } = false;
-        public bool From { get; set; } = false;
-        public bool To { get; set; } = false;
+        public bool StartChainage { get; set; } = false;
+        public bool EndChainage { get; set; } = false;
+        public bool Length { get; set; } = false;
     }
     public class CRUDMajorItemLocation
     {

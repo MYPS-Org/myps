@@ -559,8 +559,9 @@ namespace WebAPI.Controllers.Projects
                 var ValidateProject = await _db.tProjectStages.AsNoTracking().Where(x => x.ProgramId == dto.ProjectDetails.ProgramId && x.StageName == dto.ProjectDetails.StageName).ToListAsync();
                 if (ValidateProject != null && !dto.IsAllowedToProceed)
                 {
-                    var RevisionIds = ValidateProject.Select(x => x.RevisionId).ToList();
-                    var ValidateProgram = await _db.tProjectRevisions.AsNoTracking().FirstOrDefaultAsync(x => RevisionIds.Contains(x.Id) && x.Description == dto.ProjectDetails.Description);
+                    var ReferenceIds = ValidateProject.Select(x => x.ReferenceId).ToList();
+                    string CheckProjectId = dto.ProjectDetails.ProjectId.Replace("B", "");
+                    var ValidateProgram = await _db.tProjectRevisions.AsNoTracking().FirstOrDefaultAsync(x => ReferenceIds.Contains(x.ReferenceId) && x.ProjectId.Replace("B", "") != CheckProjectId && x.Description == dto.ProjectDetails.Description);
                     if (ValidateProgram != null)
                     {
                         return Ok(new { Message = $"Description: {dto.ProjectDetails.Description} already exist in {ValidateProgram.ProjectId}! Do you still want to proceed?", Title = "Description Exists", Type = "Prompt" });

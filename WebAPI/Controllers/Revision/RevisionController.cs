@@ -490,6 +490,7 @@ namespace WebAPI.Controllers.Revision
                 var Agreement = await _db.tOptionFundingAgreement.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var Source = await _db.tOptionFundingSource.AsNoTracking().OrderBy(x => x.Organization == "GOP" ? 0 : 1).ThenBy(x => x.Name).ToListAsync();
 
+                var InfraTypes = await _db.tOptionInfraType.AsNoTracking().OrderBy(x => x.InfraName).ToListAsync();
                 var ScopeOfWork = await _db.tProjectScopeOfWorkEnum.AsNoTracking().OrderBy(x => x.WorkCategory).ToListAsync();
                 #endregion
 
@@ -546,6 +547,7 @@ namespace WebAPI.Controllers.Revision
 
                         //Major Item Of Work
                         ScopeOfWorks = ScopeOfWork,
+                        InfraTypes = InfraTypes,
 
                         //Funding Profile
                         Agreements = Agreement,
@@ -569,18 +571,19 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = "Account usergroup is not allowed to submit Revision. Please contact administrator!", Title = "User Groups Missing" });
                 }
-                if(dto.RevisionDetails.ApprovedDocument == null)
+                if (dto.RevisionDetails.ApprovedDocument == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Approved Document is required!", Title = "Missing Approved Document" });
                 }
-                if (dto.RevisionDetails.ApprovedDocument.IsPdfCorrupted()) { 
+                if (dto.RevisionDetails.ApprovedDocument.IsPdfCorrupted())
+                {
                     return new BadRequestObjectResult(new { Message = "Approved Document file is corrupted or not a valid PDF!", Title = "Invalid File" });
                 }
                 if (!dto.RevisionDetails.ApprovedDocument.ValidateFileSize(50))
                 {
                     return new BadRequestObjectResult(new { Message = "Approved Document file size exceeds the maximum limit of 50 MB!", Title = "File Size Exceeded" });
                 }
-                DateTime CurrentDate = Functions.CurrentDate();;
+                DateTime CurrentDate = Functions.CurrentDate(); ;
                 var NewRevisionProject = new RevisionProjects();
 
                 var NewFundingProfile = new List<RevisionProjectFundingProfile>();
@@ -602,7 +605,7 @@ namespace WebAPI.Controllers.Revision
                 }
 
                 var ProgramDetails = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == ProjectStage.ProgramId && x.StageName == ProjectStage.StageName);
-                if(ProgramDetails == null)
+                if (ProgramDetails == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Project Program ID not found!", Title = "No Program ID Found" });
                 }
@@ -739,18 +742,26 @@ namespace WebAPI.Controllers.Revision
                     //        return x;
                     //    }).ToList();
                     //}
-                }
-                if (jsonRules.FundingProfileRules.CRUD.CanAdd)
-                {
-                    NewFundingProfile.AddRange(dto.FundingProfile.Where(x => x.Id == 0).Select(x => new RevisionProjectFundingProfile
+                    if (jsonRules.FundingProfileRules.CRUD.CanAdd)
                     {
-                        TransactionId = TransactionId,
-                        ProjectId = x.ProjectId,
-                        Source = x.Source,
-                        Agreement = x.Agreement,
-                        Amount = x.Amount,
-                        Percentage = x.Percentage
-                    }));
+                        NewFundingProfile.AddRange(dto.FundingProfile.Where(x => x.Id == 0).Select(x => new RevisionProjectFundingProfile
+                        {
+                            TransactionId = TransactionId,
+                            ProjectId = x.ProjectId,
+                            Source = x.Source,
+                            Agreement = x.Agreement,
+                            Amount = x.Amount,
+                            Percentage = x.Percentage
+                        }));
+                    }
+                }
+                else
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = "Submission failed. Funding Profile is required before submitting a revision.",
+                        Title = "Funding Profile Required"
+                    });
                 }
                 #endregion
                 #region ComponentCosts
@@ -794,20 +805,28 @@ namespace WebAPI.Controllers.Revision
                             });
                         }
                     }
-                }
-                if (jsonRules.ComponentCostRules.CRUD.CanAdd)
-                {
-                    NewComponent.AddRange(dto.ComponentCosts.Where(x => x.Id == 0).Select(x => new DBHelper.Models.Table.RevisionProjectComponentCost
+                    if (jsonRules.ComponentCostRules.CRUD.CanAdd)
                     {
-                        TransactionId = TransactionId,
-                        ProjectId = (RevisionRules.RevisionGroupId == 13) ? $"{Project.ProjectId}-A" : Project.ProjectId,
-                        CostId = x.CostId,
-                        ComponentType = x.ComponentType,
-                        ComponentId = x.ComponentId,
-                        Description = x.Description,
-                        Total = x.Total,
-                        IsDeleted = false,
-                    }));
+                        NewComponent.AddRange(dto.ComponentCosts.Where(x => x.Id == 0).Select(x => new DBHelper.Models.Table.RevisionProjectComponentCost
+                        {
+                            TransactionId = TransactionId,
+                            ProjectId = (RevisionRules.RevisionGroupId == 13) ? $"{Project.ProjectId}-A" : Project.ProjectId,
+                            CostId = x.CostId,
+                            ComponentType = x.ComponentType,
+                            ComponentId = x.ComponentId,
+                            Description = x.Description,
+                            Total = x.Total,
+                            IsDeleted = false,
+                        }));
+                    }
+                }
+                else
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = "Submission failed. Component Cost is required before submitting a revision.",
+                        Title = "Component Cost Required"
+                    });
                 }
                 #endregion
                 #region ComponentCostYear
@@ -818,10 +837,10 @@ namespace WebAPI.Controllers.Revision
                 .Where(p => (bool?)p.GetValue(jsonRules.ComponentCostRules.Fields) == true)
                 .Select(p => p.Name)
                 .ToList();
-                if (UpdateComponentCostYear.Count > 0)
+                if (ComponentCostYear.Count > 0)
                 {
                     bool CanDelete = jsonRules.ComponentCostRules.CRUD.CanDelete;
-                    foreach (var component in UpdateComponentCost)
+                    foreach (var component in UpdateComponentCostYear)
                     {
                         var ComponentId = component.Id;
                         var SelectedComponent = ComponentCostYear.FirstOrDefault(x => x.Id == ComponentId);
@@ -845,19 +864,27 @@ namespace WebAPI.Controllers.Revision
                             });
                         }
                     }
-                }
-                if (jsonRules.ComponentCostYearRules.CRUD.CanAdd)
-                {
-                    NewComponentPerYear.AddRange(dto.ComponentCostPerYear.Where(x => x.Id == 0).Select(x => new DBHelper.Models.Table.RevisionProjectComponentCostPerYear
+                    if (jsonRules.ComponentCostYearRules.CRUD.CanAdd)
                     {
-                        TransactionId = TransactionId,
-                        ComponentCostId = x.ComponentCostId,
-                        Amount = x.Amount,
-                        Year = x.Year,
-                        StartDate = x.StartDate,
-                        EndDate = x.EndDate,
-                        IsDeleted = false,
-                    }));
+                        NewComponentPerYear.AddRange(dto.ComponentCostPerYear.Where(x => x.Id == 0).Select(x => new DBHelper.Models.Table.RevisionProjectComponentCostPerYear
+                        {
+                            TransactionId = TransactionId,
+                            ComponentCostId = x.ComponentCostId,
+                            Amount = x.Amount,
+                            Year = x.Year,
+                            StartDate = x.StartDate,
+                            EndDate = x.EndDate,
+                            IsDeleted = false,
+                        }));
+                    }
+                }
+                else
+                {
+                    //return new BadRequestObjectResult(new
+                    //{
+                    //    Message = "Submission failed. Component Cost Year is required before submitting a revision.",
+                    //    Title = "Component Cost Year Required"
+                    //});
                 }
                 #endregion
                 #region MajorWorkItem
@@ -872,6 +899,7 @@ namespace WebAPI.Controllers.Revision
                 .Select(p => p.Name)
                 .ToList();
                 var UpdateMajorItemOfWorks = dto.MajorItemOfWorks.Where(x => x.Id != 0);
+                var NewMajorItemOfWorksToInsert = dto.MajorItemOfWorks.Where(x => x.Id == 0);
                 if (MajorWorkItem.Count > 0)
                 {
                     bool CanDelete = jsonRules.MajorItemOfWorkRules.CRUD.CanDelete;
@@ -904,21 +932,28 @@ namespace WebAPI.Controllers.Revision
                             //Locations.ForEach(x => x.ParentId = UpdateMajorWorkItem.ReferenceId);
                         }
                     }
-                }
-                var NewMajorItemOfWorksToInsert = dto.MajorItemOfWorks.Where(x => x.Id == 0);
-                if (jsonRules.MajorItemOfWorkRules.CRUD.CanAdd)
-                {
-                    NewMajorWorkItem.AddRange(dto.MajorItemOfWorks.Where(x => x.Id == 0).Select(x => new RevisionProjectMajorWorkItem
+                    if (jsonRules.MajorItemOfWorkRules.CRUD.CanAdd)
                     {
-                        Id = x.Id,
-                        TransactionId = TransactionId,
-                        ProjectId = x.ProjectId,
-                        ReferenceId = x.ReferenceId,
-                        ComponentId = x.ComponentId,
-                        YearOfWork = x.YearOfWork,
-                        WorkTypeId = x.WorkTypeId,
-                        InfraType = x.InfraType,
-                    }));
+                        NewMajorWorkItem.AddRange(NewMajorItemOfWorksToInsert.Where(x => x.Id == 0).Select(x => new RevisionProjectMajorWorkItem
+                        {
+                            Id = x.Id,
+                            TransactionId = TransactionId,
+                            ProjectId = x.ProjectId,
+                            ReferenceId = x.ReferenceId,
+                            ComponentId = x.ComponentId,
+                            YearOfWork = x.YearOfWork,
+                            WorkTypeId = x.WorkTypeId,
+                            InfraType = x.InfraType,
+                        }));
+                    }
+                }
+                else
+                {
+                    //return new BadRequestObjectResult(new
+                    //{
+                    //    Message = "Submission failed. Major Work Item is required before submitting a revision.",
+                    //    Title = "Major Work Item Required"
+                    //});
                 }
                 #endregion
                 #region MajorWorkLocations
@@ -963,31 +998,39 @@ namespace WebAPI.Controllers.Revision
                             });
                         }
                     }
-                }
-                if (jsonRules.MajorItemLocationRules.CRUD.CanAdd)
-                {
-                    var NewMajorWorkLocationsToInsert = dto.MajorItemLocations.Where(x => NewMajorItemOfWorksToInsert.Select(c => c.ReferenceId).Contains(x.ParentId));
-                    if (NewMajorWorkLocationsToInsert.Count() > 0)
+                    if (jsonRules.MajorItemLocationRules.CRUD.CanAdd)
                     {
-                        NewMajorWorkLocations.AddRange(NewMajorWorkLocationsToInsert.Select(x => new RevisionProjectMajorWorkLocations
+                        var NewMajorWorkLocationsToInsert = dto.MajorItemLocations.Where(x => NewMajorItemOfWorksToInsert.Select(c => c.ReferenceId).Contains(x.ParentId));
+                        if (NewMajorWorkLocationsToInsert.Count() > 0)
                         {
-                            TransactionId = TransactionId,
-                            ParentId = x.ParentId,
-                            InfraId = x.InfraId,
-                            DetailedScope = x.DetailedScope,
-                            TargetUnitId = x.TargetUnitId,
-                            TargetUnit = x.TargetUnit,
-                            StartX = x.StartX,
-                            StartY = x.StartY,
-                            EndX = x.EndX,
-                            EndY = x.EndY,
-                            PhysicalTarget = x.PhysicalTarget,
-                            StartStationLimit = x.StartStationLimit,
-                            EndStationLimit = x.EndStationLimit,
-                            EndChainage = x.EndChainage,
-                            StartChainage = x.StartChainage,
-                        }));
+                            NewMajorWorkLocations.AddRange(NewMajorWorkLocationsToInsert.Select(x => new RevisionProjectMajorWorkLocations
+                            {
+                                TransactionId = TransactionId,
+                                ParentId = x.ParentId,
+                                InfraId = x.InfraId,
+                                DetailedScope = x.DetailedScope,
+                                TargetUnitId = x.TargetUnitId,
+                                TargetUnit = x.TargetUnit,
+                                StartX = x.StartX,
+                                StartY = x.StartY,
+                                EndX = x.EndX,
+                                EndY = x.EndY,
+                                PhysicalTarget = x.PhysicalTarget,
+                                StartStationLimit = x.StartStationLimit,
+                                EndStationLimit = x.EndStationLimit,
+                                EndChainage = x.EndChainage,
+                                StartChainage = x.StartChainage,
+                            }));
+                        }
                     }
+                }
+                else
+                {
+                    //return new BadRequestObjectResult(new
+                    //{
+                    //    Message = "Submission failed. Major Work Item is required before submitting a revision.",
+                    //    Title = "Major Work Item Required"
+                    //});
                 }
                 #endregion
 
@@ -1070,234 +1113,234 @@ namespace WebAPI.Controllers.Revision
                             IsPublished = true
                         };
                         _db.tProjectStages.Add(AddProjectStage);
-                        NewFundingProfile.ForEach(x => { 
+                        NewFundingProfile.ForEach(x =>
+                        {
                             x.ProjectId = NewProjectId;
                         });
-                        NewComponent.ForEach(x => {
+                        NewComponent.ForEach(x =>
+                        {
                             x.ProjectId = NewProjectId;
                         });
-                        NewMajorWorkItem.ForEach(x => {
+                        NewMajorWorkItem.ForEach(x =>
+                        {
                             x.ProjectId = NewProjectId;
                         });
                     }
-                    else
-                    {
-                        _db.tProjectRevisions.Update(Project);
-                    }
-                    await _db.tRevisionProjects.AddAsync(NewRevisionProject);
-                    await _db.tRevisionProjectFundingProfile.AddRangeAsync(NewFundingProfile);
-                    await _db.tRevisionProjectComponentCost.AddRangeAsync(NewComponent);
-                    await _db.tRevisionProjectComponentCostPerYear.AddRangeAsync(NewComponentPerYear);
-                    await _db.tRevisionProjectMajorWorkItem.AddRangeAsync(NewMajorWorkItem);
-                    await _db.tRevisionProjectMajorWorkLocations.AddRangeAsync(NewMajorWorkLocations);
-                    var ExistingProjectRevisions = await _db.tRevisionProjects.FirstOrDefaultAsync(x => x.IsActive == true && x.ProjectId == dto.ProjectDetails.ProjectId);
-                    if (ExistingProjectRevisions != null)
-                    {
-                        ExistingProjectRevisions.IsActive = false;
-                        _db.tRevisionProjects.Update(ExistingProjectRevisions);
-                    }
+                }
+                _db.tProjectRevisions.Update(Project);
+                await _db.tRevisionProjects.AddAsync(NewRevisionProject);
+                await _db.tRevisionProjectFundingProfile.AddRangeAsync(NewFundingProfile);
+                await _db.tRevisionProjectComponentCost.AddRangeAsync(NewComponent);
+                await _db.tRevisionProjectComponentCostPerYear.AddRangeAsync(NewComponentPerYear);
+                await _db.tRevisionProjectMajorWorkItem.AddRangeAsync(NewMajorWorkItem);
+                await _db.tRevisionProjectMajorWorkLocations.AddRangeAsync(NewMajorWorkLocations);
+                var ExistingProjectRevisions = await _db.tRevisionProjects.FirstOrDefaultAsync(x => x.IsActive == true && x.ProjectId == dto.ProjectDetails.ProjectId);
+                if (ExistingProjectRevisions != null)
+                {
+                    ExistingProjectRevisions.IsActive = false;
+                    _db.tRevisionProjects.Update(ExistingProjectRevisions);
                 }
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
                 #region Commented Email Notification
-        //        string loc = System.IO.File.ReadAllText(SMTPClass.PathEmailTemplate);
-        //        string Body = $@"
-        //<h3>Revision Information:</h3>
-        //<table style='margin: auto; min-width: 300px; max-width: 100%; border-collapse: collapse; color: #333; border-top-left-radius: 10px; border-top-right-radius: 10px; overflow: hidden; border: 1px solid #ddd;'>
-        //    <tbody>
-        //        <tr style='border-top: none; background: #00148b; color: #fff;'>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Revision Category</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Revision Reason</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Requested by</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Requested on</th>
-        //        </tr>
-        //        <tr style='border-top: 1px solid #ddd; border-bottom: 1px solid #ddd; background-color: #f5f9fc;'>
-        //                <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
-        //                    {RevisionCategory.RevisionName}
-        //                </td>
-        //                <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd
-        //                    {RevisionRules.Reason}
-        //                </td>
-        //                <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
-        //                    {_Session.UserId}
-        //                </td>
-        //                <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
-        //                    {CurrentDate}
-        //                </td>
-        //            </tr>
-        //        </tbody>
-        //</table>
-        //<h3>Program Information:</h3>
-        //<table style='margin: auto; min-width: 300px; max-width: 100%; border-collapse: collapse; color: #333; border-top-left-radius: 10px; border-top-right-radius: 10px; overflow: hidden; border: 1px solid #ddd;'>
-        //    <tbody>
-        //        <tr style='border-top: none; background: #00148b; color: #fff;'>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Program Name</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Start Year</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Program Type</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Program Stage</th>
-        //        </tr>
-        //        <tr style='border-top: 1px solid #ddd; border-bottom: 1px solid #ddd; background-color: #f5f9fc;'>
-        //                <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
-        //                    {ProgramDetails.Name}
-        //                </td>
-        //                <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd
-        //                    {ProgramDetails.YearStart}
-        //                </td>
-        //                <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
-        //                    {ProgramDetails.Type}
-        //                </td>
-        //                <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
-        //                    {ProgramDetails.StageName}
-        //                </td>
-        //            </tr>
-        //        </tbody>
-        //</table>
-        //<h3 style='margin:0 0 12px 0; font-family:Segoe UI, Arial, sans-serif; color:#1F2A37;'>
-        //    Project General Information:
-        //</h3>
+                //        string loc = System.IO.File.ReadAllText(SMTPClass.PathEmailTemplate);
+                //        string Body = $@"
+                //<h3>Revision Information:</h3>
+                //<table style='margin: auto; min-width: 300px; max-width: 100%; border-collapse: collapse; color: #333; border-top-left-radius: 10px; border-top-right-radius: 10px; overflow: hidden; border: 1px solid #ddd;'>
+                //    <tbody>
+                //        <tr style='border-top: none; background: #00148b; color: #fff;'>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Revision Category</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Revision Reason</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Requested by</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Requested on</th>
+                //        </tr>
+                //        <tr style='border-top: 1px solid #ddd; border-bottom: 1px solid #ddd; background-color: #f5f9fc;'>
+                //                <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
+                //                    {RevisionCategory.RevisionName}
+                //                </td>
+                //                <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd
+                //                    {RevisionRules.Reason}
+                //                </td>
+                //                <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
+                //                    {_Session.UserId}
+                //                </td>
+                //                <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
+                //                    {CurrentDate}
+                //                </td>
+                //            </tr>
+                //        </tbody>
+                //</table>
+                //<h3>Program Information:</h3>
+                //<table style='margin: auto; min-width: 300px; max-width: 100%; border-collapse: collapse; color: #333; border-top-left-radius: 10px; border-top-right-radius: 10px; overflow: hidden; border: 1px solid #ddd;'>
+                //    <tbody>
+                //        <tr style='border-top: none; background: #00148b; color: #fff;'>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Program Name</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Start Year</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Program Type</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Program Stage</th>
+                //        </tr>
+                //        <tr style='border-top: 1px solid #ddd; border-bottom: 1px solid #ddd; background-color: #f5f9fc;'>
+                //                <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
+                //                    {ProgramDetails.Name}
+                //                </td>
+                //                <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd
+                //                    {ProgramDetails.YearStart}
+                //                </td>
+                //                <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
+                //                    {ProgramDetails.Type}
+                //                </td>
+                //                <td style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>
+                //                    {ProgramDetails.StageName}
+                //                </td>
+                //            </tr>
+                //        </tbody>
+                //</table>
+                //<h3 style='margin:0 0 12px 0; font-family:Segoe UI, Arial, sans-serif; color:#1F2A37;'>
+                //    Project General Information:
+                //</h3>
 
-        //<table style='margin:auto; min-width:300px; max-width:100%; border-collapse:collapse; color:#1F2A37;
-        //    font-family:Segoe UI, Arial, sans-serif; border-top-left-radius:10px; border-top-right-radius:10px;
-        //    overflow:hidden; border:1px solid #D8E1EA; box-shadow:0 2px 10px rgba(0,0,0,.05);'>
-        //    <tbody>
+                //<table style='margin:auto; min-width:300px; max-width:100%; border-collapse:collapse; color:#1F2A37;
+                //    font-family:Segoe UI, Arial, sans-serif; border-top-left-radius:10px; border-top-right-radius:10px;
+                //    overflow:hidden; border:1px solid #D8E1EA; box-shadow:0 2px 10px rgba(0,0,0,.05);'>
+                //    <tbody>
 
-        //    <!-- Header -->
-        //    <tr style='border-top:none; background:#013261; color:#ffffff;'>
-        //        <th style='padding:.6em 1em; text-align:left; border:1px solid #013261; border-bottom:2px solid #9DC4FE;'>Project ID</th>
-        //        <th style='padding:.6em 1em; text-align:left; border:1px solid #013261; border-bottom:2px solid #9DC4FE;'>MY ID</th>
-        //        <th style='padding:.6em 1em; text-align:left; border:1px solid #013261; border-bottom:2px solid #9DC4FE;'>Alternate ID</th>
-        //        <th style='padding:.6em 1em; text-align:left; border:1px solid #013261; border-bottom:2px solid #9DC4FE;'>External ID</th>
-        //        <th style='padding:.6em 1em; text-align:left; border:1px solid #013261; border-bottom:2px solid #9DC4FE;'>OA Project Code (UACS)</th>
-        //        <th style='padding:.6em 1em; text-align:left; border:1px solid #013261; border-bottom:2px solid #9DC4FE;'>Tier</th>
-        //        <th style='padding:.6em 1em; text-align:left; border:1px solid #013261; border-bottom:2px solid #9DC4FE;'>Category</th>
-        //        <th style='padding:.6em 1em; text-align:left; border:1px solid #013261; border-bottom:2px solid #9DC4FE;'>Sub-Category</th>
-        //        <th style='padding:.6em 1em; text-align:left; border:1px solid #013261; border-bottom:2px solid #9DC4FE;'>MYCA Approval date</th>
-        //    </tr>
+                //    <!-- Header -->
+                //    <tr style='border-top:none; background:#013261; color:#ffffff;'>
+                //        <th style='padding:.6em 1em; text-align:left; border:1px solid #013261; border-bottom:2px solid #9DC4FE;'>Project ID</th>
+                //        <th style='padding:.6em 1em; text-align:left; border:1px solid #013261; border-bottom:2px solid #9DC4FE;'>MY ID</th>
+                //        <th style='padding:.6em 1em; text-align:left; border:1px solid #013261; border-bottom:2px solid #9DC4FE;'>Alternate ID</th>
+                //        <th style='padding:.6em 1em; text-align:left; border:1px solid #013261; border-bottom:2px solid #9DC4FE;'>External ID</th>
+                //        <th style='padding:.6em 1em; text-align:left; border:1px solid #013261; border-bottom:2px solid #9DC4FE;'>OA Project Code (UACS)</th>
+                //        <th style='padding:.6em 1em; text-align:left; border:1px solid #013261; border-bottom:2px solid #9DC4FE;'>Tier</th>
+                //        <th style='padding:.6em 1em; text-align:left; border:1px solid #013261; border-bottom:2px solid #9DC4FE;'>Category</th>
+                //        <th style='padding:.6em 1em; text-align:left; border:1px solid #013261; border-bottom:2px solid #9DC4FE;'>Sub-Category</th>
+                //        <th style='padding:.6em 1em; text-align:left; border:1px solid #013261; border-bottom:2px solid #9DC4FE;'>MYCA Approval date</th>
+                //    </tr>
 
-        //    <!-- Data row -->
-        //    <tr style='border-top:1px solid #D8E1EA; border-bottom:1px solid #D8E1EA; background-color:#F3F7FF;'>
-        //        <td style='padding:.6em 1em; text-align:left; border:1px solid #D8E1EA;'>{{Project.ProjectId}}</td>
-        //        <td style='padding:.6em 1em; text-align:left; border:1px solid #D8E1EA;'>{{Project.MYId}}</td>
-        //        <td style='padding:.6em 1em; text-align:left; border:1px solid #D8E1EA;'>{{Project.AlternateId}}</td>
-        //        <td style='padding:.6em 1em; text-align:left; border:1px solid #D8E1EA;'>{{Project.ExternalId}}</td>
-        //        <td style='padding:.6em 1em; text-align:left; border:1px solid #D8E1EA;'>{{Project.UACS}}</td>
-        //        <td style='padding:.6em 1em; text-align:left; border:1px solid #D8E1EA;'>{{Project.Tier}}</td>
-        //        <td style='padding:.6em 1em; text-align:left; border:1px solid #D8E1EA;'>{{Project.Category}}</td>
-        //        <td style='padding:.6em 1em; text-align:left; border:1px solid #D8E1EA;'>{{Project.Thrust}}</td>
-        //        <td style='padding:.6em 1em; text-align:left; border:1px solid #D8E1EA;'>{{Project.MYCAApprovalDate}}</td>
-        //    </tr>
+                //    <!-- Data row -->
+                //    <tr style='border-top:1px solid #D8E1EA; border-bottom:1px solid #D8E1EA; background-color:#F3F7FF;'>
+                //        <td style='padding:.6em 1em; text-align:left; border:1px solid #D8E1EA;'>{{Project.ProjectId}}</td>
+                //        <td style='padding:.6em 1em; text-align:left; border:1px solid #D8E1EA;'>{{Project.MYId}}</td>
+                //        <td style='padding:.6em 1em; text-align:left; border:1px solid #D8E1EA;'>{{Project.AlternateId}}</td>
+                //        <td style='padding:.6em 1em; text-align:left; border:1px solid #D8E1EA;'>{{Project.ExternalId}}</td>
+                //        <td style='padding:.6em 1em; text-align:left; border:1px solid #D8E1EA;'>{{Project.UACS}}</td>
+                //        <td style='padding:.6em 1em; text-align:left; border:1px solid #D8E1EA;'>{{Project.Tier}}</td>
+                //        <td style='padding:.6em 1em; text-align:left; border:1px solid #D8E1EA;'>{{Project.Category}}</td>
+                //        <td style='padding:.6em 1em; text-align:left; border:1px solid #D8E1EA;'>{{Project.Thrust}}</td>
+                //        <td style='padding:.6em 1em; text-align:left; border:1px solid #D8E1EA;'>{{Project.MYCAApprovalDate}}</td>
+                //    </tr>
 
-        //    <!-- Description header -->
-        //    <tr style='border-top:none; background:#013261; color:#ffffff;'>
-        //        <th colspan='9' style='padding:.6em 1em; text-align:left; border:1px solid #013261; border-bottom:2px solid #9DC4FE;'>
-        //        Description
-        //        </th>
-        //    </tr>
+                //    <!-- Description header -->
+                //    <tr style='border-top:none; background:#013261; color:#ffffff;'>
+                //        <th colspan='9' style='padding:.6em 1em; text-align:left; border:1px solid #013261; border-bottom:2px solid #9DC4FE;'>
+                //        Description
+                //        </th>
+                //    </tr>
 
-        //    <!-- Description body -->
-        //    <tr style='border-top:1px solid #D8E1EA; border-bottom:1px solid #D8E1EA; background-color:#F3F7FF;'>
-        //        <td colspan='9' style='padding:.6em 1em; text-align:left; border:1px solid #D8E1EA;'>
-        //        {{Project.Description}}
-        //        </td>
-        //    </tr>
+                //    <!-- Description body -->
+                //    <tr style='border-top:1px solid #D8E1EA; border-bottom:1px solid #D8E1EA; background-color:#F3F7FF;'>
+                //        <td colspan='9' style='padding:.6em 1em; text-align:left; border:1px solid #D8E1EA;'>
+                //        {{Project.Description}}
+                //        </td>
+                //    </tr>
 
-        //    </tbody>
-        //</table>
+                //    </tbody>
+                //</table>
 
 
-        //<h3>Project Details Information:</h3>
-        //<table style='margin: auto; min-width: 300px; max-width: 100%; border-collapse: collapse; color: #333; border-top-left-radius: 10px; border-top-right-radius: 10px; overflow: hidden; border: 1px solid #ddd;'>
-        //    <tbody>
-        //        <tr style='border-top: none; background: #00148b; color: #fff;'>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Program Id</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Program Name</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Stage</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Reference Id</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Project Id</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Alternate Id</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>External Id</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>MY Id</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>UACS</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>MYCA Approval Date</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Island Code</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Revision #</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Description</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Category</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Thrust</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Origin</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>City</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Province</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Legislative District</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Operating Unit</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Implementing Office</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>DEO</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Region</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Agency</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Implementation Mode</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Emergency Mode</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Feasibility</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Feasibility Date</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Detailed Design</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Detailed Design Date</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>ROW Available</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Region Wide</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Tier</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Created By</th>
-        //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Created Date</th>
-        //        </tr>
+                //<h3>Project Details Information:</h3>
+                //<table style='margin: auto; min-width: 300px; max-width: 100%; border-collapse: collapse; color: #333; border-top-left-radius: 10px; border-top-right-radius: 10px; overflow: hidden; border: 1px solid #ddd;'>
+                //    <tbody>
+                //        <tr style='border-top: none; background: #00148b; color: #fff;'>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Program Id</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Program Name</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Stage</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Reference Id</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Project Id</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Alternate Id</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>External Id</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>MY Id</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>UACS</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>MYCA Approval Date</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Island Code</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Revision #</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Description</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Category</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Thrust</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Origin</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>City</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Province</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Legislative District</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Operating Unit</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Implementing Office</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>DEO</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Region</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Agency</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Implementation Mode</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Emergency Mode</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Feasibility</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Feasibility Date</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Detailed Design</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Detailed Design Date</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>ROW Available</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Region Wide</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Tier</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Created By</th>
+                //            <th style='padding: .5em 1em; text-align: left; border: 1px solid #ddd;'>Created Date</th>
+                //        </tr>
 
-        //        <tr style='border-top: 1px solid #ddd; border-bottom: 1px solid #ddd; background-color: #f5f9fc;'>
-        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{dto.ProjectDetails.ProgramId}</td>
-        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{dto.ProjectDetails.ProgramName}</td>
-        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{dto.ProjectDetails.StageName}</td>
-        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.ReferenceId}</td>
-        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.ProjectId}</td>
-        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.AlternateId}</td>
-        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.ExternalId}</td>
-        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.MYId}</td>
-        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.UACS}</td>
-        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.MYCAApprovalDate}</td>
-        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.IslandCode}</td>
-        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.RevisionNumber}</td>
-        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Description}</td>
-        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Category}</td>
-        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Thrust}</td>
-        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Origin}</td>
-        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.City}</td>
-        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Province}</td>
-        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.LegislativeDistrict}</td>
-        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.OperatingUnit}</td>
-        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.ImplementingOffice}</td>
-        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.DEO}</td>
-        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Region}</td>
-        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Agency}</td>
-        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.ImplementationMode}</td>
-        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.EmergencyMode}</td>
-        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Feasibility}</td>
-        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.FeasibilityDate}</td>
-        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.DetailedDesign}</td>
-        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.DetailedDesignDate}</td>
-        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.RowAvailable}</td>
-        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.RegionWide}</td>
-        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Tier}</td>
-        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.CreatedBy}</td>
-        //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.CreatedDate}</td>
-        //        </tr>
+                //        <tr style='border-top: 1px solid #ddd; border-bottom: 1px solid #ddd; background-color: #f5f9fc;'>
+                //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{dto.ProjectDetails.ProgramId}</td>
+                //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{dto.ProjectDetails.ProgramName}</td>
+                //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{dto.ProjectDetails.StageName}</td>
+                //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.ReferenceId}</td>
+                //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.ProjectId}</td>
+                //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.AlternateId}</td>
+                //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.ExternalId}</td>
+                //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.MYId}</td>
+                //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.UACS}</td>
+                //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.MYCAApprovalDate}</td>
+                //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.IslandCode}</td>
+                //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.RevisionNumber}</td>
+                //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Description}</td>
+                //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Category}</td>
+                //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Thrust}</td>
+                //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Origin}</td>
+                //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.City}</td>
+                //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Province}</td>
+                //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.LegislativeDistrict}</td>
+                //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.OperatingUnit}</td>
+                //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.ImplementingOffice}</td>
+                //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.DEO}</td>
+                //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Region}</td>
+                //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Agency}</td>
+                //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.ImplementationMode}</td>
+                //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.EmergencyMode}</td>
+                //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Feasibility}</td>
+                //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.FeasibilityDate}</td>
+                //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.DetailedDesign}</td>
+                //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.DetailedDesignDate}</td>
+                //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.RowAvailable}</td>
+                //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.RegionWide}</td>
+                //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.Tier}</td>
+                //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.CreatedBy}</td>
+                //            <td style='padding: .5em 1em; border: 1px solid #ddd;'>{Project.CreatedDate}</td>
+                //        </tr>
 
-        //    </tbody>
-        //</table>""";
-        //        loc = loc.Replace("{Title}", "Project Revision <b><u>Request</u></b>");
-        //        loc = loc.Replace("{Body}", Body);
-        //        loc = loc.Replace("{Footer}", $"For more information click <a href='{Appsetting.RootPath}/Batch'>HERE</a>");
-        //        loc = loc.Replace("{From}", "");
-        //        string To = "";
-        //        SMTPModel EmailConfig = new SMTPModel
-        //        {
-        //            Recipient = "mf102798@gmail.com",
-        //            CCAddress = "yabutgerard@gmail.com",
-        //            Subject = "Request for Revision",
-        //            Body = loc
-        //        };
+                //    </tbody>
+                //</table>""";
+                //        loc = loc.Replace("{Title}", "Project Revision <b><u>Request</u></b>");
+                //        loc = loc.Replace("{Body}", Body);
+                //        loc = loc.Replace("{Footer}", $"For more information click <a href='{Appsetting.RootPath}/Batch'>HERE</a>");
+                //        loc = loc.Replace("{From}", "");
+                //        string To = "";
+                //        SMTPModel EmailConfig = new SMTPModel
+                //        {
+                //            Recipient = "mf102798@gmail.com",
+                //            CCAddress = "yabutgerard@gmail.com",
+                //            Subject = "Request for Revision",
+                //            Body = loc
+                //        };
                 //EmailConfig.SendEmail();
                 #endregion
                 return Ok(
@@ -1451,7 +1494,10 @@ namespace WebAPI.Controllers.Revision
                     }
                     _db.tRevisionDetails.Update(RevisionDetails);
                     _db.tRevisionProjects.Update(SelectedProjectRevision);
-                    _db.tRevisionProjects.Update(OldRevisionProjects);
+                    if(OldRevisionProjects != null)
+                    {
+                        _db.tRevisionProjects.Update(OldRevisionProjects);
+                    }
                 }
                 else if (dto.Status == EnumRevisionStatus.ForCorrection)
                 {
