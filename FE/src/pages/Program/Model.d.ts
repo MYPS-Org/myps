@@ -143,7 +143,7 @@ export interface ProgramList {
 	Name: string;
 	GroupName?: string;
 	RegionCode: string;
-	Status?: string;
+	Status?: number;
 	Type?: string;
 	Cost?: number;
 	YearStart: number;

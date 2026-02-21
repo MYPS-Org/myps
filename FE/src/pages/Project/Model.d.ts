@@ -121,6 +121,7 @@ export interface ProjectDetails {
 	RowAvailable?: number;
 	RegionWide?: number;
 	Tier: number;
+	Priority?: number;
 	CreatedBy?: string;
 	CreatedDate?: string;
 	UpdatedBy?: string;

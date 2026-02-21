@@ -12,6 +12,7 @@ interface NextStageDialogProps {
     onSubmit: (data: { ProgramId: string; Stage: number; Name?: string }) => void;
     program: ProgramDetails;
     stages: ProgramEnums[];
+    isSkip: boolean;
 }
 
 const NextStageDialog: React.FC<NextStageDialogProps> = ({ 
@@ -19,12 +20,15 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
     onClose,
     onSubmit,
     program,
-    stages 
+    stages,
+    isSkip
 }) => {
     
     const { showToast } = useToast();
     const nextStageId = program.StageId + 1;
     const nextStage = stages.find(stage => stage.Id === nextStageId);
+    const skipStageId = program.StageId + 2;
+    const skipStage = stages.find(stage => stage.Id === skipStageId);
     
     // Function to parse existing program name and split it
     const parseExistingName = (currentName: string) => {
@@ -52,8 +56,8 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
         ProgramId: program?.ProgramId || '',
         Name: parsedName.baseName,
         AddedName: parsedName.additionalName,
-        Stage: nextStageId,
-        StageName: nextStage?.Name || 'Final Stage',
+        Stage: isSkip ? skipStageId : nextStageId,
+        StageName: isSkip ? skipStage?.Name || '' : nextStage?.Name || '',
         YearStart: program?.YearStart || new Date().getFullYear()
     });
 
@@ -61,8 +65,14 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
 
     // Auto-generate suggested name based on next stage and year
     const generateSuggestedName = () => {
-        if (nextStage && formData.YearStart) {
-            return `${nextStage.Name} ${formData.YearStart}`;
+        if (isSkip) {
+            if (skipStage && formData.YearStart) {
+                return `${skipStage.Name} ${formData.YearStart}`;
+            }
+        } else {
+            if (nextStage && formData.YearStart) {
+                return `${nextStage.Name} ${formData.YearStart}`;
+            }
         }
         return parsedName.baseName;
     };
@@ -118,8 +128,8 @@ const NextStageDialog: React.FC<NextStageDialogProps> = ({
             ProgramId: program?.ProgramId || '',
             Name: resetParsedName.baseName,
             AddedName: resetParsedName.additionalName,
-            Stage: nextStageId,
-            StageName: nextStage?.Name || 'Final Stage',
+            Stage: isSkip ? skipStageId : nextStageId,
+            StageName: isSkip ? skipStage?.Name || '' : nextStage?.Name || '',
             YearStart: program?.YearStart || new Date().getFullYear()
         });
         onClose();

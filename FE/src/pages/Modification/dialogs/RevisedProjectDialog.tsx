@@ -56,7 +56,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
     const [revisionType] = useState<string>('');
     const [isCertified, setIsCertified] = useState<boolean>(false);
 
-    console.log('ReviseProjectDialog - Received IDs:', { categoryId, revisionGroupId, reasonId });
+    // console.log('ReviseProjectDialog - Received IDs:', { categoryId, revisionGroupId, reasonId });
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
     const transactionId = useAtomValue(transactionIdAtom); // Get transactionId from atom

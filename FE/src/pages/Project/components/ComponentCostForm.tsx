@@ -324,6 +324,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
           ProjectId={initialData?.ProjectDetails?.ProjectId}
           maxAmountCost={maxAmountCost}
           disabled={disabled}
+          programDetails={initialData?.ProgramDetails}
         />
 
         {/* Delete Dialog */}

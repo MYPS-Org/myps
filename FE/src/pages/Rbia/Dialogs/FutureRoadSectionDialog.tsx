@@ -182,7 +182,7 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
             {/* Length */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Length (km) <span className="text-red-500">*</span>
+                Length (meters) <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"

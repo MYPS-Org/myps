@@ -163,9 +163,9 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
         return { isValid: false, message: `Length must be at least ${minAmount}` };
       }
       
-      if (maxAmount !== undefined && location.Length > maxAmount) {
-        return { isValid: false, message: `Length must not exceed ${maxAmount}` };
-      }
+      // if (maxAmount !== undefined && location.Length > maxAmount) {
+      //   return { isValid: false, message: `Length must not exceed ${maxAmount}` };
+      // }
       
       return { isValid: true, message: '' };
     }

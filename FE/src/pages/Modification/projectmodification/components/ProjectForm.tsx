@@ -146,7 +146,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     Name: '',
     GroupName: '',
     RegionCode: '',
-    Status: '',
+    Status: 0,
     Type: '',
     Cost: 0,
     YearStart: 0,

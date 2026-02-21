@@ -24,6 +24,8 @@ const ProgramDetail: React.FC = () => {
   const id = useMemo(() => program?.split(':'), [program]);
   const navigate = useNavigate();
   const [nextStageName, setNextStageName] = useState<string | null>(null);
+  const [skipStageName, setSkipStageName] = useState<string | null>(null);
+  const [isSkipStage, setIsSkip] = useState(false);
   const { showToast } = useToast();
   const [programEnums, setProgramEnums] = useState<ProgramDetailsEnums>({
     Details: {
@@ -143,6 +145,10 @@ const ProgramDetail: React.FC = () => {
       const nextStageId = response.Data.Details.StageId + 1;
       const nextStage = response.Data.Dropdowns.Stages.find(stage => stage.Id === nextStageId);
       setNextStageName(nextStage ? nextStage.Name : 'Final Stage');
+
+      const skipStageId = response.Data.Details.StageId + 2;
+      const skipStage = response.Data.Dropdowns.Stages.find(stage => stage.Id === skipStageId);
+      setSkipStageName(skipStage ? skipStage.Name : null);
     } catch (error) {
       console.error('Error fetching program details:', error);
       setProgramEnums(defaultProgramEnums);
@@ -344,8 +350,9 @@ setIsAddExistingProjectDialogOpen(true);
     );
   };
 
-  const handleProceed = async () => {
+  const handleProceed = async (isSkip: boolean) => {
     setIsNextStageDialogOpen(true);
+    setIsSkip(isSkip);
   };
 
   const handleNextStageSubmit = async (data: { ProgramId: string; Stage: number; Name?: string }) => {
@@ -693,9 +700,16 @@ setIsAddExistingProjectDialogOpen(true);
                 programEnums.Details &&
                 programEnums.Details.StageId >= 4 &&
                 programEnums.Details.StageId < 10 && (
-                <Button color="blue" className="w-auto items-center text-nowrap" onClick={handleProceed}>
-                  Proceed to {nextStageName}
-                </Button>
+                  <Button color="blue" className="w-auto items-center text-nowrap" onClick={() => handleProceed(false)}>
+                    Proceed to {nextStageName}
+                  </Button>
+              )}
+              {programEnums.IsActive &&
+                programEnums.Details &&
+                (programEnums?.Details?.StageId === 5 || programEnums?.Details?.StageId === 7) && (
+                  <Button color="blue" className="w-auto items-center text-nowrap" onClick={() => handleProceed(true)}>
+                    Proceed to {skipStageName}
+                  </Button>
               )}
               {programEnums.IsActive && (
                 <Button 
@@ -740,7 +754,7 @@ setIsAddExistingProjectDialogOpen(true);
                 Publish Program
               </Button>
             )}
-            {programEnums.IsActive && programEnums?.Details?.StageId < 10 && (
+            {programEnums.IsActive && programEnums.Details.Status === 3 && programEnums?.Details?.StageId <= 10 && (
               <Button color="blue" onClick={handleAddProject}>
                 Add Project
               </Button>
@@ -975,6 +989,7 @@ setIsAddExistingProjectDialogOpen(true);
           onSubmit={handleNextStageSubmit}
           program={programEnums?.Details}
           stages={programEnums?.Dropdowns.Stages || []}
+          isSkip={isSkipStage}
         />
       )}
 

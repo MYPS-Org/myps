@@ -373,9 +373,10 @@ const Program: React.FC = () => {
                     <TableHead>
                     <TableRow>
                         <TableHeader>Name</TableHeader>
-                        {/* <TableHeader>Status</TableHeader> */}
+                        <TableHeader>Status</TableHeader>
                         {/* <TableHeader>Program Stage</TableHeader> */}
                         <TableHeader>Program Type</TableHeader>
+                        <TableHeader>No. of Projects</TableHeader>
                         <TableHeader>Start Year</TableHeader>
                         {/* <TableHeader>End Year</TableHeader> */}
                         <TableHeader>Actions</TableHeader>
@@ -401,20 +402,20 @@ const Program: React.FC = () => {
                                     </div>
                                 </TableCell>
                                 <TableCell>
+                                    {program.Status}
+                                </TableCell>
+                                <TableCell>
                                     {getStatusBadge(program.Type || '')}
                                 </TableCell>
                                 {/* <TableCell>
                                     {program.StageName}
-                                </TableCell>
-                                <TableCell>
-                                    {program.Type}
                                 </TableCell> */}
+                                <TableCell>
+                                    update here
+                                </TableCell>
                                 <TableCell>
                                     {program.YearStart}
                                 </TableCell>
-                                {/* <TableCell>
-                                    {program.YearEnd}
-                                </TableCell> */}
                                 <TableCell>
                                     <div className="flex items-center space-x-1">
                                         <Button 
@@ -467,6 +468,9 @@ const Program: React.FC = () => {
                                                                 <TableCell className="text-sm text-gray-600 text-center">{stage.TypeName}</TableCell>
                                                                 <TableCell className="text-sm text-gray-600 text-center">{stage.YearStart}</TableCell>
                                                                 {/* <TableCell className="text-sm text-gray-600">{stage.YearEnd}</TableCell> */}
+                                                                <TableCell className="text-sm font-medium text-center">
+                                                                    {stage.Cost ? `₱${stage.Cost.toLocaleString()}` : 'N/A'}
+                                                                </TableCell>
                                                                 <TableCell className="text-sm font-medium text-center">
                                                                     {stage.Cost ? `₱${stage.Cost.toLocaleString()}` : 'N/A'}
                                                                 </TableCell>

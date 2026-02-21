@@ -98,7 +98,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     Name: '',
     GroupName: '',
     RegionCode: '',
-    Status: '',
+    Status: 0,
     Type: '',
     Cost: 0,
     YearStart: 0,
@@ -918,78 +918,61 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     
     <div className="overflow-hidden max-w-10xl mx-auto p-6 space-y-6">
         <div className='flex items-center justify-between mb-6'>
-            {/* Breadcrumb */}
-            {/* <nav className="flex items-center text-sm text-left text-gray-500">
-                <span>MYPS Admin</span>
-                <span className="mx-2">&gt;</span>
-                <span 
-                className="text-blue-600 hover:text-blue-800 cursor-pointer"
-                onClick={handleGoBack}
-                >
-                Project Revision
-                </span>
-                <span className="mx-2">&gt;</span>
-                <span>{mode === 'add' ? 'Add Project' : 'Edit Project'}</span>
-                <span className="mx-2">&gt;</span>
-            </nav> */}
-            <div>
-              
-            </div>
-            <div className="flex flex-col space-y-3 fixed top-8 right-6 z-50">
-                {mode === 'edit' && initialData?.IsActive === true && initialData?.IsUnlock === true && initialData?.ProgramDetails?.StageId !== 10 && (
-                  <>
-                    <Button color="red" className='cursor-pointer' onClick={() => handleLock(initialData?.ProjectDetails?.ProjectId ?? '', initialData?.ProgramDetails?.StageName ?? '')} disabled={updateAllProject}>
-                      {updateUnlockProject ? 'Unlocking...' : 'UnLock Project'}
-                    </Button>
-                  </>
-                )}
-                {mode === 'edit' && (initialData?.IsActive === true || initialData?.IsModify === true) && initialData?.ProgramDetails?.StageId !== 10 && (
-                  <>
-                    <Button color="orange" className='cursor-pointer' onClick={handleUpdateProject} disabled={updateAllProject}>
-                      {updateAllProject ? 'Updating...' : 'Update Project'}
-                    </Button>
-                  </>
-                )}
-                {mode === 'edit' && initialData?.ProgramDetails?.StageId === 10 && (
-                  <Menu as="div" className="relative inline-block text-left">
-                    <MenuButton
-                      as={Button}
-                      color='yellow' 
-                      className='cursor-pointer'
-                    >
-                     {reviseProject ? 'Revisioning...' : 'Revise Project'}
-                      <ChevronDownIcon className="h-4 w-4" />
-                    </MenuButton>
-                    <MenuItems className="absolute right-0 z-10 mt-2 w-80 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-                      <div className="py-1">
-                        {Dropdowns?.Revisions?.Headers.map((types) => (
-                          <MenuItem key={types.Id}>
-                            {({ active }) => (
-                              <button
-                                onClick={() => handleReviseProject(
-                                  initialData?.ProjectDetails?.ProjectId ?? '', 
-                                  initialData?.ProgramDetails?.StageName ?? '',
-                                  types.Id,
-                                  types.RevisionName
-                                )}
-                                className={`${
-                                  active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'
-                                } group flex w-full items-center px-4 py-2 text-sm text-left hover:bg-gray-50`}
-                                disabled={reviseProject}
-                              >
-                                <div className="flex flex-col">
-                                  <span className="font-medium">{types.RevisionName}</span>
-                                  {/* <span className="text-xs text-gray-500">ID: {revisionType.Id}</span> */}
-                                </div>
-                              </button>
-                            )}
-                          </MenuItem>
-                        ))}
-                      </div>
-                    </MenuItems>
-                  </Menu>
-                )}
-            </div>
+          <div className="flex flex-end space-y-3 fixed top-2 right-25 z-50">
+              {mode === 'edit' && initialData?.IsActive === true && initialData?.IsUnlock === true && initialData?.ProgramDetails?.StageId !== 10 && (
+                <>
+                  <Button color="red" className='cursor-pointer' onClick={() => handleLock(initialData?.ProjectDetails?.ProjectId ?? '', initialData?.ProgramDetails?.StageName ?? '')} disabled={updateAllProject}>
+                    {updateUnlockProject ? 'Unlocking...' : 'UnLock Project'}
+                  </Button>
+                </>
+              )}
+              {mode === 'edit' && initialData?.IsActive === true && initialData?.ProgramDetails?.Status !== 1 && (
+                <>
+                  <Button color="orange" className='cursor-pointer' onClick={handleUpdateProject} disabled={updateAllProject}>
+                    {updateAllProject ? 'Updating...' : 'Update Project'}
+                  </Button> 
+                </>
+              )}
+              {mode === 'edit' && initialData?.ProgramDetails?.StageId === 10 && initialData?.ProgramDetails?.Status === 1 && (
+                <Menu as="div" className="relative inline-block text-left">
+                  <MenuButton
+                    as={Button}
+                    color='yellow' 
+                    className='cursor-pointer'
+                  >
+                    {reviseProject ? 'Revisioning...' : 'Revise Project'}
+                    <ChevronDownIcon className="h-4 w-4" />
+                  </MenuButton>
+                  <MenuItems className="absolute right-0 z-10 mt-2 w-80 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                    <div className="py-1">
+                      {Dropdowns?.Revisions?.Headers.map((types) => (
+                        <MenuItem key={types.Id}>
+                          {({ active }) => (
+                            <button
+                              onClick={() => handleReviseProject(
+                                initialData?.ProjectDetails?.ProjectId ?? '', 
+                                initialData?.ProgramDetails?.StageName ?? '',
+                                types.Id,
+                                types.RevisionName
+                              )}
+                              className={`${
+                                active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'
+                              } group flex w-full items-center px-4 py-2 text-sm text-left hover:bg-gray-50`}
+                              disabled={reviseProject}
+                            >
+                              <div className="flex flex-col">
+                                <span className="font-medium">{types.RevisionName}</span>
+                                {/* <span className="text-xs text-gray-500">ID: {revisionType.Id}</span> */}
+                              </div>
+                            </button>
+                          )}
+                        </MenuItem>
+                      ))}
+                    </div>
+                  </MenuItems>
+                </Menu>
+              )}
+          </div>
         </div>
 
       {/* Map Section */}
@@ -1065,6 +1048,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             <>
               <div className="px-4 py-6 sm:p-8">
                 <ProjectDetailsForm
+                  programDetails={initialData?.ProgramDetails}
                   projectDetails={projectDetails}
                   onChange={handleProjectDetailsChange}
                   projectEnums={projectEnums || undefined}

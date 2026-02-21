@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import type { ProjectDetails, ProjectEnums } from "../Model.d";
+import type { ProgramList } from "../../Program/Model.d";
 import type { FormValidationError } from "../../../utils/FormValidation";
 import { getDisabledClass, formatDropdownOptions } from '../../../utils/GlobalFunctions';
 import SearchableDropdown from '../../../components/ui/SearchableDropdown';
@@ -9,12 +10,14 @@ interface ProjectDetailsFormProps {
     onChange: (field: keyof ProjectDetails, value: any) => void;
     mode?: string; // 'add' or 'edit'
     projectEnums?: ProjectEnums;
+    programDetails?: ProgramList;
     initialData?: any;
     errors?: FormValidationError<ProjectDetails>;
     disabled?: boolean;
 }
 
 const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({ 
+    programDetails,
     projectDetails, 
     onChange, 
     projectEnums,
@@ -385,21 +388,52 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             </div>
                         </div>
 
-                        <div className='w-full flex flex-col text-left gap-2'>
-                            <div className='flex flex-row gap-5 items-center'>
-                                <label className={`w-1/3 ${errors.Tier ? 'text-red-500' : 'text-gray-600'}`}>Tier</label>
-                                <select
-                                    value={projectDetails?.Tier}
-                                    onChange={(e) => handleInputChange('Tier', parseInt(e.target.value))}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.Tier ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
-                                    disabled={disabled}
-                                >
-                                    <option value={1}>Tier I</option>
-                                    <option value={2}>Tier II</option>
-                                </select>
+                        <div className="w-full flex flex-row gap-5 items-center">
+                            <label
+                                className={`w-1/3 text-sm font-medium ${
+                                errors.Tier ? 'text-red-500' : 'text-gray-700'
+                                }`}
+                            >
+                                Tier
+                            </label>
+                            <select
+                                value={projectDetails?.Tier}
+                                onChange={(e) => handleInputChange('Tier', parseInt(e.target.value))}
+                                className={`w-2/3 mt-1 px-3 py-2 border ${
+                                errors.Tier ? 'border-red-500' : 'border-gray-300'
+                                } ${getDisabledClass(disabled)} rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none`}
+                                disabled={disabled}
+                            >
+                                <option value={1}>Tier I</option>
+                                <option value={2}>Tier II</option>
+                            </select>
                             </div>
-                        </div>
-
+                            {programDetails?.StageId === 3 && (
+                            <div className="flex flex-row gap-5 items-center">
+                                <label
+                                className={`w-1/3 text-sm font-medium ${
+                                    errors.Priority ? 'text-red-500' : 'text-gray-700'
+                                }`}
+                                >
+                                Priority Level
+                                </label>
+                                <input
+                                type="number"
+                                value={projectDetails?.Priority || ''}
+                                onChange={(e) =>
+                                    handleInputChange(
+                                    'Priority',
+                                    e.target.value ? parseInt(e.target.value) : undefined
+                                    )
+                                }
+                                className={`w-2/3 mt-1 px-3 py-2 border ${
+                                    errors.Priority ? 'border-red-500' : 'border-gray-300'
+                                } ${getDisabledClass(disabled)} rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none`}
+                                disabled={disabled}
+                                min={1}
+                                />
+                            </div>
+                            )}
                     </div>
 
                     <div className="grid grid-cols-3 gap-5 border-t-2 pt-4 border-gray-200">

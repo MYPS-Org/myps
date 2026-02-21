@@ -137,15 +137,29 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
 
   // Get infrastructure types: use InfraTypeEnum master list if available,
   // otherwise fall back to extracting unique codes from ScopeOfWorks
-  const infraTypeOptions: InfraTypeEnum[] = infraTypeEnums.length > 0
+  const infraTypeOptions: InfraTypeEnum[] = useMemo(() => {
+  if (formData.ComponentId === "ROW") {
+    // If ComponentId is "ROW", only include InfraTypes that have a "ROW Acquisition" work type
+    return infraTypeEnums.filter(infraType =>
+      dropDowns.some(
+        scope =>
+          scope.InfraType.includes(infraType.InfraCode) &&
+          scope.Description === "ROW Acquisition"
+      )
+    );
+  }
+
+  // Otherwise, return all InfraTypes
+  return infraTypeEnums.length > 0
     ? infraTypeEnums
     : [...new Set(dropDowns?.flatMap(scope => scope.InfraType) || [])]
         .map((code, i) => ({ Id: i, InfraId: i, InfraCode: code, InfraName: code }));
+}, [formData.ComponentId, infraTypeEnums, dropDowns]);
   
   // Filter out already selected ComponentIds (but allow the current one when editing)
   const availableComponentCosts = componentCosts.filter(cost => {
     // Always exclude EAO, EXC, SAV component IDs regardless of mode or reason
-    const excludedComponents = ['EAO', 'EXC', 'SAV', 'COS'];
+    const excludedComponents = ['EAO', 'EXC', 'SAV', 'COS', 'FS', 'DED', 'LS', 'OTH3', 'OTH4', 'OTH2', 'EXP', 'CS'];
     const componentId = cost.ComponentId?.toUpperCase();
     const isExcluded = excludedComponents.includes(componentId);
     

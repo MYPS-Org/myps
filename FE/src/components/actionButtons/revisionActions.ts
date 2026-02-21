@@ -122,12 +122,4 @@ export const getRevisionActions = ({
     onClick: () => actions.submit('resubmit'),
   },
 
-  // --- All ---
-  {
-    show: isEdit && isActive && (stageId !== 10 || isModify),
-    color: 'orange',
-    label: 'Update Project',
-    loading: loading.update,
-    onClick: actions.update,
-  },
 ];
