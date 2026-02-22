@@ -1225,6 +1225,7 @@ namespace WebAPI.Controllers.Projects
                     var newStage = new ProjectStages()
                     {
                         ProgramId = Program.ProgramId!,
+                        ReferenceId = Project.ReferenceId,
                         RevisionId = NewRevision.Id,
                         StageId = Program.StageId,
                         StageName = Program.StageName,

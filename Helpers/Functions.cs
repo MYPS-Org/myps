@@ -1,6 +1,7 @@
 ﻿using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Extra;
+using DBHelper.Models.Table;
 using DBHelper.Models.Views;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -418,20 +419,32 @@ namespace Helpers
 
             return result;
         }
-        public static TDest UpdateRevisionData<TSrc, TDest>(
+        public static UpdateRevisionDataResult<TDest> UpdateRevisionData<TSrc, TDest>(
             this List<string>? allowedKeys,
+            string User,
+            string TransactionId,
+            string AffectedTable,
+            DateTime CreatedDate,
             TSrc sourceData,
             TDest destinationData)
         {
+            List<RevisionTransactionLog> Transaction = new List<RevisionTransactionLog>();
             if (allowedKeys == null || allowedKeys.Count == 0)
-                return destinationData;
+                return new UpdateRevisionDataResult<TDest>
+                {
+                    Data = destinationData,
+                    RevisionTransaction = Transaction
+                };
 
             if (sourceData == null || destinationData == null)
-                return destinationData;
+                return new UpdateRevisionDataResult<TDest>
+                {
+                    Data = destinationData,
+                    RevisionTransaction = Transaction
+                };
 
             var sourceType = typeof(TSrc);
             var destType = typeof(TDest);
-
             foreach (var key in allowedKeys)
             {
                 if (string.IsNullOrWhiteSpace(key))
@@ -456,9 +469,23 @@ namespace Helpers
                     continue;
 
                 destProp.SetValue(destinationData, newValue);
+                Transaction.Add(new RevisionTransactionLog
+                {
+                    TransactionId = TransactionId,
+                    TypeOfTransaction = "Update",
+                    AffectedTable = AffectedTable,
+                    AffectedColumn = key,
+                    OldValue = oldValue?.ToString() ?? string.Empty,
+                    NewValue = newValue?.ToString() ?? string.Empty,
+                    CreatedBy = User,
+                    CreatedDate = CreatedDate
+                });
             }
-
-            return destinationData;
+            return new UpdateRevisionDataResult<TDest>
+            {
+                Data = destinationData,
+                RevisionTransaction = Transaction
+            };
         }
         public static bool ValidateProjectForPublish(DBHelper.Models.Table.ProjectRevisions pr, List<DBHelper.Models.Table.ProjectComponentCostPerYear>? pc)
         {
