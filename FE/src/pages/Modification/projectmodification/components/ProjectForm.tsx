@@ -112,6 +112,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   );
 
   // toggle state for Program Details section
+  const [isRevisionOpen, setIsRevisionOpen] = useState<boolean>(true);
   const [isProgramOpen, setIsProgramOpen] = useState<boolean>(true);
   const [isProjectOpen, setIsProjectOpen] = useState<boolean>(true);
   const [isMapOpen, setIsMapOpen] = useState<boolean>(true);
@@ -1064,18 +1065,32 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       </div>
 
       {/* Revision Details */}
-      <div className='bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl'>
-        <RevisionForm
-          category={permissions?.category || modificationCategory}
-          reason={modificationReason}
-          revisionDocs={initialData?.RevisionDocs}
-          forCorrectionsDetails={initialData?.ForCorrectionsDetails}
-          fieldRules={fieldRules}
-          pcmaStatus={pcmaStatus}
-          packageStatus={packageStatus}
-          currentCase={currentCase}
-          statusName={revisionStatus}
-        />
+      <div className="grid grid-cols-1 gap-6">
+        <div className='bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl'>
+          <div
+              className="flex justify-between items-center px-4 py-4 cursor-pointer border-b"
+              onClick={() => setIsRevisionOpen(!isRevisionOpen)}
+            >
+            <h3 className="text-lg font-semibold leading-7 text-gray-900">Revision Details</h3>
+            {isRevisionOpen ? (
+              <ChevronDownIcon className="h-5 w-5 text-gray-500" />
+            ) : (
+              <ChevronRightIcon className="h-5 w-5 text-gray-500" />
+            )}
+          </div>
+            {isRevisionOpen && (
+            <RevisionForm
+              category={permissions?.category || modificationCategory}
+              reason={modificationReason}
+              revisionDocs={initialData?.RevisionDocs}
+              forCorrectionsDetails={initialData?.ForCorrectionsDetails}
+              fieldRules={fieldRules}
+              pcmaStatus={pcmaStatus}
+              packageStatus={packageStatus}
+              currentCase={currentCase}
+              statusName={revisionStatus}
+            />)}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6">

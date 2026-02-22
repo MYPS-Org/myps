@@ -272,37 +272,6 @@ export interface FileEntity {
 	DataUrl: string
 }
 
-export interface ComponentCostNew {
-	Id: number;
-	ProjectId: string;
-	ComponentType: string;
-	ComponentId: string;
-	ReferenceId: string;
-	Description?: string;
-	Total: number;
-	StageName?: string;
-	IsDeleted: boolean;
-	RevisedNumber?: number;
-	ConstructionStatusCode?: number;
-	ConstructionStatusName?: string;
-	PackedStatusCode?: boolean;
-	PackedStatusName?: string;
-	CreatedBy: string;
-	CreatedDate: string;
-	UpdatedBy?: string;
-	UpdatedDate?: string;
-}
-
-export interface CostYear {
-	Id: number;
-	ParentId: string;
-	Year: number;
-	Amount: number;
-	StartDate?: string | null;
-	EndDate?: string | null;
-	IsDeleted: boolean;
-}
-
 // #region ComponentCost
 export interface ComponentCost {
 	Id: number;
