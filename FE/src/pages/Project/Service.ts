@@ -1,5 +1,6 @@
 import { httpClient, type ApiResponse } from "../../services/httpClient";
-import type { ProjectLists, ProgramDetails, ComponentCost, ProjectDetails, MajorItemOfWork, MajorItemLocations, FundingProfile, ProjectNote, ProjectEnums, ProjectFormPayload, ProjectPagination, AddNotes, InfraData, ProjectSupportingDocs, ProjectRevisionList, ComponentCostPerYear } from "./Model.d";
+import type { ProgramList } from "../Program/Model";
+import type { ProjectLists, ComponentCost, ProjectDetails, MajorItemOfWork, MajorItemLocations, FundingProfile, ProjectNote, ProjectEnums, ProjectFormPayload, ProjectPagination, AddNotes, InfraData, ProjectSupportingDocs, ProjectRevisionList, ComponentCostPerYear } from "./Model.d";
 
 // #region INITIALIZE Project Lists
 export const fetchProject = async (data: ProjectPagination) => {
@@ -17,7 +18,7 @@ export const fetchProject = async (data: ProjectPagination) => {
 // #region INITIALIZE Project details and Enums
 export const initProgramDetails = async (programId: number) => {
     try {
-        const response = await httpClient.post<ProgramDetails>(`/Project/Details/${programId}`, null, {
+        const response = await httpClient.post<ProgramList>(`/Project/Details/${programId}`, null, {
             preloaderMessage: 'Loading program details...'
         });
         return response;
@@ -29,7 +30,7 @@ export const initProgramDetails = async (programId: number) => {
 
 export const searchProgram = async (programName: string) => {
     try {
-        const response = await httpClient.post<ProgramDetails>(`/Project/Search/${programName}`, null, {
+        const response = await httpClient.post<ProgramList>(`/Project/Search/${programName}`, null, {
             preloaderMessage: 'Searching program...'
         });
         return response;

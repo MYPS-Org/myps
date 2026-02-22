@@ -274,19 +274,19 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
   const [Dropdowns] = useState<Dropdowns>(
     initialData?.Dropdowns || {
-    Categories: [],
-    Thrusts: [],
-    Origins: [],
-    Cities: [],
+    // Categories: [],
+    // Thrusts: [],
+    // Origins: [],
+    // Cities: [],
     ComponentTypes: [],
-    LDs: [],
-    OperatingUnits: [],
-    IOs: [],
-    DEOs: [],
-    Agencies: [],
-    Feasibility: [],
-    ImplementationModes: [],
-    EmergencyModes: [],
+    // LDs: [],
+    // OperatingUnits: [],
+    // IOs: [],
+    // DEOs: [],
+    // Agencies: [],
+    // Feasibility: [],
+    // ImplementationModes: [],
+    // EmergencyModes: [],
     Agreements: [],
     Sources: [],
     ScopeOfWorks: [],
@@ -1052,7 +1052,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                   projectDetails={projectDetails}
                   onChange={handleProjectDetailsChange}
                   projectEnums={projectEnums || undefined}
-                  initialData={initialData}
                   mode={mode}
                   errors={errors}
                   disabled={isDisabled}

@@ -57,36 +57,6 @@ export interface OptionRevisionCategory {
 	RevisionGroupId: number;
 }
 
-export interface AddProject {
-  ProjectName: string;
-  ProgramName: string;
-  Category: string;
-  TotalProjectCost: number;
-  DataSecurity: string;
-  CreatedBy: string;
-  CreatedDate: string;
-}
-
-export interface ProgramDetails {
-	Id: number;
-  	ProgramId: string;
-	RevisionNumber: number;
-	Name: string;
-	StageId: number;
-	StageName: string;
-	UserGroup: number;
-	RegionCode: string;
-	Status: number;
-	Type: number;
-	Cost?: number;
-	YearStart: number;
-	YearEnd: number;
-	CreatedBy?: string;
-	CreatedDate?: string;
-	UpdatedBy?: string;
-	UpdatedDate?: string;
-}
-
 export interface ProjectDetails {
 	Id?: number;
 	ProgramId?: string;
@@ -175,17 +145,6 @@ export interface TransactionLog {
   NewValue: string;
   CreatedBy: string;
   CreatedDate: string;
-}
-
-export interface ProjectById {
-  ProgramDetails: ProgramDetails,
-  ProjectDetails: ProjectDetails,
-  ComponentCosts: ProjectComponentCost[],
-  MajorItemOfWorks: ProjectMajorItemOfWorks[],
-  ProjectNotes: Notes,
-  Docs: Docs,
-  FundingProfile: Funding,
-  Dropdowns: Dropdowns
 }
 
 export interface ScopeOfWorkEnum {
@@ -385,20 +344,19 @@ export interface FundingProfile {
 
 // #region Additional interfaces for dropdowns and enums
 export interface Dropdowns {
-	// Programs: ProgramList[];
-	Categories: CategoryEnum[];
-	Thrusts: ThrustEnum[];
-	Origins: TableEnum[];
-	Cities: CityEnum[];
+	// Categories: CategoryEnum[];
+	// Thrusts: ThrustEnum[];
+	// Origins: TableEnum[];
+	// Cities: ProjectCityEnum[];
 	ComponentTypes: ComponentTypeEnum[];
-	LDs: LDEnum[];
-	OperatingUnits: OperatingUnitEnum[];
-	IOs: IOEnum[];
-	DEOs: RODEOEnum[];
-	Agencies: AgencyEnum[];
-	ImplementationModes: TableEnum[];
-	EmergencyModes: TableEnum[];
-	Feasibility: TableEnum[];
+	// LDs: ProjectLegislativeDistrictEnum[];
+	// OperatingUnits: ProjectOperatingUnitEnum[];
+	// IOs: ProjectImplementingOfficeEnum[];
+	// DEOs: RODEOEnum[];
+	// Agencies: AgencyEnum[];
+	// ImplementationModes: TableEnum[];
+	// EmergencyModes: TableEnum[];
+	// Feasibility: TableEnum[];
 	// Funding Profile
 	Agreements: AgreementEnum[];
 	Sources: SourceEnum[];
@@ -449,33 +407,12 @@ export interface TableEnum {
 	Name: string;
 	Description?: string;
 }
-export interface CityEnum {
-	Id: number;
-	Enum: number;
-	Name: string;
-	Description: string;
-}
-export interface LDEnum {
-	Id: number;
-	Enum: number;
-	Name: string;
-}
-export interface OperatingUnitEnum {
-	Name: string;
-	ParticipantId: string;
-	OrgType: string;
-}
-export interface IOEnum {
-	Name: string;
-	ParticipantId: string;
-	OrgType: string;
-}
 export interface RODEOEnum {
 	Id: number;
 	GdbId?: string;
 	Name: string;
 	ParticipantId: string;
-	ProvinceId?: string;
+	ProvinceGdbId?: string;
 	ProvinceName?: string;
 	RegionParticipantId: string;
 	RegionName: string;
@@ -518,34 +455,21 @@ export interface SourceEnum {
 export interface ProjectEnums {
   Programs: ProgramList[];
   Categories: CategoryEnum[];
-  Thrusts: ProjectThurstEnum[];
+  Thrusts: ThrustEnum[];
   Origins: TableEnum[];
   Cities: ProjectCityEnum[];
   Provinces: ProjectProvinceEnum[];
   LDs: ProjectLegislativeDistrictEnum[];
   OperatingUnits: ProjectOperatingUnitEnum[];
   IOs: ProjectImplementingOfficeEnum[];
-  DEOs: ProjectRODEOEnum[];
-  Agencies: ProjectAgencyLists[];
+  DEOs: RODEOEnum[];
+  Agencies: AgencyEnum[];
   ImplementationModes: TableEnum[];
   EmergencyModes: TableEnum[];
   RowsAvailable: TableEnum[];
   Feasibility: TableEnum[];
   DetailedDesign: TableEnum[];
   RegionWide: TableEnum[];
-}
-
-export interface ProjectThurstEnum {
-	Id: number;
-	PAPKey: number;
-	ProgramName: string;
-	SubProgramName: string;
-	ActivityName: string;
-	SequenceNumber: number;
-	ValidFromDate: number;
-	ValidToDate: number;
-	InfrastructureType?: string;
-	ThrustDescription: string;
 }
 
 export interface ProjectCityEnum {
@@ -599,23 +523,6 @@ export interface ProjectImplementingOfficeEnum {
 	RegionParticipantId: string;
 }
 
-export interface ProjectRODEOEnum {
-	Id: number;
-	GdbId?: string;
-	Name: string;
-	ParticipantId: string;
-	ProvinceGdbId?: string;
-	ProvinceName?: string;
-	RegionParticipantId: string;
-	RegionName: string;
-}
-
-export interface ProjectAgencyLists {
-	Id: number;
-	Code: string;
-	AgencyName: string;
-}
-
 // #region Project Revisions
 export interface ProjectStages {
 	Id: number;
@@ -643,7 +550,7 @@ export interface ProjectRevisionList {
 	Stages: ProjectStages[];
 	Dropdowns: {
 		CategoryEnum: CategoryEnum[];
-		ThrustEnum: ProjectThurstEnum[];
+		ThrustEnum: ThrustEnum[];
 	};
 }
 // #endregion Project Revisions

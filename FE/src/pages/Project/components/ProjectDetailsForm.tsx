@@ -11,7 +11,6 @@ interface ProjectDetailsFormProps {
     mode?: string; // 'add' or 'edit'
     projectEnums?: ProjectEnums;
     programDetails?: ProgramList;
-    initialData?: any;
     errors?: FormValidationError<ProjectDetails>;
     disabled?: boolean;
 }
