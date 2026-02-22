@@ -128,6 +128,15 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                if (!dto.RoadId.IsValidFutureInfraId())
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Road ID '{dto.RoadId}' is invalid. Expected format: 2 letters, 5 digits, 2-letter island code (e.g., AB12345LU).",
+                        Title = "Invalid Road ID Format"
+                    });
+                }
+
                 var checkRoad = await _db.tFutureRoads.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dto.Id);
                 if (checkRoad == null)
                 {
@@ -226,6 +235,14 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                if (!dto.RoadId.IsValidFutureInfraId())
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Road ID '{dto.RoadId}' is invalid. Expected format: 2 letters, 5 digits, 2-letter island code (e.g., AB12345LU).",
+                        Title = "Invalid Road ID Format"
+                    });
+                }
                 var checkRoadName = await _db.tFutureRoads.AsNoTracking().FirstOrDefaultAsync(x => x.Name == dto.Name);
                 if (checkRoadName != null)
                 {
@@ -372,6 +389,14 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                if (!dto.RoadSectionId.IsValidFutureInfraId())
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Road Section ID '{dto.RoadSectionId}' is invalid. Expected format: 2 letters, 5 digits, 2-letter island code (e.g., AB12345LU).",
+                        Title = "Invalid Road Section ID Format"
+                    });
+                }
                 var checkDEO = await _db.tOptionAdminAreaDistrictEngineeringOffice.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == dto.DEO);
                 if (checkDEO == null)
                 {
@@ -410,6 +435,14 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                if (!dto.RoadSectionId.IsValidFutureInfraId())
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Road Section ID '{dto.RoadSectionId}' is invalid. Expected format: 2 letters, 5 digits, 2-letter island code (e.g., AB12345LU).",
+                        Title = "Invalid Road Section ID Format"
+                    });
+                }
                 var checkRoad = await _db.tFutureRoadSections.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dto.Id);
                 if (checkRoad == null)
                 {
@@ -635,6 +668,14 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                if (!dto.BridgeId.IsValidFutureInfraId())
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Bridge ID '{dto.BridgeId}' is invalid. Expected format: 2 letters, 5 digits, 2-letter island code (e.g., AB12345LU).",
+                        Title = "Invalid Bridge ID Format"
+                    });
+                }
                 var checkBridgeName = await _db.tFutureBridge.AsNoTracking().FirstOrDefaultAsync(x => x.Name == dto.Name);
                 if (checkBridgeName != null)
                 {
@@ -681,6 +722,14 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                if (!dto.BridgeId.IsValidFutureInfraId())
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Bridge ID '{dto.BridgeId}' is invalid. Expected format: 2 letters, 5 digits, 2-letter island code (e.g., AB12345LU).",
+                        Title = "Invalid Bridge ID Format"
+                    });
+                }
                 var checkBridge = await _db.tFutureBridge.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dto.Id);
                 if (checkBridge == null)
                 {

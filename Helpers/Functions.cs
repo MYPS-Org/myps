@@ -20,6 +20,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using static Dapper.SqlMapper;
 
 namespace Helpers
@@ -523,6 +524,21 @@ namespace Helpers
             Major Items of Work: Validated Major Work Locations
              */
             return true;
+        }
+        private static readonly Regex RFutureInfra = new Regex(
+            @"^(?<prefix>[A-Z]{2})(?<digits>\d{5})(?<island>[A-Z]{2})$",
+            RegexOptions.Compiled | RegexOptions.CultureInvariant
+        );
+        public static bool IsValidFutureInfraId(this string id)
+        {
+            // Format: 2 letters + 5 digits + 2 letters (island code)
+            // Example: AB12345LU
+            if (string.IsNullOrWhiteSpace(id))
+                return false;
+
+            id = id.Trim().ToUpperInvariant();
+
+            return RFutureInfra.IsMatch(id);
         }
     }
 }

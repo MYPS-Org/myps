@@ -483,9 +483,10 @@ namespace WebAPI.Controllers.Projects
                     ReasonCategory = await _db.tOptionRevisionCategory.AsNoTracking().OrderBy(x => x.CategoryName).ToListAsync();
                     ReasonReason = await _db.tOptionRevisionReasons.AsNoTracking().OrderBy(x => x.Reason).ToListAsync();
                 }
+                bool isAllowedtoModify = (CurrentProgramVersion.StageName == "RBP" && CurrentProgramVersion.Status != "1") ? true : (CurrentProgramVersion.StageName == Project.StageName) ? true : false;
                 return Ok(new
                 {
-                    IsActive = (CurrentProgramVersion.StageName == Project.StageName) ? true : false,
+                    IsActive = isAllowedtoModify,//(CurrentProgramVersion.StageName == Project.StageName) ? true : false,
                     ProgramDetails = Program,
                     ProjectDetails = Project,
                     ComponentCosts = ComponentCost,
@@ -556,6 +557,27 @@ namespace WebAPI.Controllers.Projects
                 DateTime CurrentDate = Functions.CurrentDate();;
                 List<TransactionLog> transactionLogs = new List<TransactionLog>();
 
+                var CurrentProgramVersion = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProjectDetails.ProgramId);
+                if(CurrentProgramVersion == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"No program is associated with the Project ID {dto.ProjectDetails.ProjectId}. Please contact administrator!", Title = "Program Not Associated" });
+                }
+                if(CurrentProgramVersion.StageName != dto.ProjectDetails.StageName)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Project details cannot be updated. The project is currently in '{CurrentProgramVersion.StageName}' stage.",
+                        Title = "Invalid Stage Update"
+                    });
+                }
+                if(CurrentProgramVersion.StageName == "RBP" && CurrentProgramVersion.Status == "1")
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Project details cannot be updated. The project is already locked",
+                        Title = "Program Status Approved"
+                    });
+                }
                 var ValidateProject = await _db.tProjectStages.AsNoTracking().Where(x => x.ProgramId == dto.ProjectDetails.ProgramId && x.StageName == dto.ProjectDetails.StageName).ToListAsync();
                 if (ValidateProject != null && !dto.IsAllowedToProceed)
                 {

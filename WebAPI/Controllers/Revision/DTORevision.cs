@@ -101,8 +101,8 @@ namespace WebAPI.Controllers.Revision
         public string ComponentCostId { get; set; } = string.Empty;
         public Double Amount { get; set; }
         public int Year { get; set; }
-        public DateTime StartDate { get; set; }
-        public DateTime EndDate { get; set; }
+        public DateTime? StartDate { get; set; } = DateTime.UtcNow;
+        public DateTime? EndDate { get; set; } = DateTime.UtcNow;
         [Required]
         public bool IsDeleted { get; set; } = false;
     }
@@ -148,15 +148,10 @@ namespace WebAPI.Controllers.Revision
         public int TargetUnitId { get; set; }
         [MaxLength(100)]
         public string TargetUnit { get; set; } = string.Empty;
-        [Required]
         public double? StartX { get; set; }
-        [Required]
         public double? StartY { get; set; }
-        [Required]
         public double? EndX { get; set; }
-        [Required]
         public double? EndY { get; set; }
-        [Required]
         public double? PhysicalTarget { get; set; }
         [MaxLength(100)]
         public string? StartStationLimit { get; set; }

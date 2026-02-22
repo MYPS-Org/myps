@@ -344,13 +344,6 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Program Stage with Revision ID '{dto.RevisionId}' does not exist in the Program Stages table. Please contact administrator!", Title = "Stage not found" });
                 }
-                
-                int[] AllowedStages =
-                {
-                    (int)EnumProgramStage.RBP,
-                    (int)EnumProgramStage.RDIP,
-                    (int)EnumProgramStage.PIP
-                };
                 var TransactionLog = new TransactionLog()
                 {
                     TransactionId = dto.ProgramId,
@@ -363,7 +356,14 @@ namespace WebAPI.Controllers.Programs
                     CreatedDate = Functions.CurrentDate()
                 };
                 await _db.tTransactionLog.AddRangeAsync(TransactionLog);
-                if (ProgramStage.StageId == EnumProgramStage.BP)
+
+                EnumProgramStage[] AllowedStages =
+                {
+                    EnumProgramStage.RBP,
+                    EnumProgramStage.RDIP,
+                    EnumProgramStage.PIP
+                };
+                if (AllowedStages.Contains(ProgramStage.StageId))//RDIP RBP PIP
                 {
                     var ProgramRevisions = await _db.tProgramRevisions.Where(x => x.ProgramId == program.ProgramId).ToListAsync();
                     HashSet<int> ProgramRevisionIds = ProgramRevisions.Select(x => x.Id).ToHashSet();
@@ -847,7 +847,7 @@ namespace WebAPI.Controllers.Programs
                             Name = dto.Name,
                             DataSecurityGroup = checkRevisions.DataSecurityGroup,
                             UserGroup = checkRevisions.UserGroup,
-                            Status = checkRevisions.Status,
+                            Status = EnumProgramStatus.Working,
                             Type = checkRevisions.Type,
                             Cost = checkRevisions.Cost,
                             YearStart = checkRevisions.YearStart,

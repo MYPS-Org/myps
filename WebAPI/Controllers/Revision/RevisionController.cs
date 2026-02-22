@@ -872,8 +872,8 @@ namespace WebAPI.Controllers.Revision
                             ComponentCostId = x.ComponentCostId,
                             Amount = x.Amount,
                             Year = x.Year,
-                            StartDate = x.StartDate,
-                            EndDate = x.EndDate,
+                            StartDate = (DateTime)x.StartDate,
+                            EndDate = (DateTime)x.EndDate,
                             IsDeleted = false,
                         }));
                     }
@@ -932,20 +932,20 @@ namespace WebAPI.Controllers.Revision
                             //Locations.ForEach(x => x.ParentId = UpdateMajorWorkItem.ReferenceId);
                         }
                     }
-                    if (jsonRules.MajorItemOfWorkRules.CRUD.CanAdd)
+                }
+                if (jsonRules.MajorItemOfWorkRules.CRUD.CanAdd)
+                {
+                    NewMajorWorkItem.AddRange(NewMajorItemOfWorksToInsert.Where(x => x.Id == 0).Select(x => new RevisionProjectMajorWorkItem
                     {
-                        NewMajorWorkItem.AddRange(NewMajorItemOfWorksToInsert.Where(x => x.Id == 0).Select(x => new RevisionProjectMajorWorkItem
-                        {
-                            Id = x.Id,
-                            TransactionId = TransactionId,
-                            ProjectId = x.ProjectId,
-                            ReferenceId = x.ReferenceId,
-                            ComponentId = x.ComponentId,
-                            YearOfWork = x.YearOfWork,
-                            WorkTypeId = x.WorkTypeId,
-                            InfraType = x.InfraType,
-                        }));
-                    }
+                        Id = x.Id,
+                        TransactionId = TransactionId,
+                        ProjectId = x.ProjectId,
+                        ReferenceId = x.ReferenceId,
+                        ComponentId = x.ComponentId,
+                        YearOfWork = x.YearOfWork,
+                        WorkTypeId = x.WorkTypeId,
+                        InfraType = x.InfraType,
+                    }));
                 }
                 else
                 {
@@ -998,30 +998,30 @@ namespace WebAPI.Controllers.Revision
                             });
                         }
                     }
-                    if (jsonRules.MajorItemLocationRules.CRUD.CanAdd)
+                }
+                if (jsonRules.MajorItemLocationRules.CRUD.CanAdd)
+                {
+                    var NewMajorWorkLocationsToInsert = dto.MajorItemLocations.Where(x => NewMajorItemOfWorksToInsert.Select(c => c.ReferenceId).Contains(x.ParentId));
+                    if (NewMajorWorkLocationsToInsert.Count() > 0)
                     {
-                        var NewMajorWorkLocationsToInsert = dto.MajorItemLocations.Where(x => NewMajorItemOfWorksToInsert.Select(c => c.ReferenceId).Contains(x.ParentId));
-                        if (NewMajorWorkLocationsToInsert.Count() > 0)
+                        NewMajorWorkLocations.AddRange(NewMajorWorkLocationsToInsert.Select(x => new RevisionProjectMajorWorkLocations
                         {
-                            NewMajorWorkLocations.AddRange(NewMajorWorkLocationsToInsert.Select(x => new RevisionProjectMajorWorkLocations
-                            {
-                                TransactionId = TransactionId,
-                                ParentId = x.ParentId,
-                                InfraId = x.InfraId,
-                                DetailedScope = x.DetailedScope,
-                                TargetUnitId = x.TargetUnitId,
-                                TargetUnit = x.TargetUnit,
-                                StartX = x.StartX,
-                                StartY = x.StartY,
-                                EndX = x.EndX,
-                                EndY = x.EndY,
-                                PhysicalTarget = x.PhysicalTarget,
-                                StartStationLimit = x.StartStationLimit,
-                                EndStationLimit = x.EndStationLimit,
-                                EndChainage = x.EndChainage,
-                                StartChainage = x.StartChainage,
-                            }));
-                        }
+                            TransactionId = TransactionId,
+                            ParentId = x.ParentId,
+                            InfraId = x.InfraId,
+                            DetailedScope = x.DetailedScope,
+                            TargetUnitId = x.TargetUnitId,
+                            TargetUnit = x.TargetUnit,
+                            StartX = x.StartX,
+                            StartY = x.StartY,
+                            EndX = x.EndX,
+                            EndY = x.EndY,
+                            PhysicalTarget = x.PhysicalTarget,
+                            StartStationLimit = x.StartStationLimit,
+                            EndStationLimit = x.EndStationLimit,
+                            EndChainage = x.EndChainage,
+                            StartChainage = x.StartChainage,
+                        }));
                     }
                 }
                 else
@@ -1414,6 +1414,15 @@ namespace WebAPI.Controllers.Revision
                         }
                         if (dto.Status == EnumRevisionStatus.Approved)
                         {
+                            var DocumentNaming = await _db.tOptionRevisionDocuments.AsNoTracking().FirstOrDefaultAsync(x => (x.CategoryId != null && x.CategoryId == RevisionDetails.CategoryId) || x.RevisionGroupId == RevisionDetails.RevisionGroupId);
+                            if (DocumentNaming == null)
+                            {
+                                return new BadRequestObjectResult(new { Message = "Document naming convention not found for the selected revision reason! Please contact Administrator", Title = "Missing Document Naming" });
+                            }
+                            if (dto.Document == null)
+                            {
+                                return new BadRequestObjectResult(new { Message = "Approved document is required when approving revision request", Title = "Approved Document Required" });
+                            }
                             if (RevisionDetails.RevisionGroupId == 9)
                             {
                                 var entities = await _db.tProjectComponentCost.FromSqlInterpolated($@"
@@ -1490,9 +1499,23 @@ namespace WebAPI.Controllers.Revision
                                 ExistingProjectRevisions.IsActive = false;
                                 _db.tRevisionProjects.Update(ExistingProjectRevisions);
                             }
+                            string DocumentName = $"{dto.TransactionId}_{DocumentNaming.SecondSegmentName}_{CurrentDate.ToString("MM-dd-yyyy")}.{dto.Document.Extension}";
+                            string FilePath = Path.Combine(Appsetting.Resources.Revision.ImplementingOffice, DocumentName);
+                            string ResourcePath = Path.Combine(Directory.GetCurrentDirectory(), FilePath);
+                            if (!dto.Document.UploadFile(ResourcePath))
+                            {
+                                return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted!", Title = "File Corrupted" });
+                            }
+                            await _db.tRevisionDocuments.AddAsync(new RevisionDocuments
+                            {
+                                TransactionId = dto.TransactionId,
+                                DocumentPath = FilePath,
+                                DocumentName = DocumentName,
+                                IsApprovedDocument = true
+                            });
                         }
                     }
-                    _db.tRevisionDetails.Update(RevisionDetails);
+                    
                     _db.tRevisionProjects.Update(SelectedProjectRevision);
                     if(OldRevisionProjects != null)
                     {
@@ -1510,6 +1533,7 @@ namespace WebAPI.Controllers.Revision
                             ForCorrectionDate = CurrentDate,
                             IsCentralOffice = false
                         });
+                        RevisionDetails.RegionStatus = EnumRevisionStatus.ForCorrection;
                     }
                     else
                     {
@@ -1520,8 +1544,10 @@ namespace WebAPI.Controllers.Revision
                             ForCorrectionDate = CurrentDate,
                             IsCentralOffice = true
                         });
+                        RevisionDetails.COStatus = EnumRevisionStatus.ForCorrection;
                     }
                 }
+                _db.tRevisionDetails.Update(RevisionDetails);
                 #endregion
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
@@ -1969,25 +1995,25 @@ namespace WebAPI.Controllers.Revision
                             }
                         }
                     }
-                    if (jsonRules.FundingProfileRules.CRUD.CanDelete)
+                }
+                if (jsonRules.FundingProfileRules.CRUD.CanDelete)
+                {
+                    var DeletedFunding = UpdateFundingProfile.Where(x => x.IsDeleted == true).ToList();
+                    if (DeletedFunding.Count > 0)
                     {
-                        var DeletedFunding = UpdateFundingProfile.Where(x => x.IsDeleted == true).ToList();
-                        if (DeletedFunding.Count > 0)
+                        ExistingFundingProfile = ExistingFundingProfile.Where(x => !DeletedFunding.Select(x => x.Id).Contains(x.Id)).ToList();
+                        TransactionLog.AddRange(DeletedFunding.Select(x => new RevisionTransactionLog
                         {
-                            ExistingFundingProfile = ExistingFundingProfile.Where(x => !DeletedFunding.Select(x => x.Id).Contains(x.Id)).ToList();
-                            TransactionLog.AddRange(DeletedFunding.Select(x => new RevisionTransactionLog
-                            {
-                                TransactionId = RevisionTransactionId,
-                                ReferenceId = dto.TransactionId,
-                                TypeOfTransaction = "Delete",
-                                AffectedTable = "tRevisionProjectFundingProfile",
-                                AffectedColumn = "Row",
-                                OldValue = JsonConvert.SerializeObject(x),
-                                NewValue = null,
-                                CreatedBy = _Session.UserId,
-                                CreatedDate = CurrentDate
-                            }));
-                        }
+                            TransactionId = RevisionTransactionId,
+                            ReferenceId = dto.TransactionId,
+                            TypeOfTransaction = "Delete",
+                            AffectedTable = "tRevisionProjectFundingProfile",
+                            AffectedColumn = "Row",
+                            OldValue = JsonConvert.SerializeObject(x),
+                            NewValue = null,
+                            CreatedBy = _Session.UserId,
+                            CreatedDate = CurrentDate
+                        }));
                     }
                 }
                 if (jsonRules.FundingProfileRules.CRUD.CanAdd)
@@ -2097,24 +2123,24 @@ namespace WebAPI.Controllers.Revision
                             }
                         }
                     }
-                    if (jsonRules.ComponentCostRules.CRUD.CanDelete)
-                    {
-                        var DeletedFunding = UpdateComponentCost.Where(x => x.IsDeleted == true).ToList();
+                }
+                if (jsonRules.ComponentCostRules.CRUD.CanDelete)
+                {
+                    var DeletedFunding = UpdateComponentCost.Where(x => x.IsDeleted == true).ToList();
 
-                        ExistingComponent = ExistingComponent.Where(x => !DeletedFunding.Select(x => x.Id).Contains(x.Id)).ToList();
-                        TransactionLog.AddRange(DeletedFunding.Select(x => new RevisionTransactionLog
-                        {
-                            TransactionId = RevisionTransactionId,
-                            ReferenceId = dto.TransactionId,
-                            TypeOfTransaction = "Delete",
-                            AffectedTable = "tRevisionProjectFundingProfile",
-                            AffectedColumn = "Row",
-                            OldValue = JsonConvert.SerializeObject(x),
-                            NewValue = null,
-                            CreatedBy = _Session.UserId,
-                            CreatedDate = CurrentDate
-                        }));
-                    }
+                    ExistingComponent = ExistingComponent.Where(x => !DeletedFunding.Select(x => x.Id).Contains(x.Id)).ToList();
+                    TransactionLog.AddRange(DeletedFunding.Select(x => new RevisionTransactionLog
+                    {
+                        TransactionId = RevisionTransactionId,
+                        ReferenceId = dto.TransactionId,
+                        TypeOfTransaction = "Delete",
+                        AffectedTable = "tRevisionProjectFundingProfile",
+                        AffectedColumn = "Row",
+                        OldValue = JsonConvert.SerializeObject(x),
+                        NewValue = null,
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    }));
                 }
                 if (jsonRules.ComponentCostRules.CRUD.CanAdd)
                 {
@@ -2130,25 +2156,25 @@ namespace WebAPI.Controllers.Revision
                         Total = x.Total,
                         IsDeleted = false
                     }));
-                    if (jsonRules.ComponentCostYearRules.CRUD.CanAdd)
+                }
+                if (jsonRules.ComponentCostYearRules.CRUD.CanAdd)
+                {
+                    var CostIds = ExistingComponentYear.Select(x => x.ComponentCostId).ToList();
+                    var UpdatedCostYear = dto.ComponentCostPerYear.Where(x => x.Id == 0 && CostIds.Contains(x.ComponentCostId)).ToList();
+                    ExistingComponentYear.AddRange(UpdatedCostYear.Select(x => new RevisionProjectComponentCostPerYear
                     {
-                        var CostIds = ExistingComponentYear.Select(x => x.ComponentCostId).ToList();
-                        var UpdatedCostYear = dto.ComponentCostPerYear.Where(x => x.Id == 0 && CostIds.Contains(x.ComponentCostId)).ToList();
-                        ExistingComponentYear.AddRange(UpdatedCostYear.Select(x => new RevisionProjectComponentCostPerYear
-                        {
-                            TransactionId = dto.TransactionId,
-                            ComponentCostId = x.ComponentCostId,
-                            Amount = x.Amount,
-                            Year = x.Year,
-                            StartDate = x.StartDate,
-                            EndDate = x.EndDate,
-                            IsDeleted = false
-                        }));
-                    }
+                        TransactionId = dto.TransactionId,
+                        ComponentCostId = x.ComponentCostId,
+                        Amount = x.Amount,
+                        Year = x.Year,
+                        StartDate = (DateTime)x.StartDate,
+                        EndDate = (DateTime)x.EndDate,
+                        IsDeleted = false
+                    }));
                 }
                 #endregion
                 #region ComponentCostPerYear
-                    var ComponentCostPerYearRules = jsonRules.ComponentCostYearRules.Fields.GetType()
+                var ComponentCostPerYearRules = jsonRules.ComponentCostYearRules.Fields.GetType()
                     .GetProperties()
                     .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
                     .Where(p => (bool?)p.GetValue(jsonRules.ComponentCostRules.Fields) == true)
