@@ -801,6 +801,7 @@ namespace WebAPI.Controllers.Programs
                             RowAvailable = project.RowAvailable,
                             RegionWide = project.RegionWide,
                             Tier = project.Tier,
+                            Rank = project.Rank,
                             IsRevised = false,
                             RevisedNumber = null,
                             CreatedBy = _Session.UserId,

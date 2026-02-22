@@ -374,6 +374,7 @@ namespace WebAPI.Controllers.Projects
                     RowAvailable = (int)dto.RowAvailable!,
                     RegionWide = dto.RegionWide,
                     Tier = dto.Tier,
+                    Rank = dto.Rank,
                     CreatedBy = _Session.UserId,
                     CreatedDate = CurrentDate
                 };
@@ -1162,6 +1163,22 @@ namespace WebAPI.Controllers.Projects
                         CreatedDate = CurrentDate
                     });
                     Project.Tier = dto.ProjectDetails!.Tier;
+                }
+                if (Project.Rank != dto.ProjectDetails?.Rank)
+                {
+                    hasUpdated = true;
+                    transactionLogs.Add(new TransactionLog
+                    {
+                        TransactionId = Project.ProjectId!,
+                        TypeOfTransaction = "Update",
+                        AffectedTable = "tProjectRevisions",
+                        AffectedColumn = "Rank",
+                        NewValue = $"Stage: {Program.StageName} Value: {dto.ProjectDetails?.Rank.ToString()!}",
+                        OldValue = $"Stage: {Program.StageName} Value: {Project.Rank.ToString()!}",
+                        CreatedBy = _Session.UserId,
+                        CreatedDate = CurrentDate
+                    });
+                    Project.Rank = dto.ProjectDetails!.Rank;
                 }
                 if (hasUpdated)
                 {
