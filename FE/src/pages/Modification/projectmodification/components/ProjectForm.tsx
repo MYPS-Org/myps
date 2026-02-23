@@ -812,6 +812,24 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   };
 
   const handleSubmitModify = (type: string) => {
+    // Validate Implementation Mode change for Mode-of-Implementation category
+    const normalizedCategory = modificationCategory?.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    const isModeOfImplementation = normalizedCategory === 'mode-of-implementation' || revisionGroupId === 13;
+
+    if (isModeOfImplementation) {
+      const originalImplementationMode = initialData?.ProjectDetails?.ImplementationMode;
+      const currentImplementationMode = projectDetails.ImplementationMode;
+
+      if (!currentImplementationMode || currentImplementationMode === originalImplementationMode) {
+        showToast({
+          type: 'error',
+          message: 'Implementation Mode must be changed before submitting a Mode of Implementation modification.'
+        });
+        setErrors(prev => ({ ...prev, ImplementationMode: 'Implementation Mode must be changed for this modification type.' }));
+        return;
+      }
+    }
+
     const totalComponentCost = componentCosts.reduce((sum, cost) => cost.IsDeleted ? sum : sum + (cost.Total || 0), 0);
     
     // Calculate total funding profile amount

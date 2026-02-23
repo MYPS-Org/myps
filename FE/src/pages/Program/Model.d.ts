@@ -32,6 +32,7 @@ export interface ParentProgram {
 	Id: number;
 	RevisionId: number;
 	ProgramId: string;
+	NumberOfProjects?: number;
 	StageName: string;
 	Name: string;
 	GroupName?: string;
@@ -79,6 +80,7 @@ export interface ProgramDetailsWithStages {
 	Id: number;
 	ProgramId: string;
 	RevisionNumber: number;
+	NumberOfProjects?: number;
 	Name: string;
 	StageId: number;
 	StageName: string;
@@ -137,6 +139,7 @@ export interface ProgramList {
 	Id: number;
 	RevisionId: number;
 	ProgramId: string;
+	NumberOfProjects?: number;
 	TypeName?: string;
 	StageName: string;
 	StageId?: number;

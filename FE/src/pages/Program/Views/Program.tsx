@@ -411,7 +411,7 @@ const Program: React.FC = () => {
                                     {program.StageName}
                                 </TableCell> */}
                                 <TableCell>
-                                    update here
+                                    {program.NumberOfProjects !== undefined ? program.NumberOfProjects : 'N/A'}
                                 </TableCell>
                                 <TableCell>
                                     {program.YearStart}
@@ -453,7 +453,7 @@ const Program: React.FC = () => {
                                                             {/* <TableHeader className="text-xs">Status</TableHeader> */}
                                                             <TableHeader justify="center" className="text-xs">Type</TableHeader>
                                                             <TableHeader justify="center" className="text-xs">Start Year</TableHeader>
-                                                            {/* <TableHeader className="text-xs">End Year</TableHeader> */}
+                                                            <TableHeader justify="center" className="text-xs">Projects</TableHeader>
                                                             <TableHeader justify="center" className="text-xs">Cost</TableHeader>
                                                             <TableHeader justify="center" className="text-xs">Actions</TableHeader>
                                                         </TableRow>
@@ -469,7 +469,7 @@ const Program: React.FC = () => {
                                                                 <TableCell className="text-sm text-gray-600 text-center">{stage.YearStart}</TableCell>
                                                                 {/* <TableCell className="text-sm text-gray-600">{stage.YearEnd}</TableCell> */}
                                                                 <TableCell className="text-sm font-medium text-center">
-                                                                    {stage.Cost ? `₱${stage.Cost.toLocaleString()}` : 'N/A'}
+                                                                    {stage.NumberOfProjects !== undefined ? stage.NumberOfProjects : 'N/A'}
                                                                 </TableCell>
                                                                 <TableCell className="text-sm font-medium text-center">
                                                                     {stage.Cost ? `₱${stage.Cost.toLocaleString()}` : 'N/A'}
