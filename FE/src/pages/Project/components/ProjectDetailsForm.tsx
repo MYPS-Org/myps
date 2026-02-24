@@ -411,22 +411,22 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             <div className="flex flex-row gap-5 items-center">
                                 <label
                                 className={`w-1/3 text-sm font-medium ${
-                                    errors.Priority ? 'text-red-500' : 'text-gray-700'
+                                    errors.Rank ? 'text-red-500' : 'text-gray-700'
                                 }`}
                                 >
                                 Priority Level
                                 </label>
                                 <input
                                 type="number"
-                                value={projectDetails?.Priority || ''}
+                                value={projectDetails?.Rank || ''}
                                 onChange={(e) =>
                                     handleInputChange(
-                                    'Priority',
+                                    'Rank',
                                     e.target.value ? parseInt(e.target.value) : undefined
                                     )
                                 }
                                 className={`w-2/3 mt-1 px-3 py-2 border ${
-                                    errors.Priority ? 'border-red-500' : 'border-gray-300'
+                                    errors.Rank ? 'border-red-500' : 'border-gray-300'
                                 } ${getDisabledClass(disabled)} rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none`}
                                 disabled={disabled}
                                 min={1}

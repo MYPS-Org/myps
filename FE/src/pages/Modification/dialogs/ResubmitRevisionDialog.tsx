@@ -39,8 +39,8 @@ const ResubmitRevisionDialog: React.FC<ReviseProjectDialogProps> = ({
     revisionCategory,
     revisionReason,
     reasonId,
-    categoryId,
-    revisionGroupId,
+    // categoryId,
+    // revisionGroupId,
     projectStatus
 }) => {
     const navigate = useNavigate()

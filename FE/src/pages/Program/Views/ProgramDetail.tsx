@@ -5,6 +5,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import type { ProgramDetailsEnums, AIPReportParams } from '../Model.d'; // Adjust the import path as necessary
 import { Button } from '../../../components/tailwindui/button';
 import { editProgram, fetchProgramById, publishToPCMA, downloadAIPReport, batchAllowPublishing, batchDeleteProjects, batchRestrictPublishing } from '../Service';
+import { importProjects } from '../Service'; // TODO: uncomment when wiring up API call
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
 import { ChevronDownIcon, Cog6ToothIcon, TagIcon } from '@heroicons/react/24/outline';
 import { useToast } from '../../../components/toaster/ToasterContext';
@@ -14,6 +15,9 @@ import AIPReportDialog from '../dialogs/AIPReportDialog';
 import PublishProgramDialog from '../dialogs/PublishProgramDialog';
 import BatchTagDialog from '../dialogs/BatchTagDialog';
 import AddExistingProjectDialog from '../dialogs/AddExistingProjectDialog';
+import ImportProjectsDialog from '../dialogs/ImportProjectsDialog';
+import type { ImportedProject } from '../../Project/Model.d';
+import { transformImportedProjects } from '../utils/transformImportedProjects';
 import CheckboxList from '../../../components/ui/CheckboxList';
 // import { formatCurrency } from '../../../utils/GlobalFunctions';
 // import { Badge } from '../../../components/tailwindui/badge';
@@ -106,6 +110,7 @@ const ProgramDetail: React.FC = () => {
   const [isBatchTagDropDownOpen, setIsBatchTagDropDownOpen] = useState(false);
   const [batchAction, setBatchAction] = useState<'tag' | 'delete' | 'unpublish' | 'publish'>('tag');
   const [isAddExistingProjectDialogOpen, setIsAddExistingProjectDialogOpen] = useState(false);
+  const [isImportProjectsDialogOpen, setIsImportProjectsDialogOpen] = useState(false);
   
   // Group data security by OrgType
   // const groupedDataSecurity = useMemo(() => {
@@ -476,9 +481,49 @@ setIsAddExistingProjectDialogOpen(true);
   };
 
   const handleImportProjects = () => {
-    // TODO: Implement import projects functionality
-    console.log('Import Projects clicked');
+    setIsImportProjectsDialogOpen(true);
     setIsActionDropdownOpen(false);
+  };
+
+  const handleImportProjectsSubmit = async (projects: ImportedProject[]) => {
+    try {
+      setIsLoading(true);
+
+      const programId  = programEnums?.Details.ProgramId  ?? '';
+      const stageName  = programEnums?.Details.StageName  ?? '';
+
+      // Transform raw Excel rows → single flat server-ready DTO
+      const transformed = transformImportedProjects(projects, programId, stageName);
+
+      // ── Exact API Payload ──────────────────────────────────────────────
+      console.group('[Import Projects — Exact API Payload → /Importing/ImportProject/]');
+      console.log('programDetails:',       transformed.programDetails);
+      console.log('projectDetails:',       transformed.projectDetails);
+      console.log('fundingProfile:',       transformed.fundingProfile);
+      console.log('componentCosts:',       transformed.componentCosts);
+      console.log('componentCostPerYear:', transformed.componentCostPerYear);
+      console.log('majorItemOfWorks:',     transformed.majorItemOfWorks);
+      console.log('majorItemLocations:',   transformed.majorItemLocations);
+      console.log('── Full JSON ──', JSON.stringify(transformed, null, 2));
+      console.groupEnd();
+
+      // TODO: uncomment when backend is ready
+      await importProjects(transformed);
+      showToast({
+        type: 'success',
+        message: `Payload built for ${transformed.projectDetails.length} project${transformed.projectDetails.length !== 1 ? 's' : ''}. Check console for full JSON.`,
+      });
+
+      await fetchProgramDetail(programId, stageName);
+    } catch (error) {
+      console.error('Error importing projects:', error);
+      showToast({
+        type: 'error',
+        message: 'Failed to import projects. Please try again.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleExportProjects = () => {
@@ -1036,6 +1081,18 @@ setIsAddExistingProjectDialogOpen(true);
           onSubmit={handleAddExistingProjectSubmit}
           programId={programEnums?.Details.ProgramId}
           programName={programEnums?.Details.Name}
+        />
+      )}
+
+      {/* Import Projects Dialog */}
+      {isImportProjectsDialogOpen && (
+        <ImportProjectsDialog
+          isOpen={isImportProjectsDialogOpen}
+          onClose={() => setIsImportProjectsDialogOpen(false)}
+          onSubmit={handleImportProjectsSubmit}
+          programId={programEnums?.Details.ProgramId}
+          programName={programEnums?.Details.Name}
+          stageName={programEnums?.Details.StageName}
         />
       )}
     </div>

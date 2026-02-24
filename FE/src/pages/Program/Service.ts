@@ -1,6 +1,7 @@
 // import type { PaginationParams, PaginationResponse } from '../../model/Pagination';
 import { httpClient } from '../../services/httpClient';
 import type { TableEnum } from './Model';
+import type { ImportProjectDTO } from '../Project/Model';
 
 
 import type { ProgramModel, ProgramEnums, ProgramPagination, ProgramList, ProgramDetailsEnums, ProgramDetails, ParentProgram, StageList } from './Model';
@@ -209,3 +210,15 @@ export const batchRestrictPublishing = async (data: { ProgramId: string; Project
         throw ErrorResponse;
     }
 }
+
+export const importProjects = async (payload: ImportProjectDTO) => {
+    try {
+        const response = await httpClient.post(`/Importing/ImportProject/`, payload, {
+            preloaderMessage: 'Importing projects...'
+        });
+        return response;
+    } catch (ErrorResponse) {
+        console.error('Error importing projects:', ErrorResponse);
+        throw ErrorResponse;
+    }
+};

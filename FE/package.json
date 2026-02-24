@@ -32,7 +32,8 @@
     "react-resizable": "^3.0.5",
     "react-router-dom": "^7.6.2",
     "tailwindcss": "^4.1.10",
-    "vite-plugin-svgr": "^4.3.0"
+    "vite-plugin-svgr": "^4.3.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",

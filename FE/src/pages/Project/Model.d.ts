@@ -91,7 +91,7 @@ export interface ProjectDetails {
 	RowAvailable?: number;
 	RegionWide?: number;
 	Tier: number;
-	Priority?: number;
+	Rank?: number;
 	CreatedBy?: string;
 	CreatedDate?: string;
 	UpdatedBy?: string;
@@ -558,3 +558,219 @@ export interface ProjectRevisionList {
 
 // #endregion Enums
 
+// #region Import
+
+// ---------------------------------------------------------------------------
+// Backend DTO interfaces (camelCase, flat — matches ImportProjectDTO endpoint)
+// Prefixed with "Dto" to avoid name collisions with existing app interfaces.
+// ---------------------------------------------------------------------------
+
+export interface DtoProgramDetails {
+  programId: string;
+  stageName: string;
+}
+
+export interface DtoProjectDetails {
+  projectId: string;
+  alternateId?: string | null;
+  externalId?: string | null;
+  myId?: string | null;
+  uacs?: string | null;
+  mycaApprovalDate?: string | null;
+  description?: string | null;
+  province: string;
+  city: string;
+  legislativeDistrict: string;
+  operatingUnit: string;
+  implementingOffice: string;
+  deo: string;
+  region: string;
+  category: string;
+  thrust: string;
+  origin: string;
+  agency: string;
+  implementationMode: string;
+  emergencyMode: string;
+  feasibility: string;
+  feasibilityDate: string;
+  detailedDesign: string;
+  detailedDesignDate: string;
+  rowAvailable: string;
+  regionWide: string;
+  tier: string;
+}
+
+export interface DtoFundingProfile {
+  projectId: string;
+  source: string;
+  agreement: string;
+  percentage: number;
+  amount: number;
+}
+
+export interface DtoComponentCost {
+  projectId: string;
+  costId: string;
+  componentType: string;
+  componentId: string;
+  description: string;
+  total: number;
+}
+
+export interface DtoComponentCostPerYear {
+  componentCostId: string;
+  amount: number;
+  year: number;
+  startDate?: string | null;
+  endDate?: string | null;
+}
+
+export interface DtoMajorItemOfWork {
+  projectId: string;
+  referenceId: string;
+  componentId: string;
+  yearOfWork: number;
+  infraType: string;
+  workTypeId: string;
+  targetUnitId: string;
+  targetUnit: string;
+}
+
+export interface DtoMajorItemLocation {
+  parentId: string;
+  infraId: string;
+  detailedScope: string;
+  targetUnitId: string;
+  targetUnit: string;
+  physicalTarget: number;
+  length: number;
+  startChainage?: string | null;
+  endChainage?: string | null;
+  startX?: string | null;
+  startY?: string | null;
+  endX?: string | null;
+  endY?: string | null;
+  startStationLimit?: string | null;
+  endStationLimit?: string | null;
+}
+
+/** Flat DTO sent to the backend import endpoint. Mirrors ImportProjectDTO on the server. */
+export interface ImportProjectDTO {
+  programDetails: DtoProgramDetails;
+  projectDetails: DtoProjectDetails[];
+  fundingProfile: DtoFundingProfile[];
+  componentCosts: DtoComponentCost[];
+  componentCostPerYear: DtoComponentCostPerYear[];
+  majorItemOfWorks: DtoMajorItemOfWork[];
+  majorItemLocations: DtoMajorItemLocation[];
+}
+
+// ---------------------------------------------------------------------------
+// Raw parsed Excel interfaces (used by parseImportFile → transformer input)
+// ---------------------------------------------------------------------------
+
+/**
+ * Raw row data parsed directly from the Excel import file.
+ * String values are used for name-based lookup fields before the server resolves them to IDs.
+ */
+export interface ImportedProjectDetails {
+  ProjectId: string;
+  MYId?: string;
+  AlternateId?: string;
+  ExternalId?: string;
+  UACS?: string;
+  TierName?: string;           // raw text e.g. "Tier II"
+  Rank?: number;
+  CategoryName?: string;       // raw text e.g. "MFO 2: ..."
+  ThrustName?: string;         // Sub-Category raw text
+  MYCAApprovalDate?: string;
+  Province?: string;
+  City?: string;
+  LegislativeDistrict?: string;
+  Region?: string;
+  DEO?: string;
+  ImplementingOffice?: string;
+  OperatingUnit?: string;
+  RegionWideName?: string;     // "Yes" / "No" / "Region Wide"
+  OriginName?: string;
+  AgencyName?: string;
+  ImplementationModeName?: string;
+  EmergencyModeName?: string;
+  RowAvailableName?: string;
+  FeasibilityName?: string;
+  FeasibilityDate?: string;
+  DetailedDesignName?: string;
+  DetailedDesignDate?: string;
+}
+
+export interface ImportedComponentCost {
+  ProjectId: string;
+  ComponentType: string;
+  ComponentId: string;
+  Description?: string;
+  Total: number;
+  StartDate?: string;
+  EndDate?: string;
+  InfraTypeName?: string;      // raw text for Infrastructure Type
+  WorkTypeName?: string;       // raw text for Type of Work
+  ActivityYear?: number;
+}
+
+export interface ImportedFundingProfile {
+  ProjectId: string;
+  Source: string;
+  Agreement: string;
+  Amount: number;
+}
+
+export interface ImportedMajorItem {
+  ProjectId: string;
+  ComponentId: string;
+  ReferenceId: string;
+  InfraId?: string;
+  DetailedScope?: string;
+  TargetUnit?: string;
+  StartX?: number;
+  StartY?: number;
+  EndX?: number;
+  EndY?: number;
+  PhysicalTarget?: number;
+  StartStation?: string;
+  EndStation?: string;
+  StartChainage?: number;
+  EndChainage?: number;
+  Length?: number;
+  ActivityYear?: number;
+}
+
+export interface ImportedProject {
+  ProjectDetails: ImportedProjectDetails;
+  ComponentCosts: ImportedComponentCost[];
+  FundingProfiles: ImportedFundingProfile[];
+  MajorItemsOfWork: ImportedMajorItem[];
+}
+
+export interface ImportParseResult {
+  projects: ImportedProject[];
+  errors: string[];
+  totalRows: {
+    details: number;
+    components: number;
+    funding: number;
+    majorItems: number;
+  };
+}
+
+/**
+ * Alias kept for backward compatibility — use ImportProjectDTO for new code.
+ * @deprecated Use ImportProjectDTO directly.
+ */
+export type ImportProjectPayload = ImportProjectDTO;
+
+/** Top-level batch request sent to the API. */
+export interface BatchImportPayload {
+  ProgramId: string;
+  StageName: string;
+  Projects: ImportProjectPayload[];
+}
+// #endregion Import
