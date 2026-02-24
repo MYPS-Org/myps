@@ -212,10 +212,10 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
   }, []);
 
   const canAdd = useCallback(() => {
-    if (!fieldRules) return true;
-    if (!fieldRules.FundingProfileRules) return true;
-    if (!fieldRules.FundingProfileRules.CRUD) return true;
-    return fieldRules.FundingProfileRules.CRUD.CanAdd ?? true;
+    if (!fieldRules) return false;
+    if (!fieldRules.FundingProfileRules) return false;
+    if (!fieldRules.FundingProfileRules.CRUD) return false;
+    return fieldRules.FundingProfileRules.CRUD.CanAdd ?? false;
   }, [fieldRules]);
 
   const canDelete = useCallback((funding: FundingProfile) => {

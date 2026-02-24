@@ -45,23 +45,35 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
   const [roadSections, setRoadSections] = useState<FutureRoadSections[]>([]);
   const [bridges, setBridges] = useState<FutureBridge[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [totalPages, setTotalPages] = useState<number>(1);
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const [pageSize, setPageSize] = useState<number>(10);
 
   useEffect(() => {
     if (isOpen) {
       setSelectedInfra(null);
       setSearchTerm('');
+      setCurrentPage(1);
+      setTotalPages(1);
+      setTotalCount(0);
       setActiveTab(getInitialTab());
     }
   }, [isOpen, infraType]);
 
-  // Fetch data when tab changes or dialog opens
+  // Reset to page 1 when tab changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab]);
+
+  // Fetch data when tab changes, page changes, or dialog opens
   useEffect(() => {
     if (isOpen) {
       fetchInfraData();
     }
-  }, [isOpen, activeTab]);
+  }, [isOpen, activeTab, currentPage, pageSize]);
 
-  const fetchInfraData = async () => {
+  const fetchInfraData = async (page = currentPage) => {
     setLoading(true);
     try {
       if (activeTab === 'road') {
@@ -73,10 +85,12 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
           },
           sortField: '',
           sortDirection: 1,
-          page: 1,
-          limit: 20
+          page,
+          limit: pageSize
         });
         setRoadSections(response.Data.lists || []);
+        setTotalPages(response.Data.totalPages ?? 1);
+        setTotalCount(response.Data.total ?? 0);
       } else if (activeTab === 'bridge') {
         const response = await fetchBridgeData({
           filters: {
@@ -86,16 +100,44 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
           },
           sortField: '',
           sortDirection: 1,
-          page: 1,
-          limit: 20
+          page,
+          limit: pageSize
         });
         setBridges(response.Data.lists || []);
+        setTotalPages(response.Data.totalPages ?? 1);
+        setTotalCount(response.Data.total ?? 0);
       }
     } catch (error) {
       console.error('Error fetching infrastructure data:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePageChange = (page: number) => {
+    if (page < 1 || page > totalPages) return;
+    setCurrentPage(page);
+  };
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    setCurrentPage(1);
+  };
+
+  const getPageNumbers = (): (number | '...')[] => {
+    const pages: (number | '...')[] = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (currentPage > 3) pages.push('...');
+      for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+        pages.push(i);
+      }
+      if (currentPage < totalPages - 2) pages.push('...');
+      pages.push(totalPages);
+    }
+    return pages;
   };
 
   const handleClose = () => {
@@ -420,6 +462,69 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
           <div className="flex-1 overflow-auto px-6 py-4">
             {renderTabContent()}
           </div>
+
+          {/* Pagination */}
+          {!loading && totalCount > 0 && (
+            <div className="px-6 py-3 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+              {/* Left: count info + page size */}
+              <div className="flex items-center gap-3 text-sm text-gray-600">
+                <span>
+                  Showing{' '}
+                  <span className="font-medium">{(currentPage - 1) * pageSize + 1}</span>
+                  {' '}–{' '}
+                  <span className="font-medium">{Math.min(currentPage * pageSize, totalCount)}</span>
+                  {' '}of{' '}
+                  <span className="font-medium">{totalCount}</span>
+                </span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                  className="border border-gray-300 rounded px-2 py-1 text-sm focus:ring-orange-500 focus:border-orange-500"
+                >
+                  {[5, 10, 20, 50].map((s) => (
+                    <option key={s} value={s}>{s} / page</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Right: page navigation */}
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="px-2 py-1 rounded border border-gray-300 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  ‹ Prev
+                </button>
+
+                {getPageNumbers().map((p, idx) =>
+                  p === '...' ? (
+                    <span key={`ellipsis-${idx}`} className="px-2 py-1 text-gray-400 text-sm">…</span>
+                  ) : (
+                    <button
+                      key={p}
+                      onClick={() => handlePageChange(p as number)}
+                      className={`px-3 py-1 rounded border text-sm ${
+                        currentPage === p
+                          ? 'bg-orange-500 border-orange-500 text-white font-medium'
+                          : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  )
+                )}
+
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="px-2 py-1 rounded border border-gray-300 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Next ›
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Selected Info */}
           {selectedInfra && (
