@@ -758,7 +758,8 @@ namespace WebAPI.Controllers.Revision
                             }
                         }
                     }
-                    if (jsonRules.FundingProfileRules.CRUD.CanAdd)
+                }
+                if (jsonRules.FundingProfileRules.CRUD.CanAdd)
                     {
                         var NewFunding = dto.FundingProfile.Where(x => x.Id == 0);
                         Logs.AddRange(NewFunding.Select(x => new RevisionTransactionLog
@@ -782,15 +783,14 @@ namespace WebAPI.Controllers.Revision
                             Percentage = x.Percentage
                         }));
                     }
-                }
-                else
-                {
-                    return new BadRequestObjectResult(new
-                    {
-                        Message = "Submission failed. Funding Profile is required before submitting a revision.",
-                        Title = "Funding Profile Required"
-                    });
-                }
+                //else
+                //{
+                //    return new BadRequestObjectResult(new
+                //    {
+                //        Message = "Submission failed. Funding Profile is required before submitting a revision.",
+                //        Title = "Funding Profile Required"
+                //    });
+                //}
                 #endregion
                 #region ComponentCosts
                 var CostIds = dto.ComponentCosts.Where(x => x.Id != 0).Select(x => x.Id).ToList();
@@ -934,40 +934,40 @@ namespace WebAPI.Controllers.Revision
                             }
                         }
                     }
-                    if (jsonRules.ComponentCostYearRules.CRUD.CanAdd)
-                    {
-                        var NewCostPerYear = dto.ComponentCostPerYear.Where(x => dto.ComponentCosts.Select(c => c.CostId).Contains(x.ComponentCostId) && x.Id == 0);
-                        Logs.AddRange(NewCostPerYear.Select(x => new RevisionTransactionLog
-                        {
-                            TransactionId = TransactionId,
-                            AffectedTable = "tRevisionProjectComponentCostPerYear",
-                            TypeOfTransaction = "Create",
-                            AffectedColumn = "ComponentCost",
-                            OldValue = string.Empty,
-                            NewValue = JsonConvert.SerializeObject(x),
-                            CreatedBy = User,
-                            CreatedDate = CurrentDate
-                        }));
-                        NewComponentPerYear.AddRange(NewCostPerYear.Select(x => new DBHelper.Models.Table.RevisionProjectComponentCostPerYear
-                        {
-                            TransactionId = TransactionId,
-                            ComponentCostId = x.ComponentCostId,
-                            Amount = x.Amount,
-                            Year = x.Year,
-                            StartDate = (DateTime)x.StartDate,
-                            EndDate = (DateTime)x.EndDate,
-                            IsDeleted = false,
-                        }));
-                    }
                 }
-                else
+                if (jsonRules.ComponentCostYearRules.CRUD.CanAdd)
                 {
-                    //return new BadRequestObjectResult(new
-                    //{
-                    //    Message = "Submission failed. Component Cost Year is required before submitting a revision.",
-                    //    Title = "Component Cost Year Required"
-                    //});
+                    var NewCostPerYear = dto.ComponentCostPerYear.Where(x => dto.ComponentCosts.Select(c => c.CostId).Contains(x.ComponentCostId) && x.Id == 0);
+                    Logs.AddRange(NewCostPerYear.Select(x => new RevisionTransactionLog
+                    {
+                        TransactionId = TransactionId,
+                        AffectedTable = "tRevisionProjectComponentCostPerYear",
+                        TypeOfTransaction = "Create",
+                        AffectedColumn = "ComponentCost",
+                        OldValue = string.Empty,
+                        NewValue = JsonConvert.SerializeObject(x),
+                        CreatedBy = User,
+                        CreatedDate = CurrentDate
+                    }));
+                    NewComponentPerYear.AddRange(NewCostPerYear.Select(x => new DBHelper.Models.Table.RevisionProjectComponentCostPerYear
+                    {
+                        TransactionId = TransactionId,
+                        ComponentCostId = x.ComponentCostId,
+                        Amount = x.Amount,
+                        Year = x.Year,
+                        StartDate = (DateTime)x.StartDate,
+                        EndDate = (DateTime)x.EndDate,
+                        IsDeleted = false,
+                    }));
                 }
+                //else
+                //{
+                //    return new BadRequestObjectResult(new
+                //    {
+                //        Message = "Submission failed. Component Cost Year is required before submitting a revision.",
+                //        Title = "Component Cost Year Required"
+                //    });
+                //}
                 #endregion
                 #region MajorWorkItem
                 var MajorItemIds = dto.MajorItemOfWorks.Where(x => x.Id != 0).Select(x => x.Id);
@@ -1050,14 +1050,14 @@ namespace WebAPI.Controllers.Revision
                         InfraType = x.InfraType,
                     }));
                 }
-                else
-                {
-                    //return new BadRequestObjectResult(new
-                    //{
-                    //    Message = "Submission failed. Major Work Item is required before submitting a revision.",
-                    //    Title = "Major Work Item Required"
-                    //});
-                }
+                //else
+                //{
+                //    return new BadRequestObjectResult(new
+                //    {
+                //        Message = "Submission failed. Major Work Item is required before submitting a revision.",
+                //        Title = "Major Work Item Required"
+                //    });
+                //}
                 #endregion
                 #region MajorWorkLocations
                 var MajorItemLocationsRules = jsonRules.MajorItemLocationRules.Fields.GetType()
@@ -1155,14 +1155,14 @@ namespace WebAPI.Controllers.Revision
                         }));
                     }
                 }
-                else
-                {
-                    //return new BadRequestObjectResult(new
-                    //{
-                    //    Message = "Submission failed. Major Work Item is required before submitting a revision.",
-                    //    Title = "Major Work Item Required"
-                    //});
-                }
+                //else
+                //{
+                //    return new BadRequestObjectResult(new
+                //    {
+                //        Message = "Submission failed. Major Work Item is required before submitting a revision.",
+                //        Title = "Major Work Item Required"
+                //    });
+                //}
                 #endregion
 
                 await _db.tRevisionDetails.AddAsync(new RevisionDetails
@@ -2147,30 +2147,30 @@ namespace WebAPI.Controllers.Revision
                             }
                         }
                     }
-                    if (jsonRules.FundingProfileRules.CRUD.CanAdd)
+                }
+                if (jsonRules.FundingProfileRules.CRUD.CanAdd)
+                {
+                    var NewFundingProfile = dto.FundingProfile.Where(x => x.Id == 0);
+                    Logs.AddRange(NewFundingProfile.Select(x => new RevisionTransactionLog
                     {
-                        var NewFundingProfile = dto.FundingProfile.Where(x => x.Id == 0);
-                        Logs.AddRange(NewFundingProfile.Select(x => new RevisionTransactionLog
-                        {
-                            TransactionId = dto.TransactionId,
-                            AffectedTable = "tRevisionProjectFundingProfile",
-                            TypeOfTransaction = "Create",
-                            AffectedColumn = "FundingProfile",
-                            OldValue = string.Empty,
-                            NewValue = JsonConvert.SerializeObject(x),
-                            CreatedBy = User,
-                            CreatedDate = CurrentDate
-                        }));
-                        ExistingFundingProfile.AddRange(NewFundingProfile.Select(x => new RevisionProjectFundingProfile
-                        {
-                            TransactionId = dto.TransactionId,
-                            ProjectId = x.ProjectId,
-                            Source = x.Source,
-                            Agreement = x.Agreement,
-                            Amount = x.Amount,
-                            Percentage = x.Percentage
-                        }));
-                    }
+                        TransactionId = dto.TransactionId,
+                        AffectedTable = "tRevisionProjectFundingProfile",
+                        TypeOfTransaction = "Create",
+                        AffectedColumn = "FundingProfile",
+                        OldValue = string.Empty,
+                        NewValue = JsonConvert.SerializeObject(x),
+                        CreatedBy = User,
+                        CreatedDate = CurrentDate
+                    }));
+                    ExistingFundingProfile.AddRange(NewFundingProfile.Select(x => new RevisionProjectFundingProfile
+                    {
+                        TransactionId = dto.TransactionId,
+                        ProjectId = x.ProjectId,
+                        Source = x.Source,
+                        Agreement = x.Agreement,
+                        Amount = x.Amount,
+                        Percentage = x.Percentage
+                    }));
                 }
                 #endregion
                 #region ComponentCosts
@@ -2285,32 +2285,32 @@ namespace WebAPI.Controllers.Revision
                             }
                         }
                     }
-                    if (jsonRules.ComponentCostRules.CRUD.CanAdd)
+                }
+                if (jsonRules.ComponentCostRules.CRUD.CanAdd)
+                {
+                    var NewCost = dto.ComponentCosts.Where(x => x.Id == 0);
+                    Logs.AddRange(NewCost.Select(x => new RevisionTransactionLog
                     {
-                        var NewCost = dto.ComponentCosts.Where(x => x.Id == 0);
-                        Logs.AddRange(NewCost.Select(x => new RevisionTransactionLog
-                        {
-                            TransactionId = dto.TransactionId,
-                            AffectedTable = "tRevisionProjectComponentCost",
-                            TypeOfTransaction = "Create",
-                            AffectedColumn = "ComponentCost",
-                            OldValue = string.Empty,
-                            NewValue = JsonConvert.SerializeObject(x),
-                            CreatedBy = User,
-                            CreatedDate = CurrentDate
-                        }));
-                        ExistingComponent.AddRange(NewCost.Select(x => new DBHelper.Models.Table.RevisionProjectComponentCost
-                        {
-                            TransactionId = dto.TransactionId,
-                            CostId = x.CostId,
-                            ProjectId = Project.ProjectId,
-                            ComponentType = x.ComponentType,
-                            ComponentId = x.ComponentId,
-                            Description = x.Description,
-                            Total = x.Total,
-                            IsDeleted = false
-                        }));
-                    }
+                        TransactionId = dto.TransactionId,
+                        AffectedTable = "tRevisionProjectComponentCost",
+                        TypeOfTransaction = "Create",
+                        AffectedColumn = "ComponentCost",
+                        OldValue = string.Empty,
+                        NewValue = JsonConvert.SerializeObject(x),
+                        CreatedBy = User,
+                        CreatedDate = CurrentDate
+                    }));
+                    ExistingComponent.AddRange(NewCost.Select(x => new DBHelper.Models.Table.RevisionProjectComponentCost
+                    {
+                        TransactionId = dto.TransactionId,
+                        CostId = x.CostId,
+                        ProjectId = Project.ProjectId,
+                        ComponentType = x.ComponentType,
+                        ComponentId = x.ComponentId,
+                        Description = x.Description,
+                        Total = x.Total,
+                        IsDeleted = false
+                    }));
                 }
                 #endregion
                 #region ComponentCostPerYear
@@ -2424,31 +2424,31 @@ namespace WebAPI.Controllers.Revision
                             }
                         }
                     }
-                    if (jsonRules.ComponentCostRules.CRUD.CanAdd)
+                }
+                if (jsonRules.ComponentCostRules.CRUD.CanAdd)
+                {
+                    var NewCost = dto.ComponentCostPerYear.Where(x => x.Id == 0);
+                    Logs.AddRange(NewCost.Select(x => new RevisionTransactionLog
                     {
-                        var NewCost = dto.ComponentCostPerYear.Where(x => x.Id == 0);
-                        Logs.AddRange(NewCost.Select(x => new RevisionTransactionLog
-                        {
-                            TransactionId = dto.TransactionId,
-                            AffectedTable = "tRevisionProjectComponentCostPerYear",
-                            TypeOfTransaction = "Create",
-                            AffectedColumn = "ComponentCostPerYear",
-                            OldValue = string.Empty,
-                            NewValue = JsonConvert.SerializeObject(x),
-                            CreatedBy = User,
-                            CreatedDate = CurrentDate
-                        }));
-                        ExistingComponentYear.AddRange(NewCost.Select(x => new DBHelper.Models.Table.RevisionProjectComponentCostPerYear
-                        {
-                            TransactionId = dto.TransactionId,
-                            ComponentCostId = x.ComponentCostId,
-                            Amount = x.Amount,
-                            Year = x.Year,
-                            StartDate = (DateTime)x.StartDate,
-                            EndDate = (DateTime)x.EndDate,
-                            IsDeleted = false
-                        }));
-                    }
+                        TransactionId = dto.TransactionId,
+                        AffectedTable = "tRevisionProjectComponentCostPerYear",
+                        TypeOfTransaction = "Create",
+                        AffectedColumn = "ComponentCostPerYear",
+                        OldValue = string.Empty,
+                        NewValue = JsonConvert.SerializeObject(x),
+                        CreatedBy = User,
+                        CreatedDate = CurrentDate
+                    }));
+                    ExistingComponentYear.AddRange(NewCost.Select(x => new DBHelper.Models.Table.RevisionProjectComponentCostPerYear
+                    {
+                        TransactionId = dto.TransactionId,
+                        ComponentCostId = x.ComponentCostId,
+                        Amount = x.Amount,
+                        Year = x.Year,
+                        StartDate = (DateTime)x.StartDate,
+                        EndDate = (DateTime)x.EndDate,
+                        IsDeleted = false
+                    }));
                 }
 
                 #endregion
@@ -2551,32 +2551,32 @@ namespace WebAPI.Controllers.Revision
                             //Locations.ForEach(x => x.ParentId = UpdateMajorWorkItem.ReferenceId);
                         }
                     }
-                    if (jsonRules.MajorItemOfWorkRules.CRUD.CanAdd)
+                }
+                if (jsonRules.MajorItemOfWorkRules.CRUD.CanAdd)
+                {
+                    var NewWorkItem = dto.MajorItemOfWorks.Where(x => x.Id == 0);
+                    Logs.AddRange(NewWorkItem.Select(x => new RevisionTransactionLog
                     {
-                        var NewWorkItem = dto.MajorItemOfWorks.Where(x => x.Id == 0);
-                        Logs.AddRange(NewWorkItem.Select(x => new RevisionTransactionLog
-                        {
-                            TransactionId = dto.TransactionId,
-                            AffectedTable = "tRevisionProjectMajorWorkItem",
-                            TypeOfTransaction = "Create",
-                            AffectedColumn = "MajorWorkItem",
-                            OldValue = string.Empty,
-                            NewValue = JsonConvert.SerializeObject(x),
-                            CreatedBy = User,
-                            CreatedDate = CurrentDate
-                        }));
-                        ExistingMajorWorkItem.AddRange(NewWorkItem.Select(x => new DBHelper.Models.Table.RevisionProjectMajorWorkItem
-                        {
-                            TransactionId = dto.TransactionId,
-                            ProjectId = x.ProjectId,
-                            ComponentId = x.ComponentId,
-                            ReferenceId = x.ReferenceId,
-                            YearOfWork = x.YearOfWork,
-                            WorkTypeId = x.WorkTypeId,
-                            InfraType = x.InfraType,
-                            IsDeleted = false
-                        }));
-                    }
+                        TransactionId = dto.TransactionId,
+                        AffectedTable = "tRevisionProjectMajorWorkItem",
+                        TypeOfTransaction = "Create",
+                        AffectedColumn = "MajorWorkItem",
+                        OldValue = string.Empty,
+                        NewValue = JsonConvert.SerializeObject(x),
+                        CreatedBy = User,
+                        CreatedDate = CurrentDate
+                    }));
+                    ExistingMajorWorkItem.AddRange(NewWorkItem.Select(x => new DBHelper.Models.Table.RevisionProjectMajorWorkItem
+                    {
+                        TransactionId = dto.TransactionId,
+                        ProjectId = x.ProjectId,
+                        ComponentId = x.ComponentId,
+                        ReferenceId = x.ReferenceId,
+                        YearOfWork = x.YearOfWork,
+                        WorkTypeId = x.WorkTypeId,
+                        InfraType = x.InfraType,
+                        IsDeleted = false
+                    }));
                 }
                 #endregion
                 #region MajorWorkLocations
