@@ -1188,6 +1188,7 @@ namespace WebAPI.Controllers.Projects
                         .FirstOrDefaultAsync();
                     var NewRevision = new ProjectRevisions()
                     {
+                        ProgramId = Project.ProgramId,
                         ReferenceId = Project.ReferenceId,
                         ProjectId = Project.ProjectId!,
                         AlternateId = Project.AlternateId,

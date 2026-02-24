@@ -771,6 +771,7 @@ namespace WebAPI.Controllers.Programs
                         #region Project Revisions
                         NewRevisions.AddRange(ProjectRevisions.Select(project => new ProjectRevisions()
                         {
+                            ProgramId = project.ProgramId,
                             ReferenceId = project.ReferenceId,
                             ProjectId = project.ProjectId.Replace("BP", FirstSegment),
                             AlternateId = project.AlternateId,
