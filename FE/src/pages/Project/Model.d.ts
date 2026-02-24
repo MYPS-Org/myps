@@ -138,6 +138,7 @@ export interface Activity {
 export interface TransactionLog {
   Id: number;
   TransactionId: string;
+  ReferenceId?: string;
   TypeOfTransaction: string;
   AffectedTable: string;
   AffectedColumn: string;
