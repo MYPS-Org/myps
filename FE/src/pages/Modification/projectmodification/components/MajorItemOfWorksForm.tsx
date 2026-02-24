@@ -292,9 +292,9 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     };
   };
 
-  const getInfraName = (infraTypeCode: string) => {
+  const getInfraName = (infraTypeCode: string): string => {
     const infraType = infraTypeEnums?.find(infra => infra.InfraCode === infraTypeCode);
-    return infraType?.InfraName || '';
+    return infraType?.InfraName || infraTypeCode;
   }
 
   return (

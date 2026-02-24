@@ -257,6 +257,11 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     onEdit(majorItemIndex, updatedItem);
   };
 
+  const getInfraTypeName = (infraCode: string): string => {
+    const infraType = infraTypeEnums.find(x => x.InfraCode === infraCode);
+    return infraType?.InfraName || infraCode;
+  };
+
   const getMinMaxAmounts = (workTypeId: number) => {
     const workType = dropDowns?.find(option => option.Enum === workTypeId);
     return {
@@ -352,7 +357,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="text-sm">{item.InfraType}</div>
+                    <div className="text-sm">{getInfraTypeName(item.InfraType)}</div>
                   </TableCell>
                   <TableCell>
                     <div className="text-sm font-medium">
