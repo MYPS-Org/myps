@@ -341,8 +341,10 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         }
 
         if(formData.Total <= 0) {
-          alert('Total amount must be greater than zero.');
-          return;
+          const confirmMessage = 'The total cost for this component is zero. Are you sure you want to save?';
+          if (!window.confirm(confirmMessage)) {
+            return;
+          }
         }
 
         if (maxAmountCost && maxAmountCost > 0) {

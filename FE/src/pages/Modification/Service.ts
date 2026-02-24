@@ -118,9 +118,15 @@ export const fetchReviseProjectDetails = async (transactionId: string) => {
 export const ResubmitRevisionRequest = async (
     payload: {
         TransactionId: string;
-        ProjectStatus: {
-            ConstructionStatus: string;
-            PackageStatus: string;
+        RevisionDetails: {
+            ReasonId: number;
+            ApprovalDate: string;
+            ApprovedDocument: {
+                Name: string;
+                Extension: string;
+                ContentType: string;
+                DataUrl: string;
+            };
         },
         ProjectDetails: ProjectDetails;
         ComponentCosts: ComponentCost[];

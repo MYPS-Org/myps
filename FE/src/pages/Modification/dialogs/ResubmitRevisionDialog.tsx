@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
-import { XMarkIcon} from '@heroicons/react/24/outline';
+import { XMarkIcon, DocumentArrowUpIcon, DocumentIcon } from '@heroicons/react/24/outline';
 import type { ProjectDetails, ComponentCost, MajorItemOfWork, MajorItemLocations, FundingProfile, ComponentCostPerYear } from '../../Project/Model';
 import { ResubmitRevisionRequest } from '../Service';
 import { useToast } from '../../../components/toaster/ToasterContext';
@@ -47,22 +47,108 @@ const ResubmitRevisionDialog: React.FC<ReviseProjectDialogProps> = ({
     const { showToast } = useToast();
     const { user } = useAuth(); // Get user from auth context
     const [revisionType] = useState<string>('');
+    const [approvalDate, setApprovalDate] = useState<string>('');
+    const [approvalDocument, setApprovalDocument] = useState<{
+        Name: string;
+        Extension: string;
+        ContentType: string;
+        DataUrl: string;
+    } | null>(null);
+    const [isCertified, setIsCertified] = useState<boolean>(false);
 
-    console.log('ReviseProjectDialog - Received IDs:', { categoryId, revisionGroupId, reasonId });
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
     const transactionId = useAtomValue(transactionIdAtom); // Get transactionId from atom
 
+    // Reset form when modal opens
+    useEffect(() => {
+        if (isOpen) {
+            setApprovalDate('');
+            setApprovalDocument(null);
+            setIsCertified(false);
+        }
+    }, [isOpen]);
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            if (file.type !== 'application/pdf') {
+                showToast({
+                    type: 'error',
+                    message: 'Please select a PDF file only.'
+                });
+                e.target.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setApprovalDocument({
+                    Name: file.name,
+                    Extension: file.name.split('.').pop() || '',
+                    ContentType: file.type,
+                    DataUrl: reader.result as string,
+                });
+            };
+            reader.readAsDataURL(file);
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // Calculate totals for validation
+        const totalComponentCost = componentCosts.reduce((sum, cost) => cost.IsDeleted ? sum : sum + (cost.Total || 0), 0);
+        const totalFundingAmount = fundingProfile.reduce((sum, funding) => sum + (funding.Amount || 0), 0);
+
+        if (Math.abs(totalFundingAmount - totalComponentCost) > 0.01) {
+            showToast({
+                type: 'error',
+                message: `Funding profile total (₱${totalFundingAmount.toLocaleString()}) must equal component costs total (₱${totalComponentCost.toLocaleString()}).`
+            });
+            return;
+        }
+
+        if (!approvalDate) {
+            showToast({
+                type: 'error',
+                message: 'Please select an approval date.'
+            });
+            return;
+        }
+
+        if (!approvalDocument) {
+            showToast({
+                type: 'error',
+                message: 'Please upload an approval document.'
+            });
+            return;
+        }
+
+        if (user?.UserGroups === 'DPC' && !isCertified) {
+            showToast({
+                type: 'error',
+                message: 'Please certify that the attached document is accurate and aligned with the revisions.'
+            });
+            return;
+        }
+
         setIsSubmitting(true);
 
         try {
             // Prepare the payload
             const payload = {
                 TransactionId: transactionId,
-                ProjectStatus: {
+                RevisionDetails: {
+                    RevisionCategory: revisionCategory,
+                    ReasonId: reasonId || 0,
+                    ApprovalDate: approvalDate,
+                    ApprovedDocument: {
+                        Name: approvalDocument.Name,
+                        Extension: approvalDocument.Extension,
+                        ContentType: approvalDocument.ContentType,
+                        DataUrl: approvalDocument.DataUrl
+                    },
                     PackageStatus: projectStatus?.PackageStatus,
                     ConstructionStatus: projectStatus?.ConstructionStatus
                 },
@@ -74,21 +160,21 @@ const ResubmitRevisionDialog: React.FC<ReviseProjectDialogProps> = ({
                 FundingProfile: fundingProfile,
             };
 
-            console.log('Submitting modification request with payload:', payload);
+            console.log('Submitting resubmit request with payload:', payload);
 
-            //adjust this later
             if (user?.UserGroups === 'DPC') {
-                // Implementing Office: Submit new modification request
                 await ResubmitRevisionRequest(payload);
                 
                 showToast({
                     type: 'success',
-                    message: 'Modification request submitted successfully.'
+                    message: 'Modification request resubmitted successfully.'
                 });
 
+                setApprovalDate('');
+                setApprovalDocument(null);
+                setIsCertified(false);
+
                 onClose();
-                // Navigate to the newly created revision view
-                // navigate('/revision/view/' + (response?.Data?.TransactionId || ''));
                 navigate('/revision');
             }
         } catch (error) {
@@ -167,12 +253,77 @@ const ResubmitRevisionDialog: React.FC<ReviseProjectDialogProps> = ({
                         </div>
                     )}
 
+                    {/* Revision Details */}
+                    <div className='space-y-2'>
+                        <div className='flex justify-between gap-5 items-center'>
+                            <label className='w-1/3 block text-sm font-medium text-gray-700'>
+                                *Date of Approval :
+                            </label>
+                            <input 
+                                type="date" 
+                                value={approvalDate}
+                                onChange={(e) => setApprovalDate(e.target.value)}
+                                required
+                                className='w-2/3 border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500'
+                            />
+                        </div>
+                        <div className='space-y-2'>
+                            <label className='block text-sm font-medium text-gray-700'>
+                                *Approval Document (PDF only)
+                            </label>
+                            <div className="relative">
+                                <div className="flex items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                        {approvalDocument ? (
+                                            <>
+                                                <DocumentIcon className="w-8 h-8 mb-2 text-green-500" />
+                                                <p className="text-sm text-gray-700 font-medium">{approvalDocument.Name}</p>
+                                                <p className="text-xs text-gray-500">PDF file selected</p>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <DocumentArrowUpIcon className="w-8 h-8 mb-2 text-gray-400" />
+                                                <p className="mb-2 text-sm text-gray-500">
+                                                    <span className="font-semibold">Click to upload</span> or drag and drop
+                                                </p>
+                                                <p className="text-xs text-gray-500">PDF files only</p>
+                                            </>
+                                        )}
+                                    </div>
+                                    <input
+                                        type="file"
+                                        accept=".pdf,application/pdf"
+                                        onChange={handleFileChange}
+                                        required
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Certification Checkbox */}
+                    {user?.UserGroups === 'DPC' && approvalDocument && (
+                    <div className='bg-amber-50 border border-amber-200 p-4 rounded-lg'>
+                        <label className='flex items-start gap-3 cursor-pointer'>
+                            <input 
+                                type="checkbox"
+                                checked={isCertified}
+                                onChange={(e) => setIsCertified(e.target.checked)}
+                                className='mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500'
+                            />
+                            <span className='text-sm text-gray-700 flex-1'>
+                                I hereby certify that the attached approval document is accurate, complete, and aligned with the revisions being submitted for this project.
+                            </span>
+                        </label>
+                    </div>
+                    )}
 
                     <div className='pt-4 border border-gray-100 rounded-2xl px-4 flex justify-end gap-5'>
                         <Button
                             type="submit"
                             color="blue"
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || (user?.UserGroups === 'DPC' && !isCertified)}
                         >
                             {isSubmitting ? 'Submitting...' : 'Submit'}
                         </Button>
