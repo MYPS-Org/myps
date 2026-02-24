@@ -270,6 +270,7 @@ namespace WebAPI.Controllers.Revision
                 var Source = await _db.tOptionFundingSource.AsNoTracking().OrderBy(x => x.Organization == "GOP" ? 0 : 1).ThenBy(x => x.Name).ToListAsync();
 
                 var ScopeOfWork = await _db.tOptionScopeOfWork.AsNoTracking().OrderBy(x => x.WorkCategory).ToListAsync();
+                var InfraTypes = await _db.tOptionInfraType.AsNoTracking().OrderBy(x => x.InfraName).ToListAsync();
                 #endregion
 
                 return Ok(new
@@ -329,6 +330,7 @@ namespace WebAPI.Controllers.Revision
 
                         //Major Item Of Work
                         ScopeOfWorks = ScopeOfWork,
+                        InfraTypes = InfraTypes,
 
                         //Funding Profile
                         Agreements = Agreement,
@@ -367,7 +369,7 @@ namespace WebAPI.Controllers.Revision
 
                 var HasPendingModification = await _db.vRevisionLists.AsNoTracking()
                     .FirstOrDefaultAsync(x => x.TransactionId.Contains(dto.ProjectId) && x.COStatus != EnumRevisionStatus.Approved);
-                if (HasPendingModification != null && (HasPendingModification.COStatus == EnumRevisionStatus.Pending || HasPendingModification.RegionStatus == EnumRevisionStatus.Pending))
+                if (HasPendingModification != null && (HasPendingModification.RegionStatus == EnumRevisionStatus.Pending || HasPendingModification.COStatus == EnumRevisionStatus.Pending))
                 {
                     return new BadRequestObjectResult(new { Message = $"There is a pending {HasPendingModification.RevisionName} request for this project. Please wait for the current request to be processed before submitting a new one.", Title = "Pending Modification Request" });
                 }
@@ -937,7 +939,7 @@ namespace WebAPI.Controllers.Revision
                 }
                 if (jsonRules.ComponentCostYearRules.CRUD.CanAdd)
                 {
-                    var NewCostPerYear = dto.ComponentCostPerYear.Where(x => dto.ComponentCosts.Select(c => c.CostId).Contains(x.ComponentCostId) && x.Id == 0);
+                    var NewCostPerYear = dto.ComponentCostPerYear.Where(x => x.Id == 0);//Where(x => dto.ComponentCosts.Select(c => c.CostId).Contains(x.ComponentCostId) && x.Id == 0);
                     Logs.AddRange(NewCostPerYear.Select(x => new RevisionTransactionLog
                     {
                         TransactionId = TransactionId,
@@ -951,6 +953,7 @@ namespace WebAPI.Controllers.Revision
                     }));
                     NewComponentPerYear.AddRange(NewCostPerYear.Select(x => new DBHelper.Models.Table.RevisionProjectComponentCostPerYear
                     {
+                        Id = 0,
                         TransactionId = TransactionId,
                         ComponentCostId = x.ComponentCostId,
                         Amount = x.Amount,
@@ -1777,9 +1780,11 @@ namespace WebAPI.Controllers.Revision
                 }
                 var HasPendingModification = await _db.vRevisionLists.AsNoTracking()
                     .FirstOrDefaultAsync(x => x.TransactionId.Contains(dto.ProjectDetails.ProjectId!) && x.COStatus != EnumRevisionStatus.Approved);
-                if (HasPendingModification != null && (HasPendingModification.COStatus == EnumRevisionStatus.Pending || HasPendingModification.RegionStatus == EnumRevisionStatus.Pending))
+                if (HasPendingModification != null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"There is a pending {HasPendingModification.RevisionName} request for this project. Please wait for the current request to be processed before submitting a new one.", Title = "Pending Modification Request" });
+                    if(HasPendingModification.RegionStatus == EnumRevisionStatus.Pending || (HasPendingModification.COStatus == EnumRevisionStatus.Pending && HasPendingModification.RegionStatus != EnumRevisionStatus.ForCorrection)) {
+                        return new BadRequestObjectResult(new { Message = $"There is a pending {HasPendingModification.RevisionName} request for this project. Please wait for the current request to be processed before submitting a new one.", Title = "Pending Modification Request" });
+                    }
                 }
                 var jsonRules = JsonConvert.DeserializeObject<ModificationRules>(RevisionRules.Field);
                 if (jsonRules == null)
@@ -2314,12 +2319,12 @@ namespace WebAPI.Controllers.Revision
                 }
                 #endregion
                 #region ComponentCostPerYear
-                var ComponentCostPerYearRules = jsonRules.ComponentCostYearRules.Fields.GetType()
-                    .GetProperties()
-                    .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
-                    .Where(p => (bool?)p.GetValue(jsonRules.ComponentCostRules.Fields) == true)
-                    .Select(p => p.Name)
-                    .ToList();
+                var ComponentCostPerYearRules = jsonRules.ComponentCostRules.Fields.GetType()
+                .GetProperties()
+                .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
+                .Where(p => (bool?)p.GetValue(jsonRules.ComponentCostRules.Fields) == true)
+                .Select(p => p.Name)
+                .ToList();
                 var UpdateComponentCostPerYear = dto.ComponentCostPerYear.Where(x => x.Id != 0);
                 if(ExistingComponentYear.Count > 0)
                 {
@@ -2871,6 +2876,9 @@ namespace WebAPI.Controllers.Revision
                     }
                 }
                 #endregion
+                ExistingRevision.RegionStatus = (ExistingRevision.RegionStatus == EnumRevisionStatus.ForCorrection) ? EnumRevisionStatus.Pending : ExistingRevision.RegionStatus;
+                ExistingRevision.COStatus = (ExistingRevision.COStatus == EnumRevisionStatus.ForCorrection) ? EnumRevisionStatus.Pending : ExistingRevision.COStatus;
+                _db.tRevisionDetails.Update(ExistingRevision);
                 _db.tRevisionProjects.Update(ExistingRevisionProject);
                 _db.tRevisionProjectFundingProfile.UpdateRange(ExistingFundingProfile);
                 _db.tRevisionProjectComponentCost.UpdateRange(ExistingComponent);
@@ -2878,24 +2886,7 @@ namespace WebAPI.Controllers.Revision
                 _db.tRevisionProjectMajorWorkItem.UpdateRange(ExistingMajorWorkItem);
                 _db.tRevisionProjectMajorWorkLocations.UpdateRange(ExistingMajorWorkLocations);
 
-                bool isROUser = _Session.UserGroups.Contains("RPC");
-                bool isCOUser = _Session.UserGroups.Contains("AUC");
-                await _db.tRevisionDetails.AddAsync(new RevisionDetails
-                {
-                    TransactionId = dto.TransactionId,
-                    RevisionGroupId = RevisionCategory.RevisionGroupId,
-                    CategoryId = dto.RevisionDetails.CategoryId,
-                    ReasonId = RevisionRules.ReasonId,
-                    IODocApprovalDate = dto.RevisionDetails.ApprovalDate,
-                    RegionStatus = (isROUser || isCOUser) ? EnumRevisionStatus.Approved : EnumRevisionStatus.Pending,
-                    RegionApprover = isROUser ? _Session.UserId : null,
-                    RegionApprovedDate = isROUser ? CurrentDate : null,
-                    COStatus = isCOUser ? EnumRevisionStatus.Approved : EnumRevisionStatus.Pending,
-                    COApprover = null,
-                    COApprovedDate = null,
-                    CreatedBy = _Session.UserId,
-                    CreatedDate = CurrentDate
-                });
+
                 string DocumentName = $"{dto.TransactionId}_{DocumentNaming.SecondSegmentName}_{CurrentDate.ToString("MM-dd-yyyy")}.{dto.RevisionDetails.ApprovedDocument.Extension}";
                 string FilePath = Path.Combine(Appsetting.Resources.Revision.ImplementingOffice, DocumentName);
                 string ResourcePath = Path.Combine(Directory.GetCurrentDirectory(), FilePath);

@@ -19,8 +19,8 @@ namespace DBHelper.Models.Views
         public int? CategoryId { get; set; }
         public string Reason { get; set; } = string.Empty;
         public int ReasonId { get; set; }
-        public string? RequestDocument { get; set; }
-        public string? RequestDocumentPath { get; set; }
+        //public string? RequestDocument { get; set; }
+        //public string? RequestDocumentPath { get; set; }
         public EnumRevisionStatus? RegionStatus { get; set; }
         public string? RegionStatusName { get; set; }
         public string? ROComment { get; set; }
@@ -33,8 +33,8 @@ namespace DBHelper.Models.Views
         public DateTime? COForCorrectionDate { get; set; }
         public string? COApprover { get; set; }
         public DateTime? COApprovedDate { get; set; }
-        public string? ApprovedDocument { get; set; }
-        public string? ApprovedDocumentPath { get; set; }
+        //public string? ApprovedDocument { get; set; }
+        //public string? ApprovedDocumentPath { get; set; }
         public string? CreatedBy { get; set; }
         public DateTime? CreatedDate { get; set; }
     }
