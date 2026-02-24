@@ -8,7 +8,7 @@ namespace DBHelper.Models.Views
         public int Id { get; set; }
         public string ProgramId { get; set; } = string.Empty;
         public int RevisionNumber { get; set; }
-        public int NumberOfProjects { get; set; }
+        public int? NumberOfProjects { get; set; } = 0;
         public string Name { get; set; } = string.Empty;
         public EnumProgramStage StageId { get; set; }
         public string StageName { get; set; } = string.Empty;

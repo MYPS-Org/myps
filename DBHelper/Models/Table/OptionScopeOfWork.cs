@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace DBHelper.Models.Table
 {
-    public class ProjectScopeOfWorkEnum
+    public class OptionScopeOfWork
     {
         [Key]
         public int Id { get; set; }

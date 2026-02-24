@@ -44,7 +44,7 @@ namespace DBHelper.Data
         public DbSet<Models.Table.ProjectComponentCost> tProjectComponentCost { get; set; }
         public DbSet<Models.Table.ProjectComponentCostPerYear> tProjectComponentCostPerYear { get; set; }
         public DbSet<Models.Table.TransactionLog> tTransactionLog { get; set; }
-        public DbSet<Models.Table.ProjectScopeOfWorkEnum> tProjectScopeOfWorkEnum { get; set; }
+        public DbSet<Models.Table.OptionScopeOfWork> tOptionScopeOfWork { get; set; }
         public DbSet<Models.Table.ProjectMajorWorkItem> tProjectMajorWorkItem { get; set; }
         public DbSet<Models.Table.ProjectMajorWorkLocations> tProjectMajorWorkLocations { get; set; }
         public DbSet<Models.Table.ProjectNotes> tProjectNotes { get; set; }

@@ -344,6 +344,7 @@ namespace WebAPI.Controllers.Projects
                 await _db.tProjects.AddAsync(SubmitProject);
                 var ProjectRevision = new ProjectRevisions()
                 {
+                    ProgramId = dto.ProgramId,
                     ReferenceId = ReferenceId,
                     ProjectId = ReferenceId,
                     AlternateId = dto.AlternateId,
@@ -473,7 +474,7 @@ namespace WebAPI.Controllers.Projects
                 var Agreement = await _db.tOptionFundingAgreement.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var Source = await _db.tOptionFundingSource.AsNoTracking().Where(x => Agreement.Select(a => a.SourceOrg).Distinct().Contains(x.Organization)).OrderBy(x => x.Organization == "GOP" ? 0 : 1).ThenBy(x => x.Name).ToListAsync();
                 var InfraTypes = await _db.tOptionInfraType.AsNoTracking().OrderBy(x => x.InfraName).ToListAsync();
-                var ScopeOfWork = await _db.tProjectScopeOfWorkEnum.AsNoTracking().OrderBy(x => x.WorkCategory).ToListAsync();
+                var ScopeOfWork = await _db.tOptionScopeOfWork.AsNoTracking().OrderBy(x => x.WorkCategory).ToListAsync();
                 var Transactions = await _db.tTransactionLog.AsNoTracking().Where(x => x.TransactionId == dto.ProjectId).ToListAsync();
                 List<OptionRevisionHeader> ReasonHeader = new List<OptionRevisionHeader>();
                 List<OptionRevisionCategory> ReasonCategory = new List<OptionRevisionCategory>();
@@ -1521,16 +1522,15 @@ namespace WebAPI.Controllers.Projects
                                     });
                                     ExistingItem.YearOfWork = item.YearOfWork;
                                 }
-                                var WorkType = new ProjectScopeOfWorkEnum();
                                 if (ExistingItem.WorkTypeId != item.WorkTypeId)
                                 {
                                     hasUpdate = true;
-                                    var WorkTypeEnum = await _db.tProjectScopeOfWorkEnum.FirstOrDefaultAsync(x => x.Enum == item.WorkTypeId);
+                                    var WorkTypeEnum = await _db.tOptionScopeOfWork.FirstOrDefaultAsync(x => x.Enum == item.WorkTypeId);
                                     if (WorkTypeEnum == null)
                                     {
                                         return new BadRequestObjectResult(new { Message = $"Selected Work Type '{WorkTypeEnum.Description}' is not valid!", Title = "Invalid Work Type" });
                                     }
-                                    var oldWorkType = await _db.tProjectScopeOfWorkEnum.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == ExistingItem.WorkTypeId);
+                                    var oldWorkType = await _db.tOptionScopeOfWork.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == ExistingItem.WorkTypeId);
                                     transactionLogs.Add(new TransactionLog
                                     {
                                         TransactionId = Project.ProjectId!,
