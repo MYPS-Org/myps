@@ -96,6 +96,22 @@ namespace Helpers
             else if (Current == EnumProgramStage.GAA) return EnumProgramStage.GAAR;
             return Current;
         }
+        public static string GenerateProjectID(this AppDbContext _db, DBHelper.Models.Views.ProgramDetails ProgramDetails, DBHelper.Models.Table.OptionProjectCategory Category, string IslandCode)
+        {
+            string FirstSegment = ProgramDetails.StageName.GenerateProjec1stSegment();
+            string SecondSegment = ProgramDetails.YearStart.GenerateProjec2ndSegment();
+            Random rand = new Random();
+            string ThirdSegment = Category.Minimum.ToString("D5");
+            //string FourthSegment = IslandCode;
+            var CheckExistingVersion = _db.vGetProjectCategoryVersions.AsNoTracking().Where(x => x.Category == Category.CategoryId
+                && x.ProjectSuffix == FirstSegment
+                && x.IslandCode == IslandCode
+                && x.YearStart == ProgramDetails.YearStart)
+            .OrderByDescending(x => x.MaxId)
+            .FirstOrDefault();
+            ThirdSegment = CheckExistingVersion != null ? (int.Parse(CheckExistingVersion.MaxId ?? "0") + 1).ToString("D5") : ThirdSegment;
+            return $"{FirstSegment}{SecondSegment}{ThirdSegment}{IslandCode}";
+        }
         public static string GenerateProjec1stSegment(this string StageName)
         {
             var stageGroups = new Dictionary<string, string[]>

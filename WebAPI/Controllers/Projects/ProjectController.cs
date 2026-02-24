@@ -321,19 +321,22 @@ namespace WebAPI.Controllers.Projects
                     return new BadRequestObjectResult(new { Message = $"Selected Detailed Design '{dto.EmergencyMode}' is not valid!", Title = "Invalid Detailed Design" });
                 }
                 #endregion
-                string FirstSegment = ProgramDetails.StageName.GenerateProjec1stSegment();
-                string SecondSegment = ProgramDetails.YearStart.GenerateProjec2ndSegment();
-                Random rand = new Random();
-                string ThirdSegment = Category.Minimum.ToString("D5");
-                string FourthSegment = !string.IsNullOrEmpty(dto.IslandCode) ? dto.IslandCode : SelectedRegion.IslandCode;
-                var CheckExistingVersion = await _db.vGetProjectCategoryVersions.AsNoTracking().Where(x => x.Category == dto.Category
-                    && x.ProjectSuffix == FirstSegment
-                    && x.IslandCode == FourthSegment
-                    && x.YearStart == ProgramDetails.YearStart)
-                .OrderByDescending(x => x.MaxId)
-                .FirstOrDefaultAsync();
-                ThirdSegment = CheckExistingVersion != null ? (int.Parse(CheckExistingVersion.MaxId) + 1).ToString("D5") : ThirdSegment;
-                string ReferenceId = $"{FirstSegment}{SecondSegment}{ThirdSegment}{FourthSegment}";
+                #region Generate ProjectId
+                //string FirstSegment = ProgramDetails.StageName.GenerateProjec1stSegment();
+                //string SecondSegment = ProgramDetails.YearStart.GenerateProjec2ndSegment();
+                //Random rand = new Random();
+                //string ThirdSegment = Category.Minimum.ToString("D5");
+                //string FourthSegment = !string.IsNullOrEmpty(dto.IslandCode) ? dto.IslandCode : SelectedRegion.IslandCode;
+                //var CheckExistingVersion = await _db.vGetProjectCategoryVersions.AsNoTracking().Where(x => x.Category == dto.Category
+                //    && x.ProjectSuffix == FirstSegment
+                //    && x.IslandCode == FourthSegment
+                //    && x.YearStart == ProgramDetails.YearStart)
+                //.OrderByDescending(x => x.MaxId)
+                //.FirstOrDefaultAsync();
+                //ThirdSegment = CheckExistingVersion != null ? (int.Parse(CheckExistingVersion.MaxId) + 1).ToString("D5") : ThirdSegment;
+                //string ReferenceId = $"{FirstSegment}{SecondSegment}{ThirdSegment}{FourthSegment}";
+                string ReferenceId = _db.GenerateProjectID(ProgramDetails, Category, SelectedRegion.IslandCode);
+                #endregion
                 var SubmitProject = new DBHelper.Models.Table.Projects()
                 {
                     ProgramId = ProgramDetails.ProgramId,
