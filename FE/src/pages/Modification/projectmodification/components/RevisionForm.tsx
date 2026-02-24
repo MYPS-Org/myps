@@ -161,7 +161,7 @@ const RevisionForm: React.FC<RevisionFormProps> = ({
                                                     </span>
                                                 </div>
                                                 <a
-                                                    href={doc.DocumentPath}
+                                                    href={import.meta.env.VITE_API_BASE_URL?.replace('api', '/') + '/' + doc.DocumentPath}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className="flex-shrink-0 ml-2 px-3 py-1 text-xs font-medium text-green-700 bg-green-100 border border-green-300 rounded hover:bg-green-200 transition-colors"
