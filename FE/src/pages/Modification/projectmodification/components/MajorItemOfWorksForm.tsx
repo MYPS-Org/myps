@@ -91,34 +91,8 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     });
   }, [items, dropDowns]);
 
-  // Update dropdown data for items that have InfraType but no DropdownData (from backend)
-  useEffect(() => {
-    if (items.length > 0 && dropDowns?.length) {
-      let hasUpdates = false;
-      const updatedItems = items.map((item,) => {
-        // If item has InfraType but no or empty DropdownData, update it
-        if (item.InfraType && (!item.DropdownData || item.DropdownData.length === 0)) {
-          const filteredDropdowns = dropDowns.filter(x => x.InfraType.includes(item.InfraType));
-          hasUpdates = true;
-          return {
-            ...item,
-            DropdownData: filteredDropdowns,
-          };
-        }
-        return item;
-      });
-      
-      if (hasUpdates) {
-        // We need to call callEdit for each updated item
-        updatedItems.forEach((item, index) => {
-          if (item.InfraType && item.DropdownData && item.DropdownData.length > 0 && 
-              (!items[index].DropdownData || items[index].DropdownData.length === 0)) {
-            callEdit(index, item);
-          }
-        });
-      }
-    }
-  }, [items, dropDowns, callEdit]);
+  // NOTE: DropdownData is already computed by MajorItemOfWorksWithDropdownAtom (from ScopeOfWorkEnumAtom).
+  // No useEffect needed here — the atom handles it reactively without causing loops.
 
   // Check CRUD permissions from fieldRules
   const canAddMajorItem = useCallback(() => {

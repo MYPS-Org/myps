@@ -546,7 +546,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
               type="number"
               value={location.EndChainage ?? ''}
               onFocus={handleNumberFocus}
-              onChange={(e) => handleFieldChange(index, 'EndChainage', e.target.value)}
+              onChange={(e) => handleFieldChange(index, 'EndChainage', Number(e.target.value))}
               className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-orange-500 text-right ${getDisabledClass(disabled)}`}
               placeholder="To..."
               disabled={disabled}
@@ -564,7 +564,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
               type="number"
               value={location.StartChainage ?? ''}
               onFocus={handleNumberFocus}
-              onChange={(e) => handleFieldChange(index, 'StartChainage', e.target.value)}
+              onChange={(e) => handleFieldChange(index, 'StartChainage', Number(e.target.value))}
               className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-orange-500 text-right ${getDisabledClass(disabled)}`}  
               placeholder="From..."
               disabled={disabled}

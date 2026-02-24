@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
 
 interface Option {
@@ -32,20 +32,15 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filteredOptions, setFilteredOptions] = useState(options);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Filter options based on search term
-  useEffect(() => {
-    if (!searchTerm) {
-      setFilteredOptions(options);
-    } else {
-      const filtered = options.filter(option =>
-        option.label.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      setFilteredOptions(filtered);
-    }
+  // Derive filtered options without setState (avoids infinite re-render loop)
+  const filteredOptions = useMemo(() => {
+    if (!searchTerm) return options;
+    return options.filter(option =>
+      option.label.toLowerCase().includes(searchTerm.toLowerCase())
+    );
   }, [searchTerm, options]);
 
   // Close dropdown when clicking outside

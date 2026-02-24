@@ -305,6 +305,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
         reasonDesc={reason}
         reasonId={reasonId}
         isChangeOfCreditor={isChangeOfCreditor}
+        programDetails={initialData?.ProgramDetails}
       />
 
       <DeleteComponentDialog

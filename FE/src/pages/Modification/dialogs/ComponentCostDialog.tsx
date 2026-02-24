@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Dialog, DialogTitle, DialogPanel } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import type { ComponentCost, ComponentCostPerYear, ComponentTypeEnum } from '../../Project/Model';
+import type { ProgramList } from '../../Program/Model';
 import { XMarkIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { useFieldPermissionState } from '../hooks/useFieldPermissions';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -24,6 +25,7 @@ interface ComponentCostDialogProps {
   reasonDesc?: string; // Keep for display purposes
   reasonId?: number; // Keep for reference
   isChangeOfCreditor?: boolean;
+  programDetails?: ProgramList;
   // Removed: currentCase, pcmaStatus, packageStatus - now from Jotai
 }
 
@@ -38,7 +40,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   componentCosts,
   ProjectId,
   maxAmountCost,
-  isChangeOfCreditor
+  isChangeOfCreditor,
+  programDetails
   // categoryDesc, // May be needed for future display/logging
   // reasonDesc, // May be needed for future display/logging
   // reasonId // May be needed for validation logic
@@ -186,11 +189,13 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
 
   // Per-year cost management functions
   const handleAddPerYearCost = () => {
+    const nonDeletedCosts = componentCostPerYear.filter(cost => !cost.IsDeleted);
+    const baseYear = programDetails?.YearStart || new Date().getFullYear();
     const newPerYearCost: ComponentCostPerYear = {
       Id: 0,
       ComponentCostId: formData.CostId,
       Amount: 0,
-      Year: new Date().getFullYear(),
+      Year: baseYear + nonDeletedCosts.length,
       StartDate: null,
       EndDate: null,
       CreatedBy: user?.UserId || '',
@@ -390,8 +395,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
 
         // Send ComponentCost and ComponentCostPerYear data to parent
         onSave(componentCostData, perYearCosts);
-        console.log('Component cost saved:', componentCostData);
-        console.log('Per-year costs saved:', perYearCosts);
+        // console.log('Component cost saved:', componentCostData);
+        // console.log('Per-year costs saved:', perYearCosts);
         onClose();
     } catch (error) {
       console.error('Error saving component cost:', error);
@@ -576,9 +581,9 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                                                 value={cost.Year || ''}
                                                 onChange={(e) => handleEditPerYearCost(index, 'Year', parseInt(e.target.value) || 0)}
                                                 className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                                placeholder="2024"
-                                                min="2020"
-                                                max="2050"
+                                                placeholder={String(programDetails?.YearStart || new Date().getFullYear())}
+                                                min={programDetails?.YearStart?.toString() || '2000'}
+                                                max={programDetails?.YearEnd?.toString() || '2100'}
                                             />
                                         </div>
                                         <div>
@@ -619,6 +624,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                                                 type="date"
                                                 value={cost.StartDate ? cost.StartDate.split('T')[0] : ''}
                                                 onChange={(e) => handleEditPerYearCost(index, 'StartDate', e.target.value || null)}
+                                                min={cost.Year ? `${cost.Year}-01-01` : undefined}
+                                                max={cost.EndDate ? cost.EndDate.split('T')[0] : (cost.Year ? `${cost.Year}-12-31` : undefined)}
                                                 className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
                                             />
                                         </div>
@@ -630,6 +637,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                                                 type="date"
                                                 value={cost.EndDate ? cost.EndDate.split('T')[0] : ''}
                                                 onChange={(e) => handleEditPerYearCost(index, 'EndDate', e.target.value || null)}
+                                                min={cost.StartDate ? cost.StartDate.split('T')[0] : (cost.Year ? `${cost.Year}-01-01` : undefined)}
+                                                max={cost.Year ? `${cost.Year}-12-31` : undefined}
                                                 className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
                                             />
                                         </div>

@@ -41,12 +41,14 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
   initialData,
   existingMajorItems = [],
 }) => {
-  const defaultFormData = {
+  // Stabilize defaultFormData using a primitive to avoid new object refs on every render
+  const yearStart = programDetails?.YearStart || new Date().getFullYear();
+  const defaultFormData = useMemo(() => ({
     ComponentId: '',
-    YearOfWork: programDetails?.YearStart || new Date().getFullYear(),
+    YearOfWork: yearStart,
     WorkTypeId: 0,
     InfraType: '',
-  };
+  }), [yearStart]);
 
   const [formData, setFormData] = useState(defaultFormData);
 
@@ -85,14 +87,17 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
     return fieldPermissionsMap[field] === true;
   }, [fieldPermissionsMap]);
 
-  // Initialize form data
+  // Initialize form data only when the dialog opens — avoids infinite loops
+  // caused by object-ref deps (initialData inline object, programDetails) changing every render
   useEffect(() => {
+    if (!isOpen) return;
     if (mode === 'edit' && initialData) {
       setFormData(initialData);
     } else {
       setFormData(defaultFormData);
     }
-  }, [mode, initialData, isOpen, programDetails]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   // Update available work types when InfraType changes
   const availableWorkTypes = useMemo<ScopeOfWorkEnum[]>(() => {

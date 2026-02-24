@@ -461,9 +461,9 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                                                 value={cost.Year || ''}
                                                 onChange={(e) => handleEditPerYearCost(index, 'Year', parseInt(e.target.value) || 0)}
                                                 className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                                placeholder="2024"
-                                                min="2020"
-                                                max="2050"
+                                                placeholder={String(programDetails?.YearStart || new Date().getFullYear())}
+                                                min={programDetails?.YearStart?.toString() || '2000'}
+                                                max={programDetails?.YearEnd?.toString() || '2100'}
                                             />
                                         </div>
                                         <div>
