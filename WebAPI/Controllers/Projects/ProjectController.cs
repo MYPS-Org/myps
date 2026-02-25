@@ -335,7 +335,7 @@ namespace WebAPI.Controllers.Projects
                 //.FirstOrDefaultAsync();
                 //ThirdSegment = CheckExistingVersion != null ? (int.Parse(CheckExistingVersion.MaxId) + 1).ToString("D5") : ThirdSegment;
                 //string ReferenceId = $"{FirstSegment}{SecondSegment}{ThirdSegment}{FourthSegment}";
-                string ReferenceId = _db.GenerateProjectID(ProgramDetails, Category, SelectedRegion.IslandCode);
+                string ReferenceId = _db.GenerateProjectID(ProgramDetails, Category, SelectedRegion.IslandCode).Replace("-","");
                 #endregion
                 var SubmitProject = new DBHelper.Models.Table.Projects()
                 {

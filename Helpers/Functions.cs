@@ -110,7 +110,7 @@ namespace Helpers
             .OrderByDescending(x => x.MaxId)
             .FirstOrDefault();
             ThirdSegment = CheckExistingVersion != null ? (int.Parse(CheckExistingVersion.MaxId ?? "0") + 1).ToString("D5") : ThirdSegment;
-            return $"{FirstSegment}{SecondSegment}{ThirdSegment}{IslandCode}";
+            return $"{FirstSegment}-{SecondSegment}-{ThirdSegment}-{IslandCode}";
         }
         public static string GenerateProjec1stSegment(this string StageName)
         {

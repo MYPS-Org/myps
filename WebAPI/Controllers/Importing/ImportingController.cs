@@ -21,6 +21,7 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Xml;
 using WebAPI.Controllers.Projects;
+using static System.Net.WebRequestMethods;
 namespace WebAPI.Controllers.Importing
 {
     [ApiController]
@@ -35,6 +36,57 @@ namespace WebAPI.Controllers.Importing
             var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                string User = _Session.UserId;
+                DateTime CurrentDate = Functions.CurrentDate();
+                var rows = await _db.Database.ExecuteSqlInterpolatedAsync($@"
+                UPDATE dbo.tImportingStatus
+                SET IsActive = 1,
+                    LastUserIdInUse = {User},
+                    LastUsedDate = {CurrentDate}
+                WHERE ImportFunctionName = 'ImportProject'
+                  AND IsActive = 0;
+                ");
+
+                if (rows == 0)
+                {
+                    var holder = await _db.tImportingStatus
+                        .AsNoTracking()
+                        .Where(x => x.ImportFunctionName == "ImportProject")
+                        .Select(x => x.LastUserIdInUse)
+                        .FirstOrDefaultAsync();
+
+                    return new BadRequestObjectResult(new
+                    {
+                        Title = "Import In Progress",
+                        Message = $"The project import is currently in use by {holder}. Please try again later."
+                    });
+                }
+                //var CheckStatus = await _db.tImportingStatus.FirstOrDefaultAsync(x => x.ImportFunctionName == "ImportProject");
+                //if (CheckStatus == null)
+                //{
+                //    return new BadRequestObjectResult(new
+                //    {
+                //        Title = "Configuration Error",
+                //        Message = "ImportProject status configuration is missing. Unable to proceed."
+                //    });
+                //}
+                //bool isActive = CheckStatus.IsActive;
+                //if (isActive)
+                //{
+                //    return new BadRequestObjectResult(new
+                //    {
+                //        Title = "Import In Progress",
+                //        Message = $"The project import is currently being used by {CheckStatus.LastUserIdInUse}. Please try again later."
+                //    });
+                //}
+                //else
+                //{
+                //    CheckStatus.IsActive = true;
+                //    CheckStatus.LastUserIdInUse = User;
+                //    CheckStatus.LastUsedDate = CurrentDate;
+                //    _db.tImportingStatus.Update(CheckStatus);
+                //    await _db.SaveChangesAsync();
+                //}
                 #region Program Validation
                 var IsValidProgram = _db.IsValidProgramId(dto.ProgramDetails.ProgramId, dto.ProgramDetails.StageName);
                 if(!IsValidProgram.IsValid)
@@ -48,8 +100,6 @@ namespace WebAPI.Controllers.Importing
                 List<DBHelper.Models.Table.Projects> projects = new List<DBHelper.Models.Table.Projects>();
                 //List<DBHelper.Models.Table.ProjectRevisions> projectrevisions = new List<DBHelper.Models.Table.ProjectRevisions>();
                 List<DBHelper.Models.Table.ProjectStages> projectstages = new List<DBHelper.Models.Table.ProjectStages>();
-                string User = _Session.UserId;
-                DateTime CurrentDate = Functions.CurrentDate();
                 foreach (var Item in dto.ProjectDetails)
                 {
                     ImportProjectReference AddProject = new ImportProjectReference
@@ -57,7 +107,7 @@ namespace WebAPI.Controllers.Importing
                         OldProjectId = Item.ProjectId,
                         NewProjectId = string.Empty
                     };
-                    var Projects = _db.GenerateProject(IsValidProgram.ProgramDetails, Item);
+                    var Projects = _db.GenerateProject(IsValidProgram.ProgramDetails, Item, ProjectReference);
                     if (!Projects.IsValid)
                     {
                         return new BadRequestObjectResult(new { Message = Projects.Message, Tile = "Project Validation Error." });
@@ -65,6 +115,7 @@ namespace WebAPI.Controllers.Importing
                     AddProject.NewProjectId = Projects.Project.ReferenceId;
                     Projects.Project.CreatedBy = User;
                     Projects.Project.CreatedDate = CurrentDate;
+
                     Projects.ProjectRevision.CreatedBy = User;
                     Projects.ProjectRevision.CreatedDate = CurrentDate;
 
@@ -216,6 +267,11 @@ namespace WebAPI.Controllers.Importing
                     }
                 }
                 #endregion
+
+
+                var CheckStatus = await _db.tImportingStatus.FirstOrDefaultAsync(x => x.ImportFunctionName == "ImportProject");
+                CheckStatus.IsActive = false;
+                _db.tImportingStatus.Update(CheckStatus);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
                 return Ok(new { Message = $"Projects imported: {projects.Count}", Tile = "Project Imported Successfully" });

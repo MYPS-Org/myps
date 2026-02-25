@@ -118,7 +118,7 @@ namespace WebAPI.Controllers.Importing
             public DBHelper.Models.Table.ProjectRevisions ProjectRevision { get; set; } = new DBHelper.Models.Table.ProjectRevisions();
             public DBHelper.Models.Table.ProjectStages ProjectStage { get; set; } = new DBHelper.Models.Table.ProjectStages();
         }
-        public static GenerateProjecttResponse GenerateProject(this AppDbContext _db, DBHelper.Models.Views.ProgramDetails ProgramDetails, ImportProjectDetails details)
+        public static GenerateProjecttResponse GenerateProject(this AppDbContext _db, DBHelper.Models.Views.ProgramDetails ProgramDetails, ImportProjectDetails details, List<ImportProjectReference> Saved)
         {
             #region Validation
             var Category = _db.tOptionProjectCategory.AsNoTracking().FirstOrDefault(x => x.CategoryName == details.Category);
@@ -207,7 +207,13 @@ namespace WebAPI.Controllers.Importing
                 return new GenerateProjecttResponse { IsValid = false, Message = $"Incorrect Region Wide in ProjectId: {details.ProjectId}, Selected Region Wide: {details.RegionWide}" };
             }
             #endregion
-            string ReferenceId = _db.GenerateProjectID(ProgramDetails, Category, Region.IslandCode);
+            string toSaveProjectId = _db.GenerateProjectID(ProgramDetails, Category, Region.IslandCode);
+            var parts = toSaveProjectId.Split("-");
+            string baseId = toSaveProjectId.Replace("-", "");
+
+            string ReferenceId = Saved.Any(x => x.NewProjectId == baseId)
+                ? toSaveProjectId.Replace(parts[2], (int.Parse(parts[2]) + 1).ToString()).Replace("-", "")
+                : baseId;
             DateTime CurrentDate = Functions.CurrentDate();
             var NewProject = new DBHelper.Models.Table.Projects
             {
