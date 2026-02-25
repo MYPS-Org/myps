@@ -1269,6 +1269,7 @@ namespace WebAPI.Controllers.Revision
                 await _db.tRevisionProjectComponentCostPerYear.AddRangeAsync(NewComponentPerYear);
                 await _db.tRevisionProjectMajorWorkItem.AddRangeAsync(NewMajorWorkItem);
                 await _db.tRevisionProjectMajorWorkLocations.AddRangeAsync(NewMajorWorkLocations);
+                await _db.tRevisionTransactionLog.AddRangeAsync(Logs);
                 var ExistingProjectRevisions = await _db.tRevisionProjects.FirstOrDefaultAsync(x => x.IsActive == true && x.ProjectId == dto.ProjectDetails.ProjectId);
                 if (ExistingProjectRevisions != null)
                 {
@@ -2044,6 +2045,7 @@ namespace WebAPI.Controllers.Revision
                 }
                 #endregion
                 #region FundingProfile
+                var SaveNewFundingProfile = new List<RevisionProjectFundingProfile>();
                 var FundingProfileRules = jsonRules.FundingProfileRules.Fields.GetType()
                 .GetProperties()
                 .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
@@ -2168,7 +2170,7 @@ namespace WebAPI.Controllers.Revision
                         CreatedBy = User,
                         CreatedDate = CurrentDate
                     }));
-                    ExistingFundingProfile.AddRange(NewFundingProfile.Select(x => new RevisionProjectFundingProfile
+                    SaveNewFundingProfile.AddRange(NewFundingProfile.Select(x => new RevisionProjectFundingProfile
                     {
                         TransactionId = dto.TransactionId,
                         ProjectId = x.ProjectId,
@@ -2180,6 +2182,7 @@ namespace WebAPI.Controllers.Revision
                 }
                 #endregion
                 #region ComponentCosts
+                var SaveNewComponentCost = new List<RevisionProjectComponentCost>();
                 var ComponentCostRules = jsonRules.ComponentCostRules.Fields.GetType()
                 .GetProperties()
                 .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
@@ -2196,7 +2199,7 @@ namespace WebAPI.Controllers.Revision
                         var SelectedComponent = ExistingComponent.FirstOrDefault(x => x.Id == ComponentId);
                         if (SelectedComponent != null)
                         {
-                            var OldSelectedComponent = new DBHelper.Models.Table.RevisionProjectComponentCost
+                            var OldSelectedComponent = new RevisionProjectComponentCost
                             {
                                 Id = SelectedComponent.Id,
                                 TransactionId = SelectedComponent.TransactionId,
@@ -2306,7 +2309,7 @@ namespace WebAPI.Controllers.Revision
                         CreatedBy = User,
                         CreatedDate = CurrentDate
                     }));
-                    ExistingComponent.AddRange(NewCost.Select(x => new DBHelper.Models.Table.RevisionProjectComponentCost
+                    SaveNewComponentCost.AddRange(NewCost.Select(x => new DBHelper.Models.Table.RevisionProjectComponentCost
                     {
                         TransactionId = dto.TransactionId,
                         CostId = x.CostId,
@@ -2320,6 +2323,7 @@ namespace WebAPI.Controllers.Revision
                 }
                 #endregion
                 #region ComponentCostPerYear
+                var SaveNewComponentCostPerYear = new List<RevisionProjectComponentCostPerYear>();
                 var ComponentCostPerYearRules = jsonRules.ComponentCostRules.Fields.GetType()
                 .GetProperties()
                 .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
@@ -2445,7 +2449,7 @@ namespace WebAPI.Controllers.Revision
                         CreatedBy = User,
                         CreatedDate = CurrentDate
                     }));
-                    ExistingComponentYear.AddRange(NewCost.Select(x => new DBHelper.Models.Table.RevisionProjectComponentCostPerYear
+                    SaveNewComponentCostPerYear.AddRange(NewCost.Select(x => new RevisionProjectComponentCostPerYear
                     {
                         TransactionId = dto.TransactionId,
                         ComponentCostId = x.ComponentCostId,
@@ -2459,6 +2463,7 @@ namespace WebAPI.Controllers.Revision
 
                 #endregion
                 #region MajorWorkItem
+                var SaveNewMajorWorkItem = new List<RevisionProjectMajorWorkItem>();
                 var MajorWorkItemRules = jsonRules.MajorItemOfWorkRules.Fields.GetType()
                 .GetProperties()
                 .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
@@ -2572,7 +2577,7 @@ namespace WebAPI.Controllers.Revision
                         CreatedBy = User,
                         CreatedDate = CurrentDate
                     }));
-                    ExistingMajorWorkItem.AddRange(NewWorkItem.Select(x => new DBHelper.Models.Table.RevisionProjectMajorWorkItem
+                    SaveNewMajorWorkItem.AddRange(NewWorkItem.Select(x => new RevisionProjectMajorWorkItem
                     {
                         TransactionId = dto.TransactionId,
                         ProjectId = x.ProjectId,
@@ -2586,6 +2591,7 @@ namespace WebAPI.Controllers.Revision
                 }
                 #endregion
                 #region MajorWorkLocations
+                var SaveNewMajorWorkLocations = new List<RevisionProjectMajorWorkLocations>();
                 var MajorItemLocationsRules = jsonRules.MajorItemLocationRules.Fields.GetType()
                 .GetProperties()
                 .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
@@ -2856,7 +2862,7 @@ namespace WebAPI.Controllers.Revision
                             CreatedBy = User,
                             CreatedDate = CurrentDate
                         }));
-                        ExistingMajorWorkLocations.AddRange(NewMajorWorkLocationsToInsert.Select(x => new RevisionProjectMajorWorkLocations
+                        SaveNewMajorWorkLocations.AddRange(NewMajorWorkLocationsToInsert.Select(x => new RevisionProjectMajorWorkLocations
                         {
                             TransactionId = dto.TransactionId,
                             ParentId = x.ParentId,
@@ -2887,9 +2893,16 @@ namespace WebAPI.Controllers.Revision
                 _db.tRevisionProjectMajorWorkItem.UpdateRange(ExistingMajorWorkItem);
                 _db.tRevisionProjectMajorWorkLocations.UpdateRange(ExistingMajorWorkLocations);
 
+                await _db.tRevisionProjectFundingProfile.AddRangeAsync(SaveNewFundingProfile);
+                await _db.tRevisionProjectComponentCost.AddRangeAsync(SaveNewComponentCost);
+                await _db.tRevisionProjectComponentCostPerYear.AddRangeAsync(SaveNewComponentCostPerYear);
+                await _db.tRevisionProjectMajorWorkItem.AddRangeAsync(SaveNewMajorWorkItem);
+                await _db.tRevisionProjectMajorWorkLocations.AddRangeAsync(SaveNewMajorWorkLocations);
+                await _db.tRevisionTransactionLog.AddRangeAsync(Logs);
+
 
                 string DocumentName = $"{dto.TransactionId}_{DocumentNaming.SecondSegmentName}_{CurrentDate.ToString("MM-dd-yyyy")}";
-                var NewUploadedDocument = _db.tRevisionDocuments.Where(x => x.TransactionId == dto.TransactionId && DocumentName.Contains(x.DocumentName)).Count().ToString() + 1;
+                var NewUploadedDocument = _db.tRevisionDocuments.Where(x => x.TransactionId == dto.TransactionId && DocumentName.Contains(x.DocumentName)).Count() + 1;
                 string NewDocName = $"{DocumentName}-{NewUploadedDocument}.{dto.RevisionDetails.ApprovedDocument.Extension}";
                 string FilePath = Path.Combine(Appsetting.Resources.Revision.ImplementingOffice, DocumentName);
                 string ResourcePath = Path.Combine(Directory.GetCurrentDirectory(), FilePath);

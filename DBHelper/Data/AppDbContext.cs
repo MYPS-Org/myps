@@ -101,7 +101,6 @@ namespace DBHelper.Data
         public DbSet<Models.Views.ProjectComponentStatus> vProjectComponentStatus { get; set; }
         public DbSet<Models.Views.RevisionLists> vRevisionLists { get; set; }
         public DbSet<Models.Views.ProjectComponentCostStatus> vProjectComponentCostStatus { get; set; }
-        public DbSet<Models.Views.RevisionProjectComponentCost> vRevisionProjectComponentCost { get; set; }
         public DbSet<Models.Views.ProjectPerStages> vProjectPerStages { get; set; }
         public DbSet<Models.Views.ProjectLatestStage> vProjectLatestStage { get; set; }
         #endregion
