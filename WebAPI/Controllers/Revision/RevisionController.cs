@@ -1124,7 +1124,7 @@ namespace WebAPI.Controllers.Revision
                 }
                 if (jsonRules.MajorItemLocationRules.CRUD.CanAdd)
                 {
-                    var NewMajorWorkLocationsToInsert = dto.MajorItemLocations.Where(x => dto.MajorItemOfWorks.Select(c => c.ReferenceId).Contains(x.ParentId) && x.Id == 0);
+                    var NewMajorWorkLocationsToInsert = dto.MajorItemLocations.Where(x => x.Id == 0);
                     if (NewMajorWorkLocationsToInsert.Count() > 0)
                     {
                         Logs.AddRange(NewMajorWorkLocationsToInsert.Select(x => new RevisionTransactionLog
@@ -1155,6 +1155,7 @@ namespace WebAPI.Controllers.Revision
                             EndStationLimit = x.EndStationLimit,
                             EndChainage = x.EndChainage,
                             StartChainage = x.StartChainage,
+                            Length = x.Length
                         }));
                     }
                 }
@@ -2623,6 +2624,7 @@ namespace WebAPI.Controllers.Revision
                             EndStationLimit = UpdateMajorWorkLocation.EndStationLimit,
                             EndChainage = UpdateMajorWorkLocation.EndChainage,
                             StartChainage = UpdateMajorWorkLocation.StartChainage,
+                            Length = UpdateMajorWorkLocation.Length,
                             IsDeleted = UpdateMajorWorkLocation.IsDeleted
                         };
                         if (UpdateMajorWorkLocation != null)
@@ -2823,6 +2825,21 @@ namespace WebAPI.Controllers.Revision
                                         AffectedColumn = "StartChainage",
                                         OldValue = OldSelectedComponent.StartChainage.ToString(),
                                         NewValue = UpdateMajorWorkLocation.StartChainage.ToString(),
+                                        CreatedBy = _Session.UserId,
+                                        CreatedDate = CurrentDate
+                                    });
+                                }
+                                if(OldSelectedComponent.Length != UpdateMajorWorkLocation.Length)
+                                {
+                                    Logs.Add(new RevisionTransactionLog
+                                    {
+                                        TransactionId = RevisionTransactionId,
+                                        ReferenceId = dto.TransactionId,
+                                        TypeOfTransaction = "Update",
+                                        AffectedTable = "tRevisionProjectMajorWorkLocations",
+                                        AffectedColumn = "Length",
+                                        OldValue = OldSelectedComponent.Length.ToString(),
+                                        NewValue = UpdateMajorWorkLocation.Length.ToString(),
                                         CreatedBy = _Session.UserId,
                                         CreatedDate = CurrentDate
                                     });
