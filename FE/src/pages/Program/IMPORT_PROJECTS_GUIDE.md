@@ -47,7 +47,6 @@ The template (`Importation_1.xlsm`) must contain these exact sheet names:
 | `FUNDING PROFILE` | `fundingProfile[]` |
 | `COMPONENT DETAILS` | `componentCosts[]` + `componentCostPerYear[]` |
 | `MAJOR ITEMS OF WORK` | `majorItemOfWorks[]` + `majorItemLocations[]` |
-| `Provinces` | Lookup — Province name → GdbId |
 
 ---
 
@@ -56,7 +55,7 @@ The template (`Importation_1.xlsm`) must contain these exact sheet names:
 Reads each sheet with SheetJS (`XLSX.utils.sheet_to_json`) and groups all rows by `Project ID`.
 
 **Key behaviours:**
-- **Province** name is resolved to a `GdbId` using the `Provinces` lookup sheet. If not found, the raw name is passed through.
+- **Province**, City, LD, Region — all passed as **plain names** — the backend resolves them to IDs.
 - **Dates** (Excel serials) are converted to `MM/DD/YYYY` strings via `XLSX.SSF.parse_date_code`.
 - Empty rows are skipped.
 - Rows with a missing `Project ID` are recorded as parse errors (non-fatal).
@@ -96,7 +95,7 @@ One entry for the whole batch:
 
 #### `projectDetails`
 One entry per project. All enum/lookup fields (Category, Thrust, Origin, etc.) are sent as **raw string names** — the backend resolves them to numeric IDs.
-- `province` → already a GdbId (resolved by parser)
+- `province` → raw name from Excel (backend resolves to code)
 - `description` → always `null` (not in XLSM; backend sets it)
 
 #### `fundingProfile`

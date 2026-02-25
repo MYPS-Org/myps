@@ -48,8 +48,8 @@ function buildProjectDetails(imported: ImportedProject): DtoProjectDetails {
     myId:                 d.MYId        ?? null,
     uacs:                 d.UACS        ?? null,
     mycaApprovalDate:     d.MYCAApprovalDate ?? null,
-    description:          null,                         // not in XLSM; backend sets it
-    // Province is resolved to GdbId by the parser; the rest are plain names / codes
+    description:          d.Description ?? null,
+    // All location/lookup fields sent as raw names — backend resolves to IDs
     province:             str(d.Province),
     city:                 str(d.City),
     legislativeDistrict:  str(d.LegislativeDistrict),

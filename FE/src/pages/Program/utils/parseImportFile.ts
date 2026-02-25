@@ -15,7 +15,6 @@ const SHEET_PROJECT_DETAILS   = 'PROJECT DETAILS';
 const SHEET_FUNDING_PROFILE   = 'FUNDING PROFILE';
 const SHEET_COMPONENT_DETAILS = 'COMPONENT DETAILS';
 const SHEET_MAJOR_ITEMS       = 'MAJOR ITEMS OF WORK';
-const SHEET_PROVINCES         = 'Provinces';
 
 // ---------------------------------------------------------------------------
 // Helper: convert Excel date serial → "MM/DD/YYYY" string (or return as-is)
@@ -60,27 +59,9 @@ function isEmptyRow(r: RawRow): boolean {
 type RawRow = Record<string, unknown>;
 
 // ---------------------------------------------------------------------------
-// Lookup-sheet parsers  (Province / City / LD  name → GdbId)
-// ---------------------------------------------------------------------------
-
-/** Provinces sheet: "GdbId" | "Province"  →  uppercase name → GdbId */
-function buildProvinceMap(wb: XLSX.WorkBook): Map<string, string> {
-  const map = new Map<string, string>();
-  if (!wb.SheetNames.includes(SHEET_PROVINCES)) return map;
-  const raw = XLSX.utils.sheet_to_json<{ GdbId: string; Province: string }>(wb.Sheets[SHEET_PROVINCES]);
-  for (const row of raw) {
-    if (row.GdbId && row.Province) {
-      map.set(row.Province.trim().toUpperCase(), row.GdbId.trim());
-    }
-  }
-  return map;
-}
-
-// ---------------------------------------------------------------------------
 
 function parseProjectDetailsSheet(
   ws: XLSX.WorkSheet,
-  provinceMap: Map<string, string>,
 ): {
   rows: ImportedProjectDetails[];
   errors: string[];
@@ -96,12 +77,6 @@ function parseProjectDetailsSheet(
       return;
     }
 
-    // Resolve Province name → GdbId using the lookup sheet
-    const provinceRaw  = toStr(r['*Province']);
-    const provinceGdbId = provinceRaw
-      ? (provinceMap.get(provinceRaw.toUpperCase()) ?? provinceRaw)
-      : undefined;
-
     rows.push({
       ProjectId: projectId,
       MYId: toStr(r['Multi Year ID']),
@@ -112,9 +87,8 @@ function parseProjectDetailsSheet(
       CategoryName: toStr(r['*Category']),
       ThrustName: toStr(r['*Sub-Category']),
       MYCAApprovalDate: toDateString(r['MYCA Approval Date']),
-      // Province is resolved to GdbId; City / LD / Region are kept as plain names
-      // (no GdbId available in the XLSM lookup sheets — backend resolves them)
-      Province: provinceGdbId,
+      // Province / City / LD / Region sent as plain names — backend resolves to IDs
+      Province: toStr(r['*Province']),
       City: toStr(r['*City Municipality']),
       LegislativeDistrict: toStr(r['*Legislative District:']),
       Region: toStr(r['*Region']),
@@ -131,6 +105,7 @@ function parseProjectDetailsSheet(
       FeasibilityDate: toDateString(r['Feasibility Date']),
       DetailedDesignName: toStr(r['Detailed Design']),
       DetailedDesignDate: toDateString(r['Detailed Design Date']),
+      Description: toStr(r['Description']),
     });
   });
 
@@ -255,11 +230,8 @@ export async function parseImportFile(file: File): Promise<ImportParseResult> {
     return { projects: [], errors: allErrors, totalRows: { details: 0, components: 0, funding: 0, majorItems: 0 } };
   }
 
-  // Build lookup maps from the Excel reference sheets
-  const provinceMap = buildProvinceMap(wb);
-
   // Parse each sheet
-  const { rows: detailRows,    errors: e1 } = parseProjectDetailsSheet(wb.Sheets[SHEET_PROJECT_DETAILS], provinceMap);
+  const { rows: detailRows,    errors: e1 } = parseProjectDetailsSheet(wb.Sheets[SHEET_PROJECT_DETAILS]);
   const { rows: fundingRows,   errors: e2 } = parseFundingProfileSheet(wb.Sheets[SHEET_FUNDING_PROFILE]);
   const { rows: componentRows, errors: e3 } = parseComponentDetailsSheet(wb.Sheets[SHEET_COMPONENT_DETAILS]);
   const { rows: majorRows,     errors: e4 } = parseMajorItemsSheet(wb.Sheets[SHEET_MAJOR_ITEMS]);

@@ -701,6 +701,7 @@ export interface ImportedProjectDetails {
   FeasibilityDate?: string;
   DetailedDesignName?: string;
   DetailedDesignDate?: string;
+  Description?: string;
 }
 
 export interface ImportedComponentCost {
