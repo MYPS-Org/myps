@@ -928,8 +928,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   return (
     <div className="overflow-hidden w-full mx-auto p-6 space-y-6">
       <div className='flex items-center justify-between mb-6'>
-        <div></div>
-        <div className="flex space-x-3">
+        <div className="flex flex-end space-y-3 fixed top-2 right-25 z-50">
           <RevisionActionButtons
             mode={mode}
             userGroup={user?.UserGroups}
