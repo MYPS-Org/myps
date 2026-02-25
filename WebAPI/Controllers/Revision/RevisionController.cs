@@ -131,7 +131,7 @@ namespace WebAPI.Controllers.Revision
                 string ProjectId = RevisionTransation[0];
                 var prog = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == ProjectId);
                 var Project = await _db.vProjectDetails
-                .FromSqlInterpolated($"SELECT * FROM fPendingProjectRevisions({ProjectId}) fp WHERE fp.StageName = 'GAA-R' AND fp.ProjectId = {ProjectId}")
+                .FromSqlInterpolated($"SELECT * FROM fPendingProjectRevisions({ProjectId})")
                 .AsNoTracking()
                 .FirstOrDefaultAsync();
                 int? RevisedNumber = Project.RevisedNumber;
