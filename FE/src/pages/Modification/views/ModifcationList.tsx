@@ -21,6 +21,15 @@ interface RevisionState {
     transactionId?: string;
 }
 
+const getStatusBadge = (statusName: string): string => {
+    const name = (statusName || '').toLowerCase();
+    if (name.includes('for correction')) return 'bg-red-100 text-red-500';
+    if (name.includes('disapproved')) return 'bg-red-600 text-white';
+    if (name.includes('for approval')) return 'bg-yellow-100 text-yellow-800';
+    if (name.includes('approved')) return 'bg-green-100 text-green-800';
+    return 'bg-gray-100 text-gray-800';
+};
+
 const ModificationList: React.FC = () => {
     const location = useLocation();
     const state = location.state as RevisionState;
@@ -267,26 +276,18 @@ const ModificationList: React.FC = () => {
                                         <TableCell>{revision.Reason}</TableCell>
                                         <TableCell>{revision.CreatedDate ? new Date(revision.CreatedDate).toLocaleDateString() : '-'}</TableCell>
                                         <TableCell className="flex items-center">
-                                            {revision.COStatus == 0 && revision.RegionStatus == 0 &&(
-                                                <span className="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                                    {revision.RegionStatusName}
-                                                </span>
-                                            )}
-                                            {revision.RegionStatus == 2 &&(
-                                                <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
-                                                    {revision.RegionStatusName}
-                                                </span>
-                                            )}
-                                            {revision.RegionStatus == 3 &&(
-                                                <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
-                                                    {revision.RegionStatusName}
-                                                </span>
-                                            )}
-                                            {revision.RegionStatus == 1 && revision.COStatus != null && (
-                                                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${revision.RegionStatusName == 'Approved' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-red-800'}`}>
-                                                    {revision.COStatusName}
-                                                </span>
-                                            )}
+                                            {(() => {
+                                                const statusName =
+                                                    revision.RegionStatus === 1 && revision.COStatus != null
+                                                        ? revision.COStatusName
+                                                        : revision.RegionStatusName;
+                                                if (!statusName) return null;
+                                                return (
+                                                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadge(statusName)}`}>
+                                                        {statusName}
+                                                    </span>
+                                                );
+                                            })()}
                                         </TableCell>
                                         <TableCell>
                                             <Button 

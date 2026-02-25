@@ -934,6 +934,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             mode={mode}
             userGroup={user?.UserGroups}
             initialData={initialData}
+            currentUserId={user?.UserId}
             loading={{
               revise: updateReviseProject,
               resubmit: updateResubmitRevision,

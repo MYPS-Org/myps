@@ -16,6 +16,8 @@ type Params = {
   isActive?: boolean;
   isModify?: boolean;
   stageId?: number;
+  createdBy?: string | null;
+  currentUserId?: string | null;
 
   loading: {
     revise?: boolean;
@@ -43,6 +45,8 @@ export const getRevisionActions = ({
   isActive,
   isModify,
   stageId,
+  createdBy,
+  currentUserId,
   loading,
   actions,
 }: Params): RevisionAction[] => [
@@ -114,8 +118,10 @@ export const getRevisionActions = ({
     loading: loading.revise,
     onClick: () => actions.submit('new'),
   },
+
+  // --- Re-Submit: whoever created the revision resubmits it (any group) ---
   {
-    show: isEdit && userGroup === 'DPC' && (regionStatus === 3 || coStatus === 3),
+    show: isEdit && (regionStatus === 3 || coStatus === 3) && !!currentUserId && currentUserId === createdBy,
     color: 'green',
     label: 'Re-Submit Revision',
     loading: loading.resubmit,

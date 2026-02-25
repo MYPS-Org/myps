@@ -125,13 +125,14 @@ const ResubmitRevisionDialog: React.FC<ReviseProjectDialogProps> = ({
             return;
         }
 
-        if (user?.UserGroups === 'DPC' && !isCertified) {
-            showToast({
-                type: 'error',
-                message: 'Please certify that the attached document is accurate and aligned with the revisions.'
-            });
-            return;
-        }
+        // const isDPC = user?.UserGroups === 'DPC';
+        // if (isDPC && !isCertified) {
+        //     showToast({
+        //         type: 'error',
+        //         message: 'Please certify that the attached document is accurate and aligned with the revisions.'
+        //     });
+        //     return;
+        // }
 
         setIsSubmitting(true);
 
@@ -162,21 +163,19 @@ const ResubmitRevisionDialog: React.FC<ReviseProjectDialogProps> = ({
 
             console.log('Submitting resubmit request with payload:', payload);
 
-            if (user?.UserGroups === 'DPC') {
-                await ResubmitRevisionRequest(payload);
+            await ResubmitRevisionRequest(payload);
                 
-                showToast({
-                    type: 'success',
-                    message: 'Modification request resubmitted successfully.'
-                });
+            showToast({
+                type: 'success',
+                message: 'Modification request resubmitted successfully.'
+            });
 
-                setApprovalDate('');
-                setApprovalDocument(null);
-                setIsCertified(false);
+            setApprovalDate('');
+            setApprovalDocument(null);
+            setIsCertified(false);
 
-                onClose();
-                navigate('/revision');
-            }
+            onClose();
+            navigate('/revision');
         } catch (error) {
             console.error('Error submitting modification request:', error);
             showToast({
@@ -303,7 +302,7 @@ const ResubmitRevisionDialog: React.FC<ReviseProjectDialogProps> = ({
                     </div>
 
                     {/* Certification Checkbox */}
-                    {user?.UserGroups === 'DPC' && approvalDocument && (
+                    {approvalDocument && (
                     <div className='bg-amber-50 border border-amber-200 p-4 rounded-lg'>
                         <label className='flex items-start gap-3 cursor-pointer'>
                             <input 

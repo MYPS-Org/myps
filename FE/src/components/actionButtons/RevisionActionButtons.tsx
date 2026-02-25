@@ -5,6 +5,7 @@ type Props = {
   mode: string;
   userGroup?: string;
   initialData: any;
+  currentUserId?: string | null;
 
   loading: {
     revise?: boolean;
@@ -28,6 +29,7 @@ export const RevisionActionButtons = ({
   mode,
   userGroup,
   initialData,
+  currentUserId,
   loading,
   actions,
 }: Props) => {
@@ -39,6 +41,8 @@ export const RevisionActionButtons = ({
     isActive: initialData?.IsActive,
     isModify: initialData?.IsModify,
     stageId: initialData?.ProgramDetails?.StageId,
+    createdBy: initialData?.RevisionDetails?.CreatedBy,
+    currentUserId,
     loading,
     actions,
   });
