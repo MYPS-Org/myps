@@ -15,7 +15,7 @@ const PublishProgramDialog: React.FC<PublishProgramDialogProps> = ({
   onClose,
   onConfirm,
   programName,
-  programId,
+  // programId,
 }) => {
   const handleConfirm = () => {
     onConfirm();
@@ -47,7 +47,7 @@ const PublishProgramDialog: React.FC<PublishProgramDialogProps> = ({
                   <p><span className="font-medium">Program Name:</span> {programName}</p>
                 </div>
                 <p className="mt-3 text-yellow-700">
-                  <strong>Warning:</strong> This action will send the program data to other applications. Please ensure all information is correct before proceeding.
+                  <strong>Warning:</strong> This action will publish the program to PCMA and will be available to other applications. Please ensure all information is correct before proceeding.
                 </p>
               </div>
 

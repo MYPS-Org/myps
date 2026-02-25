@@ -80,7 +80,6 @@ function parseProjectDetailsSheet(
     rows.push({
       ProjectId: projectId,
       MYId: toStr(r['Multi Year ID']),
-      AlternateId: toStr(r['Alternate ID']),
       ExternalId: toStr(r['External ID']),
       UACS: toStr(r['OA Project Code (UACS)']),
       TierName: toStr(r['*Tier']),

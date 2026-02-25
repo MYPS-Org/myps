@@ -43,7 +43,6 @@ function buildProjectDetails(imported: ImportedProject): DtoProjectDetails {
   const d = imported.ProjectDetails;
   return {
     projectId:            str(d.ProjectId),
-    alternateId:          d.AlternateId ?? null,
     externalId:           d.ExternalId  ?? null,
     myId:                 d.MYId        ?? null,
     uacs:                 d.UACS        ?? null,

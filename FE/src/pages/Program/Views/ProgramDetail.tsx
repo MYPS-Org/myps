@@ -799,7 +799,7 @@ setIsAddExistingProjectDialogOpen(true);
                 Publish Program
               </Button>
             )}
-            {programEnums.IsActive && programEnums.Details.Status === 3 && programEnums?.Details?.StageId <= 10 && (
+            {programEnums.IsActive && defaultProgramEnums.Details.Status === 3 && programEnums?.Details?.StageId <= 10 && (
               <Button color="blue" onClick={handleAddProject}>
                 Add Project
               </Button>

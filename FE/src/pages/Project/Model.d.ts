@@ -572,7 +572,6 @@ export interface DtoProgramDetails {
 
 export interface DtoProjectDetails {
   projectId: string;
-  alternateId?: string | null;
   externalId?: string | null;
   myId?: string | null;
   uacs?: string | null;
@@ -676,7 +675,6 @@ export interface ImportProjectDTO {
 export interface ImportedProjectDetails {
   ProjectId: string;
   MYId?: string;
-  AlternateId?: string;
   ExternalId?: string;
   UACS?: string;
   TierName?: string;           // raw text e.g. "Tier II"
