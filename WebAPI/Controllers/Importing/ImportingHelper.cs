@@ -25,6 +25,72 @@ namespace WebAPI.Controllers.Importing
         {
             public DBHelper.Models.Views.ProgramDetails ProgramDetails { get; set; } = new DBHelper.Models.Views.ProgramDetails();
         }
+        #region Hold for discussion
+        //public class FullProjectDetails
+        //{
+        //    public ImportProjectDetails Project { get; set; } = new ImportProjectDetails();
+        //    public List<DBHelper.Models.Table.ProjectFundingProfile> FundingProfile { get; set; } = new List<DBHelper.Models.Table.ProjectFundingProfile>();
+        //    public List<DBHelper.Models.Table.ProjectComponentCost> ComponentCost { get; set; } = new List<DBHelper.Models.Table.ProjectComponentCost>();
+        //    public List<DBHelper.Models.Table.ProjectComponentCostPerYear> ComponentCostPerYear { get; set; } = new List<DBHelper.Models.Table.ProjectComponentCostPerYear>();
+        //    public List<DBHelper.Models.Table.ProjectMajorWorkItem> MajorWorkItem { get; set; } = new List<DBHelper.Models.Table.ProjectMajorWorkItem>();
+        //    public List<DBHelper.Models.Table.ProjectMajorWorkLocations> MajorWorkLocations { get; set; } = new List<DBHelper.Models.Table.ProjectMajorWorkLocations>();
+        //}
+        //public class ValidateProjectDetailsResponse: ValidationResponse
+        //{
+        //    public FullProjectDetails Data { get; set; } = new FullProjectDetails();
+        //}
+        //public static ValidateProjectDetailsResponse ValidateProjectDetails(this AppDbContext _db, FullProjectDetails d)
+        //{
+        //    ValidateProjectDetailsResponse Response = new ValidateProjectDetailsResponse();
+        //    if (string.IsNullOrEmpty(d.Project.Description))
+        //    {
+        //        Response.IsValid = false;
+        //        Response.Message = $"Project '{d.Project.ProjectId}' requires a Project Name/Description.";
+        //    }
+        //    if (string.IsNullOrEmpty(d.Project.Category))
+        //    {
+        //        Response.IsValid = false;
+        //        Response.Message = $"Project '{d.Project.ProjectId}' requires a Project Category";
+        //    }
+        //    /*
+        //    Project Name
+
+        //    Project Category
+
+        //    Project Program/Sub-Program
+
+        //    Project Location
+
+        //    Funding Profile
+
+        //    Implementing Office
+
+        //    Component Details
+
+        //    Major Items of Work
+
+        //    Rank
+
+        //    Tier
+
+
+
+        //    For BP – HGAB with Amendments, same with RBP but Rank and Tier are not required.
+
+
+
+        //    For GAA – GAA-R, details in BP including Planned Start and End Dates, UACS.
+
+
+
+        //    For Multi-Year Project, MY-ID, for with MYCA includes MYCA Approval Date.
+
+
+
+        //    Please note that above are not field specific.
+        //     */
+        //}
+        #endregion
         #region Program Validation
         public static IsValidProgramIdResponse IsValidProgramId(this AppDbContext _db, string ProgramID, string StageName)
         {
