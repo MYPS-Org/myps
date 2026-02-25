@@ -13,7 +13,6 @@ namespace WebAPI.Controllers.Importing
     {
         [Required]
         public string ProjectId { get; set; } = string.Empty;
-        public string? AlternateId { get; set; }
         public string? ExternalId { get; set; }
         public string? MYId { get; set; }
         public string? UACS { get; set; }
@@ -127,7 +126,7 @@ namespace WebAPI.Controllers.Importing
         [Required]
         public string DetailedScope { get; set; } = string.Empty;
         [Required]
-        public int TargetUnitId { get; set; }
+        public string TargetUnitId { get; set; } = string.Empty;
         [Required]
         public string TargetUnit { get; set; } = string.Empty;
         public int PhysicalTarget { get; set; }

@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Endpoints;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.EntityFrameworkCore.Scaffolding.Metadata;
 using Microsoft.Extensions.DependencyInjection;
@@ -44,7 +45,7 @@ namespace WebAPI.Controllers.Importing
 
                 List<ImportProjectReference> ProjectReference = new List<ImportProjectReference>();
                 #region Projects
-                DBHelper.Models.Table.Projects projects = new DBHelper.Models.Table.Projects();
+                List<DBHelper.Models.Table.Projects> projects = new List<DBHelper.Models.Table.Projects>();
                 //List<DBHelper.Models.Table.ProjectRevisions> projectrevisions = new List<DBHelper.Models.Table.ProjectRevisions>();
                 List<DBHelper.Models.Table.ProjectStages> projectstages = new List<DBHelper.Models.Table.ProjectStages>();
                 string User = _Session.UserId;
@@ -66,11 +67,10 @@ namespace WebAPI.Controllers.Importing
                     Projects.Project.CreatedDate = CurrentDate;
                     Projects.ProjectRevision.CreatedBy = User;
                     Projects.ProjectRevision.CreatedDate = CurrentDate;
-                    if(projects == null)
-                    {
-                        projects = Projects.Project;
-                    }
+
                     ProjectReference.Add(AddProject);
+                    projects.Add(Projects.Project);
+
                     _db.tProjectRevisions.Add(Projects.ProjectRevision);
                     _db.SaveChanges();
 
@@ -80,11 +80,11 @@ namespace WebAPI.Controllers.Importing
 
                     projectstages.Add(Projects.ProjectStage);
                 }
-                await _db.tProjects.AddAsync(projects);
+                await _db.tProjects.AddRangeAsync(projects);
                 await _db.tProjectStages.AddRangeAsync(projectstages);
                 #endregion
 
-                #region Fundin Profile
+                #region Funding Profile
                 List<DBHelper.Models.Table.ProjectFundingProfile> FundingProfile = new List<DBHelper.Models.Table.ProjectFundingProfile>();
                 foreach (var Item in dto.FundingProfile)
                 {
@@ -182,14 +182,44 @@ namespace WebAPI.Controllers.Importing
                         }
                         Validate.MajorWorkLocation.CreatedBy = User;
                         Validate.MajorWorkLocation.CreatedDate = CurrentDate;
+                        Validate.MajorWorkLocation.TargetUnitId = Reference.WorkTypeId;
                         MajorWorkLocations.Add(Validate.MajorWorkLocation);
                     }
                 }
                 await _db.tProjectMajorWorkLocations.AddRangeAsync(MajorWorkLocations);
+                foreach (var entry in _db.ChangeTracker.Entries())
+                {
+                    if (entry.State is not (EntityState.Added or EntityState.Modified))
+                        continue;
+
+                    var entityType = entry.Metadata;
+
+                    var tableName = entityType.GetTableName();
+                    var schema = entityType.GetSchema();
+
+                    var storeObject = StoreObjectIdentifier.Table(tableName!, schema);
+
+                    foreach (var prop in entry.Properties)
+                    {
+                        if (prop.CurrentValue is DateTime dt && dt < new DateTime(1753, 1, 1))
+                        {
+                            var columnName = prop.Metadata.GetColumnName(storeObject);
+
+                            throw new Exception(
+                                $"Invalid datetime detected. " +
+                                $"Table: {schema}.{tableName}, " +
+                                $"Column: {columnName}, " +
+                                $"Property: {prop.Metadata.Name}, " +
+                                $"Value: {dt:O}"
+                            );
+                        }
+                    }
+                }
                 #endregion
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
-                return Ok(new { Message = "Notes added successfully!", Tile = "Add Success." });
+                return Ok(new { Message = $"Projects imported: {projects.Count}", Tile = "Project Imported Successfully" });
+
             }
             catch (Exception ex)
             {

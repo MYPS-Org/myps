@@ -26,9 +26,7 @@ namespace DBHelper.Models.Table
         [Required]
         [MaxLength(100)]
         public string TargetUnit { get; set; } = string.Empty;
-        [Required]
         public Double? StartX { get; set; }
-        [Required]
         public Double? StartY { get; set; }
         public Double? EndX { get; set; }
         public Double? EndY { get; set; }

@@ -14,9 +14,10 @@ namespace WebAPI.Controllers.Importing
             public string Message { get; set; } = string.Empty;
             public bool IsValid { get; set; } = false;
         }
-        public static DateTime? StringToDate(this string str)
+        public static DateTime? StringToDate(this string? str)
         {
-            return DateTime.TryParseExact("01/25/2026", "MM/dd/yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime result)
+            if (string.IsNullOrEmpty(str)) {  return null; }
+            return DateTime.TryParseExact(str, "MM/dd/yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime result)
             ? result
             : null;
         }
@@ -152,7 +153,7 @@ namespace WebAPI.Controllers.Importing
                 ProgramId = ProgramDetails.ProgramId,
                 ReferenceId = ReferenceId,
                 ProjectId = ReferenceId,
-                AlternateId = details.AlternateId,
+                AlternateId = details.ProjectId,
                 ExternalId = details.ExternalId,
                 MYId = details.MYId,
                 UACS = details.UACS,
@@ -288,7 +289,7 @@ namespace WebAPI.Controllers.Importing
             var MajorWorkItemProfile = new DBHelper.Models.Table.ProjectMajorWorkItem
             {
                 ProjectId = ProjectRef.NewProjectId,
-                ReferenceId = MajorWorkItem.ReferenceId,
+                ReferenceId = MajorWorkItem.ReferenceId,//$"{ProjectRef.NewProjectId}-{MajorWorkItem.ComponentId}",
                 ComponentId = MajorWorkItem.ComponentId,
                 YearOfWork = MajorWorkItem.YearOfWork,
                 WorkTypeId = ScopeOfWork.Enum,
@@ -309,7 +310,7 @@ namespace WebAPI.Controllers.Importing
                 ParentId = MajorWorkLocation.ParentId,
                 InfraId = MajorWorkLocation.InfraId,
                 DetailedScope = MajorWorkLocation.DetailedScope,
-                TargetUnitId = MajorWorkLocation.TargetUnitId,
+                //TargetUnitId = MajorWorkLocation.TargetUnitId,
                 TargetUnit = MajorWorkLocation.TargetUnit,
                 PhysicalTarget = MajorWorkLocation.PhysicalTarget,
                 Length = MajorWorkLocation.Length,

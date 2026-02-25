@@ -1186,7 +1186,8 @@ namespace WebAPI.Controllers.Revision
                     CreatedDate = CurrentDate
                 });
                 string DocumentName = $"{TransactionId}_{DocumentNaming.SecondSegmentName}_{CurrentDate.ToString("MM-dd-yyyy")}.{dto.RevisionDetails.ApprovedDocument.Extension}";
-                string FilePath = Path.Combine(Appsetting.Resources.Revision.ImplementingOffice, DocumentName);
+                string Folder = isCOUser ? Appsetting.Resources.Revision.CentralOffice : Appsetting.Resources.Revision.ImplementingOffice;
+                string FilePath = Path.Combine(Folder, DocumentName);
                 string ResourcePath = Path.Combine(Directory.GetCurrentDirectory(), FilePath);
                 if (!dto.RevisionDetails.ApprovedDocument.UploadFile(ResourcePath))
                 {
@@ -1634,7 +1635,7 @@ namespace WebAPI.Controllers.Revision
                                 _db.tRevisionProjects.Update(ExistingProjectRevisions);
                             }
                             string DocumentName = $"{dto.TransactionId}_{DocumentNaming.SecondSegmentName}_{CurrentDate.ToString("MM-dd-yyyy")}.{dto.Document.Extension}";
-                            string FilePath = Path.Combine(Appsetting.Resources.Revision.ImplementingOffice, DocumentName);
+                            string FilePath = Path.Combine(Appsetting.Resources.Revision.CentralOffice, DocumentName);
                             string ResourcePath = Path.Combine(Directory.GetCurrentDirectory(), FilePath);
                             if (!dto.Document.UploadFile(ResourcePath))
                             {
@@ -2887,19 +2888,20 @@ namespace WebAPI.Controllers.Revision
                 _db.tRevisionProjectMajorWorkLocations.UpdateRange(ExistingMajorWorkLocations);
 
 
-                string DocumentName = $"{dto.TransactionId}_{DocumentNaming.SecondSegmentName}_{CurrentDate.ToString("MM-dd-yyyy")}.{dto.RevisionDetails.ApprovedDocument.Extension}";
+                string DocumentName = $"{dto.TransactionId}_{DocumentNaming.SecondSegmentName}_{CurrentDate.ToString("MM-dd-yyyy")}";
+                var NewUploadedDocument = _db.tRevisionDocuments.Where(x => x.TransactionId == dto.TransactionId && DocumentName.Contains(x.DocumentName)).Count().ToString() + 1;
+                string NewDocName = $"{DocumentName}-{NewUploadedDocument}.{dto.RevisionDetails.ApprovedDocument.Extension}";
                 string FilePath = Path.Combine(Appsetting.Resources.Revision.ImplementingOffice, DocumentName);
                 string ResourcePath = Path.Combine(Directory.GetCurrentDirectory(), FilePath);
                 if (!dto.RevisionDetails.ApprovedDocument.UploadFile(ResourcePath))
                 {
                     return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted!", Title = "File Corrupted" });
                 }
-                var NewUploadedDocument = _db.tRevisionDocuments.Where(x => x.TransactionId == dto.TransactionId && DocumentName.Contains(x.DocumentName)).Count().ToString();
                 await _db.tRevisionDocuments.AddAsync(new RevisionDocuments
                 {
                     TransactionId = dto.TransactionId,
                     DocumentPath = FilePath,
-                    DocumentName = $"{DocumentName}-{NewUploadedDocument}",
+                    DocumentName = NewDocName,
                     IsApprovedDocument = false
                 });
                 await _db.SaveChangesAsync();
