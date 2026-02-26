@@ -833,7 +833,7 @@ namespace WebAPI.Controllers.Programs
                             ProgramId = dto.ProgramId,
                             ReferenceId = pr.ReferenceId,
                             RevisionId = pr.Id,
-                            StageId = checkStage.StageId.UpdateStage(),
+                            StageId = (EnumProgramStage)checkStageType.NameId,//checkStage.StageId.UpdateStage(),
                             StageName = checkStageType.Name,
                             CreatedBy = _Session.UserId,
                             CreatedDate = CurrentDate,
@@ -900,7 +900,7 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                DateTime CurrentDate = Functions.CurrentDate();;
+                DateTime CurrentDate = Functions.CurrentDate();
                 var checkProgram = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
                 if (checkProgram == null)
                 {

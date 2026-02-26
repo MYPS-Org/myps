@@ -86,16 +86,6 @@ namespace Helpers
         {
             return ReferenceId + "-" + ("tCountComponentCost").GenerateCode() + "-" + StageName;
         }
-        public static EnumProgramStage UpdateStage(this EnumProgramStage Current)
-        {
-            if (Current == EnumProgramStage.BP) return EnumProgramStage.NEP;
-            else if (Current == EnumProgramStage.NEP) return EnumProgramStage.NEPE;
-            else if (Current == EnumProgramStage.NEPE) return EnumProgramStage.HGAB;
-            else if (Current == EnumProgramStage.HGAB) return EnumProgramStage.HGABI;
-            else if (Current == EnumProgramStage.HGABI) return EnumProgramStage.GAA;
-            else if (Current == EnumProgramStage.GAA) return EnumProgramStage.GAAR;
-            return Current;
-        }
         public static string GenerateProjectID(this AppDbContext _db, DBHelper.Models.Views.ProgramDetails ProgramDetails, DBHelper.Models.Table.OptionProjectCategory Category, string IslandCode)
         {
             string FirstSegment = ProgramDetails.StageName.GenerateProjec1stSegment();
