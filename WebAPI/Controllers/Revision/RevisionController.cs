@@ -131,14 +131,14 @@ namespace WebAPI.Controllers.Revision
                 string ProjectId = RevisionTransation[0];
                 var prog = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == ProjectId);
                 var Project = await _db.vProjectDetails
-                .FromSqlInterpolated($"SELECT * FROM fPendingProjectRevisions({ProjectId})")
+                .FromSqlInterpolated($"SELECT * FROM fPendingProjectRevisions({dto.TransactionId})")
                 .AsNoTracking()
                 .FirstOrDefaultAsync();
-                int? RevisedNumber = Project.RevisedNumber;
                 if (Project == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found or not in GAA-R stage!", Title = "Invalid Project" });
                 }
+                int? RevisedNumber = Project.RevisedNumber;
                 var RevisionDetails = await _db.vRevisionLists.AsNoTracking().FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId);
                 if(RevisionDetails == null)
                 {
