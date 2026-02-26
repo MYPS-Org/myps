@@ -46,12 +46,10 @@ namespace WebAPI.Controllers.Importing
         public string EmergencyMode { get; set; } = string.Empty;
         [Required]
         public string Feasibility { get; set; } = string.Empty;
-        [Required]
-        public string FeasibilityDate { get; set; } = string.Empty;
+        public string? FeasibilityDate { get; set; }
         [Required]
         public string DetailedDesign { get; set; } = string.Empty;
-        [Required]
-        public string DetailedDesignDate { get; set; } = string.Empty;
+        public string? DetailedDesignDate { get; set; }
         [Required]
         public string RowAvailable { get; set; } = string.Empty;
         [Required]
