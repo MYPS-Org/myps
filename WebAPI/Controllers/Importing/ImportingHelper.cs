@@ -117,9 +117,11 @@ namespace WebAPI.Controllers.Importing
             public DBHelper.Models.Table.Projects Project { get; set; } = new DBHelper.Models.Table.Projects();
             public DBHelper.Models.Table.ProjectRevisions ProjectRevision { get; set; } = new DBHelper.Models.Table.ProjectRevisions();
             public DBHelper.Models.Table.ProjectStages ProjectStage { get; set; } = new DBHelper.Models.Table.ProjectStages();
+            public ImportProjectReference ImportReference { get; set; } = new ImportProjectReference();
         }
         public static GenerateProjecttResponse GenerateProject(this AppDbContext _db, DBHelper.Models.Views.ProgramDetails ProgramDetails, ImportProjectDetails details, List<ImportProjectReference> Saved)
         {
+            var ImportRef = new ImportProjectReference();
             #region Validation
             var Category = _db.tOptionProjectCategory.AsNoTracking().FirstOrDefault(x => x.CategoryName == details.Category);
             if (Category == null)
@@ -210,10 +212,25 @@ namespace WebAPI.Controllers.Importing
             string toSaveProjectId = _db.GenerateProjectID(ProgramDetails, Category, Region.IslandCode);
             var parts = toSaveProjectId.Split("-");
             string baseId = toSaveProjectId.Replace("-", "");
-
-            string ReferenceId = Saved.Any(x => x.NewProjectId == baseId)
-                ? toSaveProjectId.Replace(parts[2], (int.Parse(parts[2]) + 1).ToString()).Replace("-", "")
-                : baseId;
+            string ReferenceId = baseId;
+            var check = Saved.Where(x => x.ThirdSegment == parts[2]).OrderByDescending(x => x.MaxId).FirstOrDefault(x => x.ThirdSegment == parts[2]);
+            ImportRef.MaxId = int.Parse(parts[2]);
+            ImportRef.ThirdSegment = parts[2];
+            if (check != null)
+            {
+                ImportRef.MaxId = check.MaxId + 1;
+                ReferenceId = toSaveProjectId.Replace(parts[2], ImportRef.MaxId.ToString()).Replace("-", "");
+            }
+            ImportRef.OldProjectId = details.ProjectId;
+            ImportRef.NewProjectId = ReferenceId;
+            /*
+            ImportProjectReference AddProject = new ImportProjectReference
+            {
+                OldProjectId = Item.ProjectId,
+                NewProjectId = string.Empty
+            };
+            AddProject.NewProjectId = Projects.Project.ReferenceId;
+             */
             DateTime CurrentDate = Functions.CurrentDate();
             var NewProject = new DBHelper.Models.Table.Projects
             {
@@ -263,7 +280,7 @@ namespace WebAPI.Controllers.Importing
                 StageId = ProgramDetails.StageId,
                 StageName = ProgramDetails.StageName
             };
-            return new GenerateProjecttResponse { IsValid = true, Message = string.Empty, Project = NewProject, ProjectRevision = NewProjectRevision, ProjectStage = ProjectStage };
+            return new GenerateProjecttResponse { IsValid = true, Message = string.Empty, Project = NewProject, ProjectRevision = NewProjectRevision, ProjectStage = ProjectStage, ImportReference = ImportRef };
         }
         #endregion
         #region Funding Profile

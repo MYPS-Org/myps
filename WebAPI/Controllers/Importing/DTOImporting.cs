@@ -144,6 +144,8 @@ namespace WebAPI.Controllers.Importing
     {
         public string OldProjectId { get; set; } = string.Empty;
         public string NewProjectId { get; set; } = string.Empty;
+        public string ThirdSegment { get; set; } = string.Empty;
+        public int MaxId { get; set; }
     }
     public class ImportProjectDTO
     {

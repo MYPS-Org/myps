@@ -102,24 +102,26 @@ namespace WebAPI.Controllers.Importing
                 List<DBHelper.Models.Table.ProjectStages> projectstages = new List<DBHelper.Models.Table.ProjectStages>();
                 foreach (var Item in dto.ProjectDetails)
                 {
-                    ImportProjectReference AddProject = new ImportProjectReference
-                    {
-                        OldProjectId = Item.ProjectId,
-                        NewProjectId = string.Empty
-                    };
                     var Projects = _db.GenerateProject(IsValidProgram.ProgramDetails, Item, ProjectReference);
                     if (!Projects.IsValid)
                     {
                         return new BadRequestObjectResult(new { Message = Projects.Message, Tile = "Project Validation Error." });
                     }
+                    /*
+                    ImportProjectReference AddProject = new ImportProjectReference
+                    {
+                        OldProjectId = Item.ProjectId,
+                        NewProjectId = string.Empty
+                    };
                     AddProject.NewProjectId = Projects.Project.ReferenceId;
+                     */
                     Projects.Project.CreatedBy = User;
                     Projects.Project.CreatedDate = CurrentDate;
 
                     Projects.ProjectRevision.CreatedBy = User;
                     Projects.ProjectRevision.CreatedDate = CurrentDate;
 
-                    ProjectReference.Add(AddProject);
+                    ProjectReference.Add(Projects.ImportReference);
                     projects.Add(Projects.Project);
 
                     _db.tProjectRevisions.Add(Projects.ProjectRevision);
