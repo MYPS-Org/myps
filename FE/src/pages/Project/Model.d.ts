@@ -591,12 +591,13 @@ export interface DtoProjectDetails {
   implementationMode: string;
   emergencyMode: string;
   feasibility: string;
-  feasibilityDate: string;
+  feasibilityDate: string | null;
   detailedDesign: string;
-  detailedDesignDate: string;
+  detailedDesignDate: string | null;
   rowAvailable: string;
   regionWide: string;
   tier: string;
+  rank?: number | null;
 }
 
 export interface DtoFundingProfile {

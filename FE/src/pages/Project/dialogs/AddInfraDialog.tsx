@@ -212,7 +212,7 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
               <TableHeader>Section ID</TableHeader>
               <TableHeader>Road ID</TableHeader>
               <TableHeader>DEO</TableHeader>
-              <TableHeader>Length (km)</TableHeader>
+              <TableHeader>Length (m)</TableHeader>
               <TableHeader>Network Status</TableHeader>
             </TableRow>
           </TableHead>

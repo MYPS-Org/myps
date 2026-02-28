@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   ImportedProject,
   ImportProjectDTO,
   DtoProgramDetails,
@@ -64,12 +64,13 @@ function buildProjectDetails(imported: ImportedProject): DtoProjectDetails {
     implementationMode:   str(d.ImplementationModeName),
     emergencyMode:        str(d.EmergencyModeName),
     feasibility:          str(d.FeasibilityName),
-    feasibilityDate:      str(d.FeasibilityDate),
+    feasibilityDate:      d.FeasibilityDate || null,
     detailedDesign:       str(d.DetailedDesignName),
-    detailedDesignDate:   str(d.DetailedDesignDate),
+    detailedDesignDate:   d.DetailedDesignDate || null,
     rowAvailable:         str(d.RowAvailableName),
     regionWide:           str(d.RegionWideName),
     tier:                 str(d.TierName),
+    rank:                 d.Rank ?? null,
   };
 }
 

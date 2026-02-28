@@ -105,6 +105,7 @@ function parseProjectDetailsSheet(
       DetailedDesignName: toStr(r['Detailed Design']),
       DetailedDesignDate: toDateString(r['Detailed Design Date']),
       Description: toStr(r['Description']),
+      Rank: toNum(r['Rank']),
     });
   });
 
