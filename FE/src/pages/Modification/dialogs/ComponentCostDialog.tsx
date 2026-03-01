@@ -338,6 +338,14 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
             alert(`Please enter a valid amount for cost entry ${i + 1}.`);
             return;
           }
+          if (!cost.StartDate) {
+            alert(`Please select a Start Date for cost entry ${i + 1}.`);
+            return;
+          }
+          if (!cost.EndDate) {
+            alert(`Please select an End Date for cost entry ${i + 1}.`);
+            return;
+          }
         }
 
         if(formData.Total <= 0) {
@@ -626,9 +634,11 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                                                 type="date"
                                                 value={cost.StartDate ? cost.StartDate.split('T')[0] : ''}
                                                 onChange={(e) => handleEditPerYearCost(index, 'StartDate', e.target.value || null)}
+                                                onKeyDown={(e) => e.preventDefault()}
                                                 min={cost.Year ? `${cost.Year}-01-01` : undefined}
                                                 max={cost.EndDate ? cost.EndDate.split('T')[0] : (cost.Year ? `${cost.Year}-12-31` : undefined)}
                                                 className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                required
                                             />
                                         </div>
                                         <div>
@@ -639,9 +649,11 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                                                 type="date"
                                                 value={cost.EndDate ? cost.EndDate.split('T')[0] : ''}
                                                 onChange={(e) => handleEditPerYearCost(index, 'EndDate', e.target.value || null)}
+                                                onKeyDown={(e) => e.preventDefault()}
                                                 min={cost.StartDate ? cost.StartDate.split('T')[0] : (cost.Year ? `${cost.Year}-01-01` : undefined)}
                                                 max={cost.Year ? `${cost.Year}-12-31` : undefined}
                                                 className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                required
                                             />
                                         </div>
                                         <div className=''>
