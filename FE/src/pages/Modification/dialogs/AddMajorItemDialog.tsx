@@ -175,7 +175,7 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
     }
     
     // Always exclude EAO, EXC, SAV component IDs regardless of mode or reason
-    const excludedComponents = ['EAO', 'EXC', 'SAV', 'CoS'];
+    const excludedComponents = ['EAO', 'EXC', 'SAV', 'COS', 'FS', 'DED', 'LS', 'OTH3', 'OTH4', 'OTH2', 'EXP', 'CS'];
     const componentId = cost.ComponentId?.toUpperCase();
     const isExcluded = excludedComponents.includes(componentId);
     
