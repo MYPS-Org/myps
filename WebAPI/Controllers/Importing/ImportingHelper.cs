@@ -214,11 +214,11 @@ namespace WebAPI.Controllers.Importing
             string baseId = toSaveProjectId.Replace("-", "");
             string ReferenceId = baseId;
             var check = Saved.Where(x => x.ThirdSegment == parts[2]).OrderByDescending(x => x.MaxId).FirstOrDefault(x => x.ThirdSegment == parts[2]);
-            ImportRef.MaxId = int.Parse(parts[2]);
+            ImportRef.MaxId = parts[2];
             ImportRef.ThirdSegment = parts[2];
             if (check != null)
             {
-                ImportRef.MaxId = check.MaxId + 1;
+                ImportRef.MaxId = (int.Parse(check.MaxId) + 1).ToString();
                 ReferenceId = toSaveProjectId.Replace(parts[2], ImportRef.MaxId.ToString()).Replace("-", "");
             }
             ImportRef.OldProjectId = details.ProjectId;

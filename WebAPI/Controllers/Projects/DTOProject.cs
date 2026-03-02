@@ -154,7 +154,7 @@ namespace WebAPI.Controllers.Projects
         public Double? EndX { get; set; }
         public Double? EndY { get; set; }
         [Required]
-        public Double? PhysicalTarget { get; set; }
+        public Double PhysicalTarget { get; set; }
         [MaxLength(100)]
         public string? StartStationLimit { get; set; }
         [MaxLength(100)]

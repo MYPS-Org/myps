@@ -18,9 +18,13 @@ namespace DBHelper.Models.Table
         [Required]
         [MaxLength(100)]
         public string ComponentCostId { get; set; } = string.Empty;
+        [Required]
         public Double Amount { get; set; }
+        [Required]
         public int Year { get; set; }
+        [Required]
         public DateTime StartDate { get; set; }
+        [Required]
         public DateTime EndDate { get; set; }
         public bool IsDeleted { get; set; } = false;
     }

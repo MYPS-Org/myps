@@ -845,7 +845,7 @@ namespace WebAPI.Controllers.Programs
                         var newProgramRevision = new ProgramRevisions()
                         {
                             ProgramId = dto.ProgramId,
-                            RevisionNumber = checkRevisions.RevisionNumber + 1,
+                            RevisionNumber = 1,
                             Name = dto.Name,
                             DataSecurityGroup = checkRevisions.DataSecurityGroup,
                             UserGroup = checkRevisions.UserGroup,

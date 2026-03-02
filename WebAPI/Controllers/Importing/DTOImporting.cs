@@ -127,14 +127,15 @@ namespace WebAPI.Controllers.Importing
         public string TargetUnitId { get; set; } = string.Empty;
         [Required]
         public string TargetUnit { get; set; } = string.Empty;
-        public int PhysicalTarget { get; set; }
-        public double Length { get; set; }
-        public double? StartChainage { get; set; }
-        public double? EndChainage { get; set; }
-        public double? StartX { get; set; }
-        public double? StartY { get; set; }
-        public double? EndX { get; set; }
-        public double? EndY { get; set; }
+        [Required]
+        public Double PhysicalTarget { get; set; }
+        public Double? Length { get; set; }
+        public Double? StartChainage { get; set; }
+        public Double? EndChainage { get; set; }
+        public Double? StartX { get; set; }
+        public Double? StartY { get; set; }
+        public Double? EndX { get; set; }
+        public Double? EndY { get; set; }
         public string? StartStationLimit { get; set; }
         public string? EndStationLimit { get; set; }
     }
@@ -143,7 +144,7 @@ namespace WebAPI.Controllers.Importing
         public string OldProjectId { get; set; } = string.Empty;
         public string NewProjectId { get; set; } = string.Empty;
         public string ThirdSegment { get; set; } = string.Empty;
-        public int MaxId { get; set; }
+        public string MaxId { get; set; } = string.Empty;
     }
     public class ImportProjectDTO
     {
