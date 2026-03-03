@@ -17,6 +17,44 @@ const SHEET_COMPONENT_DETAILS = 'COMPONENT DETAILS';
 const SHEET_MAJOR_ITEMS       = 'MAJOR ITEMS OF WORK';
 
 // ---------------------------------------------------------------------------
+// Validate _ImportStatus Sheet
+// ---------------------------------------------------------------------------
+function validateImportStatusSheet(ws: XLSX.WorkSheet): string | null {
+  // Directly access specific cells in the _ImportStatus sheet
+  const getCellValue = (cellAddress: string): string => {
+    const cell = ws[cellAddress];
+    return cell ? String(cell.v).trim() : '';
+  };
+
+  const status = getCellValue('B1');
+  const savedAt = getCellValue('B2');
+  const validatedAt = getCellValue('B3');
+  const signature = getCellValue('B4');
+
+  // Validate STATUS
+  if (status.toUpperCase() !== 'VALIDATED') {
+    return 'The STATUS is missing or invalid. STATUS must be VALIDATED.';
+  }
+
+  // Validate SAVED_AT
+  if (!savedAt) {
+    return 'The SAVED_AT field is missing or empty.';
+  }
+
+  // Validate VALIDATED_AT
+  if (!validatedAt) {
+    return 'The VALIDATED_AT field is missing or empty.';
+  }
+
+  // Validate SIGNATURE
+  if (signature.toUpperCase() !== 'MYPS-IMPORT-2026') {
+    return 'The SIGNATURE is missing or invalid. This is not an authorized import file.';
+  }
+
+  return null; // No errors
+}
+
+// ---------------------------------------------------------------------------
 // Helper: convert Excel date serial → "MM/DD/YYYY" string (or return as-is)
 // ---------------------------------------------------------------------------
 function toDateString(value: unknown): string | undefined {
@@ -48,9 +86,13 @@ function toStr(value: unknown): string | undefined {
   return String(value).trim();
 }
 
-// Helper: skip rows where every value is null / empty string / whitespace-only
+// Helper: skip rows where every value is null, empty string, whitespace-only, or contains only non-visible characters
 function isEmptyRow(r: RawRow): boolean {
-  return Object.values(r).every((v) => v == null || String(v).trim() === '');
+  return Object.values(r).every((v) => {
+    if (v == null) return true; // Null or undefined
+    const str = String(v).trim();
+    return str === '' || str.match(/^\s*$/); // Empty or whitespace-only
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -147,9 +189,25 @@ function parseComponentDetailsSheet(ws: XLSX.WorkSheet): {
 } {
   const errors: string[] = [];
   const raw: RawRow[] = XLSX.utils.sheet_to_json(ws, { defval: null });
+
+  // Log raw data for debugging
+  console.log('[Debug] Raw data from COMPONENT DETAILS sheet:', raw);
+
   const rows: ImportedComponentCost[] = [];
 
-  raw.filter((r) => !isEmptyRow(r)).forEach((r, i) => {
+  // Check if the sheet is empty
+  if (raw.length === 0) {
+    console.warn('COMPONENT DETAILS sheet is empty. Skipping parsing.');
+    return { rows, errors };
+  }
+
+  raw.filter((r) => {
+    const isEmpty = isEmptyRow(r);
+    if (isEmpty) {
+      console.log('[Debug] Skipping empty row:', r);
+    }
+    return !isEmpty;
+  }).forEach((r, i) => {
     const projectId = toStr(r['Project ID']);
     if (!projectId) {
       errors.push(`COMPONENT DETAILS row ${i + 2}: missing Project ID`);
@@ -161,8 +219,8 @@ function parseComponentDetailsSheet(ws: XLSX.WorkSheet): {
       ComponentId: toStr(r['Component ID']) ?? '',
       Description: toStr(r['Description']),
       Total: toNum(r['Cost']) ?? 0,
-      StartDate: toDateString(r['Planned Start Date']),
-      EndDate: toDateString(r['Planned End Date']),
+      StartDate: toDateString(r['Planned Start Date'] ?? ''),
+      EndDate: toDateString(r['Planned End Date'] ?? ''),
       InfraTypeName: toStr(r['Infrastructure Type']),
       WorkTypeName: toStr(r['Type of Work']),
       ActivityYear: toNum(r['Activity Year']),
@@ -219,15 +277,31 @@ export async function parseImportFile(file: File): Promise<ImportParseResult> {
 
   const allErrors: string[] = [];
 
-  // Validate sheet presence
-  const required = [SHEET_PROJECT_DETAILS, SHEET_FUNDING_PROFILE, SHEET_COMPONENT_DETAILS, SHEET_MAJOR_ITEMS];
-  for (const name of required) {
-    if (!wb.SheetNames.includes(name)) {
-      allErrors.push(`Missing required sheet: "${name}"`);
+  // Validate _ImportStatus sheet
+  const importStatusSheet = wb.Sheets['_ImportStatus'];
+  if (!importStatusSheet) {
+    allErrors.push('The _ImportStatus sheet is missing. The file is not valid.');
+  } else {
+    const validationError = validateImportStatusSheet(importStatusSheet);
+    if (validationError) {
+      allErrors.push(validationError);
     }
   }
+
+  // Validate presence of required sheets
+  const required = [SHEET_PROJECT_DETAILS, SHEET_FUNDING_PROFILE, SHEET_COMPONENT_DETAILS, SHEET_MAJOR_ITEMS];
+  for (const name of required) {
+    if (!wb.Sheets[name]) {
+      allErrors.push(`The required sheet "${name}" is missing.`);
+    }
+  }
+
   if (allErrors.length > 0) {
-    return { projects: [], errors: allErrors, totalRows: { details: 0, components: 0, funding: 0, majorItems: 0 } };
+    return {
+      projects: [],
+      errors: allErrors,
+      totalRows: { details: 0, components: 0, funding: 0, majorItems: 0 },
+    };
   }
 
   // Parse each sheet
@@ -242,12 +316,10 @@ export async function parseImportFile(file: File): Promise<ImportParseResult> {
   const projectMap = new Map<string, ImportedProject>();
 
   for (const detail of detailRows) {
-    projectMap.set(detail.ProjectId, {
-      ProjectDetails: detail,
-      ComponentCosts: [],
-      FundingProfiles: [],
-      MajorItemsOfWork: [],
-    });
+    const projectId = detail.ProjectId;
+    if (!projectMap.has(projectId)) {
+      projectMap.set(projectId, { ProjectDetails: detail, FundingProfiles: [], ComponentCosts: [], MajorItemsOfWork: [] });
+    }
   }
 
   // Attach funding rows
@@ -255,8 +327,6 @@ export async function parseImportFile(file: File): Promise<ImportParseResult> {
     const project = projectMap.get(row.ProjectId);
     if (project) {
       project.FundingProfiles.push(row);
-    } else {
-      allErrors.push(`FUNDING PROFILE: Project ID "${row.ProjectId}" not found in PROJECT DETAILS`);
     }
   }
 
@@ -265,8 +335,6 @@ export async function parseImportFile(file: File): Promise<ImportParseResult> {
     const project = projectMap.get(row.ProjectId);
     if (project) {
       project.ComponentCosts.push(row);
-    } else {
-      allErrors.push(`COMPONENT DETAILS: Project ID "${row.ProjectId}" not found in PROJECT DETAILS`);
     }
   }
 
@@ -275,8 +343,6 @@ export async function parseImportFile(file: File): Promise<ImportParseResult> {
     const project = projectMap.get(row.ProjectId);
     if (project) {
       project.MajorItemsOfWork.push(row);
-    } else {
-      allErrors.push(`MAJOR ITEMS OF WORK: Project ID "${row.ProjectId}" not found in PROJECT DETAILS`);
     }
   }
 
@@ -295,9 +361,9 @@ export async function parseImportFile(file: File): Promise<ImportParseResult> {
   console.log('Total rows parsed:', parseResult.totalRows);
   console.log('Projects found:', parseResult.projects.length);
   if (allErrors.length > 0) {
-    console.warn('Parse warnings/errors:', allErrors);
+    console.error('Errors:', allErrors);
   } else {
-    console.log('No parse errors.');
+    console.log('No errors found.');
   }
   console.log('Full projects JSON:', JSON.stringify(parseResult.projects, null, 2));
   console.groupEnd();

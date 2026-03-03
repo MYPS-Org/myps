@@ -40,7 +40,7 @@ const ImportProjectsDialog: React.FC<ImportProjectsDialogProps> = ({
   const [activeTab, setActiveTab] = useState<TabKey>('summary');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // â”€â”€ reset when dialog re-opens â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // reset when dialog re-opens  
   const handleClose = () => {
     setDragging(false);
     setFileName(null);
@@ -50,7 +50,7 @@ const ImportProjectsDialog: React.FC<ImportProjectsDialogProps> = ({
     onClose();
   };
 
-  // â”€â”€ file processing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ile processing 
   const processFile = useCallback(async (file: File) => {
     setFileName(file.name);
     setParseState('parsing');
@@ -61,7 +61,7 @@ const ImportProjectsDialog: React.FC<ImportProjectsDialogProps> = ({
       setParseState('done');
       setActiveTab(parsed.errors.length > 0 ? 'errors' : 'summary');
 
-      // â”€â”€ Console log the full JSON breakdown in server-payload shape â”€â”€
+      // Console log the full JSON breakdown in server-payload shape 
       const transformed = transformImportedProjects(parsed.projects, programId, stageName);
       console.group('[Import – JSON Breakdown]');
       console.log('programDetails:',     transformed.programDetails);
@@ -85,7 +85,7 @@ const ImportProjectsDialog: React.FC<ImportProjectsDialogProps> = ({
     }
   }, [programId]);
 
-  // â”€â”€ drag & drop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // drag & drop
   const handleDrop = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
       e.preventDefault();
@@ -102,7 +102,7 @@ const ImportProjectsDialog: React.FC<ImportProjectsDialogProps> = ({
     e.target.value = '';
   };
 
-  // â”€â”€ submit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // submit 
   const handleImport = () => {
     if (result && result.projects.length > 0) {
       onSubmit(result.projects);
@@ -110,7 +110,7 @@ const ImportProjectsDialog: React.FC<ImportProjectsDialogProps> = ({
     }
   };
 
-  // â”€â”€ derived data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // derived data 
   const hasProjects = (result?.projects.length ?? 0) > 0;
   const hasErrors   = (result?.errors.length ?? 0) > 0;
 
@@ -130,7 +130,7 @@ const ImportProjectsDialog: React.FC<ImportProjectsDialogProps> = ({
     return Array.from(map.values());
   })();
 
-  // â”€â”€ render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // render
   const tabs: { key: TabKey; label: string; count?: number; color?: string }[] = [
     { key: 'summary',       label: 'Summary' },
     { key: 'projects',      label: 'Projects',        count: result?.projects.length,    color: 'bg-blue-100 text-blue-700' },
@@ -149,7 +149,7 @@ const ImportProjectsDialog: React.FC<ImportProjectsDialogProps> = ({
       <div className="fixed inset-0 flex items-center justify-center p-4">
         <DialogPanel className="mx-auto max-w-6xl w-full rounded-lg bg-white shadow-xl flex flex-col max-h-[90vh]">
 
-          {/* â”€â”€ Header â”€â”€ */}
+          {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <DialogTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
               <DocumentArrowUpIcon className="h-6 w-6 text-blue-600" />
@@ -160,7 +160,7 @@ const ImportProjectsDialog: React.FC<ImportProjectsDialogProps> = ({
             </button>
           </div>
 
-          {/* â”€â”€ Scrollable body â”€â”€ */}
+          {/* Scrollable body */}
           <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
 
             {/* Program info */}
@@ -169,7 +169,7 @@ const ImportProjectsDialog: React.FC<ImportProjectsDialogProps> = ({
               {programId && <span className="ml-3 text-blue-500 text-xs">({programId})</span>}
             </div>
 
-            {/* â”€â”€ Drop zone â”€â”€ */}
+            {/* Drop zone */}
             <div
               onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
               onDragLeave={() => setDragging(false)}
@@ -205,7 +205,7 @@ const ImportProjectsDialog: React.FC<ImportProjectsDialogProps> = ({
               )}
             </div>
 
-            {/* â”€â”€ Results area â”€â”€ */}
+            {/* Results area */}
             {result && (
               <>
                 {/* Tabs */}
@@ -231,7 +231,7 @@ const ImportProjectsDialog: React.FC<ImportProjectsDialogProps> = ({
                   ))}
                 </div>
 
-                {/* â”€â”€ Summary â”€â”€ */}
+                {/* Summary */}
                 {activeTab === 'summary' && (
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {[
@@ -251,7 +251,7 @@ const ImportProjectsDialog: React.FC<ImportProjectsDialogProps> = ({
                   </div>
                 )}
 
-                {/* â”€â”€ Projects â”€â”€ */}
+                {/* Projects */}
                 {activeTab === 'projects' && (
                   <div className="overflow-x-auto rounded-md border border-gray-200">
                     <table className="min-w-full divide-y divide-gray-200 text-xs">
@@ -289,7 +289,7 @@ const ImportProjectsDialog: React.FC<ImportProjectsDialogProps> = ({
                   </div>
                 )}
 
-                {/* â”€â”€ Funding â”€â”€ */}
+                {/* Funding */}
                 {activeTab === 'funding' && (
                   <div className="overflow-x-auto rounded-md border border-gray-200">
                     <table className="min-w-full divide-y divide-gray-200 text-xs">
@@ -315,7 +315,7 @@ const ImportProjectsDialog: React.FC<ImportProjectsDialogProps> = ({
                   </div>
                 )}
 
-                {/* â”€â”€ Components (grouped by ComponentId) â”€â”€ */}
+                {/* Components (grouped by ComponentId) */}
                 {activeTab === 'components' && (
                   <div className="overflow-x-auto rounded-md border border-gray-200">
                     <table className="min-w-full divide-y divide-gray-200 text-xs">
@@ -342,7 +342,7 @@ const ImportProjectsDialog: React.FC<ImportProjectsDialogProps> = ({
                   </div>
                 )}
 
-                {/* â”€â”€ Cost Per Year â”€â”€ */}
+                {/* Cost Per Year */}
                 {activeTab === 'costperyear' && (
                   <div className="overflow-x-auto rounded-md border border-gray-200">
                     <table className="min-w-full divide-y divide-gray-200 text-xs">
@@ -373,7 +373,7 @@ const ImportProjectsDialog: React.FC<ImportProjectsDialogProps> = ({
                   </div>
                 )}
 
-                {/* â”€â”€ Major Items â”€â”€ */}
+                {/* Major Items */}
                 {activeTab === 'majoritems' && (
                   <div className="overflow-x-auto rounded-md border border-gray-200">
                     <table className="min-w-full divide-y divide-gray-200 text-xs">
@@ -402,7 +402,7 @@ const ImportProjectsDialog: React.FC<ImportProjectsDialogProps> = ({
                   </div>
                 )}
 
-                {/* â”€â”€ Major Locations â”€â”€ */}
+                {/* Major Locations */}
                 {activeTab === 'majorlocations' && (
                   <div className="overflow-x-auto rounded-md border border-gray-200">
                     <table className="min-w-full divide-y divide-gray-200 text-xs">
@@ -439,7 +439,7 @@ const ImportProjectsDialog: React.FC<ImportProjectsDialogProps> = ({
                   </div>
                 )}
 
-                {/* â”€â”€ Errors â”€â”€ */}
+                {/* Errors */}
                 {activeTab === 'errors' && (
                   <div>
                     {hasErrors ? (
@@ -472,7 +472,7 @@ const ImportProjectsDialog: React.FC<ImportProjectsDialogProps> = ({
             )}
           </div>
 
-          {/* â”€â”€ Footer â”€â”€ */}
+          {/* Footer */}
           <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-lg">
             <p className="text-xs text-gray-500">
               {hasProjects
