@@ -316,10 +316,13 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
           return;
         }
 
-        // if(formData.Description?.trim() === '') {
-        //   alert('Please enter a Description.');
-        //   return;
-        // }
+        const excludedComponents = ['EAO', 'EXC', 'SAV', 'COS', 'FS', 'DED', 'LS', 'OTH3', 'OTH4', 'OTH2', 'EXP', 'CS'];
+        const isExcludedComponent = excludedComponents.includes(formData.ComponentId?.toUpperCase());
+
+        if(!isExcludedComponent && formData.Description?.trim() === '') {
+          alert('Please enter a Description.');
+          return;
+        }
 
         if(componentCostPerYear.filter(cost => !cost.IsDeleted).length === 0) {
           alert('Please add at least one per-year cost.');

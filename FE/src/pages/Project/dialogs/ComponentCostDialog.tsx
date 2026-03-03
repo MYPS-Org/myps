@@ -216,7 +216,10 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
       return;
     }
 
-    if(formData.Description?.trim() === '') {
+    const excludedComponents = ['EAO', 'EXC', 'SAV', 'COS', 'FS', 'DED', 'LS', 'OTH3', 'OTH4', 'OTH2', 'EXP', 'CS'];
+    const isExcludedComponent = excludedComponents.includes(formData.ComponentId?.toUpperCase());
+
+    if(!isExcludedComponent && formData.Description?.trim() === '') {
       showToast({
         type: 'error',
         message: 'Please enter a Description.'
