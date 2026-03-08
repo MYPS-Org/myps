@@ -28,11 +28,20 @@ import {
 Cog6ToothIcon,
 HomeIcon,
 QuestionMarkCircleIcon,
-Square2StackIcon,
 FolderIcon,
-// CalendarDateRangeIcon,
+FolderOpenIcon,
+BriefcaseIcon,
+BanknotesIcon,
+ArrowPathIcon,
+RectangleGroupIcon,
+CalendarDaysIcon,
+DocumentChartBarIcon,
+TableCellsIcon,
+ShieldCheckIcon,
+UsersIcon,
+ServerStackIcon,
 UserIcon,
-UserGroupIcon
+UserGroupIcon,
 } from '@heroicons/react/20/solid'
 import { authService } from '../pages/login/Service' // for getting the service logout
 import { useAuth } from '../contexts/AuthContext' // for getting data friom context
@@ -105,23 +114,23 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 					<SidebarLabel className="text-gray-500">Dashboard</SidebarLabel>
 				</SidebarItem>
 				<SidebarItem href="/programs" current={currentPath === '/programs'}>
-					<FolderIcon />
+					<FolderOpenIcon />
 					<SidebarLabel className="text-gray-500">Programs</SidebarLabel>
 				</SidebarItem>
 				<SidebarItem href="/projects" current={currentPath === '/projects'}>
-					<Square2StackIcon />
+					<BriefcaseIcon />
 					<SidebarLabel className="text-gray-500">Projects</SidebarLabel>
 				</SidebarItem>
-				<SidebarItem href="/lumpsum" current={currentPath === '/lumpsum'}>
-					<Square2StackIcon />
+				{/* <SidebarItem href="/lumpsum" current={currentPath === '/lumpsum'}>
+					<BanknotesIcon />
 					<SidebarLabel className="text-gray-500">Lump Sum</SidebarLabel>
-				</SidebarItem>
+				</SidebarItem> */}
 				<SidebarItem href="/revision" current={currentPath === '/revision'}>
-					<Square2StackIcon />
+					<ArrowPathIcon />
 					<SidebarLabel className="text-gray-500">Revision</SidebarLabel>
 				</SidebarItem>
 				<SidebarItem href="/project-groups" current={currentPath === '/project-groups'}>
-					<Square2StackIcon />
+					<RectangleGroupIcon />
 					<SidebarLabel className="text-gray-500">Project Groups</SidebarLabel>
 				</SidebarItem>	
 				{/* <SidebarItem href="/program-stages" current={currentPath === '/program-stages'}>	
@@ -133,7 +142,7 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 				defaultOpen={false}
 				className="text-gray-500"
 				>
-				<Cog6ToothIcon />
+				<CalendarDaysIcon />
 				<SidebarDropdownItem href="/multiyear/programs" current={currentPath === '/multiyear/programs'}>
 					<SidebarLabel>Programs</SidebarLabel>
 				</SidebarDropdownItem>
@@ -146,7 +155,7 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 				defaultOpen={false}
 				className="text-gray-500"
 				>
-				<Cog6ToothIcon />
+				<DocumentChartBarIcon />
 				<SidebarDropdownItem href="/reports/programs" current={currentPath === '/reports/programs'}>
 					<SidebarLabel>Programs</SidebarLabel>
 				</SidebarDropdownItem>
@@ -164,15 +173,19 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 				>
 				<Cog6ToothIcon />
 				<SidebarDropdownItem href="/code-tables" current={currentPath === '/code-tables'}>
+					<TableCellsIcon />
 					<SidebarLabel>Code Tables</SidebarLabel>
 				</SidebarDropdownItem>
 				<SidebarDropdownItem href="/settings/security" current={currentPath === '/settings/security'}>
+					<ShieldCheckIcon />
 					<SidebarLabel>Security</SidebarLabel>
 				</SidebarDropdownItem>
 				<SidebarDropdownItem href="/user-management" current={currentPath === '/user-management'}>
+					<UsersIcon />
 					<SidebarLabel>User Management</SidebarLabel>
 				</SidebarDropdownItem>
 				<SidebarDropdownItem href="/infrastructure-management" current={currentPath === '/infrastructure-management'}>
+					<ServerStackIcon />
 					<SidebarLabel>Infra Management</SidebarLabel>
 				</SidebarDropdownItem>
 			</SidebarDropdown>
