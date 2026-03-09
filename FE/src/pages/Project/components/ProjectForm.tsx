@@ -177,9 +177,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           // alert('loading map data' + initialData?.ProjectDetails?.ProjectId + ' ' + initialData?.ProgramDetails?.ProgramId);
           const response = await fetchProjectGeoJSON(
             initialData.ProjectDetails.ProjectId,
-            initialData.ProgramDetails.ProgramId
-            // 'P00906380VS',
-            // 'P_CO-PS-635_01302025_100232'
+            initialData.ProgramDetails.ProgramId,
+            user?.UserId || '',
+            initialData.ProgramDetails.StageName
           );
           if (response.Data) {
             setGeoJsonData(response.Data);

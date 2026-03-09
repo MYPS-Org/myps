@@ -198,24 +198,30 @@ export const fetchProjectStagesByProjectId = async (projectId: string) => {
 // #endregion
 
 // #region GeoJSON Data
-export const fetchProjectGeoJSON = async (projectId: string, programId: string) => {
+export const fetchProjectGeoJSON = async (projectId: string, programId: string, username: string, stageName: string) => {
     try {
-        // Using external API endpoint with query parameters
-        const apiUrl = `http://192.168.1.93:8000/api_v1.0/project/features?project_id=${projectId}&program_id=${programId}`;
-        
+        const params = new URLSearchParams({
+            project_id: projectId,
+            program_id: programId,
+            username,
+            program_stage_name: stageName,
+        });
+        const apiUrl = `https://slavishly-otoscopic-adelynn.ngrok-free.dev/api_v1.0/project/features_v4?${params.toString()}`;
+
         const response = await fetch(apiUrl, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
+                'ngrok-skip-browser-warning': 'true',
             },
         });
-        
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
-        
+
         return {
             Data: data,
             Status: response.status,

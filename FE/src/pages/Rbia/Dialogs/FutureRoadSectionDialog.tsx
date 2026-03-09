@@ -16,6 +16,10 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
   const [selectedItem] = useAtom(selectedItemAtom);
   const [roads] = useAtom(roadsAtom);
   const [initRoadSections] = useAtom(deoListAtom);
+  const getIslandCode = (roadId: string) => roadId.match(/[A-Za-z]+$/)?.[0] ?? "";
+
+  const [sectionDigits, setSectionDigits] = useState("");
+
   const [formData, setFormData] = useState<RoadSection>({
     Id: 0,
     RoadId: road?.RoadId || "", // Pre-fill with road ID if provided
@@ -30,19 +34,29 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
     UpdatedDate: ''    
   });
 
+  const currentIslandCode = getIslandCode(formData.RoadId);
+
   useEffect(() => {
     if (selectedItem && 'RoadSectionId' in selectedItem) {
-      setFormData(selectedItem as RoadSection); // Populate form with selected item for editing
+      const item = selectedItem as RoadSection;
+      setFormData(item);
+      // Extract the 5-digit portion from the existing RoadSectionId (FS + 5digits + islandCode)
+      const match = item.RoadSectionId.match(/^FS(\d{5})/);
+      setSectionDigits(match ? match[1] : "");
     }
   }, [selectedItem]);
 
+  useEffect(() => {
+    const islandCode = getIslandCode(formData.RoadId);
+    const padded = sectionDigits.padStart(5, "0");
+    setFormData(prev => ({
+      ...prev,
+      RoadSectionId: sectionDigits ? `FS${padded}${islandCode}` : ""
+    }));
+  }, [sectionDigits, formData.RoadId]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!formData.RoadSectionId.startsWith("FS")) {
-      alert("Section Road ID must start with 'FS'");
-      return;
-    }
 
     try {
       const payload = {
@@ -85,6 +99,7 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
   };
 
   const handleReset = () => {
+    setSectionDigits("");
     setFormData({
       Id: 0,
       RoadId: road?.RoadId || "", // Preserve road ID if passed
@@ -166,16 +181,33 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Section Road ID <span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
-                value={formData.RoadSectionId}
-                onChange={(e) => handleChange('RoadSectionId', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
-                required
-                placeholder="Enter Section Road ID (must start with 'FS')"
-              />
+              <div className="flex items-center border border-gray-300 rounded-md shadow-sm focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 bg-white overflow-hidden">
+                <span className="px-3 py-2 bg-gray-100 text-gray-500 font-mono text-sm border-r border-gray-300 select-none">
+                  FS
+                </span>
+                <input
+                  type="text"
+                  value={sectionDigits}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "").slice(0, 5);
+                    setSectionDigits(val);
+                  }}
+                  className="flex-1 px-3 py-2 text-gray-900 placeholder-gray-400 focus:outline-none font-mono"
+                  required
+                  placeholder="00001"
+                  maxLength={5}
+                />
+                <span className="px-3 py-2 bg-gray-100 text-gray-500 font-mono text-sm border-l border-gray-300 select-none min-w-[40px] text-center">
+                  {currentIslandCode || "???"}
+                </span>
+              </div>
+              {formData.RoadSectionId && (
+                <p className="text-xs text-blue-600 mt-1 font-mono">
+                  Full ID: {formData.RoadSectionId}
+                </p>
+              )}
               <p className="text-xs text-gray-500 mt-1">
-                Section Road ID must start with 'FS' (e.g., S001-001, FS001-002)
+                Enter the 5-digit number. The island code is derived from the selected road.
               </p>
             </div>
 

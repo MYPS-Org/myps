@@ -15,6 +15,8 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
   // const [bridges, setBridges] = useAtom(bridgesAtom);
   const [selectedItem] = useAtom(selectedItemAtom);
   const [roadSections] = useAtom(roadSectionsAtom);
+  const getIslandCode = (sectionId: string) => sectionId.match(/[A-Za-z]+$/)?.[0] ?? "";
+  const [bridgeDigits, setBridgeDigits] = useState("");
   const [formData, setFormData] = useState<Bridge>({
     Id: 0,
     RoadSectionId: roadSection?.RoadSectionId || '', // Pre-fill with road section ID if provided
@@ -32,11 +34,25 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
     UpdatedDate: ''
   });
 
+  const currentIslandCode = getIslandCode(formData.RoadSectionId);
+
   useEffect(() => {
     if (selectedItem && 'CarriageWay' in selectedItem) {
-      setFormData(selectedItem as Bridge); // Populate form with selected item for editing
+      const item = selectedItem as Bridge;
+      setFormData(item);
+      const match = item.BridgeId.match(/^FB(\d{5})/);
+      setBridgeDigits(match ? match[1] : "");
     }
   }, [selectedItem]);
+
+  useEffect(() => {
+    const islandCode = getIslandCode(formData.RoadSectionId);
+    const padded = bridgeDigits.padStart(5, "0");
+    setFormData(prev => ({
+      ...prev,
+      BridgeId: bridgeDigits ? `FB${padded}${islandCode}` : ""
+    }));
+  }, [bridgeDigits, formData.RoadSectionId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,6 +108,7 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
   };
 
   const handleReset = () => {
+    setBridgeDigits("");
     setFormData({
       Id: 0,
       RoadSectionId: "",
@@ -172,21 +189,38 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
               )}
             </div>
 
-            {/* Bridge Name */}
+            {/* Bridge ID */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Bridge ID <span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
-                value={formData.BridgeId}
-                onChange={(e) => handleChange('BridgeId', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
-                required
-                placeholder="Enter Bridge ID (must start with 'FB')"
-              />
+              <div className="flex items-center border border-gray-300 rounded-md shadow-sm focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 bg-white overflow-hidden">
+                <span className="px-3 py-2 bg-gray-100 text-gray-500 font-mono text-sm border-r border-gray-300 select-none">
+                  FB
+                </span>
+                <input
+                  type="text"
+                  value={bridgeDigits}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "").slice(0, 5);
+                    setBridgeDigits(val);
+                  }}
+                  className="flex-1 px-3 py-2 text-gray-900 placeholder-gray-400 focus:outline-none font-mono"
+                  required
+                  placeholder="00001"
+                  maxLength={5}
+                />
+                <span className="px-3 py-2 bg-gray-100 text-gray-500 font-mono text-sm border-l border-gray-300 select-none min-w-[40px] text-center">
+                  {currentIslandCode || "???"}
+                </span>
+              </div>
+              {formData.BridgeId && (
+                <p className="text-xs text-blue-600 mt-1 font-mono">
+                  Full ID: {formData.BridgeId}
+                </p>
+              )}
               <p className="text-xs text-gray-500 mt-1">
-                Section Road ID must start with 'FS' (e.g., S001-001, FS001-002)
+                Enter the 5-digit number. The island code is derived from the selected road section.
               </p>
             </div>
             <div>

@@ -358,7 +358,7 @@ const MapRenderer: React.FC<MapRendererProps> = ({
       )}
 
       {/* Legend */}
-      {geoJsonData && geoJsonData.features.length > 0 && (
+      {/* {geoJsonData && geoJsonData.features.length > 0 && (
         <div style={{
           position: 'absolute',
           bottom: '20px',
@@ -399,7 +399,7 @@ const MapRenderer: React.FC<MapRendererProps> = ({
             <span>Construction</span>
           </div>
         </div>
-      )}
+      )} */}
     </div>
   );
 };
