@@ -69,7 +69,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   // const isDisabled = Number(initialData?.ProgramDetails?.Status) === 1;
   const isDisabled = Boolean(
     (initialData?.IsActive === false) ||
-    Number(initialData?.ProgramDetails?.StageId) === 10
+    (Number(initialData?.ProgramDetails?.StageId) === 10 && initialData?.ProgramDetails?.Status === 1)
   );
 
   // toggle state for Program Details section
@@ -1048,7 +1048,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             <>
               <div className="px-4 py-6 sm:p-8">
                 <ProjectDetailsForm
-                  programDetails={initialData?.ProgramDetails}
+                  programDetails={programDetails}
                   projectDetails={projectDetails}
                   onChange={handleProjectDetailsChange}
                   projectEnums={projectEnums || undefined}

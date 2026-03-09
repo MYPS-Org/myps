@@ -41,10 +41,10 @@ const FutureRoadDialog: React.FC<FutureRoadDialogProps> = ({ onClose }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.RoadId.startsWith("FR")) {
-      alert("Road ID must start with 'FR'");
-      return;
-    }
+    // if (!formData.RoadId.startsWith("FR")) {
+    //   alert("Road ID must start with 'FR'");
+    //   return;
+    // }
 
     if (!formData.RoadId || !formData.Name || !formData.Classification) {
       alert("Please fill in all required fields");
@@ -139,10 +139,10 @@ const FutureRoadDialog: React.FC<FutureRoadDialogProps> = ({ onClose }) => {
                 onChange={(e) => handleChange('RoadId', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
                 required
-                placeholder="Enter Road ID (must start with 'FR')"
+                placeholder="Enter Road ID (must start with 'FR' and end with Island Code)"
               />
               <p className="text-xs text-gray-500 mt-1">
-                Road ID must start with 'FR' (e.g., FR001, FR002)
+                Road ID must start with 'FR' followed by 5 digit Number and ends with Island Code (e.g., FR00001LZ, FR00002VS)
               </p>
             </div>
 

@@ -414,7 +414,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                     errors.Rank ? 'text-red-500' : 'text-gray-700'
                                 }`}
                                 >
-                                Priority Level
+                                Rank
                                 </label>
                                 <input
                                 type="number"

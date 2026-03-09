@@ -1,0 +1,215 @@
+﻿import React, { useState, useEffect } from 'react';
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '../../../../components/tailwindui/table';
+import { Button } from '../../../../components/tailwindui/button';
+import {
+  PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon, CheckIcon, XMarkIcon,
+} from '@heroicons/react/24/outline';
+import type { ThrustEnum } from '../../../Project/Model.d';
+
+const SAMPLE_DATA: ThrustEnum[] = [
+  { Id: 1, PAPKey: 1035, ProgramName: 'Buildings and Other Structures', SubProgramName: 'School Buildings', ActivityName: '', SequenceNumber: 1, ValidFromDate: 2016, ValidToDate: 2017, InfrastructureType: 'School Buildings', ThrustDescription: 'Construction of school buildings under various programs' },
+  { Id: 2, PAPKey: 1037, ProgramName: 'Construction and Maintenance of Bridges along National Roads', SubProgramName: 'Construction of New Permanent Bridges', ActivityName: '', SequenceNumber: 2, ValidFromDate: 2016, ValidToDate: 2017, InfrastructureType: 'Bridges', ThrustDescription: 'New permanent bridge construction along national roads' },
+  { Id: 3, PAPKey: 1059, ProgramName: 'DA Farm to Market Roads', SubProgramName: 'Farm to Market Roads', ActivityName: '', SequenceNumber: 3, ValidFromDate: 2016, ValidToDate: 0, InfrastructureType: 'Roads', ThrustDescription: 'DA-funded farm to market road projects' },
+  { Id: 4, PAPKey: 1093, ProgramName: 'General Infrastructure Program', SubProgramName: 'Roads', ActivityName: '', SequenceNumber: 4, ValidFromDate: 2022, ValidToDate: 0, InfrastructureType: 'Roads', ThrustDescription: 'General infrastructure program for roads' },
+];
+
+interface FormState {
+  PAPKey: number; ProgramName: string; SubProgramName: string;
+  ThrustDescription: string; InfrastructureType: string;
+  ValidFromDate: number; ValidToDate: number;
+}
+const EMPTY_FORM: FormState = {
+  PAPKey: 0, ProgramName: '', SubProgramName: '',
+  ThrustDescription: '', InfrastructureType: '',
+  ValidFromDate: new Date().getFullYear(), ValidToDate: 0,
+};
+
+interface Props { data?: ThrustEnum[]; loading?: boolean; }
+
+const ThrustTable: React.FC<Props> = ({ data, loading = false }) => {
+  const [rows, setRows]                = useState<ThrustEnum[]>([]);
+  const [editId, setEditId]            = useState<number | null>(null);
+  const [editForm, setEditForm]        = useState<FormState>(EMPTY_FORM);
+  const [addForm, setAddForm]          = useState<FormState | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [search, setSearch]            = useState('');
+
+  useEffect(() => {
+    if (!loading) setRows(data !== undefined ? data : SAMPLE_DATA);
+  }, [data, loading]);
+
+  const filtered = rows.filter(r =>
+    r.ProgramName.toLowerCase().includes(search.toLowerCase()) ||
+    r.SubProgramName.toLowerCase().includes(search.toLowerCase()) ||
+    (r.InfrastructureType ?? '').toLowerCase().includes(search.toLowerCase()) ||
+    r.ThrustDescription.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const startEdit = (r: ThrustEnum) => {
+    setEditId(r.Id);
+    setEditForm({
+      PAPKey: r.PAPKey, ProgramName: r.ProgramName, SubProgramName: r.SubProgramName,
+      ThrustDescription: r.ThrustDescription, InfrastructureType: r.InfrastructureType ?? '',
+      ValidFromDate: r.ValidFromDate, ValidToDate: r.ValidToDate,
+    });
+    setDeleteConfirmId(null);
+  };
+  const cancelEdit = () => setEditId(null);
+  const saveEdit = () => {
+    setRows(prev => prev.map(r => r.Id === editId
+      ? { ...r, ...editForm, InfrastructureType: editForm.InfrastructureType || undefined }
+      : r
+    ));
+    // TODO: PATCH /codetable/thrusts/{editId}
+    cancelEdit();
+  };
+  const saveAdd = () => {
+    if (!addForm) return;
+    setRows(prev => [{
+      Id: Date.now(), ActivityName: '', SequenceNumber: prev.length + 1,
+      ...addForm, InfrastructureType: addForm.InfrastructureType || undefined,
+    }, ...prev]);
+    // TODO: POST /codetable/thrusts
+    setAddForm(null);
+  };
+  const confirmDelete = (id: number) => {
+    setRows(prev => prev.filter(r => r.Id !== id));
+    // TODO: DELETE /codetable/thrusts/{id}
+    setDeleteConfirmId(null);
+  };
+
+  const inp = (color: 'add' | 'edit', extraClass = 'w-full') =>
+    `${extraClass} px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 ${color === 'add' ? 'border-indigo-300 focus:ring-indigo-500' : 'border-amber-300 focus:ring-amber-500'}`;
+
+  const periodLabel = (from: number, to: number) =>
+    to === 0 ? `${from} – present` : from === to ? `${from}` : `${from} – ${to}`;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h4 className="text-lg font-semibold text-gray-900">Thrust / PAP</h4>
+          <p className="text-sm text-gray-500 mt-0.5">Program Attributable Programs and associated thrusts used in project classification</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <MagnifyingGlassIcon className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input type="text" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)}
+              className="pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent w-52" />
+          </div>
+          <Button color="indigo" className="flex items-center gap-1 text-sm" onClick={() => setAddForm(EMPTY_FORM)} disabled={!!addForm}>
+            <PlusIcon className="h-4 w-4" /> Add
+          </Button>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto rounded-lg border border-gray-200">
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableHeader className="w-20">PAP Key</TableHeader>
+              <TableHeader>Program Name</TableHeader>
+              <TableHeader>Sub-Program</TableHeader>
+              <TableHeader>Infra Type</TableHeader>
+              <TableHeader className="w-32">Period</TableHeader>
+              <TableHeader className="w-32">Actions</TableHeader>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {loading ? (
+              <TableRow><TableCell colSpan={6} className="text-center py-10">
+                <div className="flex items-center justify-center gap-2 text-gray-400">
+                  <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>Loading...
+                </div>
+              </TableCell></TableRow>
+            ) : (
+              <>
+                {addForm !== null && (
+                  <TableRow className="bg-indigo-50 border-l-4 border-indigo-400">
+                    <TableCell><input autoFocus type="number" value={addForm.PAPKey} onChange={e => setAddForm(f => f ? { ...f, PAPKey: +e.target.value } : f)} placeholder="Key" className={inp('add', 'w-20')} /></TableCell>
+                    <TableCell>
+                      <input value={addForm.ProgramName} onChange={e => setAddForm(f => f ? { ...f, ProgramName: e.target.value } : f)} placeholder="Program name..." className={inp('add')} />
+                      <input value={addForm.SubProgramName} onChange={e => setAddForm(f => f ? { ...f, SubProgramName: e.target.value } : f)} placeholder="Sub-program..." className={`${inp('add')} mt-1`} />
+                    </TableCell>
+                    <TableCell><input value={addForm.ThrustDescription} onChange={e => setAddForm(f => f ? { ...f, ThrustDescription: e.target.value } : f)} placeholder="Description..." className={inp('add')} /></TableCell>
+                    <TableCell><input value={addForm.InfrastructureType} onChange={e => setAddForm(f => f ? { ...f, InfrastructureType: e.target.value } : f)} placeholder="Infra type..." className={inp('add')} /></TableCell>
+                    <TableCell>
+                      <input type="number" value={addForm.ValidFromDate} onChange={e => setAddForm(f => f ? { ...f, ValidFromDate: +e.target.value } : f)} placeholder="From" className={`${inp('add', 'w-16')} mb-1`} />
+                      <input type="number" value={addForm.ValidToDate} onChange={e => setAddForm(f => f ? { ...f, ValidToDate: +e.target.value } : f)} placeholder="To (0=now)" className={inp('add', 'w-16')} />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button color="indigo" className="p-1.5" onClick={saveAdd}><CheckIcon className="h-3.5 w-3.5" /></Button>
+                        <Button color="zinc" className="p-1.5" onClick={() => setAddForm(null)}><XMarkIcon className="h-3.5 w-3.5" /></Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+                {filtered.length === 0 && !addForm ? (
+                  <TableRow><TableCell colSpan={6} className="text-center py-10 text-gray-400">No records found.</TableCell></TableRow>
+                ) : filtered.map(item => (
+                  <TableRow key={item.Id} className={editId === item.Id ? 'bg-amber-50 border-l-4 border-amber-400' : undefined}>
+                    {editId === item.Id ? (
+                      <>
+                        <TableCell><input autoFocus type="number" value={editForm.PAPKey} onChange={e => setEditForm(f => ({ ...f, PAPKey: +e.target.value }))} className={inp('edit', 'w-20')} /></TableCell>
+                        <TableCell>
+                          <input value={editForm.ProgramName} onChange={e => setEditForm(f => ({ ...f, ProgramName: e.target.value }))} placeholder="Program..." className={inp('edit')} />
+                          <input value={editForm.SubProgramName} onChange={e => setEditForm(f => ({ ...f, SubProgramName: e.target.value }))} placeholder="Sub-program..." className={`${inp('edit')} mt-1`} />
+                        </TableCell>
+                        <TableCell><input value={editForm.ThrustDescription} onChange={e => setEditForm(f => ({ ...f, ThrustDescription: e.target.value }))} className={inp('edit')} /></TableCell>
+                        <TableCell><input value={editForm.InfrastructureType} onChange={e => setEditForm(f => ({ ...f, InfrastructureType: e.target.value }))} className={inp('edit')} /></TableCell>
+                        <TableCell>
+                          <input type="number" value={editForm.ValidFromDate} onChange={e => setEditForm(f => ({ ...f, ValidFromDate: +e.target.value }))} className={`${inp('edit', 'w-16')} mb-1`} />
+                          <input type="number" value={editForm.ValidToDate} onChange={e => setEditForm(f => ({ ...f, ValidToDate: +e.target.value }))} placeholder="0=now" className={inp('edit', 'w-16')} />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button color="indigo" className="p-1.5" onClick={saveEdit}><CheckIcon className="h-3.5 w-3.5" /></Button>
+                            <Button color="zinc" className="p-1.5" onClick={cancelEdit}><XMarkIcon className="h-3.5 w-3.5" /></Button>
+                          </div>
+                        </TableCell>
+                      </>
+                    ) : (
+                      <>
+                        <TableCell><span className="font-mono text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded">{item.PAPKey}</span></TableCell>
+                        <TableCell>
+                          <p className="text-sm font-medium text-gray-900">{item.ProgramName}</p>
+                          {item.SubProgramName && <p className="text-xs text-gray-500">{item.SubProgramName}</p>}
+                        </TableCell>
+                        <TableCell className="text-sm text-gray-500 max-w-xs truncate" title={item.ThrustDescription}>{item.ThrustDescription}</TableCell>
+                        <TableCell className="text-sm text-gray-600">{item.InfrastructureType ?? '—'}</TableCell>
+                        <TableCell className="text-xs text-gray-500 whitespace-nowrap">{periodLabel(item.ValidFromDate, item.ValidToDate)}</TableCell>
+                        <TableCell>
+                          {deleteConfirmId === item.Id ? (
+                            <div className="flex items-center gap-1">
+                              <span className="text-xs text-red-600">Delete?</span>
+                              <Button color="red" className="px-2 py-1 text-xs" onClick={() => confirmDelete(item.Id)}>Yes</Button>
+                              <Button color="zinc" className="px-2 py-1 text-xs" onClick={() => setDeleteConfirmId(null)}>No</Button>
+                            </div>
+                          ) : (
+                            <div className="flex gap-1">
+                              <Button color="zinc" className="p-1.5" onClick={() => startEdit(item)}><PencilIcon className="h-3.5 w-3.5" /></Button>
+                              <Button color="red" className="p-1.5" onClick={() => setDeleteConfirmId(item.Id)}><TrashIcon className="h-3.5 w-3.5" /></Button>
+                            </div>
+                          )}
+                        </TableCell>
+                      </>
+                    )}
+                  </TableRow>
+                ))}
+              </>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+      <p className="text-xs text-gray-400">{filtered.length} record(s)</p>
+    </div>
+  );
+};
+
+export default ThrustTable;

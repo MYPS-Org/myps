@@ -151,7 +151,7 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 				</SidebarDropdownItem>
 			</SidebarDropdown>
 			<SidebarDropdown
-				label="Generate Reports"
+				label="Reports"
 				defaultOpen={false}
 				className="text-gray-500"
 				>

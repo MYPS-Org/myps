@@ -345,26 +345,16 @@ export interface FundingProfile {
 
 // #region Additional interfaces for dropdowns and enums
 export interface Dropdowns {
-	// Categories: CategoryEnum[];
-	// Thrusts: ThrustEnum[];
-	// Origins: TableEnum[];
-	// Cities: ProjectCityEnum[];
 	ComponentTypes: ComponentTypeEnum[];
-	// LDs: ProjectLegislativeDistrictEnum[];
-	// OperatingUnits: ProjectOperatingUnitEnum[];
-	// IOs: ProjectImplementingOfficeEnum[];
-	// DEOs: RODEOEnum[];
-	// Agencies: AgencyEnum[];
-	// ImplementationModes: TableEnum[];
-	// EmergencyModes: TableEnum[];
-	// Feasibility: TableEnum[];
 	// Funding Profile
 	Agreements: AgreementEnum[];
 	Sources: SourceEnum[];
 	// Major Item of Works
 	ScopeOfWorks: ScopeOfWorkEnum[];
 	InfraTypes: InfraTypeEnum[];
+	// Supporting Documents
 	SupportingDocs: DropdownSupportingDocs[];
+	// Revisions
 	Revisions?: RevisionDropdown;
 }
 export interface DropdownSupportingDocs {
@@ -420,8 +410,9 @@ export interface RODEOEnum {
 }
 export interface AgencyEnum {
 	Id: number;
-	Code: string;
-	AgencyName: string;
+	NameId: number;
+	Name: string;
+	Description: null | string;
 }
 export interface EmergencyModeEnum {
 	Id: number;
