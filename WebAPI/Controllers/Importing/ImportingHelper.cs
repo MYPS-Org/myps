@@ -138,15 +138,15 @@ namespace WebAPI.Controllers.Importing
             {
                 return new GenerateProjecttResponse { IsValid = false, Message = $"Incorrect Project Origin in ProjectId: {details.ProjectId}, Selected Origin: {details.Origin}" };
             }
-            var City = _db.tOptionAdminAreaCityMunicipality.AsNoTracking().FirstOrDefault(x => x.Name == details.City);
-            if (City == null)
-            {
-                return new GenerateProjecttResponse { IsValid = false, Message = $"Incorrect City in ProjectId: {details.ProjectId}, Selected City: {details.City}" };
-            }
             var Province = _db.tOptionAdminAreaProvince.AsNoTracking().FirstOrDefault(x => x.Name == details.Province);
             if (Province == null)
             {
                 return new GenerateProjecttResponse { IsValid = false, Message = $"Incorrect Province in ProjectId: {details.ProjectId}, Selected Province: {details.Province}" };
+            }
+            var City = _db.tOptionAdminAreaCityMunicipality.AsNoTracking().FirstOrDefault(x => x.Name == details.City && x.ProvinceGdbId == Province.GdbId);
+            if (City == null)
+            {
+                return new GenerateProjecttResponse { IsValid = false, Message = $"Incorrect City in ProjectId: {details.ProjectId}, Selected City: {details.City}" };
             }
             var LD = _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().FirstOrDefault(x => x.Name == details.LegislativeDistrict);
             if (LD == null)

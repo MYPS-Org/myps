@@ -80,7 +80,6 @@ namespace WebAPI.Controllers.Importing
         public string ComponentType { get; set; } = string.Empty;
         [Required]
         public string ComponentId { get; set; } = string.Empty;
-        [Required]
         public string Description { get; set; } = string.Empty;
         [Required]
         public double Total { get; set; }
@@ -121,8 +120,7 @@ namespace WebAPI.Controllers.Importing
         public string ParentId { get; set; } = string.Empty;
         [Required]
         public string InfraId { get; set; } = string.Empty;
-        [Required]
-        public string DetailedScope { get; set; } = string.Empty;
+        public string? DetailedScope { get; set; }
         [Required]
         public string TargetUnitId { get; set; } = string.Empty;
         [Required]
