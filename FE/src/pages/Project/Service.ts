@@ -232,4 +232,60 @@ export const fetchProjectGeoJSON = async (projectId: string, programId: string, 
         throw error;
     }
 };
+
+export const chainageToLrpConverter = async (sectionId: string, chainage: number) => {
+    try {
+        const params = new URLSearchParams({
+            road_section_id: sectionId,
+            chainage: chainage.toString(),
+        });
+        const apiUrl = `https://slavishly-otoscopic-adelynn.ngrok-free.dev/api_v1.0/infra/chainage_to_lrp?${params.toString()}`;
+
+        const response = await fetch(apiUrl, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'ngrok-skip-browser-warning': 'true',
+            },
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        return {
+            Data: data,
+            Status: response.status,
+            Message: 'Success'
+        };
+    } catch (error) {
+        console.error('Error converting chainage to LRP:', error);
+        throw error;
+    }
+};
+
+export const lrpToChainageConverter = async (sectionId: string, lrp: string) => {
+    try {
+        const apiUrl = `https://slavishly-otoscopic-adelynn.ngrok-free.dev/api_v1.0/infra/lrp_to_chainage?road_section_id=${encodeURIComponent(sectionId)}&lrp_string=${encodeURIComponent(lrp)}`;
+
+        const response = await fetch(apiUrl, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'ngrok-skip-browser-warning': 'true',
+            },
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        return {
+            Data: data,
+            Status: response.status,
+            Message: 'Success'
+        };
+    } catch (error) {
+        console.error('Error converting chainage to LRP:', error);
+        throw error;
+    }
+};
 // #endregion

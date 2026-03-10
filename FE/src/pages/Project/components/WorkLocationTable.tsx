@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from '../../../components/tailwindui/button';
 import { PlusIcon, TrashIcon, PencilIcon, DocumentDuplicateIcon } from '@heroicons/react/24/outline';
+import { chainageToLrpConverter, lrpToChainageConverter } from '../Service';
 import AddInfraDialog from '../dialogs/AddInfraDialog';
 import DeleteWorkLocationDialog from '../dialogs/deleteDialogs/DeleteWorkLocationDialog';
 import { generateInfraId, shouldAutoGenerateInfraId, getInfraTypePrefix, isLocalInfraType, isRoadInfraType, isBridgeInfraType } from '../../../utils/infraIdGenerator';
@@ -121,6 +122,54 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deletingWorkLocation, setDeletingWorkLocation] = useState<MajorItemLocations | null>(null);
   const [deletingIndex, setDeletingIndex] = useState<number | null>(null);
+
+  // Station limit auto-fill loading state keyed by `${index}-start` | `${index}-end`
+  const [stationLimitLoading, setStationLimitLoading] = useState<Record<string, boolean>>({});
+
+  // Chainage auto-fill loading state keyed by `${index}-start-ch` | `${index}-end-ch`
+  const [chainageLoading, setChainageLoading] = useState<Record<string, boolean>>({});
+
+  const handleAutoFillStation = async (index: number, type: 'start' | 'end') => {
+    const location = workLocations[index];
+    const chainage = type === 'start' ? location.StartChainage : location.EndChainage;
+    if (!location.InfraId || chainage === null || chainage === undefined) return;
+
+    const key = `${index}-${type}`;
+    setStationLimitLoading(prev => ({ ...prev, [key]: true }));
+    try {
+      const response = await chainageToLrpConverter(location.InfraId, chainage);
+      const closer = response.Data?.closer;
+      if (closer) {
+        const offset: number = closer.offset;
+        const formatted = `${closer.km_post} ${offset >= 0 ? '+' : ''}${offset}`;
+        handleFieldChange(index, type === 'start' ? 'StartStationLimit' : 'EndStationLimit', formatted);
+      }
+    } catch (error) {
+      console.error('Error auto-filling station limit:', error);
+    } finally {
+      setStationLimitLoading(prev => ({ ...prev, [key]: false }));
+    }
+  };
+
+  const handleAutoFillChainage = async (index: number, type: 'start' | 'end') => {
+    const location = workLocations[index];
+    const lrp = type === 'start' ? location.StartStationLimit : location.EndStationLimit;
+    if (!location.InfraId || !lrp) return;
+
+    const key = `${index}-${type}-ch`;
+    setChainageLoading(prev => ({ ...prev, [key]: true }));
+    try {
+      const response = await lrpToChainageConverter(location.InfraId, lrp);
+      const chainage: number = response.Data?.chainage;
+      if (chainage !== undefined && chainage !== null) {
+        handleFieldChange(index, type === 'start' ? 'StartChainage' : 'EndChainage', chainage);
+      }
+    } catch (error) {
+      console.error('Error auto-filling chainage:', error);
+    } finally {
+      setChainageLoading(prev => ({ ...prev, [key]: false }));
+    }
+  };
 
   // Helper function to get target unit name from workTypeId when targetUnit prop is empty
   const getTargetUnitName = (workTypeId: number): string => {
@@ -502,75 +551,153 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
           </div>
         );
 
-      case 'StartStationLimit':
+      case 'StartStationLimit': {
+        const startLoading = stationLimitLoading[`${index}-start`];
+        const canAutoFill = isRoadType() && !!location.InfraId && location.StartChainage !== null && location.StartChainage !== undefined;
         return (
           <div key={fieldName} className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">
-              Start Station
-            </label>
-            <input
-              type="text"
-              value={location.StartStationLimit}
-              onChange={(e) => handleFieldChange(index, 'StartStationLimit', e.target.value)}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
-              placeholder="Start station..."
-              disabled={disabled}
-            />
+            <div className="flex items-center justify-between">
+              <label className="block text-sm font-medium text-gray-700">
+                Start Station
+              </label>
+              {isRoadType() && (
+                <span className="text-xs text-gray-400">e.g. K0057 +123</span>
+              )}
+            </div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="text"
+                value={location.StartStationLimit}
+                onChange={(e) => handleFieldChange(index, 'StartStationLimit', e.target.value)}
+                className={`flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
+                placeholder="Start station..."
+                disabled={disabled}
+              />
+              {isRoadType() && (
+                <Button
+                  color="blue"
+                  onClick={() => handleAutoFillStation(index, 'start')}
+                  disabled={disabled || startLoading || !canAutoFill}
+                  className="text-xs px-2 py-2 whitespace-nowrap"
+                  title={canAutoFill ? 'Auto-fill from Start Chainage' : 'Enter InfraId and Start Chainage first'}
+                >
+                  {startLoading ? 'Loading...' : 'Auto-fill'}
+                </Button>
+              )}
+            </div>
           </div>
         );
+      }
 
-      case 'EndStationLimit':
+      case 'EndStationLimit': {
+        const endLoading = stationLimitLoading[`${index}-end`];
+        const canAutoFill = isRoadType() && !!location.InfraId && location.EndChainage !== null && location.EndChainage !== undefined;
         return (
           <div key={fieldName} className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">
-              End Station
-            </label>
-            <input
-              type="text"
-              value={location.EndStationLimit}
-              onChange={(e) => handleFieldChange(index, 'EndStationLimit', e.target.value)}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
-              placeholder="End station..."
-              disabled={disabled}
-            />
+            <div className="flex items-center justify-between">
+              <label className="block text-sm font-medium text-gray-700">
+                End Station
+              </label>
+              {isRoadType() && (
+                <span className="text-xs text-gray-400">e.g. K0058 -865</span>
+              )}
+            </div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="text"
+                value={location.EndStationLimit}
+                onChange={(e) => handleFieldChange(index, 'EndStationLimit', e.target.value)}
+                className={`flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
+                placeholder="End station..."
+                disabled={disabled}
+              />
+              {isRoadType() && (
+                <Button
+                  color="blue"
+                  onClick={() => handleAutoFillStation(index, 'end')}
+                  disabled={disabled || endLoading || !canAutoFill}
+                  className="text-xs px-2 py-2 whitespace-nowrap"
+                  title={canAutoFill ? 'Auto-fill from End Chainage' : 'Enter InfraId and End Chainage first'}
+                >
+                  {endLoading ? 'Loading...' : 'Auto-fill'}
+                </Button>
+              )}
+            </div>
           </div>
         );
+      }
       
-      case 'EndChainage': 
+      case 'EndChainage': {
+        const endChLoading = chainageLoading[`${index}-end-ch`];
+        const canAutoFillCh = isRoadType() && !!location.InfraId && !!location.EndStationLimit;
         return (
           <div key={fieldName} className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">
-              End Chainage (m)
-            </label>
-            <input
-              type="number"
-              value={location.EndChainage ?? ''}
-              onFocus={handleNumberFocus}
-              onChange={(e) => handleFieldChange(index, 'EndChainage', Number(e.target.value))}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-orange-500 text-right ${getDisabledClass(disabled)}`}
-              placeholder="To..."
-              disabled={disabled}
-            />
+            <div className="flex items-center justify-between">
+              <label className="block text-sm font-medium text-gray-700">
+                End Chainage (m)
+              </label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="number"
+                value={location.EndChainage ?? ''}
+                onFocus={handleNumberFocus}
+                onChange={(e) => handleFieldChange(index, 'EndChainage', Number(e.target.value))}
+                className={`flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-orange-500 text-right ${getDisabledClass(disabled)}`}
+                placeholder="To..."
+                disabled={disabled}
+              />
+              {isRoadType() && (
+                <Button
+                  color="blue"
+                  onClick={() => handleAutoFillChainage(index, 'end')}
+                  disabled={disabled || endChLoading || !canAutoFillCh}
+                  className="text-xs px-2 py-2 whitespace-nowrap"
+                  title={canAutoFillCh ? 'Auto-fill from End Station' : 'Enter InfraId and End Station first'}
+                >
+                  {endChLoading ? 'Loading...' : 'Auto-fill'}
+                </Button>
+              )}
+            </div>
           </div>
         );
+      }
 
-      case 'StartChainage':
+      case 'StartChainage': {
+        const startChLoading = chainageLoading[`${index}-start-ch`];
+        const canAutoFillCh = isRoadType() && !!location.InfraId && !!location.StartStationLimit;
         return (
           <div key={fieldName} className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">
-              Start Chainage (m)
-            </label>
-            <input
-              type="number"
-              value={location.StartChainage ?? ''}
-              onFocus={handleNumberFocus}
-              onChange={(e) => handleFieldChange(index, 'StartChainage', Number(e.target.value))}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-orange-500 text-right ${getDisabledClass(disabled)}`}  
-              placeholder="From..."
-              disabled={disabled}
-            />
+            <div className="flex items-center justify-between">
+              <label className="block text-sm font-medium text-gray-700">
+                Start Chainage (m)
+              </label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="number"
+                value={location.StartChainage ?? ''}
+                onFocus={handleNumberFocus}
+                onChange={(e) => handleFieldChange(index, 'StartChainage', Number(e.target.value))}
+                className={`flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-orange-500 text-right ${getDisabledClass(disabled)}`}
+                placeholder="From..."
+                disabled={disabled}
+              />
+              {isRoadType() && (
+                <Button
+                  color="blue"
+                  onClick={() => handleAutoFillChainage(index, 'start')}
+                  disabled={disabled || startChLoading || !canAutoFillCh}
+                  className="text-xs px-2 py-2 whitespace-nowrap"
+                  title={canAutoFillCh ? 'Auto-fill from Start Station' : 'Enter InfraId and Start Station first'}
+                >
+                  {startChLoading ? 'Loading...' : 'Auto-fill'}
+                </Button>
+              )}
+            </div>
           </div>
         );
+      }
 
       case 'StartX': {
         const startXVal = Number(location.StartX);
