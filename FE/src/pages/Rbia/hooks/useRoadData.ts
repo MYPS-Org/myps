@@ -103,7 +103,7 @@ export const useRoadData = () => {
       filters: {
         Name: '',
         RoadId: '',
-        Classification: 0
+        Classification: ''
       },
       page: 1,
       limit: 20,

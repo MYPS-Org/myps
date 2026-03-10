@@ -14,6 +14,7 @@ import DeleteRoadSectionDialog from "../Dialogs/DeleteRoadSectionDialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../components/tailwindui/table";
 import { Pagination, PaginationList, PaginationNext, PaginationPrevious, PaginationPage, PaginationGap } from "../../../components/tailwindui/pagination";
 import FutureBridgeDialog from "../Dialogs/FutureBridgeDialog";
+import FilterRoadSectionDialog from "../Dialogs/FilterRoadSectionDialog";
 
 // Simple Badge component
 const Badge: React.FC<{ children: React.ReactNode; className?: string; color?: string }> = ({ 
@@ -59,6 +60,7 @@ const RoadSectionList: React.FC = () => {
   const [isRoadSectionDialogOpen, setIsRoadSectionDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isBridgeDialogOpen, setIsBridgeDialogOpen] = useState(false);
+  const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
   const [sectionToAddBridge, setSectionToAddBridge] = useState<RoadSection | null>(null);
   const [roadSectionToDelete, setRoadSectionToDelete] = useState<RoadSection | null>(null);
   const [sortField, setSortField] = useState<string>('');
@@ -71,11 +73,13 @@ const RoadSectionList: React.FC = () => {
     searchInput,
     hasActiveFilters,
     roadSectionFilters,
+    initRoadSections,
     initializeData,
     handleSearchInputChange,
     handleSearchSubmit,
     handleClearSearch,
     handlePagination,
+    handleFilterChange,
     removeRoadSectionFromState
   } = useRoadSectionData();
 
@@ -159,7 +163,7 @@ const RoadSectionList: React.FC = () => {
             <Button 
               color="white" 
               className={`flex items-center shadow-md ${hasActiveFilters ? 'ring-2 ring-orange-500 bg-orange-50' : ''}`}
-              onClick={() => { /* TODO: Open filter dialog */ }}
+              onClick={() => setIsFilterDialogOpen(true)}
             >
               <AdjustmentsVerticalIcon className="w-4 h-4 mr-1" />
               Filter
@@ -370,6 +374,16 @@ const RoadSectionList: React.FC = () => {
           }}
           onSubmit={handleConfirmDelete}
           roadSection={roadSectionToDelete}
+        />
+      )}
+      {isFilterDialogOpen && (
+        <FilterRoadSectionDialog
+          isOpen={isFilterDialogOpen}
+          onClose={() => setIsFilterDialogOpen(false)}
+          onSubmit={(filterData) => handleFilterChange({ filters: filterData })}
+          onClear={() => { handleClearSearch(); setIsFilterDialogOpen(false); }}
+          initialData={roadSectionFilters.filters}
+          deoList={initRoadSections}
         />
       )}
     </div>

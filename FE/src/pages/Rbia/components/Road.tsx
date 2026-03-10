@@ -12,6 +12,7 @@ import { useRoadData } from "../hooks/useRoadData";
 import FutureRoadDialog from "../Dialogs/FutureRoadDialog";
 import FutureRoadSectionDialog from "../Dialogs/FutureRoadSectionDialog";
 import DeleteRoadDialog from "../Dialogs/DeleteRoadDialog";
+import FilterRoadDialog from "../Dialogs/FilterRoadDialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../components/tailwindui/table";
 import { Pagination, PaginationList, PaginationNext, PaginationPrevious, PaginationPage, PaginationGap } from "../../../components/tailwindui/pagination";
 
@@ -58,6 +59,7 @@ const FutureRoadList: React.FC = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isSectionDialogOpen, setIsSectionDialogOpen] = useState(false);
+  const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
   const [roadToAddSection, setRoadToAddSection] = useState<Road | null>(null);
   const [roadToDelete, setRoadToDelete] = useState<Road | null>(null);
   const [sortField, setSortField] = useState<string>('');
@@ -75,6 +77,7 @@ const FutureRoadList: React.FC = () => {
     handleSearchSubmit,
     handleClearSearch,
     handlePagination,
+    handleFilterChange,
     removeRoadFromState
   } = useRoadData();
 
@@ -158,7 +161,7 @@ const FutureRoadList: React.FC = () => {
             <Button 
               color="white" 
               className={`flex items-center shadow-md ${hasActiveFilters ? 'ring-2 ring-orange-500 bg-orange-50' : ''}`}
-              onClick={() => { /* TODO: Open filter dialog */ }}
+              onClick={() => setIsFilterDialogOpen(true)}
             >
               <AdjustmentsVerticalIcon className="w-4 h-4 mr-1" />
               Filter
@@ -358,6 +361,15 @@ const FutureRoadList: React.FC = () => {
           }}
           onSubmit={handleConfirmDelete}
           road={roadToDelete}
+        />
+      )}
+      {isFilterDialogOpen && (
+        <FilterRoadDialog
+          isOpen={isFilterDialogOpen}
+          onClose={() => setIsFilterDialogOpen(false)}
+          onSubmit={(filterData) => handleFilterChange({ filters: filterData })}
+          onClear={() => { handleClearSearch(); setIsFilterDialogOpen(false); }}
+          initialData={roadFilters.filters}
         />
       )}
     </div>
