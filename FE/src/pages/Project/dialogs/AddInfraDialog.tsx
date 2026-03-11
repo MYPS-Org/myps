@@ -49,6 +49,8 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
   const [totalPages, setTotalPages] = useState<number>(1);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [pageSize, setPageSize] = useState<number>(10);
+  const [deoRoadSections, setDeoRoadSections] = useState<FutureRoadSections[]>([]);
+  const [selectedRoadSectionId, setSelectedRoadSectionId] = useState<string>('');
 
   useEffect(() => {
     if (isOpen) {
@@ -57,21 +59,37 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
       setCurrentPage(1);
       setTotalPages(1);
       setTotalCount(0);
+      setSelectedRoadSectionId('');
       setActiveTab(getInitialTab());
     }
   }, [isOpen, infraType]);
 
-  // Reset to page 1 when tab changes
+  // Reset to page 1 and road section filter when tab changes
   useEffect(() => {
     setCurrentPage(1);
+    setSelectedRoadSectionId('');
+    setSearchTerm('');
   }, [activeTab]);
 
-  // Fetch data when tab changes, page changes, or dialog opens
+  // Fetch road sections for DEO when bridge tab becomes active
+  useEffect(() => {
+    if (isOpen && activeTab === 'bridge' && deo) {
+      fetchRoadSectionData({
+        filters: { RoadId: '', RoadSectionId: '', DEO: deo },
+        sortField: '',
+        sortDirection: 1,
+        page: 1,
+        limit: 1000
+      }).then(res => setDeoRoadSections(res.Data.lists || [])).catch(() => {});
+    }
+  }, [isOpen, activeTab, deo]);
+
+  // Fetch data when tab changes, page changes, road section filter, or dialog opens
   useEffect(() => {
     if (isOpen) {
       fetchInfraData();
     }
-  }, [isOpen, activeTab, currentPage, pageSize]);
+  }, [isOpen, activeTab, currentPage, pageSize, selectedRoadSectionId]);
 
   const fetchInfraData = async (page = currentPage, search = searchTerm) => {
     setLoading(true);
@@ -94,9 +112,9 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
       } else if (activeTab === 'bridge') {
         const response = await fetchBridgeData({
           filters: {
-            RoadSectionId: '',
-            BridgeId: '',
-            Name: search || ''
+            RoadSectionId: selectedRoadSectionId || '',
+            BridgeId: search || '',
+            Name: ''
           },
           sortField: '',
           sortDirection: 1,
@@ -180,6 +198,12 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
   const handleSearchSubmit = () => {
     setCurrentPage(1);
     fetchInfraData(1, searchTerm);
+  };
+
+  const handleRoadSectionFilterChange = (roadSectionId: string) => {
+    setSelectedRoadSectionId(roadSectionId);
+    setCurrentPage(1);
+    setSearchTerm('');
   };
 
   const renderRoadSections = () => {
@@ -435,12 +459,30 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
           </div>
 
           {/* Search Bar */}
-          <div className="px-6 py-4 border-b border-gray-200">
-            <div className="relative">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <div className="flex flex-cols-2 gap-4 px-6 py-4 border-b border-gray-200 space-y-2">
+            {/* Road Section filter — bridge tab only */}
+            {activeTab === 'bridge' && deoRoadSections.length > 0 && (
+              <div className="flex flex-1 items-center gap-2">
+                <label className="text-sm text-gray-600 whitespace-nowrap">Road Section:</label>
+                <select
+                  value={selectedRoadSectionId}
+                  onChange={(e) => handleRoadSectionFilterChange(e.target.value)}
+                  className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-orange-500 focus:border-orange-500"
+                >
+                  <option value="">All Road Sections</option>
+                  {deoRoadSections.map((rs) => (
+                    <option key={rs.Id} value={rs.RoadSectionId}>
+                      {rs.RoadSectionId}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="relative flex flex-1 items-center gap-2">
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
               <input
                 type="text"
-                placeholder={`Search ${availableTabs.find(t => t.id === activeTab)?.label.toLowerCase()}...`}
+                placeholder={activeTab === 'bridge' ? 'Search by Bridge ID...' : `Search ${availableTabs.find(t => t.id === activeTab)?.label.toLowerCase()}...`}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearchSubmit()}
@@ -472,7 +514,7 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
                   onChange={(e) => handlePageSizeChange(Number(e.target.value))}
                   className="border border-gray-300 rounded px-2 py-1 text-sm focus:ring-orange-500 focus:border-orange-500"
                 >
-                  {[5, 10, 20, 50].map((s) => (
+                  {[5, 10, 20, 50, 1000].map((s) => (
                     <option key={s} value={s}>{s} / page</option>
                   ))}
                 </select>

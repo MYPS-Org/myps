@@ -179,7 +179,7 @@ const FutureBridgeList: React.FC = () => {
                 sortDirection={getSortDirection("RoadSectionId")}
                 onSort={handleSortWithDirection("RoadSectionId")}
               >
-                Road ID
+                Section Road ID
               </TableHeader>
               <TableHeader 
                 justify="center" 
@@ -195,7 +195,7 @@ const FutureBridgeList: React.FC = () => {
                 sortDirection={getSortDirection("BridgeId")}
                 onSort={handleSortWithDirection("BridgeId")}
               >
-                Section Road ID
+                Bridge ID
               </TableHeader>
               <TableHeader 
                 justify="center" 
