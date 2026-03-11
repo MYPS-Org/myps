@@ -253,7 +253,7 @@ const RoadSectionList: React.FC = () => {
                   </TableCell>
                   <TableCell className="text-center px-6 py-4 whitespace-nowrap">
                     <Badge color="orange" className="text-xs">
-                      District {section.DEO}
+                      {initRoadSections.find(d => d.ParticipantId === section.DEO)?.Name ?? section.DEO}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-center px-6 py-4 whitespace-nowrap">

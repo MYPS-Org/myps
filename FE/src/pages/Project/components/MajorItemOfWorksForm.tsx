@@ -28,6 +28,7 @@ interface MajorItemOfWorksFormProps {
   dropDowns?: ScopeOfWorkEnum[];
   infraTypeEnums?: InfraTypeEnum[];
   disabled?: boolean;
+  deo?: string;
 }
 
 const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
@@ -42,6 +43,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
   disabled = false,
   dropDowns,
   infraTypeEnums = [],
+  deo,
 }) => {
   const [majorItemDialogOpen, setMajorItemDialogOpen] = useState(false);
   const [editingMajorItemIndex, setEditingMajorItemIndex] = useState<number | null>(null);
@@ -420,6 +422,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                         parentId={item.ReferenceId}
                         dropDowns={dropDowns}
                         disabled={disabled}
+                        deo={deo}
                       />
                     </TableCell>
                   </TableRow>

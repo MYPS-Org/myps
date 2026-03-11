@@ -1088,6 +1088,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             dropDowns={initialData?.Dropdowns?.ScopeOfWorks}
             programDetails={initialData?.ProgramDetails}
             disabled={isDisabled}
+            deo={projectDetails.DEO}
           />
         </div>
       </div>

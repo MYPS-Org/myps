@@ -29,6 +29,7 @@ interface WorkLocationTableProps {
   parentId: string; // Add parentId prop
   disabled?: boolean;
   fieldRules?: FieldRules | null;
+  deo?: string;
 }
 
 const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
@@ -47,6 +48,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
   dropDowns,
   disabled = false,
   fieldRules,
+  deo,
 }) => {
   const infraType = majorItemOfWorks.InfraType || '';
 
@@ -938,6 +940,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
           onAdd={handleInfraSelect}
           initialData={infraData}
           infraType={infraType}
+          deo={deo}
           mode="add"
         />
       )}

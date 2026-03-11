@@ -6,6 +6,7 @@ import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '.
 import type { InfraData } from '../Model.d';
 import { fetchRoadSectionData, fetchBridgeData } from '../../Rbia/Service';
 import type { FutureRoadSections, FutureBridge } from '../../Rbia/Model.d';
+import { isRoadInfraType, isBridgeInfraType } from '../../../utils/infraIdGenerator';
 
 interface AddInfraDialogProps {
   isOpen: boolean;
@@ -14,6 +15,7 @@ interface AddInfraDialogProps {
   initialData?: InfraData;
   mode?: 'add' | 'edit';
   infraType?: string;
+  deo?: string;
 }
 
 const AddInfraDialog: React.FC<AddInfraDialogProps> = ({ 
@@ -22,16 +24,14 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
   onAdd, 
   // initialData,
   mode = 'add',
-  infraType
+  infraType,
+  deo
 }) => {
 
   // Set initial active tab based on infraType
   const getInitialTab = (): 'road' | 'bridge' => {
-    const infraTypeLower = infraType?.toLowerCase();
-    if (infraTypeLower === 'bridge' || infraTypeLower === 'bridges') {
-      return 'bridge';
-    }
-    return 'road'; // default to road for roads or any other type
+    if (isBridgeInfraType(infraType || '')) return 'bridge';
+    return 'road';
   };
 
   const [activeTab, setActiveTab] = useState<'road' | 'bridge' /*| 'fcs' | 'other'*/>(getInitialTab());
@@ -73,15 +73,15 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
     }
   }, [isOpen, activeTab, currentPage, pageSize]);
 
-  const fetchInfraData = async (page = currentPage) => {
+  const fetchInfraData = async (page = currentPage, search = searchTerm) => {
     setLoading(true);
     try {
       if (activeTab === 'road') {
         const response = await fetchRoadSectionData({
           filters: {
             RoadId: '',
-            RoadSectionId: '',
-            DEO: ''
+            RoadSectionId: search || '',
+            DEO: deo || ''
           },
           sortField: '',
           sortDirection: 1,
@@ -96,7 +96,7 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
           filters: {
             RoadSectionId: '',
             BridgeId: '',
-            Name: ''
+            Name: search || ''
           },
           sortField: '',
           sortDirection: 1,
@@ -167,33 +167,23 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
     { id: 'other', label: 'Other Infrastructure', icon: '' },
   ];
 
-  // Filter tabs based on infraType
+  // Filter tabs based on infraType using exact InfraCode matching
   const getAvailableTabs = () => {
-    const infraTypeLower = infraType?.toLowerCase();
-    
-    if (infraTypeLower === 'road' || infraTypeLower === 'roads') {
-      return tabs.filter(tab => tab.id === 'road');
-    } else if (infraTypeLower === 'bridge' || infraTypeLower === 'bridges') {
-      return tabs.filter(tab => tab.id === 'bridge');
-    }
-    
+    if (isRoadInfraType(infraType || '')) return tabs.filter(tab => tab.id === 'road');
+    if (isBridgeInfraType(infraType || '')) return tabs.filter(tab => tab.id === 'bridge');
     // For other types or undefined infraType, show only road and bridge tabs for now
     return tabs.filter(tab => tab.id === 'road' || tab.id === 'bridge');
   };
 
   const availableTabs = getAvailableTabs();
 
-  const filterData = (data: any[], searchFields: string[]) => {
-    if (!searchTerm) return data;
-    return data.filter(item =>
-      searchFields.some(field =>
-        item[field]?.toString().toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    );
+  const handleSearchSubmit = () => {
+    setCurrentPage(1);
+    fetchInfraData(1, searchTerm);
   };
 
   const renderRoadSections = () => {
-    const filteredData = filterData(roadSections, ['RoadSectionId', 'DEO', 'RoadId']);
+    const filteredData = roadSections;
     
     if (loading) {
       return <div className="text-center py-8">Loading road sections...</div>;
@@ -249,7 +239,7 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
   };
 
   const renderBridges = () => {
-    const filteredData = filterData(bridges, ['BridgeId', 'Name', 'RoadSectionId']);
+    const filteredData = bridges;
     
     if (loading) {
       return <div className="text-center py-8">Loading bridges...</div>;
@@ -453,6 +443,7 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
                 placeholder={`Search ${availableTabs.find(t => t.id === activeTab)?.label.toLowerCase()}...`}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearchSubmit()}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500"
               />
             </div>

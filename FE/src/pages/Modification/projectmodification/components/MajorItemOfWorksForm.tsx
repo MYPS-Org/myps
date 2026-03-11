@@ -32,6 +32,7 @@ interface MajorItemOfWorksFormProps {
   dropDowns?: ScopeOfWorkEnum[];
   infraTypeEnums?: InfraTypeEnum[];
   fieldRules?: FieldRules | null;
+  deo?: string;
 }
 
 const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
@@ -46,6 +47,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
   dropDowns,
   infraTypeEnums,
   fieldRules,
+  deo,
 }) => {
   const { addMajorItem: hookAdd, editMajorItem: hookEdit, deleteMajorItem: hookDelete, majorItems: hookItems } = useMajorItemOfWorks();
   const { getLocationsByParentId, addWorkLocation, editWorkLocation, deleteWorkLocation } = useMajorItemLocations();
@@ -426,6 +428,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                         dropDowns={dropDowns}
                         disabled={false}
                         fieldRules={fieldRules}
+                        deo={deo}
                       />
                     </TableCell>
                   </TableRow>

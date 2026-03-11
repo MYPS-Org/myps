@@ -1249,6 +1249,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                 dropDowns={initialData?.Dropdowns?.ScopeOfWorks}
                 infraTypeEnums={initialData?.Dropdowns?.InfraTypes}
                 fieldRules={fieldRules}
+                deo={projectDetails.DEO}
               />
             </div>
           </div>

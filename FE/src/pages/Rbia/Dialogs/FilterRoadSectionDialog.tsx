@@ -108,7 +108,7 @@ const FilterRoadSectionDialog: React.FC<FilterRoadSectionDialogProps> = ({
                 <SearchableDropdown
                   options={[
                     { value: '', label: 'All Districts' },
-                    ...deoList.map(deo => ({ value: deo.Name, label: `${deo.Name} — ${deo.RegionName}` }))
+                    ...deoList.map(deo => ({ value: deo.ParticipantId, label: `${deo.Name}` }))
                   ]}
                   value={formData.DEO || ''}
                   onChange={(val) => setFormData(prev => ({ ...prev, DEO: String(val) }))}
