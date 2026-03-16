@@ -7,6 +7,8 @@ import {
   PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon, CheckIcon, XMarkIcon,
 } from '@heroicons/react/24/outline';
 import type { AgencyEnum } from '../../../Project/Model.d';
+import ConfirmDialog from '../../dialogs/ConfirmDialog';
+import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
 
 interface FormState { NameId: number; Name: string; Description: string; }
 const EMPTY_FORM: FormState = { NameId: 0, Name: '', Description: '' };
@@ -20,6 +22,7 @@ const AgencyTable: React.FC<Props> = ({ data, loading = false }) => {
   const [addForm, setAddForm]          = useState<FormState | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [search, setSearch]            = useState('');
+  const confirm                        = useConfirmDialog();
 
   useEffect(() => {
     if (!loading) setRows(data ?? []);
@@ -50,6 +53,32 @@ const AgencyTable: React.FC<Props> = ({ data, loading = false }) => {
     setRows(prev => prev.filter(r => r.Id !== id));
     // TODO: DELETE /codetable/agencies/{id}
     setDeleteConfirmId(null);
+  };
+
+  const requestAdd = () => {
+    if (!addForm) return;
+    confirm.request({
+      mode: 'add',
+      tableName: 'Agency',
+      fields: [
+        { label: 'NameId',      value: addForm.NameId,      mono: true },
+        { label: 'Agency Name', value: addForm.Name },
+        { label: 'Description', value: addForm.Description, optional: true },
+      ],
+      onConfirm: () => { saveAdd(); confirm.close(); },
+    });
+  };
+  const requestEdit = () => {
+    confirm.request({
+      mode: 'edit',
+      tableName: 'Agency',
+      fields: [
+        { label: 'NameId',      value: editForm.NameId,      mono: true },
+        { label: 'Agency Name', value: editForm.Name },
+        { label: 'Description', value: editForm.Description, optional: true },
+      ],
+      onConfirm: () => { saveEdit(); confirm.close(); },
+    });
   };
 
   const inputClass = (variant: 'add' | 'edit') =>
@@ -130,7 +159,7 @@ const AgencyTable: React.FC<Props> = ({ data, loading = false }) => {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button color="indigo" className="p-1.5" onClick={saveAdd} disabled={!addForm.NameId || !addForm.Name.trim()}><CheckIcon className="h-3.5 w-3.5" /></Button>
+                        <Button color="indigo" className="p-1.5" onClick={requestAdd} disabled={!addForm.NameId || !addForm.Name.trim()}><CheckIcon className="h-3.5 w-3.5" /></Button>
                         <Button color="zinc" className="p-1.5" onClick={() => setAddForm(null)}><XMarkIcon className="h-3.5 w-3.5" /></Button>
                       </div>
                     </TableCell>
@@ -165,7 +194,7 @@ const AgencyTable: React.FC<Props> = ({ data, loading = false }) => {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
-                            <Button color="indigo" className="p-1.5" onClick={saveEdit} disabled={!editForm.NameId || !editForm.Name.trim()}><CheckIcon className="h-3.5 w-3.5" /></Button>
+                            <Button color="amber" className="p-1.5" onClick={requestEdit} disabled={!editForm.NameId || !editForm.Name.trim()}><CheckIcon className="h-3.5 w-3.5" /></Button>
                             <Button color="zinc" className="p-1.5" onClick={cancelEdit}><XMarkIcon className="h-3.5 w-3.5" /></Button>
                           </div>
                         </TableCell>
@@ -204,6 +233,7 @@ const AgencyTable: React.FC<Props> = ({ data, loading = false }) => {
         </Table>
       </div>
       <p className="text-xs text-gray-400">{filtered.length} record(s)</p>
+      <ConfirmDialog {...confirm.dialogProps} />
     </div>
   );
 };

@@ -7,6 +7,8 @@ import {
   PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon, CheckIcon, XMarkIcon,
 } from '@heroicons/react/24/outline';
 import type { ThrustEnum } from '../../../Project/Model.d';
+import ConfirmDialog from '../../dialogs/ConfirmDialog';
+import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
 
 const SAMPLE_DATA: ThrustEnum[] = [
   { Id: 1, PAPKey: 1035, ProgramName: 'Buildings and Other Structures', SubProgramName: 'School Buildings', ActivityName: '', SequenceNumber: 1, ValidFromDate: 2016, ValidToDate: 2017, InfrastructureType: 'School Buildings', ThrustDescription: 'Construction of school buildings under various programs' },
@@ -35,6 +37,7 @@ const ThrustTable: React.FC<Props> = ({ data, loading = false }) => {
   const [addForm, setAddForm]          = useState<FormState | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [search, setSearch]            = useState('');
+  const confirm                        = useConfirmDialog();
 
   useEffect(() => {
     if (!loading) setRows(data !== undefined ? data : SAMPLE_DATA);
@@ -78,6 +81,40 @@ const ThrustTable: React.FC<Props> = ({ data, loading = false }) => {
     setRows(prev => prev.filter(r => r.Id !== id));
     // TODO: DELETE /codetable/thrusts/{id}
     setDeleteConfirmId(null);
+  };
+
+  const requestAdd = () => {
+    if (!addForm) return;
+    confirm.request({
+      mode: 'add',
+      tableName: 'Thrust / PAP',
+      fields: [
+        { label: 'PAP Key',      value: addForm.PAPKey,                                 mono: true },
+        { label: 'Program',      value: addForm.ProgramName },
+        { label: 'Sub-Program',  value: addForm.SubProgramName,                         optional: true },
+        { label: 'Description',  value: addForm.ThrustDescription },
+        { label: 'Infra Type',   value: addForm.InfrastructureType,                     optional: true },
+        { label: 'Valid From',   value: addForm.ValidFromDate },
+        { label: 'Valid To',     value: addForm.ValidToDate === 0 ? 'Present' : addForm.ValidToDate },
+      ],
+      onConfirm: () => { saveAdd(); confirm.close(); },
+    });
+  };
+  const requestEdit = () => {
+    confirm.request({
+      mode: 'edit',
+      tableName: 'Thrust / PAP',
+      fields: [
+        { label: 'PAP Key',      value: editForm.PAPKey,                                mono: true },
+        { label: 'Program',      value: editForm.ProgramName },
+        { label: 'Sub-Program',  value: editForm.SubProgramName,                        optional: true },
+        { label: 'Description',  value: editForm.ThrustDescription },
+        { label: 'Infra Type',   value: editForm.InfrastructureType,                    optional: true },
+        { label: 'Valid From',   value: editForm.ValidFromDate },
+        { label: 'Valid To',     value: editForm.ValidToDate === 0 ? 'Present' : editForm.ValidToDate },
+      ],
+      onConfirm: () => { saveEdit(); confirm.close(); },
+    });
   };
 
   const inp = (color: 'add' | 'edit', extraClass = 'w-full') =>
@@ -144,7 +181,7 @@ const ThrustTable: React.FC<Props> = ({ data, loading = false }) => {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button color="indigo" className="p-1.5" onClick={saveAdd}><CheckIcon className="h-3.5 w-3.5" /></Button>
+                        <Button color="indigo" className="p-1.5" onClick={requestAdd}><CheckIcon className="h-3.5 w-3.5" /></Button>
                         <Button color="zinc" className="p-1.5" onClick={() => setAddForm(null)}><XMarkIcon className="h-3.5 w-3.5" /></Button>
                       </div>
                     </TableCell>
@@ -169,7 +206,7 @@ const ThrustTable: React.FC<Props> = ({ data, loading = false }) => {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
-                            <Button color="indigo" className="p-1.5" onClick={saveEdit}><CheckIcon className="h-3.5 w-3.5" /></Button>
+                            <Button color="amber" className="p-1.5" onClick={requestEdit}><CheckIcon className="h-3.5 w-3.5" /></Button>
                             <Button color="zinc" className="p-1.5" onClick={cancelEdit}><XMarkIcon className="h-3.5 w-3.5" /></Button>
                           </div>
                         </TableCell>
@@ -208,6 +245,7 @@ const ThrustTable: React.FC<Props> = ({ data, loading = false }) => {
         </Table>
       </div>
       <p className="text-xs text-gray-400">{filtered.length} record(s)</p>
+      <ConfirmDialog {...confirm.dialogProps} />
     </div>
   );
 };

@@ -7,6 +7,8 @@ import {
   PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon, CheckIcon, XMarkIcon,
 } from '@heroicons/react/24/outline';
 import type { TableEnum } from '../../../Project/Model.d';
+import ConfirmDialog from '../../dialogs/ConfirmDialog';
+import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
 
 const SAMPLE_DATA: TableEnum[] = [
   { Id: 1, NameId: 1, Name: 'Local',           Description: 'Locally-initiated infrastructure projects' },
@@ -28,6 +30,7 @@ const OriginTable: React.FC<Props> = ({ data, loading = false }) => {
   const [addForm, setAddForm]          = useState<FormState | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [search, setSearch]            = useState('');
+  const confirm                        = useConfirmDialog();
 
   useEffect(() => {
     if (!loading) setRows(data !== undefined ? data : SAMPLE_DATA);
@@ -56,6 +59,30 @@ const OriginTable: React.FC<Props> = ({ data, loading = false }) => {
     setRows(prev => prev.filter(r => r.Id !== id));
     // TODO: DELETE /codetable/origins/{id}
     setDeleteConfirmId(null);
+  };
+
+  const requestAdd = () => {
+    if (!addForm) return;
+    confirm.request({
+      mode: 'add',
+      tableName: 'Project Origin',
+      fields: [
+        { label: 'Name',        value: addForm.Name },
+        { label: 'Description', value: addForm.Description, optional: true },
+      ],
+      onConfirm: () => { saveAdd(); confirm.close(); },
+    });
+  };
+  const requestEdit = () => {
+    confirm.request({
+      mode: 'edit',
+      tableName: 'Project Origin',
+      fields: [
+        { label: 'Name',        value: editForm.Name },
+        { label: 'Description', value: editForm.Description, optional: true },
+      ],
+      onConfirm: () => { saveEdit(); confirm.close(); },
+    });
   };
 
   const inp = (v: 'add' | 'edit') =>
@@ -109,7 +136,7 @@ const OriginTable: React.FC<Props> = ({ data, loading = false }) => {
                     <TableCell><input value={addForm.Description} onChange={e => setAddForm(f => f ? { ...f, Description: e.target.value } : f)} placeholder="Description..." className={inp('add')} /></TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button color="indigo" className="p-1.5" onClick={saveAdd}><CheckIcon className="h-3.5 w-3.5" /></Button>
+                        <Button color="indigo" className="p-1.5" onClick={requestAdd}><CheckIcon className="h-3.5 w-3.5" /></Button>
                         <Button color="zinc" className="p-1.5" onClick={() => setAddForm(null)}><XMarkIcon className="h-3.5 w-3.5" /></Button>
                       </div>
                     </TableCell>
@@ -126,7 +153,7 @@ const OriginTable: React.FC<Props> = ({ data, loading = false }) => {
                         <TableCell><input value={editForm.Description} onChange={e => setEditForm(f => ({ ...f, Description: e.target.value }))} className={inp('edit')} /></TableCell>
                         <TableCell>
                           <div className="flex gap-1">
-                            <Button color="indigo" className="p-1.5" onClick={saveEdit}><CheckIcon className="h-3.5 w-3.5" /></Button>
+                            <Button color="amber" className="p-1.5" onClick={requestEdit}><CheckIcon className="h-3.5 w-3.5" /></Button>
                             <Button color="zinc" className="p-1.5" onClick={cancelEdit}><XMarkIcon className="h-3.5 w-3.5" /></Button>
                           </div>
                         </TableCell>
@@ -159,6 +186,7 @@ const OriginTable: React.FC<Props> = ({ data, loading = false }) => {
         </Table>
       </div>
       <p className="text-xs text-gray-400">{filtered.length} record(s)</p>
+      <ConfirmDialog {...confirm.dialogProps} />
     </div>
   );
 };
