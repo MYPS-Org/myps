@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import { formValidation, type FormValidationError } from '../../../utils/FormValidation';
@@ -170,29 +170,29 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   }, [mode, initialData]);
 
   // Fetch GeoJSON data for map rendering
-  useEffect(() => {
-    const loadMapData = async () => {
-      if (mode === 'edit' && initialData?.ProjectDetails?.ProjectId && initialData?.ProgramDetails?.ProgramId) {
-        try {
-          // alert('loading map data' + initialData?.ProjectDetails?.ProjectId + ' ' + initialData?.ProgramDetails?.ProgramId);
-          const response = await fetchProjectGeoJSON(
-            initialData.ProjectDetails.ProjectId,
-            initialData.ProgramDetails.ProgramId,
-            user?.UserId || '',
-            initialData.ProgramDetails.StageName
-          );
-          if (response.Data) {
-            setGeoJsonData(response.Data);
-          }
-        } catch (error) {
-          console.error('Error loading map data:', error);
-          // Gracefully handle error - map will show "No data available"
+  const loadMapData = useCallback(async () => {
+    if (mode === 'edit' && initialData?.ProjectDetails?.ProjectId && initialData?.ProgramDetails?.ProgramId) {
+      try {
+        // alert('loading map data' + initialData?.ProjectDetails?.ProjectId + ' ' + initialData?.ProgramDetails?.ProgramId);
+        const response = await fetchProjectGeoJSON(
+          initialData.ProjectDetails.ProjectId,
+          initialData.ProgramDetails.ProgramId,
+          user?.UserId || '',
+          initialData.ProgramDetails.StageName
+        );
+        if (response.Data) {
+          setGeoJsonData(response.Data);
         }
+      } catch (error) {
+        console.error('Error loading map data:', error);
+        // Gracefully handle error - map will show "No data available"
       }
-    };
+    }
+  }, [mode, initialData?.ProjectDetails?.ProjectId, initialData?.ProgramDetails?.ProgramId, initialData?.ProgramDetails?.StageName, user?.UserId]);
 
+  useEffect(() => {
     loadMapData();
-  }, [mode, initialData?.ProjectDetails?.ProjectId, initialData?.ProgramDetails?.ProgramId]);
+  }, [loadMapData]);
 
   // Separate useEffect to handle initialProgramId
   useEffect(() => {
@@ -870,6 +870,8 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           type: 'success',
           message: 'Project updated successfully.'
       });
+
+      await loadMapData();
 
     } catch (error) {
       showToast({
