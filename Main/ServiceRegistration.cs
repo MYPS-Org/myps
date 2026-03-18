@@ -17,7 +17,13 @@ namespace Main
         #region Builder
         public static IServiceCollection PrepareDatabaseConnection(this IServiceCollection Services)
         {
-            Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(Appsetting.ConnectionString));
+            Services.AddDbContext<AppDbContext>(options => {
+                options.UseSqlServer(Appsetting.ConnectionString);
+                options.EnableSensitiveDataLogging();
+                options.EnableDetailedErrors();
+                options.LogTo(Console.WriteLine, LogLevel.Information);
+            });
+
             return Services;
         }
         public static IServiceCollection AddCookieAuthentication(this IServiceCollection Services)

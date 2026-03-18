@@ -25,22 +25,19 @@ namespace DBHelper.Models.Table
         [Required]
         [MaxLength(100)]
         public string TargetUnit { get; set; } = string.Empty;
-        [MaxLength(100)]
-        public string? StartX { get; set; }
-        [MaxLength(100)]
-        public string? StartY { get; set; }
-        [MaxLength(100)]
-        public string? EndX { get; set; }
-        [MaxLength(100)]
-        public string? EndY { get; set; }
+        public Double? StartX { get; set; }
+        public Double? StartY { get; set; }
+        public Double? EndX { get; set; }
+        public Double? EndY { get; set; }
         [Required]
-        public Double? PhysicalTarget { get; set; }
+        public Double PhysicalTarget { get; set; }
         [MaxLength(100)]
         public string? StartStationLimit { get; set; }
         [MaxLength(100)]
         public string? EndStationLimit { get; set; }
         public Double? EndChainage { get; set; }
         public Double? StartChainage { get; set; }
+        public Double? Length { get; set; }
         [Required]
         [MaxLength(100)]
         public string CreatedBy { get; set; } = string.Empty;

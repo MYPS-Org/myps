@@ -25,12 +25,11 @@ namespace DBHelper.Models.Table
         [Required]
         public Double Percentage { get; set; }
         [Required]
-        [MaxLength(100)]
-        public string CreatedBy { get; set; } = string.Empty;
-        [Required]
         [MaxLength(10)]
         public string StageName { get; set; } = string.Empty;
-        public int? RevisedNumber { get; set; }
+        [Required]
+        [MaxLength(100)]
+        public string CreatedBy { get; set; } = string.Empty;
         [Required]
         public DateTime CreatedDate { get; set; }
         [MaxLength(100)]

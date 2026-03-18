@@ -32,10 +32,17 @@
   <ItemGroup>
     <ProjectReference Include="..\DBHelper\DBHelper.csproj" />
     <ProjectReference Include="..\Helpers\Helpers.csproj" />
+    <ProjectReference Include="..\ReportGeneration\ReportGeneration.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <Folder Include="Controllers\Dashboard\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\Main\Resources\Images\ReportLogo.png" Link="Resources\Images\ReportLogo.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

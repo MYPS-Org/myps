@@ -3,6 +3,7 @@ using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Table;
 using DBHelper.Models.Views;
+using Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -195,7 +196,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                                     UserId = newUserId,
                                     GroupId = x,
                                     CreatedBy = _Session.UserId,
-                                    CreatedDate = DateTime.UtcNow
+                                    CreatedDate = Functions.CurrentDate()
                                 }
                             ));
                         }   
@@ -208,7 +209,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                                 UserId = newUserId,
                                 GroupId = x,
                                 CreatedBy = _Session.UserId,
-                                CreatedDate = DateTime.UtcNow
+                                CreatedDate = Functions.CurrentDate()
                             }
                         ));
                     }
@@ -264,7 +265,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                                 UserId = dto.UserId,
                                 GroupId = GrouId,
                                 CreatedBy = _Session.UserId,
-                                CreatedDate = DateTime.UtcNow
+                                CreatedDate = Functions.CurrentDate()
                             }
                         ));
                     }
@@ -400,7 +401,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     PermissionGroupId = dto.PermissionGroupId,
                     Description = dto.Description,
                     CreatedBy = _Session.UserId,
-                    CreatedDate = DateTime.UtcNow
+                    CreatedDate = Functions.CurrentDate()
                 };
                 _db.tPermissions.Add(Add);
                 await _db.SaveChangesAsync();
@@ -562,7 +563,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     GroupName = dto.GroupName,
                     Description = dto.Description,
                     CreatedBy = _Session.UserId,
-                    CreatedDate = DateTime.UtcNow
+                    CreatedDate = Functions.CurrentDate()
                 };
 
                 await _db.tGroups.AddAsync(newGroup);
@@ -586,7 +587,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                         GroupId = newGroup.Id,
                         PermissionId = permissionId,
                         CreatedBy = _Session.UserId,
-                        CreatedDate = DateTime.UtcNow
+                        CreatedDate = Functions.CurrentDate()
                     });
 
                     await _db.tGroupRoles.AddRangeAsync(groupRoles);
@@ -645,7 +646,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                                     GroupId = checkSameName.Id,
                                     PermissionId = permissionId,
                                     CreatedBy = _Session.UserId,
-                                    CreatedDate = DateTime.UtcNow
+                                    CreatedDate = Functions.CurrentDate()
                                 }
                             ));
                         }

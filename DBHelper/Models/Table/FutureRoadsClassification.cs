@@ -11,6 +11,7 @@ namespace DBHelper.Models.Table
     {
         [Key]
         public int Id { get; set; }
+        public int ClassificationId { get; set; }
         [Required]
         [MaxLength(10)]
         public string Classification { get; set; } = string.Empty;

@@ -25,7 +25,7 @@ namespace DBHelper.Models.Table
         [Required]
         public string[] DataSecurityGroup { get; set; } = new string[] { };
         [Required]
-        public int UserGroup { get; set; }
+        public int[] UserGroup { get; set; } = new int[] { };
         [Required]
         public EnumProgramStatus Status { get; set; }
         [Required]
@@ -37,6 +37,6 @@ namespace DBHelper.Models.Table
         [MaxLength(100)]
         public string CreatedBy { get; set; } = string.Empty;
         [Required]
-        public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedDate { get; set; }
     }
 }

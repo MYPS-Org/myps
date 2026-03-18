@@ -32,7 +32,7 @@ namespace WebAPI.Controllers.Programs
         public int YearStart { get; set; }
         [Required]
         public string[] DataSecurityGroup { get; set; } = new string[] { };
-        public int UserGroup { get; set; }
+        public int[] UserGroup { get; set; } = new int[] { };
         public bool IsSkipped { get; set; } = false;
         [MaxLength(250)]
         public string? SkipReason { get; set; }
@@ -69,7 +69,7 @@ namespace WebAPI.Controllers.Programs
         public EnumProgramStage StageId { get; set; }
         public string StageName { get; set; } = string.Empty;
         public string[] DataSecurityGroup { get; set; } = new string[] { };
-        public int UserGroup { get; set; }
+        public int[] UserGroup { get; set; } = new int[] { };
         public EnumProgramStatus Status { get; set; }
         public EnumProgramType Type { get; set; }
         public Double? Cost { get; set; }
@@ -85,4 +85,14 @@ namespace WebAPI.Controllers.Programs
         public EnumProgramStage Stage { get; set; }
         public string Name { get; set; } = string.Empty;
     }
+    public class BatchUnpublishTaggingDTO
+    {
+        [Required]
+        public string ProgramId { get; set; } = string.Empty;
+        [Required]
+        public string ProjectIds { get; set; } = string.Empty;
+    }
+    public class BatchPublishTaggingDTO : BatchUnpublishTaggingDTO { }
+    public class BatchDeleteTaggingDTO : BatchUnpublishTaggingDTO { }
+    public class BatchAddExistingProjectDTO : BatchUnpublishTaggingDTO { }
 }

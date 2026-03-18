@@ -82,7 +82,11 @@ namespace WebAPI.Controllers.Programs
                     baseQuery = baseQuery.Where(e => e.RoadId.ToString() == dto.Filters.RoadId);
 
                 if (!string.IsNullOrEmpty(dto.Filters?.Classification))
-                    baseQuery = baseQuery.Where(e => e.Classification.ToString() == dto.Filters.Classification);
+                {
+                    var FilteredClassification = await _db.tFutureRoadsClassification.AsNoTracking().FirstOrDefaultAsync(x => x.Classification == dto.Filters.Classification);
+                    int ClassificationId = FilteredClassification != null ? FilteredClassification.ClassificationId : 0;
+                    baseQuery = baseQuery.Where(e => e.Classification == ClassificationId);
+                }
 
                 // Get total count of filtered results (before pagination)
                 var totalRecords = await baseQuery.CountAsync();
@@ -124,6 +128,15 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                if (!dto.RoadId.IsValidFutureInfraId())
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Road ID '{dto.RoadId}' is invalid. Expected format: 2 letters, 5 digits, 2-letter island code (e.g., AB12345LU).",
+                        Title = "Invalid Road ID Format"
+                    });
+                }
+
                 var checkRoad = await _db.tFutureRoads.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dto.Id);
                 if (checkRoad == null)
                 {
@@ -139,12 +152,12 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Road name {dto.Name} already exist in the system. Please use other name", Title = "Invalid Road Name" });
                 }
-                var checkClassification = await _db.tFutureRoadsClassification.AsNoTracking().FirstOrDefaultAsync(x => x.Classification == dto.Classification);
+                var checkClassification = await _db.tFutureRoadsClassification.AsNoTracking().FirstOrDefaultAsync(x => x.ClassificationId == dto.Classification);
                 if(checkClassification == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Classification '{dto.Classification}' is not valid!", Title = "Invalid Classification" });
                 }
-                DateTime currentDate = DateTime.UtcNow;
+                DateTime currentDate = Functions.CurrentDate();;
                 string UserId = _Session.UserId;
                 List<TransactionLog> Transactions = new List<TransactionLog>();
                 if(checkRoad.RoadId != dto.RoadId)
@@ -179,14 +192,16 @@ namespace WebAPI.Controllers.Programs
                 }
                 if (checkRoad.Classification != dto.Classification)
                 {
+                    var NewClassification = await _db.tFutureRoadsClassification.FirstOrDefaultAsync(x => x.ClassificationId == dto.Classification);
+                    var OldClassification = await _db.tFutureRoadsClassification.FirstOrDefaultAsync(x => x.ClassificationId == checkRoad.Classification);
                     Transactions.Add(new TransactionLog
                     {
                         TransactionId = checkRoad.RoadId,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tFutureRoads",
                         AffectedColumn = "Classification",
-                        OldValue = checkRoad.Classification,
-                        NewValue = dto.Classification,
+                        OldValue = OldClassification?.Classification,
+                        NewValue = NewClassification?.Classification,
                         CreatedBy = UserId,
                         CreatedDate = currentDate
                     });
@@ -220,6 +235,14 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                if (!dto.RoadId.IsValidFutureInfraId())
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Road ID '{dto.RoadId}' is invalid. Expected format: 2 letters, 5 digits, 2-letter island code (e.g., AB12345LU).",
+                        Title = "Invalid Road ID Format"
+                    });
+                }
                 var checkRoadName = await _db.tFutureRoads.AsNoTracking().FirstOrDefaultAsync(x => x.Name == dto.Name);
                 if (checkRoadName != null)
                 {
@@ -230,12 +253,12 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Future Road ID '{dto.Name}' already exists in the System!", Title = "Road ID Already Exists" });
                 }
-                var checkClassification = await _db.tFutureRoadsClassification.AsNoTracking().FirstOrDefaultAsync(x => x.Classification == dto.Classification);
+                var checkClassification = await _db.tFutureRoadsClassification.AsNoTracking().FirstOrDefaultAsync(x => x.ClassificationId == dto.Classification);
                 if(checkClassification == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Classification '{dto.Classification}' is not valid!", Title = "Invalid Classification" });
                 }
-                DateTime currentDate = DateTime.UtcNow;
+                DateTime currentDate = Functions.CurrentDate();;
                 string UserId = _Session.UserId;
                 var newFutureRoad = new DBHelper.Models.Table.FutureRoads()
                 {
@@ -366,12 +389,20 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                if (!dto.RoadSectionId.IsValidFutureInfraId())
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Road Section ID '{dto.RoadSectionId}' is invalid. Expected format: 2 letters, 5 digits, 2-letter island code (e.g., AB12345LU).",
+                        Title = "Invalid Road Section ID Format"
+                    });
+                }
                 var checkDEO = await _db.tOptionAdminAreaDistrictEngineeringOffice.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == dto.DEO);
                 if (checkDEO == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"DEO '{dto.DEO}' is not valid!", Title = "Invalid DEO" });
                 }
-                DateTime currentDate = DateTime.UtcNow;
+                DateTime currentDate = Functions.CurrentDate();;
                 string UserId = _Session.UserId;
                 var newFutureRoadSection = new DBHelper.Models.Table.FutureRoadSections()
                 {
@@ -404,6 +435,14 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                if (!dto.RoadSectionId.IsValidFutureInfraId())
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Road Section ID '{dto.RoadSectionId}' is invalid. Expected format: 2 letters, 5 digits, 2-letter island code (e.g., AB12345LU).",
+                        Title = "Invalid Road Section ID Format"
+                    });
+                }
                 var checkRoad = await _db.tFutureRoadSections.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dto.Id);
                 if (checkRoad == null)
                 {
@@ -424,7 +463,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"DEO {dto.RoadId} does exist in the system.", Title = "Invalid DEO" });
                 }
-                DateTime currentDate = DateTime.UtcNow;
+                DateTime currentDate = Functions.CurrentDate();;
                 string UserId = _Session.UserId;
                 List<TransactionLog> Transactions = new List<TransactionLog>();
                 if (checkRoad.RoadId != dto.RoadId)
@@ -629,6 +668,14 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                if (!dto.BridgeId.IsValidFutureInfraId())
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Bridge ID '{dto.BridgeId}' is invalid. Expected format: 2 letters, 5 digits, 2-letter island code (e.g., AB12345LU).",
+                        Title = "Invalid Bridge ID Format"
+                    });
+                }
                 var checkBridgeName = await _db.tFutureBridge.AsNoTracking().FirstOrDefaultAsync(x => x.Name == dto.Name);
                 if (checkBridgeName != null)
                 {
@@ -639,7 +686,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Road Section '{dto.RoadSectionId}' is not valid!", Title = "Invalid Road Section" });
                 }
-                DateTime currentDate = DateTime.UtcNow;
+                DateTime currentDate = Functions.CurrentDate();;
                 string UserId = _Session.UserId;
                 var newFutureBridge = new DBHelper.Models.Table.FutureBridge()
                 {
@@ -649,6 +696,7 @@ namespace WebAPI.Controllers.Programs
                     From = dto.From,
                     Length = dto.Length,
                     CarriageWay = dto.CarriageWay,
+                    OverallWidth = dto.OverallWidth,
                     CreatedBy = UserId,
                     CreatedDate = currentDate,
                 };
@@ -674,6 +722,14 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                if (!dto.BridgeId.IsValidFutureInfraId())
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Bridge ID '{dto.BridgeId}' is invalid. Expected format: 2 letters, 5 digits, 2-letter island code (e.g., AB12345LU).",
+                        Title = "Invalid Bridge ID Format"
+                    });
+                }
                 var checkBridge = await _db.tFutureBridge.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dto.Id);
                 if (checkBridge == null)
                 {
@@ -694,7 +750,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Bridge Name {dto.Name} already exist in the system.", Title = "Invalid Bridge Name" });
                 }
-                DateTime currentDate = DateTime.UtcNow;
+                DateTime currentDate = Functions.CurrentDate();;
                 string UserId = _Session.UserId;
                 List<TransactionLog> Transactions = new List<TransactionLog>();
                 if (checkBridge.RoadSectionId != dto.RoadSectionId)
@@ -731,7 +787,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     Transactions.Add(new TransactionLog
                     {
-                        TransactionId = checkBridge.Name,
+                        TransactionId = checkBridge.BridgeId,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tFutureBridge",
                         AffectedColumn = "Name",
@@ -746,12 +802,12 @@ namespace WebAPI.Controllers.Programs
                 {
                     Transactions.Add(new TransactionLog
                     {
-                        TransactionId = checkBridge.From,
+                        TransactionId = checkBridge.BridgeId,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tFutureBridge",
                         AffectedColumn = "From",
-                        OldValue = checkBridge.From,
-                        NewValue = dto.From,
+                        OldValue = checkBridge.From.ToString(),
+                        NewValue = dto.From.ToString(),
                         CreatedBy = UserId,
                         CreatedDate = currentDate
                     });
@@ -761,12 +817,12 @@ namespace WebAPI.Controllers.Programs
                 {
                     Transactions.Add(new TransactionLog
                     {
-                        TransactionId = checkBridge.Length,
+                        TransactionId = checkBridge.BridgeId,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tFutureBridge",
                         AffectedColumn = "Length",
-                        OldValue = checkBridge.Length,
-                        NewValue = dto.Length,
+                        OldValue = checkBridge.Length.ToString(),
+                        NewValue = dto.Length.ToString(),
                         CreatedBy = UserId,
                         CreatedDate = currentDate
                     });
@@ -776,12 +832,12 @@ namespace WebAPI.Controllers.Programs
                 {
                     Transactions.Add(new TransactionLog
                     {
-                        TransactionId = checkBridge.CarriageWay,
+                        TransactionId = checkBridge.BridgeId,
                         TypeOfTransaction = "Update",
                         AffectedTable = "tFutureBridge",
                         AffectedColumn = "CarriageWay",
-                        OldValue = checkBridge.CarriageWay,
-                        NewValue = dto.CarriageWay,
+                        OldValue = checkBridge.CarriageWay.ToString(),
+                        NewValue = dto.CarriageWay.ToString(),
                         CreatedBy = UserId,
                         CreatedDate = currentDate
                     });

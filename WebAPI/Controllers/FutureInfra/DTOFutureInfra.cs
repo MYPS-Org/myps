@@ -26,8 +26,7 @@ namespace WebAPI.Controllers.Programs
         [MaxLength(200)]
         public string Name { get; set; } = string.Empty;
         [Required]
-        [MaxLength(10)]
-        public string Classification { get; set; } = string.Empty;
+        public int Classification { get; set; }
     }
     public class EditFutureRoadsDTO
     {
@@ -40,8 +39,7 @@ namespace WebAPI.Controllers.Programs
         [MaxLength(200)]
         public string Name { get; set; } = string.Empty;
         [Required]
-        [MaxLength(10)]
-        public string Classification { get; set; } = string.Empty;
+        public int Classification { get; set; }
     }
     #endregion
     #region Road Sections
@@ -105,14 +103,13 @@ namespace WebAPI.Controllers.Programs
         [MaxLength(200)]
         public string Name { get; set; } = string.Empty;
         [Required]
-        [MaxLength(100)]
-        public string From { get; set; } = string.Empty;
+        public double From { get; set; }
         [Required]
-        [MaxLength(100)]
-        public string Length { get; set; } = string.Empty;
+        public double Length { get; set; }
         [Required]
-        [MaxLength(100)]
-        public string CarriageWay { get; set; } = string.Empty;
+        public double CarriageWay { get; set; }
+        [Required]
+        public double OverallWidth { get; set; }
     }
     public class EditFutureBridgeDTO
     {
@@ -128,14 +125,13 @@ namespace WebAPI.Controllers.Programs
         [MaxLength(200)]
         public string Name { get; set; } = string.Empty;
         [Required]
-        [MaxLength(100)]
-        public string From { get; set; } = string.Empty;
+        public double From { get; set; }
         [Required]
-        [MaxLength(100)]
-        public string Length { get; set; } = string.Empty;
+        public double Length { get; set; }
         [Required]
-        [MaxLength(100)]
-        public string CarriageWay { get; set; } = string.Empty;
+        public double CarriageWay { get; set; }
+        [Required]
+        public double OverallWidth { get; set; }
     }
     #endregion
 }

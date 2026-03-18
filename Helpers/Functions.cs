@@ -1,12 +1,16 @@
 ﻿using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Extra;
+using DBHelper.Models.Table;
+using DBHelper.Models.Views;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using OfficeOpenXml;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats;
 using SixLabors.ImageSharp.PixelFormats;
+using System.Collections.Concurrent;
 using System.ComponentModel.DataAnnotations;
 using System.Drawing;
 using System.Net;
@@ -14,14 +18,63 @@ using System.Net.Http.Json;
 using System.Net.Mail;
 using System.Net.NetworkInformation;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using static Dapper.SqlMapper;
 
 namespace Helpers
 {
     public static class Functions
     {
+        private static readonly ConcurrentDictionary<string, string> _sqlCache = new();
+        public static DateTime CurrentDate()
+        {
+            var tz = TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila");
+            return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
+        }
+        public static IQueryable<T> QueryFromFile<T>(
+            this DbContext db,
+            string sqlFilePath, string? query) where T : class
+        {
+            var sql = _sqlCache.GetOrAdd(
+                Path.Combine(Appsetting.Resources.Main, "Sql", sqlFilePath+".sql"),
+                path => File.ReadAllText(path)
+            );
+
+            // Wrap to guarantee composability
+            var composableSql = $@"{sql}
+            {query}";
+
+            return db.Set<T>()
+                     .FromSqlRaw(composableSql)
+                     .AsNoTracking(); // critical for speed
+        }
+        public static List<T> QueryFile<T>(
+            DbContext db,
+            string sqlFilePath,
+            Dictionary<string, object>? parameters = null) where T : class
+        {
+            var sql = _sqlCache.GetOrAdd(
+                Path.Combine(Appsetting.Resources.Main, "Sql", sqlFilePath + ".sql"),
+                path => File.ReadAllText(path)
+            );
+
+            var parameterizedSql = sql;
+            if (parameters != null && parameters.Count > 0)
+            {
+                foreach (var param in parameters)
+                {
+                    parameterizedSql = parameterizedSql.Replace($"{{{param.Key}}}", param.Key);
+                }
+            }
+
+            return db.Set<T>()
+                     .FromSqlRaw(parameterizedSql, parameters?.Values.ToArray() ?? Array.Empty<object>())
+                     .AsNoTracking()
+                     .ToList();
+        }
         public static string UpdateReferenceId(this string Current, string StageName)
         {
             var parts = Current.Split('-');
@@ -33,15 +86,28 @@ namespace Helpers
         {
             return ReferenceId + "-" + ("tCountComponentCost").GenerateCode() + "-" + StageName;
         }
-        public static EnumProgramStage UpdateStage(this EnumProgramStage Current)
+        public static string GenerateProjectID(this AppDbContext _db, DBHelper.Models.Views.ProgramDetails ProgramDetails, DBHelper.Models.Table.OptionProjectCategory Category, string IslandCode)
         {
-            if (Current == EnumProgramStage.BP) return EnumProgramStage.NEP;
-            else if (Current == EnumProgramStage.NEP) return EnumProgramStage.NEPE;
-            else if (Current == EnumProgramStage.NEPE) return EnumProgramStage.HGAB;
-            else if (Current == EnumProgramStage.HGAB) return EnumProgramStage.HGABI;
-            else if (Current == EnumProgramStage.HGABI) return EnumProgramStage.GAA;
-            else if (Current == EnumProgramStage.GAA) return EnumProgramStage.GAAR;
-            return Current;
+            string FirstSegment = ProgramDetails.StageName.GenerateProjec1stSegment();
+            string SecondSegment = ProgramDetails.YearStart.GenerateProjec2ndSegment();
+
+            var existingMaxIds = _db.vGetProjectCategoryVersions.AsNoTracking()
+                .Where(x => x.Category == Category.CategoryId
+                    && x.ProjectSuffix == FirstSegment
+                    && x.IslandCode == IslandCode
+                    && x.YearStart == ProgramDetails.YearStart)
+                .Select(x => x.MaxId)
+                .ToList();
+
+            int maxExisting = existingMaxIds
+                .Select(id => int.TryParse(id, out var n) ? n : 0)
+                .DefaultIfEmpty(0)
+                .Max();
+
+            int nextId = Math.Max(maxExisting + 1, Category.Minimum);
+            string ThirdSegment = nextId.ToString("D5");
+
+            return $"{FirstSegment}-{SecondSegment}-{ThirdSegment}-{IslandCode}";
         }
         public static string GenerateProjec1stSegment(this string StageName)
         {
@@ -366,20 +432,32 @@ namespace Helpers
 
             return result;
         }
-        public static TDest UpdateRevisionData<TSrc, TDest>(
+        public static UpdateRevisionDataResult<TDest> UpdateRevisionData<TSrc, TDest>(
             this List<string>? allowedKeys,
+            string User,
+            string TransactionId,
+            string AffectedTable,
+            DateTime CreatedDate,
             TSrc sourceData,
             TDest destinationData)
         {
+            List<RevisionTransactionLog> Transaction = new List<RevisionTransactionLog>();
             if (allowedKeys == null || allowedKeys.Count == 0)
-                return destinationData;
+                return new UpdateRevisionDataResult<TDest>
+                {
+                    Data = destinationData,
+                    RevisionTransaction = Transaction
+                };
 
             if (sourceData == null || destinationData == null)
-                return destinationData;
+                return new UpdateRevisionDataResult<TDest>
+                {
+                    Data = destinationData,
+                    RevisionTransaction = Transaction
+                };
 
             var sourceType = typeof(TSrc);
             var destType = typeof(TDest);
-
             foreach (var key in allowedKeys)
             {
                 if (string.IsNullOrWhiteSpace(key))
@@ -404,9 +482,103 @@ namespace Helpers
                     continue;
 
                 destProp.SetValue(destinationData, newValue);
+                Transaction.Add(new RevisionTransactionLog
+                {
+                    TransactionId = TransactionId,
+                    TypeOfTransaction = "Update",
+                    AffectedTable = AffectedTable,
+                    AffectedColumn = key,
+                    OldValue = oldValue?.ToString() ?? string.Empty,
+                    NewValue = newValue?.ToString() ?? string.Empty,
+                    CreatedBy = User,
+                    CreatedDate = CreatedDate
+                });
             }
+            return new UpdateRevisionDataResult<TDest>
+            {
+                Data = destinationData,
+                RevisionTransaction = Transaction
+            };
+        }
+        public static bool ValidateProjectForPublish(DBHelper.Models.Table.ProjectRevisions pr, List<DBHelper.Models.Table.ProjectComponentCostPerYear>? pc)
+        {
+            //var validation = new List<ProjectValidation>();
+            if (pr == null)
+            {
+                return false;// validation;
+            }
+            #region Project Location Validation
+            if (string.IsNullOrEmpty(pr.DEO) || string.IsNullOrEmpty(pr.LegislativeDistrict) || string.IsNullOrEmpty(pr.ImplementingOffice) || string.IsNullOrEmpty(pr.OperatingUnit)) {
+                return false;
+            }
+            #endregion
+            #region Component Cost Per Year Validation
+            if(pc != null)
+            {
+                var HasBlankData = pc.FirstOrDefault(x => x.Amount == null || x.Year == null || x.StartDate == null || x.EndDate == null);
+                if (HasBlankData != null)
+                {
+                    return false;
+                }
+            }
+            #endregion
+            return true;
+        }
+        public static bool ValidateProjectForPublishv2(DBHelper.Models.Table.ProjectRevisions pr, DBHelper.Models.Table.ProjectComponentCost? pc)
+        {
+            //var validation = new List<ProjectValidation>();
+            if (pr == null)
+            {
+                return false;// validation;
+            }
+            #region Project Location Validation
+            string ProjectLocation = string.Empty;
+            if (string.IsNullOrEmpty(pr.DEO)) {
+                ProjectLocation = "ProjectLocation: DEO field is required.";
+            }
+            if (string.IsNullOrEmpty(pr.LegislativeDistrict)) {
+                ProjectLocation = string.IsNullOrEmpty(ProjectLocation) ? "ProjectLocation: Legislative District field is required." : ProjectLocation + " Legislative District field is required.";
+            }
+            if (string.IsNullOrEmpty(pr.ImplementingOffice)) {
+                ProjectLocation = string.IsNullOrEmpty(ProjectLocation) ? "ProjectLocation: Implementing Office field is required." : ProjectLocation + " Implementing Office field is required.";
+            }
+            if (string.IsNullOrEmpty(pr.OperatingUnit)) {
+                ProjectLocation = string.IsNullOrEmpty(ProjectLocation) ? "ProjectLocation: Operating Unit field is required." : ProjectLocation + " Operating Unit field is required.";
+            }
+            if(!string.IsNullOrEmpty(ProjectLocation))
+            {
+                return false;
+            }
+            #endregion
+            #region Component Cost Validation
+            string ComponentCost = string.Empty;
+            if(!string.IsNullOrEmpty(ComponentCost))
+            {
+                return false;
+            }
+            #endregion
+            /*
+            ProjectLocation: DEO LD Municipality IO OU
+            Project Implementation Plan: Planned Start Date Planned End Date
+            OverLapping Projects: GIS
+            Major Items of Work: Validated Major Work Locations
+             */
+            return true;
+        }
+        private static readonly Regex RFutureInfra = new Regex(
+            @"^(?<prefix>[A-Z]{2})(?<digits>\d{5})(?<island>[A-Z]{2})$",
+            RegexOptions.Compiled | RegexOptions.CultureInvariant
+        );
+        public static bool IsValidFutureInfraId(this string id)
+        {
+            // Format: 2 letters + 5 digits + 2 letters (island code)
+            // Example: AB12345LU
+            if (string.IsNullOrWhiteSpace(id))
+                return false;
 
-            return destinationData;
+            id = id.Trim().ToUpperInvariant();
+
+            return RFutureInfra.IsMatch(id);
         }
     }
 }

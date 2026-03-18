@@ -11,7 +11,6 @@ namespace DBHelper.Models.Views
         public EnumProgramStage StageId { get; set; }
         public string? StageName { get; set; }
         public string? ProgramId { get; set; }
-        public string ProgramName { get; set; } = string.Empty;
         public string? ReferenceId { get; set; }
         public string ProjectId { get; set; } = string.Empty;
         public string? AlternateId { get; set; }
@@ -31,7 +30,7 @@ namespace DBHelper.Models.Views
         public string ImplementingOffice { get; set; } = string.Empty;
         public string DEO { get; set; } = string.Empty;
         public string Region { get; set; } = string.Empty;
-        public int Agency { get; set; }
+        public int? Agency { get; set; }
         public int? ImplementationMode { get; set; }
         public int? EmergencyMode { get; set; }
         public string? IslandCode { get; set; }
@@ -42,9 +41,12 @@ namespace DBHelper.Models.Views
         public int? RowAvailable { get; set; }
         public int RegionWide { get; set; }
         public int Tier { get; set; }
+        public Double? Rank { get; set; }
         public bool IsRevised { get; set; }
         public int? RevisedNumber { get; set; }
         public string CreatedBy { get; set; } = string.Empty;
         public DateTime? CreatedDate { get; set; }
+        public bool IsPublishable { get; set; } = false;
+        public bool IsDeleted { get; set; } = false;
     }
 }

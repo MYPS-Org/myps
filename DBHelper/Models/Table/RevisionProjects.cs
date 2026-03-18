@@ -12,12 +12,12 @@ namespace DBHelper.Models.Table
         [Key]
         public int Id { get; set; }
         [Required]
+        public int RevisionId { get; set; }
+        [Required]
+        public bool IsActive { get; set; } = false;
+        [Required]
         [MaxLength(100)]
         public string TransactionId { get; set; } = string.Empty;
-        [Required]
-        public bool IsActive { get; set; }
-        [Required]
-        public int ProjectRevisionId { get; set; }
         [MaxLength(200)]
         public string? ReferenceId { get; set; }
         [Required]
@@ -44,6 +44,9 @@ namespace DBHelper.Models.Table
         public string City { get; set; } = string.Empty;
         [Required]
         [MaxLength(20)]
+        public string Province { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(20)]
         public string LegislativeDistrict { get; set; } = string.Empty;
         [Required]
         [MaxLength(20)]
@@ -55,8 +58,24 @@ namespace DBHelper.Models.Table
         [MaxLength(20)]
         public string DEO { get; set; } = string.Empty;
         [Required]
+        [MaxLength(20)]
+        public string Region { get; set; } = string.Empty;
+        [Required]
         public int Agency { get; set; }
         public int? ImplementationMode { get; set; }
         public int? EmergencyMode { get; set; }
+        [MaxLength(2)]
+        public string? IslandCode { get; set; }
+        public int? Feasibility { get; set; }
+        public DateTime? FeasibilityDate { get; set; }
+        public int? DetailedDesign { get; set; }
+        public DateTime? DetailedDesignDate { get; set; }
+        public int? RowAvailable { get; set; }
+        [Required]
+        public int RegionWide { get; set; }
+        [Required]
+        public int Tier { get; set; }
+        public Double? Rank { get; set; }
+        public bool IsDeleted { get; set; } = false;
     }
 }

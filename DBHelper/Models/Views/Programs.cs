@@ -12,13 +12,13 @@ namespace DBHelper.Models.Views
         public int Id { get; set; }
         public string ProgramId { get; set; } = string.Empty;
         public int RevisionId { get; set; }
+        public int NumberOfProjects { get; set; }
         public string StageName { get; set; } = string.Empty;
         public bool IsSkipped { get; set; }
         public string? SkipReason { get; set; }
         public string? Name { get; set; }
-        public string? GroupName { get; set; }
         public string[] DataSecurityGroup { get; set; } = new string[] { };
-        public int UserGroup { get; set; }
+        public int[] UserGroup { get; set; } = new int[] { };
         public string? Status { get; set; }
         public string? Type { get; set; }
         public Double? Cost { get; set; }
