@@ -84,5 +84,65 @@ namespace WebAPI.Controllers.CodeTable
                 return ExceptionHandler(ex);
             }
         }
+
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> GetAllCodeTablesv2()
+        {
+            try
+            {
+                //Program
+                string tablename = "tOptionProgramStage";
+                var programStages = await _db.tOptionProgramStage.AsNoTracking().ToListAsync();
+                var programStatuses = await _db.tOptionProgramStatus.AsNoTracking().ToListAsync();
+                var programTypes = await _db.tOptionProgramType.AsNoTracking().ToListAsync();
+
+                //Project
+                var projectCategories = await _db.tOptionProjectCategory.AsNoTracking().ToListAsync();
+                var projectThrusts = await _db.tProjectThrustLists.AsNoTracking().ToListAsync();
+                var projectAgencies = await _db.tOptionProjectAgency.AsNoTracking().ToListAsync();
+                var projectOrigins = await _db.tOptionProjectOrigin.AsNoTracking().ToListAsync();
+
+                var Agreements = await _db.tOptionFundingAgreement.AsNoTracking().ToListAsync();
+                var Sources = await _db.tOptionFundingSource.AsNoTracking().ToListAsync();
+                var scopeOfWorks = await _db.tOptionScopeOfWork.AsNoTracking().ToListAsync();
+                var infraTypes = await _db.tOptionInfraType.AsNoTracking().ToListAsync();
+                var projectComponents = await _db.tOptionProjectComponent.AsNoTracking().ToListAsync();
+
+                //Revision
+                var revisionCategories = await _db.tOptionRevisionCategory.AsNoTracking().ToListAsync();
+                var revisionDocuments = await _db.tOptionRevisionDocuments.AsNoTracking().ToListAsync();
+                var revisionHeaders = await _db.tOptionRevisionHeader.AsNoTracking().ToListAsync();
+                var reasons = await _db.tOptionRevisionReasons.AsNoTracking().ToListAsync();
+                var revisionStatuses = await _db.tOptionRevisionStatus.AsNoTracking().ToListAsync();
+                var revisionRules = await _db.vRevisionRules.AsNoTracking().ToListAsync();
+
+                return Ok(new
+                {
+                    ProgramStages = programStages,
+                    ProgramStatuses = programStatuses,
+                    ProgramTypes = programTypes,
+                    ProjectCategories = projectCategories,
+                    ProjectThrusts = projectThrusts,
+                    ProjectAgencies = projectAgencies,
+                    ProjectOrigins = projectOrigins,
+                    FundingAgreements = Agreements,
+                    FundingSources = Sources,
+                    ScopeOfWorks = scopeOfWorks,
+                    InfraTypes = infraTypes,
+                    ProjectComponents = projectComponents,
+                    RevisionCategories = revisionCategories,
+                    RevisionDocuments = revisionDocuments,
+                    RevisionHeaders = revisionHeaders,
+                    Reasons = reasons,
+                    RevisionStatuses = revisionStatuses,
+                    RevisionRules = revisionRules
+                });
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
     }
 }
