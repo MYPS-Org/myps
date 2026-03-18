@@ -74,6 +74,7 @@ namespace DBHelper.Data
         public DbSet<Models.Table.OptionRevisionCategory> tOptionRevisionCategory { get; set; }
         public DbSet<Models.Table.OptionRevisionStatus> tOptionRevisionStatus { get; set; }
         public DbSet<Models.Table.OptionRevisionDocuments> tOptionRevisionDocuments { get; set; }
+        public DbSet<Models.Table.RevisionRules> tRevisionRules { get; set; }
         public DbSet<Models.Table.RevisionTransactionLog> tRevisionTransactionLog { get; set; }
         public DbSet<Models.Table.RevisionProjects> tRevisionProjects { get; set; }
         public DbSet<Models.Table.RevisionProjectFundingProfile> tRevisionProjectFundingProfile { get; set; }

@@ -15,6 +15,7 @@ using System.Xml;
 using static Eaf.Domain.Uow.EafDataFilters;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 using static System.Runtime.InteropServices.JavaScript.JSType;
+using ReportGeneration;
 namespace WebAPI.Controllers.Revision
 {
     [ApiController]
@@ -22,27 +23,132 @@ namespace WebAPI.Controllers.Revision
     public class Reporting : CoreController
     {
         public Reporting(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
-        #region Future Roads
+        #region AIP
         [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> RequestReportAIP()
         {
             try
             {
-                SMTPModel EmailConfig = new SMTPModel
-                {
-                    Recipient = "mf102798@gmail.com",
-                    Subject = "Request for Revision",
-                    Body = "Dear Team,<br/><br/>A new revision request has been submitted. Please review the details and take the necessary actions.<br/><br/>Best Regards,<br/>Automated Notification System"
-                };
-                EmailConfig.SendEmail();
-                var Classification = await _db.tFutureRoadsClassification.AsNoTracking().ToListAsync();
-                var response = new
-                {
-                    Classifications = Classification
-                };
+                var projects = MockData.GetAIP01();
+                var components = MockData.GetAIPComponents();
 
-                return Ok(response); // Remove the extra wrapper
+                var bytes = AIP.GenerateReport(projects, components);
+
+                var fileName = $"AIP_Report.pdf";
+                System.IO.File.WriteAllBytes(fileName, bytes);
+                return File(bytes, "application/pdf", fileName);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
+        #endregion
+
+        #region AIP02
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> RequestReportAIP02()
+        {
+            try
+            {
+                var projects = MockData.GetAIP01();
+                var components = MockData.GetAIPComponents();
+
+                var bytes = AIP02.GenerateReport(projects, components);
+
+                var fileName = $"AIP02_Report.pdf";
+                System.IO.File.WriteAllBytes(fileName, bytes);
+                return File(bytes, "application/pdf", fileName);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
+        #endregion
+
+        #region RBP
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> RequestReportRBP()
+        {
+            try
+            {
+                var data = MockData.GetRBP();
+
+                var bytes = GenerateRBP.GenerateReport(data);
+
+                var fileName = $"RBP_Report.pdf";
+                System.IO.File.WriteAllBytes(fileName, bytes);
+                return File(bytes, "application/pdf", fileName);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
+        #endregion
+
+        #region RBPTier
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> RequestReportRBPTier()
+        {
+            try
+            {
+                var data = MockData.GetRBP();
+
+                var bytes = GenerateRBPTier.GenerateReport(data);
+
+                var fileName = $"RBPTier_Report.pdf";
+                System.IO.File.WriteAllBytes(fileName, bytes);
+                return File(bytes, "application/pdf", fileName);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
+        #endregion
+
+        #region RDIP
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> RequestReportRDIP()
+        {
+            try
+            {
+                var data = MockData.GetRDIP();
+
+                var bytes = GenerateRDIP.GenerateReport(data);
+
+                var fileName = $"RDIP_Report.pdf";
+                System.IO.File.WriteAllBytes(fileName, bytes);
+                return File(bytes, "application/pdf", fileName);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
+        #endregion
+
+        #region RBPComponents
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> RequestReportRBPComponents()
+        {
+            try
+            {
+                var data = MockData.GetRBPComponents();
+
+                var bytes = RBPComponents.GenerateReport(data);
+
+                var fileName = $"RBPComponents_Report.pdf";
+                System.IO.File.WriteAllBytes(fileName, bytes);
+                return File(bytes, "application/pdf", fileName);
             }
             catch (Exception ex)
             {

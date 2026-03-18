@@ -1,0 +1,107 @@
+﻿using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
+
+namespace ReportGeneration
+{
+    public static class GeneratePDF
+    {
+        // ── Shared font / style constants ─────────────────────────────
+        public const string FontFamily = "Tahoma";
+
+        private static byte[]? _logoCached;
+        private static readonly object _lock = new();
+
+        /// <summary>Load the DPWH 17-gear logo once and cache it.</summary>
+        public static byte[] GetLogo()
+        {
+            if (_logoCached is not null) return _logoCached;
+            lock (_lock)
+            {
+                if (_logoCached is not null) return _logoCached;
+                var path = Path.Combine(
+                    AppContext.BaseDirectory, "Resources", "Images", "ReportLogo.png");
+                _logoCached = File.ReadAllBytes(path);
+            }
+            return _logoCached;
+        }
+
+        public static byte[] GenerateReport(Action<PageDescriptor> configurePage)
+        {
+            QuestPDF.Settings.License = LicenseType.Community;
+
+            var document = Document.Create(container =>
+            {
+                container.Page(configurePage);
+            });
+            return document.GeneratePdf();
+        }
+
+        /// <summary>Standard DPWH header block with logo + Republic / DPWH / title lines.</summary>
+        public static void BuildDPWHHeader(
+            ColumnDescriptor col,
+            byte[] logo,
+            string title,
+            string? subtitle = null,
+            string? regionName = null)
+        {
+            col.Item().Row(row =>
+            {
+                row.AutoItem().Width(40).Height(40)
+                   .Image(logo);
+
+                row.RelativeItem().PaddingLeft(8).AlignMiddle().Column(inner =>
+                {
+                    inner.Item().AlignCenter()
+                         .Text("Republic of the Philippines")
+                         .FontFamily(FontFamily).FontSize(9);
+                    inner.Item().AlignCenter()
+                         .Text("DEPARTMENT OF PUBLIC WORKS AND HIGHWAYS")
+                         .FontFamily(FontFamily).FontSize(9).Bold();
+                    if (regionName is not null)
+                        inner.Item().AlignCenter()
+                             .Text(regionName)
+                             .FontFamily(FontFamily).FontSize(9).Bold();
+                });
+
+                row.AutoItem().Width(40);
+            });
+
+            col.Item().PaddingTop(6).AlignCenter()
+               .Text(title)
+               .FontFamily(FontFamily).FontSize(10).Bold();
+
+            if (subtitle is not null)
+                col.Item().AlignCenter()
+                   .Text(subtitle)
+                   .FontFamily(FontFamily).FontSize(8);
+        }
+
+        /// <summary>Standard footer with MYPS timestamp + page numbers.</summary>
+        public static void BuildFooter(PageDescriptor page, int fontSize = 7)
+        {
+            page.Footer()
+                .PaddingTop(6)
+                .Row(row =>
+                {
+                    row.RelativeItem()
+                       .Text(t =>
+                       {
+                           t.Span("MYPS: ").FontFamily(FontFamily).FontSize(fontSize);
+                           t.Span(DateTime.Now.ToString("MM/dd/yyyy hh:mm:ss tt"))
+                             .FontFamily(FontFamily).FontSize(fontSize);
+                       });
+
+                    row.RelativeItem()
+                       .AlignRight()
+                       .Text(t =>
+                       {
+                           t.Span("Page ").FontFamily(FontFamily).FontSize(fontSize);
+                           t.CurrentPageNumber().FontFamily(FontFamily).FontSize(fontSize);
+                            t.Span(" of ").FontFamily(FontFamily).FontSize(fontSize);
+                            t.TotalPages().FontFamily(FontFamily).FontSize(fontSize);
+                       });
+                });
+        }
+    }
+}
