@@ -178,7 +178,7 @@ namespace WebAPI.Controllers.Revision
                     "Not Packaged" :
                     "Packaged";
                 #endregion
-                RevisionRules SelectedRules = new();
+                DBHelper.Models.Views.RevisionRules SelectedRules = new();
                 if (RevisionDetails.CreatedBy == _Session.UserId && (RevisionDetails.RegionStatus == EnumRevisionStatus.ForCorrection || RevisionDetails.COStatus == EnumRevisionStatus.ForCorrection))
                 {
                     SelectedRules = await _db.vRevisionRules.FirstOrDefaultAsync(x => x.ReasonId == RevisionDetails.ReasonId && x.RevisionGroupId == RevisionDetails.RevisionGroupId && x.PCMA_Status == ConStatus && x.Package_Status == PackedStatus);
