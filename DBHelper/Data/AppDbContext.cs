@@ -85,6 +85,7 @@ namespace DBHelper.Data
         public DbSet<Models.Table.RevisionProjectComponentCostPerYear> tRevisionProjectComponentCostPerYear { get; set; }
         public DbSet<Models.Table.OptionInfraType> tOptionInfraType { get; set; }
         public DbSet<Models.Table.ImportingStatus> tImportingStatus { get; set; }
+        public DbSet<Models.Table.OptionCodeTables> tOptionCodeTables { get; set; }
         #endregion
         #region Views
         public DbSet<Models.Views.Users> vUsers { get; set; }

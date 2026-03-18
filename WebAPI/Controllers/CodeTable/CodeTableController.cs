@@ -32,6 +32,8 @@ namespace WebAPI.Controllers.CodeTable
         {
             try
             {
+                var CodeTableLists = await _db.tOptionCodeTables.AsNoTracking().ToListAsync();
+
                 //Program
                 var programStages = await _db.tOptionProgramStage.AsNoTracking().ToListAsync();
                 var programStatuses = await _db.tOptionProgramStatus.AsNoTracking().ToListAsync();
@@ -50,15 +52,16 @@ namespace WebAPI.Controllers.CodeTable
                 var projectComponents = await _db.tOptionProjectComponent.AsNoTracking().ToListAsync();
 
                 //Revision
-                var revisionCategories = await _db.tOptionRevisionCategory.AsNoTracking().ToListAsync();
-                var revisionDocuments = await _db.tOptionRevisionDocuments.AsNoTracking().ToListAsync();
                 var revisionHeaders = await _db.tOptionRevisionHeader.AsNoTracking().ToListAsync();
+                var revisionCategories = await _db.tOptionRevisionCategory.AsNoTracking().ToListAsync();
                 var reasons = await _db.tOptionRevisionReasons.AsNoTracking().ToListAsync();
-                var revisionStatuses = await _db.tOptionRevisionStatus.AsNoTracking().ToListAsync();
                 var revisionRules = await _db.vRevisionRules.AsNoTracking().ToListAsync();
+                var revisionDocuments = await _db.tOptionRevisionDocuments.AsNoTracking().ToListAsync();
+                var revisionStatuses = await _db.tOptionRevisionStatus.AsNoTracking().ToListAsync();
 
                 return Ok(new
                 {
+                    CodeTable = CodeTableLists,
                     ProgramStages = programStages,
                     ProgramStatuses = programStatuses,
                     ProgramTypes = programTypes,

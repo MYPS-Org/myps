@@ -1494,6 +1494,14 @@ namespace WebAPI.Controllers.Projects
                             if (ExistingItem != null)
                             {
                                 bool hasUpdate = false;
+                                if (ExistingItem.InfraType != item.InfraType)
+                                {
+                                    var Infra = await _db.tInfraType.FirstOrDefaultAsync(x => x.InfraCode == item.InfraType);
+                                    if (Infra == null)
+                                    {
+                                        return new BadRequestObjectResult(new { Message = $"Selected Infrastructure Type '{item.InfraType}' is not valid!", Title = "Invalid Infrastructure Type" });
+                                    }
+                                }
                                 if (ExistingItem.ComponentId != item.ComponentId)
                                 {
                                     hasUpdate = true;
@@ -1595,19 +1603,13 @@ namespace WebAPI.Controllers.Projects
                                     if (ExistingLoc.InfraId != loc.InfraId)
                                     {
                                         hasLocUpdate = true;
-                                        //itutuloy pa
-                                        var Infra = await _db.tInfraType.FirstOrDefaultAsync(x => x.InfraCode == loc.InfraId);
-                                        if (Infra == null)
-                                        {
-                                            return new BadRequestObjectResult(new { Message = $"Selected Infrastructure Type '{loc.InfraId}' is not valid!", Title = "Invalid Infrastructure Type" });
-                                        }
                                         transactionLogs.Add(new TransactionLog
                                         {
                                             TransactionId = Project.ProjectId!,
                                             TypeOfTransaction = "Update",
                                             AffectedTable = "tProjectMajorWorkLocations",
                                             AffectedColumn = "InfraId",
-                                            NewValue = Infra.InfraCode,
+                                            NewValue = loc.InfraId,
                                             OldValue = ExistingLoc.InfraId.ToString(),
                                             CreatedBy = _Session.UserId,
                                             CreatedDate = CurrentDate
