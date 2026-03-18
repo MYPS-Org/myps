@@ -25,6 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="Models\Table\CodeTableTransactionLog.cs" />
     <None Include="Models\Table\OptionSearchCategory.cs" />
     <None Include="Models\Table\RevisionRules.cs" />
   </ItemGroup>
