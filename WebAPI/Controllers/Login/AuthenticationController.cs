@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Novell.Directory.Ldap;
 using System.Configuration;
+using System.Net;
 using System.Security.Claims;
 
 namespace WebAPI.Controllers.Auth
@@ -40,11 +41,28 @@ namespace WebAPI.Controllers.Auth
                 if (ldap_conn.Bound)
                 {
                     ldap_conn.Disconnect();
+
+                    var ipAddress = HttpContext.Connection.RemoteIpAddress;
+                    string clientIp = ipAddress?.IsIPv4MappedToIPv6 == true
+                        ? ipAddress.MapToIPv4().ToString()
+                        : ipAddress?.ToString() ?? "Unknown";
+                    string hostName = string.Empty;
+                    try
+                    {
+                        var hostEntry = await Dns.GetHostEntryAsync(ipAddress!);
+                        hostName = hostEntry.HostName;
+                    }
+                    catch
+                    {
+                        hostName = clientIp;
+                    }
+
                     var claims = new List<Claim>
                     {
                         new Claim(ClaimTypes.NameIdentifier, verifyAccount.UserId),
                         new Claim(ClaimTypes.Name, verifyAccount.Name),
-                        new Claim(ClaimTypes.Role, "Admin")
+                        new Claim(ClaimTypes.Role, "Admin"),
+                        new Claim(ClaimTypes.GivenName, hostName)
                     };
 
                     var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
