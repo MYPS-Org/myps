@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formValidation, type FormValidationError } from '../../../../utils/FormValidation';
 import { projectDetailsRules } from '../../../Project/rules/projectDetailsRules';
@@ -203,26 +203,28 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
   // #region GEOJSON DATA FOR MAP
   // Fetch GeoJSON data for map rendering
-  useEffect(() => {
-    const loadMapData = async () => {
-      if (mode === 'edit' && initialData?.ProjectDetails?.ProjectId && initialData?.ProgramDetails?.ProgramId) {
-        try {
-          const response = await fetchProjectGeoJSON(
-            initialData.ProjectDetails.ProjectId,
-            initialData.ProgramDetails.ProgramId
-          );
-          if (response.Data) {
-            setGeoJsonData(response.Data);
-          }
-        } catch (error) {
-          console.error('Error loading map data:', error);
-          // Gracefully handle error - map will show "No data available"
+  const loadMapData = useCallback(async () => {
+    if (mode === 'edit' && initialData?.ProjectDetails?.ProjectId && initialData?.ProgramDetails?.ProgramId) {
+      try {
+        const response = await fetchProjectGeoJSON(
+          initialData.ProjectDetails.ProjectId,
+          initialData.ProgramDetails.ProgramId,
+          user?.UserId || '',
+          initialData.ProgramDetails.StageName
+        );
+        if (response.Data) {
+          setGeoJsonData(response.Data);
         }
+      } catch (error) {
+        console.error('Error loading map data:', error);
+        // Gracefully handle error - map will show "No data available"
       }
-    };
+    }
+  }, [mode, initialData?.ProjectDetails?.ProjectId, initialData?.ProgramDetails?.ProgramId, initialData?.ProgramDetails?.StageName, user?.UserId]);
 
+  useEffect(() => {
     loadMapData();
-  }, [mode, initialData?.ProjectDetails?.ProjectId, initialData?.ProgramDetails?.ProgramId]);
+  }, [loadMapData]);
   // #endregion
 
   useEffect(() => {
