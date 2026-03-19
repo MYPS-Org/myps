@@ -133,6 +133,13 @@ const MapRenderer: React.FC<MapRendererProps> = ({
           totalLng += feature.geometry.coordinates[0];
           totalLat += feature.geometry.coordinates[1];
           pointCount++;
+        } else if (feature.geometry.type === 'MultiPoint') {
+          feature.geometry.coordinates.forEach((coord) => {
+            bounds.extend(coord as [number, number]);
+            totalLng += coord[0];
+            totalLat += coord[1];
+            pointCount++;
+          });
         } else if (feature.geometry.type === 'Polygon') {
           feature.geometry.coordinates[0].forEach((coord) => {
             bounds.extend(coord as [number, number]);
