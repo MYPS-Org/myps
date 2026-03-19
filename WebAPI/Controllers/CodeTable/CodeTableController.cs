@@ -94,6 +94,7 @@ namespace WebAPI.Controllers.CodeTable
         [HttpPost]
         public async Task<IActionResult> UpdateCodeTable([FromBody] UpdateCodeTableDTO dto)
         {
+            var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
                 //Program
@@ -1889,6 +1890,9 @@ namespace WebAPI.Controllers.CodeTable
                         Message = $"The code {dto.Code} is not valid."
                     });
                 }
+                _db.tCodeTableTransactionLog.Add(transactionLog);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
                 return Ok(new
                 {
                     Title = "Udpate Success",
@@ -1897,6 +1901,7 @@ namespace WebAPI.Controllers.CodeTable
             }
             catch (Exception ex)
             {
+                await transaction.RollbackAsync();
                 return ExceptionHandler(ex);
             }
         }
