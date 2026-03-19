@@ -87,6 +87,7 @@ namespace DBHelper.Data
         public DbSet<Models.Table.ImportingStatus> tImportingStatus { get; set; }
         public DbSet<Models.Table.OptionCodeTables> tOptionCodeTables { get; set; }
         public DbSet<Models.Table.CodeTableTransactionLog> tCodeTableTransactionLog { get; set; }
+        public DbSet<Models.Table.OptionReportProgram> tOptionReportProgram { get; set; }
         #endregion
         #region Views
         public DbSet<Models.Views.Users> vUsers { get; set; }
