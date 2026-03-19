@@ -11,6 +11,7 @@ import ModificationCategoryTable from '../tables/revisions/ModificationCategoryT
 import ModificationReasonTable from '../tables/revisions/ModificationReasonTable';
 import ValidationDatesTable from '../tables/revisions/ValidationDatesTable';
 import RevisionFieldPermissionTable from '../tables/revisions/RevisionFieldPermissionTable';
+import { CodeTableProvider } from '../CodeTableContext';
 import {
   ClipboardDocumentListIcon,
   CubeIcon,
@@ -103,6 +104,7 @@ const CodeTables: React.FC = () => {
   const ActiveComponent = activeTable.component;
 
   return (
+    <CodeTableProvider>
     <div className="min-h-screen bg-gray-50">
 
       {/* ── Page header + primary (group) tabs ───────────────────── */}
@@ -143,7 +145,7 @@ const CodeTables: React.FC = () => {
       </div>
 
       {/* ── Sub-tabs + content ────────────────────────────────────── */}
-      <div className="px-6 pt-5 pb-8">
+      <div className="pt-5 pb-8">
 
         {/* Secondary (table) tabs — pill style */}
         {activeGroup.tables.length > 1 && (
@@ -174,6 +176,7 @@ const CodeTables: React.FC = () => {
         </div>
       </div>
     </div>
+    </CodeTableProvider>
   );
 };
 

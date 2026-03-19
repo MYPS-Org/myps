@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Table,
   TableHead,
@@ -8,103 +8,84 @@ import {
   TableHeader
 } from '../../../../components/tailwindui/table';
 import { Button } from '../../../../components/tailwindui/button';
-import { PlusIcon, MagnifyingGlassIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, MagnifyingGlassIcon, PencilIcon, TrashIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { useCodeTableContext } from '../../CodeTableContext';
+import { updateCodeTable } from '../../Service';
+import ConfirmDialog from '../../dialogs/ConfirmDialog';
+import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
+
+const CODE = 'ProjectScopeOfWork';
 
 interface TypeOfWork {
-  id?: number;
+  id: number;        // real ScopeOfWorkEnum.Id
   infraType: string;
   majorWorkCategory: string;
   typeOfWork: string;
-  unitOfMeasure: string;
+  measure: number;
   dataType: 'Integer' | 'Real';
   minAmount: number | null;
   maxAmount: number | null;
 }
 
-// Replace with API call: GET /codetable/typeofwork
-// Data truncated here — full dataset loaded from API in production
-const SAMPLE_DATA: TypeOfWork[] = [
-  { infraType: "Accessibility Facility", majorWorkCategory: "Construction", typeOfWork: "Construction of Accessibility Facility", unitOfMeasure: "Number of Units", dataType: "Integer", minAmount: 1, maxAmount: 40 },
-  { infraType: "Accessibility Facility", majorWorkCategory: "Rehabilitation/Major Repair", typeOfWork: "Rehabilitation/Major Repair of Accessibility Facility", unitOfMeasure: "Number of Units", dataType: "Integer", minAmount: 1, maxAmount: 40 },
-  { infraType: "Bridges", majorWorkCategory: "Construction", typeOfWork: "Completion of Bridge Construction", unitOfMeasure: "Number of Bridges", dataType: "Integer", minAmount: 1, maxAmount: 1 },
-  { infraType: "Bridges", majorWorkCategory: "Construction", typeOfWork: "Construction of Bailey Bridge", unitOfMeasure: "Square meters", dataType: "Real", minAmount: null, maxAmount: 1000.0 },
-  { infraType: "Bridges", majorWorkCategory: "Construction", typeOfWork: "Construction of Bridge", unitOfMeasure: "Square meters", dataType: "Real", minAmount: null, maxAmount: 13000.0 },
-  { infraType: "Bridges", majorWorkCategory: "Construction", typeOfWork: "Construction of Bridge Approach", unitOfMeasure: "Lane Km", dataType: "Real", minAmount: null, maxAmount: 300 },
-  { infraType: "Bridges", majorWorkCategory: "Construction", typeOfWork: "Construction of Concrete Bridge", unitOfMeasure: "Square meters", dataType: "Real", minAmount: null, maxAmount: 50000.0 },
-  { infraType: "Bridges", majorWorkCategory: "Construction", typeOfWork: "Construction of Flyover", unitOfMeasure: "Square meters", dataType: "Real", minAmount: 1, maxAmount: 50000.0 },
-  { infraType: "Bridges", majorWorkCategory: "Construction", typeOfWork: "Construction of Interchange", unitOfMeasure: "Square meters", dataType: "Real", minAmount: null, maxAmount: 50000.0 },
-  { infraType: "Bridges", majorWorkCategory: "Construction", typeOfWork: "Construction of Steel Bridge", unitOfMeasure: "Square meters", dataType: "Real", minAmount: 1, maxAmount: 10000.0 },
-  { infraType: "Bridges", majorWorkCategory: "Construction", typeOfWork: "Construction of Substructure", unitOfMeasure: "Number of Bridges", dataType: "Integer", minAmount: 1, maxAmount: 10 },
-  { infraType: "Bridges", majorWorkCategory: "Construction", typeOfWork: "Construction of Superstructure", unitOfMeasure: "Number of Bridges", dataType: "Integer", minAmount: 1, maxAmount: 10 },
-  { infraType: "Bridges", majorWorkCategory: "Construction", typeOfWork: "ROW Acquisition", unitOfMeasure: "Square meters", dataType: "Real", minAmount: null, maxAmount: null },
-  { infraType: "Bridges", majorWorkCategory: "Rehabilitation/Major Repair", typeOfWork: "Rehabilitation / Major Repair of Bridge", unitOfMeasure: "Number of Bridges", dataType: "Integer", minAmount: 1, maxAmount: 1 },
-  { infraType: "Bridges", majorWorkCategory: "Replacement", typeOfWork: "Replacement of Bridge", unitOfMeasure: "Square meters", dataType: "Real", minAmount: null, maxAmount: 15000.0 },
-  { infraType: "Bridges", majorWorkCategory: "Retrofitting/Strengthening", typeOfWork: "Retrofitting / Strengthening of Bridge", unitOfMeasure: "Number of Bridges", dataType: "Integer", minAmount: 1, maxAmount: 1 },
-  { infraType: "Bridges", majorWorkCategory: "Widening", typeOfWork: "Construction of Parallel Bridge", unitOfMeasure: "Square meters", dataType: "Real", minAmount: null, maxAmount: 35000.0 },
-  { infraType: "Bridges", majorWorkCategory: "Widening", typeOfWork: "Widening of Bridge", unitOfMeasure: "Square meters", dataType: "Real", minAmount: null, maxAmount: 35000.0 },
-  { infraType: "Consultancy", majorWorkCategory: "Consultancy", typeOfWork: "Business Case Study", unitOfMeasure: "Number of Units", dataType: "Integer", minAmount: 1, maxAmount: 1 },
-  { infraType: "Consultancy", majorWorkCategory: "Consultancy", typeOfWork: "Detailed Architectural and Engineering Design", unitOfMeasure: "Number of Units", dataType: "Integer", minAmount: 1, maxAmount: 1 },
-  { infraType: "Consultancy", majorWorkCategory: "Consultancy", typeOfWork: "Feasibility Study", unitOfMeasure: "Number of Units", dataType: "Integer", minAmount: 1, maxAmount: 1 },
-  { infraType: "Consultancy", majorWorkCategory: "Consultancy", typeOfWork: "Preliminary Engineering Design", unitOfMeasure: "Number of Units", dataType: "Integer", minAmount: 1, maxAmount: 1 },
-  { infraType: "Consultancy", majorWorkCategory: "Consultancy", typeOfWork: "Road Safety Engineering", unitOfMeasure: "Number of Units", dataType: "Integer", minAmount: 1, maxAmount: 1 },
-  { infraType: "Flood Control Structures", majorWorkCategory: "Construction", typeOfWork: "Construction of Dike", unitOfMeasure: "Lineal meters", dataType: "Real", minAmount: null, maxAmount: 17000.0 },
-  { infraType: "Flood Control Structures", majorWorkCategory: "Construction", typeOfWork: "Construction of Drainage Structure", unitOfMeasure: "Lineal meters", dataType: "Real", minAmount: null, maxAmount: 60000.0 },
-  { infraType: "Flood Control Structures", majorWorkCategory: "Construction", typeOfWork: "Construction of Flood Mitigation Structure", unitOfMeasure: "Lineal meters", dataType: "Real", minAmount: null, maxAmount: null },
-  { infraType: "Flood Control Structures", majorWorkCategory: "Construction", typeOfWork: "Construction of Revetment", unitOfMeasure: "Lineal meters", dataType: "Real", minAmount: null, maxAmount: 25000.0 },
-  { infraType: "Flood Control Structures", majorWorkCategory: "Rehabilitation/Major Repair", typeOfWork: "Rehabilitation / Major Repair of Flood Control Structure", unitOfMeasure: "Lineal meters", dataType: "Real", minAmount: 1, maxAmount: 10000.0 },
-  { infraType: "Hospitals", majorWorkCategory: "Construction", typeOfWork: "Construction of Hospital", unitOfMeasure: "Number of Hospitals", dataType: "Integer", minAmount: 1, maxAmount: 1 },
-  { infraType: "Hospitals", majorWorkCategory: "Construction", typeOfWork: "Construction of Rural Health Unit", unitOfMeasure: "Number of Units", dataType: "Integer", minAmount: 1, maxAmount: 1 },
-  { infraType: "Hospitals", majorWorkCategory: "Rehabilitation/Major Repair", typeOfWork: "Rehabilitation / Major Repair of Hospital", unitOfMeasure: "Number of Hospitals", dataType: "Integer", minAmount: 1, maxAmount: 1 },
-  { infraType: "Multi Purpose Buildings", majorWorkCategory: "Construction", typeOfWork: "Construction of Evacuation Center", unitOfMeasure: "Number of Buildings", dataType: "Integer", minAmount: 1, maxAmount: 10 },
-  { infraType: "Multi Purpose Buildings", majorWorkCategory: "Construction", typeOfWork: "Construction of Multi Purpose Building", unitOfMeasure: "Number of Buildings", dataType: "Integer", minAmount: 1, maxAmount: 100 },
-  { infraType: "Multi Purpose Buildings", majorWorkCategory: "Rehabilitation/Major Repair", typeOfWork: "Rehabilitation / Major Repair of Multi Purpose Building", unitOfMeasure: "Number of Buildings", dataType: "Integer", minAmount: 1, maxAmount: 20 },
-  { infraType: "Non-Infra", majorWorkCategory: "Consultancy", typeOfWork: "Capacity Building and/or Development", unitOfMeasure: "Number of Units", dataType: "Integer", minAmount: 1, maxAmount: 1 },
-  { infraType: "Other Buildings", majorWorkCategory: "Construction", typeOfWork: "Construction of Other Building", unitOfMeasure: "Number of Buildings", dataType: "Integer", minAmount: 1, maxAmount: 200 },
-  { infraType: "Other Buildings", majorWorkCategory: "Rehabilitation/Major Repair", typeOfWork: "Repair/Rehabilitation of Other Buildings", unitOfMeasure: "Number of Buildings", dataType: "Integer", minAmount: 1, maxAmount: 200 },
-  { infraType: "Rain Water Collector", majorWorkCategory: "Construction", typeOfWork: "Construction of Rain Water Collector", unitOfMeasure: "Number of Units", dataType: "Integer", minAmount: 1, maxAmount: 40 },
-  { infraType: "Roads", majorWorkCategory: "Construction", typeOfWork: "Construction of Asphalt Road", unitOfMeasure: "Lane Km", dataType: "Real", minAmount: null, maxAmount: 50 },
-  { infraType: "Roads", majorWorkCategory: "Construction", typeOfWork: "Construction of Concrete Road", unitOfMeasure: "Lane Km", dataType: "Real", minAmount: null, maxAmount: 40000.0 },
-  { infraType: "Roads", majorWorkCategory: "Construction", typeOfWork: "Construction of Flyover", unitOfMeasure: "Lane Km", dataType: "Real", minAmount: null, maxAmount: 100 },
-  { infraType: "Roads", majorWorkCategory: "Construction", typeOfWork: "Construction of Gravel Road", unitOfMeasure: "Lane Km", dataType: "Real", minAmount: null, maxAmount: 70 },
-  { infraType: "Roads", majorWorkCategory: "Preventive Maintenance", typeOfWork: "Preventive Maintenance of Road: Asphalt Overlay", unitOfMeasure: "Lane Km", dataType: "Real", minAmount: null, maxAmount: 250 },
-  { infraType: "Roads", majorWorkCategory: "Preventive Maintenance", typeOfWork: "Preventive Maintenance of Road: Concrete Reblocking", unitOfMeasure: "Lane Km", dataType: "Real", minAmount: null, maxAmount: 1500.0 },
-  { infraType: "Roads", majorWorkCategory: "ROW Acquisition", typeOfWork: "ROW Acquisition", unitOfMeasure: "Square meters", dataType: "Real", minAmount: null, maxAmount: null },
-  { infraType: "Roads", majorWorkCategory: "Reconstruction", typeOfWork: "Reconstruction from Asphalt to Concrete", unitOfMeasure: "Lane Km", dataType: "Real", minAmount: null, maxAmount: 50 },
-  { infraType: "Roads", majorWorkCategory: "Rehabilitation", typeOfWork: "Rehabilitation of Asphalt Road", unitOfMeasure: "Lane Km", dataType: "Real", minAmount: null, maxAmount: 300 },
-  { infraType: "Roads", majorWorkCategory: "Rehabilitation", typeOfWork: "Rehabilitation of Concrete Road", unitOfMeasure: "Lane Km", dataType: "Real", minAmount: null, maxAmount: 110 },
-  { infraType: "Roads", majorWorkCategory: "Rehabilitation/Major Repair", typeOfWork: "Rehabilitation / Major Repair of Drainage Structure along Road", unitOfMeasure: "Lineal meters", dataType: "Real", minAmount: null, maxAmount: 20000.0 },
-  { infraType: "Roads", majorWorkCategory: "Road Safety", typeOfWork: "Road Safety: Guardrails", unitOfMeasure: "Lineal meters", dataType: "Real", minAmount: null, maxAmount: null },
-  { infraType: "Roads", majorWorkCategory: "Road Safety", typeOfWork: "Road Safety: Pavement Markings", unitOfMeasure: "Lineal meters", dataType: "Real", minAmount: null, maxAmount: 50000.0 },
-  { infraType: "Roads", majorWorkCategory: "Road Safety", typeOfWork: "Road Safety: Road Signs", unitOfMeasure: "Number of Signs", dataType: "Integer", minAmount: 1, maxAmount: 5000 },
-  { infraType: "Roads", majorWorkCategory: "Road Safety", typeOfWork: "Road Safety: Traffic Signals", unitOfMeasure: "Number of Traffic Signals", dataType: "Integer", minAmount: 1, maxAmount: 10 },
-  { infraType: "Roads", majorWorkCategory: "Upgrading", typeOfWork: "Road Upgrading Asphalt to Concrete", unitOfMeasure: "Lane Km", dataType: "Real", minAmount: null, maxAmount: 100 },
-  { infraType: "Roads", majorWorkCategory: "Upgrading", typeOfWork: "Road Upgrading Gravel to Paved", unitOfMeasure: "Lane Km", dataType: "Real", minAmount: null, maxAmount: 50 },
-  { infraType: "Roads", majorWorkCategory: "Widening", typeOfWork: "Road Widening", unitOfMeasure: "Lane Km", dataType: "Real", minAmount: null, maxAmount: 300 },
-  { infraType: "School Buildings", majorWorkCategory: "Construction", typeOfWork: "Construction of Classrooms", unitOfMeasure: "Number of Classrooms", dataType: "Integer", minAmount: 1, maxAmount: 150 },
-  { infraType: "School Buildings", majorWorkCategory: "Construction", typeOfWork: "Construction of School Buildings", unitOfMeasure: "Number of School Buildings", dataType: "Integer", minAmount: 1, maxAmount: 10 },
-  { infraType: "School Buildings", majorWorkCategory: "Rehabilitation/Major Repair", typeOfWork: "Rehabilitation / Major Repair of Classrooms", unitOfMeasure: "Number of Classrooms", dataType: "Integer", minAmount: 1, maxAmount: 150 },
-  { infraType: "Septage and Sewerage Plants", majorWorkCategory: "Construction", typeOfWork: "Construction of Septage / Sewerage Plants", unitOfMeasure: "Number of Septage/Sewerage Plants", dataType: "Integer", minAmount: 1, maxAmount: 1 },
-  { infraType: "Water Supply Systems", majorWorkCategory: "Construction", typeOfWork: "Construction of Water Supply Systems", unitOfMeasure: "Number of Water Supply Systems", dataType: "Integer", minAmount: 1, maxAmount: 20 },
-  { infraType: "Water Supply Systems", majorWorkCategory: "Rehabilitation", typeOfWork: "Rehabilitation of Water Supply Systems", unitOfMeasure: "Number of Water Supply Systems", dataType: "Integer", minAmount: 1, maxAmount: 20 },
-  { infraType: "Waterway", majorWorkCategory: "Channelization", typeOfWork: "Channelization", unitOfMeasure: "Cubic meters", dataType: "Real", minAmount: null, maxAmount: null },
-  { infraType: "Waterway", majorWorkCategory: "Dredging / Desilting", typeOfWork: "Dredging / Desilting", unitOfMeasure: "Cubic meters", dataType: "Real", minAmount: null, maxAmount: null },
-];
-
-const UNIQUE_INFRA_TYPES = [...new Set(SAMPLE_DATA.map(d => d.infraType))].sort();
-const UNIQUE_WORK_CATEGORIES = [...new Set(SAMPLE_DATA.map(d => d.majorWorkCategory))].sort();
+interface FormState {
+  infraType: string;
+  workCategory: string;
+  description: string;
+  measure: number;
+  minAmount: string;
+  maxAmount: string;
+}
+const EMPTY_FORM: FormState = { infraType: '', workCategory: '', description: '', measure: 0, minAmount: '', maxAmount: '' };
 
 const formatAmount = (val: number | null) => val === null ? <span className="text-gray-400">—</span> : <span>{val.toLocaleString()}</span>;
+
+const inp = (v: 'add' | 'edit') =>
+  `w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 resize-none ${v === 'add' ? 'border-indigo-300 focus:ring-indigo-500' : 'border-amber-300 focus:ring-amber-500'}`;
+
+const numInp = (v: 'add' | 'edit') =>
+  `w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 ${v === 'add' ? 'border-indigo-300 focus:ring-indigo-500' : 'border-amber-300 focus:ring-amber-500'}`;
 
 const TypeOfWorkTable: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedInfraType, setSelectedInfraType] = useState('');
   const [selectedWorkCategory, setSelectedWorkCategory] = useState('');
-  const [filteredData, setFilteredData] = useState<TypeOfWork[]>(SAMPLE_DATA);
+  const [filteredData, setFilteredData] = useState<TypeOfWork[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [addForm, setAddForm] = useState<FormState | null>(null);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState<FormState>(EMPTY_FORM);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const itemsPerPage = 15;
+  const { data: codeTableData, loading } = useCodeTableContext();
+  const confirm = useConfirmDialog();
+
+  // Flatten ScopeOfWorks into one row per infra-type entry, using real ScopeOfWorkEnum.Id
+  const allData = useMemo<TypeOfWork[]>(() => {
+    const scopes = codeTableData?.ScopeOfWorks ?? [];
+    const rows: TypeOfWork[] = [];
+    for (const s of scopes) {
+      const infraTypes = Array.isArray(s.InfraType) ? s.InfraType : [String(s.InfraType)];
+      for (const infra of infraTypes) {
+        rows.push({
+          id: s.Id,
+          infraType: infra,
+          majorWorkCategory: s.WorkCategory,
+          typeOfWork: s.Description,
+          measure: s.Measure,
+          dataType: s.Measure === 0 ? 'Integer' : 'Real',
+          minAmount: s.MinAmount ?? null,
+          maxAmount: s.MaxAmount ?? null,
+        });
+      }
+    }
+    return rows;
+  }, [codeTableData]);
+
+  const uniqueInfraTypes = useMemo(() => [...new Set(allData.map(d => d.infraType))].sort(), [allData]);
+  const uniqueWorkCategories = useMemo(() => [...new Set(allData.map(d => d.majorWorkCategory))].sort(), [allData]);
 
   useEffect(() => {
-    let filtered = SAMPLE_DATA;
+    let filtered = allData;
     if (searchTerm) {
       const lower = searchTerm.toLowerCase();
       filtered = filtered.filter(d =>
@@ -117,10 +98,96 @@ const TypeOfWorkTable: React.FC = () => {
     if (selectedWorkCategory) filtered = filtered.filter(d => d.majorWorkCategory === selectedWorkCategory);
     setFilteredData(filtered);
     setCurrentPage(1);
-  }, [searchTerm, selectedInfraType, selectedWorkCategory]);
+  }, [searchTerm, selectedInfraType, selectedWorkCategory, allData]);
 
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
   const pageData = filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  const startEdit = (item: TypeOfWork) => {
+    setEditId(item.id);
+    setEditForm({
+      infraType: item.infraType,
+      workCategory: item.majorWorkCategory,
+      description: item.typeOfWork,
+      measure: item.measure,
+      minAmount: item.minAmount !== null ? String(item.minAmount) : '',
+      maxAmount: item.maxAmount !== null ? String(item.maxAmount) : '',
+    });
+    setDeleteConfirmId(null);
+  };
+  const cancelEdit = () => setEditId(null);
+
+  const requestAdd = () => {
+    if (!addForm) return;
+    confirm.request({
+      mode: 'add',
+      tableName: 'Type of Work',
+      fields: [
+        { label: 'Infra Type',    value: addForm.infraType },
+        { label: 'Work Category', value: addForm.workCategory },
+        { label: 'Description',   value: addForm.description },
+        { label: 'Measure',       value: addForm.measure === 0 ? 'Integer (0)' : 'Real (1)' },
+        { label: 'Min Amount',    value: addForm.minAmount || '—' },
+        { label: 'Max Amount',    value: addForm.maxAmount || '—' },
+      ],
+      onConfirm: async () => {
+        await updateCodeTable(CODE, 0, JSON.stringify({
+          InfraType: [addForm.infraType],
+          WorkCategory: addForm.workCategory,
+          Description: addForm.description,
+          Measure: addForm.measure,
+          MinAmount: addForm.minAmount !== '' ? Number(addForm.minAmount) : null,
+          MaxAmount: addForm.maxAmount !== '' ? Number(addForm.maxAmount) : null,
+        }));
+        confirm.close();
+        setAddForm(null);
+      },
+    });
+  };
+
+  const requestEdit = (item: TypeOfWork) => {
+    confirm.request({
+      mode: 'edit',
+      tableName: 'Type of Work',
+      fields: [
+        { label: 'Infra Type',    value: editForm.infraType },
+        { label: 'Work Category', value: editForm.workCategory },
+        { label: 'Description',   value: editForm.description },
+        { label: 'Measure',       value: editForm.measure === 0 ? 'Integer (0)' : 'Real (1)' },
+        { label: 'Min Amount',    value: editForm.minAmount || '—' },
+        { label: 'Max Amount',    value: editForm.maxAmount || '—' },
+      ],
+      onConfirm: async () => {
+        await updateCodeTable(CODE, 1, JSON.stringify({
+          Id: item.id,
+          InfraType: [editForm.infraType],
+          WorkCategory: editForm.workCategory,
+          Description: editForm.description,
+          Measure: editForm.measure,
+          MinAmount: editForm.minAmount !== '' ? Number(editForm.minAmount) : null,
+          MaxAmount: editForm.maxAmount !== '' ? Number(editForm.maxAmount) : null,
+        }));
+        confirm.close();
+        cancelEdit();
+      },
+    });
+  };
+
+  const confirmDelete = async (id: number) => {
+    await updateCodeTable(CODE, 2, JSON.stringify({ Id: id }));
+    setDeleteConfirmId(null);
+  };
+
+  const addF = (field: keyof FormState) => (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => setAddForm(f => f ? { ...f, [field]: field === 'measure' ? Number(e.target.value) : e.target.value } : f);
+
+  const editF = (field: keyof FormState) => (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => setEditForm(f => ({ ...f, [field]: field === 'measure' ? Number(e.target.value) : e.target.value }));
+
+  const addValid = addForm ? addForm.infraType.trim() && addForm.workCategory.trim() && addForm.description.trim() : false;
+  const editValid = editForm.infraType.trim() && editForm.workCategory.trim() && editForm.description.trim();
 
   return (
     <div className="space-y-4">
@@ -146,7 +213,7 @@ const TypeOfWorkTable: React.FC = () => {
             className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-500"
           >
             <option value="">All Infra Types</option>
-            {UNIQUE_INFRA_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            {uniqueInfraTypes.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
           <select
             value={selectedWorkCategory}
@@ -154,9 +221,9 @@ const TypeOfWorkTable: React.FC = () => {
             className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-500"
           >
             <option value="">All Work Categories</option>
-            {UNIQUE_WORK_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+            {uniqueWorkCategories.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
-          <Button color="indigo" className="flex items-center gap-1 text-sm">
+          <Button color="indigo" className="flex items-center gap-1 text-sm" onClick={() => setAddForm(EMPTY_FORM)} disabled={!!addForm}>
             <PlusIcon className="h-4 w-4" /> Add
           </Button>
         </div>
@@ -169,48 +236,114 @@ const TypeOfWorkTable: React.FC = () => {
               <TableHeader>Infrastructure Type</TableHeader>
               <TableHeader>Work Category</TableHeader>
               <TableHeader>Type of Work</TableHeader>
-              <TableHeader>Unit of Measure</TableHeader>
               <TableHeader className="w-20 text-center">Data Type</TableHeader>
               <TableHeader className="w-24 text-center">Min</TableHeader>
               <TableHeader className="w-24 text-center">Max</TableHeader>
-              <TableHeader className="w-24">Actions</TableHeader>
+              <TableHeader className="w-32">Actions</TableHeader>
             </TableRow>
           </TableHead>
           <TableBody>
-            {pageData.length === 0 ? (
+            {loading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-10 text-gray-500">No records found.</TableCell>
+                <TableCell colSpan={7} className="text-center py-10">
+                  <div className="flex items-center justify-center gap-2 text-gray-400">
+                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>Loading...
+                  </div>
+                </TableCell>
               </TableRow>
             ) : (
-              pageData.map((item, idx) => (
-                <TableRow key={`${item.infraType}-${item.typeOfWork}-${idx}`}>
-                  <TableCell>
-                    <span className="inline-flex px-2 py-0.5 text-xs font-medium bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200">
-                      {item.infraType}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-sm text-gray-700">{item.majorWorkCategory}</TableCell>
-                  <TableCell className="text-sm text-gray-900">{item.typeOfWork}</TableCell>
-                  <TableCell className="text-sm text-gray-600">{item.unitOfMeasure}</TableCell>
-                  <TableCell className="text-center">
-                    <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full border ${
-                      item.dataType === 'Integer'
-                        ? 'bg-blue-50 text-blue-700 border-blue-200'
-                        : 'bg-green-50 text-green-700 border-green-200'
-                    }`}>
-                      {item.dataType}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-center text-sm">{formatAmount(item.minAmount)}</TableCell>
-                  <TableCell className="text-center text-sm">{formatAmount(item.maxAmount)}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-1.5">
-                      <Button color="zinc" className="p-1.5"><PencilIcon className="h-3.5 w-3.5" /></Button>
-                      <Button color="red" className="p-1.5"><TrashIcon className="h-3.5 w-3.5" /></Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
+              <>
+                {addForm !== null && (
+                  <TableRow className="bg-indigo-50 border-l-4 border-indigo-400">
+                    <TableCell><textarea autoFocus value={addForm.infraType} onChange={addF('infraType')} placeholder="Infra type..." rows={2} className={inp('add')} /></TableCell>
+                    <TableCell><textarea value={addForm.workCategory} onChange={addF('workCategory')} placeholder="Work category..." rows={2} className={inp('add')} /></TableCell>
+                    <TableCell><textarea value={addForm.description} onChange={addF('description')} placeholder="Type of work..." rows={2} className={inp('add')} /></TableCell>
+                    <TableCell>
+                      <select value={addForm.measure} onChange={addF('measure')} className={numInp('add')}>
+                        <option value={0}>Integer</option>
+                        <option value={1}>Real</option>
+                      </select>
+                    </TableCell>
+                    <TableCell><input type="number" value={addForm.minAmount} onChange={addF('minAmount')} placeholder="Min..." className={numInp('add')} /></TableCell>
+                    <TableCell><input type="number" value={addForm.maxAmount} onChange={addF('maxAmount')} placeholder="Max..." className={numInp('add')} /></TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button color="indigo" className="p-1.5" onClick={requestAdd} disabled={!addValid}><CheckIcon className="h-3.5 w-3.5" /></Button>
+                        <Button color="zinc" className="p-1.5" onClick={() => setAddForm(null)}><XMarkIcon className="h-3.5 w-3.5" /></Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+                {pageData.length === 0 && !addForm ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-10 text-gray-500">No records found.</TableCell>
+                  </TableRow>
+                ) : (
+                  pageData.map((item, idx) => (
+                    <TableRow key={`${item.id}-${item.infraType}-${idx}`} className={editId === item.id ? 'bg-amber-50 border-l-4 border-amber-400' : undefined}>
+                      {editId === item.id ? (
+                        <>
+                          <TableCell><textarea autoFocus value={editForm.infraType} onChange={editF('infraType')} rows={2} className={inp('edit')} /></TableCell>
+                          <TableCell><textarea value={editForm.workCategory} onChange={editF('workCategory')} rows={2} className={inp('edit')} /></TableCell>
+                          <TableCell><textarea value={editForm.description} onChange={editF('description')} rows={2} className={inp('edit')} /></TableCell>
+                          <TableCell>
+                            <select value={editForm.measure} onChange={editF('measure')} className={numInp('edit')}>
+                              <option value={0}>Integer</option>
+                              <option value={1}>Real</option>
+                            </select>
+                          </TableCell>
+                          <TableCell><input type="number" value={editForm.minAmount} onChange={editF('minAmount')} className={numInp('edit')} /></TableCell>
+                          <TableCell><input type="number" value={editForm.maxAmount} onChange={editF('maxAmount')} className={numInp('edit')} /></TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              <Button color="amber" className="p-1.5" onClick={() => requestEdit(item)} disabled={!editValid}><CheckIcon className="h-3.5 w-3.5" /></Button>
+                              <Button color="zinc" className="p-1.5" onClick={cancelEdit}><XMarkIcon className="h-3.5 w-3.5" /></Button>
+                            </div>
+                          </TableCell>
+                        </>
+                      ) : (
+                        <>
+                          <TableCell>
+                            <span className="inline-flex px-2 py-0.5 text-xs font-medium bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200">
+                              {item.infraType}
+                            </span>
+                          </TableCell>
+                          <TableCell className="max-w-[160px]"><span className="block truncate text-sm text-gray-700" title={item.majorWorkCategory}>{item.majorWorkCategory}</span></TableCell>
+                          <TableCell className="max-w-[200px]"><span className="block truncate text-sm text-gray-900" title={item.typeOfWork}>{item.typeOfWork}</span></TableCell>
+                          <TableCell className="text-center">
+                            <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full border ${
+                              item.dataType === 'Integer'
+                                ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                : 'bg-green-50 text-green-700 border-green-200'
+                            }`}>
+                              {item.dataType}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-center text-sm">{formatAmount(item.minAmount)}</TableCell>
+                          <TableCell className="text-center text-sm">{formatAmount(item.maxAmount)}</TableCell>
+                          <TableCell>
+                            {deleteConfirmId === item.id ? (
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs text-red-600">Delete?</span>
+                                <Button color="red" className="px-2 py-1 text-xs" onClick={() => confirmDelete(item.id)}>Yes</Button>
+                                <Button color="zinc" className="px-2 py-1 text-xs" onClick={() => setDeleteConfirmId(null)}>No</Button>
+                              </div>
+                            ) : (
+                              <div className="flex gap-1.5">
+                                <Button color="zinc" className="p-1.5" onClick={() => startEdit(item)}><PencilIcon className="h-3.5 w-3.5" /></Button>
+                                <Button color="red" className="p-1.5" onClick={() => setDeleteConfirmId(item.id)}><TrashIcon className="h-3.5 w-3.5" /></Button>
+                              </div>
+                            )}
+                          </TableCell>
+                        </>
+                      )}
+                    </TableRow>
+                  ))
+                )}
+              </>
             )}
           </TableBody>
         </Table>
@@ -228,6 +361,7 @@ const TypeOfWorkTable: React.FC = () => {
           </div>
         )}
       </div>
+      <ConfirmDialog {...confirm.dialogProps} />
     </div>
   );
 };

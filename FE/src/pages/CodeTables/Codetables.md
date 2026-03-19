@@ -9,7 +9,8 @@ System reference data management with two-tier pill-tab navigation. All tables a
 ```
 pages/CodeTables/
 ├── Views/
-│   └── CodeTables.tsx               ← Only entry point (pill group tabs + all group imports)
+│   └── CodeTables.tsx               ← Only entry point (pill group tabs + CodeTableProvider wrapper)
+├── CodeTableContext.tsx             ← React context: fetches GET CodeTable/GetAllCodeTables once; provides data/loading/error/refetch to all tables
 ├── dialogs/
 │   ├── ConfirmDialog.tsx            ← Dynamic confirmation dialog (add / edit modes)
 │   └── useConfirmDialog.ts          ← Hook to manage dialog state from any table
@@ -44,8 +45,8 @@ pages/CodeTables/
 │   │   ├── ValidationDatesTable.tsx        ← Revision window dates per funding year
 │   │   └── RevisionFieldPermissionTable.tsx ← Field-level edit rules [API-connected]
 │   └── addDocument/                    ← (reserved)
-├── Model.d.ts                  ← TypeScript interfaces for revision tables
-├── Service.ts                  ← API: fetchRevisionReasons, fetchRevisionRules
+├── Model.d.ts                  ← TypeScript interfaces for revision tables + extended CodeTableData (includes ProjectCategories, ProjectThrusts, ProjectAgencies, ProjectOrigins, FundingSources, InfraTypes, ProjectComponents, ScopeOfWorks)
+├── Service.ts                  ← API: fetchRevisionReasons, fetchRevisionRules, fetchCodeTableData<CodeTableData>
 └── Codetables.md               ← This file
 ```
 
@@ -193,17 +194,23 @@ The **Form Dropdowns** entry renders `ProjectDetailsDropdowns`, a dedicated pare
 
 | Table | Data Source | Interface |
 |-------|-------------|-----------|
-| **ProjectDetailsDropdowns** | **`POST /Project/InitAddProject`** (`getProjectEnums`) | `ProjectEnums` from `Project/Model.d` |
-| CategoryTable | Sample data → API | `CategoryEnum` from `Project/Model.d` |
-| ThrustTable | Sample data → API | `ThrustEnum` from `Project/Model.d` |
-| OriginTable | Sample data → API | `TableEnum` from `Project/Model.d` |
-| AgencyTable | Sample data → API | `AgencyEnum` from `Project/Model.d` — `{ Id (read-only), NameId*, Name*, Description? }` |
+| **ProjectDetailsDropdowns** | **`POST /Project/InitAddProject`** (`getProjectEnums`) + **CodeTableContext** override for 4 keys | `ProjectEnums` from `Project/Model.d` |
+| CategoryTable | **`POST CodeTable/GetAllCodeTables`** → `ProjectCategories` (CodeTableContext) | `CategoryEnum` from `Project/Model.d` |
+| ThrustTable | **`POST CodeTable/GetAllCodeTables`** → `ProjectThrusts` (CodeTableContext) | `ThrustEnum` from `Project/Model.d` |
+| AgencyTable | **`POST CodeTable/GetAllCodeTables`** → `ProjectAgencies` (CodeTableContext) | `AgencyEnum` from `Project/Model.d` |
+| OriginTable | **`POST CodeTable/GetAllCodeTables`** → `ProjectOrigins` (CodeTableContext) | `TableEnum` from `Project/Model.d` |
+| ImplementationModeTable | `getProjectEnums` → `ImplementationModes` | `TableEnum` from `Project/Model.d` |
+| EmergencyModeTable | `getProjectEnums` → `EmergencyModes` | `TableEnum` from `Project/Model.d` |
+| RowAvailableTable | `getProjectEnums` → `RowsAvailable` | `TableEnum` from `Project/Model.d` |
+| FeasibilityTable | `getProjectEnums` → `Feasibility` | `TableEnum` from `Project/Model.d` |
+| DetailedDesignTable | `getProjectEnums` → `DetailedDesign` | `TableEnum` from `Project/Model.d` |
+| RegionWideTable | `getProjectEnums` → `RegionWide` | `TableEnum` from `Project/Model.d` |
 | MultiCriteriaAnalysisTable | Sample data (read-only) | `MCAData` (local) |
-| CostTypeTable | Sample data → API | `ComponentTypeEnum` from `Project/Model.d` |
-| WorkCategoryTable | Sample data → API | `WorkCategoryData` (local) |
-| TypeOfWorkTable | Sample data → API | `TypeOfWork` (local) |
-| InfraTypeTable | Sample data → API | `InfraTypeEnum` from `Project/Model.d` |
-| FundingSourceTable | Sample data → API | `FundingSourceData` (local) |
+| **CostTypeTable** | **CodeTableContext** → `ProjectComponents` | `ComponentTypeEnum` from `Project/Model.d` |
+| **WorkCategoryTable** | **CodeTableContext** → `ScopeOfWorks` (derived: unique infra+category pairs) | `ScopeOfWorkEnum` from `Project/Model.d` |
+| **TypeOfWorkTable** | **CodeTableContext** → `ScopeOfWorks` (flattened per InfraType entry) | `ScopeOfWorkEnum` from `Project/Model.d` |
+| **InfraTypeTable** | **CodeTableContext** → `InfraTypes` | `InfraTypeEnum` from `Project/Model.d` |
+| **FundingSourceTable** | **CodeTableContext** → `FundingSources` | `SourceEnum` from `Project/Model.d` |
 | ModificationCategoryTable | Sample data → API | `ModCategoryData` (local) |
 | **ModificationReasonTable** | **`POST /codetable/revisionreasons`** | `ModificationCategoryReason` from `Model.d` |
 | ValidationDatesTable | Sample data → API | `ValidationDateData` (local) |
@@ -285,11 +292,11 @@ Props: `value`, `onChange(n: number)`, `thrusts: ThrustEnum[]`, `infraTypeFilter
 
 ## Import Path Reference
 
-| From | To tailwindui components | To Project Service | To CodeTable Service | To Project/Model.d | To dialogs/ |
-|------|--------------------------|-------------------|----------------------|--------------------|-------------|
-| `tables/*/` | `../../../../components/tailwindui/...` | `../../../Project/Service` | `../../Service` | `../../../Project/Model.d` | `../../dialogs/...` |
-| `Views/CodeTables.tsx` | `../../../components/tailwindui/...` | `../../Project/Service` | `../Service` | `../../Project/Model.d` | `../dialogs/...` |
-| `dialogs/` | `../../../components/tailwindui/...` | — | — | — | `./...` |
+| From | To tailwindui components | To Project Service | To CodeTable Service | To Project/Model.d | To dialogs/ | To Context |
+|------|--------------------------|-------------------|----------------------|--------------------|-------------|------------|
+| `tables/*/` | `../../../../components/tailwindui/...` | `../../../Project/Service` | `../../Service` | `../../../Project/Model.d` | `../../dialogs/...` | `../../CodeTableContext` |
+| `Views/CodeTables.tsx` | `../../../components/tailwindui/...` | `../../Project/Service` | `../Service` | `../../Project/Model.d` | `../dialogs/...` | `../CodeTableContext` |
+| `dialogs/` | `../../../components/tailwindui/...` | — | — | — | `./...` | — |
 
 ---
 
@@ -357,19 +364,25 @@ The **Form Dropdowns** entry renders `ProjectDetailsDropdowns`, a dedicated pare
 | Table | Data Source | Interface |
 |-------|-------------|-----------|
 | **ProjectDetailsDropdowns** | **`POST /Project/InitAddProject`** (`getProjectEnums`) | `ProjectEnums` from `Project/Model.d` |
-| CategoryTable | Sample data → API | `CategoryEnum` from `Project/Model.d` |
-| ThrustTable | Sample data → API | `ThrustEnum` from `Project/Model.d` |
-| OriginTable | Sample data → API | `TableEnum` from `Project/Model.d` |
-| AgencyTable | Sample data → API | `AgencyEnum` from `Project/Model.d` — `{ Id (read-only), NameId*, Name*, Description? }` |
-| MultiCriteriaAnalysisTable | Sample data → API | `MCAData` (local) |
-| CostTypeTable | Sample data → API | `ComponentTypeEnum` from `Project/Model.d` |
-| WorkCategoryTable | Sample data → API | `WorkCategoryData` (local) |
-| TypeOfWorkTable | Sample data → API | `TypeOfWork` (local) |
-| InfraTypeTable | Sample data → API | `InfraTypeEnum` from `Project/Model.d` |
-| FundingSourceTable | Sample data → API | `FundingSourceData` (local) |
-| ModificationCategoryTable | Sample data → API | `ModCategoryData` (local) |
+| CategoryTable | `getProjectEnums` → `Categories` | `CategoryEnum` from `Project/Model.d` |
+| ThrustTable | `getProjectEnums` → `Thrusts` | `ThrustEnum` from `Project/Model.d` |
+| OriginTable | `getProjectEnums` → `Origins` | `TableEnum` from `Project/Model.d` |
+| AgencyTable | `getProjectEnums` → `Agencies` | `AgencyEnum` from `Project/Model.d` |
+| ImplementationModeTable | `getProjectEnums` → `ImplementationModes` | `TableEnum` from `Project/Model.d` |
+| EmergencyModeTable | `getProjectEnums` → `EmergencyModes` | `TableEnum` from `Project/Model.d` |
+| RowAvailableTable | `getProjectEnums` → `RowsAvailable` | `TableEnum` from `Project/Model.d` |
+| FeasibilityTable | `getProjectEnums` → `Feasibility` | `TableEnum` from `Project/Model.d` |
+| DetailedDesignTable | `getProjectEnums` → `DetailedDesign` | `TableEnum` from `Project/Model.d` |
+| RegionWideTable | `getProjectEnums` → `RegionWide` | `TableEnum` from `Project/Model.d` |
+| MultiCriteriaAnalysisTable | Sample data (read-only) | `MCAData` (local) |
+| **CostTypeTable** | **CodeTableContext** → `ProjectComponents` | `ComponentTypeEnum` from `Project/Model.d` |
+| **WorkCategoryTable** | **CodeTableContext** → `ScopeOfWorks` (unique infra+category pairs) | `ScopeOfWorkEnum` from `Project/Model.d` |
+| **TypeOfWorkTable** | **CodeTableContext** → `ScopeOfWorks` (flattened per `InfraType[]` entry) | `ScopeOfWorkEnum` from `Project/Model.d` |
+| **InfraTypeTable** | **CodeTableContext** → `InfraTypes` | `InfraTypeEnum` from `Project/Model.d` |
+| **FundingSourceTable** | **CodeTableContext** → `FundingSources` | `SourceEnum` from `Project/Model.d` |
+| ModificationCategoryTable | Sample data (pending API) | `ModCategoryData` (local) |
 | **ModificationReasonTable** | **`POST /codetable/revisionreasons`** | `ModificationCategoryReason` from `Model.d` |
-| ValidationDatesTable | Sample data → API | `ValidationDateData` (local) |
+| ValidationDatesTable | Sample data (pending API) | `ValidationDateData` (local) |
 | **RevisionFieldPermissionTable** | **`POST /codetable/revisionrules`** | `RevisionRules` from `Model.d` |
 
 ---
@@ -454,4 +467,127 @@ Props: `value`, `onChange(n: number)`, `thrusts: ThrustEnum[]`, `infraTypeFilter
 - **Pagination:** 15 rows per page (default for large tables)
 - **Search:** Case-insensitive text filter on key columns
 - **Add button:** `<Button color="indigo">` at top-right of table header
+- **Add row inline:** indigo left-border highlight (`border-l-4 border-indigo-400 bg-indigo-50`), ✓ button opens `ConfirmDialog` in `'add'` mode
+- **Edit row inline:** amber left-border highlight (`border-l-4 border-amber-400 bg-amber-50`), ✓ button (amber) opens `ConfirmDialog` in `'edit'` mode
+- **Delete inline confirm:** inline "Delete?" prompt with Yes / No buttons (no modal)
+- **Text inputs in rows:** `<textarea>` with `rows={2}` for names, `rows={3}` for descriptions, `resize-none`
+- **Display truncation:** long text cells use `truncate` + `title` attribute for hover tooltip
 - **Actions:** Edit (`color="zinc"`) and Delete (`color="red"`) per row
+
+### `inp()` helper (defined locally per table)
+
+```tsx
+const inp = (v: 'add' | 'edit') =>
+  `w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 resize-none ${
+    v === 'add' ? 'border-indigo-300 focus:ring-indigo-500' : 'border-amber-300 focus:ring-amber-500'
+  }`;
+```
+
+---
+
+## CRUD API
+
+All create/update/delete calls go to `POST /CodeTable/UpdateCodeTable` via `updateCodeTable()` in `Service.ts`.
+
+```ts
+// Service.ts
+updateCodeTable(code: string, transactionType: number, json: string): Promise<void>
+// transactionType: 0 = Create, 1 = Update, 2 = Delete
+// json: JSON.stringify of the record object
+```
+
+### Code values per table
+
+| Table | Code |
+|-------|------|
+| CategoryTable | `ProjectCategory` |
+| ThrustTable | `ProjectThrust` |
+| AgencyTable | `ProjectAgency` |
+| OriginTable | `ProjectOrigin` |
+| ImplementationModeTable | `ProjectImplementationMode` |
+| EmergencyModeTable | `ProjectEmergencyMode` |
+| RowAvailableTable | `ProjectRowAvailable` |
+| FeasibilityTable | `ProjectFeasibility` |
+| DetailedDesignTable | `ProjectDetailedDesign` |
+| RegionWideTable | `ProjectRegionWide` |
+| CostTypeTable | `ProjectComponent` |
+| InfraTypeTable | `ProjectInfraType` |
+| FundingSourceTable | `FundingSource` |
+| WorkCategoryTable | `ProjectScopeOfWork` |
+| TypeOfWorkTable | `ProjectScopeOfWork` |
+
+### Payload shapes
+
+| Table | Create / Update payload | Delete payload |
+|-------|------------------------|----------------|
+| CategoryTable | `{ CategoryId, CategoryName, Minimum, Maximum, ValidUntil }` (+ `Id` for update) | `{ Id }` |
+| ThrustTable | `{ PAPKey, ProgramName, SubProgramName, ActivityName, SequenceNumber, ThrustDescription, InfrastructureType, ValidFromDate, ValidToDate }` (+ `Id` for update) | `{ Id }` |
+| AgencyTable | `{ NameId, Name, Description }` (+ `Id` for update) | `{ Id }` |
+| OriginTable | `{ Name, Description }` (+ `Id` for update) | `{ Id }` |
+| ImplementationModeTable | `{ Name, Description }` (+ `Id` for update) | `{ Id }` |
+| EmergencyModeTable | `{ Name, Description }` (+ `Id` for update) | `{ Id }` |
+| RowAvailableTable | `{ Name, Description }` (+ `Id` for update) | `{ Id }` |
+| FeasibilityTable | `{ Name, Description }` (+ `Id` for update) | `{ Id }` |
+| DetailedDesignTable | `{ Name, Description }` (+ `Id` for update) | `{ Id }` |
+| RegionWideTable | `{ Name, Description }` (+ `Id` for update) | `{ Id }` |
+| CostTypeTable | `{ ComponentId, ComponentName, ExportToPCMA }` (+ `Id` for update) | `{ Id }` |
+| InfraTypeTable | `{ InfraId, InfraCode, InfraName }` (+ `Id` for update) | `{ Id }` |
+| FundingSourceTable | `{ Organization, Name, Nature }` (+ `Id` for update) | `{ Id }` |
+| WorkCategoryTable | `{ InfraType, WorkCategory }` (+ `Id: sourceId` for update) | `{ Id: sourceId }` |
+| TypeOfWorkTable | `{ InfraType: [string], WorkCategory, Description, Measure, MinAmount, MaxAmount }` (+ `Id` for update) | `{ Id }` |
+
+> `WorkCategoryTable` and `TypeOfWorkTable` both reference the real `ScopeOfWorkEnum.Id` (`sourceId`) for update/delete operations.
+
+---
+
+## Changelog
+
+### Session 1 — API Migration
+- Created `CodeTableContext.tsx`: single shared `POST CodeTable/GetAllCodeTables` fetch; provides `data / loading / error / refetch` to all consumer tables
+- Migrated CostTypeTable, InfraTypeTable, FundingSourceTable, WorkCategoryTable, TypeOfWorkTable from sample data to live `CodeTableContext` data
+- Updated `Model.d.ts` with `CodeTableData` interface (`ProjectComponents`, `InfraTypes`, `FundingSources`, `ScopeOfWorks`, `ProjectCategories`, `ProjectThrusts`, `ProjectAgencies`, `ProjectOrigins`)
+
+### Session 2 — ThrustTable + Revision Tables Inline Edit
+- **ThrustTable**: rebuilt to a clean 10-column layout with no merged cells; full inline add/edit/delete with `ConfirmDialog`
+- **ModificationCategoryTable**: implemented full inline add/edit/delete
+- **ModificationReasonTable**: implemented full inline add/edit/delete; wired to `fetchRevisionReasons` from `Service.ts`
+- **RevisionFieldPermissionTable**: implemented full inline add/edit/delete; wired to `fetchRevisionRules` from `Service.ts`
+- **ValidationDatesTable**: implemented full inline add/edit/delete
+
+### Session 3 — Textarea Inputs + Display Truncation (13 files)
+Across all 13 table files converted `<input type="text">` fields in add/edit rows to `<textarea>`:
+- `rows={2}` for short name fields; `rows={3}` for description fields
+- `resize-none` added to all `inp()` helpers
+- Display cells got `truncate` class + `title` attribute for hover tooltip on long text
+
+Files updated: CategoryTable, ThrustTable, OriginTable, AgencyTable, ImplementationModeTable, EmergencyModeTable, RowAvailableTable, FeasibilityTable, DetailedDesignTable, RegionWideTable, ModificationReasonTable, RevisionFieldPermissionTable, ValidationDatesTable
+
+### Session 4 — Full CRUD Wiring (5 CodeTable tables)
+Fixed broken pencil/edit buttons (no `onClick`) and wired all 5 CodeTable-backed tables to `updateCodeTable` via `POST /CodeTable/UpdateCodeTable`.
+
+**`CostTypeTable`** (`componentCost/`):
+- Code: `ProjectComponent`; FormState: `{ ComponentId, ComponentName, ExportToPCMA }`
+- Full inline add row (textarea + checkbox), edit row (amber highlight), inline delete confirm
+- `ConfirmDialog` for add and edit confirmations
+
+**`InfraTypeTable`** (`majorItemLocation/`):
+- Code: `ProjectInfraType`; FormState: `{ InfraId, InfraCode, InfraName }`
+- Full inline add/edit/delete; number input for `InfraId`, textarea rows=1 for `InfraCode`, rows=2 for `InfraName`
+
+**`FundingSourceTable`** (`fundingProfile/`):
+- Code: `FundingSource`; FormState: `{ Organization, Name, Nature }`
+- Full inline add/edit/delete; `<select>` for Nature (Local/Foreign); nature filter tabs preserved
+
+**`WorkCategoryTable`** (`majorItemOfWorks/`):
+- Code: `ProjectScopeOfWork`; derives unique `(infraType, workCategory)` pairs from `ScopeOfWorks`
+- Added `sourceId: number` to row interface pointing to real `ScopeOfWorkEnum.Id` for update/delete
+- FormState: `{ infraType, category }`; textarea rows=2 for both fields; infra type filter preserved
+
+**`TypeOfWorkTable`** (`majorItemOfWorks/`):
+- Code: `ProjectScopeOfWork`; flattens `ScopeOfWorks` one row per `InfraType[]` entry
+- Fixed `id` to use real `ScopeOfWorkEnum.Id` (was synthetic counter)
+- FormState: `{ infraType, workCategory, description, measure, minAmount, maxAmount }`
+- `<select>` for Measure (Integer=0/Real=1); number inputs for min/max
+- Pagination (15/page), infra type + work category filters preserved; removed `Unit of Measure` column (not in API model)
+- `ConfirmDialog` for add and edit confirmations
+

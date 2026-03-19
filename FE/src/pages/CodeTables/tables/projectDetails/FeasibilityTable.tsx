@@ -9,6 +9,9 @@ import {
 import type { TableEnum } from '../../../Project/Model.d';
 import ConfirmDialog from '../../dialogs/ConfirmDialog';
 import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
+import { updateCodeTable } from '../../Service';
+
+const CODE = 'ProjectFeasibility';
 
 const SAMPLE_DATA: TableEnum[] = [
   { Id: 1, NameId: 1, Name: 'With Feasibility Study',    Description: 'Project backed by an approved feasibility study' },
@@ -41,21 +44,21 @@ const FeasibilityTable: React.FC<Props> = ({ data, loading = false }) => {
 
   const startEdit = (r: TableEnum) => { setEditId(r.Id); setEditForm({ Name: r.Name, Description: r.Description ?? '' }); setDeleteConfirmId(null); };
   const cancelEdit = () => setEditId(null);
-  const saveEdit = () => {
+  const saveEdit = async () => {
+    await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm }));
     setRows(prev => prev.map(r => r.Id === editId ? { ...r, ...editForm } : r));
-    // TODO: PATCH /codetable/feasibility/{editId}
     cancelEdit();
   };
-  const saveAdd = () => {
+  const saveAdd = async () => {
     if (!addForm) return;
+    await updateCodeTable(CODE, 0, JSON.stringify(addForm));
     const nextId = rows.length > 0 ? Math.max(...rows.map(r => r.NameId)) + 1 : 1;
     setRows(prev => [{ Id: Date.now(), NameId: nextId, Name: addForm.Name, Description: addForm.Description }, ...prev]);
-    // TODO: POST /codetable/feasibility
     setAddForm(null);
   };
-  const confirmDelete = (id: number) => {
+  const confirmDelete = async (id: number) => {
+    await updateCodeTable(CODE, 2, JSON.stringify({ Id: id }));
     setRows(prev => prev.filter(r => r.Id !== id));
-    // TODO: DELETE /codetable/feasibility/{id}
     setDeleteConfirmId(null);
   };
 
@@ -84,7 +87,7 @@ const FeasibilityTable: React.FC<Props> = ({ data, loading = false }) => {
   };
 
   const inp = (v: 'add' | 'edit') =>
-    `w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 ${v === 'add' ? 'border-indigo-300 focus:ring-indigo-500' : 'border-amber-300 focus:ring-amber-500'}`;
+    `w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 resize-none ${v === 'add' ? 'border-indigo-300 focus:ring-indigo-500' : 'border-amber-300 focus:ring-amber-500'}`;
 
   return (
     <div className="space-y-4">
@@ -130,8 +133,8 @@ const FeasibilityTable: React.FC<Props> = ({ data, loading = false }) => {
                 {addForm !== null && (
                   <TableRow className="bg-indigo-50 border-l-4 border-indigo-400">
                     <TableCell className="text-xs text-gray-400 italic">New</TableCell>
-                    <TableCell><input autoFocus value={addForm.Name} onChange={e => setAddForm(f => f ? { ...f, Name: e.target.value } : f)} placeholder="Name..." className={inp('add')} /></TableCell>
-                    <TableCell><input value={addForm.Description} onChange={e => setAddForm(f => f ? { ...f, Description: e.target.value } : f)} placeholder="Description..." className={inp('add')} /></TableCell>
+                    <TableCell><textarea autoFocus value={addForm.Name} onChange={e => setAddForm(f => f ? { ...f, Name: e.target.value } : f)} placeholder="Name..." rows={2} className={inp('add')} /></TableCell>
+                    <TableCell><textarea value={addForm.Description} onChange={e => setAddForm(f => f ? { ...f, Description: e.target.value } : f)} placeholder="Description..." rows={3} className={inp('add')} /></TableCell>
                     <TableCell>
                       <div className="flex gap-1">
                         <Button color="indigo" className="p-1.5" onClick={requestAdd}><CheckIcon className="h-3.5 w-3.5" /></Button>
@@ -147,8 +150,8 @@ const FeasibilityTable: React.FC<Props> = ({ data, loading = false }) => {
                     <TableCell><span className="font-mono text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded">{item.NameId}</span></TableCell>
                     {editId === item.Id ? (
                       <>
-                        <TableCell><input autoFocus value={editForm.Name} onChange={e => setEditForm(f => ({ ...f, Name: e.target.value }))} className={inp('edit')} /></TableCell>
-                        <TableCell><input value={editForm.Description} onChange={e => setEditForm(f => ({ ...f, Description: e.target.value }))} className={inp('edit')} /></TableCell>
+                        <TableCell><textarea autoFocus value={editForm.Name} onChange={e => setEditForm(f => ({ ...f, Name: e.target.value }))} rows={2} className={inp('edit')} /></TableCell>
+                        <TableCell><textarea value={editForm.Description} onChange={e => setEditForm(f => ({ ...f, Description: e.target.value }))} rows={3} className={inp('edit')} /></TableCell>
                         <TableCell>
                           <div className="flex gap-1">
                             <Button color="amber" className="p-1.5" onClick={requestEdit}><CheckIcon className="h-3.5 w-3.5" /></Button>
@@ -158,8 +161,8 @@ const FeasibilityTable: React.FC<Props> = ({ data, loading = false }) => {
                       </>
                     ) : (
                       <>
-                        <TableCell className="text-sm text-gray-900">{item.Name}</TableCell>
-                        <TableCell className="text-sm text-gray-500">{item.Description ?? '—'}</TableCell>
+                        <TableCell className="text-sm text-gray-900 max-w-[180px] truncate" title={item.Name}>{item.Name}</TableCell>
+                        <TableCell className="text-sm text-gray-500 max-w-xs truncate" title={item.Description ?? ''}>{item.Description ?? '—'}</TableCell>
                         <TableCell>
                           {deleteConfirmId === item.Id ? (
                             <div className="flex items-center gap-1">

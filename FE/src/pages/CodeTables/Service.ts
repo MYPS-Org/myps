@@ -1,5 +1,5 @@
 import { httpClient } from "../../services/httpClient";
-import type { ModificationCategoryReason, RevisionRules } from "./Model.d";
+import type { ModificationCategoryReason, RevisionRules, CodeTableData } from "./Model.d";
 
 export const fetchRevisionReasons = async () => {
     try {
@@ -20,3 +20,28 @@ export const fetchRevisionRules = async () => {
         throw error;
     }
 };
+
+export const fetchCodeTableData = async () => {
+    try {
+        const response = await httpClient.post<CodeTableData>('CodeTable/GetAllCodeTables');
+        return response;
+    } catch (error) {
+        console.error('Error fetching code table data:', error);
+        throw error;
+    }
+}
+
+export const updateCodeTable = async (code: string, transactionType: number, json: string) => {
+    try {
+        const response = await httpClient.post('/CodeTable/UpdateCodeTable', {
+            Code: code,
+            TransactionType: transactionType,
+            Json: json
+        });
+        return response;
+    }
+    catch (error) {
+        console.error('Error updating code table:', error);
+        throw error;
+    }
+}

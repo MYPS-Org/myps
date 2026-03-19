@@ -1,3 +1,6 @@
+import { ProjectEnums, Dropdowns } from "../Project/Model.d"
+import type { CategoryEnum, ThrustEnum, AgencyEnum, TableEnum, InfraTypeEnum, ComponentTypeEnum, ScopeOfWorkEnum, SourceEnum, AgreementEnum } from '../Project/Model.d';
+
 export interface ModificationCategoryReason {
     id: number;
     codeGroupId: string;
@@ -83,4 +86,39 @@ export interface RevisionRules {
     PCMAStatus: string;
     PackageStatus: string;
     Field: string;
+}
+
+export interface CodeTableData {
+    CodeTable: CodeTable[];
+    ProgramStages: ProgramEnums[];
+    ProgramStatuses: ProgramEnums[];
+    ProgramTypes: ProgramEnums[];
+    ProjectCategories: CategoryEnum[];
+    ProjectThrusts: ThrustEnum[];
+    ProjectAgencies: AgencyEnum[];
+    ProjectOrigins: TableEnum[];
+    FundingAgreements: AgreementEnum[];
+    FundingSources: SourceEnum[];
+    ScopeOfWorks: ScopeOfWorkEnum[];
+    InfraTypes: InfraTypeEnum[];
+    ProjectComponents: ComponentTypeEnum[];
+    RevisionCategories: unknown[];
+    RevisionDocuments: unknown[];
+    RevisionHeaders: unknown[];
+    Reasons: unknown[];
+    RevisionStatuses: unknown[];
+    RevisionRules: RevisionRules[];
+}
+
+export interface CodeTable {
+    Id: number;
+    Name: string;
+    Code: string;
+}
+
+export interface ProgramEnums {
+    Id: number;
+    NameId: number;
+    Name: string;
+    Description: string;
 }

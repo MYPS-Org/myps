@@ -9,6 +9,9 @@ import {
 import type { AgencyEnum } from '../../../Project/Model.d';
 import ConfirmDialog from '../../dialogs/ConfirmDialog';
 import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
+import { updateCodeTable } from '../../Service';
+
+const CODE = 'ProjectAgency';
 
 interface FormState { NameId: number; Name: string; Description: string; }
 const EMPTY_FORM: FormState = { NameId: 0, Name: '', Description: '' };
@@ -38,20 +41,20 @@ const AgencyTable: React.FC<Props> = ({ data, loading = false }) => {
     setDeleteConfirmId(null);
   };
   const cancelEdit = () => setEditId(null);
-  const saveEdit = () => {
+  const saveEdit = async () => {
+    await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, NameId: editForm.NameId, Name: editForm.Name, Description: editForm.Description || null }));
     setRows(prev => prev.map(r => r.Id === editId ? { ...r, NameId: editForm.NameId, Name: editForm.Name, Description: editForm.Description || null } : r));
-    // TODO: PATCH /codetable/agencies/{editId}
     cancelEdit();
   };
-  const saveAdd = () => {
+  const saveAdd = async () => {
     if (!addForm) return;
+    await updateCodeTable(CODE, 0, JSON.stringify({ NameId: addForm.NameId, Name: addForm.Name, Description: addForm.Description || null }));
     setRows(prev => [{ Id: Date.now(), NameId: addForm.NameId, Name: addForm.Name, Description: addForm.Description || null }, ...prev]);
-    // TODO: POST /codetable/agencies
     setAddForm(null);
   };
-  const confirmDelete = (id: number) => {
+  const confirmDelete = async (id: number) => {
+    await updateCodeTable(CODE, 2, JSON.stringify({ Id: id }));
     setRows(prev => prev.filter(r => r.Id !== id));
-    // TODO: DELETE /codetable/agencies/{id}
     setDeleteConfirmId(null);
   };
 
@@ -82,7 +85,7 @@ const AgencyTable: React.FC<Props> = ({ data, loading = false }) => {
   };
 
   const inputClass = (variant: 'add' | 'edit') =>
-    `w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 ${
+    `w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 resize-none ${
       variant === 'add'
         ? 'border-indigo-300 focus:ring-indigo-500'
         : 'border-amber-300 focus:ring-amber-500'
@@ -148,14 +151,14 @@ const AgencyTable: React.FC<Props> = ({ data, loading = false }) => {
                         placeholder="NameId *" className={inputClass('add')} />
                     </TableCell>
                     <TableCell>
-                      <input value={addForm.Name}
+                      <textarea value={addForm.Name}
                         onChange={e => setAddForm(f => f ? { ...f, Name: e.target.value } : f)}
-                        placeholder="Agency Name *" className={inputClass('add')} />
+                        placeholder="Agency Name *" rows={2} className={inputClass('add')} />
                     </TableCell>
                     <TableCell>
-                      <input value={addForm.Description}
+                      <textarea value={addForm.Description}
                         onChange={e => setAddForm(f => f ? { ...f, Description: e.target.value } : f)}
-                        placeholder="Description (optional)" className={inputClass('add')} />
+                        placeholder="Description (optional)" rows={3} className={inputClass('add')} />
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
@@ -182,15 +185,15 @@ const AgencyTable: React.FC<Props> = ({ data, loading = false }) => {
                             className={inputClass('edit')} />
                         </TableCell>
                         <TableCell>
-                          <input value={editForm.Name}
+                          <textarea value={editForm.Name}
                             onChange={e => setEditForm(f => ({ ...f, Name: e.target.value }))}
-                            className={inputClass('edit')} />
+                            rows={2} className={inputClass('edit')} />
                         </TableCell>
                         <TableCell>
-                          <input value={editForm.Description}
+                          <textarea value={editForm.Description}
                             onChange={e => setEditForm(f => ({ ...f, Description: e.target.value }))}
                             placeholder="Description (optional)"
-                            className={inputClass('edit')} />
+                            rows={3} className={inputClass('edit')} />
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
@@ -207,8 +210,8 @@ const AgencyTable: React.FC<Props> = ({ data, loading = false }) => {
                         <TableCell>
                           <span className="font-mono text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded">{item.NameId}</span>
                         </TableCell>
-                        <TableCell className="text-sm text-gray-900">{item.Name}</TableCell>
-                        <TableCell className="text-sm text-gray-500">{item.Description ?? '—'}</TableCell>
+                        <TableCell className="text-sm text-gray-900 max-w-[180px] truncate" title={item.Name}>{item.Name}</TableCell>
+                        <TableCell className="text-sm text-gray-500 max-w-xs truncate" title={item.Description ?? ''}>{item.Description ?? '—'}</TableCell>
                         <TableCell>
                           {deleteConfirmId === item.Id ? (
                             <div className="flex items-center gap-1">

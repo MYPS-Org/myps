@@ -1,11 +1,15 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../../components/tailwindui/table';
 import { Button } from '../../../../components/tailwindui/button';
-import { PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import type { ModificationCategoryReason } from '../../Model.d';
 import { fetchRevisionReasons } from '../../Service';
+import ConfirmDialog from '../../dialogs/ConfirmDialog';
+import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
 
 type StatusFilter = 'all' | 'active' | 'obsolete';
+
+interface EditForm { codeGroupId: number; codeDescription: string; sequenceNo: number; obsoleteFlag: number; }
 
 const ModificationReasonTable: React.FC = () => {
   const [data, setData] = useState<ModificationCategoryReason[]>([]);
@@ -16,6 +20,10 @@ const ModificationReasonTable: React.FC = () => {
   const [sortColumn, setSortColumn] = useState<number | null>(null);
   const [sortDirection, setSortDirection] = useState<0 | 1 | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState<EditForm>({ codeGroupId: 0, codeDescription: '', sequenceNo: 0, obsoleteFlag: 0 });
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const confirm = useConfirmDialog();
   const itemsPerPage = 15;
 
   useEffect(() => {
@@ -69,6 +77,39 @@ const ModificationReasonTable: React.FC = () => {
       setSortDirection(0);
     }
   }, [sortColumn]);
+
+  const startEdit = (item: ModificationCategoryReason) => {
+    setEditId(item.id);
+    setEditForm({ codeGroupId: item.codeGroupId, codeDescription: item.codeDescription, sequenceNo: item.sequenceNo, obsoleteFlag: item.obsoleteFlag });
+    setDeleteConfirmId(null);
+  };
+  const cancelEdit = () => setEditId(null);
+  const saveEdit = () => {
+    setData(prev => prev.map(r => r.id === editId ? { ...r, ...editForm } : r));
+    // TODO: PATCH /codetable/modificationreasons/{editId}
+    cancelEdit();
+  };
+  const confirmDelete = (id: number) => {
+    setData(prev => prev.filter(r => r.id !== id));
+    // TODO: DELETE /codetable/modificationreasons/{id}
+    setDeleteConfirmId(null);
+  };
+  const requestEdit = () => {
+    confirm.request({
+      mode: 'edit',
+      tableName: 'Modification Reason',
+      fields: [
+        { label: 'Group ID',    value: editForm.codeGroupId,    mono: true },
+        { label: 'Description', value: editForm.codeDescription },
+        { label: 'Seq No',      value: editForm.sequenceNo },
+        { label: 'Status',      value: editForm.obsoleteFlag === 0 ? 'Active' : 'Obsolete' },
+      ],
+      onConfirm: () => { saveEdit(); confirm.close(); },
+    });
+  };
+
+  const inp = (v: 'edit', extra = 'w-full') =>
+    `${extra} px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 resize-none border-amber-300 focus:ring-amber-500`;
 
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
   const pageData = filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -141,28 +182,58 @@ const ModificationReasonTable: React.FC = () => {
               </TableRow>
             ) : (
               pageData.map(item => (
-                <TableRow key={item.id}>
+                <TableRow key={item.id} className={editId === item.id ? 'bg-amber-50 border-l-4 border-amber-400' : undefined}>
                   <TableCell className="font-mono text-xs text-gray-500">{item.id}</TableCell>
-                  <TableCell>
-                    <span className="font-mono text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded">{item.codeGroupId}</span>
-                  </TableCell>
-                  <TableCell className="text-sm text-gray-900">{item.codeDescription}</TableCell>
-                  <TableCell className="text-center text-sm text-gray-600">{item.sequenceNo}</TableCell>
-                  <TableCell className="text-center">
-                    <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full border ${
-                      item.obsoleteFlag === 0
-                        ? 'bg-green-50 text-green-700 border-green-200'
-                        : 'bg-red-50 text-red-600 border-red-200'
-                    }`}>
-                      {item.obsoleteFlag === 0 ? 'Active' : 'Obsolete'}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1.5">
-                      <Button color="zinc" className="p-1.5"><PencilIcon className="h-3.5 w-3.5" /></Button>
-                      <Button color="red" className="p-1.5"><TrashIcon className="h-3.5 w-3.5" /></Button>
-                    </div>
-                  </TableCell>
+                  {editId === item.id ? (
+                    <>
+                      <TableCell><input autoFocus type="number" value={editForm.codeGroupId} onChange={e => setEditForm(f => ({ ...f, codeGroupId: +e.target.value }))} className={inp('edit', 'w-20')} /></TableCell>
+                      <TableCell><textarea value={editForm.codeDescription} onChange={e => setEditForm(f => ({ ...f, codeDescription: e.target.value }))} rows={3} className={inp('edit')} /></TableCell>
+                      <TableCell className="text-center"><input type="number" value={editForm.sequenceNo} onChange={e => setEditForm(f => ({ ...f, sequenceNo: +e.target.value }))} className={inp('edit', 'w-16')} /></TableCell>
+                      <TableCell>
+                        <select value={editForm.obsoleteFlag} onChange={e => setEditForm(f => ({ ...f, obsoleteFlag: +e.target.value }))} className={inp('edit')}>
+                          <option value={0}>Active</option>
+                          <option value={1}>Obsolete</option>
+                        </select>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button color="amber" className="p-1.5" onClick={requestEdit}><CheckIcon className="h-3.5 w-3.5" /></Button>
+                          <Button color="zinc" className="p-1.5" onClick={cancelEdit}><XMarkIcon className="h-3.5 w-3.5" /></Button>
+                        </div>
+                      </TableCell>
+                    </>
+                  ) : (
+                    <>
+                      <TableCell>
+                        <span className="font-mono text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded">{item.codeGroupId}</span>
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-900 max-w-xs truncate" title={item.codeDescription}>{item.codeDescription}</TableCell>
+                      <TableCell className="text-center text-sm text-gray-600">{item.sequenceNo}</TableCell>
+                      <TableCell className="text-center">
+                        <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full border ${
+                          item.obsoleteFlag === 0
+                            ? 'bg-green-50 text-green-700 border-green-200'
+                            : 'bg-red-50 text-red-600 border-red-200'
+                        }`}>
+                          {item.obsoleteFlag === 0 ? 'Active' : 'Obsolete'}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {deleteConfirmId === item.id ? (
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-red-600">Delete?</span>
+                            <Button color="red" className="px-2 py-1 text-xs" onClick={() => confirmDelete(item.id)}>Yes</Button>
+                            <Button color="zinc" className="px-2 py-1 text-xs" onClick={() => setDeleteConfirmId(null)}>No</Button>
+                          </div>
+                        ) : (
+                          <div className="flex gap-1.5">
+                            <Button color="zinc" className="p-1.5" onClick={() => startEdit(item)}><PencilIcon className="h-3.5 w-3.5" /></Button>
+                            <Button color="red" className="p-1.5" onClick={() => setDeleteConfirmId(item.id)}><TrashIcon className="h-3.5 w-3.5" /></Button>
+                          </div>
+                        )}
+                      </TableCell>
+                    </>
+                  )}
                 </TableRow>
               ))
             )}
@@ -186,6 +257,7 @@ const ModificationReasonTable: React.FC = () => {
           </div>
         )}
       </div>
+      <ConfirmDialog {...confirm.dialogProps} />
     </div>
   );
 };

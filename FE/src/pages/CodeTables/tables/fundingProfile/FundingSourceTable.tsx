@@ -1,44 +1,87 @@
 import React, { useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../../components/tailwindui/table';
 import { Button } from '../../../../components/tailwindui/button';
-import { PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import type { SourceEnum } from '../../../Project/Model.d';
+import { useCodeTableContext } from '../../CodeTableContext';
+import { updateCodeTable } from '../../Service';
+import ConfirmDialog from '../../dialogs/ConfirmDialog';
+import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
 
-interface FundingSourceData {
-  id: number;
-  organization: string;
-  description: string;
-  nature: 'Local' | 'Foreign';
-}
-
-// Replace with API call: GET /codetable/fundingsources
-const SAMPLE_DATA: FundingSourceData[] = [
-  { id: 1, organization: 'ADB', description: 'Asian Development Bank', nature: 'Foreign' },
-  { id: 2, organization: 'AIIB', description: 'Asian Infrastructure Investment Bank', nature: 'Foreign' },
-  { id: 3, organization: 'CIDCA', description: 'China International Development Cooperation Agency', nature: 'Foreign' },
-  { id: 4, organization: 'DOSCST', description: 'Davao Oriental State College of Science and Technology', nature: 'Local' },
-  { id: 5, organization: 'EIB', description: 'European Investment Bank', nature: 'Foreign' },
-  { id: 6, organization: 'GOP', description: 'Government of the Philippines', nature: 'Local' },
-  { id: 7, organization: 'IBRD', description: 'International Bank for Reconstruction and Development', nature: 'Foreign' },
-  { id: 8, organization: 'JBIC', description: 'Japan Bank for International Cooperation', nature: 'Foreign' },
-  { id: 9, organization: 'JICA', description: 'Japan International Cooperation Agency', nature: 'Foreign' },
-  { id: 10, organization: 'KEDCF', description: 'Korean Economic Development Cooperation Fund', nature: 'Foreign' },
-  { id: 11, organization: 'MINSAAD', description: 'Mindanao Sustainable Agrarian and Agriculture Development', nature: 'Local' },
-];
-
+const CODE = 'FundingSource';
 type NatureFilter = 'All' | 'Local' | 'Foreign';
+
+interface FormState { Organization: string; Name: string; Nature: string; }
+const EMPTY_FORM: FormState = { Organization: '', Name: '', Nature: 'Local' };
+
+const inp = (v: 'add' | 'edit') =>
+  `w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 resize-none ${v === 'add' ? 'border-indigo-300 focus:ring-indigo-500' : 'border-amber-300 focus:ring-amber-500'}`;
 
 const FundingSourceTable: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [natureFilter, setNatureFilter] = useState<NatureFilter>('All');
-  const [data] = useState<FundingSourceData[]>(SAMPLE_DATA);
+  const [addForm, setAddForm] = useState<FormState | null>(null);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState<FormState>(EMPTY_FORM);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const { data: codeTableData, loading } = useCodeTableContext();
+  const confirm = useConfirmDialog();
 
+  const data: SourceEnum[] = codeTableData?.FundingSources ?? [];
   const filtered = data.filter(item => {
     const matchSearch =
-      item.organization.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchNature = natureFilter === 'All' || item.nature === natureFilter;
+      item.Organization.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.Name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchNature = natureFilter === 'All' || item.Nature === natureFilter;
     return matchSearch && matchNature;
   });
+
+  const startEdit = (item: SourceEnum) => {
+    setEditId(item.Id);
+    setEditForm({ Organization: item.Organization, Name: item.Name, Nature: item.Nature ?? 'Local' });
+    setDeleteConfirmId(null);
+  };
+  const cancelEdit = () => setEditId(null);
+
+  const requestAdd = () => {
+    if (!addForm) return;
+    confirm.request({
+      mode: 'add',
+      tableName: 'Funding Source',
+      fields: [
+        { label: 'Organization', value: addForm.Organization, mono: true },
+        { label: 'Description',  value: addForm.Name },
+        { label: 'Nature',       value: addForm.Nature },
+      ],
+      onConfirm: async () => {
+        await updateCodeTable(CODE, 0, JSON.stringify(addForm));
+        confirm.close();
+        setAddForm(null);
+      },
+    });
+  };
+
+  const requestEdit = () => {
+    confirm.request({
+      mode: 'edit',
+      tableName: 'Funding Source',
+      fields: [
+        { label: 'Organization', value: editForm.Organization, mono: true },
+        { label: 'Description',  value: editForm.Name },
+        { label: 'Nature',       value: editForm.Nature },
+      ],
+      onConfirm: async () => {
+        await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm }));
+        confirm.close();
+        cancelEdit();
+      },
+    });
+  };
+
+  const confirmDelete = async (id: number) => {
+    await updateCodeTable(CODE, 2, JSON.stringify({ Id: id }));
+    setDeleteConfirmId(null);
+  };
 
   return (
     <div className="space-y-4">
@@ -69,7 +112,7 @@ const FundingSourceTable: React.FC = () => {
               </button>
             ))}
           </div>
-          <Button color="indigo" className="flex items-center gap-1 text-sm">
+          <Button color="indigo" className="flex items-center gap-1 text-sm" onClick={() => setAddForm(EMPTY_FORM)} disabled={!!addForm}>
             <PlusIcon className="h-4 w-4" /> Add Source
           </Button>
         </div>
@@ -83,46 +126,106 @@ const FundingSourceTable: React.FC = () => {
               <TableHeader className="w-28">Organization</TableHeader>
               <TableHeader>Description</TableHeader>
               <TableHeader className="w-24 text-center">Nature</TableHeader>
-              <TableHeader className="w-24">Actions</TableHeader>
+              <TableHeader className="w-32">Actions</TableHeader>
             </TableRow>
           </TableHead>
           <TableBody>
-            {filtered.length === 0 ? (
+            {loading ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-10 text-gray-500">No records found.</TableCell>
+                <TableCell colSpan={5} className="text-center py-10">
+                  <div className="flex items-center justify-center gap-2 text-gray-400">
+                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>Loading...
+                  </div>
+                </TableCell>
               </TableRow>
             ) : (
-              filtered.map(item => (
-                <TableRow key={item.id}>
-                  <TableCell className="font-mono text-xs text-gray-500">{item.id}</TableCell>
-                  <TableCell>
-                    <span className="font-mono text-sm font-bold text-indigo-700">{item.organization}</span>
-                  </TableCell>
-                  <TableCell className="text-sm text-gray-900">{item.description}</TableCell>
-                  <TableCell className="text-center">
-                    <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full border ${
-                      item.nature === 'Foreign'
-                        ? 'bg-blue-50 text-blue-700 border-blue-200'
-                        : 'bg-amber-50 text-amber-700 border-amber-200'
-                    }`}>
-                      {item.nature}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1.5">
-                      <Button color="zinc" className="p-1.5"><PencilIcon className="h-3.5 w-3.5" /></Button>
-                      <Button color="red" className="p-1.5"><TrashIcon className="h-3.5 w-3.5" /></Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
+              <>
+                {addForm !== null && (
+                  <TableRow className="bg-indigo-50 border-l-4 border-indigo-400">
+                    <TableCell className="text-xs text-gray-400 italic">New</TableCell>
+                    <TableCell><textarea autoFocus value={addForm.Organization} onChange={e => setAddForm(f => f ? { ...f, Organization: e.target.value } : f)} placeholder="Org code..." rows={1} className={inp('add')} /></TableCell>
+                    <TableCell><textarea value={addForm.Name} onChange={e => setAddForm(f => f ? { ...f, Name: e.target.value } : f)} placeholder="Description..." rows={2} className={inp('add')} /></TableCell>
+                    <TableCell>
+                      <select value={addForm.Nature} onChange={e => setAddForm(f => f ? { ...f, Nature: e.target.value } : f)} className={inp('add')}>
+                        <option value="Local">Local</option>
+                        <option value="Foreign">Foreign</option>
+                      </select>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button color="indigo" className="p-1.5" onClick={requestAdd} disabled={!addForm.Organization.trim() || !addForm.Name.trim()}><CheckIcon className="h-3.5 w-3.5" /></Button>
+                        <Button color="zinc" className="p-1.5" onClick={() => setAddForm(null)}><XMarkIcon className="h-3.5 w-3.5" /></Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+                {filtered.length === 0 && !addForm ? (
+                  <TableRow><TableCell colSpan={5} className="text-center py-10 text-gray-500">No records found.</TableCell></TableRow>
+                ) : filtered.map(item => (
+                  <TableRow key={item.Id} className={editId === item.Id ? 'bg-amber-50 border-l-4 border-amber-400' : undefined}>
+                    <TableCell className="font-mono text-xs text-gray-500">{item.Id}</TableCell>
+                    {editId === item.Id ? (
+                      <>
+                        <TableCell><textarea autoFocus value={editForm.Organization} onChange={e => setEditForm(f => ({ ...f, Organization: e.target.value }))} rows={1} className={inp('edit')} /></TableCell>
+                        <TableCell><textarea value={editForm.Name} onChange={e => setEditForm(f => ({ ...f, Name: e.target.value }))} rows={2} className={inp('edit')} /></TableCell>
+                        <TableCell>
+                          <select value={editForm.Nature} onChange={e => setEditForm(f => ({ ...f, Nature: e.target.value }))} className={inp('edit')}>
+                            <option value="Local">Local</option>
+                            <option value="Foreign">Foreign</option>
+                          </select>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button color="amber" className="p-1.5" onClick={requestEdit} disabled={!editForm.Organization.trim() || !editForm.Name.trim()}><CheckIcon className="h-3.5 w-3.5" /></Button>
+                            <Button color="zinc" className="p-1.5" onClick={cancelEdit}><XMarkIcon className="h-3.5 w-3.5" /></Button>
+                          </div>
+                        </TableCell>
+                      </>
+                    ) : (
+                      <>
+                        <TableCell>
+                          <span className="font-mono text-sm font-bold text-indigo-700">{item.Organization}</span>
+                        </TableCell>
+                        <TableCell className="text-sm text-gray-900 max-w-xs truncate" title={item.Name}>{item.Name}</TableCell>
+                        <TableCell className="text-center">
+                          <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full border ${
+                            item.Nature === 'Foreign'
+                              ? 'bg-blue-50 text-blue-700 border-blue-200'
+                              : 'bg-amber-50 text-amber-700 border-amber-200'
+                          }`}>
+                            {item.Nature ?? '—'}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          {deleteConfirmId === item.Id ? (
+                            <div className="flex items-center gap-1">
+                              <span className="text-xs text-red-600">Delete?</span>
+                              <Button color="red" className="px-2 py-1 text-xs" onClick={() => confirmDelete(item.Id)}>Yes</Button>
+                              <Button color="zinc" className="px-2 py-1 text-xs" onClick={() => setDeleteConfirmId(null)}>No</Button>
+                            </div>
+                          ) : (
+                            <div className="flex gap-1.5">
+                              <Button color="zinc" className="p-1.5" onClick={() => startEdit(item)}><PencilIcon className="h-3.5 w-3.5" /></Button>
+                              <Button color="red" className="p-1.5" onClick={() => setDeleteConfirmId(item.Id)}><TrashIcon className="h-3.5 w-3.5" /></Button>
+                            </div>
+                          )}
+                        </TableCell>
+                      </>
+                    )}
+                  </TableRow>
+                ))}
+              </>
             )}
           </TableBody>
         </Table>
       </div>
       <p className="text-xs text-gray-400">
-        {filtered.length} record(s) · {filtered.filter(d => d.nature === 'Local').length} local · {filtered.filter(d => d.nature === 'Foreign').length} foreign
+        {filtered.length} record(s) · {filtered.filter(d => d.Nature === 'Local').length} local · {filtered.filter(d => d.Nature === 'Foreign').length} foreign
       </p>
+      <ConfirmDialog {...confirm.dialogProps} />
     </div>
   );
 };

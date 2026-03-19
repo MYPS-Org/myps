@@ -2,6 +2,7 @@
 import { getProjectEnums } from '../../../Project/Service';
 import type { ProjectEnums } from '../../../Project/Model.d';
 import { ArrowPathIcon } from '@heroicons/react/24/outline';
+import { useCodeTableContext } from '../../CodeTableContext';
 
 import CategoryTable           from './CategoryTable';
 import ThrustTable             from './ThrustTable';
@@ -43,6 +44,9 @@ const ProjectDetailsDropdowns: React.FC = () => {
   const [error, setError]       = useState<string | null>(null);
   const [activeId, setActiveId] = useState(TABS[0].id);
 
+  // CodeTable service data for Categories, Thrusts, Agencies, Origins
+  const { data: codeTableData, loading: ctLoading } = useCodeTableContext();
+
   const fetchEnums = async () => {
     setLoading(true);
     setError(null);
@@ -60,13 +64,25 @@ const ProjectDetailsDropdowns: React.FC = () => {
   useEffect(() => { fetchEnums(); }, []);
 
   const activeTab = TABS.find(t => t.id === activeId) ?? TABS[0];
+
+  // Merge CodeTable service data over getProjectEnums data for the 4 specific tables
+  const resolvedEnums: ProjectEnums | null = enums
+    ? {
+        ...enums,
+        Categories: codeTableData?.ProjectCategories ?? enums.Categories,
+        Thrusts:    codeTableData?.ProjectThrusts    ?? enums.Thrusts,
+        Agencies:   codeTableData?.ProjectAgencies   ?? enums.Agencies,
+        Origins:    codeTableData?.ProjectOrigins    ?? enums.Origins,
+      }
+    : null;
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const activeData: any[] | undefined = enums
-    ? (enums[activeTab.enumKey] as any[] | undefined) ?? []
+  const activeData: any[] | undefined = resolvedEnums
+    ? (resolvedEnums[activeTab.enumKey] as any[] | undefined) ?? []
     : undefined;
 
   const countOf = (key: keyof ProjectEnums): number =>
-    enums ? ((enums[key] as unknown[])?.length ?? 0) : 0;
+    resolvedEnums ? ((resolvedEnums[key] as unknown[])?.length ?? 0) : 0;
 
   return (
     <div className="space-y-5">
@@ -78,10 +94,10 @@ const ProjectDetailsDropdowns: React.FC = () => {
         </div>
         <button
           onClick={fetchEnums}
-          disabled={loading}
+          disabled={loading || ctLoading}
           className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
         >
-          <ArrowPathIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          <ArrowPathIcon className={`h-4 w-4 ${(loading || ctLoading) ? 'animate-spin' : ''}`} />
           Refresh
         </button>
       </div>
@@ -124,7 +140,7 @@ const ProjectDetailsDropdowns: React.FC = () => {
 
       {/* Active table component */}
       <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <activeTab.Component data={activeData} loading={loading} />
+        <activeTab.Component data={activeData} loading={loading || ctLoading} />
       </div>
     </div>
   );

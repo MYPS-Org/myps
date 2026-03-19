@@ -9,6 +9,9 @@ import {
 import type { CategoryEnum } from '../../../Project/Model.d';
 import ConfirmDialog from '../../dialogs/ConfirmDialog';
 import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
+import { updateCodeTable } from '../../Service';
+
+const CODE = 'ProjectCategory';
 
 interface FormState { CategoryId: string; CategoryName: string; Minimum: number; Maximum: number; ValidUntil: number; }
 const EMPTY_FORM: FormState = { CategoryId: '', CategoryName: '', Minimum: 0, Maximum: 0, ValidUntil: new Date().getFullYear() };
@@ -40,20 +43,20 @@ const CategoryTable: React.FC<Props> = ({ data, loading = false }) => {
     setDeleteConfirmId(null);
   };
   const cancelEdit = () => setEditId(null);
-  const saveEdit = () => {
+  const saveEdit = async () => {
+    await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm }));
     setRows(prev => prev.map(r => r.Id === editId ? { ...r, ...editForm } : r));
-    // TODO: PATCH /codetable/categories/{editId}
     cancelEdit();
   };
-  const saveAdd = () => {
+  const saveAdd = async () => {
     if (!addForm) return;
+    await updateCodeTable(CODE, 0, JSON.stringify(addForm));
     setRows(prev => [{ ...addForm, Id: Date.now() }, ...prev]);
-    // TODO: POST /codetable/categories
     setAddForm(null);
   };
-  const confirmDelete = (id: number) => {
+  const confirmDelete = async (id: number) => {
+    await updateCodeTable(CODE, 2, JSON.stringify({ Id: id }));
     setRows(prev => prev.filter(r => r.Id !== id));
-    // TODO: DELETE /codetable/categories/{id}
     setDeleteConfirmId(null);
   };
 
@@ -90,7 +93,7 @@ const CategoryTable: React.FC<Props> = ({ data, loading = false }) => {
   const numInp = (color: 'add' | 'edit') =>
     `px-2 py-1 text-sm border rounded w-28 focus:outline-none focus:ring-1 ${color === 'add' ? 'border-indigo-300 focus:ring-indigo-500' : 'border-amber-300 focus:ring-amber-500'}`;
   const txtInp = (color: 'add' | 'edit') =>
-    `px-2 py-1 text-sm border rounded w-full focus:outline-none focus:ring-1 ${color === 'add' ? 'border-indigo-300 focus:ring-indigo-500' : 'border-amber-300 focus:ring-amber-500'}`;
+    `px-2 py-1 text-sm border rounded w-full focus:outline-none focus:ring-1 resize-none ${color === 'add' ? 'border-indigo-300 focus:ring-indigo-500' : 'border-amber-300 focus:ring-amber-500'}`;
 
   return (
     <div className="space-y-4">
@@ -139,8 +142,8 @@ const CategoryTable: React.FC<Props> = ({ data, loading = false }) => {
                 {addForm !== null && (
                   <TableRow className="bg-indigo-50 border-l-4 border-indigo-400">
                     <TableCell className="text-xs text-gray-400 italic">New</TableCell>
-                    <TableCell><input autoFocus value={addForm.CategoryId} onChange={e => setAddForm(f => f ? { ...f, CategoryId: e.target.value } : f)} placeholder="CAT-XXX" className={txtInp('add')} /></TableCell>
-                    <TableCell><input value={addForm.CategoryName} onChange={e => setAddForm(f => f ? { ...f, CategoryName: e.target.value } : f)} placeholder="Category name..." className={txtInp('add')} /></TableCell>
+                    <TableCell><textarea autoFocus value={addForm.CategoryId} onChange={e => setAddForm(f => f ? { ...f, CategoryId: e.target.value } : f)} placeholder="CAT-XXX" rows={1} className={txtInp('add')} /></TableCell>
+                    <TableCell><textarea value={addForm.CategoryName} onChange={e => setAddForm(f => f ? { ...f, CategoryName: e.target.value } : f)} placeholder="Category name..." rows={2} className={txtInp('add')} /></TableCell>
                     <TableCell><input type="number" value={addForm.Minimum} onChange={e => setAddForm(f => f ? { ...f, Minimum: +e.target.value } : f)} className={numInp('add')} /></TableCell>
                     <TableCell><input type="number" value={addForm.Maximum} onChange={e => setAddForm(f => f ? { ...f, Maximum: +e.target.value } : f)} className={numInp('add')} /></TableCell>
                     <TableCell><input type="number" value={addForm.ValidUntil} onChange={e => setAddForm(f => f ? { ...f, ValidUntil: +e.target.value } : f)} className={numInp('add')} /></TableCell>
@@ -159,8 +162,8 @@ const CategoryTable: React.FC<Props> = ({ data, loading = false }) => {
                     <TableCell><span className="font-mono text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">{item.Id}</span></TableCell>
                     {editId === item.Id ? (
                       <>
-                        <TableCell><input autoFocus value={editForm.CategoryId} onChange={e => setEditForm(f => ({ ...f, CategoryId: e.target.value }))} className={txtInp('edit')} /></TableCell>
-                        <TableCell><input value={editForm.CategoryName} onChange={e => setEditForm(f => ({ ...f, CategoryName: e.target.value }))} className={txtInp('edit')} /></TableCell>
+                        <TableCell><textarea autoFocus value={editForm.CategoryId} onChange={e => setEditForm(f => ({ ...f, CategoryId: e.target.value }))} rows={1} className={txtInp('edit')} /></TableCell>
+                        <TableCell><textarea value={editForm.CategoryName} onChange={e => setEditForm(f => ({ ...f, CategoryName: e.target.value }))} rows={2} className={txtInp('edit')} /></TableCell>
                         <TableCell><input type="number" value={editForm.Minimum} onChange={e => setEditForm(f => ({ ...f, Minimum: +e.target.value }))} className={numInp('edit')} /></TableCell>
                         <TableCell><input type="number" value={editForm.Maximum} onChange={e => setEditForm(f => ({ ...f, Maximum: +e.target.value }))} className={numInp('edit')} /></TableCell>
                         <TableCell><input type="number" value={editForm.ValidUntil} onChange={e => setEditForm(f => ({ ...f, ValidUntil: +e.target.value }))} className={numInp('edit')} /></TableCell>
@@ -174,7 +177,7 @@ const CategoryTable: React.FC<Props> = ({ data, loading = false }) => {
                     ) : (
                       <>
                         <TableCell><span className="font-mono text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded">{item.CategoryId}</span></TableCell>
-                        <TableCell className="text-sm font-medium text-gray-900">{item.CategoryName}</TableCell>
+                        <TableCell className="text-sm font-medium text-gray-900 max-w-[150px] truncate" title={item.CategoryName}>{item.CategoryName}</TableCell>
                         <TableCell className="text-sm text-gray-600">{item.Minimum.toLocaleString()}</TableCell>
                         <TableCell className="text-sm text-gray-600">{item.Maximum.toLocaleString()}</TableCell>
                         <TableCell className="text-sm text-gray-600">{item.ValidUntil}</TableCell>

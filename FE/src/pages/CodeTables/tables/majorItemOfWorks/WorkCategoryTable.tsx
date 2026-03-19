@@ -1,84 +1,114 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../../components/tailwindui/table';
 import { Button } from '../../../../components/tailwindui/button';
-import { PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { useCodeTableContext } from '../../CodeTableContext';
+import { updateCodeTable } from '../../Service';
+import ConfirmDialog from '../../dialogs/ConfirmDialog';
+import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
 
-interface WorkCategoryData {
+const CODE = 'ProjectScopeOfWork';
+
+interface WorkCategoryRow {
   id: number;
+  sourceId: number; // ScopeOfWorkEnum.Id
   infraType: string;
   category: string;
 }
 
-// Replace with API call: GET /codetable/workcategories
-const SAMPLE_DATA: WorkCategoryData[] = [
-  { id: 1, infraType: 'Accessibility Facility', category: 'Construction' },
-  { id: 2, infraType: 'Accessibility Facility', category: 'Rehabilitation/Major Repair' },
-  { id: 3, infraType: 'Bridges', category: 'Construction' },
-  { id: 4, infraType: 'Bridges', category: 'Rehabilitation/Major Repair' },
-  { id: 5, infraType: 'Bridges', category: 'Replacement' },
-  { id: 6, infraType: 'Bridges', category: 'Retrofitting/Strengthening' },
-  { id: 7, infraType: 'Bridges', category: 'Widening' },
-  { id: 8, infraType: 'Drainage Protection Works', category: 'Rehabilitation/Major Repair' },
-  { id: 9, infraType: 'Drainage Structures along Roads', category: 'Construction' },
-  { id: 10, infraType: 'Drainage Structures along Roads', category: 'Rehabilitation/Major Repair' },
-  { id: 11, infraType: 'Drainage Structures along Roads', category: 'Upgrading' },
-  { id: 12, infraType: 'Flood Control Structures', category: 'Construction' },
-  { id: 13, infraType: 'Flood Control Structures', category: 'Rehabilitation/Major Repair' },
-  { id: 14, infraType: 'Flood Control Structures', category: 'Repair/Maintenance' },
-  { id: 15, infraType: 'Flood Control Structures', category: 'Replacement' },
-  { id: 16, infraType: 'Hospitals', category: 'Construction' },
-  { id: 17, infraType: 'Hospitals', category: 'Rehabilitation/Major Repair' },
-  { id: 18, infraType: 'Multi Purpose Buildings', category: 'Construction' },
-  { id: 19, infraType: 'Multi Purpose Buildings', category: 'Rehabilitation/Major Repair' },
-  { id: 20, infraType: 'Multi Purpose Buildings', category: 'Repair/Maintenance' },
-  { id: 21, infraType: 'Multi Purpose Buildings', category: 'Retrofitting/Strengthening' },
-  { id: 22, infraType: 'Other Buildings', category: 'Construction' },
-  { id: 23, infraType: 'Other Buildings', category: 'Rehabilitation/Major Repair' },
-  { id: 24, infraType: 'Other Buildings', category: 'Retrofitting/Strengthening' },
-  { id: 25, infraType: 'Rain Water Collector', category: 'Construction' },
-  { id: 26, infraType: 'Road Slope Protection Strucutures', category: 'Construction' },
-  { id: 27, infraType: 'Road Slope Protection Strucutures', category: 'Rehabilitation/Major Repair' },
-  { id: 28, infraType: 'Roads', category: 'Construction' },
-  { id: 29, infraType: 'Roads', category: 'Off Carriageway Improvement' },
-  { id: 30, infraType: 'Roads', category: 'Off-Carriageway Improvement' },
-  { id: 31, infraType: 'Roads', category: 'Preventive Maintenance' },
-  { id: 32, infraType: 'Roads', category: 'ROW Acquisition' },
-  { id: 33, infraType: 'Roads', category: 'Reconstruction' },
-  { id: 34, infraType: 'Roads', category: 'Rehabilitation' },
-  { id: 35, infraType: 'Roads', category: 'Rehabilitation/Major Repair' },
-  { id: 36, infraType: 'Roads', category: 'Road Safety' },
-  { id: 37, infraType: 'Roads', category: 'Upgrading' },
-  { id: 38, infraType: 'Roads', category: 'Widening' },
-  { id: 39, infraType: 'School Buildings', category: 'Construction' },
-  { id: 40, infraType: 'School Buildings', category: 'Rehabilitation/Major Repair' },
-  { id: 41, infraType: 'Septage and Sewerage Plants', category: 'Construction' },
-  { id: 42, infraType: 'Septage and Sewerage Plants', category: 'Rehabilitation/Major Repair' },
-  { id: 43, infraType: 'Water Supply Systems', category: 'Construction' },
-  { id: 44, infraType: 'Water Supply Systems', category: 'Rehabilitation' },
-  { id: 45, infraType: 'Waterway', category: 'Channelization' },
-  { id: 46, infraType: 'Waterway', category: 'Dredging / Desilting' },
-];
+interface FormState { infraType: string; category: string; }
+const EMPTY_FORM: FormState = { infraType: '', category: '' };
 
-const UNIQUE_INFRA_TYPES = [...new Set(SAMPLE_DATA.map(d => d.infraType))].sort();
+const inp = (v: 'add' | 'edit') =>
+  `w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 resize-none ${v === 'add' ? 'border-indigo-300 focus:ring-indigo-500' : 'border-amber-300 focus:ring-amber-500'}`;
 
 const WorkCategoryTable: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedInfraType, setSelectedInfraType] = useState('');
-  const [filteredData, setFilteredData] = useState<WorkCategoryData[]>(SAMPLE_DATA);
+  const [filteredData, setFilteredData] = useState<WorkCategoryRow[]>([]);
+  const [addForm, setAddForm] = useState<FormState | null>(null);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState<FormState>(EMPTY_FORM);
+  const [deleteConfirmSourceId, setDeleteConfirmSourceId] = useState<number | null>(null);
+  const { data: codeTableData, loading } = useCodeTableContext();
+  const confirm = useConfirmDialog();
+
+  const allData = useMemo<WorkCategoryRow[]>(() => {
+    const scopes = codeTableData?.ScopeOfWorks ?? [];
+    const seen = new Set<string>();
+    const rows: WorkCategoryRow[] = [];
+    let id = 1;
+    for (const s of scopes) {
+      const infraTypes = Array.isArray(s.InfraType) ? s.InfraType : [String(s.InfraType)];
+      for (const infra of infraTypes) {
+        const key = `${infra}||${s.WorkCategory}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          rows.push({ id: id++, sourceId: s.Id, infraType: infra, category: s.WorkCategory });
+        }
+      }
+    }
+    return rows;
+  }, [codeTableData]);
+
+  const uniqueInfraTypes = useMemo(() => [...new Set(allData.map(d => d.infraType))].sort(), [allData]);
 
   useEffect(() => {
-    let filtered = SAMPLE_DATA;
+    let filtered = allData;
     if (searchTerm) {
       const lower = searchTerm.toLowerCase();
       filtered = filtered.filter(d =>
         d.infraType.toLowerCase().includes(lower) || d.category.toLowerCase().includes(lower)
       );
     }
-    if (selectedInfraType) {
-      filtered = filtered.filter(d => d.infraType === selectedInfraType);
-    }
+    if (selectedInfraType) filtered = filtered.filter(d => d.infraType === selectedInfraType);
     setFilteredData(filtered);
-  }, [searchTerm, selectedInfraType]);
+  }, [searchTerm, selectedInfraType, allData]);
+
+  const startEdit = (row: WorkCategoryRow) => {
+    setEditId(row.id);
+    setEditForm({ infraType: row.infraType, category: row.category });
+    setDeleteConfirmSourceId(null);
+  };
+  const cancelEdit = () => setEditId(null);
+
+  const requestAdd = () => {
+    if (!addForm) return;
+    confirm.request({
+      mode: 'add',
+      tableName: 'Work Category',
+      fields: [
+        { label: 'Infra Type',     value: addForm.infraType },
+        { label: 'Work Category',  value: addForm.category },
+      ],
+      onConfirm: async () => {
+        await updateCodeTable(CODE, 0, JSON.stringify({ InfraType: addForm.infraType, WorkCategory: addForm.category }));
+        confirm.close();
+        setAddForm(null);
+      },
+    });
+  };
+
+  const requestEdit = (row: WorkCategoryRow) => {
+    confirm.request({
+      mode: 'edit',
+      tableName: 'Work Category',
+      fields: [
+        { label: 'Infra Type',     value: editForm.infraType },
+        { label: 'Work Category',  value: editForm.category },
+      ],
+      onConfirm: async () => {
+        await updateCodeTable(CODE, 1, JSON.stringify({ Id: row.sourceId, InfraType: editForm.infraType, WorkCategory: editForm.category }));
+        confirm.close();
+        cancelEdit();
+      },
+    });
+  };
+
+  const confirmDelete = async (sourceId: number) => {
+    await updateCodeTable(CODE, 2, JSON.stringify({ Id: sourceId }));
+    setDeleteConfirmSourceId(null);
+  };
 
   return (
     <div className="space-y-4">
@@ -104,9 +134,9 @@ const WorkCategoryTable: React.FC = () => {
             className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-500"
           >
             <option value="">All Infra Types</option>
-            {UNIQUE_INFRA_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            {uniqueInfraTypes.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
-          <Button color="indigo" className="flex items-center gap-1 text-sm">
+          <Button color="indigo" className="flex items-center gap-1 text-sm" onClick={() => setAddForm(EMPTY_FORM)} disabled={!!addForm}>
             <PlusIcon className="h-4 w-4" /> Add Category
           </Button>
         </div>
@@ -119,39 +149,88 @@ const WorkCategoryTable: React.FC = () => {
               <TableHeader className="w-12">ID</TableHeader>
               <TableHeader>Infrastructure Type</TableHeader>
               <TableHeader>Work Category</TableHeader>
-              <TableHeader className="w-24">Actions</TableHeader>
+              <TableHeader className="w-32">Actions</TableHeader>
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredData.length === 0 ? (
+            {loading ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center py-10 text-gray-500">No records found.</TableCell>
+                <TableCell colSpan={4} className="text-center py-10">
+                  <div className="flex items-center justify-center gap-2 text-gray-400">
+                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>Loading...
+                  </div>
+                </TableCell>
               </TableRow>
             ) : (
-              filteredData.map(item => (
-                <TableRow key={item.id}>
-                  <TableCell className="font-mono text-xs text-gray-500">{item.id}</TableCell>
-                  <TableCell>
-                    <span className="inline-flex px-2 py-0.5 text-xs font-medium bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200">
-                      {item.infraType}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-sm text-gray-900">{item.category}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-1.5">
-                      <Button color="zinc" className="p-1.5"><PencilIcon className="h-3.5 w-3.5" /></Button>
-                      <Button color="red" className="p-1.5"><TrashIcon className="h-3.5 w-3.5" /></Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
+              <>
+                {addForm !== null && (
+                  <TableRow className="bg-indigo-50 border-l-4 border-indigo-400">
+                    <TableCell className="text-xs text-gray-400 italic">New</TableCell>
+                    <TableCell><textarea autoFocus value={addForm.infraType} onChange={e => setAddForm(f => f ? { ...f, infraType: e.target.value } : f)} placeholder="Infra type..." rows={2} className={inp('add')} /></TableCell>
+                    <TableCell><textarea value={addForm.category} onChange={e => setAddForm(f => f ? { ...f, category: e.target.value } : f)} placeholder="Work category..." rows={2} className={inp('add')} /></TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button color="indigo" className="p-1.5" onClick={requestAdd} disabled={!addForm.infraType.trim() || !addForm.category.trim()}><CheckIcon className="h-3.5 w-3.5" /></Button>
+                        <Button color="zinc" className="p-1.5" onClick={() => setAddForm(null)}><XMarkIcon className="h-3.5 w-3.5" /></Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+                {filteredData.length === 0 && !addForm ? (
+                  <TableRow><TableCell colSpan={4} className="text-center py-10 text-gray-500">No records found.</TableCell></TableRow>
+                ) : filteredData.map(item => (
+                  <TableRow key={item.id} className={editId === item.id ? 'bg-amber-50 border-l-4 border-amber-400' : undefined}>
+                    <TableCell className="font-mono text-xs text-gray-500">{item.id}</TableCell>
+                    {editId === item.id ? (
+                      <>
+                        <TableCell><textarea autoFocus value={editForm.infraType} onChange={e => setEditForm(f => ({ ...f, infraType: e.target.value }))} rows={2} className={inp('edit')} /></TableCell>
+                        <TableCell><textarea value={editForm.category} onChange={e => setEditForm(f => ({ ...f, category: e.target.value }))} rows={2} className={inp('edit')} /></TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button color="amber" className="p-1.5" onClick={() => requestEdit(item)} disabled={!editForm.infraType.trim() || !editForm.category.trim()}><CheckIcon className="h-3.5 w-3.5" /></Button>
+                            <Button color="zinc" className="p-1.5" onClick={cancelEdit}><XMarkIcon className="h-3.5 w-3.5" /></Button>
+                          </div>
+                        </TableCell>
+                      </>
+                    ) : (
+                      <>
+                        <TableCell>
+                          <span className="inline-flex px-2 py-0.5 text-xs font-medium bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200">
+                            {item.infraType}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-sm text-gray-900">{item.category}</TableCell>
+                        <TableCell>
+                          {deleteConfirmSourceId === item.sourceId ? (
+                            <div className="flex items-center gap-1">
+                              <span className="text-xs text-red-600">Delete?</span>
+                              <Button color="red" className="px-2 py-1 text-xs" onClick={() => confirmDelete(item.sourceId)}>Yes</Button>
+                              <Button color="zinc" className="px-2 py-1 text-xs" onClick={() => setDeleteConfirmSourceId(null)}>No</Button>
+                            </div>
+                          ) : (
+                            <div className="flex gap-1.5">
+                              <Button color="zinc" className="p-1.5" onClick={() => startEdit(item)}><PencilIcon className="h-3.5 w-3.5" /></Button>
+                              <Button color="red" className="p-1.5" onClick={() => setDeleteConfirmSourceId(item.sourceId)}><TrashIcon className="h-3.5 w-3.5" /></Button>
+                            </div>
+                          )}
+                        </TableCell>
+                      </>
+                    )}
+                  </TableRow>
+                ))}
+              </>
             )}
           </TableBody>
         </Table>
       </div>
       <p className="text-xs text-gray-400">{filteredData.length} record(s) found</p>
+      <ConfirmDialog {...confirm.dialogProps} />
     </div>
   );
 };
 
 export default WorkCategoryTable;
+

@@ -1,9 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../../components/tailwindui/table';
 import { Button } from '../../../../components/tailwindui/button';
-import { PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import type { RevisionRules } from '../../Model.d';
 import { fetchRevisionRules } from '../../Service';
+import ConfirmDialog from '../../dialogs/ConfirmDialog';
+import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
 
 const STATUS_COLORS: Record<string, string> = {
   'Completed': 'bg-green-50 text-green-700 border-green-200',
@@ -21,6 +23,10 @@ const RevisionFieldPermissionTable: React.FC = () => {
   const [sortColumn, setSortColumn] = useState<number | null>(null);
   const [sortDirection, setSortDirection] = useState<0 | 1 | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState<Partial<RevisionRules>>({});
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const confirm = useConfirmDialog();
   const itemsPerPage = 15;
 
   useEffect(() => {
@@ -77,6 +83,40 @@ const RevisionFieldPermissionTable: React.FC = () => {
       setSortDirection(0);
     }
   }, [sortColumn]);
+
+  const startEdit = (item: RevisionRules) => {
+    setEditId(item.Id);
+    setEditForm({ Category: item.Category, Reason: item.Reason, PCMAStatus: item.PCMAStatus, PackageStatus: item.PackageStatus, Field: item.Field });
+    setDeleteConfirmId(null);
+  };
+  const cancelEdit = () => setEditId(null);
+  const saveEdit = () => {
+    setData(prev => prev.map(r => r.Id === editId ? { ...r, ...editForm } as RevisionRules : r));
+    // TODO: PATCH /codetable/revisionrules/{editId}
+    cancelEdit();
+  };
+  const confirmDelete = (id: number) => {
+    setData(prev => prev.filter(r => r.Id !== id));
+    // TODO: DELETE /codetable/revisionrules/{id}
+    setDeleteConfirmId(null);
+  };
+  const requestEdit = () => {
+    confirm.request({
+      mode: 'edit',
+      tableName: 'Revision Field Permission',
+      fields: [
+        { label: 'Category',       value: editForm.Category ?? '' },
+        { label: 'Reason',         value: editForm.Reason ?? '' },
+        { label: 'PCMA Status',    value: editForm.PCMAStatus ?? '' },
+        { label: 'Package Status', value: editForm.PackageStatus ?? '' },
+        { label: 'Field',          value: editForm.Field ?? '', mono: true },
+      ],
+      onConfirm: () => { saveEdit(); confirm.close(); },
+    });
+  };
+
+  const inp = (extra = 'w-full') =>
+    `${extra} px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 resize-none border-amber-300 focus:ring-amber-500`;
 
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
   const pageData = filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -149,31 +189,57 @@ const RevisionFieldPermissionTable: React.FC = () => {
               </TableRow>
             ) : (
               pageData.map(item => (
-                <TableRow key={item.Id}>
+                <TableRow key={item.Id} className={editId === item.Id ? 'bg-amber-50 border-l-4 border-amber-400' : undefined}>
                   <TableCell className="font-mono text-xs text-gray-500">{item.Id}</TableCell>
-                  <TableCell>
-                    <span className="inline-flex px-2 py-0.5 text-xs font-medium bg-purple-50 text-purple-700 rounded-full border border-purple-200">
-                      {item.Category}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-sm text-gray-900">{item.Reason}</TableCell>
-                  <TableCell>
-                    <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full border ${STATUS_COLORS[item.PCMAStatus] ?? 'bg-gray-100 text-gray-600 border-gray-200'}`}>
-                      {item.PCMAStatus}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full border ${STATUS_COLORS[item.PackageStatus] ?? 'bg-gray-100 text-gray-600 border-gray-200'}`}>
-                      {item.PackageStatus}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-sm font-mono text-gray-700">{item.Field}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-1.5">
-                      <Button color="zinc" className="p-1.5"><PencilIcon className="h-3.5 w-3.5" /></Button>
-                      <Button color="red" className="p-1.5"><TrashIcon className="h-3.5 w-3.5" /></Button>
-                    </div>
-                  </TableCell>
+                  {editId === item.Id ? (
+                    <>
+                      <TableCell><textarea autoFocus value={editForm.Category ?? ''} onChange={e => setEditForm(f => ({ ...f, Category: e.target.value }))} rows={2} className={inp()} /></TableCell>
+                      <TableCell><textarea value={editForm.Reason ?? ''} onChange={e => setEditForm(f => ({ ...f, Reason: e.target.value }))} rows={2} className={inp()} /></TableCell>
+                      <TableCell><textarea value={editForm.PCMAStatus ?? ''} onChange={e => setEditForm(f => ({ ...f, PCMAStatus: e.target.value }))} rows={2} className={inp()} /></TableCell>
+                      <TableCell><textarea value={editForm.PackageStatus ?? ''} onChange={e => setEditForm(f => ({ ...f, PackageStatus: e.target.value }))} rows={2} className={inp()} /></TableCell>
+                      <TableCell><textarea value={editForm.Field ?? ''} onChange={e => setEditForm(f => ({ ...f, Field: e.target.value }))} rows={2} className={`${inp()} font-mono`} /></TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button color="amber" className="p-1.5" onClick={requestEdit}><CheckIcon className="h-3.5 w-3.5" /></Button>
+                          <Button color="zinc" className="p-1.5" onClick={cancelEdit}><XMarkIcon className="h-3.5 w-3.5" /></Button>
+                        </div>
+                      </TableCell>
+                    </>
+                  ) : (
+                    <>
+                      <TableCell>
+                        <span className="inline-flex px-2 py-0.5 text-xs font-medium bg-purple-50 text-purple-700 rounded-full border border-purple-200">
+                          {item.Category}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-900 max-w-[150px] truncate" title={item.Reason ?? ''}>{item.Reason}</TableCell>
+                      <TableCell>
+                        <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full border ${STATUS_COLORS[item.PCMAStatus] ?? 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                          {item.PCMAStatus}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full border ${STATUS_COLORS[item.PackageStatus] ?? 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                          {item.PackageStatus}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-sm font-mono text-gray-700">{item.Field}</TableCell>
+                      <TableCell>
+                        {deleteConfirmId === item.Id ? (
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-red-600">Delete?</span>
+                            <Button color="red" className="px-2 py-1 text-xs" onClick={() => confirmDelete(item.Id)}>Yes</Button>
+                            <Button color="zinc" className="px-2 py-1 text-xs" onClick={() => setDeleteConfirmId(null)}>No</Button>
+                          </div>
+                        ) : (
+                          <div className="flex gap-1.5">
+                            <Button color="zinc" className="p-1.5" onClick={() => startEdit(item)}><PencilIcon className="h-3.5 w-3.5" /></Button>
+                            <Button color="red" className="p-1.5" onClick={() => setDeleteConfirmId(item.Id)}><TrashIcon className="h-3.5 w-3.5" /></Button>
+                          </div>
+                        )}
+                      </TableCell>
+                    </>
+                  )}
                 </TableRow>
               ))
             )}
@@ -193,6 +259,7 @@ const RevisionFieldPermissionTable: React.FC = () => {
           </div>
         )}
       </div>
+      <ConfirmDialog {...confirm.dialogProps} />
     </div>
   );
 };
