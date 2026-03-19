@@ -95,6 +95,27 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
     return fieldPermissionsMap[field] === true;
   }, [fieldPermissionsMap]);
 
+  // CanAdd permission from MajorItemLocationRules.CRUD
+  const canAdd = useMemo(() => {
+    if (!fieldRules) return true; // default to allowed when no rules provided
+    const locationRules = (fieldRules as any).MajorItemLocationRules;
+    return locationRules?.CRUD?.CanAdd !== false;
+  }, [fieldRules]);
+
+  // CanDelete permission from MajorItemLocationRules.CRUD
+  // Backend records (Id > 0) respect canDelete; locally-added records (Id === 0) can always be removed
+  const canDelete = useMemo(() => {
+    if (!fieldRules) return true;
+    const locationRules = (fieldRules as any).MajorItemLocationRules;
+    return locationRules?.CRUD?.CanDelete !== false;
+  }, [fieldRules]);
+
+  const isDeleteAllowed = (location: MajorItemLocations) => {
+    const isFromBackend = location.Id !== 0 && location.Id != null;
+    if (isFromBackend && !canDelete) return false;
+    return true;
+  };
+
   // Individual field editability checks for cleaner usage
   const isInfraIdEditable = isFieldEditable('InfraId');
   const isDetailedScopeEditable = isFieldEditable('DetailedScope');
@@ -838,8 +859,8 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
                     <Button
                       color="blue"
                       onClick={() => handleCopyWorkLocation(index)}
-                      className={`flex items-center px-3 py-1 text-xs ${getDisabledClass(disabled)}`}
-                      disabled={disabled}
+                      className={`flex items-center px-3 py-1 text-xs ${getDisabledClass(!canAdd || disabled)}`}
+                      disabled={!canAdd || disabled}
                       title="Copy this work location"
                     >
                       <DocumentDuplicateIcon className="w-3 h-3 mr-1" />
@@ -850,12 +871,12 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
                       onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        if (!disabled) {
+                        if (!disabled && isDeleteAllowed(location)) {
                           openDeleteDialog(location, index);
                         }
                       }}
-                      className={`flex items-center px-3 py-1 text-xs ${getDisabledClass(disabled)}`}
-                      disabled={disabled}
+                      className={`flex items-center px-3 py-1 text-xs ${getDisabledClass(!isDeleteAllowed(location) || disabled)}`}
+                      disabled={!isDeleteAllowed(location) || disabled}
                     >
                       <TrashIcon className="w-3 h-3 mr-1" />
                       Remove
@@ -902,8 +923,8 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
           <Button
               color="blue"
               onClick={handleAddWorkLocation}
-              className={`flex items-center px-4 py-2 text-sm ${getDisabledClass(disabled)}`}
-              disabled={disabled}
+              className={`flex items-center px-4 py-2 text-sm ${getDisabledClass(!canAdd || disabled)}`}
+              disabled={!canAdd || disabled}
             >
             <PlusIcon className="w-4 h-4 mr-2" />
             Add Location
@@ -913,7 +934,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
         
         
       ) : (
-        <div onClick={handleAddWorkLocation} className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center bg-gray-50 cursor-pointer">
+        <div onClick={canAdd && !disabled ? handleAddWorkLocation : undefined} className={`border-2 border-dashed border-gray-300 rounded-lg p-8 text-center bg-gray-50 ${canAdd && !disabled ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}>
           <div className="max-w-sm mx-auto">
             <div className="mb-4">
               <div className="mx-auto w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
