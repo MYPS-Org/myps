@@ -392,8 +392,7 @@ namespace WebAPI.Controllers.Projects
                     StageId = ProgramDetails.StageId,
                     StageName = ProgramDetails.StageName,
                     CreatedBy = _Session.UserId,
-                    CreatedDate = CurrentDate,
-                    IsPublished = false
+                    CreatedDate = CurrentDate
                 };
                 await _db.tProjectStages.AddAsync(ProjectStage);
                 await _db.SaveChangesAsync();

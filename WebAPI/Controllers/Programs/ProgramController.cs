@@ -839,8 +839,7 @@ namespace WebAPI.Controllers.Programs
                             StageId = (EnumProgramStage)checkStageType.NameId,//checkStage.StageId.UpdateStage(),
                             StageName = checkStageType.Name,
                             CreatedBy = _Session.UserId,
-                            CreatedDate = CurrentDate,
-                            IsPublished = false
+                            CreatedDate = CurrentDate
                         });
                         await _db.tProjectStages.AddRangeAsync(newStages);
                         #endregion
