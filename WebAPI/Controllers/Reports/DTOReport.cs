@@ -9,56 +9,27 @@ using System.Threading.Tasks;
 
 namespace WebAPI.Controllers.Revision
 {
-    public class DTOReportAIP
+    public class GenerateReportDTO
     {
         [Required]
-        public string ProgramName { get; set; } = string.Empty;
-        [Required]
-        public string ReportType { get; set; } = string.Empty;
+        public string ProgramId { get; set; } = string.Empty;
     }
-    public class DTOReportAIPFilter
+    public class RequestReportAIPDTO : GenerateReportDTO
     {
-        public string ProgramName { get; set; }
-        public string ProgramId { get; set; }
-        public string StageName { get; set; }
-        public string Region { get; set; }
+        public string? StageName { get; set; }
+        public string? CategoryName { get; set; }
+        public string? RegionName { get; set; }
+        public string? OperatingUnitName { get; set; }
+        public string? DistrictEngineeringOffice { get; set; }
+        public string? ImplementingOfficeName { get; set; }
+        public string? LegislativeDistrictName { get; set; }
     }
-
-    public class DTOProgramProjectDetailsResponse
+    public class RequestReportRBPComponentsDTO: GenerateReportDTO
     {
-        public DTOProgramDetails Program { get; set; }
+        public string? RegionName { get; set; }
     }
-
-    public class DTOProgramDetails
+    public class RequestReportRBPDTO: GenerateReportDTO
     {
-        public string ProgramName { get; set; }
-        public string ProgramId { get; set; }
-        public string StageName { get; set; }
-        public List<DTOProjectInfo> ProjectList { get; set; } = new List<DTOProjectInfo>();
-    }
-
-    public class DTOProjectInfo
-    {
-        public string ProjectId { get; set; }
-        public string ProjectCategory { get; set; }
-        public string Region { get; set; }
-        public List<DTOComponentCost> ComponentCosts { get; set; } = new List<DTOComponentCost>();
-        public List<DTOMajorWorkItem> MajorItems { get; set; } = new List<DTOMajorWorkItem>();
-    }
-
-    public class DTOComponentCost
-    {
-        public string ComponentId { get; set; }
-        public double Amount { get; set; }
-        public string Description { get; set; }
-    }
-
-    public class DTOMajorWorkItem
-    {
-        public string ComponentId { get; set; }
-        public string Measure { get; set; }
-        public string Description { get; set; }
+        public string? RegionName { get; set; }
     }
 }
-
-
