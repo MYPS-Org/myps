@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using OfficeOpenXml.Sparkline;
 using System.ComponentModel;
 using System.Reflection;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Xml;
 
@@ -207,8 +208,9 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Please provide a reason for skipping stage of this program.", Title = "Skip Reason Required" });
                 }
-                string ReferenceId = "PR" + ("tCountSequence").GenerateCode();
-                DateTime currentDate = Functions.CurrentDate();;
+                string hostName = User.FindFirstValue(ClaimTypes.GivenName) ?? "Unknown";
+                string ReferenceId = "PR_" + hostName + "_" + ("tCountSequence").GenerateCode();
+                DateTime currentDate = Functions.CurrentDate();
                 string UserId = _Session.UserId;
                 var newProgram = new DBHelper.Models.Table.Programs()
                 {
@@ -239,6 +241,7 @@ namespace WebAPI.Controllers.Programs
                 await _db.tProgramStages.AddAsync(new ProgramStages()
                 {
                     ProgramId = ReferenceId,
+                    ProgramUniqueId = ReferenceId,
                     RevisionId = newRevisions.Id,
                     StageId = dto.Stage,
                     StageName = dto.Stage.ToString(),

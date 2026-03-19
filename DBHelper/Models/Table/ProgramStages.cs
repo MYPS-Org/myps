@@ -17,6 +17,8 @@ namespace DBHelper.Models.Table
         [Required]
         public string ProgramId { get; set; } = string.Empty;
         [Required]
+        public string ProgramUniqueId { get; set; } = string.Empty;
+        [Required]
         public int RevisionId { get; set; }
         [Required]
         public EnumProgramStage StageId { get; set; }
