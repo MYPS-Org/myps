@@ -1255,8 +1255,7 @@ namespace WebAPI.Controllers.Revision
                             StageId = EnumProgramStage.GAAR,
                             StageName = ProjectStage.StageName,
                             CreatedBy = _Session.UserId,
-                            CreatedDate = CurrentDate,
-                            IsPublished = true
+                            CreatedDate = CurrentDate
                         };
                         _db.tProjectStages.Add(AddProjectStage);
                         NewFundingProfile.ForEach(x =>
