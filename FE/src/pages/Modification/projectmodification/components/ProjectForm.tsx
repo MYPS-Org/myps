@@ -832,6 +832,38 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       }
     }
 
+    // Check duplicate DetailedScope within each major item's work locations
+    const duplicateScopeErrors: string[] = [];
+    majorItems.forEach((majorItem, majorIndex) => {
+      if (!majorItem.IsDeleted && majorItem.MajorItemLocations) {
+        const activeLocations = majorItem.MajorItemLocations.filter(loc => !loc.IsDeleted);
+        const seenScopes = new Map<string, number>();
+        activeLocations.forEach((location, locIndex) => {
+          const scope = location.DetailedScope?.trim();
+          if (scope) {
+            const key = scope.toLowerCase();
+            if (seenScopes.has(key)) {
+              duplicateScopeErrors.push(
+                `Major Item ${majorIndex + 1}: Duplicate Detailed Scope "${scope}" found at locations ${(seenScopes.get(key)! + 1)} and ${locIndex + 1}. Each location must have a unique detailed scope.`
+              );
+            } else {
+              seenScopes.set(key, locIndex);
+            }
+          }
+        });
+      }
+    });
+
+    if (duplicateScopeErrors.length > 0) {
+      duplicateScopeErrors.forEach(errorMessage => {
+        showToast({
+          type: 'error',
+          message: errorMessage
+        });
+      });
+      return;
+    }
+
     const totalComponentCost = componentCosts.reduce((sum, cost) => cost.IsDeleted ? sum : sum + (cost.Total || 0), 0);
     
     // Calculate total funding profile amount
