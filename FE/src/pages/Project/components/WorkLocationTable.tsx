@@ -120,6 +120,15 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
     return { isValid: true, message: '' };
   };
   
+  // Helper: check if DetailedScope is duplicate within active work locations
+  const isDuplicateDetailedScope = (index: number, value: string): boolean => {
+    if (!value || !value.trim()) return false;
+    const trimmed = value.trim().toLowerCase();
+    return workLocations.some(
+      (loc, i) => i !== index && !loc.IsDeleted && loc.DetailedScope?.trim().toLowerCase() === trimmed
+    );
+  };
+
   // Delete dialog state
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deletingWorkLocation, setDeletingWorkLocation] = useState<MajorItemLocations | null>(null);
@@ -482,7 +491,8 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
           </div>
         );
 
-      case 'DetailedScope':
+      case 'DetailedScope': {
+        const hasDuplicateScope = isDuplicateDetailedScope(index, location.DetailedScope);
         return (
           <div key={fieldName} className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
@@ -491,13 +501,17 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
             <textarea
               value={location.DetailedScope}
               onChange={(e) => handleFieldChange(index, 'DetailedScope', e.target.value)}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
+              className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-orange-500 ${hasDuplicateScope ? 'border-red-500 bg-red-50' : 'border-gray-300'} ${getDisabledClass(disabled)}`}
               placeholder="Enter detailed scope of work..."
               rows={3}
               disabled={disabled}
             />
+            {hasDuplicateScope && (
+              <p className="text-xs text-red-600">Detailed scope must be unique within this major item.</p>
+            )}
           </div>
         );
+      }
 
       case 'TargetUnit':
         return (
