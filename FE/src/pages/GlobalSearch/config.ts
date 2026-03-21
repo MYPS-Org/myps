@@ -1,84 +1,168 @@
 /**
- * config.ts — maps each searchable table to:
- *   - resultColumns: which columns to show in the results table
- *   - getLink: given a result row, returns a navigation URL (or null if not navigable)
+ * config.ts — flat list of searchable fields.
  *
- * Keep this in sync with AllowedColumns in GlobalSearchController.cs.
+ * Each entry maps a user-facing label to a backend (TableKey + ColumnField) pair,
+ * the result columns to display, and an optional navigation link.
+ *
+ * To add a new searchable field:
+ *   1. Add an entry here.
+ *   2. Make sure the TableKey + ColumnField are whitelisted in GlobalSearchController.cs.
  */
 
-export interface TableConfig {
+export interface SearchFieldConfig {
+  /** Unique key used internally */
   key: string;
+  /** Label shown in the "Search By" dropdown */
   label: string;
+  /** Backend: which view/table to query */
+  tableKey: string;
+  /** Backend: which column to search against */
+  columnField: string;
+  /** Placeholder hint shown in the value input */
+  placeholder?: string;
+  /** Columns to render in the results table */
   resultColumns: { field: string; label: string }[];
+  /** Given a result row, return the navigation URL or null */
   getLink: ((row: Record<string, unknown>) => string | null) | null;
 }
 
-export const SEARCH_TABLE_CONFIG: TableConfig[] = [
+export const SEARCH_FIELD_CONFIG: SearchFieldConfig[] = [
   {
-    key: 'vProjects',
-    label: 'Projects',
+    key: 'projectId',
+    label: 'Project ID',
+    tableKey: 'vProjects',
+    columnField: 'ProjectId',
+    placeholder: 'e.g. 2024-DPWH-001',
     resultColumns: [
-      { field: 'ProjectId',          label: 'Project ID'          },
-      { field: 'Description',        label: 'Description'         },
-      { field: 'ProgramName',        label: 'Program'             },
-      { field: 'Category',           label: 'Category'            },
-      { field: 'Region',             label: 'Region'              },
-      { field: 'StageName',          label: 'Stage'               },
-      { field: 'ImplementingOffice', label: 'Implementing Office' },
+      { field: 'ProjectId',    label: 'Project ID'   },
+      { field: 'Description',  label: 'Description'  },
+      { field: 'ProgramName',  label: 'Program'      },
+      { field: 'StageName',    label: 'Stage'        },
+      { field: 'Region',       label: 'Region'       },
     ],
     getLink: (row) =>
-      row['ProjectId'] ? `/projects/project-details/${row['ProjectId']}` : null,
+      row['ProjectId'] && row['StageName']
+        ? `/projects/project-details/${row['ProjectId']}:${row['StageName']}`
+        : row['ProjectId']
+        ? `/projects/project-details/${row['ProjectId']}`
+        : null,
   },
   {
-    key: 'vPrograms',
-    label: 'Programs',
+    key: 'alternateId',
+    label: 'Alternate ID',
+    tableKey: 'vProjects',
+    columnField: 'AlternateId',
+    placeholder: 'e.g. ALT-2024-001',
+    resultColumns: [
+      { field: 'ProjectId',   label: 'Project ID'   },
+      { field: 'AlternateId', label: 'Alternate ID' },
+      { field: 'Description', label: 'Description'  },
+      { field: 'StageName',   label: 'Stage'        },
+      { field: 'Region',      label: 'Region'       },
+    ],
+    getLink: (row) =>
+      row['ProjectId'] && row['StageName']
+        ? `/projects/project-details/${row['ProjectId']}:${row['StageName']}`
+        : row['ProjectId']
+        ? `/projects/project-details/${row['ProjectId']}`
+        : null,
+  },
+  {
+    key: 'description',
+    label: 'Description',
+    tableKey: 'vProjects',
+    columnField: 'Description',
+    placeholder: 'e.g. Construction of road…',
+    resultColumns: [
+      { field: 'ProjectId',   label: 'Project ID'  },
+      { field: 'Description', label: 'Description' },
+      { field: 'ProgramName', label: 'Program'     },
+      { field: 'StageName',   label: 'Stage'       },
+      { field: 'Region',      label: 'Region'      },
+    ],
+    getLink: (row) =>
+      row['ProjectId'] && row['StageName']
+        ? `/projects/project-details/${row['ProjectId']}:${row['StageName']}`
+        : row['ProjectId']
+        ? `/projects/project-details/${row['ProjectId']}`
+        : null,
+  },
+  {
+    key: 'uacs',
+    label: 'UACS',
+    tableKey: 'vProjects',
+    columnField: 'UACS',
+    placeholder: 'e.g. 212202000',
+    resultColumns: [
+      { field: 'ProjectId',   label: 'Project ID'  },
+      { field: 'UACS',        label: 'UACS'        },
+      { field: 'Description', label: 'Description' },
+      { field: 'StageName',   label: 'Stage'       },
+      { field: 'Region',      label: 'Region'      },
+    ],
+    getLink: (row) =>
+      row['ProjectId'] && row['StageName']
+        ? `/projects/project-details/${row['ProjectId']}:${row['StageName']}`
+        : row['ProjectId']
+        ? `/projects/project-details/${row['ProjectId']}`
+        : null,
+  },
+  {
+    key: 'programName',
+    label: 'Program Name',
+    tableKey: 'vPrograms',
+    columnField: 'Name',
+    placeholder: 'e.g. DPWH Infrastructure Program',
     resultColumns: [
       { field: 'ProgramId', label: 'Program ID'   },
       { field: 'Name',      label: 'Program Name' },
       { field: 'StageName', label: 'Stage'        },
       { field: 'YearStart', label: 'Year Start'   },
       { field: 'Status',    label: 'Status'       },
-      { field: 'Type',      label: 'Type'         },
     ],
     getLink: (row) =>
       row['ProgramId'] ? `/programs/programdetails/${row['ProgramId']}` : null,
   },
   {
-    key: 'vProjectGroups',
-    label: 'Project Groups',
+    key: 'roads',
+    label: 'Roads',
+    tableKey: 'vRoads',
+    columnField: 'RoadName',
+    placeholder: 'e.g. National Highway',
     resultColumns: [
-      { field: 'GroupId',       label: 'Group ID'    },
-      { field: 'Name',          label: 'Name'        },
-      { field: 'Description',   label: 'Description' },
-      { field: 'UserGroupName', label: 'User Group'  },
-    ],
-    getLink: (row) =>
-      row['GroupId'] ? `/project-groups/${row['GroupId']}` : null,
-  },
-  {
-    key: 'vUsers',
-    label: 'Users',
-    resultColumns: [
-      { field: 'UserId',          label: 'User ID' },
-      { field: 'Name',            label: 'Name'    },
-      { field: 'Email',           label: 'Email'   },
-      { field: 'PlantillaOffice', label: 'Office'  },
+      { field: 'RoadId',   label: 'Road ID'   },
+      { field: 'RoadName', label: 'Road Name' },
+      { field: 'Region',   label: 'Region'    },
+      { field: 'Length',   label: 'Length'    },
     ],
     getLink: null,
   },
   {
-    key: 'vRevisionLists',
-    label: 'Revisions',
+    key: 'roadSection',
+    label: 'Road Section',
+    tableKey: 'vRoadSections',
+    columnField: 'RoadSectionId',
+    placeholder: 'e.g. RS-001',
     resultColumns: [
-      { field: 'TransactionId', label: 'Transaction ID' },
-      { field: 'RevisionName',  label: 'Revision Name'  },
-      { field: 'CategoryName',  label: 'Category'       },
-      { field: 'Reason',        label: 'Reason'         },
-      { field: 'CreatedBy',     label: 'Created By'     },
+      { field: 'RoadSectionId', label: 'Section ID'   },
+      { field: 'RoadName',      label: 'Road Name'    },
+      { field: 'Region',        label: 'Region'       },
+      { field: 'RoadLength',    label: 'Length (m)'   },
     ],
-    getLink: (row) =>
-      row['TransactionId']
-        ? `/revision/view/Revision/${row['TransactionId']}`
-        : null,
+    getLink: null,
+  },
+  {
+    key: 'bridge',
+    label: 'Bridge',
+    tableKey: 'vBridges',
+    columnField: 'BridgeName',
+    placeholder: 'e.g. Marcos Bridge',
+    resultColumns: [
+      { field: 'BridgeId',   label: 'Bridge ID'   },
+      { field: 'BridgeName', label: 'Bridge Name' },
+      { field: 'Region',     label: 'Region'      },
+      { field: 'Length',     label: 'Length (m)'  },
+    ],
+    getLink: null,
   },
 ];

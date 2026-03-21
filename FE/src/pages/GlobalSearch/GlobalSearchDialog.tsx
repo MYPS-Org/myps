@@ -3,9 +3,9 @@ import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { MagnifyingGlassIcon, XMarkIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../components/toaster/ToasterContext';
-import { globalSearch, getSearchColumns } from './Service';
-import { SEARCH_TABLE_CONFIG } from './config';
-import type { SearchableColumn, GlobalSearchResponse } from './Model';
+import { globalSearch } from './Service';
+import { SEARCH_FIELD_CONFIG } from './config';
+import type { GlobalSearchResponse } from './Model';
 
 interface GlobalSearchDialogProps {
   isOpen: boolean;
@@ -16,57 +16,39 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({ isOpen, onClose
   const navigate = useNavigate();
   const { showToast } = useToast();
 
-  const [selectedTableKey, setSelectedTableKey] = useState<string>('');
-  const [columns, setColumns] = useState<SearchableColumn[]>([]);
-  const [selectedColumn, setSelectedColumn] = useState<string>('');
+  const [selectedFieldKey, setSelectedFieldKey] = useState<string>('');
   const [searchValue, setSearchValue] = useState<string>('');
   const [result, setResult] = useState<GlobalSearchResponse | null>(null);
   const [isSearching, setIsSearching] = useState(false);
-  const [columnsLoading, setColumnsLoading] = useState(false);
 
-  // Reset state when dialog opens/closes
+  // Reset state when dialog closes
   useEffect(() => {
     if (!isOpen) {
-      setSelectedTableKey('');
-      setColumns([]);
-      setSelectedColumn('');
+      setSelectedFieldKey('');
       setSearchValue('');
       setResult(null);
     }
   }, [isOpen]);
 
-  // Fetch columns whenever the selected table changes
+  // Clear results when search field changes
   useEffect(() => {
-    if (!selectedTableKey) {
-      setColumns([]);
-      setSelectedColumn('');
-      return;
-    }
-    setColumnsLoading(true);
-    setSelectedColumn('');
     setResult(null);
-    getSearchColumns(selectedTableKey)
-      .then((res) => {
-        setColumns(res.Data ?? []);
-      })
-      .catch(() => {
-        showToast({ type: 'error', message: 'Failed to load columns.' });
-        setColumns([]);
-      })
-      .finally(() => setColumnsLoading(false));
-  }, [selectedTableKey]);
+    setSearchValue('');
+  }, [selectedFieldKey]);
+
+  const activeFieldConfig = SEARCH_FIELD_CONFIG.find((f) => f.key === selectedFieldKey) ?? null;
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedTableKey || !selectedColumn || !searchValue.trim()) {
-      showToast({ type: 'warning', message: 'Please select a table, column, and enter a value.' });
+    if (!activeFieldConfig || !searchValue.trim()) {
+      showToast({ type: 'warning', message: 'Please select a search field and enter a value.' });
       return;
     }
     setIsSearching(true);
     try {
       const res = await globalSearch({
-        TableKey: selectedTableKey,
-        ColumnField: selectedColumn,
+        TableKey: activeFieldConfig.tableKey,
+        ColumnField: activeFieldConfig.columnField,
         Value: searchValue.trim(),
       });
       setResult(res.Data ?? null);
@@ -82,9 +64,8 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({ isOpen, onClose
     navigate(url);
   };
 
-  const activeTableConfig = SEARCH_TABLE_CONFIG.find((t) => t.key === selectedTableKey);
-  const resultColumns = activeTableConfig?.resultColumns ?? [];
-  const getLink = activeTableConfig?.getLink ?? null;
+  const resultColumns = activeFieldConfig?.resultColumns ?? [];
+  const getLink = activeFieldConfig?.getLink ?? null;
 
   return (
     <Dialog open={isOpen} onClose={onClose} className="relative z-50">
@@ -116,49 +97,27 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({ isOpen, onClose
           {/* Search Form */}
           <form onSubmit={handleSearch} className="px-6 py-4 border-b border-zinc-200 shrink-0">
             <div className="flex flex-col sm:flex-row gap-3">
-              {/* Table dropdown */}
-              <div className="flex-1 min-w-0">
+              {/* Search By dropdown */}
+              <div className="w-full sm:w-56 shrink-0">
                 <label className="block text-xs font-medium text-zinc-500 mb-1">
-                  Table
+                  Search By
                 </label>
                 <select
-                  value={selectedTableKey}
-                  onChange={(e) => setSelectedTableKey(e.target.value)}
+                  value={selectedFieldKey}
+                  onChange={(e) => setSelectedFieldKey(e.target.value)}
                   className="w-full rounded-lg border border-zinc-300 bg-white text-zinc-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">Select table…</option>
-                  {SEARCH_TABLE_CONFIG.map((t) => (
-                    <option key={t.key} value={t.key}>
-                      {t.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Column dropdown */}
-              <div className="flex-1 min-w-0">
-                <label className="block text-xs font-medium text-zinc-500 mb-1">
-                  Column
-                </label>
-                <select
-                  value={selectedColumn}
-                  onChange={(e) => setSelectedColumn(e.target.value)}
-                  disabled={!selectedTableKey || columnsLoading}
-                  className="w-full rounded-lg border border-zinc-300 bg-white text-zinc-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <option value="">
-                    {columnsLoading ? 'Loading…' : 'Select column…'}
-                  </option>
-                  {columns.map((col) => (
-                    <option key={col.Field} value={col.Field}>
-                      {col.Label}
+                  <option value="">Select field…</option>
+                  {SEARCH_FIELD_CONFIG.map((f) => (
+                    <option key={f.key} value={f.key}>
+                      {f.label}
                     </option>
                   ))}
                 </select>
               </div>
 
               {/* Value input */}
-              <div className="flex-[2] min-w-0">
+              <div className="flex-1 min-w-0">
                 <label className="block text-xs font-medium text-zinc-500 mb-1">
                   Value
                 </label>
@@ -166,8 +125,9 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({ isOpen, onClose
                   type="text"
                   value={searchValue}
                   onChange={(e) => setSearchValue(e.target.value)}
-                  placeholder="Enter search value…"
-                  className="w-full rounded-lg border border-zinc-300 bg-white text-zinc-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder={activeFieldConfig?.placeholder ?? 'Enter search value…'}
+                  disabled={!activeFieldConfig}
+                  className="w-full rounded-lg border border-zinc-300 bg-white text-zinc-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
 
@@ -175,7 +135,7 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({ isOpen, onClose
               <div className="flex items-end">
                 <button
                   type="submit"
-                  disabled={isSearching || !selectedTableKey || !selectedColumn || !searchValue.trim()}
+                  disabled={isSearching || !activeFieldConfig || !searchValue.trim()}
                   className="flex items-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 transition-colors whitespace-nowrap"
                 >
                   <MagnifyingGlassIcon className="w-4 h-4" />
@@ -190,7 +150,7 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({ isOpen, onClose
             {result === null && !isSearching && (
               <div className="flex flex-col items-center justify-center h-40 text-zinc-400 gap-2">
                 <MagnifyingGlassIcon className="w-10 h-10 opacity-30" />
-                <p className="text-sm">Select a table, column, and value to search.</p>
+                <p className="text-sm">Select a field and enter a value to search.</p>
               </div>
             )}
 
@@ -198,10 +158,8 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({ isOpen, onClose
               <div className="flex flex-col items-center justify-center h-40 text-zinc-400 gap-2">
                 <p className="text-sm font-medium">No results found</p>
                 <p className="text-xs">
-                  No records in <span className="font-semibold">{activeTableConfig?.label}</span> where{' '}
-                  <span className="font-semibold">
-                    {columns.find((c) => c.Field === result.ColumnField)?.Label ?? result.ColumnField}
-                  </span>{' '}
+                  No records found where{' '}
+                  <span className="font-semibold">{activeFieldConfig?.label}</span>{' '}
                   contains &ldquo;{result.Value}&rdquo;.
                 </p>
               </div>
@@ -212,8 +170,9 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({ isOpen, onClose
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-xs text-zinc-500">
                     Showing <span className="font-semibold text-zinc-700">{result.Total}</span>{' '}
-                    result{result.Total !== 1 ? 's' : ''} in{' '}
-                    <span className="font-semibold">{activeTableConfig?.label}</span>
+                    result{result.Total !== 1 ? 's' : ''} for{' '}
+                    <span className="font-semibold">{activeFieldConfig?.label}</span>{' '}
+                    containing &ldquo;{result.Value}&rdquo;
                     {result.Total === 50 && (
                       <span className="ml-1 text-amber-600">(capped at 50 — refine your search)</span>
                     )}

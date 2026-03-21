@@ -14,8 +14,6 @@ import type {
   ProjectEnums,
   Dropdowns,
   InfraData,
-  MajorItemOfWork,
-  MajorItemLocations,
   ProjectSupportingDocs
 } from '../../../Project/Model.d';
 
@@ -30,7 +28,7 @@ import MajorItemOfWorksForm from './MajorItemOfWorksForm';
 import NotesForm from './NotesForm';
 import FundingProfileForm from './FundingProfileForm';
 import ActivitySection from './ActivitySection';
-import { addProjectDetails, getProjectEnums, updateEntireProject, fetchProjectGeoJSON } from '../../../Project/Service';
+import { addProjectDetails, getProjectEnums, fetchProjectGeoJSON } from '../../../Project/Service';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import type { ProgramList } from '../../../Program/Model';
 import { useToast } from '../../../../components/toaster/ToasterContext';
@@ -82,7 +80,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
   const [savingSection, setSavingSection] = useState<string | null>(null);
   const [projectEnums, setProjectEnums] = useState<ProjectEnums | null>(null);
-  const [updateAllProject, setUpdateAllProject] = useState<boolean>(false);
+  const [updateAllProject] = useState<boolean>(false);
   const [updateApproveProject] = useState<boolean>(false);
   const [rejectDialogProject] = useState<boolean>(false);
   const [updateReviseProject] = useState<boolean>(false);
@@ -347,15 +345,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     initialData?.FundingProfile || []
   );
 
-  // Calculate total percentage for funding profile validation
-  const [totalPercentage, setTotalPercentage] = useState(0);
-
-  // Calculate total percentage whenever fundingProfiles change
-  useEffect(() => {
-    const total = fundingProfiles.reduce((sum, profile) => profile?.IsDeleted ? sum : sum + (profile.Percentage || 0), 0);
-    setTotalPercentage(total);
-  }, [fundingProfiles]);
-
   const [Dropdowns] = useState<Dropdowns>(
     initialData?.Dropdowns || {
     // Categories: [],
@@ -592,226 +581,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     }
   };
 
-  const handleUpdateProject = async () => {
-    // Clear previous error/success states
-    
-    // Validate form before updating
-    const validationErrors = formValidation(projectDetails, projectDetailsRules);
-    setErrors(validationErrors);
-    
-    // If there are validation errors, don't proceed with update
-    if (Object.keys(validationErrors).length > 0) {
-      // console.log('Validation errors found:', validationErrors);
-      return;
-    }
-
-    // Collect all business validation errors
-    const businessValidationErrors: string[] = [];
-
-    // Check funding percentage validation with tolerance for floating-point rounding errors
-    const roundedTotal = Math.round(totalPercentage * 100) / 100;
-    // Use tolerance of 0.03 to account for rounding (e.g., 3 items at 33.33% = 99.99%)
-    if (Math.abs(roundedTotal - 100) >= 0.03) {
-      businessValidationErrors.push(`Total funding percentage must equal 100%. Current total: ${roundedTotal.toFixed(1)}%`);
-    }
-
-    // Check component cost validation
-    if (maxAmountCost && maxAmountCost > 0) {
-      const totalComponentCost = componentCosts.reduce((sum, cost) => sum + (cost.Total || 0), 0);
-      
-      if (totalComponentCost > maxAmountCost) {
-        const exceeded = totalComponentCost - maxAmountCost;
-        businessValidationErrors.push(`Total component cost (₱${totalComponentCost.toLocaleString('en-PH')}) exceeds the maximum budget (₱${maxAmountCost.toLocaleString('en-PH')}) by ₱${exceeded.toLocaleString('en-PH')}`);
-      }
-    }
-    // Check major item locations length validation
-    majorItems.forEach((majorItem, majorIndex) => {
-      if (!majorItem.IsDeleted && majorItem.MajorItemLocations) {
-        majorItem.MajorItemLocations.forEach((location, locIndex) => {
-          if (!location.IsDeleted) {
-            const length = location.Length ?? 0;
-            if (length <= 0) {
-              businessValidationErrors.push(
-                `Major Item ${majorIndex + 1}, Location ${locIndex + 1} (${location.InfraId || 'Unknown'}): Length must be greater than 0. Current value: ${length}`
-              );
-            }
-
-            // Validate coordinate bounds
-            const maxX = 126.8072562;
-            const minX = 114.0952145;
-            const maxY = 21.3217806;
-            const minY = 4.4149;
-
-            // Check StartX
-            if (location.StartX !== null && location.StartX !== undefined && location.StartX !== 0) {
-              if (location.StartX < minX || location.StartX > maxX) {
-                businessValidationErrors.push(
-                  `Major Item ${majorIndex + 1}, Location ${locIndex + 1} (${location.InfraId || 'Unknown'}): Start X coordinate (${location.StartX}) is out of valid range (${minX} - ${maxX})`
-                );
-              }
-            }
-
-            // Check StartY
-            if (location.StartY !== null && location.StartY !== undefined && location.StartY !== 0) {
-              if (location.StartY < minY || location.StartY > maxY) {
-                businessValidationErrors.push(
-                  `Major Item ${majorIndex + 1}, Location ${locIndex + 1} (${location.InfraId || 'Unknown'}): Start Y coordinate (${location.StartY}) is out of valid range (${minY} - ${maxY})`
-                );
-              }
-            }
-
-            // Check EndX
-            if (location.EndX !== null && location.EndX !== undefined && location.EndX !== 0) {
-              if (location.EndX < minX || location.EndX > maxX) {
-                businessValidationErrors.push(
-                  `Major Item ${majorIndex + 1}, Location ${locIndex + 1} (${location.InfraId || 'Unknown'}): End X coordinate (${location.EndX}) is out of valid range (${minX} - ${maxX})`
-                );
-              }
-            }
-
-            // Check EndY
-            if (location.EndY !== null && location.EndY !== undefined && location.EndY !== 0) {
-              if (location.EndY < minY || location.EndY > maxY) {
-                businessValidationErrors.push(
-                  `Major Item ${majorIndex + 1}, Location ${locIndex + 1} (${location.InfraId || 'Unknown'}): End Y coordinate (${location.EndY}) is out of valid range (${minY} - ${maxY})`
-                );
-              }
-            }
-          }
-        });
-      }
-    });
-
-    // If there are any business validation errors, show each one separately and return
-    if (businessValidationErrors.length > 0) {
-      businessValidationErrors.forEach(errorMessage => {
-        showToast({
-          type: 'error',
-          message: errorMessage
-        });
-      });
-      return;
-    }
-    
-    setUpdateAllProject(true);
-    
-    try {
-      console.log('=== COMPONENT COSTS BEFORE PAYLOAD ===');
-      console.log('Total count:', componentCosts.length);
-      componentCosts.forEach((cost, index) => {
-        console.log(`[${index}] ${cost.ComponentId}:`, {
-          Id: cost.Id,
-          IsDeleted: cost.IsDeleted,
-          Total: cost.Total
-        });
-      });
-      console.log('======================================');
-      
-      // Transform majorItems into separate MajorItemOfWorks and WorkLocations arrays
-      const majorItemsForPayload: MajorItemOfWork[] = [];
-      const workLocationsForPayload: MajorItemLocations[] = [];
-      
-      majorItems.forEach(item => {
-        // Create MajorItemOfWork without WorkLocations and DropdownData (UI-only)
-        const majorItemPayload: MajorItemOfWork = {
-          Id: item.Id,
-          ProjectId: initialData?.ProjectDetails.ProjectId || '',
-          ReferenceId: item.ReferenceId,
-          StageName: initialData?.ProgramDetails.StageName || '',
-          ComponentId: item.ComponentId,
-          YearOfWork: item.YearOfWork,
-          WorkTypeId: item.WorkTypeId,
-          InfraType: item.InfraType,
-          TargetUnitId: item.TargetUnitId,
-          TargetUnit: item.TargetUnit,
-          CreatedBy: item.CreatedBy,
-          IsDeleted: item.IsDeleted
-        };
-        majorItemsForPayload.push(majorItemPayload);
-        
-        // Add MajorItemLocations with ParentId referencing the MajorItem's ReferenceId
-        if (item.MajorItemLocations && item.MajorItemLocations.length > 0) {
-          item.MajorItemLocations.forEach(location => {
-            const workLocationPayload: MajorItemLocations = {
-              ...location,
-              ParentId: item.ReferenceId // Link to MajorItem via ReferenceId
-            };
-            workLocationsForPayload.push(workLocationPayload);
-          });
-        }
-      });
-      
-      const payload = {
-        ProjectDetails: {
-          ...projectDetails,
-          // Add missing required fields for the expected payload
-          ProgramName: programDetails.Name || '',
-          EmergencyMode: projectDetails.EmergencyMode,
-          CreatedBy: projectDetails.CreatedBy || user?.UserId,
-          CreatedDate: projectDetails.CreatedDate || new Date().toISOString(),
-          UpdatedBy: user?.UserId,
-          UpdatedDate: new Date().toISOString(),
-        },
-        ComponentCosts: componentCosts.map(cost => ({
-          Id: cost.Id,
-          ProjectId: (cost.ProjectId || projectDetails.ProjectId || '').replace(/\s+/g, ''),
-          StageName: initialData?.ProgramDetails?.StageName || '',
-          ComponentType: cost.ComponentType || '',
-          ComponentId: cost.ComponentId || '',
-          Description: cost.Description || '',
-          CostId: cost.CostId || cost.ComponentId || '',
-          Total: cost.Total || 0,
-          CreatedBy: cost.CreatedBy || user?.UserId,
-          CreatedDate: cost.CreatedDate || new Date().toISOString(),
-          UpdatedBy: user?.UserId,
-          UpdatedDate: new Date().toISOString(),
-          IsDeleted: cost.IsDeleted
-        })),
-        ComponentCostPerYear: componentCostPerYear.map(costPerYear => ({
-          Id: costPerYear.Id,
-          ComponentCostId: costPerYear.ComponentCostId,
-          StageName: initialData?.ProgramDetails?.StageName || '',
-          Amount: costPerYear.Amount,
-          Year: costPerYear.Year,
-          StartDate: costPerYear.StartDate,
-          EndDate: costPerYear.EndDate,
-          CreatedBy: costPerYear.CreatedBy || user?.UserId,
-          CreatedDate: costPerYear.CreatedDate || new Date().toISOString(),
-          UpdatedBy: user?.UserId,
-          UpdatedDate: new Date().toISOString(),
-          IsDeleted: costPerYear.IsDeleted || false
-        })),
-        MajorItemOfWorks: majorItemsForPayload,
-        MajorItemLocations: workLocationsForPayload,
-        FundingProfile: fundingProfiles.map(profile => ({
-          ...profile, StageName: initialData?.ProgramDetails?.StageName || '',
-        })),
-        IsAllowedToProceed: true // This flag can be used by the backend to determine if the update should proceed or if there are issues that need to be addressed
-      };
-
-      await updateEntireProject(payload);
-
-      showToast({
-          type: 'success',
-          message: 'Project updated successfully.'
-      });
-
-      // console.log('=== PROJECT UPDATE SUCCESSFUL ===');
-      // console.log('Keeping current state after successful update');
-      // console.log('Current Component Costs:', componentCosts);
-      // console.log('Current Component Cost Years:', componentCostsYear);
-      // console.log('Current Major Items:', majorItems);
-      // console.log('Current Funding Profiles:', fundingProfiles);
-
-    } catch (error) {
-      showToast({
-          type: 'error',
-          message: 'Failed to fetch projects.'
-      });
-    } finally {
-      setUpdateAllProject(false);
-    }
-  };
 
   const handleSubmitModify = (type: string) => {
     // Validate Implementation Mode change for Mode-of-Implementation category
@@ -978,7 +747,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             }}
             actions={{
               submit: handleSubmitModify,
-              update: handleUpdateProject,
+              update: () => {},
               openApprove: () => setIsApproveDialogOpen(true),
               openReview: () => setIsForReviewDialogOpen(true),
               openReject: () => setIsRejectDialogOpen(true),

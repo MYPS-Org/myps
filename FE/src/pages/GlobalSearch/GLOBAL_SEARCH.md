@@ -1,7 +1,7 @@
 # Global Search — Implementation Log
 
 > **Purpose:** This file tracks every decision, change, and TODO for the Global Search feature.  
-> Update this file whenever you add a table, change the UI, or touch the backend.
+> Update this file whenever you add a search field, change the UI, or touch the backend.
 
 ---
 
@@ -9,15 +9,15 @@
 
 ### Approach: Config-Driven, Whitelist-Secured
 
-The search is configured entirely through two in sync files:
+The search is configured entirely through two in-sync files:
 
 | File | Role |
 |------|------|
 | `WebAPI/Controllers/GlobalSearch/GlobalSearchController.cs` | Whitelist of allowed tables + columns, search endpoint |
-| `FE/src/pages/GlobalSearch/config.ts` | Result columns to display + navigation links per table |
+| `FE/src/pages/GlobalSearch/config.ts` | Flat list of searchable fields — each carries its own `tableKey`, `columnField`, result columns, and nav link |
 
-**Why config-driven?**  
-With many pages and tables, hardcoding search logic per page would be unmaintainable. Instead, adding a new searchable table requires editing exactly two files.
+**Why flat field config?**  
+The client wants a simple "Search By" experience — a single dropdown listing specific fields (e.g. "Project ID", "UACS", "Bridge") rather than a SQL-like Table → Column two-step. Each entry in `SEARCH_FIELD_CONFIG` encapsulates everything needed for one searchable field, keeping the UI and backend calls simple.
 
 ---
 
@@ -26,13 +26,14 @@ With many pages and tables, hardcoding search logic per page would be unmaintain
 ```
 Click 🔍 in navbar
   → GlobalSearchDialog opens (modal overlay)
-    → Select Table (dropdown)
-      → Column dropdown auto-populates via GET /api/GlobalSearch/GetColumns
-        → Enter Value
-          → Click Search
-            → Results table appears with View buttons
-              → Click View → navigates to detail page & dialog closes
+    → Select a field from "Search By" dropdown (e.g. "Project ID", "UACS", "Bridge")
+      → Enter search value (placeholder updates to show an example)
+        → Click Search
+          → Results table appears with View buttons
+            → Click View → navigates to detail page & dialog closes
 ```
+
+> No API call is made to populate the dropdown — fields are hardcoded in `config.ts`.
 
 ---
 
@@ -45,13 +46,13 @@ Click 🔍 in navbar
 
 | Method | Route | Body | Returns |
 |--------|-------|------|---------|
-| POST | `/api/GlobalSearch/GetTables` | _(empty)_ | `[{ Key, Label }]` |
-| POST | `/api/GlobalSearch/GetColumns` | `{ TableKey }` | `[{ Field, Label }]` |
 | POST | `/api/GlobalSearch/Search` | `{ TableKey, ColumnField, Value }` | `{ Total, Data[] }` |
 
+> `GetTables` and `GetColumns` endpoints are no longer called by the frontend. They may remain on the backend or be removed.
+
 ### Security
-- **SQL Injection prevention:** Table names and column names are *never* taken directly from user input.  
-  Both are validated against `AllowedTableSqlNames` and `AllowedColumns` dictionaries before being used in the SQL string.
+- **SQL Injection prevention:** `TableKey` and `ColumnField` from the request are *never* interpolated directly into SQL.  
+  Both are validated against `AllowedTableSqlNames` and `AllowedColumns` dictionaries before use.
 - The search `Value` is always passed as a Dapper `@Value` parameter — fully parameterized.
 - Results capped at **TOP 50** per query.
 
@@ -59,14 +60,14 @@ Click 🔍 in navbar
 
 ## Frontend
 
-### Files Created
+### Key Files
 
 | File | Purpose |
 |------|---------|
-| `FE/src/pages/GlobalSearch/Model.d.ts` | TypeScript interfaces (`SearchableTable`, `SearchableColumn`, `GlobalSearchRequest`, `GlobalSearchResponse`) |
-| `FE/src/pages/GlobalSearch/Service.ts` | `getSearchColumns(tableKey)`, `globalSearch(req)` |
-| `FE/src/pages/GlobalSearch/config.ts` | `SEARCH_TABLE_CONFIG` — defines result columns & navigation links per table |
-| `FE/src/components/GlobalSearch/GlobalSearchDialog.tsx` | The dialog UI component |
+| `FE/src/pages/GlobalSearch/Model.d.ts` | TypeScript interfaces (`GlobalSearchRequest`, `GlobalSearchResponse`) |
+| `FE/src/pages/GlobalSearch/Service.ts` | `globalSearch(req)` — posts to `/api/GlobalSearch/Search` |
+| `FE/src/pages/GlobalSearch/config.ts` | `SEARCH_FIELD_CONFIG` — flat array of `SearchFieldConfig` entries |
+| `FE/src/components/GlobalSearch/GlobalSearchDialog.tsx` | The dialog UI — single "Search By" dropdown |
 
 ### Files Modified
 
@@ -74,56 +75,75 @@ Click 🔍 in navbar
 |------|--------|
 | `FE/src/layouts/AppNavbar.tsx` | Added `useState` for dialog open state; wired `MagnifyingGlassIcon` click to open dialog; rendered `<GlobalSearchDialog>` |
 
+### `SearchFieldConfig` interface (`config.ts`)
+
+```ts
+interface SearchFieldConfig {
+  key: string;           // unique internal key
+  label: string;         // shown in "Search By" dropdown
+  tableKey: string;      // backend: which view/table to query
+  columnField: string;   // backend: which column to search against
+  placeholder?: string;  // hint shown in the value input
+  resultColumns: { field: string; label: string }[];
+  getLink: ((row: Record<string, unknown>) => string | null) | null;
+}
+```
+
 ---
 
-## Searchable Tables (as of initial implementation)
+## Searchable Fields (current)
 
-| Table Key | Label | Navigate to |
-|-----------|-------|-------------|
-| `vProjects` | Projects | `/projects/project-details/:projectId` |
-| `vPrograms` | Programs | `/programs/programdetails/:programId` |
-| `vProjectGroups` | Project Groups | `/project-groups/:groupId` |
-| `vUsers` | Users | *(no link — view-only)* |
-| `vRevisionLists` | Revisions | `/revision/view/Revision/:transactionId` |
+| Key | Label | Backend Table | Column | Navigate to |
+|-----|-------|--------------|--------|-------------|
+| `projectId` | Project ID | `vProjects` | `ProjectId` | `/projects/project-details/:id` |
+| `alternateId` | Alternate ID | `vProjects` | `AlternateId` | `/projects/project-details/:id` |
+| `description` | Description | `vProjects` | `Description` | `/projects/project-details/:id` |
+| `uacs` | UACS | `vProjects` | `UACS` | `/projects/project-details/:id` |
+| `programName` | Program Name | `vPrograms` | `Name` | `/programs/programdetails/:id` |
+| `roads` | Roads | `vRoads` | `RoadName` | *(no link — pending)* |
+| `roadSection` | Road Section | `vRoadSections` | `RoadSectionId` | *(no link — pending)* |
+| `bridge` | Bridge | `vBridges` | `BridgeName` | *(no link — pending)* |
+
+> `vRoads`, `vRoadSections`, and `vBridges` need to be whitelisted in `GlobalSearchController.cs` when the backend views are ready.
 
 ---
 
-## How to Add a New Searchable Table
+## How to Add a New Searchable Field
 
 ### Step 1 — Backend (`GlobalSearchController.cs`)
+
+Ensure the table and column are whitelisted:
 
 1. Add to `AllowedTableSqlNames`:
    ```csharp
    { "vMyNewView", "vMyNewView" },
    ```
-2. Add to `TableLabels`:
-   ```csharp
-   { "vMyNewView", "My New View" },
-   ```
-3. Add to `AllowedColumns`:
+2. Add to `AllowedColumns`:
    ```csharp
    {
        "vMyNewView", new()
        {
            ("ColumnName", "Display Label"),
-           // ...
        }
    },
    ```
 
 ### Step 2 — Frontend (`config.ts`)
 
-Add a new entry to `SEARCH_TABLE_CONFIG`:
+Add a new entry to `SEARCH_FIELD_CONFIG`:
 ```ts
 {
-  key: 'vMyNewView',
-  label: 'My New View',
+  key: 'myField',
+  label: 'My Field Label',
+  tableKey: 'vMyNewView',
+  columnField: 'ColumnName',
+  placeholder: 'e.g. some example value',
   resultColumns: [
+    { field: 'PrimaryKey', label: 'ID' },
     { field: 'ColumnName', label: 'Display Label' },
-    // ...
   ],
-  getLink: (row) => row['PrimaryKeyField']
-    ? `/my-page/${row['PrimaryKeyField']}`
+  getLink: (row) => row['PrimaryKey']
+    ? `/my-page/${row['PrimaryKey']}`
     : null,
 },
 ```
@@ -132,31 +152,14 @@ That's all. No other files need to change.
 
 ---
 
-## How to Add a New Column to an Existing Table
-
-### Backend
-Add the column to the relevant list in `AllowedColumns`:
-```csharp
-("NewColumn", "New Column Label"),
-```
-
-### Frontend
-Add the column to `resultColumns` in the matching entry in `SEARCH_TABLE_CONFIG` if you also want it shown in results:
-```ts
-{ field: 'NewColumn', label: 'New Column Label' },
-```
-
----
-
 ## Known Limitations & Future Improvements
 
 | Item | Notes |
 |------|-------|
 | Results capped at 50 | By design. Add pagination if needed. |
-| No multi-column search | Current design: one column at a time. |
+| No multi-field search | Current design: one field at a time. |
 | No date-range search | Values are always `LIKE %value%`. Date filtering would need a new control. |
-| `vUsers` has no navigate link | Could be linked to `/user-management` with a filter pre-applied. |
-| Column dropdown fetches from API | Could be made fully static (from `config.ts`) to reduce API calls — trade-off is less flexibility. |
+| Roads / Road Section / Bridge | Backend views not yet whitelisted — links return `null` for now. |
 
 ---
 
@@ -165,3 +168,4 @@ Add the column to `resultColumns` in the matching entry in `SEARCH_TABLE_CONFIG`
 | Date | Author | Change |
 |------|--------|--------|
 | 2026-03-16 | Copilot | Initial implementation: backend controller, frontend config/service/dialog, navbar wired up |
+| 2026-03-21 | Copilot | Revamped UI — replaced Table + Column dropdowns with single "Search By" dropdown; switched from `SEARCH_TABLE_CONFIG` to flat `SEARCH_FIELD_CONFIG`; removed `getSearchColumns` API call; added fields: Project ID, Alternate ID, Description, UACS, Program Name, Roads, Road Section, Bridge |
