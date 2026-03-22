@@ -20,5 +20,6 @@ namespace DBHelper.Models.Functions
         public string CreatedBy { get; set; } = string.Empty;
         public DateTime CreatedDate { get; set; }
         public bool IsPublishable { get; set; } = false;
+        public bool IsPublished { get; set; } = false;
     }
 }

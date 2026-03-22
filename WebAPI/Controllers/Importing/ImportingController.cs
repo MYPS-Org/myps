@@ -5,6 +5,7 @@ using DBHelper.Models.Enums;
 using DBHelper.Models.Table;
 using DBHelper.Models.Views;
 using Helpers;
+using JetBrains.Annotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Endpoints;
 using Microsoft.AspNetCore.Mvc;
@@ -22,6 +23,7 @@ using System.Text.RegularExpressions;
 using System.Xml;
 using WebAPI.Controllers.Projects;
 using static System.Net.WebRequestMethods;
+using static WebAPI.Controllers.Importing.ImportingHelper;
 namespace WebAPI.Controllers.Importing
 {
     [ApiController]
@@ -61,32 +63,12 @@ namespace WebAPI.Controllers.Importing
                         Message = $"The project import is currently in use by {holder}. Please try again later."
                     });
                 }
-                //var CheckStatus = await _db.tImportingStatus.FirstOrDefaultAsync(x => x.ImportFunctionName == "ImportProject");
-                //if (CheckStatus == null)
-                //{
-                //    return new BadRequestObjectResult(new
-                //    {
-                //        Title = "Configuration Error",
-                //        Message = "ImportProject status configuration is missing. Unable to proceed."
-                //    });
-                //}
-                //bool isActive = CheckStatus.IsActive;
-                //if (isActive)
-                //{
-                //    return new BadRequestObjectResult(new
-                //    {
-                //        Title = "Import In Progress",
-                //        Message = $"The project import is currently being used by {CheckStatus.LastUserIdInUse}. Please try again later."
-                //    });
-                //}
-                //else
-                //{
-                //    CheckStatus.IsActive = true;
-                //    CheckStatus.LastUserIdInUse = User;
-                //    CheckStatus.LastUsedDate = CurrentDate;
-                //    _db.tImportingStatus.Update(CheckStatus);
-                //    await _db.SaveChangesAsync();
-                //}
+                var FailedProjects = new List<GenerateProjecttResponse>();
+                var FailedFunding = new List<GenerateFundingProfileResponse>();
+                var FailedComponent = new List<GenerateComponentCostResponse>();
+                var FailedComponentCostPerYear = new List<GenerateComponentCostPerYearResponse>();
+                var FailedMajorItemOfWork = new List<GenerateMajorWorkItemResponse>();
+                var FailedMajorWorkLocations = new List<GenerateMajorWorkLocationResponse>();
                 #region Program Validation
                 var IsValidProgram = _db.IsValidProgramId(dto.ProgramDetails.ProgramId, dto.ProgramDetails.StageName);
                 if(!IsValidProgram.IsValid)
@@ -105,16 +87,9 @@ namespace WebAPI.Controllers.Importing
                     var Projects = _db.GenerateProject(IsValidProgram.ProgramDetails, Item, ProjectReference);
                     if (!Projects.IsValid)
                     {
-                        return new BadRequestObjectResult(new { Message = Projects.Message, Tile = "Project Validation Error." });
+                        FailedProjects.Add(Projects);
+                        continue;
                     }
-                    /*
-                    ImportProjectReference AddProject = new ImportProjectReference
-                    {
-                        OldProjectId = Item.ProjectId,
-                        NewProjectId = string.Empty
-                    };
-                    AddProject.NewProjectId = Projects.Project.ReferenceId;
-                     */
                     Projects.Project.CreatedBy = User;
                     Projects.Project.CreatedDate = CurrentDate;
 
@@ -147,7 +122,9 @@ namespace WebAPI.Controllers.Importing
                         var Validate = _db.GenerateFundingProfile(Item, Reference);
                         if(!Validate.IsValid)
                         {
-                            return new BadRequestObjectResult(new { Message = Validate.Message, Tile = "Funding Profile Validation Error." });
+                            //return new BadRequestObjectResult(new { Message = Validate.Message, Tile = "Funding Profile Validation Error." });
+                            FailedFunding.Add(Validate);
+                            continue;
                         }
                         Validate.FundingProfile.CreatedBy = User;
                         Validate.FundingProfile.CreatedDate = CurrentDate;
@@ -168,7 +145,9 @@ namespace WebAPI.Controllers.Importing
                         var Validate = _db.GenerateComponentCost(Item, Reference);
                         if (!Validate.IsValid)
                         {
-                            return new BadRequestObjectResult(new { Message = Validate.Message, Tile = "Component Cost Validation Error." });
+                            //return new BadRequestObjectResult(new { Message = Validate.Message, Tile = "Component Cost Validation Error." });
+                            FailedComponent.Add(Validate);
+                            continue;
                         }
                         Validate.ComponentCost.CreatedBy = User;
                         Validate.ComponentCost.CreatedDate = CurrentDate;
@@ -189,7 +168,9 @@ namespace WebAPI.Controllers.Importing
                         var Validate = _db.GenerateComponentCostPerYear(Item);
                         if (!Validate.IsValid)
                         {
-                            return new BadRequestObjectResult(new { Message = Validate.Message, Tile = "Component Cost Per Year Validation Error." });
+                            //return new BadRequestObjectResult(new { Message = Validate.Message, Tile = "Component Cost Per Year Validation Error." });
+                            FailedComponentCostPerYear.Add(Validate);
+                            continue;
                         }
                         Validate.ComponentCostPerYear.CreatedBy = User;
                         Validate.ComponentCostPerYear.CreatedDate = CurrentDate;
@@ -205,12 +186,15 @@ namespace WebAPI.Controllers.Importing
                 foreach (var Item in dto.MajorItemOfWorks)
                 {
                     var Reference = ProjectReference.FirstOrDefault(x => x.OldProjectId == Item.ProjectId);
-                    if (Reference != null)
+                    var ComponentReference = ComponentCost.FirstOrDefault(x => x.ComponentId == Item.ComponentId);
+                    if (Reference != null && ComponentReference != null)
                     {
                         var Validate = _db.GenerateMajorWorkItem(Item, Reference);
                         if (!Validate.IsValid)
                         {
-                            return new BadRequestObjectResult(new { Message = Validate.Message, Tile = "Major Item Of Work Validation Error." });
+                            //return new BadRequestObjectResult(new { Message = Validate.Message, Tile = "Major Item Of Work Validation Error." });
+                            FailedMajorItemOfWork.Add(Validate);
+                            continue;
                         }
                         Validate.MajorWorkItem.CreatedBy = User;
                         Validate.MajorWorkItem.CreatedDate = CurrentDate;
@@ -231,7 +215,9 @@ namespace WebAPI.Controllers.Importing
                         var Validate = _db.GenerateMajorWorkLocation(Item);
                         if (!Validate.IsValid)
                         {
-                            return new BadRequestObjectResult(new { Message = Validate.Message, Tile = "Major Work Locations Validation Error." });
+                            //return new BadRequestObjectResult(new { Message = Validate.Message, Tile = "Major Work Locations Validation Error." });
+                            FailedMajorWorkLocations.Add(Validate);
+                            continue;
                         }
                         Validate.MajorWorkLocation.CreatedBy = User;
                         Validate.MajorWorkLocation.CreatedDate = CurrentDate;

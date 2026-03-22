@@ -291,15 +291,18 @@ namespace WebAPI.Controllers.Importing
         public static GenerateFundingProfileResponse GenerateFundingProfile(this AppDbContext _db, ImportFundingProfile Funding, ImportProjectReference ProjectRef)
         {
             var NewProject = ProjectRef.NewProjectId;
+            var Agreement = _db.tOptionFundingAgreement.AsNoTracking().FirstOrDefault(x => x.Name == Funding.Agreement);
+            if (Agreement == null)
+            {
+                return new GenerateFundingProfileResponse { IsValid = false, Message = $"Incorrect Funding Agreement in ProjectId: {Funding.ProjectId}, Selected Agreement: {Funding.Agreement}" };
+            }
             var Source = _db.tOptionFundingSource.AsNoTracking().FirstOrDefault(x => x.Name == Funding.Source);
             if (Source == null)
             {
                 return new GenerateFundingProfileResponse { IsValid = false, Message = $"Incorrect Funding Source in ProjectId: {Funding.ProjectId}, Selected Source: {Funding.Source}" };
             }
-            var Agreement = _db.tOptionFundingAgreement.AsNoTracking().FirstOrDefault(x => x.Name == Funding.Agreement);
-            if (Agreement == null)
-            {
-                return new GenerateFundingProfileResponse { IsValid = false, Message = $"Incorrect Funding Agreement in ProjectId: {Funding.ProjectId}, Selected Agreement: {Funding.Agreement}" };
+            else if (Source.Organization != Agreement.SourceOrg) {
+                return new GenerateFundingProfileResponse { IsValid = false, Message = $"Funding Source '{Funding.Source}' does not match the required source organization for Agreement '{Funding.Agreement}'. Expected Source Organization: '{Agreement.SourceOrg}'" };
             }
             var FundingProfile = new DBHelper.Models.Table.ProjectFundingProfile
             {
@@ -324,7 +327,7 @@ namespace WebAPI.Controllers.Importing
                 return new GenerateComponentCostResponse
                 {
                     IsValid = false,
-                    Message = $"Incorrect Component Type in ProjectId: {ComponentCost.ProjectId}, Selected Component Type: {ComponentCost.ComponentType}"
+                    Message = $"Invalid Component Type in ProjectId: {ComponentCost.ProjectId}, Selected Component Type: {ComponentCost.ComponentType}"
                 };
             }
             var NewProject = ProjectRef.NewProjectId;
@@ -370,10 +373,14 @@ namespace WebAPI.Controllers.Importing
             {
                 return new GenerateMajorWorkItemResponse { IsValid = false, Message = $"Incorrect Infra Type in ProjectId: {MajorWorkItem.ProjectId}, Selected Infra Type: {MajorWorkItem.InfraType}" };
             }
-            var ScopeOfWork = _db.tOptionScopeOfWork.AsNoTracking().FirstOrDefault(x => x.Description == MajorWorkItem.WorkTypeId);
+            var ScopeOfWork = _db.tOptionScopeOfWork.AsNoTracking().FirstOrDefault(x => x.Description == MajorWorkItem.WorkTypeId );
             if (ScopeOfWork == null)
             {
                 return new GenerateMajorWorkItemResponse { IsValid = false, Message = $"Incorrect Work Type in ProjectId: {MajorWorkItem.ProjectId}, Selected Work Type: {MajorWorkItem.WorkTypeId}" };
+            }
+            if (!ScopeOfWork.InfraType.Contains(InfraType.InfraCode))
+            {
+                return new GenerateMajorWorkItemResponse { IsValid = false, Message = $"The selected Work Type '{MajorWorkItem.WorkTypeId}' is not valid for the selected Infra Type '{MajorWorkItem.InfraType}' in ProjectId: {MajorWorkItem.ProjectId}. Please select a valid Work Type for the Infra Type." };
             }
             var MajorWorkItemProfile = new DBHelper.Models.Table.ProjectMajorWorkItem
             {
