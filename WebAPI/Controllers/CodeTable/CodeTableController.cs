@@ -150,15 +150,6 @@ namespace WebAPI.Controllers.CodeTable
                             Message = $"The program stage {data.Name} already exists, please select another program stage."
                         });
                     }
-                    var CheckIfNameIdExist = await _db.tOptionProgramStage.FirstOrDefaultAsync(x => x.NameId == data.NameId);
-                    if (CheckIfNameIdExist != null && dto.TransactionType == CodeTransactionType.Create)
-                    {
-                        return new BadRequestObjectResult(new
-                        {
-                            Title = "Program Stage NameId Already Exists",
-                            Message = $"The program stage name id {data.NameId} already exists, please select another program stage name id."
-                        });
-                    }
 
                     var CheckUpdate = await _db.tOptionProgramStage.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id);
                     if (CheckUpdate == null && dto.TransactionType != CodeTransactionType.Create)
@@ -175,6 +166,8 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
+                        var CheckMaxId = _db.tOptionProgramStage.OrderByDescending(x => x.NameId).FirstOrDefault()!;
+                        data.NameId = CheckMaxId.NameId + 1;
                         await _db.tOptionProgramStage.AddAsync(data);
                     }
                     else if (dto.TransactionType == CodeTransactionType.Update)
@@ -241,15 +234,6 @@ namespace WebAPI.Controllers.CodeTable
                             Message = $"The program status {data.Name} already exists, please select another program status."
                         });
                     }
-                    var CheckIfNameIdExist = await _db.tOptionProgramStatus.FirstOrDefaultAsync(x => x.NameId == data.NameId);
-                    if (CheckIfNameIdExist != null && dto.TransactionType == CodeTransactionType.Create)
-                    {
-                        return new BadRequestObjectResult(new
-                        {
-                            Title = "Program Status NameId Already Exists",
-                            Message = $"The program status name id {data.NameId} already exists, please select another program status name id."
-                        });
-                    }
                     var CheckUpdate = await _db.tOptionProgramStatus.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id);
                     if (CheckUpdate == null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
                     {
@@ -265,6 +249,8 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
+                        var CheckMaxId = _db.tOptionProgramStatus.OrderByDescending(x => x.NameId).FirstOrDefault()!;
+                        data.NameId = CheckMaxId.NameId + 1;
                         await _db.tOptionProgramStatus.AddAsync(data);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Update)
@@ -331,15 +317,6 @@ namespace WebAPI.Controllers.CodeTable
                             Message = $"The program type {data.Name} already exists, please select another program type."
                         });
                     }
-                    var CheckIfNameIdExist = await _db.tOptionProgramType.FirstOrDefaultAsync(x => x.NameId == data.NameId);
-                    if (CheckIfNameIdExist != null && dto.TransactionType == CodeTransactionType.Create)
-                    {
-                        return new BadRequestObjectResult(new
-                        {
-                            Title = "Program Type NameId Already Exists",
-                            Message = $"The program type name id {data.NameId} already exists, please select another program type name id."
-                        });
-                    }
                     var CheckUpdate = await _db.tOptionProgramType.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id);
                     if (CheckUpdate == null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
                     {
@@ -355,6 +332,8 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
+                        var CheckMaxId = _db.tOptionProgramType.OrderByDescending(x => x.NameId).FirstOrDefault()!;
+                        data.NameId = CheckMaxId.NameId + 1;
                         await _db.tOptionProgramType.AddAsync(data);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Update)
@@ -421,15 +400,6 @@ namespace WebAPI.Controllers.CodeTable
                             Message = $"The project category {data.CategoryName} already exists, please select another project category."
                         });
                     }
-                    var CheckIfNameIdExist = await _db.tOptionProjectCategory.FirstOrDefaultAsync(x => x.CategoryId == data.CategoryId);
-                    if (CheckIfNameIdExist != null && dto.TransactionType == CodeTransactionType.Create)
-                    {
-                        return new BadRequestObjectResult(new
-                        {
-                            Title = "Project Category Id Already Exists",
-                            Message = $"The project category id {data.CategoryId} already exists, please select another project category id."
-                        });
-                    }
                     var CheckUpdate = await _db.tOptionProjectCategory.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id);
                     if (CheckUpdate == null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
                     {
@@ -445,6 +415,8 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
+                        var CheckMaxId = _db.tOptionProjectCategory.OrderByDescending(x => x.CategoryId).FirstOrDefault()!;
+                        data.CategoryId = CheckMaxId.CategoryId + 1;
                         await _db.tOptionProjectCategory.AddAsync(data);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Update)
@@ -628,7 +600,7 @@ namespace WebAPI.Controllers.CodeTable
                 else if (dto.Code == "ProjectAgency")
                 {
                     tablename = "Project Agency";
-                    transactionLog.AffectedTable = "tOptionProjectCategory";
+                    transactionLog.AffectedTable = "tOptionProjectAgency";
                     var data = JsonConvert.DeserializeObject<OptionProjectAgency>(dto.Json);
                     #region Validation
                     if (data == null)
@@ -747,15 +719,6 @@ namespace WebAPI.Controllers.CodeTable
                             Message = $"The project origin {data.Name} already exists, please select another project origin."
                         });
                     }
-                    var CheckIfNameIdExist = await _db.tOptionProjectOrigin.FirstOrDefaultAsync(x => x.NameId == data.NameId);
-                    if (CheckIfNameIdExist != null && dto.TransactionType == CodeTransactionType.Create)
-                    {
-                        return new BadRequestObjectResult(new
-                        {
-                            Title = "Project Origin NameId Already Exists",
-                            Message = $"The project origin name id {data.NameId} already exists, please select another project origin name id."
-                        });
-                    }
                     var CheckUpdate = await _db.tOptionProjectOrigin.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id);
                     if (CheckUpdate == null && dto.TransactionType != CodeTransactionType.Create)
                     {
@@ -771,6 +734,8 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
+                        var CheckMaxId = _db.tOptionProjectOrigin.OrderByDescending(x => x.NameId).FirstOrDefault()!;
+                        data.NameId = CheckMaxId.NameId + 1;
                         await _db.tOptionProjectOrigin.AddAsync(data);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Update)
@@ -808,6 +773,7 @@ namespace WebAPI.Controllers.CodeTable
                 else if (dto.Code == "FundingAgreement")
                 {
                     tablename = "Funding Agreement";
+                    transactionLog.AffectedTable = "tOptionFundingAgreement";
                     var data = JsonConvert.DeserializeObject<OptionFundingAgreement>(dto.Json);
                     #region Validation
                     if (data == null)
@@ -1033,15 +999,6 @@ namespace WebAPI.Controllers.CodeTable
                             Message = $"The work category {data.WorkCategory} already exists, please choose another work category."
                         });
                     }
-                    var CheckIfNameIdExist = await _db.tOptionScopeOfWork.FirstOrDefaultAsync(x => x.Enum == data.Enum);
-                    if (CheckIfNameIdExist != null && dto.TransactionType == CodeTransactionType.Create)
-                    {
-                        return new BadRequestObjectResult(new
-                        {
-                            Title = "Scope Of Work Enum Already Exists",
-                            Message = $"The scope of work enum {data.Enum} already exists, please select another scope of work enum."
-                        });
-                    }
                     var CheckUpdate = await _db.tOptionScopeOfWork.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id);
                     if (CheckUpdate == null && dto.TransactionType != CodeTransactionType.Create)
                     {
@@ -1057,6 +1014,8 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
+                        var CheckMaxId = _db.tOptionScopeOfWork.OrderByDescending(x => x.Enum).FirstOrDefault()!;
+                        data.Enum = CheckMaxId.Enum + 1;
                         await _db.tOptionScopeOfWork.AddAsync(data);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Update)
@@ -1173,13 +1132,13 @@ namespace WebAPI.Controllers.CodeTable
                             Message = $"The infra type {data.InfraName} already exists, please select another infra type."
                         });
                     }
-                    var CheckIfInfraIdExist = await _db.tOptionInfraType.FirstOrDefaultAsync(x => x.InfraCode == data.InfraCode);
-                    if (CheckIfInfraIdExist != null && dto.TransactionType == CodeTransactionType.Create)
+                    var CheckIfInfraCodeExist = await _db.tOptionInfraType.FirstOrDefaultAsync(x => x.InfraCode == data.InfraCode);
+                    if (CheckIfInfraCodeExist != null && dto.TransactionType == CodeTransactionType.Create)
                     {
                         return new BadRequestObjectResult(new
                         {
                             Title = "Infra Type Id Already Exists",
-                            Message = $"The infra type id {data.InfraId} already exists, please select another infra type id."
+                            Message = $"The infra type id {data.InfraCode} already exists, please select another infra type id."
                         });
                     }
                     var CheckUpdate = await _db.tOptionInfraType.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id);
@@ -1197,6 +1156,8 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
+                        var CheckMaxId = _db.tOptionInfraType.OrderByDescending(x => x.InfraCode).FirstOrDefault()!;
+                        data.InfraId = CheckMaxId.InfraId + 1;
                         await _db.tOptionInfraType.AddAsync(data);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Update)
@@ -1347,15 +1308,6 @@ namespace WebAPI.Controllers.CodeTable
                             Message = $"The revision header {data.RevisionName} already exists, please select another revision header."
                         });
                     }
-                    var CheckIfRevisionGroupIdExist = await _db.tOptionRevisionHeader.FirstOrDefaultAsync(x => x.RevisionGroupId == data.RevisionGroupId);
-                    if (CheckIfRevisionGroupIdExist != null && dto.TransactionType == CodeTransactionType.Create)
-                    {
-                        return new BadRequestObjectResult(new
-                        {
-                            Title = "Revision Group Id Already Exists",
-                            Message = $"The revision group id {data.RevisionGroupId} already exists, please select another revision group id."
-                        });
-                    }
                     var CheckUpdate = await _db.tOptionRevisionHeader.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id);
                     if (CheckUpdate == null && dto.TransactionType != CodeTransactionType.Create)
                     {
@@ -1371,6 +1323,8 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
+                        var CheckMaxId = _db.tOptionRevisionHeader.OrderByDescending(x => x.RevisionGroupId).FirstOrDefault()!;
+                        data.RevisionGroupId = CheckMaxId.RevisionGroupId + 1;
                         await _db.tOptionRevisionHeader.AddAsync(data);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Update)
@@ -1430,15 +1384,6 @@ namespace WebAPI.Controllers.CodeTable
                             Message = $"The revision category {data.CategoryName} already exists, please select another revision category."
                         });
                     }
-                    var CheckIfCategoryIdExist = await _db.tOptionRevisionCategory.FirstOrDefaultAsync(x => x.CategoryId == data.CategoryId);
-                    if (CheckIfCategoryIdExist != null && dto.TransactionType == CodeTransactionType.Create)
-                    {
-                        return new BadRequestObjectResult(new
-                        {
-                            Title = "Revision Category Id Already Exists",
-                            Message = $"The revision category id {data.CategoryId} already exists, please select another revision category id."
-                        });
-                    }
                     var CheckUpdate = await _db.tOptionRevisionCategory.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id);
                     if (CheckUpdate == null && dto.TransactionType != CodeTransactionType.Create)
                     {
@@ -1454,6 +1399,8 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
+                        var CheckMaxId = _db.tOptionRevisionCategory.OrderByDescending(x => x.CategoryId).FirstOrDefault()!;
+                        data.CategoryId = CheckMaxId.CategoryId + 1;
                         await _db.tOptionRevisionCategory.AddAsync(data);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Update)
@@ -1513,15 +1460,6 @@ namespace WebAPI.Controllers.CodeTable
                             Message = $"The revision reason {data.Reason} already exists, please select another revision reason."
                         });
                     }
-                    var CheckIfReasonIdExist = await _db.tOptionRevisionReasons.FirstOrDefaultAsync(x => x.ReasonId == data.ReasonId);
-                    if (CheckIfReasonIdExist != null && dto.TransactionType == CodeTransactionType.Create)
-                    {
-                        return new BadRequestObjectResult(new
-                        {
-                            Title = "Revision Reason Id Already Exists",
-                            Message = $"The revision reason id {data.ReasonId} already exists, please select another revision reason id."
-                        });
-                    }
                     var CheckUpdate = await _db.tOptionRevisionReasons.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id);
                     if (CheckUpdate == null && dto.TransactionType != CodeTransactionType.Create)
                     {
@@ -1537,6 +1475,8 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
+                        var CheckMaxId = _db.tOptionRevisionReasons.OrderByDescending(x => x.ReasonId).FirstOrDefault()!;
+                        data.ReasonId = CheckMaxId.ReasonId + 1;
                         await _db.tOptionRevisionReasons.AddAsync(data);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Update)
@@ -1824,15 +1764,6 @@ namespace WebAPI.Controllers.CodeTable
                             Message = $"The revision status with name {data.Name} already exists, please select another revision status."
                         });
                     }
-                    var CheckIfEnumExist = await _db.tOptionRevisionStatus.FirstOrDefaultAsync(x => x.Enum == data.Enum);
-                    if (CheckIfEnumExist != null && dto.TransactionType == CodeTransactionType.Create)
-                    {
-                        return new BadRequestObjectResult(new
-                        {
-                            Title = "Revision Status Enum Already Exists",
-                            Message = $"The revision status with enum {data.Enum} already exists, please select another revision status enum."
-                        });
-                    }
                     var CheckUpdate = await _db.tOptionRevisionStatus.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id);
                     if (CheckUpdate == null && dto.TransactionType != CodeTransactionType.Create)
                     {
@@ -1848,6 +1779,8 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
+                        var CheckMaxId = _db.tOptionRevisionStatus.OrderByDescending(x => x.Enum).FirstOrDefault()!;
+                        data.Enum = CheckMaxId.Enum + 1;
                         await _db.tOptionRevisionStatus.AddAsync(data);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Update)
