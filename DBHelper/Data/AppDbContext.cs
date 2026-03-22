@@ -89,6 +89,7 @@ namespace DBHelper.Data
         public DbSet<Models.Table.CodeTableTransactionLog> tCodeTableTransactionLog { get; set; }
         public DbSet<Models.Table.OptionReportProgram> tOptionReportProgram { get; set; }
         public DbSet<Models.Table.LoginHistory> tLoginHistory { get; set; }
+        public DbSet<Models.Table.OptionGlobalSearch> tOptionGlobalSearch { get; set; }
         #endregion
         #region Views
         public DbSet<Models.Views.Users> vUsers { get; set; }
