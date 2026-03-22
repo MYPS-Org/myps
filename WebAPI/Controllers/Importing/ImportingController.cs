@@ -262,7 +262,167 @@ namespace WebAPI.Controllers.Importing
                 _db.tImportingStatus.Update(CheckStatus);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
-                return Ok(new { Message = $"Projects imported: {projects.Count}", Tile = "Project Imported Successfully" });
+
+                bool hasErrors = FailedProjects.Count > 0
+                    || FailedFunding.Count > 0
+                    || FailedComponent.Count > 0
+                    || FailedComponentCostPerYear.Count > 0
+                    || FailedMajorItemOfWork.Count > 0
+                    || FailedMajorWorkLocations.Count > 0;
+
+                if (hasErrors)
+                {
+                    ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+                    using var package = new ExcelPackage();
+
+                    if (FailedProjects.Count > 0)
+                    {
+                        var ws = package.Workbook.Worksheets.Add("Project");
+                        ws.Cells["A1"].Value = "Message";
+                        ws.Cells["B1"].Value = "ProjectId";
+                        ws.Cells["C1"].Value = "Description";
+                        ws.Cells["D1"].Value = "Category";
+                        ws.Cells["E1"].Value = "City";
+                        ws.Cells["F1"].Value = "Province";
+                        for (int i = 0; i < FailedProjects.Count; i++)
+                        {
+                            var item = FailedProjects[i];
+                            ws.Cells[i + 2, 1].Value = item.Message;
+                            ws.Cells[i + 2, 2].Value = item.ProjectRevision.ProjectId;
+                            ws.Cells[i + 2, 3].Value = item.ProjectRevision.Description;
+                            ws.Cells[i + 2, 4].Value = item.ProjectRevision.Category;
+                            ws.Cells[i + 2, 5].Value = item.ProjectRevision.City;
+                            ws.Cells[i + 2, 6].Value = item.ProjectRevision.Province;
+                        }
+                        ws.Cells[ws.Dimension.Address].AutoFitColumns();
+                    }
+
+                    if (FailedFunding.Count > 0)
+                    {
+                        var ws = package.Workbook.Worksheets.Add("Funding Profile");
+                        ws.Cells["A1"].Value = "Message";
+                        ws.Cells["B1"].Value = "ProjectId";
+                        ws.Cells["C1"].Value = "Source";
+                        ws.Cells["D1"].Value = "Agreement";
+                        ws.Cells["E1"].Value = "Amount";
+                        ws.Cells["F1"].Value = "Percentage";
+                        for (int i = 0; i < FailedFunding.Count; i++)
+                        {
+                            var item = FailedFunding[i];
+                            ws.Cells[i + 2, 1].Value = item.Message;
+                            ws.Cells[i + 2, 2].Value = item.FundingProfile.ProjectId;
+                            ws.Cells[i + 2, 3].Value = item.FundingProfile.Source;
+                            ws.Cells[i + 2, 4].Value = item.FundingProfile.Agreement;
+                            ws.Cells[i + 2, 5].Value = item.FundingProfile.Amount;
+                            ws.Cells[i + 2, 6].Value = item.FundingProfile.Percentage;
+                        }
+                        ws.Cells[ws.Dimension.Address].AutoFitColumns();
+                    }
+
+                    if (FailedComponent.Count > 0)
+                    {
+                        var ws = package.Workbook.Worksheets.Add("Component");
+                        ws.Cells["A1"].Value = "Message";
+                        ws.Cells["B1"].Value = "ProjectId";
+                        ws.Cells["C1"].Value = "CostId";
+                        ws.Cells["D1"].Value = "ComponentType";
+                        ws.Cells["E1"].Value = "ComponentId";
+                        ws.Cells["F1"].Value = "Description";
+                        ws.Cells["G1"].Value = "Total";
+                        for (int i = 0; i < FailedComponent.Count; i++)
+                        {
+                            var item = FailedComponent[i];
+                            ws.Cells[i + 2, 1].Value = item.Message;
+                            ws.Cells[i + 2, 2].Value = item.ComponentCost.ProjectId;
+                            ws.Cells[i + 2, 3].Value = item.ComponentCost.CostId;
+                            ws.Cells[i + 2, 4].Value = item.ComponentCost.ComponentType;
+                            ws.Cells[i + 2, 5].Value = item.ComponentCost.ComponentId;
+                            ws.Cells[i + 2, 6].Value = item.ComponentCost.Description;
+                            ws.Cells[i + 2, 7].Value = item.ComponentCost.Total;
+                        }
+                        ws.Cells[ws.Dimension.Address].AutoFitColumns();
+                    }
+
+                    if (FailedComponentCostPerYear.Count > 0)
+                    {
+                        var ws = package.Workbook.Worksheets.Add("Component Per Cost");
+                        ws.Cells["A1"].Value = "Message";
+                        ws.Cells["B1"].Value = "ComponentCostId";
+                        ws.Cells["C1"].Value = "Amount";
+                        ws.Cells["D1"].Value = "Year";
+                        for (int i = 0; i < FailedComponentCostPerYear.Count; i++)
+                        {
+                            var item = FailedComponentCostPerYear[i];
+                            ws.Cells[i + 2, 1].Value = item.Message;
+                            ws.Cells[i + 2, 2].Value = item.ComponentCostPerYear.ComponentCostId;
+                            ws.Cells[i + 2, 3].Value = item.ComponentCostPerYear.Amount;
+                            ws.Cells[i + 2, 4].Value = item.ComponentCostPerYear.Year;
+                        }
+                        ws.Cells[ws.Dimension.Address].AutoFitColumns();
+                    }
+
+                    if (FailedMajorItemOfWork.Count > 0)
+                    {
+                        var ws = package.Workbook.Worksheets.Add("Major Work Item");
+                        ws.Cells["A1"].Value = "Message";
+                        ws.Cells["B1"].Value = "ProjectId";
+                        ws.Cells["C1"].Value = "ReferenceId";
+                        ws.Cells["D1"].Value = "ComponentId";
+                        ws.Cells["E1"].Value = "YearOfWork";
+                        ws.Cells["F1"].Value = "WorkTypeId";
+                        ws.Cells["G1"].Value = "InfraType";
+                        for (int i = 0; i < FailedMajorItemOfWork.Count; i++)
+                        {
+                            var item = FailedMajorItemOfWork[i];
+                            ws.Cells[i + 2, 1].Value = item.Message;
+                            ws.Cells[i + 2, 2].Value = item.MajorWorkItem.ProjectId;
+                            ws.Cells[i + 2, 3].Value = item.MajorWorkItem.ReferenceId;
+                            ws.Cells[i + 2, 4].Value = item.MajorWorkItem.ComponentId;
+                            ws.Cells[i + 2, 5].Value = item.MajorWorkItem.YearOfWork;
+                            ws.Cells[i + 2, 6].Value = item.MajorWorkItem.WorkTypeId;
+                            ws.Cells[i + 2, 7].Value = item.MajorWorkItem.InfraType;
+                        }
+                        ws.Cells[ws.Dimension.Address].AutoFitColumns();
+                    }
+
+                    if (FailedMajorWorkLocations.Count > 0)
+                    {
+                        var ws = package.Workbook.Worksheets.Add("Major Work Location");
+                        ws.Cells["A1"].Value = "Message";
+                        ws.Cells["B1"].Value = "ParentId";
+                        ws.Cells["C1"].Value = "InfraId";
+                        ws.Cells["D1"].Value = "DetailedScope";
+                        ws.Cells["E1"].Value = "PhysicalTarget";
+                        ws.Cells["F1"].Value = "TargetUnit";
+                        ws.Cells["G1"].Value = "Length";
+                        for (int i = 0; i < FailedMajorWorkLocations.Count; i++)
+                        {
+                            var item = FailedMajorWorkLocations[i];
+                            ws.Cells[i + 2, 1].Value = item.Message;
+                            ws.Cells[i + 2, 2].Value = item.MajorWorkLocation.ParentId;
+                            ws.Cells[i + 2, 3].Value = item.MajorWorkLocation.InfraId;
+                            ws.Cells[i + 2, 4].Value = item.MajorWorkLocation.DetailedScope;
+                            ws.Cells[i + 2, 5].Value = item.MajorWorkLocation.PhysicalTarget;
+                            ws.Cells[i + 2, 6].Value = item.MajorWorkLocation.TargetUnit;
+                            ws.Cells[i + 2, 7].Value = item.MajorWorkLocation.Length;
+                        }
+                        ws.Cells[ws.Dimension.Address].AutoFitColumns();
+                    }
+
+                    var fileBytes = package.GetAsByteArray();
+                    var base64 = Convert.ToBase64String(fileBytes);
+
+                    return Ok(new
+                    {
+                        Message = $"Projects imported: {projects.Count}. Some records failed validation.",
+                        Title = "Project Imported with Errors",
+                        FileName = "FailedImportRecords.xlsx",
+                        FileContent = base64,
+                        ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    });
+                }
+
+                return Ok(new { Message = $"Projects imported: {projects.Count}", Title = "Project Imported Successfully" });
 
             }
             catch (Exception ex)
