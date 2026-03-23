@@ -151,9 +151,8 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
       const response = await chainageToLrpConverter(location.InfraId, chainage);
       const closer = response.Data?.closer;
       if (closer) {
-        const offset: number = closer.offset;
-        const formatted = `${closer.km_post} ${offset >= 0 ? '+' : ''}${offset}`;
-        handleFieldChange(index, type === 'start' ? 'StartStationLimit' : 'EndStationLimit', formatted);
+        const stationLimit = closer.station_limit
+        handleFieldChange(index, type === 'start' ? 'StartStationLimit' : 'EndStationLimit', stationLimit);
       }
     } catch (error) {
       console.error('Error auto-filling station limit:', error);
