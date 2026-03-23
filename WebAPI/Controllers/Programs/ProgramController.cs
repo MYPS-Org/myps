@@ -711,6 +711,7 @@ namespace WebAPI.Controllers.Programs
                             NewMajorLocations.AddRange(MajorLocations.Select(x => new ProjectMajorWorkLocations()
                             {
                                 ParentId = x.ParentId.UpdateReferenceId(FirstSegment),
+                                StageName = checkStageType.Name,
                                 InfraId = x.InfraId,
                                 DetailedScope = x.DetailedScope,
                                 TargetUnitId = x.TargetUnitId,

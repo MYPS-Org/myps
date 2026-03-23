@@ -96,13 +96,10 @@ namespace Helpers
                     && x.ProjectSuffix == FirstSegment
                     && x.IslandCode == IslandCode
                     && x.YearStart == ProgramDetails.YearStart)
-                .Select(x => x.MaxId)
-                .ToList();
+                .OrderByDescending(x => x.MaxId)
+                .FirstOrDefault();
+            int maxExisting = (existingMaxIds != null) ? existingMaxIds.MaxId : (_db.tOptionProjectCategory.FirstOrDefault(x => x.CategoryId == Category.CategoryId)!.Minimum);
 
-            int maxExisting = existingMaxIds
-                .Select(id => int.TryParse(id, out var n) ? n : 0)
-                .DefaultIfEmpty(0)
-                .Max();
 
             int nextId = Math.Max(maxExisting + 1, Category.Minimum);
             string ThirdSegment = nextId.ToString("D5");

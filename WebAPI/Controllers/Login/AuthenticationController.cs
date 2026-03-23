@@ -120,6 +120,19 @@ namespace WebAPI.Controllers.Auth
                 return ExceptionHandler(ex); 
             }
         }
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> GetLoginLogs()
+        {
+            try
+            {
+                var Logs = await _db.tLoginHistory.ToListAsync();
+                return Ok(new { LoginLogs = Logs });
+            }
+            catch (Exception ex) { 
+                return ExceptionHandler(ex); 
+            }
+        }
         [HttpPost]
         public async Task<IActionResult> Logout()
         {

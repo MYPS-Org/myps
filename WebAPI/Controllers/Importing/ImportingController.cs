@@ -222,6 +222,7 @@ namespace WebAPI.Controllers.Importing
                         Validate.MajorWorkLocation.CreatedBy = User;
                         Validate.MajorWorkLocation.CreatedDate = CurrentDate;
                         Validate.MajorWorkLocation.TargetUnitId = Reference.WorkTypeId;
+                        Validate.MajorWorkLocation.StageName = IsValidProgram.ProgramDetails.StageName;
                         MajorWorkLocations.Add(Validate.MajorWorkLocation);
                     }
                 }
