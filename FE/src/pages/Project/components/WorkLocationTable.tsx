@@ -149,9 +149,9 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
     setStationLimitLoading(prev => ({ ...prev, [key]: true }));
     try {
       const response = await chainageToLrpConverter(location.InfraId, chainage);
-      const closer = response.Data?.closer;
-      if (closer) {
-        const stationLimit = closer.station_limit
+      const before = response.Data?.before;
+      if (before) {
+        const stationLimit = before.station_limit
         handleFieldChange(index, type === 'start' ? 'StartStationLimit' : 'EndStationLimit', stationLimit);
       }
     } catch (error) {

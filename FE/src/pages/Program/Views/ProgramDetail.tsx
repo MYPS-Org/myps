@@ -971,6 +971,9 @@ setIsAddExistingProjectDialogOpen(true);
                 <TableHeader className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Publishable
                 </TableHeader>
+                <TableHeader className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Published
+                </TableHeader>
                 {/* { programEnums?.IsActive && programEnums?.Details?.StageId === 10 && (
                 <TableHeader className='px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider'>
                   Actions
@@ -1001,6 +1004,9 @@ setIsAddExistingProjectDialogOpen(true);
                   </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-60">
                     {project.OperatingUnit}
+                  </TableCell>
+                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-20">
+                    {project.IsPublishable ? 'Yes' : 'No'}
                   </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-20">
                     {project.IsPublishable ? 'Yes' : 'No'}

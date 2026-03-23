@@ -125,7 +125,7 @@ export interface ProjectLists {
 	CreatedDate: string;
 	UpdateBy?: string;
 	UpdatedDate?: string;
-	// IsPublished: boolean;
+	IsPublished?: boolean;
 	IsPublishable: boolean;
 }
 

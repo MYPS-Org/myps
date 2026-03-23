@@ -46,12 +46,19 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({ isOpen, onClose
     }
     setIsSearching(true);
     try {
-      const res = await globalSearch({
-        TableKey: activeFieldConfig.tableKey,
-        ColumnField: activeFieldConfig.columnField,
-        Value: searchValue.trim(),
-      });
-      setResult(res.Data ?? null);
+      const res = await globalSearch(activeFieldConfig.tableKey, searchValue.trim());
+      const data = (res.Data as GlobalSearchResponse) ?? null;
+      setResult(data);
+
+      // Auto-navigate if exactly one result has a navigation link
+      if (data && data.Total === 1 && activeFieldConfig.getLink) {
+        const link = activeFieldConfig.getLink(data.Data[0]);
+        if (link) {
+          onClose();
+          navigate(link);
+          return;
+        }
+      }
     } catch {
       showToast({ type: 'error', message: 'Search failed. Please try again.' });
     } finally {

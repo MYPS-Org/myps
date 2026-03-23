@@ -9,9 +9,8 @@ export interface SearchableColumn {
 }
 
 export interface GlobalSearchRequest {
-  TableKey: string;
-  ColumnField: string;
-  Value: string;
+  Category: string;
+  SearchFor: string;
 }
 
 export interface GlobalSearchResponse {

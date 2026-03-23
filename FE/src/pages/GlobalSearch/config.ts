@@ -30,7 +30,7 @@ export const SEARCH_FIELD_CONFIG: SearchFieldConfig[] = [
   {
     key: 'projectId',
     label: 'Project ID',
-    tableKey: 'vProjects',
+    tableKey: 'Projects',
     columnField: 'ProjectId',
     placeholder: 'e.g. 2024-DPWH-001',
     resultColumns: [
@@ -50,7 +50,7 @@ export const SEARCH_FIELD_CONFIG: SearchFieldConfig[] = [
   {
     key: 'alternateId',
     label: 'Alternate ID',
-    tableKey: 'vProjects',
+    tableKey: 'Projects',
     columnField: 'AlternateId',
     placeholder: 'e.g. ALT-2024-001',
     resultColumns: [
@@ -70,7 +70,7 @@ export const SEARCH_FIELD_CONFIG: SearchFieldConfig[] = [
   {
     key: 'description',
     label: 'Description',
-    tableKey: 'vProjects',
+    tableKey: 'Projects',
     columnField: 'Description',
     placeholder: 'e.g. Construction of road…',
     resultColumns: [
@@ -90,7 +90,7 @@ export const SEARCH_FIELD_CONFIG: SearchFieldConfig[] = [
   {
     key: 'uacs',
     label: 'UACS',
-    tableKey: 'vProjects',
+    tableKey: 'Projects',
     columnField: 'UACS',
     placeholder: 'e.g. 212202000',
     resultColumns: [
@@ -110,7 +110,7 @@ export const SEARCH_FIELD_CONFIG: SearchFieldConfig[] = [
   {
     key: 'programName',
     label: 'Program Name',
-    tableKey: 'vPrograms',
+    tableKey: 'Programs',
     columnField: 'Name',
     placeholder: 'e.g. DPWH Infrastructure Program',
     resultColumns: [
