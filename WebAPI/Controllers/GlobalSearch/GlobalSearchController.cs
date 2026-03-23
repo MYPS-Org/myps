@@ -19,6 +19,30 @@ namespace WebAPI.Controllers.GlobalSearch
         public GlobalSearchController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
         [AllowAnonymous]
         [HttpPost]
+        public async Task<IActionResult> GetSearchCategory()
+        {
+            try
+            {
+                /*
+                ('Alternate ID'),
+                ('Bridge'),
+                ('Description'),
+                ('Program Name'),
+                ('Project ID'),
+                ('Road Sections'),
+                ('Roads'),
+                ('UACS');
+                 */
+                var Category = await _db.tOptionGlobalSearch.ToListAsync();
+                return Ok(new { CategoryList = Category });
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
+        [AllowAnonymous]
+        [HttpPost]
         public async Task<IActionResult> Search([FromBody] SearchDTO dto)
         {
             try

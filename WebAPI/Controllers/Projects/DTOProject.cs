@@ -141,6 +141,8 @@ namespace WebAPI.Controllers.Projects
         [Required]
         [MaxLength(100)]
         public string ParentId { get; set; } = string.Empty;
+        [MaxLength(10)]
+        public string? StageName { get; set; } = string.Empty;
         [Required]
         [MaxLength(50)]
         public string InfraId { get; set; } = string.Empty;
