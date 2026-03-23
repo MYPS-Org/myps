@@ -5,6 +5,7 @@ import { PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon, CheckIcon, XMarkI
 import type { ProgramEnums } from '../../Model.d';
 import { useCodeTableContext } from '../../CodeTableContext';
 import { updateCodeTable } from '../../Service';
+import { useToast } from '../../../../components/toaster/ToasterContext';
 import ConfirmDialog from '../../dialogs/ConfirmDialog';
 import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
 
@@ -14,7 +15,8 @@ interface FormState { NameId: number; Name: string; Description: string; }
 const EMPTY_FORM: FormState = { NameId: 0, Name: '', Description: '' };
 
 const ProgramStageTable: React.FC = () => {
-  const { data: codeTableData, loading } = useCodeTableContext();
+  const { data: codeTableData, loading, refetch } = useCodeTableContext();
+  const { showToast } = useToast();
   const [search, setSearch]                 = useState('');
   const [addForm, setAddForm]               = useState<FormState | null>(null);
   const [editId, setEditId]                 = useState<number | null>(null);
@@ -43,7 +45,13 @@ const ProgramStageTable: React.FC = () => {
         { label: 'Description',  value: addForm.Description, optional: true },
       ],
       onConfirm: async () => {
-        await updateCodeTable(CODE, 0, JSON.stringify(addForm));
+        try {
+          await updateCodeTable(CODE, 0, JSON.stringify(addForm));
+          showToast({ type: 'success', message: 'Program stage added.' });
+          await refetch();
+        } catch {
+          showToast({ type: 'error', message: 'Failed to add program stage.' });
+        }
         confirm.close();
         setAddForm(null);
       },
@@ -60,7 +68,13 @@ const ProgramStageTable: React.FC = () => {
         { label: 'Description',  value: editForm.Description, optional: true },
       ],
       onConfirm: async () => {
-        await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm }));
+        try {
+          await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm }));
+          showToast({ type: 'success', message: 'Program stage updated.' });
+          await refetch();
+        } catch {
+          showToast({ type: 'error', message: 'Failed to update program stage.' });
+        }
         confirm.close();
         cancelEdit();
       },
@@ -68,7 +82,13 @@ const ProgramStageTable: React.FC = () => {
   };
 
   const confirmDelete = async (id: number) => {
-    await updateCodeTable(CODE, 2, JSON.stringify({ Id: id }));
+    try {
+      await updateCodeTable(CODE, 2, JSON.stringify({ Id: id }));
+      showToast({ type: 'success', message: 'Program stage deleted.' });
+      await refetch();
+    } catch {
+      showToast({ type: 'error', message: 'Failed to delete program stage.' });
+    }
     setDeleteConfirmId(null);
   };
 
@@ -210,10 +230,10 @@ const ProgramStageTable: React.FC = () => {
                             </div>
                           ) : (
                             <div className="flex gap-1">
-                              <Button plain className="p-1 text-gray-400 hover:text-amber-600" onClick={() => startEdit(item)}>
+                              <Button color='zinc' className="p-1 text-gray-400 hover:text-amber-600" onClick={() => startEdit(item)}>
                                 <PencilIcon className="h-4 w-4" />
                               </Button>
-                              <Button plain className="p-1 text-gray-400 hover:text-red-600" onClick={() => setDeleteConfirmId(item.Id)}>
+                              <Button color='red' className="p-1 text-gray-400 hover:text-red-600" onClick={() => setDeleteConfirmId(item.Id)}>
                                 <TrashIcon className="h-4 w-4" />
                               </Button>
                             </div>

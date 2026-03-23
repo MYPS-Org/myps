@@ -4,6 +4,8 @@ import { Button } from '../../../../components/tailwindui/button';
 import { PencilIcon, TrashIcon, MagnifyingGlassIcon, CheckIcon, XMarkIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import type { RevisionRules } from '../../Model.d';
 import { useCodeTableContext } from '../../CodeTableContext';
+import { updateCodeTable } from '../../Service';
+import { useToast } from '../../../../components/toaster/ToasterContext';
 import ConfirmDialog from '../../dialogs/ConfirmDialog';
 import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
 
@@ -174,8 +176,11 @@ interface EditForm {
   fieldRules: FieldRules | null;
 }
 
+const CODE = 'RevisionRules';
+
 const RevisionFieldPermissionTable: React.FC = () => {
-  const { data: codeTableData, loading: isLoading } = useCodeTableContext();
+  const { data: codeTableData, loading: isLoading, refetch } = useCodeTableContext();
+  const { showToast } = useToast();
   const [data, setData] = useState<RevisionRules[]>([]);
   const [filteredData, setFilteredData] = useState<RevisionRules[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -250,16 +255,33 @@ const RevisionFieldPermissionTable: React.FC = () => {
 
   const cancelEdit = () => setEditId(null);
 
-  const saveEdit = () => {
-    setData(prev => prev.map(r => r.Id === editId
-      ? { ...r, Reason: editForm.Reason, RevisionGroupId: editForm.RevisionGroupId, ReasonId: editForm.ReasonId, PCMA_Status: editForm.PCMA_Status, Package_Status: editForm.Package_Status, Field: JSON.stringify(editForm.fieldRules) }
-      : r
-    ));
+  const saveEdit = async () => {
+    try {
+      await updateCodeTable(CODE, 1, JSON.stringify({
+        Id: editId,
+        Reason: editForm.Reason,
+        RevisionGroupId: editForm.RevisionGroupId,
+        ReasonId: editForm.ReasonId,
+        PCMA_Status: editForm.PCMA_Status,
+        Package_Status: editForm.Package_Status,
+        Field: JSON.stringify(editForm.fieldRules),
+      }));
+      showToast({ type: 'success', message: 'Field permission updated.' });
+      await refetch();
+    } catch {
+      showToast({ type: 'error', message: 'Failed to update field permission.' });
+    }
     cancelEdit();
   };
 
-  const confirmDelete = (id: number) => {
-    setData(prev => prev.filter(r => r.Id !== id));
+  const confirmDelete = async (id: number) => {
+    try {
+      await updateCodeTable(CODE, 2, JSON.stringify({ Id: id }));
+      showToast({ type: 'success', message: 'Field permission deleted.' });
+      await refetch();
+    } catch {
+      showToast({ type: 'error', message: 'Failed to delete field permission.' });
+    }
     setDeleteConfirmId(null);
   };
 

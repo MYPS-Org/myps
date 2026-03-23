@@ -4,13 +4,18 @@ import { Button } from '../../../../components/tailwindui/button';
 import { PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import type { ModificationCategoryReason } from '../../Model.d';
 import { useCodeTableContext } from '../../CodeTableContext';
+import { updateCodeTable } from '../../Service';
+import { useToast } from '../../../../components/toaster/ToasterContext';
 import ConfirmDialog from '../../dialogs/ConfirmDialog';
 import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
+
+const CODE = 'ModificationReason';
 
 interface EditForm { Reason: string; RevisionGroupId: number; ReasonId: number; IsDeleted: boolean; }
 
 const ModificationReasonTable: React.FC = () => {
-  const { data: codeTableData, loading: isLoading } = useCodeTableContext();
+  const { data: codeTableData, loading: isLoading, refetch } = useCodeTableContext();
+  const { showToast } = useToast();
   const [data, setData] = useState<ModificationCategoryReason[]>([]);
   const [filteredData, setFilteredData] = useState<ModificationCategoryReason[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -74,12 +79,24 @@ const ModificationReasonTable: React.FC = () => {
     setDeleteConfirmId(null);
   };
   const cancelEdit = () => setEditId(null);
-  const saveEdit = () => {
-    setData(prev => prev.map(r => r.Id === editId ? { ...r, ...editForm } : r));
+  const saveEdit = async () => {
+    try {
+      await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm }));
+      showToast({ type: 'success', message: 'Modification reason updated.' });
+      await refetch();
+    } catch {
+      showToast({ type: 'error', message: 'Failed to update modification reason.' });
+    }
     cancelEdit();
   };
-  const confirmDelete = (id: number) => {
-    setData(prev => prev.filter(r => r.Id !== id));
+  const confirmDelete = async (id: number) => {
+    try {
+      await updateCodeTable(CODE, 2, JSON.stringify({ Id: id }));
+      showToast({ type: 'success', message: 'Modification reason deleted.' });
+      await refetch();
+    } catch {
+      showToast({ type: 'error', message: 'Failed to delete modification reason.' });
+    }
     setDeleteConfirmId(null);
   };
   const requestEdit = () => {
@@ -92,7 +109,7 @@ const ModificationReasonTable: React.FC = () => {
         { label: 'Reason',     value: editForm.Reason },
         { label: 'Status',     value: editForm.IsDeleted ? 'Deleted' : 'Active' },
       ],
-      onConfirm: () => { saveEdit(); confirm.close(); },
+      onConfirm: async () => { await saveEdit(); confirm.close(); },
     });
   };
 

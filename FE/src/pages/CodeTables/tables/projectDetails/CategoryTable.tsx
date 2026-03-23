@@ -10,11 +10,12 @@ import type { CategoryEnum } from '../../../Project/Model.d';
 import ConfirmDialog from '../../dialogs/ConfirmDialog';
 import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
 import { updateCodeTable } from '../../Service';
+import { useToast } from '../../../../components/toaster/ToasterContext';
 
 const CODE = 'ProjectCategory';
 
-interface FormState { CategoryId: string; CategoryName: string; Minimum: number; Maximum: number; ValidUntil: number; }
-const EMPTY_FORM: FormState = { CategoryId: '', CategoryName: '', Minimum: 0, Maximum: 0, ValidUntil: new Date().getFullYear() };
+interface FormState { CategoryName: string; Minimum: number; Maximum: number; ValidUntil: number; }
+const EMPTY_FORM: FormState = { CategoryName: '', Minimum: 0, Maximum: 0, ValidUntil: new Date().getFullYear() };
 
 
 interface Props { data?: CategoryEnum[]; loading?: boolean; }
@@ -27,6 +28,7 @@ const CategoryTable: React.FC<Props> = ({ data, loading = false }) => {
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [search, setSearch]            = useState('');
   const confirm                        = useConfirmDialog();
+  const { showToast }                  = useToast();
 
   useEffect(() => {
     if (!loading) setRows(data ?? []);
@@ -34,29 +36,44 @@ const CategoryTable: React.FC<Props> = ({ data, loading = false }) => {
 
   const filtered = rows.filter(r =>
     (r.CategoryName ?? '').toLowerCase().includes(search.toLowerCase()) ||
-    (r.CategoryId ?? '').toLowerCase().includes(search.toLowerCase())
+    String(r.CategoryId ?? '').toLowerCase().includes(search.toLowerCase())
   );
 
   const startEdit = (r: CategoryEnum) => {
     setEditId(r.Id);
-    setEditForm({ CategoryId: r.CategoryId ?? '', CategoryName: r.CategoryName ?? '', Minimum: r.Minimum, Maximum: r.Maximum, ValidUntil: r.ValidUntil });
+    setEditForm({ CategoryName: r.CategoryName ?? '', Minimum: r.Minimum, Maximum: r.Maximum, ValidUntil: r.ValidUntil });
     setDeleteConfirmId(null);
   };
   const cancelEdit = () => setEditId(null);
   const saveEdit = async () => {
-    await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm }));
-    setRows(prev => prev.map(r => r.Id === editId ? { ...r, ...editForm } : r));
+    try {
+      await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm }));
+      setRows(prev => prev.map(r => r.Id === editId ? { ...r, ...editForm } : r));
+      showToast({ type: 'success', message: 'Category updated successfully.' });
+    } catch {
+      showToast({ type: 'error', message: 'Failed to update category.' });
+    }
     cancelEdit();
   };
   const saveAdd = async () => {
     if (!addForm) return;
-    await updateCodeTable(CODE, 0, JSON.stringify(addForm));
-    setRows(prev => [{ ...addForm, Id: Date.now() }, ...prev]);
+    try {
+      await updateCodeTable(CODE, 0, JSON.stringify(addForm));
+      setRows(prev => [{ ...addForm, Id: Date.now(), CategoryId: '' }, ...prev]);
+      showToast({ type: 'success', message: 'Category added successfully.' });
+    } catch {
+      showToast({ type: 'error', message: 'Failed to add category.' });
+    }
     setAddForm(null);
   };
   const confirmDelete = async (id: number) => {
-    await updateCodeTable(CODE, 2, JSON.stringify({ Id: id }));
-    setRows(prev => prev.filter(r => r.Id !== id));
+    try {
+      await updateCodeTable(CODE, 2, JSON.stringify({ Id: id }));
+      setRows(prev => prev.filter(r => r.Id !== id));
+      showToast({ type: 'success', message: 'Category deleted.' });
+    } catch {
+      showToast({ type: 'error', message: 'Failed to delete category.' });
+    }
     setDeleteConfirmId(null);
   };
 
@@ -66,7 +83,6 @@ const CategoryTable: React.FC<Props> = ({ data, loading = false }) => {
       mode: 'add',
       tableName: 'Project Category',
       fields: [
-        { label: 'Category ID', value: addForm.CategoryId,   mono: true },
         { label: 'Name',        value: addForm.CategoryName },
         { label: 'Min Amount',  value: addForm.Minimum },
         { label: 'Max Amount',  value: addForm.Maximum },
@@ -80,7 +96,6 @@ const CategoryTable: React.FC<Props> = ({ data, loading = false }) => {
       mode: 'edit',
       tableName: 'Project Category',
       fields: [
-        { label: 'Category ID', value: editForm.CategoryId,   mono: true },
         { label: 'Name',        value: editForm.CategoryName },
         { label: 'Min Amount',  value: editForm.Minimum },
         { label: 'Max Amount',  value: editForm.Maximum },
@@ -142,8 +157,8 @@ const CategoryTable: React.FC<Props> = ({ data, loading = false }) => {
                 {addForm !== null && (
                   <TableRow className="bg-indigo-50 border-l-4 border-indigo-400">
                     <TableCell className="text-xs text-gray-400 italic">New</TableCell>
-                    <TableCell><textarea autoFocus value={addForm.CategoryId} onChange={e => setAddForm(f => f ? { ...f, CategoryId: e.target.value } : f)} placeholder="CAT-XXX" rows={1} className={txtInp('add')} /></TableCell>
-                    <TableCell><textarea value={addForm.CategoryName} onChange={e => setAddForm(f => f ? { ...f, CategoryName: e.target.value } : f)} placeholder="Category name..." rows={2} className={txtInp('add')} /></TableCell>
+                    <TableCell><span className="text-xs text-gray-400 italic px-1">auto</span></TableCell>
+                    <TableCell><textarea autoFocus value={addForm.CategoryName} onChange={e => setAddForm(f => f ? { ...f, CategoryName: e.target.value } : f)} placeholder="Category name..." rows={2} className={txtInp('add')} /></TableCell>
                     <TableCell><input type="number" value={addForm.Minimum} onChange={e => setAddForm(f => f ? { ...f, Minimum: +e.target.value } : f)} className={numInp('add')} /></TableCell>
                     <TableCell><input type="number" value={addForm.Maximum} onChange={e => setAddForm(f => f ? { ...f, Maximum: +e.target.value } : f)} className={numInp('add')} /></TableCell>
                     <TableCell><input type="number" value={addForm.ValidUntil} onChange={e => setAddForm(f => f ? { ...f, ValidUntil: +e.target.value } : f)} className={numInp('add')} /></TableCell>
@@ -162,8 +177,8 @@ const CategoryTable: React.FC<Props> = ({ data, loading = false }) => {
                     <TableCell><span className="font-mono text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">{item.Id}</span></TableCell>
                     {editId === item.Id ? (
                       <>
-                        <TableCell><textarea autoFocus value={editForm.CategoryId} onChange={e => setEditForm(f => ({ ...f, CategoryId: e.target.value }))} rows={1} className={txtInp('edit')} /></TableCell>
-                        <TableCell><textarea value={editForm.CategoryName} onChange={e => setEditForm(f => ({ ...f, CategoryName: e.target.value }))} rows={2} className={txtInp('edit')} /></TableCell>
+                        <TableCell><span className="font-mono text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded">{item.CategoryId}</span></TableCell>
+                        <TableCell><textarea autoFocus value={editForm.CategoryName} onChange={e => setEditForm(f => ({ ...f, CategoryName: e.target.value }))} rows={2} className={txtInp('edit')} /></TableCell>
                         <TableCell><input type="number" value={editForm.Minimum} onChange={e => setEditForm(f => ({ ...f, Minimum: +e.target.value }))} className={numInp('edit')} /></TableCell>
                         <TableCell><input type="number" value={editForm.Maximum} onChange={e => setEditForm(f => ({ ...f, Maximum: +e.target.value }))} className={numInp('edit')} /></TableCell>
                         <TableCell><input type="number" value={editForm.ValidUntil} onChange={e => setEditForm(f => ({ ...f, ValidUntil: +e.target.value }))} className={numInp('edit')} /></TableCell>

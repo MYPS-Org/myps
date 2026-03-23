@@ -5,6 +5,7 @@ import { PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon, CheckIcon, XMarkI
 import type { AgreementEnum } from '../../../Project/Model.d';
 import { useCodeTableContext } from '../../CodeTableContext';
 import { updateCodeTable } from '../../Service';
+import { useToast } from '../../../../components/toaster/ToasterContext';
 import ConfirmDialog from '../../dialogs/ConfirmDialog';
 import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
 
@@ -26,6 +27,7 @@ const FundingAgreementTable: React.FC = () => {
   const [editForm, setEditForm]             = useState<FormState>(EMPTY_FORM);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const confirm                             = useConfirmDialog();
+  const { showToast }                       = useToast();
 
   const data: AgreementEnum[] = codeTableData?.FundingAgreements ?? [];
   const filtered = data.filter(r =>
@@ -58,7 +60,12 @@ const FundingAgreementTable: React.FC = () => {
         { label: 'Fin. Seg. Code',   value: addForm.FinancingSourceSegmentCode, optional: true },
       ],
       onConfirm: async () => {
-        await updateCodeTable(CODE, 0, JSON.stringify(addForm));
+        try {
+          await updateCodeTable(CODE, 0, JSON.stringify(addForm));
+          showToast({ type: 'success', message: 'Funding agreement added successfully.' });
+        } catch {
+          showToast({ type: 'error', message: 'Failed to add funding agreement.' });
+        }
         confirm.close();
         setAddForm(null);
       },
@@ -76,7 +83,12 @@ const FundingAgreementTable: React.FC = () => {
         { label: 'Fin. Seg. Code',   value: editForm.FinancingSourceSegmentCode, optional: true },
       ],
       onConfirm: async () => {
-        await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm }));
+        try {
+          await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm }));
+          showToast({ type: 'success', message: 'Funding agreement updated successfully.' });
+        } catch {
+          showToast({ type: 'error', message: 'Failed to update funding agreement.' });
+        }
         confirm.close();
         cancelEdit();
       },
@@ -84,7 +96,12 @@ const FundingAgreementTable: React.FC = () => {
   };
 
   const confirmDelete = async (id: number) => {
-    await updateCodeTable(CODE, 2, JSON.stringify({ Id: id }));
+    try {
+      await updateCodeTable(CODE, 2, JSON.stringify({ Id: id }));
+      showToast({ type: 'success', message: 'Funding agreement deleted.' });
+    } catch {
+      showToast({ type: 'error', message: 'Failed to delete funding agreement.' });
+    }
     setDeleteConfirmId(null);
   };
 
@@ -236,12 +253,12 @@ const FundingAgreementTable: React.FC = () => {
                               </Button>
                             </div>
                           ) : (
-                            <div className="flex gap-1">
-                              <Button plain className="p-1 text-gray-400 hover:text-amber-600" onClick={() => startEdit(item)}>
-                                <PencilIcon className="h-4 w-4" />
+                          <div className="flex gap-1">
+                              <Button color="zinc" className="p-1.5" onClick={() => startEdit(item)}>
+                                <PencilIcon className="h-3.5 w-3.5" />
                               </Button>
-                              <Button plain className="p-1 text-gray-400 hover:text-red-600" onClick={() => setDeleteConfirmId(item.Id)}>
-                                <TrashIcon className="h-4 w-4" />
+                              <Button color="red" className="p-1.5" onClick={() => setDeleteConfirmId(item.Id)}>
+                                <TrashIcon className="h-3.5 w-3.5" />
                               </Button>
                             </div>
                           )}

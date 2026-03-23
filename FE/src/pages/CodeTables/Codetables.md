@@ -43,10 +43,10 @@ pages/CodeTables/
 â”‚   â”œâ”€â”€ revisions/
 â”‚   â”‚   â”œâ”€â”€ ModificationCategoryTable.tsx   â† Revision code groups (legacy)
 â”‚   â”‚   â”œâ”€â”€ ModificationReasonTable.tsx     â† Revision reasons [CodeTableContext â†’ Reasons]
-â”‚   â”‚   â”œâ”€â”€ RevisionCategoryTable.tsx       â† Read-only display (NEW â€” CodeTableContext â†’ RevisionCategories)
-â”‚   â”‚   â”œâ”€â”€ RevisionHeaderTable.tsx         â† Read-only display (NEW â€” CodeTableContext â†’ RevisionHeaders)
-â”‚   â”‚   â”œâ”€â”€ RevisionDocumentTable.tsx       â† Read-only display (NEW â€” CodeTableContext â†’ RevisionDocuments)
-â”‚   â”‚   â”œâ”€â”€ RevisionStatusTable.tsx         â† Read-only display (NEW â€” CodeTableContext â†’ RevisionStatuses)
+â”‚   â”‚   â”œâ”€â”€ RevisionCategoryTable.tsx       → CRUD (Edit/Delete) — CODE RevisionCategory (CodeTableContext → RevisionCategories)
+â”‚   â”‚   â”œâ”€â”€ RevisionHeaderTable.tsx         → CRUD (Edit/Delete) — CODE RevisionHeader (CodeTableContext → RevisionHeaders)
+â”‚   â”‚   â”œâ”€â”€ RevisionDocumentTable.tsx       → CRUD (Edit/Delete) — CODE RevisionDocument (CodeTableContext → RevisionDocuments)
+â”‚   â”‚   â”œâ”€â”€ RevisionStatusTable.tsx         → CRUD (Edit/Delete) — CODE RevisionStatus (CodeTableContext → RevisionStatuses)
 â”‚   â”‚   â”œâ”€â”€ RevisionFieldPermissionTable.tsx â† Full rewrite: toggle-switch field permission editor [CodeTableContext â†’ RevisionRules]
 â”‚   â”‚   â””â”€â”€ ValidationDatesTable.tsx        â† Revision window dates per funding year
 â”‚   â””â”€â”€ program/                        â† NEW domain (NEW)
@@ -179,11 +179,11 @@ All tables now use **`CodeTableContext`** (single fetch of `POST CodeTable/GetAl
 | InfraTypeTable | `InfraTypes` | `InfraTypeEnum` from `Project/Model.d` |
 | **FundingAgreementTable** *(new)* | `FundingAgreements` | `AgreementEnum` from `Project/Model.d` |
 | FundingSourceTable | `FundingSources` | `SourceEnum` from `Project/Model.d` |
-| **RevisionCategoryTable** *(new, read-only)* | `RevisionCategories` | `any[]` (dynamic columns) |
-| **RevisionHeaderTable** *(new, read-only)* | `RevisionHeaders` | `any[]` (dynamic columns) |
-| **RevisionDocumentTable** *(new, read-only)* | `RevisionDocuments` | `any[]` (dynamic columns) |
-| **RevisionStatusTable** *(new, read-only)* | `RevisionStatuses` | `any[]` (dynamic columns) |
-| ModificationReasonTable | `Reasons` | `ModificationCategoryReason` from `Model.d` |
+| **RevisionCategoryTable** | `RevisionCategories` | `any[]` (dynamic) — CRUD (Edit/Delete) CODE `RevisionCategory` |
+| **RevisionHeaderTable** | `RevisionHeaders` | `any[]` (dynamic) — CRUD (Edit/Delete) CODE `RevisionHeader` |
+| **RevisionDocumentTable** | `RevisionDocuments` | `any[]` (dynamic) — CRUD (Edit/Delete) CODE `RevisionDocument` |
+| **RevisionStatusTable** | `RevisionStatuses` | `any[]` (dynamic) — CRUD (Edit/Delete) CODE `RevisionStatus` |
+| ModificationReasonTable | `Reasons` | `ModificationCategoryReason` from `Model.d` — CODE `ModificationReason` |
 | RevisionFieldPermissionTable | `RevisionRules` | `RevisionRules` from `Model.d` |
 | ValidationDatesTable | Sample data (pending API) | local |
 | **ProgramStageTable** *(new)* | `ProgramStages` | `ProgramEnums` from `Model.d` |
@@ -272,20 +272,48 @@ All editable tables follow the same pattern:
 
 | Constant | Description |
 |----------|-------------|
-| `CODE` | String identifier sent to `updateCodeTable` (e.g. `'ProgramStage'`, `'FundingAgreement'`) |
-| `TransactionType 0` | Add |
-| `TransactionType 1` | Edit |
-| `TransactionType 2` | Delete |
+| `CODE` | String identifier sent to `updateCodeTable` (e.g. `'ProgramStage'`, `'FundingAgreement'`, `'RevisionRules'`) |
+
+**`TransactionType` enum:**
+
+| Value | Name | Description |
+|-------|------|-------------|
+| `0` | `Create` | Insert a new record |
+| `1` | `Update` | Update an existing record (must include `Id`) |
+| `2` | `Delete` | Delete a record by `Id` |
 
 ```ts
 import { updateCodeTable } from '../../Service';
-updateCodeTable(CODE, transactionType, JSON.stringify(payload));
+
+// Create
+await updateCodeTable(CODE, 0, JSON.stringify(payload));
+
+// Update
+await updateCodeTable(CODE, 1, JSON.stringify({ Id: id, ...fields }));
+
+// Delete
+await updateCodeTable(CODE, 2, JSON.stringify({ Id: id }));
+```
+
+After any mutating call, invoke `refetch()` from `useCodeTableContext()` to sync the shared data.
+
+```ts
+const { data: codeTableData, loading, refetch } = useCodeTableContext();
 ```
 
 ---
 
 ## RevisionFieldPermissionTable â€” Field Permission Editor
+**CODE:** `'RevisionRules'`
 
+Mutations are persisted via `updateCodeTable`. Only **Update** (`1`) and **Delete** (`2`) are supported (no inline Add row).
+
+| Operation | TransactionType | Payload |
+|-----------|----------------|---------|
+| Edit | `1` | `{ Id, Reason, RevisionGroupId, ReasonId, PCMA_Status, Package_Status, Field: JSON.stringify(fieldRules) }` |
+| Delete | `2` | `{ Id }` |
+
+After each mutation `refetch()` is called to reload `RevisionRules` from the context.
 The `Field` column in `RevisionRules` is a JSON string. Instead of displaying raw JSON, the table renders a **structured toggle-switch UI**:
 
 - **"View Rules"** button on each row expands an inline panel (read-only toggles)
@@ -393,6 +421,53 @@ Props: `value`, `onChange(n: number)`, `thrusts: ThrustEnum[]`, `infraTypeFilter
 ---
 
 ## Changelog
+
+### Session 6 — Toast Notifications, CategoryId Fix, CRUD Upgrade for Revision Tables
+
+**`CategoryTable`** — two fixes:
+- **Search crash fixed**: `CategoryId` from API is a `number` (not `string`). Filter now uses `String(r.CategoryId ?? '').toLowerCase()` to avoid `TypeError: toLowerCase is not a function`.
+- **CategoryId is now read-only**: Backend auto-assigns `CategoryId`; it no longer appears in the add form or edit form. Add row shows `auto` placeholder badge instead.
+- **Toast notifications** added: `saveEdit`, `saveAdd`, `confirmDelete` all have try/catch + `showToast`.
+
+**`FundingAgreementTable`** — button color fix + Toast:
+- Edit/Delete action buttons changed from `Button plain` to `Button color="zinc"` / `Button color="red"` to apply proper color styling.
+- Toast notifications added (`showToast`) in `requestAdd.onConfirm`, `requestEdit.onConfirm`, `confirmDelete`.
+
+**4 revision display tables promoted to full CRUD** (were read-only; now Edit/Delete with `updateCodeTable`, `refetch`, Toast):
+- `RevisionCategoryTable` — CODE `RevisionCategory`
+- `RevisionHeaderTable` — CODE `RevisionHeader`
+- `RevisionDocumentTable` — CODE `RevisionDocument`
+- `RevisionStatusTable` — CODE `RevisionStatus`
+
+All 4 use the same dynamic-column CRUD pattern: `editId: number | null`, `editRow: Record<string,string>`, `editableColumns = columns.filter(c => c !== 'Id')`, inline text inputs in each editable cell, Actions column with Edit (amber ✓ / zinc ✗) and Delete (zinc pencil / red trash) buttons.
+
+**`ModificationReasonTable`** — wired to live API:
+- Added `import { updateCodeTable } from '../../Service'` and `import { useToast }`.
+- Added CODE `ModificationReason`.
+- `saveEdit` now calls `updateCodeTable(CODE, 1, ...)` + `refetch()` + Toast (was only `setData` local state).
+- `confirmDelete` now calls `updateCodeTable(CODE, 2, ...)` + `refetch()` + Toast (was only `setData` local state).
+- `requestEdit.onConfirm` changed from `() => { ... }` to `async () => { await saveEdit(); ... }`.
+
+**`RevisionFieldPermissionTable`** — Toast added:
+- Added `import { useToast }` and `const { showToast } = useToast()`.
+- `saveEdit` and `confirmDelete` wrapped in try/catch with `showToast` success/error.
+- `refetch()` is now awaited (`await refetch()`).
+
+**3 program tables** (ProgramStage, ProgramType, ProgramStatus) — Toast + `refetch` added:
+- All 3: added `import { useToast }`, `refetch` from context, `const { showToast } = useToast()`.
+- `requestAdd.onConfirm`, `requestEdit.onConfirm`, `confirmDelete`: wrapped in try/catch with Toast and `await refetch()`.
+
+**Toast pattern** — all tables now use:
+```ts
+import { useToast } from '../../../../components/toaster/ToasterContext';
+const { showToast } = useToast();
+
+// In try/catch:
+showToast({ type: 'success', message: 'Record updated.' });
+showToast({ type: 'error',   message: 'Failed to update record.' });
+```
+
+---
 
 ### Session 5 — CodeTableContext Full Migration + Programs Group (Current)
 
