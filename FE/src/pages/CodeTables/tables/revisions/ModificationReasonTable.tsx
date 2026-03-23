@@ -3,7 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Button } from '../../../../components/tailwindui/button';
 import { PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import type { ModificationCategoryReason } from '../../Model.d';
-import { fetchRevisionReasons } from '../../Service';
+import { useCodeTableContext } from '../../CodeTableContext';
 import ConfirmDialog from '../../dialogs/ConfirmDialog';
 import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
 
@@ -12,9 +12,9 @@ type StatusFilter = 'all' | 'active' | 'obsolete';
 interface EditForm { codeGroupId: number; codeDescription: string; sequenceNo: number; obsoleteFlag: number; }
 
 const ModificationReasonTable: React.FC = () => {
+  const { data: codeTableData, loading: isLoading } = useCodeTableContext();
   const [data, setData] = useState<ModificationCategoryReason[]>([]);
   const [filteredData, setFilteredData] = useState<ModificationCategoryReason[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [sortColumn, setSortColumn] = useState<number | null>(null);
@@ -27,14 +27,10 @@ const ModificationReasonTable: React.FC = () => {
   const itemsPerPage = 15;
 
   useEffect(() => {
-    fetchRevisionReasons()
-      .then(res => {
-        setData(res.Data);
-        setFilteredData(res.Data);
-      })
-      .catch(err => console.error('Error fetching modification reasons:', err))
-      .finally(() => setIsLoading(false));
-  }, []);
+    const reasons = (codeTableData?.Reasons ?? []) as ModificationCategoryReason[];
+    setData(reasons);
+    setFilteredData(reasons);
+  }, [codeTableData]);
 
   useEffect(() => {
     let filtered = data;

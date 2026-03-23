@@ -1,88 +1,39 @@
-﻿import React, { useState, useEffect } from 'react';
-import { getProjectEnums } from '../../../Project/Service';
-import type { ProjectEnums } from '../../../Project/Model.d';
-import { ArrowPathIcon } from '@heroicons/react/24/outline';
+﻿import React, { useState } from 'react';
 import { useCodeTableContext } from '../../CodeTableContext';
+import type { CodeTableData } from '../../Model.d';
 
 import CategoryTable           from './CategoryTable';
 import ThrustTable             from './ThrustTable';
 import OriginTable             from './OriginTable';
 import AgencyTable             from './AgencyTable';
-import ImplementationModeTable from './ImplementationModeTable';
-import EmergencyModeTable      from './EmergencyModeTable';
-import RowAvailableTable       from './RowAvailableTable';
-import FeasibilityTable        from './FeasibilityTable';
-import DetailedDesignTable     from './DetailedDesignTable';
-import RegionWideTable         from './RegionWideTable';
 
 // ── Tab configuration ────────────────────────────────────────────────────────
 interface TabDef {
   id: string;
   label: string;
-  enumKey: keyof ProjectEnums;
+  dataKey: keyof CodeTableData;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Component: React.ComponentType<{ data?: any[]; loading?: boolean }>;
 }
 
 const TABS: TabDef[] = [
-  { id: 'category',      label: 'Category',           enumKey: 'Categories',         Component: CategoryTable },
-  { id: 'thrust',        label: 'Thrust',             enumKey: 'Thrusts',            Component: ThrustTable },
-  { id: 'origin',        label: 'Origin',             enumKey: 'Origins',            Component: OriginTable },
-  { id: 'agency',        label: 'Agency',             enumKey: 'Agencies',           Component: AgencyTable },
-  { id: 'impl-mode',     label: 'Implementation Mode',enumKey: 'ImplementationModes',Component: ImplementationModeTable },
-  { id: 'emer-mode',     label: 'Emergency Mode',     enumKey: 'EmergencyModes',     Component: EmergencyModeTable },
-  { id: 'row-avail',     label: 'ROW Available',      enumKey: 'RowsAvailable',      Component: RowAvailableTable },
-  { id: 'feasibility',   label: 'Feasibility Study',  enumKey: 'Feasibility',        Component: FeasibilityTable },
-  { id: 'detail-design', label: 'Detailed Design',    enumKey: 'DetailedDesign',     Component: DetailedDesignTable },
-  { id: 'region-wide',   label: 'Region Wide',        enumKey: 'RegionWide',         Component: RegionWideTable },
+  { id: 'category', label: 'Category', dataKey: 'ProjectCategories', Component: CategoryTable },
+  { id: 'thrust',   label: 'Thrust',   dataKey: 'ProjectThrusts',    Component: ThrustTable },
+  { id: 'agency',   label: 'Agency',   dataKey: 'ProjectAgencies',   Component: AgencyTable },
+  { id: 'origin',   label: 'Origin',   dataKey: 'ProjectOrigins',    Component: OriginTable },
 ];
 
 // ── Component ────────────────────────────────────────────────────────────────
 const ProjectDetailsDropdowns: React.FC = () => {
-  const [enums, setEnums]       = useState<ProjectEnums | null>(null);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState<string | null>(null);
   const [activeId, setActiveId] = useState(TABS[0].id);
+  const { data: codeTableData, loading, error, refetch } = useCodeTableContext();
 
-  // CodeTable service data for Categories, Thrusts, Agencies, Origins
-  const { data: codeTableData, loading: ctLoading } = useCodeTableContext();
-
-  const fetchEnums = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await getProjectEnums();
-      if (res.Status === 200 && res.Data) setEnums(res.Data);
-      else setError(res.Message ?? 'Failed to load dropdown data.');
-    } catch {
-      setError('Network error – could not reach the server.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { fetchEnums(); }, []);
-
-  const activeTab = TABS.find(t => t.id === activeId) ?? TABS[0];
-
-  // Merge CodeTable service data over getProjectEnums data for the 4 specific tables
-  const resolvedEnums: ProjectEnums | null = enums
-    ? {
-        ...enums,
-        Categories: codeTableData?.ProjectCategories ?? enums.Categories,
-        Thrusts:    codeTableData?.ProjectThrusts    ?? enums.Thrusts,
-        Agencies:   codeTableData?.ProjectAgencies   ?? enums.Agencies,
-        Origins:    codeTableData?.ProjectOrigins    ?? enums.Origins,
-      }
-    : null;
-
+  const activeTab  = TABS.find(t => t.id === activeId) ?? TABS[0];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const activeData: any[] | undefined = resolvedEnums
-    ? (resolvedEnums[activeTab.enumKey] as any[] | undefined) ?? []
-    : undefined;
+  const activeData = codeTableData ? ((codeTableData[activeTab.dataKey] as any[]) ?? []) : undefined;
 
-  const countOf = (key: keyof ProjectEnums): number =>
-    resolvedEnums ? ((resolvedEnums[key] as unknown[])?.length ?? 0) : 0;
+  const countOf = (key: keyof CodeTableData): number =>
+    codeTableData ? ((codeTableData[key] as unknown[])?.length ?? 0) : 0;
 
   return (
     <div className="space-y-5">
@@ -92,21 +43,13 @@ const ProjectDetailsDropdowns: React.FC = () => {
           <h3 className="text-base font-semibold text-gray-900">Project Details Dropdowns</h3>
           <p className="text-sm text-gray-500 mt-0.5">Manage the dropdown values used in the Project Details form</p>
         </div>
-        <button
-          onClick={fetchEnums}
-          disabled={loading || ctLoading}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
-        >
-          <ArrowPathIcon className={`h-4 w-4 ${(loading || ctLoading) ? 'animate-spin' : ''}`} />
-          Refresh
-        </button>
       </div>
 
       {/* Error banner */}
       {error && (
         <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
           <span className="font-medium">Error:</span> {error}
-          <button onClick={fetchEnums} className="ml-auto text-red-600 underline hover:text-red-800">Retry</button>
+          <button onClick={refetch} className="ml-auto text-red-600 underline hover:text-red-800">Retry</button>
         </div>
       )}
 
@@ -114,7 +57,7 @@ const ProjectDetailsDropdowns: React.FC = () => {
       <div className="flex flex-wrap gap-1.5">
         {TABS.map(tab => {
           const isActive = tab.id === activeId;
-          const count    = countOf(tab.enumKey);
+          const count    = countOf(tab.dataKey);
           return (
             <button
               key={tab.id}
@@ -140,7 +83,7 @@ const ProjectDetailsDropdowns: React.FC = () => {
 
       {/* Active table component */}
       <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <activeTab.Component data={activeData} loading={loading || ctLoading} />
+        <activeTab.Component data={activeData} loading={loading} />
       </div>
     </div>
   );

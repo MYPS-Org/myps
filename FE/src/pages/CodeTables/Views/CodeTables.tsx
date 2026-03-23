@@ -6,19 +6,26 @@ import CostTypeTable from '../tables/componentCost/CostTypeTable';
 import WorkCategoryTable from '../tables/majorItemOfWorks/WorkCategoryTable';
 import TypeOfWorkTable from '../tables/majorItemOfWorks/TypeOfWorkTable';
 import InfraTypeTable from '../tables/majorItemLocation/InfraTypeTable';
+import FundingAgreementTable from '../tables/fundingProfile/FundingAgreementTable';
 import FundingSourceTable from '../tables/fundingProfile/FundingSourceTable';
-import ModificationCategoryTable from '../tables/revisions/ModificationCategoryTable';
+import RevisionCategoryTable from '../tables/revisions/RevisionCategoryTable';
+import RevisionHeaderTable from '../tables/revisions/RevisionHeaderTable';
+import RevisionDocumentTable from '../tables/revisions/RevisionDocumentTable';
 import ModificationReasonTable from '../tables/revisions/ModificationReasonTable';
-import ValidationDatesTable from '../tables/revisions/ValidationDatesTable';
+import RevisionStatusTable from '../tables/revisions/RevisionStatusTable';
 import RevisionFieldPermissionTable from '../tables/revisions/RevisionFieldPermissionTable';
+import ValidationDatesTable from '../tables/revisions/ValidationDatesTable';
+import ProgramStageTable from '../tables/program/ProgramStageTable';
+import ProgramTypeTable from '../tables/program/ProgramTypeTable';
+import ProgramStatusTable from '../tables/program/ProgramStatusTable';
 import { CodeTableProvider } from '../CodeTableContext';
 import {
   ClipboardDocumentListIcon,
   CubeIcon,
   WrenchScrewdriverIcon,
-  MapPinIcon,
   BanknotesIcon,
   ArrowPathIcon,
+  PresentationChartBarIcon,
 } from '@heroicons/react/24/outline';
 
 interface TableTab {
@@ -40,7 +47,7 @@ const GROUPS: GroupTab[] = [
     label: 'Project Details',
     icon: ClipboardDocumentListIcon,
     tables: [
-      { id: 'form-dropdowns',  label: 'Form Dropdowns',         component: ProjectDetailsDropdowns },
+      { id: 'form-dropdowns', label: 'Form Dropdowns', component: ProjectDetailsDropdowns },
     ],
   },
   {
@@ -52,20 +59,13 @@ const GROUPS: GroupTab[] = [
     ],
   },
   {
-    id: 'major-item-of-works',
-    label: 'Major Item of Works',
+    id: 'major-item',
+    label: 'Major Item',
     icon: WrenchScrewdriverIcon,
     tables: [
-      { id: 'work-category', label: 'Work Category', component: WorkCategoryTable },
-      { id: 'type-of-work',  label: 'Type of Work',  component: TypeOfWorkTable },
-    ],
-  },
-  {
-    id: 'major-item-locations',
-    label: 'Major Item Locations',
-    icon: MapPinIcon,
-    tables: [
-      { id: 'infra-type', label: 'Infrastructure Types', component: InfraTypeTable },
+      { id: 'work-category', label: 'Work Category',        component: WorkCategoryTable },
+      { id: 'type-of-work',  label: 'Type of Work',         component: TypeOfWorkTable },
+      { id: 'infra-type',    label: 'Infrastructure Types',  component: InfraTypeTable },
     ],
   },
   {
@@ -73,7 +73,8 @@ const GROUPS: GroupTab[] = [
     label: 'Funding Profile',
     icon: BanknotesIcon,
     tables: [
-      { id: 'funding-source', label: 'Funding Source', component: FundingSourceTable },
+      { id: 'funding-agreement', label: 'Funding Agreement', component: FundingAgreementTable },
+      { id: 'funding-source',    label: 'Funding Source',    component: FundingSourceTable },
     ],
   },
   {
@@ -81,13 +82,27 @@ const GROUPS: GroupTab[] = [
     label: 'Revisions',
     icon: ArrowPathIcon,
     tables: [
-      { id: 'mod-category',     label: 'Modification Category', component: ModificationCategoryTable },
-      { id: 'mod-reason',       label: 'Modification Reason',   component: ModificationReasonTable },
-      { id: 'validation-dates', label: 'Validation Dates',      component: ValidationDatesTable },
-      { id: 'field-permission', label: 'Field Permission',      component: RevisionFieldPermissionTable },
+      { id: 'rev-category',     label: 'Categories',      component: RevisionCategoryTable },
+      { id: 'rev-header',       label: 'Headers',         component: RevisionHeaderTable },
+      { id: 'rev-document',     label: 'Documents',       component: RevisionDocumentTable },
+      { id: 'rev-reason',       label: 'Reasons',         component: ModificationReasonTable },
+      { id: 'rev-status',       label: 'Statuses',        component: RevisionStatusTable },
+      { id: 'rev-rules',        label: 'Rules',           component: RevisionFieldPermissionTable },
+      { id: 'validation-dates', label: 'Validation Dates',component: ValidationDatesTable },
+    ],
+  },
+  {
+    id: 'programs',
+    label: 'Programs',
+    icon: PresentationChartBarIcon,
+    tables: [
+      { id: 'program-stage',  label: 'Program Stage',  component: ProgramStageTable },
+      { id: 'program-type',   label: 'Program Type',   component: ProgramTypeTable },
+      { id: 'program-status', label: 'Program Status', component: ProgramStatusTable },
     ],
   },
 ];
+
 
 const CodeTables: React.FC = () => {
   const [activeGroupId, setActiveGroupId] = useState(GROUPS[0].id);

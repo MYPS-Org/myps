@@ -3,7 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Button } from '../../../../components/tailwindui/button';
 import { PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import type { RevisionRules } from '../../Model.d';
-import { fetchRevisionRules } from '../../Service';
+import { useCodeTableContext } from '../../CodeTableContext';
 import ConfirmDialog from '../../dialogs/ConfirmDialog';
 import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
 
@@ -15,9 +15,9 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const RevisionFieldPermissionTable: React.FC = () => {
+  const { data: codeTableData, loading: isLoading } = useCodeTableContext();
   const [data, setData] = useState<RevisionRules[]>([]);
   const [filteredData, setFilteredData] = useState<RevisionRules[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [sortColumn, setSortColumn] = useState<number | null>(null);
@@ -30,14 +30,10 @@ const RevisionFieldPermissionTable: React.FC = () => {
   const itemsPerPage = 15;
 
   useEffect(() => {
-    fetchRevisionRules()
-      .then(res => {
-        setData(res.Data);
-        setFilteredData(res.Data);
-      })
-      .catch(err => console.error('Error fetching revision rules:', err))
-      .finally(() => setIsLoading(false));
-  }, []);
+    const rules = codeTableData?.RevisionRules ?? [];
+    setData(rules);
+    setFilteredData(rules);
+  }, [codeTableData]);
 
   const uniqueCategories = [...new Set(data.map(d => d.Category))].filter(Boolean);
 
