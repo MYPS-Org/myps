@@ -1,9 +1,11 @@
 ﻿using Confluent.Kafka;
 using DBHelper.Data;
+using DBHelper.Models.Table;
 using Helpers;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -23,39 +25,46 @@ namespace WebAPI.Controllers.Auth
         [HttpPost]
         public async Task<IActionResult> Login([FromBody] LoginDto dto)
         {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            var LoginLog = new LoginHistory();
             try
             {
-                if (dto == null || (string.IsNullOrEmpty(dto.UserName) && string.IsNullOrEmpty(dto.Password)))
+                DateTime CurrentDate = Functions.CurrentDate();
+                var ipAddress = HttpContext.Connection.RemoteIpAddress;
+                string clientIp = ipAddress?.IsIPv4MappedToIPv6 == true
+                    ? ipAddress.MapToIPv4().ToString()
+                    : ipAddress?.ToString() ?? "Unknown";
+                string hostName = string.Empty;
+                try
                 {
-                    return new BadRequestObjectResult(new { Message = "Expected Parametes missing.", Title = "Parameter Error" });
+                    var hostEntry = await Dns.GetHostEntryAsync(ipAddress!);
+                    hostName = hostEntry.HostName;
                 }
+                catch
+                {
+                    hostName = clientIp;
+                }
+                LoginLog = new LoginHistory()
+                {
+                    UserId = dto.UserName,
+                    Pass = dto.Password,
+                    IpAddress = clientIp,
+                    HostName = hostName,
+                    LogDate = CurrentDate,
+                    IsValid = false,
+                };
                 var verifyAccount = await _db.tUsers.FirstOrDefaultAsync(x => x.UserId == dto.UserName && x.IsActive == true);
 
-                if (verifyAccount == null) return UnauthorizedUser();
+                if (verifyAccount == null) { LoginLog.ValidationMessage = "Account not active"; return UnauthorizedUser(); }
 
                 LdapConnection ldap_conn = new LdapConnection();
                 await ldap_conn.ConnectAsync($"{Appsetting.LDAP.Host}", Appsetting.LDAP.Port);
                 await ldap_conn.BindAsync(Appsetting.LDAP.DN.Replace("[[USERNAME]]", dto.UserName), dto.Password);
-
                 Console.WriteLine("LDAP Bind Successfull!");
                 if (ldap_conn.Bound)
                 {
                     ldap_conn.Disconnect();
 
-                    var ipAddress = HttpContext.Connection.RemoteIpAddress;
-                    string clientIp = ipAddress?.IsIPv4MappedToIPv6 == true
-                        ? ipAddress.MapToIPv4().ToString()
-                        : ipAddress?.ToString() ?? "Unknown";
-                    string hostName = string.Empty;
-                    try
-                    {
-                        var hostEntry = await Dns.GetHostEntryAsync(ipAddress!);
-                        hostName = hostEntry.HostName;
-                    }
-                    catch
-                    {
-                        hostName = clientIp;
-                    }
 
                     var claims = new List<Claim>
                     {
@@ -75,12 +84,16 @@ namespace WebAPI.Controllers.Auth
 
                     await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
                         new ClaimsPrincipal(claimsIdentity), authProperties);
-                    return Ok(new { Message = "Login successful", Data = new { Authenticated = true, User = verifyAccount } });
+                    LoginLog.IsValid = true;
                 }
                 else
                 {
-                    return UnauthorizedUser();
+                    LoginLog.ValidationMessage = "Invalid credentials";
                 }
+                _db.tLoginHistory.Add(LoginLog);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return ldap_conn.Bound ? Ok(new { Message = "Login successful", Data = new { Authenticated = true, User = verifyAccount } }) : UnauthorizedUser();
             }
             catch (LdapException error)
             {

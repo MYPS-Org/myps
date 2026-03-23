@@ -27,4 +27,9 @@ namespace WebAPI.Controllers.CodeTable
         Update = 1,
         Delete = 2,
     }
+    public class GetTransactionLogDTO
+    {
+        [Required]
+        public string TableCode { get; set; } = string.Empty;
+    }
 }
