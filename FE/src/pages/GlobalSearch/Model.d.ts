@@ -13,10 +13,12 @@ export interface GlobalSearchRequest {
   SearchFor: string;
 }
 
+export interface CategoryOption {
+  Id: number;
+  CategoryName: string;
+}
+
 export interface GlobalSearchResponse {
-  TableKey: string;
-  ColumnField: string;
-  Value: string;
-  Total: number;
   Data: Record<string, unknown>[];
+  Title: string;
 }

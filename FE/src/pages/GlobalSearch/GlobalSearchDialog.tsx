@@ -3,9 +3,33 @@ import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { MagnifyingGlassIcon, XMarkIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../components/toaster/ToasterContext';
-import { globalSearch } from './Service';
-import { SEARCH_FIELD_CONFIG } from './config';
-import type { GlobalSearchResponse } from './Model';
+import { globalSearch, fetchCategory } from './Service';
+import type { CategoryOption, GlobalSearchResponse } from './Model';
+
+/**
+ * Maps a CategoryName to a function that builds a navigation URL from a result row.
+ * Categories without navigation return null.
+ */
+const CATEGORY_NAV: Record<string, (row: Record<string, unknown>) => string | null> = {
+  'Project ID': (row) =>
+    row['ProjectId'] && row['StageName']
+      ? `/projects/project-details/${row['ProjectId']}:${row['StageName']}`
+      : null,
+  'Alternate ID': (row) =>
+    row['ProjectId'] && row['StageName']
+      ? `/projects/project-details/${row['ProjectId']}:${row['StageName']}`
+      : null,
+  'Description': (row) =>
+    row['ProjectId'] && row['StageName']
+      ? `/projects/project-details/${row['ProjectId']}:${row['StageName']}`
+      : null,
+  'UACS': (row) =>
+    row['ProjectId'] && row['StageName']
+      ? `/projects/project-details/${row['ProjectId']}:${row['StageName']}`
+      : null,
+  'Program Name': (row) =>
+    row['ProgramId'] ? `/programs/programdetails/${row['ProgramId']}` : null,
+};
 
 interface GlobalSearchDialogProps {
   isOpen: boolean;
@@ -16,49 +40,53 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({ isOpen, onClose
   const navigate = useNavigate();
   const { showToast } = useToast();
 
-  const [selectedFieldKey, setSelectedFieldKey] = useState<string>('');
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | ''>('');
   const [searchValue, setSearchValue] = useState<string>('');
   const [result, setResult] = useState<GlobalSearchResponse | null>(null);
   const [isSearching, setIsSearching] = useState(false);
 
-  // Reset state when dialog closes
+  // Fetch categories when dialog opens; reset state on close
   useEffect(() => {
-    if (!isOpen) {
-      setSelectedFieldKey('');
+    if (isOpen) {
+      setIsLoadingCategories(true);
+      fetchCategory()
+        .then((res) => {
+          const data = res.Data as { CategoryList?: CategoryOption[] };
+          setCategories(data?.CategoryList ?? []);
+        })
+        .catch(() => {
+          showToast({ type: 'error', message: 'Failed to load search categories.' });
+        })
+        .finally(() => setIsLoadingCategories(false));
+    } else {
+      setSelectedCategoryId('');
       setSearchValue('');
       setResult(null);
+      setCategories([]);
     }
   }, [isOpen]);
 
-  // Clear results when search field changes
+  // Clear results when category changes
   useEffect(() => {
     setResult(null);
     setSearchValue('');
-  }, [selectedFieldKey]);
+  }, [selectedCategoryId]);
 
-  const activeFieldConfig = SEARCH_FIELD_CONFIG.find((f) => f.key === selectedFieldKey) ?? null;
+  const selectedCategory = categories.find((c) => c.Id === selectedCategoryId) ?? null;
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeFieldConfig || !searchValue.trim()) {
-      showToast({ type: 'warning', message: 'Please select a search field and enter a value.' });
+    if (!selectedCategory || !searchValue.trim()) {
+      showToast({ type: 'warning', message: 'Please select a search category and enter a value.' });
       return;
     }
     setIsSearching(true);
     try {
-      const res = await globalSearch(activeFieldConfig.tableKey, searchValue.trim());
+      const res = await globalSearch(selectedCategory.CategoryName, searchValue.trim());
       const data = (res.Data as GlobalSearchResponse) ?? null;
       setResult(data);
-
-      // Auto-navigate if exactly one result has a navigation link
-      if (data && data.Total === 1 && activeFieldConfig.getLink) {
-        const link = activeFieldConfig.getLink(data.Data[0]);
-        if (link) {
-          onClose();
-          navigate(link);
-          return;
-        }
-      }
     } catch {
       showToast({ type: 'error', message: 'Search failed. Please try again.' });
     } finally {
@@ -71,8 +99,11 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({ isOpen, onClose
     navigate(url);
   };
 
-  const resultColumns = activeFieldConfig?.resultColumns ?? [];
-  const getLink = activeFieldConfig?.getLink ?? null;
+  // Derive columns dynamically from the first result row
+  const dynamicColumns = result?.Data?.length ? Object.keys(result.Data[0]) : [];
+
+  // Get the nav builder for the currently selected category (null = no navigation)
+  const getLink = selectedCategory ? (CATEGORY_NAV[selectedCategory.CategoryName] ?? null) : null;
 
   return (
     <Dialog open={isOpen} onClose={onClose} className="relative z-50">
@@ -104,20 +135,21 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({ isOpen, onClose
           {/* Search Form */}
           <form onSubmit={handleSearch} className="px-6 py-4 border-b border-zinc-200 shrink-0">
             <div className="flex flex-col sm:flex-row gap-3">
-              {/* Search By dropdown */}
+              {/* Category dropdown */}
               <div className="w-full sm:w-56 shrink-0">
                 <label className="block text-xs font-medium text-zinc-500 mb-1">
                   Search By
                 </label>
                 <select
-                  value={selectedFieldKey}
-                  onChange={(e) => setSelectedFieldKey(e.target.value)}
-                  className="w-full rounded-lg border border-zinc-300 bg-white text-zinc-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={selectedCategoryId}
+                  onChange={(e) => setSelectedCategoryId(e.target.value ? Number(e.target.value) : '')}
+                  disabled={isLoadingCategories}
+                  className="w-full rounded-lg border border-zinc-300 bg-white text-zinc-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <option value="">Select field…</option>
-                  {SEARCH_FIELD_CONFIG.map((f) => (
-                    <option key={f.key} value={f.key}>
-                      {f.label}
+                  <option value="">{isLoadingCategories ? 'Loading…' : 'Select category…'}</option>
+                  {categories.map((c) => (
+                    <option key={c.Id} value={c.Id}>
+                      {c.CategoryName}
                     </option>
                   ))}
                 </select>
@@ -132,8 +164,8 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({ isOpen, onClose
                   type="text"
                   value={searchValue}
                   onChange={(e) => setSearchValue(e.target.value)}
-                  placeholder={activeFieldConfig?.placeholder ?? 'Enter search value…'}
-                  disabled={!activeFieldConfig}
+                  placeholder="Enter search value…"
+                  disabled={!selectedCategory}
                   className="w-full rounded-lg border border-zinc-300 bg-white text-zinc-800 text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
@@ -142,7 +174,7 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({ isOpen, onClose
               <div className="flex items-end">
                 <button
                   type="submit"
-                  disabled={isSearching || !activeFieldConfig || !searchValue.trim()}
+                  disabled={isSearching || !selectedCategory || !searchValue.trim()}
                   className="flex items-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 transition-colors whitespace-nowrap"
                 >
                   <MagnifyingGlassIcon className="w-4 h-4" />
@@ -157,30 +189,26 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({ isOpen, onClose
             {result === null && !isSearching && (
               <div className="flex flex-col items-center justify-center h-40 text-zinc-400 gap-2">
                 <MagnifyingGlassIcon className="w-10 h-10 opacity-30" />
-                <p className="text-sm">Select a field and enter a value to search.</p>
+                <p className="text-sm">Select a category and enter a value to search.</p>
               </div>
             )}
 
-            {result !== null && result.Total === 0 && (
+            {result !== null && result.Data.length === 0 && (
               <div className="flex flex-col items-center justify-center h-40 text-zinc-400 gap-2">
                 <p className="text-sm font-medium">No results found</p>
                 <p className="text-xs">
-                  No records found where{' '}
-                  <span className="font-semibold">{activeFieldConfig?.label}</span>{' '}
-                  contains &ldquo;{result.Value}&rdquo;.
+                  No records found for{' '}
+                  <span className="font-semibold">{selectedCategory?.CategoryName}</span>.
                 </p>
               </div>
             )}
 
-            {result !== null && result.Total > 0 && (
+            {result !== null && result.Data.length > 0 && (
               <>
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-xs text-zinc-500">
-                    Showing <span className="font-semibold text-zinc-700">{result.Total}</span>{' '}
-                    result{result.Total !== 1 ? 's' : ''} for{' '}
-                    <span className="font-semibold">{activeFieldConfig?.label}</span>{' '}
-                    containing &ldquo;{result.Value}&rdquo;
-                    {result.Total === 50 && (
+                    {result.Title}
+                    {result.Data.length === 50 && (
                       <span className="ml-1 text-amber-600">(capped at 50 — refine your search)</span>
                     )}
                   </p>
@@ -190,12 +218,12 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({ isOpen, onClose
                   <table className="min-w-full divide-y divide-zinc-200 text-sm">
                     <thead className="bg-zinc-50">
                       <tr>
-                        {resultColumns.map((col) => (
+                        {dynamicColumns.map((col) => (
                           <th
-                            key={col.field}
+                            key={col}
                             className="px-4 py-2.5 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wider whitespace-nowrap"
                           >
-                            {col.label}
+                            {col}
                           </th>
                         ))}
                         {getLink && (
@@ -209,17 +237,14 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({ isOpen, onClose
                       {result.Data.map((row, idx) => {
                         const link = getLink?.(row) ?? null;
                         return (
-                          <tr
-                            key={idx}
-                            className="hover:bg-zinc-50 transition-colors"
-                          >
-                            {resultColumns.map((col) => (
+                          <tr key={idx} className="hover:bg-zinc-50 transition-colors">
+                            {dynamicColumns.map((col) => (
                               <td
-                                key={col.field}
+                                key={col}
                                 className="px-4 py-2.5 text-zinc-700 whitespace-nowrap max-w-[240px] truncate"
-                                title={String(row[col.field] ?? '')}
+                                title={String(row[col] ?? '')}
                               >
-                                {String(row[col.field] ?? '—')}
+                                {String(row[col] ?? '—')}
                               </td>
                             ))}
                             {getLink && (

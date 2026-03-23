@@ -7,17 +7,18 @@
 
 ## Architecture Overview
 
-### Approach: Config-Driven, Whitelist-Secured
+### Approach: Backend-Driven Categories, Whitelist-Secured
 
-The search is configured entirely through two in-sync files:
+The search is driven by the backend for category options, with the controller enforcing security:
 
 | File | Role |
 |------|------|
-| `WebAPI/Controllers/GlobalSearch/GlobalSearchController.cs` | Whitelist of allowed tables + columns, search endpoint |
-| `FE/src/pages/GlobalSearch/config.ts` | Flat list of searchable fields — each carries its own `tableKey`, `columnField`, result columns, and nav link |
+| `WebAPI/Controllers/GlobalSearch/GlobalSearchController.cs` | `GetSearchCategory` endpoint returning `CategoryOption[]`; `Search` endpoint; whitelist of allowed tables/columns |
+| `FE/src/pages/GlobalSearch/Model.d.ts` | TypeScript interfaces — `CategoryOption` (`Id`, `CategoryName`), `GlobalSearchResponse` |
+| `FE/src/pages/GlobalSearch/Service.ts` | `fetchCategory()` — loads `CategoryOption[]` from backend; `globalSearch(Category, SearchFor)` — executes search |
 
-**Why flat field config?**  
-The client wants a simple "Search By" experience — a single dropdown listing specific fields (e.g. "Project ID", "UACS", "Bridge") rather than a SQL-like Table → Column two-step. Each entry in `SEARCH_FIELD_CONFIG` encapsulates everything needed for one searchable field, keeping the UI and backend calls simple.
+**Why backend-driven categories?**  
+The "Search By" dropdown is populated by calling `GetSearchCategory` when the dialog opens, returning `CategoryOption[]` from the server. This means categories can be managed server-side without frontend deploys. Result columns are derived dynamically from the API response data. Navigation links are resolved client-side via the `CATEGORY_NAV` map in `GlobalSearchDialog.tsx`.
 
 ---
 
@@ -26,14 +27,16 @@ The client wants a simple "Search By" experience — a single dropdown listing s
 ```
 Click 🔍 in navbar
   → GlobalSearchDialog opens (modal overlay)
-    → Select a field from "Search By" dropdown (e.g. "Project ID", "UACS", "Bridge")
-      → Enter search value (placeholder updates to show an example)
-        → Click Search
-          → Results table appears with View buttons
-            → Click View → navigates to detail page & dialog closes
+    → fetchCategory() called → "Search By" dropdown populated from backend CategoryOption[]
+      → Select a category (e.g. "Project ID", "UACS", "Bridge")
+        → Enter search value
+          → Click Search
+            → Results table appears with columns derived dynamically from response data
+              → Click View → navigates to the detail page & dialog closes (for navigable categories)
 ```
 
-> No API call is made to populate the dropdown — fields are hardcoded in `config.ts`.
+> The dropdown is populated via `fetchCategory()` on dialog open — categories come from the backend, not a hardcoded config.  
+> Navigation URLs are resolved by `CATEGORY_NAV` in `GlobalSearchDialog.tsx` using `ProjectId:StageName` for project categories.
 
 ---
 
@@ -46,7 +49,8 @@ Click 🔍 in navbar
 
 | Method | Route | Body | Returns |
 |--------|-------|------|---------|
-| POST | `/api/GlobalSearch/Search` | `{ TableKey, ColumnField, Value }` | `{ Total, Data[] }` |
+| POST | `/api/GlobalSearch/GetSearchCategory` | *(empty)* | `CategoryOption[]` (`Id`, `CategoryName`) |
+| POST | `/api/GlobalSearch/Search` | `{ Category, SearchFor }` | `{ Total, Data[] }` |
 
 > `GetTables` and `GetColumns` endpoints are no longer called by the frontend. They may remain on the backend or be removed.
 
@@ -64,10 +68,9 @@ Click 🔍 in navbar
 
 | File | Purpose |
 |------|---------|
-| `FE/src/pages/GlobalSearch/Model.d.ts` | TypeScript interfaces (`GlobalSearchRequest`, `GlobalSearchResponse`) |
-| `FE/src/pages/GlobalSearch/Service.ts` | `globalSearch(req)` — posts to `/api/GlobalSearch/Search` |
-| `FE/src/pages/GlobalSearch/config.ts` | `SEARCH_FIELD_CONFIG` — flat array of `SearchFieldConfig` entries |
-| `FE/src/components/GlobalSearch/GlobalSearchDialog.tsx` | The dialog UI — single "Search By" dropdown |
+| `FE/src/pages/GlobalSearch/Model.d.ts` | TypeScript interfaces — `CategoryOption`, `GlobalSearchResponse` |
+| `FE/src/pages/GlobalSearch/Service.ts` | `fetchCategory()` — loads categories; `globalSearch(Category, SearchFor)` — executes search |
+| `FE/src/components/GlobalSearch/GlobalSearchDialog.tsx` | The dialog UI — dropdown from `CategoryOption[]`; result columns dynamic; `CATEGORY_NAV` map resolves View links |
 
 ### Files Modified
 
@@ -88,6 +91,25 @@ interface SearchFieldConfig {
   getLink: ((row: Record<string, unknown>) => string | null) | null;
 }
 ```
+
+---
+
+## Navigation Config (`CATEGORY_NAV`)
+
+Defined in `GlobalSearchDialog.tsx`. Maps `CategoryName` → a function that builds a URL from a result row. Categories not listed here show no View button.
+
+| Category Name | URL Pattern |
+|---------------|-------------|
+| Project ID | `/projects/project-details/{ProjectId}:{StageName}` |
+| Alternate ID | `/projects/project-details/{ProjectId}:{StageName}` |
+| Description | `/projects/project-details/{ProjectId}:{StageName}` |
+| UACS | `/projects/project-details/{ProjectId}:{StageName}` |
+| Program Name | `/programs/programdetails/{ProgramId}` |
+| Roads | *(no link — pending)* |
+| Road Sections | *(no link — pending)* |
+| Bridge | *(no link — pending)* |
+
+To add navigation for a new category, add an entry to `CATEGORY_NAV` in `GlobalSearchDialog.tsx`.
 
 ---
 
@@ -169,3 +191,5 @@ That's all. No other files need to change.
 |------|--------|--------|
 | 2026-03-16 | Copilot | Initial implementation: backend controller, frontend config/service/dialog, navbar wired up |
 | 2026-03-21 | Copilot | Revamped UI — replaced Table + Column dropdowns with single "Search By" dropdown; switched from `SEARCH_TABLE_CONFIG` to flat `SEARCH_FIELD_CONFIG`; removed `getSearchColumns` API call; added fields: Project ID, Alternate ID, Description, UACS, Program Name, Roads, Road Section, Bridge |
+| 2026-03-24 | Copilot | Switched dropdown from hardcoded `SEARCH_FIELD_CONFIG` to backend-driven `CategoryOption[]` via `fetchCategory()`; result columns now derived dynamically from API response; updated `Service.ts` type annotation to `CategoryOption[]`; removed config-driven `resultColumns` and `getLink` |
+| 2026-03-24 | Copilot | Added `CATEGORY_NAV` map in `GlobalSearchDialog.tsx`; project categories (Project ID, Alternate ID, Description, UACS) navigate to `/projects/project-details/{ProjectId}:{StageName}`; Program Name navigates to `/programs/programdetails/{ProgramId}`; View button shown per row only when link resolves |
