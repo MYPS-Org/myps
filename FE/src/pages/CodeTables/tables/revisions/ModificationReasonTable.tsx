@@ -7,21 +7,18 @@ import { useCodeTableContext } from '../../CodeTableContext';
 import ConfirmDialog from '../../dialogs/ConfirmDialog';
 import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
 
-type StatusFilter = 'all' | 'active' | 'obsolete';
-
-interface EditForm { codeGroupId: number; codeDescription: string; sequenceNo: number; obsoleteFlag: number; }
+interface EditForm { Reason: string; RevisionGroupId: number; ReasonId: number; IsDeleted: boolean; }
 
 const ModificationReasonTable: React.FC = () => {
   const { data: codeTableData, loading: isLoading } = useCodeTableContext();
   const [data, setData] = useState<ModificationCategoryReason[]>([]);
   const [filteredData, setFilteredData] = useState<ModificationCategoryReason[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [sortColumn, setSortColumn] = useState<number | null>(null);
   const [sortDirection, setSortDirection] = useState<0 | 1 | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [editId, setEditId] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState<EditForm>({ codeGroupId: 0, codeDescription: '', sequenceNo: 0, obsoleteFlag: 0 });
+  const [editForm, setEditForm] = useState<EditForm>({ Reason: '', RevisionGroupId: 0, ReasonId: 0, IsDeleted: false });
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const confirm = useConfirmDialog();
   const itemsPerPage = 15;
@@ -37,23 +34,20 @@ const ModificationReasonTable: React.FC = () => {
     if (searchTerm) {
       const lower = searchTerm.toLowerCase();
       filtered = filtered.filter(d =>
-        d.codeDescription.toLowerCase().includes(lower) ||
-        String(d.codeGroupId).includes(lower)
+        d.Reason.toLowerCase().includes(lower) ||
+        String(d.RevisionGroupId).includes(lower) ||
+        String(d.ReasonId).includes(lower)
       );
-    }
-    if (statusFilter !== 'all') {
-      const flag = statusFilter === 'active' ? 0 : 1;
-      filtered = filtered.filter(d => d.obsoleteFlag === flag);
     }
     if (sortColumn !== null && sortDirection !== null) {
       filtered = [...filtered].sort((a, b) => {
         let aVal: string | number;
         let bVal: string | number;
         switch (sortColumn) {
-          case 0: aVal = a.id; bVal = b.id; break;
-          case 1: aVal = a.codeGroupId; bVal = b.codeGroupId; break;
-          case 2: aVal = a.codeDescription.toLowerCase(); bVal = b.codeDescription.toLowerCase(); break;
-          case 3: aVal = a.sequenceNo; bVal = b.sequenceNo; break;
+          case 0: aVal = a.Id; bVal = b.Id; break;
+          case 1: aVal = a.RevisionGroupId; bVal = b.RevisionGroupId; break;
+          case 2: aVal = a.ReasonId; bVal = b.ReasonId; break;
+          case 3: aVal = a.Reason.toLowerCase(); bVal = b.Reason.toLowerCase(); break;
           default: return 0;
         }
         if (aVal < bVal) return sortDirection === 0 ? -1 : 1;
@@ -63,7 +57,7 @@ const ModificationReasonTable: React.FC = () => {
     }
     setFilteredData(filtered);
     setCurrentPage(1);
-  }, [data, searchTerm, statusFilter, sortColumn, sortDirection]);
+  }, [data, searchTerm, sortColumn, sortDirection]);
 
   const handleSort = useCallback((col: number) => {
     if (sortColumn === col) {
@@ -75,36 +69,34 @@ const ModificationReasonTable: React.FC = () => {
   }, [sortColumn]);
 
   const startEdit = (item: ModificationCategoryReason) => {
-    setEditId(item.id);
-    setEditForm({ codeGroupId: item.codeGroupId, codeDescription: item.codeDescription, sequenceNo: item.sequenceNo, obsoleteFlag: item.obsoleteFlag });
+    setEditId(item.Id);
+    setEditForm({ Reason: item.Reason, RevisionGroupId: item.RevisionGroupId, ReasonId: item.ReasonId, IsDeleted: item.IsDeleted });
     setDeleteConfirmId(null);
   };
   const cancelEdit = () => setEditId(null);
   const saveEdit = () => {
-    setData(prev => prev.map(r => r.id === editId ? { ...r, ...editForm } : r));
-    // TODO: PATCH /codetable/modificationreasons/{editId}
+    setData(prev => prev.map(r => r.Id === editId ? { ...r, ...editForm } : r));
     cancelEdit();
   };
   const confirmDelete = (id: number) => {
-    setData(prev => prev.filter(r => r.id !== id));
-    // TODO: DELETE /codetable/modificationreasons/{id}
+    setData(prev => prev.filter(r => r.Id !== id));
     setDeleteConfirmId(null);
   };
   const requestEdit = () => {
     confirm.request({
       mode: 'edit',
-      tableName: 'Modification Reason',
+      tableName: 'Revision Reason',
       fields: [
-        { label: 'Group ID',    value: editForm.codeGroupId,    mono: true },
-        { label: 'Description', value: editForm.codeDescription },
-        { label: 'Seq No',      value: editForm.sequenceNo },
-        { label: 'Status',      value: editForm.obsoleteFlag === 0 ? 'Active' : 'Obsolete' },
+        { label: 'Group ID',   value: editForm.RevisionGroupId, mono: true },
+        { label: 'Reason ID',  value: editForm.ReasonId,        mono: true },
+        { label: 'Reason',     value: editForm.Reason },
+        { label: 'Status',     value: editForm.IsDeleted ? 'Deleted' : 'Active' },
       ],
       onConfirm: () => { saveEdit(); confirm.close(); },
     });
   };
 
-  const inp = (v: 'edit', extra = 'w-full') =>
+  const inp = (extra = 'w-full') =>
     `${extra} px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 resize-none border-amber-300 focus:ring-amber-500`;
 
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
@@ -142,17 +134,6 @@ const ModificationReasonTable: React.FC = () => {
               className="pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent w-52"
             />
           </div>
-          <div className="flex rounded-lg border border-gray-300 overflow-hidden text-sm">
-            {(['all', 'active', 'obsolete'] as StatusFilter[]).map(s => (
-              <button
-                key={s}
-                onClick={() => setStatusFilter(s)}
-                className={`px-3 py-2 capitalize transition-colors ${statusFilter === s ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
           <Button color="indigo" className="flex items-center gap-1 text-sm">
             <PlusIcon className="h-4 w-4" /> Add Reason
           </Button>
@@ -165,8 +146,8 @@ const ModificationReasonTable: React.FC = () => {
             <TableRow>
               <TableHeader className="w-12 cursor-pointer hover:bg-gray-100" onClick={() => handleSort(0)}>ID</TableHeader>
               <TableHeader className="w-28 cursor-pointer hover:bg-gray-100" onClick={() => handleSort(1)}>Group ID</TableHeader>
-              <TableHeader className="cursor-pointer hover:bg-gray-100" onClick={() => handleSort(2)}>Description</TableHeader>
-              <TableHeader className="w-24 text-center cursor-pointer hover:bg-gray-100" onClick={() => handleSort(3)}>Seq No</TableHeader>
+              <TableHeader className="w-24 cursor-pointer hover:bg-gray-100" onClick={() => handleSort(2)}>Reason ID</TableHeader>
+              <TableHeader className="cursor-pointer hover:bg-gray-100" onClick={() => handleSort(3)}>Reason</TableHeader>
               <TableHeader className="w-24 text-center">Status</TableHeader>
               <TableHeader className="w-24">Actions</TableHeader>
             </TableRow>
@@ -178,17 +159,17 @@ const ModificationReasonTable: React.FC = () => {
               </TableRow>
             ) : (
               pageData.map(item => (
-                <TableRow key={item.id} className={editId === item.id ? 'bg-amber-50 border-l-4 border-amber-400' : undefined}>
-                  <TableCell className="font-mono text-xs text-gray-500">{item.id}</TableCell>
-                  {editId === item.id ? (
+                <TableRow key={item.Id} className={editId === item.Id ? 'bg-amber-50 border-l-4 border-amber-400' : undefined}>
+                  <TableCell className="font-mono text-xs text-gray-500">{item.Id}</TableCell>
+                  {editId === item.Id ? (
                     <>
-                      <TableCell><input autoFocus type="number" value={editForm.codeGroupId} onChange={e => setEditForm(f => ({ ...f, codeGroupId: +e.target.value }))} className={inp('edit', 'w-20')} /></TableCell>
-                      <TableCell><textarea value={editForm.codeDescription} onChange={e => setEditForm(f => ({ ...f, codeDescription: e.target.value }))} rows={3} className={inp('edit')} /></TableCell>
-                      <TableCell className="text-center"><input type="number" value={editForm.sequenceNo} onChange={e => setEditForm(f => ({ ...f, sequenceNo: +e.target.value }))} className={inp('edit', 'w-16')} /></TableCell>
+                      <TableCell><input autoFocus type="number" value={editForm.RevisionGroupId} onChange={e => setEditForm(f => ({ ...f, RevisionGroupId: +e.target.value }))} className={inp('w-20')} /></TableCell>
+                      <TableCell><input type="number" value={editForm.ReasonId} onChange={e => setEditForm(f => ({ ...f, ReasonId: +e.target.value }))} className={inp('w-20')} /></TableCell>
+                      <TableCell><textarea value={editForm.Reason} onChange={e => setEditForm(f => ({ ...f, Reason: e.target.value }))} rows={3} className={inp()} /></TableCell>
                       <TableCell>
-                        <select value={editForm.obsoleteFlag} onChange={e => setEditForm(f => ({ ...f, obsoleteFlag: +e.target.value }))} className={inp('edit')}>
-                          <option value={0}>Active</option>
-                          <option value={1}>Obsolete</option>
+                        <select value={editForm.IsDeleted ? '1' : '0'} onChange={e => setEditForm(f => ({ ...f, IsDeleted: e.target.value === '1' }))} className={inp()}>
+                          <option value="0">Active</option>
+                          <option value="1">Deleted</option>
                         </select>
                       </TableCell>
                       <TableCell>
@@ -201,30 +182,30 @@ const ModificationReasonTable: React.FC = () => {
                   ) : (
                     <>
                       <TableCell>
-                        <span className="font-mono text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded">{item.codeGroupId}</span>
+                        <span className="font-mono text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded">{item.RevisionGroupId}</span>
                       </TableCell>
-                      <TableCell className="text-sm text-gray-900 max-w-xs truncate" title={item.codeDescription}>{item.codeDescription}</TableCell>
-                      <TableCell className="text-center text-sm text-gray-600">{item.sequenceNo}</TableCell>
+                      <TableCell className="font-mono text-xs text-gray-500">{item.ReasonId}</TableCell>
+                      <TableCell className="text-sm text-gray-900" title={item.Reason}>{item.Reason}</TableCell>
                       <TableCell className="text-center">
                         <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full border ${
-                          item.obsoleteFlag === 0
+                          !item.IsDeleted
                             ? 'bg-green-50 text-green-700 border-green-200'
                             : 'bg-red-50 text-red-600 border-red-200'
                         }`}>
-                          {item.obsoleteFlag === 0 ? 'Active' : 'Obsolete'}
+                          {item.IsDeleted ? 'Deleted' : 'Active'}
                         </span>
                       </TableCell>
                       <TableCell>
-                        {deleteConfirmId === item.id ? (
+                        {deleteConfirmId === item.Id ? (
                           <div className="flex items-center gap-1">
                             <span className="text-xs text-red-600">Delete?</span>
-                            <Button color="red" className="px-2 py-1 text-xs" onClick={() => confirmDelete(item.id)}>Yes</Button>
+                            <Button color="red" className="px-2 py-1 text-xs" onClick={() => confirmDelete(item.Id)}>Yes</Button>
                             <Button color="zinc" className="px-2 py-1 text-xs" onClick={() => setDeleteConfirmId(null)}>No</Button>
                           </div>
                         ) : (
                           <div className="flex gap-1.5">
                             <Button color="zinc" className="p-1.5" onClick={() => startEdit(item)}><PencilIcon className="h-3.5 w-3.5" /></Button>
-                            <Button color="red" className="p-1.5" onClick={() => setDeleteConfirmId(item.id)}><TrashIcon className="h-3.5 w-3.5" /></Button>
+                            <Button color="red" className="p-1.5" onClick={() => setDeleteConfirmId(item.Id)}><TrashIcon className="h-3.5 w-3.5" /></Button>
                           </div>
                         )}
                       </TableCell>

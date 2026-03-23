@@ -2,11 +2,12 @@ import { ProjectEnums, Dropdowns } from "../Project/Model.d"
 import type { CategoryEnum, ThrustEnum, AgencyEnum, TableEnum, InfraTypeEnum, ComponentTypeEnum, ScopeOfWorkEnum, SourceEnum, AgreementEnum } from '../Project/Model.d';
 
 export interface ModificationCategoryReason {
-    id: number;
-    codeGroupId: string;
-    codeDescription: string;
-    sequenceNo: number;
-    obsoleteFlag: number;
+    Id: number;
+    Reason: string;
+    RevisionGroupId: number;
+    ReasonId: number;
+    CategoryId: number[];
+    IsDeleted: boolean;
 }
 
 export interface RevisionFieldPermission {
@@ -81,10 +82,11 @@ export interface RevisionFieldPermission {
 
 export interface RevisionRules {
     Id: number;
-    Category: string;
     Reason: string;
-    PCMAStatus: string;
-    PackageStatus: string;
+    RevisionGroupId: number;
+    ReasonId: number;
+    PCMA_Status: string;
+    Package_Status: string;
     Field: string;
 }
 
