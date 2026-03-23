@@ -410,7 +410,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                         {(editable) => (
                                         <SearchableDropdown
                                             options={formatDropdownOptions(
-                                                projectEnums?.Categories?.filter(x => x.ValidUntil === 0 || x.ValidUntil > new Date().getFullYear()) || [], 
+                                                projectEnums?.Categories?.filter(x => x.ValidUntil === 0 || x.ValidUntil >= new Date().getFullYear()) || [], 
                                                 'CategoryId', 
                                                 'CategoryName', 
                                                 'Id'
