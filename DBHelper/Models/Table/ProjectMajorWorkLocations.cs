@@ -17,6 +17,9 @@ namespace DBHelper.Models.Table
         [MaxLength(100)]
         public string ParentId { get; set; } = string.Empty;
         [Required]
+        [MaxLength(10)]
+        public string StageName { get; set; } = string.Empty;
+        [Required]
         [MaxLength(50)]
         public string InfraId { get; set; } = string.Empty;
         public string? DetailedScope { get; set; }
