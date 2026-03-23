@@ -89,7 +89,81 @@ namespace WebAPI.Controllers.CodeTable
                 return ExceptionHandler(ex);
             }
         }
-
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> GetTransactionLog([FromBody] GetTransactionLogDTO dto)
+        {
+            try
+            {
+                string AffectedTable = string.Empty;
+                switch(dto.TableCode)
+                {
+                    case "ProgramStage":
+                        AffectedTable = "tOptionProgramStage";
+                    break;
+                    case "ProgramStatus":
+                        AffectedTable = "tOptionProgramStatus";
+                        break;
+                    case "ProgramType":
+                        AffectedTable = "tOptionProgramType";
+                    break;
+                    case "ProjectCategory":
+                        AffectedTable = "tOptionProjectCategory";
+                    break;
+                    case "ProjectThrust":
+                        AffectedTable = "tOptionProjectCategory";
+                    break;
+                    case "ProjectAgency":
+                        AffectedTable = "tOptionProjectAgency";
+                    break;
+                    case "ProjectOrigin":
+                        AffectedTable = "tOptionProjectOrigin";
+                    break;
+                    case "FundingAgreement":
+                        AffectedTable = "tOptionFundingAgreement";
+                    break;
+                    case "FundingSource":
+                        AffectedTable = "tOptionFundingSource";
+                    break;
+                    case "ProjectScopeOfWork":
+                        AffectedTable = "tOptionScopeOfWork";
+                    break;
+                    case "ProjectInfraType":
+                        AffectedTable = "tOptionInfraType";
+                    break;
+                    case "ProjectComponent":
+                        AffectedTable = "tOptionProjectComponent";
+                    break;
+                    case "RevisionHeader":
+                        AffectedTable = "tOptionRevisionHeader";
+                    break;
+                    case "RevisionCategory":
+                        AffectedTable = "tOptionRevisionCategory";
+                    break;
+                    case "RevisionReasons":
+                        AffectedTable = "tOptionRevisionReasons";
+                    break;
+                    case "RevisionRules":
+                        AffectedTable = "tRevisionRules";
+                    break;
+                    case "RevisionDocuments":
+                        AffectedTable = "tOptionRevisionDocuments";
+                    break;
+                    case "RevisionStatus":
+                        AffectedTable = "tOptionRevisionStatus";
+                    break;
+                }
+                var CodeTableLists = await _db.tCodeTableTransactionLog.Where(x => x.AffectedTable == AffectedTable).ToListAsync();
+                return Ok(new
+                {
+                    Logs = CodeTableLists,
+                });
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
         [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> UpdateCodeTable([FromBody] UpdateCodeTableDTO dto)
@@ -179,13 +253,6 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = CheckUpdate.Name;
                             CheckUpdate.Name = data.Name;
                         }
-                        if (CheckUpdate.NameId != data.NameId)
-                        {
-                            transactionLog.AffectedColumn = "NameId";
-                            transactionLog.NewValue = data.NameId.ToString();
-                            transactionLog.OldValue = CheckUpdate.NameId.ToString();
-                            CheckUpdate.NameId = data.NameId;
-                        }
                         if (CheckUpdate.Description != data.Description)
                         {
                             transactionLog.AffectedColumn = "Description";
@@ -261,13 +328,6 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.NewValue = $"{data.Name}";
                             transactionLog.OldValue = $"{CheckUpdate.Name}";
                             CheckUpdate.Name = data.Name;
-                        }
-                        if (CheckUpdate.NameId != data.NameId)
-                        {
-                            transactionLog.AffectedColumn = "NameId";
-                            transactionLog.NewValue = $"{data.NameId}";
-                            transactionLog.OldValue = $"{CheckUpdate.NameId}";
-                            CheckUpdate.NameId = data.NameId;
                         }
                         if (CheckUpdate.Description != data.Description)
                         {
@@ -345,13 +405,6 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = $"{CheckUpdate.Name}";
                             CheckUpdate.Name = data.Name;
                         }
-                        if (CheckUpdate.NameId != data.NameId)
-                        {
-                            transactionLog.AffectedColumn = "NameId";
-                            transactionLog.NewValue = $"{data.NameId}";
-                            transactionLog.OldValue = $"{CheckUpdate.NameId}";
-                            CheckUpdate.NameId = data.NameId;
-                        }
                         if (CheckUpdate.Description != data.Description)
                         {
                             transactionLog.AffectedColumn = "Description";
@@ -427,13 +480,6 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.NewValue = $"{data.CategoryName}";
                             transactionLog.OldValue = $"{CheckUpdate.CategoryName}";
                             CheckUpdate.CategoryName = data.CategoryName;
-                        }
-                        if (CheckUpdate.CategoryId != data.CategoryId)
-                        {
-                            transactionLog.AffectedColumn = "CategoryId";
-                            transactionLog.NewValue = $"{data.CategoryId}";
-                            transactionLog.OldValue = $"{CheckUpdate.CategoryId}";
-                            CheckUpdate.CategoryId = data.CategoryId;
                         }
                         if (CheckUpdate.Minimum != data.Minimum)
                         {
@@ -525,13 +571,6 @@ namespace WebAPI.Controllers.CodeTable
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Update)
                     {
-                        if (CheckUpdate.PAPKey != data.PAPKey)
-                        {
-                            transactionLog.AffectedColumn = "PAPKey";
-                            transactionLog.NewValue = $"{data.PAPKey}";
-                            transactionLog.OldValue = $"{CheckUpdate.PAPKey}";
-                            CheckUpdate.PAPKey = data.PAPKey;
-                        }
                         if (CheckUpdate.ProgramName != data.ProgramName)
                         {
                             transactionLog.AffectedColumn = "ProgramName";
@@ -664,13 +703,6 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = $"{CheckUpdate.Name}";
                             CheckUpdate.Name = data.Name;
                         }
-                        if (CheckUpdate.NameId != data.NameId)
-                        {
-                            transactionLog.AffectedColumn = "NameId";
-                            transactionLog.NewValue = $"{data.NameId}";
-                            transactionLog.OldValue = $"{CheckUpdate.NameId}";
-                            CheckUpdate.NameId = data.NameId;
-                        }
                         if (CheckUpdate.Description != data.Description)
                         {
                             transactionLog.AffectedColumn = "Description";
@@ -746,13 +778,6 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.NewValue = $"{data.Name}";
                             transactionLog.OldValue = $"{CheckUpdate.Name}";
                             CheckUpdate.Name = data.Name;
-                        }
-                        if (CheckUpdate.NameId != data.NameId)
-                        {
-                            transactionLog.AffectedColumn = "NameId";
-                            transactionLog.NewValue = $"{data.NameId}";
-                            transactionLog.OldValue = $"{CheckUpdate.NameId}";
-                            CheckUpdate.NameId = data.NameId;
                         }
                         if (CheckUpdate.Description != data.Description)
                         {
@@ -1020,13 +1045,6 @@ namespace WebAPI.Controllers.CodeTable
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Update)
                     {
-                        if (CheckUpdate.Enum != data.Enum)
-                        {
-                            transactionLog.AffectedColumn = "Enum";
-                            transactionLog.NewValue = $"{data.Enum}";
-                            transactionLog.OldValue = $"{CheckUpdate.Enum}";
-                            CheckUpdate.Enum = data.Enum;
-                        }
                         if (CheckUpdate.InfraType != data.InfraType)
                         {
                             var validInfraCodes = await _db.tOptionInfraType
@@ -1336,13 +1354,6 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = CheckUpdate.RevisionName!;
                             CheckUpdate.RevisionName = data.RevisionName;
                         }
-                        if (CheckUpdate.RevisionGroupId != data.RevisionGroupId)
-                        {
-                            transactionLog.AffectedColumn = "RevisionGroupId";
-                            transactionLog.NewValue = $"{data.RevisionGroupId}";
-                            transactionLog.OldValue = $"{CheckUpdate.RevisionGroupId}";
-                            CheckUpdate.RevisionGroupId = data.RevisionGroupId;
-                        }
                         _db.tOptionRevisionHeader.Update(CheckUpdate);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Delete)
@@ -1411,13 +1422,6 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.NewValue = data.CategoryName!;
                             transactionLog.OldValue = CheckUpdate.CategoryName!;
                             CheckUpdate.CategoryName = data.CategoryName;
-                        }
-                        if (CheckUpdate.CategoryId != data.CategoryId)
-                        {
-                            transactionLog.AffectedColumn = "CategoryId";
-                            transactionLog.NewValue = $"{data.CategoryId}";
-                            transactionLog.OldValue = $"{CheckUpdate.CategoryId}";
-                            CheckUpdate.CategoryId = data.CategoryId;
                         }
                         _db.tOptionRevisionCategory.Update(CheckUpdate);
                     }
@@ -1494,13 +1498,6 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.NewValue = $"{data.RevisionGroupId}";
                             transactionLog.OldValue = $"{CheckUpdate.RevisionGroupId}";
                             CheckUpdate.RevisionGroupId = data.RevisionGroupId;
-                        }
-                        if (CheckUpdate.ReasonId != data.ReasonId)
-                        {
-                            transactionLog.AffectedColumn = "ReasonId";
-                            transactionLog.NewValue = $"{data.ReasonId}";
-                            transactionLog.OldValue = $"{CheckUpdate.ReasonId}";
-                            CheckUpdate.ReasonId = data.ReasonId;
                         }
                         if (CheckUpdate.CategoryId != data.CategoryId)
                         {
@@ -1785,13 +1782,6 @@ namespace WebAPI.Controllers.CodeTable
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Update)
                     {
-                        if (CheckUpdate.Enum != data.Enum)
-                        {
-                            transactionLog.AffectedColumn = "Enum";
-                            transactionLog.NewValue = $"{data.Enum}";
-                            transactionLog.OldValue = $"{CheckUpdate.Enum}";
-                            CheckUpdate.Enum = data.Enum;
-                        }
                         if (CheckUpdate.Name != data.Name)
                         {
                             transactionLog.AffectedColumn = "Name";
