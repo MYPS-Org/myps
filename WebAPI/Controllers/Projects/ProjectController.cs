@@ -322,6 +322,7 @@ namespace WebAPI.Controllers.Projects
                 }
                 #endregion
                 #region Generate ProjectId
+                string FourthSegment = !string.IsNullOrEmpty(dto.IslandCode) ? dto.IslandCode : SelectedRegion.IslandCode;
                 //string FirstSegment = ProgramDetails.StageName.GenerateProjec1stSegment();
                 //string SecondSegment = ProgramDetails.YearStart.GenerateProjec2ndSegment();
                 //Random rand = new Random();
@@ -335,7 +336,7 @@ namespace WebAPI.Controllers.Projects
                 //.FirstOrDefaultAsync();
                 //ThirdSegment = CheckExistingVersion != null ? (int.Parse(CheckExistingVersion.MaxId) + 1).ToString("D5") : ThirdSegment;
                 //string ReferenceId = $"{FirstSegment}{SecondSegment}{ThirdSegment}{FourthSegment}";
-                string ReferenceId = _db.GenerateProjectID(ProgramDetails, Category, SelectedRegion.IslandCode).Replace("-","");
+                string ReferenceId = _db.GenerateProjectID(ProgramDetails, Category, FourthSegment).Replace("-","");
                 #endregion
                 var SubmitProject = new DBHelper.Models.Table.Projects()
                 {
