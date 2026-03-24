@@ -33,7 +33,7 @@ import NotesForm from './NotesForm';
 import FundingProfileForm from './FundingProfileForm';
 import ActivitySection from './ActivitySection';
 import { addProjectDetails, getProjectEnums, updateEntireProject, fetchProjectGeoJSON } from '../Service';
-import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { ChevronDownIcon, ChevronRightIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
 import type { ProgramList } from '../../Program/Model';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/react';
@@ -947,6 +947,16 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                     {updateUnlockProject ? 'Unlocking...' : 'UnLock Project'}
                   </Button>
                 </>
+              )}
+              {mode === 'edit' && initialData?.ProjectDetails?.ProjectId?.toUpperCase().endsWith('LS') && (
+                <Button
+                  color="blue"
+                  className="cursor-pointer"
+                  onClick={() => navigate(`/lumpsum/${initialData?.ProjectDetails?.ProjectId}`)}
+                >
+                  <ArrowUpTrayIcon className="h-4 w-4" />
+                  Import Lump Sum Project
+                </Button>
               )}
               {mode === 'edit' && initialData?.IsActive === true && initialData?.ProgramDetails?.Status !== 1 && (
                 <>
