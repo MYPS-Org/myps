@@ -12,6 +12,7 @@ namespace DBHelper.Models.Views
         public int Id { get; set; }
         public string ProgramId { get; set; } = string.Empty;
         public int RevisionId { get; set; }
+        public int NumberOfProjects { get; set; }
         public string StageName { get; set; } = string.Empty;
         public bool IsSkipped { get; set; }
         public string? SkipReason { get; set; }

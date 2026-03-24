@@ -4,7 +4,9 @@ import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '../../../components/tailwindui/table';
 import type { InfraData } from '../Model.d';
-import { mockInfraData } from './mockInfraData';
+import { fetchRoadSectionData, fetchBridgeData } from '../../Rbia/Service';
+import type { FutureRoadSections, FutureBridge } from '../../Rbia/Model.d';
+import { isRoadInfraType, isBridgeInfraType } from '../../../utils/infraIdGenerator';
 
 interface AddInfraDialogProps {
   isOpen: boolean;
@@ -13,6 +15,7 @@ interface AddInfraDialogProps {
   initialData?: InfraData;
   mode?: 'add' | 'edit';
   infraType?: string;
+  deo?: string;
 }
 
 const AddInfraDialog: React.FC<AddInfraDialogProps> = ({ 
@@ -21,16 +24,14 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
   onAdd, 
   // initialData,
   mode = 'add',
-  infraType
+  infraType,
+  deo
 }) => {
 
   // Set initial active tab based on infraType
   const getInitialTab = (): 'road' | 'bridge' => {
-    const infraTypeLower = infraType?.toLowerCase();
-    if (infraTypeLower === 'bridge' || infraTypeLower === 'bridges') {
-      return 'bridge';
-    }
-    return 'road'; // default to road for roads or any other type
+    if (isBridgeInfraType(infraType || '')) return 'bridge';
+    return 'road';
   };
 
   const [activeTab, setActiveTab] = useState<'road' | 'bridge' /*| 'fcs' | 'other'*/>(getInitialTab());
@@ -41,14 +42,121 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
     length?: number;
   } | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [roadSections, setRoadSections] = useState<FutureRoadSections[]>([]);
+  const [bridges, setBridges] = useState<FutureBridge[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [totalPages, setTotalPages] = useState<number>(1);
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [deoRoadSections, setDeoRoadSections] = useState<FutureRoadSections[]>([]);
+  const [selectedRoadSectionId, setSelectedRoadSectionId] = useState<string>('');
 
   useEffect(() => {
     if (isOpen) {
       setSelectedInfra(null);
       setSearchTerm('');
+      setCurrentPage(1);
+      setTotalPages(1);
+      setTotalCount(0);
+      setSelectedRoadSectionId('');
       setActiveTab(getInitialTab());
     }
   }, [isOpen, infraType]);
+
+  // Reset to page 1 and road section filter when tab changes
+  useEffect(() => {
+    setCurrentPage(1);
+    setSelectedRoadSectionId('');
+    setSearchTerm('');
+  }, [activeTab]);
+
+  // Fetch road sections for DEO when bridge tab becomes active
+  useEffect(() => {
+    if (isOpen && activeTab === 'bridge' && deo) {
+      fetchRoadSectionData({
+        filters: { RoadId: '', RoadSectionId: '', DEO: deo },
+        sortField: '',
+        sortDirection: 1,
+        page: 1,
+        limit: 1000
+      }).then(res => setDeoRoadSections(res.Data.lists || [])).catch(() => {});
+    }
+  }, [isOpen, activeTab, deo]);
+
+  // Fetch data when tab changes, page changes, road section filter, or dialog opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchInfraData();
+    }
+  }, [isOpen, activeTab, currentPage, pageSize, selectedRoadSectionId]);
+
+  const fetchInfraData = async (page = currentPage, search = searchTerm) => {
+    setLoading(true);
+    try {
+      if (activeTab === 'road') {
+        const response = await fetchRoadSectionData({
+          filters: {
+            RoadId: '',
+            RoadSectionId: search || '',
+            DEO: deo || ''
+          },
+          sortField: '',
+          sortDirection: 1,
+          page,
+          limit: pageSize
+        });
+        setRoadSections(response.Data.lists || []);
+        setTotalPages(response.Data.totalPages ?? 1);
+        setTotalCount(response.Data.total ?? 0);
+      } else if (activeTab === 'bridge') {
+        const response = await fetchBridgeData({
+          filters: {
+            RoadSectionId: selectedRoadSectionId || '',
+            BridgeId: search || '',
+            Name: ''
+          },
+          sortField: '',
+          sortDirection: 1,
+          page,
+          limit: pageSize
+        });
+        setBridges(response.Data.lists || []);
+        setTotalPages(response.Data.totalPages ?? 1);
+        setTotalCount(response.Data.total ?? 0);
+      }
+    } catch (error) {
+      console.error('Error fetching infrastructure data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePageChange = (page: number) => {
+    if (page < 1 || page > totalPages) return;
+    setCurrentPage(page);
+  };
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    setCurrentPage(1);
+  };
+
+  const getPageNumbers = (): (number | '...')[] => {
+    const pages: (number | '...')[] = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (currentPage > 3) pages.push('...');
+      for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+        pages.push(i);
+      }
+      if (currentPage < totalPages - 2) pages.push('...');
+      pages.push(totalPages);
+    }
+    return pages;
+  };
 
   const handleClose = () => {
     setSelectedInfra(null);
@@ -77,34 +185,37 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
     { id: 'other', label: 'Other Infrastructure', icon: '' },
   ];
 
-  // Filter tabs based on infraType
+  // Filter tabs based on infraType using exact InfraCode matching
   const getAvailableTabs = () => {
-    const infraTypeLower = infraType?.toLowerCase();
-    
-    if (infraTypeLower === 'road' || infraTypeLower === 'roads') {
-      return tabs.filter(tab => tab.id === 'road');
-    } else if (infraTypeLower === 'bridge' || infraTypeLower === 'bridges') {
-      return tabs.filter(tab => tab.id === 'bridge');
-    }
-    
+    if (isRoadInfraType(infraType || '')) return tabs.filter(tab => tab.id === 'road');
+    if (isBridgeInfraType(infraType || '')) return tabs.filter(tab => tab.id === 'bridge');
     // For other types or undefined infraType, show only road and bridge tabs for now
     return tabs.filter(tab => tab.id === 'road' || tab.id === 'bridge');
   };
 
   const availableTabs = getAvailableTabs();
 
-  const filterData = (data: any[], searchFields: string[]) => {
-    if (!searchTerm) return data;
-    return data.filter(item =>
-      searchFields.some(field =>
-        item[field]?.toString().toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    );
+  const handleSearchSubmit = () => {
+    setCurrentPage(1);
+    fetchInfraData(1, searchTerm);
+  };
+
+  const handleRoadSectionFilterChange = (roadSectionId: string) => {
+    setSelectedRoadSectionId(roadSectionId);
+    setCurrentPage(1);
+    setSearchTerm('');
   };
 
   const renderRoadSections = () => {
-    const data = /*initialData?.RoadSections ||*/ mockInfraData.RoadSections;
-    const filteredData = filterData(data, ['SectionId', 'CDOName', 'RoadId']);
+    const filteredData = roadSections;
+    
+    if (loading) {
+      return <div className="text-center py-8">Loading road sections...</div>;
+    }
+
+    if (filteredData.length === 0) {
+      return <div className="text-center py-8 text-gray-500">No road sections found</div>;
+    }
     
     return (
       <div className="space-y-4">
@@ -114,8 +225,8 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
               <TableHeader>Select</TableHeader>
               <TableHeader>Section ID</TableHeader>
               <TableHeader>Road ID</TableHeader>
-              <TableHeader>CDO Name</TableHeader>
-              <TableHeader>Length (km)</TableHeader>
+              <TableHeader>DEO</TableHeader>
+              <TableHeader>Length (m)</TableHeader>
               <TableHeader>Network Status</TableHeader>
             </TableRow>
           </TableHead>
@@ -126,21 +237,21 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
                   <input
                     type="radio"
                     name="infraSelection"
-                    value={road.SectionId}
-                    checked={selectedInfra?.id === road.SectionId}
-                    onChange={() => handleInfraSelect(road.SectionId, `${road.CDOName} - ${road.RoadId}`, 'Roads')}
+                    value={road.RoadSectionId}
+                    checked={selectedInfra?.id === road.RoadSectionId}
+                    onChange={() => handleInfraSelect(road.RoadSectionId, `${road.DEO} - ${road.RoadId}`, 'Roads')}
                     className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300"
                   />
                 </TableCell>
-                <TableCell className="font-medium">{road.SectionId}</TableCell>
+                <TableCell className="font-medium">{road.RoadSectionId}</TableCell>
                 <TableCell>{road.RoadId}</TableCell>
-                <TableCell>{road.CDOName}</TableCell>
-                <TableCell>{road.SectionLength}</TableCell>
+                <TableCell>{road.DEO}</TableCell>
+                <TableCell>{road.RoadLength}</TableCell>
                 <TableCell>
                   <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                    road.NetworkStatus === 1 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                    road.NetworkStatusId === 1 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                   }`}>
-                    {road.NetworkStatus === 1 ? 'Active' : 'Inactive'}
+                    {road.NetworkStatusId === 1 ? 'Active' : 'Inactive'}
                   </span>
                 </TableCell>
               </TableRow>
@@ -152,8 +263,15 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
   };
 
   const renderBridges = () => {
-    const data = /*initialData?.Bridges ||*/ mockInfraData.Bridges;
-    const filteredData = filterData(data, ['BridgeId', 'BridgeName', 'Location']);
+    const filteredData = bridges;
+    
+    if (loading) {
+      return <div className="text-center py-8">Loading bridges...</div>;
+    }
+
+    if (filteredData.length === 0) {
+      return <div className="text-center py-8 text-gray-500">No bridges found</div>;
+    }
     
     return (
       <div className="space-y-4">
@@ -163,9 +281,9 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
               <TableHeader>Select</TableHeader>
               <TableHeader>Bridge ID</TableHeader>
               <TableHeader>Bridge Name</TableHeader>
-              <TableHeader>Location</TableHeader>
+              <TableHeader>Road Section ID</TableHeader>
               <TableHeader>Length (m)</TableHeader>
-              <TableHeader>Width (m)</TableHeader>
+              <TableHeader>Overall Width (m)</TableHeader>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -177,15 +295,15 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
                     name="infraSelection"
                     value={bridge.BridgeId}
                     checked={selectedInfra?.id === bridge.BridgeId}
-                    onChange={() => handleInfraSelect(bridge.BridgeId, bridge.BridgeName, 'Bridges')}
+                    onChange={() => handleInfraSelect(bridge.BridgeId, bridge.Name, 'Bridges')}
                     className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300"
                   />
                 </TableCell>
                 <TableCell className="font-medium">{bridge.BridgeId}</TableCell>
-                <TableCell>{bridge.BridgeName}</TableCell>
-                <TableCell>{bridge.Location}</TableCell>
+                <TableCell>{bridge.Name}</TableCell>
+                <TableCell>{bridge.RoadSectionId}</TableCell>
                 <TableCell>{bridge.Length}</TableCell>
-                <TableCell>{bridge.Width}</TableCell>
+                <TableCell>{bridge.OverallWidth}</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -341,14 +459,33 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
           </div>
 
           {/* Search Bar */}
-          <div className="px-6 py-4 border-b border-gray-200">
-            <div className="relative">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <div className="flex flex-cols-2 gap-4 px-6 py-4 border-b border-gray-200 space-y-2">
+            {/* Road Section filter — bridge tab only */}
+            {activeTab === 'bridge' && deoRoadSections.length > 0 && (
+              <div className="flex flex-1 items-center gap-2">
+                <label className="text-sm text-gray-600 whitespace-nowrap">Road Section:</label>
+                <select
+                  value={selectedRoadSectionId}
+                  onChange={(e) => handleRoadSectionFilterChange(e.target.value)}
+                  className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-orange-500 focus:border-orange-500"
+                >
+                  <option value="">All Road Sections</option>
+                  {deoRoadSections.map((rs) => (
+                    <option key={rs.Id} value={rs.RoadSectionId}>
+                      {rs.RoadSectionId}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="relative flex flex-1 items-center gap-2">
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
               <input
                 type="text"
-                placeholder={`Search ${availableTabs.find(t => t.id === activeTab)?.label.toLowerCase()}...`}
+                placeholder={activeTab === 'bridge' ? 'Search by Bridge ID...' : `Search ${availableTabs.find(t => t.id === activeTab)?.label.toLowerCase()}...`}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearchSubmit()}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500"
               />
             </div>
@@ -358,6 +495,69 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
           <div className="flex-1 overflow-auto px-6 py-4">
             {renderTabContent()}
           </div>
+
+          {/* Pagination */}
+          {!loading && totalCount > 0 && (
+            <div className="px-6 py-3 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+              {/* Left: count info + page size */}
+              <div className="flex items-center gap-3 text-sm text-gray-600">
+                <span>
+                  Showing{' '}
+                  <span className="font-medium">{(currentPage - 1) * pageSize + 1}</span>
+                  {' '}–{' '}
+                  <span className="font-medium">{Math.min(currentPage * pageSize, totalCount)}</span>
+                  {' '}of{' '}
+                  <span className="font-medium">{totalCount}</span>
+                </span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                  className="border border-gray-300 rounded px-2 py-1 text-sm focus:ring-orange-500 focus:border-orange-500"
+                >
+                  {[5, 10, 20, 50, 1000].map((s) => (
+                    <option key={s} value={s}>{s} / page</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Right: page navigation */}
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="px-2 py-1 rounded border border-gray-300 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  ‹ Prev
+                </button>
+
+                {getPageNumbers().map((p, idx) =>
+                  p === '...' ? (
+                    <span key={`ellipsis-${idx}`} className="px-2 py-1 text-gray-400 text-sm">…</span>
+                  ) : (
+                    <button
+                      key={p}
+                      onClick={() => handlePageChange(p as number)}
+                      className={`px-3 py-1 rounded border text-sm ${
+                        currentPage === p
+                          ? 'bg-orange-500 border-orange-500 text-white font-medium'
+                          : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  )
+                )}
+
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="px-2 py-1 rounded border border-gray-300 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Next ›
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Selected Info */}
           {selectedInfra && (

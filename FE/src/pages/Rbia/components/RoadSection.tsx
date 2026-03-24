@@ -12,7 +12,9 @@ import { useRoadSectionData } from "../hooks/useRoadSectionData";
 import FutureRoadSectionDialog from "../Dialogs/FutureRoadSectionDialog";
 import DeleteRoadSectionDialog from "../Dialogs/DeleteRoadSectionDialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../components/tailwindui/table";
+import { Pagination, PaginationList, PaginationNext, PaginationPrevious, PaginationPage, PaginationGap } from "../../../components/tailwindui/pagination";
 import FutureBridgeDialog from "../Dialogs/FutureBridgeDialog";
+import FilterRoadSectionDialog from "../Dialogs/FilterRoadSectionDialog";
 
 // Simple Badge component
 const Badge: React.FC<{ children: React.ReactNode; className?: string; color?: string }> = ({ 
@@ -58,6 +60,7 @@ const RoadSectionList: React.FC = () => {
   const [isRoadSectionDialogOpen, setIsRoadSectionDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isBridgeDialogOpen, setIsBridgeDialogOpen] = useState(false);
+  const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
   const [sectionToAddBridge, setSectionToAddBridge] = useState<RoadSection | null>(null);
   const [roadSectionToDelete, setRoadSectionToDelete] = useState<RoadSection | null>(null);
   const [sortField, setSortField] = useState<string>('');
@@ -70,11 +73,13 @@ const RoadSectionList: React.FC = () => {
     searchInput,
     hasActiveFilters,
     roadSectionFilters,
+    initRoadSections,
     initializeData,
     handleSearchInputChange,
     handleSearchSubmit,
     handleClearSearch,
     handlePagination,
+    handleFilterChange,
     removeRoadSectionFromState
   } = useRoadSectionData();
 
@@ -158,7 +163,7 @@ const RoadSectionList: React.FC = () => {
             <Button 
               color="white" 
               className={`flex items-center shadow-md ${hasActiveFilters ? 'ring-2 ring-orange-500 bg-orange-50' : ''}`}
-              onClick={() => { /* TODO: Open filter dialog */ }}
+              onClick={() => setIsFilterDialogOpen(true)}
             >
               <AdjustmentsVerticalIcon className="w-4 h-4 mr-1" />
               Filter
@@ -248,7 +253,7 @@ const RoadSectionList: React.FC = () => {
                   </TableCell>
                   <TableCell className="text-center px-6 py-4 whitespace-nowrap">
                     <Badge color="orange" className="text-xs">
-                      District {section.DEO}
+                      {initRoadSections.find(d => d.ParticipantId === section.DEO)?.Name ?? section.DEO}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-center px-6 py-4 whitespace-nowrap">
@@ -285,40 +290,55 @@ const RoadSectionList: React.FC = () => {
       </div>
 
       {/* Pagination */}
-      {roadSectionData.totalPages > 1 && (
-        <div className="px-6 py-4 border-t border-gray-200">
-          <div className="flex justify-center">
-            <div className="flex space-x-1">
-              <Button
-                color="white"
-                onClick={() => Paginate(roadSectionData.page - 1)}
-                disabled={roadSectionData.page === 1 || isLoading}
-              >
-                Previous
-              </Button>
-              
-              {Array.from({ length: roadSectionData.totalPages }, (_, i) => i + 1).map((pageNum) => (
-                <Button
-                  key={pageNum}
-                  color={pageNum === roadSectionData.page ? "blue" : "white"}
-                  onClick={() => Paginate(pageNum)}
-                  disabled={isLoading}
-                >
-                  {pageNum}
-                </Button>
-              ))}
-              
-              <Button
-                color="white"
-                onClick={() => Paginate(roadSectionData.page + 1)}
-                disabled={roadSectionData.page === roadSectionData.totalPages || isLoading}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Pagination className="my-6">
+        {roadSectionData.totalPages > 1 && (
+          <>
+            <PaginationPrevious 
+              onClick={async () => await Paginate(1)}
+              disabled={roadSectionData.page <= 1 || isLoading}
+            >
+              First
+            </PaginationPrevious>
+            <PaginationList>
+              {Array.from({ length: roadSectionData.totalPages }, (_, i) => {
+                const pageNum = i + 1;
+                const currentPage = roadSectionData.page;
+                const totalPages = roadSectionData.totalPages;
+                
+                // Show first page, last page, current page, and pages around current
+                if (
+                  pageNum === 1 ||
+                  pageNum === totalPages ||
+                  (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+                ) {
+                  return (
+                    <PaginationPage
+                      key={pageNum}
+                      onClick={async () => await Paginate(pageNum)}
+                      current={pageNum === currentPage}
+                      // disabled={isLoading}
+                    >
+                      {pageNum}
+                    </PaginationPage>
+                  );
+                } else if (
+                  pageNum === currentPage - 2 ||
+                  pageNum === currentPage + 2
+                ) {
+                  return <PaginationGap key={pageNum} />;
+                }
+                return null;
+              })}
+            </PaginationList>
+            <PaginationNext 
+              onClick={async () => await Paginate(roadSectionData.totalPages)}
+              disabled={roadSectionData.page >= roadSectionData.totalPages || isLoading}
+            >
+              Last
+            </PaginationNext>
+          </>
+        )}
+      </Pagination>
 
       {/* Footer info */}
       <div className='mb-3.5 px-6 py-4 border-t border-gray-200'>
@@ -354,6 +374,16 @@ const RoadSectionList: React.FC = () => {
           }}
           onSubmit={handleConfirmDelete}
           roadSection={roadSectionToDelete}
+        />
+      )}
+      {isFilterDialogOpen && (
+        <FilterRoadSectionDialog
+          isOpen={isFilterDialogOpen}
+          onClose={() => setIsFilterDialogOpen(false)}
+          onSubmit={(filterData) => handleFilterChange({ filters: filterData })}
+          onClear={() => { handleClearSearch(); setIsFilterDialogOpen(false); }}
+          initialData={roadSectionFilters.filters}
+          deoList={initRoadSections}
         />
       )}
     </div>

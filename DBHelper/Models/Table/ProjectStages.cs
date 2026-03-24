@@ -21,6 +21,9 @@ namespace DBHelper.Models.Table
         [MaxLength(200)]
         public string ProgramId { get; set; } = string.Empty;
         [Required]
+        [MaxLength(200)]
+        public string ProgramUniqueId { get; set; } = string.Empty;
+        [Required]
         public int RevisionId { get; set; }
         [Required]
         public EnumProgramStage StageId { get; set; }
@@ -32,7 +35,5 @@ namespace DBHelper.Models.Table
         public string CreatedBy { get; set; } = string.Empty;
         [Required]
         public DateTime CreatedDate { get; set; }
-        [Required]
-        public bool IsPublished { get; set; }
     }
 }

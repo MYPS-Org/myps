@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import type { ComponentCost, ScopeOfWorkEnum } from '../Model.d';
+import type { ComponentCost, ScopeOfWorkEnum, InfraTypeEnum } from '../Model.d';
 import type { ProgramList } from '../../Program/Model';
+import { getDisabledClass } from '../../../utils/GlobalFunctions';
 
 interface AddMajorItemDialogProps {
   isOpen: boolean;
@@ -13,16 +14,19 @@ interface AddMajorItemDialogProps {
     YearOfWork: number;
     WorkTypeId: number;
     InfraType: string;
+    IsDeleted: boolean;
   }) => void;
   componentCosts: ComponentCost[];
   programDetails?: ProgramList;
   dropDowns?: ScopeOfWorkEnum[];
+  infraTypeEnums?: InfraTypeEnum[];
   mode: 'add' | 'edit';
   initialData?: {
     ComponentId: string;
     YearOfWork: number;
     WorkTypeId: number;
     InfraType: string;
+    IsDeleted: boolean; 
   };
   existingMajorItems?: Array<{ ComponentId: string }>;
 }
@@ -34,6 +38,7 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
   componentCosts,
   programDetails,
   dropDowns = [],
+  infraTypeEnums = [],
   mode,
   initialData,
   existingMajorItems = []
@@ -42,10 +47,11 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
     ComponentId: '',
     YearOfWork: programDetails?.YearStart || new Date().getFullYear(),
     WorkTypeId: 0,
-    InfraType: ''
+    InfraType: '',
+    IsDeleted: false
   });
 
-  const [availableWorkTypes, setAvailableWorkTypes] = useState<ScopeOfWorkEnum[]>([]);
+  // const [availableWorkTypes, setAvailableWorkTypes] = useState<ScopeOfWorkEnum[]>([]);
 
   // Initialize form data
   useEffect(() => {
@@ -56,32 +62,32 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
         ComponentId: '',
         YearOfWork: programDetails ? programDetails.YearStart : new Date().getFullYear(),
         WorkTypeId: 0,
-        InfraType: ''
+        InfraType: '',
+        IsDeleted: false
       });
     }
-  }, [mode, initialData, isOpen]);
+  }, [mode, initialData, isOpen, programDetails]);
 
-  // Update available work types when InfraType changes
-  useEffect(() => {
-    if (formData.InfraType && dropDowns) {
-      const filtered = dropDowns.filter(scope => scope.InfraType === formData.InfraType);
-      setAvailableWorkTypes(filtered);
-      
-      // Reset WorkTypeId if current selection is not available for new InfraType
-      if (formData.WorkTypeId > 0) {
-        const isCurrentWorkTypeValid = filtered.some(scope => scope.Enum === formData.WorkTypeId);
-        if (!isCurrentWorkTypeValid) {
-          setFormData(prev => ({ ...prev, WorkTypeId: 0 }));
-        }
-      }
-    } else {
-      setAvailableWorkTypes([]);
-      setFormData(prev => ({ ...prev, WorkTypeId: 0 }));
-    }
-  }, [formData.InfraType, dropDowns]);
+  // Filter available work types based on selected InfraType (InfraCode)
+  const availableWorkTypes = useMemo<ScopeOfWorkEnum[]>(() => {
+    if (!formData.InfraType || !dropDowns) return [];
+
+    return dropDowns.filter(
+      scope =>
+        scope.InfraType.includes(formData.InfraType) &&
+        (formData.ComponentId !== "ROW" ||
+          scope.Description === "ROW Acquisition")
+    );
+  }, [formData.InfraType, formData.ComponentId, dropDowns]);
+
 
   const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    // If changing InfraType, reset WorkTypeId
+    if (field === 'InfraType' && value !== formData.InfraType) {
+      setFormData(prev => ({ ...prev, [field]: value, WorkTypeId: 0 }));
+    } else {
+      setFormData(prev => ({ ...prev, [field]: value }));
+    }
   };
 
   const handleClose = () => {
@@ -89,7 +95,8 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
       ComponentId: '',
       YearOfWork: new Date().getFullYear(),
       WorkTypeId: 0,
-      InfraType: ''
+      InfraType: '',
+      IsDeleted: false
     });
     onClose();
   };
@@ -128,17 +135,48 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
     handleClose();
   };
 
-  // Get unique infrastructure types from dropdowns
-  const infraTypes = [...new Set(dropDowns?.map(scope => scope.InfraType) || [])];
+  // Get infrastructure types: use InfraTypeEnum master list if available,
+  // otherwise fall back to extracting unique codes from ScopeOfWorks
+  const infraTypeOptions: InfraTypeEnum[] = useMemo(() => {
+  if (formData.ComponentId === "ROW") {
+    // If ComponentId is "ROW", only include InfraTypes that have a "ROW Acquisition" work type
+    return infraTypeEnums.filter(infraType =>
+      dropDowns.some(
+        scope =>
+          scope.InfraType.includes(infraType.InfraCode) &&
+          scope.Description === "ROW Acquisition"
+      )
+    );
+  }
 
+  // Otherwise, return all InfraTypes
+  return infraTypeEnums.length > 0
+    ? infraTypeEnums
+    : [...new Set(dropDowns?.flatMap(scope => scope.InfraType) || [])]
+        .map((code, i) => ({ Id: i, InfraId: i, InfraCode: code, InfraName: code }));
+}, [formData.ComponentId, infraTypeEnums, dropDowns]);
+  
   // Filter out already selected ComponentIds (but allow the current one when editing)
   const availableComponentCosts = componentCosts.filter(cost => {
+    // Always exclude EAO, EXC, SAV component IDs regardless of mode or reason
+    const excludedComponents = ['EAO', 'EXC', 'SAV', 'COS', 'FS', 'DED', 'LS', 'OTH3', 'OTH4', 'OTH2', 'EXP', 'CS'];
+    const componentId = cost.ComponentId?.toUpperCase();
+    const isExcluded = excludedComponents.includes(componentId);
+    
+    // Don't show excluded components even in edit mode
+    if (isExcluded) {
+      return false;
+    }
+    
     // When editing, allow the current ComponentId to remain in the list
     if (mode === 'edit' && initialData && cost.ComponentId === initialData.ComponentId) {
       return true;
     }
+    
     // For add mode or other components in edit mode, filter out already selected ones
-    return !existingMajorItems.some(item => item.ComponentId === cost.ComponentId);
+    const notAlreadySelected = !existingMajorItems.some(item => item.ComponentId === cost.ComponentId);
+    
+    return notAlreadySelected;
   });
 
   return (
@@ -165,8 +203,9 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
               <select
                 value={formData.ComponentId}
                 onChange={(e) => handleInputChange('ComponentId', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 text-sm"
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 text-sm ${getDisabledClass(mode === 'edit')}`}
                 required
+                disabled={mode === 'edit'} // Disable component selection in edit mode
               >
                 <option value="">Select Component</option>
                 {availableComponentCosts.map((cost) => (
@@ -206,13 +245,14 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
               <select
                 value={formData.InfraType}
                 onChange={(e) => handleInputChange('InfraType', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 text-sm"
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 text-sm ${getDisabledClass(mode === 'edit')}`}
                 required
+                disabled={mode === 'edit'} // Disable infrastructure type selection in edit mode
               >
                 <option value="">Select Infrastructure Type</option>
-                {infraTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
+                {infraTypeOptions.map((infraType) => (
+                  <option key={infraType.InfraCode} value={infraType.InfraCode}>
+                    {infraType.InfraName}
                   </option>
                 ))}
               </select>
@@ -226,8 +266,8 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
               <select
                 value={formData.WorkTypeId}
                 onChange={(e) => handleInputChange('WorkTypeId', parseInt(e.target.value) || 0)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 text-sm"
-                disabled={!formData.InfraType}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-orange-500 focus:border-orange-500 text-sm ${getDisabledClass(mode === 'edit')}`}
+                disabled={!formData.InfraType || mode === 'edit'}
                 required
               >
                 <option value={0}>

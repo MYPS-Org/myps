@@ -1,11 +1,11 @@
 // Field permission rules for PCMA modifications
 
 const projectDetailFields = [
-    'OperatingUnit',
+    // 'OperatingUnit',
     'ImplementingOffice',
     'DEO',
-    'LegislativeDistrict',
-    'City',
+    // 'LegislativeDistrict',
+    // 'City',
 ];
 
 const projectFundingProfileFields = [

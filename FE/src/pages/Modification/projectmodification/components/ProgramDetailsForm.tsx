@@ -7,7 +7,7 @@ interface ProgramDetailsFormProps {
   programDetails: ProgramList;
   setProgramDetails: React.Dispatch<React.SetStateAction<ProgramList>>;
   onChange?: (updatedDetails: ProgramList) => void;
-  mode?: 'add' | 'edit';
+  mode?: 'add' | 'edit' | 'view';
   projectEnums?: ProjectEnums;
 }
 
@@ -30,11 +30,9 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
   }, [programDetails?.ProgramId]);
 
   const setProgram = (value: string) => {
-    console.log('Selected program value:', value);
       const selectedProgram = projectEnums?.Programs?.find(
         program => program.ProgramId === value
       );
-      console.log(projectEnums?.Programs);
       if(!selectedProgram) {
         // Clear the program details if no program is selected
         const emptyProgramDetails: ProgramList = {
@@ -45,14 +43,14 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
         Name: '',
         GroupName: '',
         RegionCode: '',
-        Status: '',
+        Status: 0,
         Type: '',
         Cost: 0,
         YearStart: 0,
         YearEnd: 0,
         CreatedBy: '',
         CreatedDate: '',
-        IsPublished: false,
+        IsPublishable: false,
         };
         setProgramDetails(emptyProgramDetails);
         setSearchFormData('');

@@ -16,6 +16,8 @@ namespace DBHelper.Models.Table
         [Required]
         [MaxLength(100)]
         public string ParentId { get; set; } = string.Empty;
+        [MaxLength(10)]
+        public string? StageName { get; set; } = string.Empty;
         [Required]
         [MaxLength(50)]
         public string InfraId { get; set; } = string.Empty;
@@ -25,16 +27,12 @@ namespace DBHelper.Models.Table
         [Required]
         [MaxLength(100)]
         public string TargetUnit { get; set; } = string.Empty;
-        [Required]
         public Double? StartX { get; set; }
-        [Required]
         public Double? StartY { get; set; }
-        [Required]
         public Double? EndX { get; set; }
-        [Required]
         public Double? EndY { get; set; }
         [Required]
-        public Double? PhysicalTarget { get; set; }
+        public Double PhysicalTarget { get; set; }
         [MaxLength(100)]
         public string? StartStationLimit { get; set; }
         [MaxLength(100)]

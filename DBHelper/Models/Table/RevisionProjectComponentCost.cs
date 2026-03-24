@@ -18,6 +18,9 @@ namespace DBHelper.Models.Table
         [MaxLength(100)]
         public string ProjectId { get; set; } = string.Empty;
         [Required]
+        [MaxLength(100)]
+        public string CostId { get; set; } = string.Empty;
+        [Required]
         [MaxLength(50)]
         public string ComponentType { get; set; } = string.Empty;
         [Required]
@@ -26,11 +29,7 @@ namespace DBHelper.Models.Table
         //[Required]
         public string? Description { get; set; } = string.Empty;
         [Required]
-        public Double Amount { get; set; }
-        [Required]
-        public DateTime? StartDate { get; set; }
-        [Required]
-        public DateTime? EndDate { get; set; }
+        public Double Total { get; set; }
         public bool IsDeleted { get; set; } = false;
     }
 }

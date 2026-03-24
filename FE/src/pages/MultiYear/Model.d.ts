@@ -133,3 +133,30 @@ export interface ProjectDetails {
     IsModify: boolean;
 }
 // #endregion
+
+export interface ComponentCostWithYears extends ComponentCost {
+    CostPerYear: ComponentCostYear[];
+}
+
+export interface ComponentCost {
+    Id: number;
+    ReferenceId: string;
+    ProjectId: string;
+    ComponentId: string;
+    ComponentType: string;
+    Description: string;
+    Total: number;
+    CreatedBy: string;
+    CreatedDate: string;
+    UpdatedBy?: string;
+    UpdatedDate?: string;
+}
+
+export interface ComponentCostYear {
+    Id: number;
+    ParentId: string;
+    CostYear: number;
+    PlannedStartDate: string;
+    PlannedEndDate: string;
+    Cost: number;
+}

@@ -25,6 +25,7 @@ namespace WebAPI.Controllers.Projects
     }
     public class AddProjectDTO : ProjectDetails
     {
+        public bool IsAllowedToProceed { get; set; } = false;
     }
     public class ProjectDetailsDTO
     {
@@ -37,11 +38,13 @@ namespace WebAPI.Controllers.Projects
     {
         public ProjectDetails ProjectDetails { get; set; } = new ProjectDetails();
         public List<ProjectComponentCostDTO> ComponentCosts { get; set; } = new List<ProjectComponentCostDTO>();
+        public List<ProjectComponentCostPerYearDTO> ComponentCostPerYear { get; set; } = new List<ProjectComponentCostPerYearDTO>();
         public List<ProjectMajorWorkItemDTO> MajorItemOfWorks { get; set; } = new List<ProjectMajorWorkItemDTO>();
         public List<ProjectMajorWorkLocationsDTO> MajorItemLocations { get; set; } = new List<ProjectMajorWorkLocationsDTO>();
         public List<ProjectNotes> ProjectNotes { get; set; } = new List<ProjectNotes>();
         public List<ProjectSupportingDocs> Docs { get; set; } = new List<ProjectSupportingDocs>();
         public List<FundingProfileDTO> FundingProfile { get; set; } = new List<FundingProfileDTO>();
+        public bool IsAllowedToProceed { get; set; } = false;
     }
     public class ProjectComponentCostDTO
     {
@@ -52,15 +55,16 @@ namespace WebAPI.Controllers.Projects
         public string ProjectId { get; set; } = string.Empty;
         [Required]
         [MaxLength(100)]
+        public string CostId { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(100)]
         public string ComponentType { get; set; } = string.Empty;
         [Required]
         [MaxLength(10)]
         public string ComponentId { get; set; } = string.Empty;
         public string? Description { get; set; }
         [Required]
-        public Double Amount { get; set; }
-        public DateTime? StartDate { get; set; }
-        public DateTime? EndDate { get; set; }
+        public Double Total { get; set; }
         [Required]
         [MaxLength(10)]
         public string StageName { get; set; } = string.Empty;
@@ -72,6 +76,27 @@ namespace WebAPI.Controllers.Projects
         [MaxLength(100)]
         public string? UpdatedBy { get; set; }
         public DateTime? UpdatedDate { get; set; }
+        public bool IsDeleted { get; set; } = false;
+    }
+    public class ProjectComponentCostPerYearDTO
+    {
+        [Required]
+        public int Id { get; set; }
+        [Required]
+        [MaxLength(100)]
+        public string ComponentCostId { get; set; } = string.Empty;
+        public Double? Amount { get; set; }
+        public int? Year { get; set; }
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+        public string? StageName { get; set; } = string.Empty;
+        [MaxLength(100)]
+        public string CreatedBy { get; set; } = string.Empty;
+        public DateTime CreatedDate { get; set; }
+        [MaxLength(100)]
+        public string UpdatedBy { get; set; } = string.Empty;
+        public DateTime? UpdatedDate { get; set; }
+        [Required]
         public bool IsDeleted { get; set; } = false;
     }
     //public class ProjectComponentCostYearDTO
@@ -116,6 +141,8 @@ namespace WebAPI.Controllers.Projects
         [Required]
         [MaxLength(100)]
         public string ParentId { get; set; } = string.Empty;
+        [MaxLength(10)]
+        public string? StageName { get; set; } = string.Empty;
         [Required]
         [MaxLength(50)]
         public string InfraId { get; set; } = string.Empty;
@@ -124,16 +151,12 @@ namespace WebAPI.Controllers.Projects
         public int TargetUnitId { get; set; }               
         [MaxLength(100)]
         public string TargetUnit { get; set; } = string.Empty;
-        [Required]
         public Double? StartX { get; set; }
-        [Required]
         public Double? StartY { get; set; }
-        [Required]
         public Double? EndX { get; set; }
-        [Required]
         public Double? EndY { get; set; }
         [Required]
-        public Double? PhysicalTarget { get; set; }
+        public Double PhysicalTarget { get; set; }
         [MaxLength(100)]
         public string? StartStationLimit { get; set; }
         [MaxLength(100)]

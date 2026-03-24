@@ -1,6 +1,7 @@
 ﻿using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Extra;
+using DBHelper.Models.Table;
 using DBHelper.Models.Views;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -20,6 +21,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using static Dapper.SqlMapper;
 
 namespace Helpers
@@ -31,7 +33,6 @@ namespace Helpers
         {
             var tz = TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila");
             return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
-
         }
         public static IQueryable<T> QueryFromFile<T>(
             this DbContext db,
@@ -85,15 +86,25 @@ namespace Helpers
         {
             return ReferenceId + "-" + ("tCountComponentCost").GenerateCode() + "-" + StageName;
         }
-        public static EnumProgramStage UpdateStage(this EnumProgramStage Current)
+        public static string GenerateProjectID(this AppDbContext _db, DBHelper.Models.Views.ProgramDetails ProgramDetails, DBHelper.Models.Table.OptionProjectCategory Category, string IslandCode)
         {
-            if (Current == EnumProgramStage.BP) return EnumProgramStage.NEP;
-            else if (Current == EnumProgramStage.NEP) return EnumProgramStage.NEPE;
-            else if (Current == EnumProgramStage.NEPE) return EnumProgramStage.HGAB;
-            else if (Current == EnumProgramStage.HGAB) return EnumProgramStage.HGABI;
-            else if (Current == EnumProgramStage.HGABI) return EnumProgramStage.GAA;
-            else if (Current == EnumProgramStage.GAA) return EnumProgramStage.GAAR;
-            return Current;
+            string FirstSegment = ProgramDetails.StageName.GenerateProjec1stSegment();
+            string SecondSegment = ProgramDetails.YearStart.GenerateProjec2ndSegment();
+
+            var existingMaxIds = _db.vGetProjectCategoryVersions.AsNoTracking()
+                .Where(x => x.Category == Category.CategoryId
+                    && x.ProjectSuffix == FirstSegment
+                    && x.IslandCode == IslandCode
+                    && x.YearStart == ProgramDetails.YearStart)
+                .OrderByDescending(x => x.MaxId)
+                .FirstOrDefault();
+            int maxExisting = (existingMaxIds != null) ? existingMaxIds.MaxId : (_db.tOptionProjectCategory.FirstOrDefault(x => x.CategoryId == Category.CategoryId)!.Minimum);
+
+
+            int nextId = Math.Max(maxExisting + 1, Category.Minimum);
+            string ThirdSegment = nextId.ToString("D5");
+
+            return $"{FirstSegment}-{SecondSegment}-{ThirdSegment}-{IslandCode}";
         }
         public static string GenerateProjec1stSegment(this string StageName)
         {
@@ -418,20 +429,32 @@ namespace Helpers
 
             return result;
         }
-        public static TDest UpdateRevisionData<TSrc, TDest>(
+        public static UpdateRevisionDataResult<TDest> UpdateRevisionData<TSrc, TDest>(
             this List<string>? allowedKeys,
+            string User,
+            string TransactionId,
+            string AffectedTable,
+            DateTime CreatedDate,
             TSrc sourceData,
             TDest destinationData)
         {
+            List<RevisionTransactionLog> Transaction = new List<RevisionTransactionLog>();
             if (allowedKeys == null || allowedKeys.Count == 0)
-                return destinationData;
+                return new UpdateRevisionDataResult<TDest>
+                {
+                    Data = destinationData,
+                    RevisionTransaction = Transaction
+                };
 
             if (sourceData == null || destinationData == null)
-                return destinationData;
+                return new UpdateRevisionDataResult<TDest>
+                {
+                    Data = destinationData,
+                    RevisionTransaction = Transaction
+                };
 
             var sourceType = typeof(TSrc);
             var destType = typeof(TDest);
-
             foreach (var key in allowedKeys)
             {
                 if (string.IsNullOrWhiteSpace(key))
@@ -456,22 +479,54 @@ namespace Helpers
                     continue;
 
                 destProp.SetValue(destinationData, newValue);
+                Transaction.Add(new RevisionTransactionLog
+                {
+                    TransactionId = TransactionId,
+                    TypeOfTransaction = "Update",
+                    AffectedTable = AffectedTable,
+                    AffectedColumn = key,
+                    OldValue = oldValue?.ToString() ?? string.Empty,
+                    NewValue = newValue?.ToString() ?? string.Empty,
+                    CreatedBy = User,
+                    CreatedDate = CreatedDate
+                });
             }
-
-            return destinationData;
+            return new UpdateRevisionDataResult<TDest>
+            {
+                Data = destinationData,
+                RevisionTransaction = Transaction
+            };
         }
-        public static List<ProjectValidation> ValidateProjectForPublish(DBHelper.Models.Table.ProjectRevisions pr, DBHelper.Models.Table.ProjectComponentCost pc)
+        public static bool ValidateProjectForPublish(DBHelper.Models.Table.ProjectRevisions pr, List<DBHelper.Models.Table.ProjectComponentCostPerYear>? pc)
         {
-            var validation = new List<ProjectValidation>();
+            //var validation = new List<ProjectValidation>();
             if (pr == null)
             {
-
-                validation.Add(new ProjectValidation()
+                return false;// validation;
+            }
+            #region Project Location Validation
+            if (string.IsNullOrEmpty(pr.DEO) || string.IsNullOrEmpty(pr.LegislativeDistrict) || string.IsNullOrEmpty(pr.ImplementingOffice) || string.IsNullOrEmpty(pr.OperatingUnit)) {
+                return false;
+            }
+            #endregion
+            #region Component Cost Per Year Validation
+            if(pc != null)
+            {
+                var HasBlankData = pc.FirstOrDefault(x => x.Amount == null || x.Year == null || x.StartDate == null || x.EndDate == null);
+                if (HasBlankData != null)
                 {
-                    IsValid = false,
-                    Message = "Project revision data is missing."
-                });
-                return validation;
+                    return false;
+                }
+            }
+            #endregion
+            return true;
+        }
+        public static bool ValidateProjectForPublishv2(DBHelper.Models.Table.ProjectRevisions pr, DBHelper.Models.Table.ProjectComponentCost? pc)
+        {
+            //var validation = new List<ProjectValidation>();
+            if (pr == null)
+            {
+                return false;// validation;
             }
             #region Project Location Validation
             string ProjectLocation = string.Empty;
@@ -489,30 +544,14 @@ namespace Helpers
             }
             if(!string.IsNullOrEmpty(ProjectLocation))
             {
-                validation.Add(new ProjectValidation()
-                {
-                    IsValid = false,
-                    Message = ProjectLocation
-                });
+                return false;
             }
             #endregion
             #region Component Cost Validation
             string ComponentCost = string.Empty;
-            if (pc.StartDate == null)
-            {
-                ComponentCost = "Project Implementation Plan: Start Date field is required.";
-            }
-            if (pc.EndDate == null)
-            {
-                ComponentCost = string.IsNullOrEmpty(ComponentCost) ? "Project Implementation Plan: End Date field is required." : ComponentCost + " End Date field is required.";
-            }
             if(!string.IsNullOrEmpty(ComponentCost))
             {
-                validation.Add(new ProjectValidation()
-                {
-                    IsValid = false,
-                    Message = ComponentCost
-                });
+                return false;
             }
             #endregion
             /*
@@ -521,7 +560,22 @@ namespace Helpers
             OverLapping Projects: GIS
             Major Items of Work: Validated Major Work Locations
              */
-            return validation;
+            return true;
+        }
+        private static readonly Regex RFutureInfra = new Regex(
+            @"^(?<prefix>[A-Z]{2})(?<digits>\d{5})(?<island>[A-Z]{2})$",
+            RegexOptions.Compiled | RegexOptions.CultureInvariant
+        );
+        public static bool IsValidFutureInfraId(this string id)
+        {
+            // Format: 2 letters + 5 digits + 2 letters (island code)
+            // Example: AB12345LU
+            if (string.IsNullOrWhiteSpace(id))
+                return false;
+
+            id = id.Trim().ToUpperInvariant();
+
+            return RFutureInfra.IsMatch(id);
         }
     }
 }

@@ -11,6 +11,7 @@ const projectDetailFields = [
     'LegislativeDistrict',
     'City',
     'Agency',
+    'Thrust',
 ];
 
 const projectFundingProfileFields = [
@@ -20,23 +21,46 @@ const projectFundingProfileFields = [
 ];
 
 const projectComponentFields = [
+    'EditComponentCost',
     'ComponentCost',
-    'Description',
-    'Project Component Cost',
-    'Component Addition (for ROW, CW, CWD, or DR type)',
-    'Component Deletion (for CW, CWD, ROW or DR)',
+    'ComponentDescription',
+    'AddComponentCost',
+    'DeleteComponentCost',
+    'ComponentType',
+    'StartDate',
+    'EndDate',
+    'Total'
 ];
 
 const majorItemOfWorkFields = [
-    'MajorItemOfWork',
-    'Add or Delete Major Item of Work (e.g., Target, Type of Work)',
-    'Target Unit'
+    'AddMajorItemOfWork',
+    'DeleteMajorItemOfWork',
+    'EditMajorItemOfWork',
+    'ComponentId',
+	'ReferenceId',
+	'YearOfWork',
+	'WorkTypeId',
+	'InfraType',
+	'TargetUnitId',
+	'TargetUnit'
 ];
 
 const physicalTargetFields = [
-    'WorkLocation',
-    'Physical Target',
-    'Work Location fields (e.g., station limits, validation based on infrastructure type)',
+    'AddWorkLocation',
+    'EditWorkLocation',
+    'DeleteWorkLocation',
+    'InfraId',
+    'PhysicalTarget',
+    'DetailedScope',
+    'StartX',
+    'StartY',
+    'EndX',
+    'EndY',
+    'TargetUnit',
+    'StartChainage',
+    'EndChainage',
+    'StartStationLimit',
+    'EndStationLimit'
 ];
 
 const pcmaStatus = [
@@ -71,21 +95,40 @@ const packaged = () => {
 
 // Helper function to determine case based on status and package
 const determineCase = (pcmaStatus: string, packageStatus: string) => {
+    console.log('=== ALLOWED FIELDS - determineCase ===');
+    console.log('Raw PCMA Status:', pcmaStatus, '(type:', typeof pcmaStatus, ')');
+    console.log('Raw Package Status:', packageStatus, '(type:', typeof packageStatus, ')');
+    
+    // Normalize strings to lowercase for case-insensitive comparison
+    const normalizedPcmaStatus = pcmaStatus.toLowerCase();
+    const normalizedPackageStatus = packageStatus.toLowerCase();
+    
+    console.log('Normalized PCMA Status:', normalizedPcmaStatus);
+    console.log('Normalized Package Status:', normalizedPackageStatus);
+    
     // Case A: Not yet started AND not packaged
-    if (pcmaStatus === 'Not yet started' && packageStatus === 'not packaged') {
+    if (normalizedPcmaStatus === 'not yet started' && normalizedPackageStatus === 'not packaged') {
+        console.log('✓ Matched Case A');
+        console.log('=====================================');
         return 'CaseA';
     }
     
     // Case B: (Not yet started AND packaged) OR (On-going AND packaged)
-    if ((pcmaStatus === 'Not yet started' || pcmaStatus === 'On-going') && packageStatus === 'packaged') {
+    if ((normalizedPcmaStatus === 'not yet started' || normalizedPcmaStatus === 'on-going') && normalizedPackageStatus === 'packaged') {
+        console.log('✓ Matched Case B');
+        console.log('=====================================');
         return 'CaseB';
     }
     
     // Case C: Completed OR Terminated (regardless of package status)
-    if (pcmaStatus === 'Completed' || pcmaStatus === 'Terminated') {
+    if (normalizedPcmaStatus === 'completed' || normalizedPcmaStatus === 'terminated') {
+        console.log('✓ Matched Case C');
+        console.log('=====================================');
         return 'CaseC';
     }
     
+    console.log('✗ No match, defaulting to Case C');
+    console.log('=====================================');
     return 'CaseC'; // Default to most restrictive
 };
 
@@ -106,9 +149,35 @@ const getEditableFieldsForCase = (caseType: string) => {
                 'Description',
                 'EmergencyMode', 
                 'Origin',
+                // component cost fields
                 'ComponentCost',
-                'MajorItemOfWork',
-                'WorkLocation'
+                'ComponentDescription',
+                'AddComponentCost',
+                'DeleteComponentCost',
+                'ComponentType',
+                'StartDate',
+                'EndDate',
+                'Total',
+                // major item of work fields
+                'ReferenceId',
+                'YearOfWork',
+                'WorkTypeId',
+                'InfraType',
+                'TargetUnitId',
+                'TargetUnit',
+                'InfraId',
+                // work location fields
+                'PhysicalTarget',
+                'DetailedScope',
+                'StartX',
+                'StartY',
+                'EndX',
+                'EndY',
+                'TargetUnit',
+                'StartChainage',
+                'EndChainage',
+                'StartStationLimit',
+                'EndStationLimit'
             ];
             
         case 'CaseC':

@@ -1,10 +1,14 @@
 ﻿using Confluent.Kafka;
 using DBHelper.Data;
 using DBHelper.Models.Table;
+using DinkToPdf.Contracts;
+using DinkToPdf;
 using Helpers;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using System.Runtime.InteropServices;
+using System.Runtime.Loader;
 
 namespace Main
 {
@@ -13,7 +17,13 @@ namespace Main
         #region Builder
         public static IServiceCollection PrepareDatabaseConnection(this IServiceCollection Services)
         {
-            Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(Appsetting.ConnectionString));
+            Services.AddDbContext<AppDbContext>(options => {
+                options.UseSqlServer(Appsetting.ConnectionString);
+                options.EnableSensitiveDataLogging();
+                options.EnableDetailedErrors();
+                options.LogTo(Console.WriteLine, LogLevel.Information);
+            });
+
             return Services;
         }
         public static IServiceCollection AddCookieAuthentication(this IServiceCollection Services)
@@ -94,6 +104,43 @@ namespace Main
             });
             //services.AddHostedService<OrderWorker>();
             return services;
+        }
+        public static IServiceCollection AddDinkToPdf(this IServiceCollection services)
+        {
+            // Load the native library manually
+            var context = new CustomAssemblyLoadContext();
+            var wkHtmlToPdfPath = Path.Combine(AppContext.BaseDirectory, "libwkhtmltox.dll");
+            
+            // Load the DLL if it exists
+            if (File.Exists(wkHtmlToPdfPath))
+            {
+                context.LoadUnmanagedLibrary(wkHtmlToPdfPath);
+            }
+            else
+            {
+                throw new FileNotFoundException($"libwkhtmltox.dll not found at: {wkHtmlToPdfPath}");
+            }
+
+            services.AddSingleton(typeof(IConverter), new SynchronizedConverter(new PdfTools()));
+            return services;
+        }
+
+        internal class CustomAssemblyLoadContext : AssemblyLoadContext
+        {
+            public IntPtr LoadUnmanagedLibrary(string absolutePath)
+            {
+                return LoadUnmanagedDll(absolutePath);
+            }
+
+            protected override IntPtr LoadUnmanagedDll(string unmanagedDllName)
+            {
+                return LoadUnmanagedDllFromPath(unmanagedDllName);
+            }
+
+            protected override System.Reflection.Assembly? Load(System.Reflection.AssemblyName assemblyName)
+            {
+                return null;
+            }
         }
         #endregion
         #region

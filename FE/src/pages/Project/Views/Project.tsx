@@ -34,7 +34,7 @@ const Project: React.FC = () => {
         sortField: '',
         sortDirection: 1,
         page: 1,
-        limit: 20
+        limit: 10
     });
 
     const [ProjectData, setProjectData] = useState<PaginationResponse<ProjectLists>>({
@@ -317,7 +317,7 @@ const Project: React.FC = () => {
                                                                         <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.Description}</TableCell>
                                                                         <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.Category}</TableCell>
                                                                         <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.Thrust}</TableCell>
-                                                                        <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.UpdatedBy}</TableCell>
+                                                                        <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.CreatedBy}</TableCell>
                                                                         <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.CreatedDate.StringToDate()}</TableCell>
                                                                         <TableCell className='text-center'>
                                                                             <Button
@@ -399,7 +399,7 @@ const Project: React.FC = () => {
                             )
                         }
                     </Pagination>
-                    <div className='mb-3.5'>
+                    <div className='mb-3.5 text-center'>
                         {
                             ProjectData.lists.length > 0 ? (
                                 <p className="text-sm text-gray-500">

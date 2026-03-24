@@ -9,6 +9,7 @@ interface ProgramDetailsFormProps {
   onChange?: (updatedDetails: ProgramList) => void;
   mode?: 'add' | 'edit';
   projectEnums?: ProjectEnums;
+  initialStageName?: string;
 }
 
 
@@ -17,7 +18,8 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
   setProgramDetails,
   onChange,
   mode = 'add',
-  projectEnums
+  projectEnums,
+  initialStageName
 }) => {
   const [searchFormData, setSearchFormData] = useState('');
   const [isLoading] = useState(false);
@@ -52,7 +54,8 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
         YearEnd: 0,
         CreatedBy: '',
         CreatedDate: '',
-        IsPublished: false,
+        IsPublishable: false,
+        // IsPublished: false,
         };
         setProgramDetails(emptyProgramDetails);
         setSearchFormData('');
@@ -78,7 +81,13 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
                     style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
                   >
                     <option value="">Select Program</option>
-                    {projectEnums?.Programs?.filter((program ) => (program.StageName !== 'GAA-R')).map((program) => (
+                    {projectEnums?.Programs?.filter((program) => {
+                      // Filter out GAA-R programs
+                      if (program.StageName === 'GAA-R') return false;
+                      // If initialStageName is provided, only show programs with matching stageName
+                      if (initialStageName && program.StageName !== initialStageName) return false;
+                      return true;
+                    }).map((program) => (
                       <option key={program.Id} value={program.ProgramId}>
                         {program.Name}
                       </option>

@@ -14,6 +14,9 @@ namespace DBHelper.Models.Table
         public int Id { get; set; }
         [Required]
         [MaxLength(200)]
+        public string ProgramId { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(200)]
         public string ReferenceId { get; set; } = string.Empty;
         [Required]
         [MaxLength(200)]
@@ -70,6 +73,7 @@ namespace DBHelper.Models.Table
         public int RegionWide { get; set; } = 0;
         [Required]
         public int Tier { get; set; } = 1;
+        public Double? Rank { get; set; }
         public bool IsRevised { get; set; } = false;
         public int? RevisedNumber { get; set; }
         [Required]

@@ -4,7 +4,7 @@ import { authService, type LoginRequest } from './Service';
 import { Input } from '../../components/tailwindui/input';
 import { Text } from '../../components/tailwindui/text';
 import Logo from '../../assets/img/logo.png';
-// import { useNavigate } from 'react-router-dom';
+import { EyeIcon, EyeSlashIcon } from '@heroicons/react/16/solid';
 
 const LoginForm: React.FC = () => {
   const [credentials, setCredentials] = useState<LoginRequest>({
@@ -13,6 +13,7 @@ const LoginForm: React.FC = () => {
   });
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 //   const [rememberMe, setRememberMe] = useState(false);
   const { validateSession } = useAuth();
 //   const Navigate = useNavigate();
@@ -39,6 +40,10 @@ const LoginForm: React.FC = () => {
 	}));
   };
 
+  const togglePasswordVisibility = () => {
+    setShowPassword((prev) => !prev);
+  };
+
   return (
 	<>
 	<div className="min-h-full pt-50 flex items-center justify-center">
@@ -62,10 +67,10 @@ const LoginForm: React.FC = () => {
 						placeholder="exaple@email.com"
 					/>
 					</div>
-					<div>
-					<Input
+					<div className="relative">
+						<Input
 						id="password"
-						type="password"
+						type={showPassword ? 'text' : 'password'} // Toggle input type
 						value={credentials.Password}
 						onChange={handleInputChange('Password')}
 						required
@@ -73,7 +78,19 @@ const LoginForm: React.FC = () => {
 						disabled={isLoading}
 						className="w-full text-black border border-gray-200 rounded-lg px-4 py-3 focus:ring-2 focus:ring-violet-500"
 						placeholder="••••••••••••"
-					/>
+						/>
+						<button
+						type="button"
+						onClick={togglePasswordVisibility}
+						className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700"
+						tabIndex={-1} // Prevent focus when tabbing through form
+						>
+						{showPassword ? (
+							<EyeSlashIcon className="w-5 h-5" />
+						) : (
+							<EyeIcon className="w-5 h-5" />
+						)}
+						</button>
 					</div>
 					<div className="flex flex-col items-center justify-between text-sm">
 					{/* <label className="flex items-center gap-2">

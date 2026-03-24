@@ -41,6 +41,7 @@ namespace DBHelper.Models.Views
         public int? RowAvailable { get; set; }
         public int RegionWide { get; set; }
         public int Tier { get; set; }
+        public Double? Rank { get; set; }
         public bool IsRevised { get; set; }
         public int? RevisedNumber { get; set; }
         public string CreatedBy { get; set; } = string.Empty;

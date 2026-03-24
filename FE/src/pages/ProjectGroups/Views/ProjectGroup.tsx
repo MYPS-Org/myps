@@ -320,7 +320,7 @@ const ProjectGroup: React.FC = () => {
                         )
                     }
                 </Pagination>
-                    <div className='mb-3.5'>
+                    <div className='mb-3.5 text-center'>
                         {
                             ProjectGroupData.lists.length > 0 ? (
                                 <p className="text-sm text-gray-500">

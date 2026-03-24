@@ -39,6 +39,7 @@ namespace WebAPI.Controllers.Revision
         public ProjectDetails ProjectDetails { get; set; } = new ProjectDetails();
         [Required]
         public List<RevisionComponentCostDTO> ComponentCosts { get; set; } = new List<RevisionComponentCostDTO>();
+        public List<RevisionComponentCostPerYearDTO> ComponentCostPerYear { get; set; } = new List<RevisionComponentCostPerYearDTO>();
         [Required]
         public List<RevisionMajorWorkItemDTO> MajorItemOfWorks { get; set; } = new List<RevisionMajorWorkItemDTO>();
         [Required]
@@ -71,26 +72,42 @@ namespace WebAPI.Controllers.Revision
         public string ProjectId { get; set; } = string.Empty;
         [Required]
         [MaxLength(100)]
+        public string CostId { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(100)]
         public string ComponentType { get; set; } = string.Empty;
         [Required]
         [MaxLength(10)]
         public string ComponentId { get; set; } = string.Empty;
         public string? Description { get; set; }
         [Required]
-        public Double Amount { get; set; }
-        public DateTime? StartDate { get; set; }
-        public DateTime? EndDate { get; set; }
-        //[Required]
+        public Double Total { get; set; }
         [MaxLength(10)]
         public string StageName { get; set; } = "GAA-R";
-        //[Required]
         [MaxLength(100)]
         public string CreatedBy { get; set; } = string.Empty;
-        //[Required]
         public DateTime CreatedDate { get; set; }
         [MaxLength(100)]
         public string? UpdatedBy { get; set; }
         public DateTime? UpdatedDate { get; set; }
+        public bool IsDeleted { get; set; } = false;
+    }
+    public class RevisionComponentCostPerYearDTO
+    {
+        [Key]
+        public int Id { get; set; }
+        [Required]
+        [MaxLength(100)]
+        public string ComponentCostId { get; set; } = string.Empty;
+        [Required]
+        public Double Amount { get; set; }
+        [Required]
+        public int Year { get; set; }
+        [Required]
+        public DateTime StartDate { get; set; } = DateTime.UtcNow;
+        [Required]
+        public DateTime EndDate { get; set; } = DateTime.UtcNow;
+        [Required]
         public bool IsDeleted { get; set; } = false;
     }
     public class RevisionMajorWorkItemDTO
@@ -135,22 +152,19 @@ namespace WebAPI.Controllers.Revision
         public int TargetUnitId { get; set; }
         [MaxLength(100)]
         public string TargetUnit { get; set; } = string.Empty;
-        [Required]
         public double? StartX { get; set; }
-        [Required]
         public double? StartY { get; set; }
-        [Required]
         public double? EndX { get; set; }
-        [Required]
         public double? EndY { get; set; }
         [Required]
-        public double? PhysicalTarget { get; set; }
+        public double PhysicalTarget { get; set; }
         [MaxLength(100)]
         public string? StartStationLimit { get; set; }
         [MaxLength(100)]
         public string? EndStationLimit { get; set; }
         public double? EndChainage { get; set; }
         public double? StartChainage { get; set; }
+        public Double? Length { get; set; }
         public string? CreatedBy { get; set; } = string.Empty;
         public DateTime? CreatedDate { get; set; }
         public string? UpdatedBy { get; set; } = string.Empty;
@@ -194,6 +208,8 @@ namespace WebAPI.Controllers.Revision
         public ProjectDetails ProjectDetails { get; set; } = new ProjectDetails();
         [Required]
         public List<RevisionComponentCostDTO> ComponentCosts { get; set; } = new List<RevisionComponentCostDTO>();
+        [Required]
+        public List<RevisionComponentCostPerYearDTO> ComponentCostPerYear { get; set; } = new List<RevisionComponentCostPerYearDTO>();
         [Required]
         public List<RevisionMajorWorkItemDTO> MajorItemOfWorks { get; set; } = new List<RevisionMajorWorkItemDTO>();
         [Required]

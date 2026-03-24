@@ -35,9 +35,8 @@ namespace DBHelper.Models.Table
     }
     public class FieldComponentCostYear
     {
-        public bool ParentId { get; set; } = false;
-        public bool CostYear { get; set; } = false;
-        public bool Cost { get; set; } = false;
+        public bool Year { get; set; } = false;
+        public bool Amount { get; set; } = false;
         public bool StartDate { get; set; } = false;
         public bool EndDate { get; set; } = false;
     }
@@ -104,8 +103,9 @@ namespace DBHelper.Models.Table
         public bool PhysicalTarget { get; set; } = false;
         public bool StartStationLimit { get; set; } = false;
         public bool EndStationLimit { get; set; } = false;
-        public bool From { get; set; } = false;
-        public bool To { get; set; } = false;
+        public bool StartChainage { get; set; } = false;
+        public bool EndChainage { get; set; } = false;
+        public bool Length { get; set; } = false;
     }
     public class CRUDMajorItemLocation
     {

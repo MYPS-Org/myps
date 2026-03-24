@@ -3,12 +3,14 @@ import { Button } from '../../../components/tailwindui/button';
 import { PlusIcon, TrashIcon, PencilIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { Table, TableHead, TableRow, TableHeader, TableBody, TableCell } from '../../../components/tailwindui/table';
 import AddMajorItemDialog from '../dialogs/AddMajorItemDialog';
+import DeleteMajorItemDialog from '../dialogs/deleteDialogs/DeleteMajorItemDialog';
 import WorkLocationTable from './WorkLocationTable';
 import type { 
   MajorItemOfWorksWithDropdown, 
   ComponentCost, 
   InfraData, 
   ScopeOfWorkEnum,
+  InfraTypeEnum,
   MajorItemLocations,
 } from '../Model.d';
 import type { ProgramList } from '../../Program/Model';
@@ -24,7 +26,9 @@ interface MajorItemOfWorksFormProps {
   onEdit: (index: number, updatedItem: MajorItemOfWorksWithDropdown) => void;
   onDelete: (index: number) => void;
   dropDowns?: ScopeOfWorkEnum[];
+  infraTypeEnums?: InfraTypeEnum[];
   disabled?: boolean;
+  deo?: string;
 }
 
 const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
@@ -37,12 +41,19 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
   onEdit,
   onDelete,
   disabled = false,
-  dropDowns
+  dropDowns,
+  infraTypeEnums = [],
+  deo,
 }) => {
   const [majorItemDialogOpen, setMajorItemDialogOpen] = useState(false);
   const [editingMajorItemIndex, setEditingMajorItemIndex] = useState<number | null>(null);
   const [isAddingNewMajorItem, setIsAddingNewMajorItem] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+  
+  // Delete dialog state
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deletingMajorItem, setDeletingMajorItem] = useState<MajorItemOfWorksWithDropdown | null>(null);
+  const [deletingIndex, setDeletingIndex] = useState<number | null>(null);
 
   // Debug: Monitor when majorItems prop changes
   useEffect(() => {
@@ -51,7 +62,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     majorItems.forEach((item/*, index*/) => {
       // console.log(`Item ${index} - WorkTypeId:`, item.WorkTypeId, 'InfraType:', item.InfraType, 'DropdownData length:', item.DropdownData?.length);
       if (item.InfraType) {
-        /*const filtered = */dropDowns?.filter(x => x.InfraType === item.InfraType);
+        /*const filtered = */dropDowns?.filter(x => x.InfraType.includes(item.InfraType));
         // console.log(`Filtered dropdowns for InfraType '${item.InfraType}':`, filtered);
       }
     });
@@ -70,7 +81,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
       const updatedItems = majorItems.map((item, index) => {
         // If item has InfraType but no or empty DropdownData, update it
         if (item.InfraType && (!item.DropdownData || item.DropdownData.length === 0)) {
-          const filteredDropdowns = dropDowns.filter(x => x.InfraType === item.InfraType);
+          const filteredDropdowns = dropDowns.filter(x => x.InfraType.includes(item.InfraType));
           console.log(`Updating DropdownData for item ${index} with InfraType '${item.InfraType}':`, filteredDropdowns);
           hasUpdates = true;
           return {
@@ -106,11 +117,29 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
     setMajorItemDialogOpen(true);
   };
 
+  const handleOpenDeleteDialog = (index: number) => {
+    setDeletingMajorItem(majorItems[index]);
+    setDeletingIndex(index);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleCloseDeleteDialog = () => {
+    setIsDeleteDialogOpen(false);
+    setDeletingMajorItem(null);
+    setDeletingIndex(null);
+  };
+
+  const handleConfirmDelete = (index: number) => {
+    onDelete(index);
+    handleCloseDeleteDialog();
+  };
+
   const handleMajorItemDialogSubmit = (majorItemData: {
     ComponentId: string;
     YearOfWork: number;
     WorkTypeId: number;
     InfraType: string;
+    IsDeleted: boolean;
   }) => {
     if (isAddingNewMajorItem) {
       // Generate a unique temporary ReferenceId for linking WorkLocations
@@ -120,7 +149,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
       const newMajorItem: MajorItemOfWorksWithDropdown = {
         Id: 0, // Temporary ID
         ProjectId: projectId,
-        ReferenceId: tempReferenceId, // Use generated temp ID
+        ReferenceId: tempReferenceId, // Use generated temp ID for linking work locations
         ComponentId: majorItemData.ComponentId,
         YearOfWork: majorItemData.YearOfWork,
         WorkTypeId: majorItemData.WorkTypeId,
@@ -128,8 +157,9 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
         TargetUnitId: majorItemData.WorkTypeId, // Same as WorkTypeId for now
         TargetUnit: getTargetUnitName(majorItemData.WorkTypeId),
         CreatedBy: '',
-        DropdownData: dropDowns?.filter(x => x.InfraType === majorItemData.InfraType) || [],
-        MajorItemLocations: [] // Initialize empty work locations array
+        DropdownData: dropDowns?.filter(x => x.InfraType.includes(majorItemData.InfraType)) || [],
+        MajorItemLocations: [], // Initialize empty work locations array
+        IsDeleted: majorItemData.IsDeleted,
       };
       
       // Use the parent's onAdd method first, then update the last item
@@ -150,14 +180,14 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
         InfraType: majorItemData.InfraType,
         TargetUnitId: majorItemData.WorkTypeId,
         TargetUnit: getTargetUnitName(majorItemData.WorkTypeId),
-        DropdownData: dropDowns?.filter(x => x.InfraType === majorItemData.InfraType) || [],
+        DropdownData: dropDowns?.filter(x => x.InfraType.includes(majorItemData.InfraType)) || [],
       };
       onEdit(editingMajorItemIndex, updatedItem);
     }
 
     setMajorItemDialogOpen(false);
     setEditingMajorItemIndex(null);
-    setIsAddingNewMajorItem(false);
+    setIsAddingNewMajorItem(false); 
   };
 
   const getTargetUnitName = (workTypeId: number): string => {
@@ -171,9 +201,9 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
   };
 
   const getComponentDescription = (componentId: string): string => {
-    console.log('Looking for component with ID:', componentId, 'in componentCosts:', componentCosts);
+    // console.log('Looking for component with ID:', componentId, 'in componentCosts:', componentCosts);
     const component = componentCosts?.find(cost => cost.ComponentId === componentId);
-    console.log('Found component:', component);
+    // console.log('Found component:', component);
     // Return the description or the componentId as fallback
     return component?.ComponentId || component?.ComponentId || componentId || 'Unknown Component';
   };
@@ -209,13 +239,29 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
   };
 
   const handleDeleteWorkLocation = (majorItemIndex: number, workLocationIndex: number) => {
-    const updatedWorkLocations = (majorItems[majorItemIndex].MajorItemLocations || []).filter((_, i) => i !== workLocationIndex);
+    const locationToDelete = majorItems[majorItemIndex].MajorItemLocations?.[workLocationIndex];
+    
+    let updatedWorkLocations;
+    if (locationToDelete?.Id === 0) {
+      // Hard delete for new items not yet saved to database
+      updatedWorkLocations = (majorItems[majorItemIndex].MajorItemLocations || []).filter((_, i) => i !== workLocationIndex);
+    } else {
+      // Soft delete for existing database items
+      updatedWorkLocations = (majorItems[majorItemIndex].MajorItemLocations || []).map((loc, i) => 
+        i === workLocationIndex ? { ...loc, IsDeleted: true } : loc
+      );
+    }
     
     const updatedItem = {
       ...majorItems[majorItemIndex],
       MajorItemLocations: updatedWorkLocations
     };
     onEdit(majorItemIndex, updatedItem);
+  };
+
+  const getInfraTypeName = (infraCode: string): string => {
+    const infraType = infraTypeEnums.find(x => x.InfraCode === infraCode);
+    return infraType?.InfraName || infraCode;
   };
 
   const getMinMaxAmounts = (workTypeId: number) => {
@@ -228,9 +274,11 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
 
   // Calculate total physical target for a major item
   const getTotalPhysicalTarget = (majorItem: MajorItemOfWorksWithDropdown): number => {
-    return majorItem.MajorItemLocations?.reduce((total, location) => {
-      return total + (location.PhysicalTarget || 0);
-    }, 0) || 0;
+    return majorItem.MajorItemLocations
+      ?.filter(location => !location.IsDeleted)
+      .reduce((total, location) => {
+        return total + (location.PhysicalTarget || 0);
+      }, 0) || 0;
   };
 
   // Calculate per unit cost for a major item
@@ -280,7 +328,9 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
             </TableRow>
           </TableHead>
           <TableBody>
-            {majorItems.map((item, index) => (
+            {majorItems.map((item, index) => {
+              if (item.IsDeleted) return null;
+              return (
               <React.Fragment key={item.Id || index}>
                 <TableRow className="border-b">
                   <TableCell>
@@ -309,7 +359,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="text-sm">{item.InfraType}</div>
+                    <div className="text-sm">{getInfraTypeName(item.InfraType)}</div>
                   </TableCell>
                   <TableCell>
                     <div className="text-sm font-medium">
@@ -340,7 +390,7 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                       </Button>
                       <Button
                         color="red"
-                        onClick={() => onDelete(index)}
+                        onClick={() => handleOpenDeleteDialog(index)}
                         className={`text-xs px-2 py-1 ${getDisabledClass(disabled)}`}
                         disabled={disabled}
                       >
@@ -372,12 +422,14 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
                         parentId={item.ReferenceId}
                         dropDowns={dropDowns}
                         disabled={disabled}
+                        deo={deo}
                       />
                     </TableCell>
                   </TableRow>
                 )}
               </React.Fragment>
-            ))}
+              );
+            })}
           </TableBody>
         </Table>
       </div>
@@ -393,15 +445,33 @@ const MajorItemOfWorksForm: React.FC<MajorItemOfWorksFormProps> = ({
         onAdd={handleMajorItemDialogSubmit}
         componentCosts={componentCosts}
         dropDowns={dropDowns}
+        infraTypeEnums={infraTypeEnums}
         mode={isAddingNewMajorItem ? 'add' : 'edit'}
         initialData={editingMajorItemIndex !== null ? {
           ComponentId: majorItems[editingMajorItemIndex].ComponentId,
           YearOfWork: majorItems[editingMajorItemIndex].YearOfWork,
           WorkTypeId: majorItems[editingMajorItemIndex].WorkTypeId,
           InfraType: majorItems[editingMajorItemIndex].InfraType,
+          IsDeleted: majorItems[editingMajorItemIndex].IsDeleted,
         } : undefined}
-        existingMajorItems={majorItems.map(item => ({ ComponentId: item.ComponentId }))}
+        existingMajorItems={majorItems.filter(item => !item.IsDeleted).map(item => ({ ComponentId: item.ComponentId }))}
         programDetails={programDetails}
+      />
+
+      {/* Delete Major Item Dialog */}
+      <DeleteMajorItemDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={handleCloseDeleteDialog}
+        onConfirmDelete={handleConfirmDelete}
+        majorItem={deletingMajorItem ? {
+          ComponentId: deletingMajorItem.ComponentId,
+          WorkTypeId: deletingMajorItem.WorkTypeId,
+          YearOfWork: deletingMajorItem.YearOfWork,
+          InfraType: deletingMajorItem.InfraType,
+          TargetUnit: deletingMajorItem.TargetUnit,
+          MajorItemLocations: deletingMajorItem.MajorItemLocations
+        } : null}
+        deleteIndex={deletingIndex}
       />
     </div>
   );

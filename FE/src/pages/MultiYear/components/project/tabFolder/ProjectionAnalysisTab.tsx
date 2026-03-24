@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Tab } from '@headlessui/react';
 import ComponentProjectionTab from './ComponentProjectionTab';
-import type { ComponentCostWithYears } from '../../../../Project/Model.d';
+import type { ComponentCostWithYears } from '../../../Model.d';
 
 interface ProjectionAnalysisTabProps {
   componentCosts: ComponentCostWithYears[];

@@ -1,0 +1,301 @@
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
+using DBHelper.Models.Procedures;
+
+namespace ReportGeneration
+{
+    public class AIP02
+    {
+        public static byte[] GenerateReport(
+            List<GenerateAIP01> projects,
+            List<GenerateAIPComponents> components)
+        {
+            int DefaultFs = 8;
+            int FooterFs = 7;
+            var logo = GeneratePDF.GetLogo();
+            return GeneratePDF.GenerateReport(page =>
+            {
+                page.Size(PageSizes.A4);
+                page.Margin(25);
+                page.DefaultTextStyle(x =>
+                    x.FontSize(DefaultFs).FontFamily(GeneratePDF.FontFamily).FontColor(Colors.Black));
+
+                // ── HEADER ───────────────────────────────────────────
+                page.Header()
+                    .Column(col =>
+                    {
+                        GeneratePDF.BuildDPWHHeader(col, logo,
+                            "FY 2025 ANNUAL INFRASTRUCTURE PROGRAM",
+                            subtitle: "Based on General Appropriations Act");
+
+                        col.Item()
+                           .PaddingTop(8)
+                           .Element(BuildTableHeader);
+                    });
+
+                // ── CONTENT ──────────────────────────────────────────
+                page.Content()
+                    .Element(c => BuildTableContent(c, projects, components));
+
+                // ── FOOTER ───────────────────────────────────────────
+                GeneratePDF.BuildFooter(page, FooterFs);
+            });
+        }
+
+        // ── COLUMN HEADERS ────────────────────────────────────────────────
+        static void BuildTableHeader(IContainer container)
+        {
+            container.Table(table =>
+            {
+                DefineColumns(table);
+
+                HeaderCell(table, "UACS / Sub Program");
+                HeaderCell(table, "Project Description");
+                HeaderCell(table, "Amount\n(PHP)");
+                HeaderCell(table, "Operating Unit /\nImplementing Office");
+            });
+        }
+
+        static void HeaderCell(TableDescriptor table, string text)
+        {
+            table.Cell()
+                 .Border(0.3f).BorderColor(Colors.Grey.Lighten1)
+                 .Background(Colors.Grey.Lighten4)
+                 .AlignCenter().AlignMiddle()
+                 .Padding(4)
+                 .Text(text).Bold().FontSize(7);
+        }
+
+        // ── TABLE CONTENT ─────────────────────────────────────────────────
+        static void BuildTableContent(
+            IContainer container,
+            List<GenerateAIP01> projects,
+            List<GenerateAIPComponents> components)
+        {
+            container.Table(table =>
+            {
+                DefineColumns(table);
+
+                // Region grouping
+                foreach (var regionGrp in projects
+                    .GroupBy(p => p.Region)
+                    .OrderBy(g => g.Key))
+                {
+                    var regionTotal = GetTotal(regionGrp, components);
+
+                    SummaryRow(table,
+                        regionGrp.Key,
+                        regionGrp.Count(),
+                        regionTotal,
+                        fontSize: 8, bold: true, topBorder: true);
+
+                    // District grouping
+                    foreach (var distGrp in regionGrp
+                        .GroupBy(p => p.LegislativeDistrict)
+                        .OrderBy(g => g.Key))
+                    {
+                        var distTotal = GetTotal(distGrp, components);
+
+                        SummaryRow(table,
+                            distGrp.Key,
+                            distGrp.Count(),
+                            distTotal,
+                            fontSize: 8, bold: false,
+                            underline: true, indent: 6);
+
+                        // DEO grouping
+                        foreach (var deoGrp in distGrp
+                            .GroupBy(p => p.DEO)
+                            .OrderBy(g => g.Key))
+                        {
+                            var deoTotal = GetTotal(deoGrp, components);
+
+                            SummaryRow(table,
+                                deoGrp.Key,
+                                deoGrp.Count(),
+                                deoTotal,
+                                fontSize: 8, bold: false,
+                                underline: true, indent: 6);
+
+                            // Category (OO) grouping
+                            foreach (var ooGrp in deoGrp
+                                .GroupBy(p => p.Category ?? "")
+                                .OrderBy(g => g.Key))
+                            {
+                                var ooTotal = GetTotal(ooGrp, components);
+
+                                SummaryRow(table,
+                                    ooGrp.Key,
+                                    ooGrp.Count(),
+                                    ooTotal,
+                                    fontSize: 8, bold: true,
+                                    indent: 12);
+
+                                // Thrust grouping
+                                int seq = 0;
+                                foreach (var catGrp in ooGrp
+                                    .GroupBy(p => p.Thrust ?? "")
+                                    .OrderBy(g => g.Key))
+                                {
+                                    var catTotal = GetTotal(catGrp, components);
+
+                                    ThrustRow(table, catGrp.Key, catTotal);
+
+                                    // Project rows
+                                    foreach (var project in catGrp.OrderBy(p => p.Id))
+                                    {
+                                        seq++;
+
+                                        var projTotal = components
+                                            .Where(c => c.ProjectComponentId
+                                                ?.StartsWith(project.ProjectId) == true)
+                                            .Sum(c => c.TotalComponentCost);
+
+                                        ProjectRow(table, seq, project, (decimal)projTotal);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ── ROW BUILDERS ──────────────────────────────────────────────────
+
+        static void SummaryRow(
+            TableDescriptor table,
+            string label,
+            int count,
+            decimal total,
+            float fontSize = 8,
+            bool bold = false,
+            bool underline = false,
+            bool topBorder = false,
+            int indent = 0)
+        {
+            // Col 0 — label
+            table.Cell()
+                 .BorderTop(topBorder ? 0.5f : 0)
+                 .BorderColor(Colors.Grey.Medium)
+                 .PaddingVertical(3)
+                 .PaddingLeft(indent + 2f)
+                 .Text(t =>
+                 {
+                     var span = t.Span(label).FontSize(fontSize);
+                     if (bold) span.Bold();
+                     if (underline) span.Underline();
+                 });
+
+            // Col 1 — count + "projects"
+            table.Cell()
+                 .PaddingLeft(2).PaddingVertical(3)
+                 .AlignRight().PaddingRight(2)
+                 .Text(t =>
+                 {
+                     var s = t.Span($"{count}     projects").FontSize(fontSize);
+                     if (bold) s.Bold();
+                 });
+
+            // Col 2 — total amount
+            table.Cell()
+                 .AlignRight().PaddingRight(2).PaddingVertical(3)
+                 .Text(t =>
+                 {
+                     var s = t.Span(FormatAmt(total)).FontSize(fontSize);
+                     if (bold) s.Bold();
+                 });
+
+            // Col 3 — blank
+            table.Cell().Text("");
+        }
+
+        static void ThrustRow(TableDescriptor table, string label, decimal total)
+        {
+            // Col 0-1 — label (spans 2 cols)
+            table.Cell().ColumnSpan(2)
+                 .PaddingTop(4).PaddingBottom(2).PaddingLeft(18)
+                 .Text(t => t.Span(label + "\n").FontSize(7.5f).Underline());
+
+            // Col 2 — total
+            table.Cell()
+                 .AlignRight().PaddingRight(2).PaddingVertical(2)
+                 .Text(t => t.Span(FormatAmt(total)).FontSize(7.5f));
+
+            // Col 3 — blank
+            table.Cell().Text("");
+        }
+
+        static void ProjectRow(
+            TableDescriptor table,
+            int seq,
+            GenerateAIP01 project,
+            decimal total)
+        {
+            // ── Row 1: seq + ProjectId | UACS | total | office ────
+            // Col 0 — seq + ProjectId
+            table.Cell()
+                 .PaddingLeft(4).PaddingVertical(2)
+                 .Text(t =>
+                 {
+                     t.Span($"{seq}.  ").FontSize(7.5f).Bold();
+                      t.Span(project.ProjectId).FontSize(7.5f);
+                 });
+
+            // Col 1 — UACS
+            table.Cell()
+                 .PaddingHorizontal(2).PaddingVertical(2)
+                 .Text(project.UACS ?? "").FontSize(7);
+
+            // Col 2 — project total
+            table.Cell()
+                 .AlignRight().PaddingRight(2).PaddingVertical(2)
+                 .Text(FormatAmt(total)).FontSize(7.5f);
+
+            // Col 3 — Operating Unit / Implementing Office
+            table.Cell()
+                 .PaddingHorizontal(2).PaddingVertical(2)
+                 .Text(project.OperatingUnit + "/" +  project.ImplementingOffice).FontSize(7);
+
+            // ── Row 2: Description ────────────────────────────────
+            // Col 0-1 — description (spans 2 cols)
+            table.Cell().ColumnSpan(2)
+                 .PaddingLeft(6).PaddingBottom(2)
+                 .Text("\n" + project.Description + "\n").FontSize(7);
+
+            // Col 2 — blank
+            table.Cell().Text("");
+
+            // Col 3 — blank
+            table.Cell().Text("");
+        }
+
+        // ── SHARED HELPERS ─────────────────────────────────────────────────
+
+        static void DefineColumns(TableDescriptor table)
+        {
+            table.ColumnsDefinition(cols =>
+            {
+                cols.RelativeColumn(14);  // 0 UACS / Sub Program
+                cols.RelativeColumn(30);  // 1 Project Description
+                cols.RelativeColumn(9);   // 2 Amount (PHP)
+                cols.RelativeColumn(12);  // 3 Operating Unit
+            });
+        }
+
+        static decimal GetTotal(
+            IEnumerable<GenerateAIP01> projectGroup,
+            List<GenerateAIPComponents> allComponents)
+        {
+            var ids = projectGroup.Select(p => p.ProjectId).ToHashSet();
+            return (decimal)allComponents
+                .Where(c => ids.Any(id =>
+                    c.ProjectComponentId?.StartsWith(id) == true))
+                .Sum(c => c.TotalComponentCost);
+        }
+
+        static string FormatAmt(decimal v) =>
+            v == 0 ? "" : v.ToString("N0");
+    }
+}

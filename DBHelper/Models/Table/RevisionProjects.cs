@@ -75,6 +75,7 @@ namespace DBHelper.Models.Table
         public int RegionWide { get; set; }
         [Required]
         public int Tier { get; set; }
+        public Double? Rank { get; set; }
         public bool IsDeleted { get; set; } = false;
     }
 }

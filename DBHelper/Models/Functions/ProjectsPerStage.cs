@@ -15,10 +15,11 @@ namespace DBHelper.Models.Functions
         public string Description { get; set; } = string.Empty;
         public string? Category { get; set; }
         public string Thrust { get; set; } = string.Empty;
-        public string City { get; set; } = string.Empty;
-        public string LegislativeDistrict { get; set; } = string.Empty;
+        public string ImplementingOffice { get; set; } = string.Empty;
+        public string OperatingUnit { get; set; } = string.Empty;
         public string CreatedBy { get; set; } = string.Empty;
         public DateTime CreatedDate { get; set; }
         public bool IsPublishable { get; set; } = false;
+        public bool IsPublished { get; set; } = false;
     }
 }

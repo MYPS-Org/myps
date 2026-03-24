@@ -10,7 +10,9 @@ import { selectedItemAtom, type Bridge } from "../state/rbiaAtoms";
 import { useBridgeData } from "../hooks/useBridgeData";
 import FutureBridgeDialog from "../Dialogs/FutureBridgeDialog";
 import DeleteBridgeDialog from "../Dialogs/DeleteBridgeDialog";
+import FilterBridgeDialog from "../Dialogs/FilterBridgeDialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../components/tailwindui/table";
+import { Pagination, PaginationList, PaginationNext, PaginationPrevious, PaginationPage, PaginationGap } from "../../../components/tailwindui/pagination";
 // Simple Badge component
 const Badge: React.FC<{ children: React.ReactNode; className?: string; color?: string }> = ({ 
   children, 
@@ -54,12 +56,14 @@ const FutureBridgeList: React.FC = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [bridgeToDelete, setBridgeToDelete] = useState<Bridge | null>(null);
+  const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
   const [sortField, setSortField] = useState<string>('');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // Use the custom hook for bridge data management
   const {
     bridgeData,
+    bridgeFilters,
     isLoading,
     searchInput,
     hasActiveFilters,
@@ -68,6 +72,7 @@ const FutureBridgeList: React.FC = () => {
     handleSearchSubmit,
     handleClearSearch,
     handlePagination,
+    handleFilterChange,
     removeBridgeFromState
   } = useBridgeData();
 
@@ -141,12 +146,12 @@ const FutureBridgeList: React.FC = () => {
             <Button 
               color="white" 
               className={`flex items-center shadow-md ${hasActiveFilters ? 'ring-2 ring-orange-500 bg-orange-50' : ''}`}
-              onClick={() => { /* TODO: Open filter dialog */ }}
+              onClick={() => setIsFilterDialogOpen(true)}
             >
               <AdjustmentsVerticalIcon className="w-4 h-4 mr-1" />
               Filter
               {(() => {
-                const activeFilters = Object.values(bridgeData.lists || {}).filter(Boolean).length;
+                const activeFilters = Object.values(bridgeFilters.filters || {}).filter(Boolean).length;
                 return activeFilters > 0 && (
                   <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
                     {activeFilters}
@@ -174,7 +179,7 @@ const FutureBridgeList: React.FC = () => {
                 sortDirection={getSortDirection("RoadSectionId")}
                 onSort={handleSortWithDirection("RoadSectionId")}
               >
-                Road ID
+                Section Road ID
               </TableHeader>
               <TableHeader 
                 justify="center" 
@@ -190,7 +195,7 @@ const FutureBridgeList: React.FC = () => {
                 sortDirection={getSortDirection("BridgeId")}
                 onSort={handleSortWithDirection("BridgeId")}
               >
-                Section Road ID
+                Bridge ID
               </TableHeader>
               <TableHeader 
                 justify="center" 
@@ -285,40 +290,55 @@ const FutureBridgeList: React.FC = () => {
       </div>
 
       {/* Pagination */}
-      {bridgeData.totalPages > 1 && (
-        <div className="px-6 py-4 border-t border-gray-200">
-          <div className="flex justify-center">
-            <div className="flex space-x-1">
-              <Button
-                color="white"
-                onClick={() => Paginate(bridgeData.page - 1)}
-                disabled={bridgeData.page === 1 || isLoading}
-              >
-                Previous
-              </Button>
-              
-              {Array.from({ length: bridgeData.totalPages }, (_, i) => i + 1).map((pageNum) => (
-                <Button
-                  key={pageNum}
-                  color={pageNum === bridgeData.page ? "blue" : "white"}
-                  onClick={() => Paginate(pageNum)}
-                  disabled={isLoading}
-                >
-                  {pageNum}
-                </Button>
-              ))}
-              
-              <Button
-                color="white"
-                onClick={() => Paginate(bridgeData.page + 1)}
-                disabled={bridgeData.page === bridgeData.totalPages || isLoading}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Pagination className="my-6">
+        {bridgeData.totalPages > 1 && (
+          <>
+            <PaginationPrevious 
+              onClick={async () => await Paginate(1)}
+              disabled={bridgeData.page <= 1 || isLoading}
+            >
+              First
+            </PaginationPrevious>
+            <PaginationList>
+              {Array.from({ length: bridgeData.totalPages }, (_, i) => {
+                const pageNum = i + 1;
+                const currentPage = bridgeData.page;
+                const totalPages = bridgeData.totalPages;
+                
+                // Show first page, last page, current page, and pages around current
+                if (
+                  pageNum === 1 ||
+                  pageNum === totalPages ||
+                  (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+                ) {
+                  return (
+                    <PaginationPage
+                      key={pageNum}
+                      onClick={async () => await Paginate(pageNum)}
+                      current={pageNum === currentPage}
+                      // disabled={isLoading}
+                    >
+                      {pageNum}
+                    </PaginationPage>
+                  );
+                } else if (
+                  pageNum === currentPage - 2 ||
+                  pageNum === currentPage + 2
+                ) {
+                  return <PaginationGap key={pageNum} />;
+                }
+                return null;
+              })}
+            </PaginationList>
+            <PaginationNext 
+              onClick={async () => await Paginate(bridgeData.totalPages)}
+              disabled={bridgeData.page >= bridgeData.totalPages || isLoading}
+            >
+              Last
+            </PaginationNext>
+          </>
+        )}
+      </Pagination>
 
       {/* Footer info */}
       <div className='mb-3.5 px-6 py-4 border-t border-gray-200'>
@@ -343,6 +363,15 @@ const FutureBridgeList: React.FC = () => {
           }}
           onSubmit={(bridgeId: string) => handleConfirmDelete(bridgeId)}
           bridge={bridgeToDelete}
+        />
+      )}
+      {isFilterDialogOpen && (
+        <FilterBridgeDialog
+          isOpen={isFilterDialogOpen}
+          onClose={() => setIsFilterDialogOpen(false)}
+          onSubmit={(filterData) => handleFilterChange({ filters: filterData })}
+          onClear={() => { handleClearSearch(); setIsFilterDialogOpen(false); }}
+          initialData={bridgeFilters.filters}
         />
       )}
     </div>

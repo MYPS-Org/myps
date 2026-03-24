@@ -94,4 +94,5 @@ namespace WebAPI.Controllers.Programs
     }
     public class BatchPublishTaggingDTO : BatchUnpublishTaggingDTO { }
     public class BatchDeleteTaggingDTO : BatchUnpublishTaggingDTO { }
+    public class BatchAddExistingProjectDTO : BatchUnpublishTaggingDTO { }
 }
