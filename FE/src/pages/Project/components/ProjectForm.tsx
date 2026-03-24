@@ -32,8 +32,11 @@ import MajorItemOfWorksForm from './MajorItemOfWorksForm';
 import NotesForm from './NotesForm';
 import FundingProfileForm from './FundingProfileForm';
 import ActivitySection from './ActivitySection';
-import { addProjectDetails, getProjectEnums, updateEntireProject, fetchProjectGeoJSON } from '../Service';
+import { addProjectDetails, getProjectEnums, updateEntireProject, fetchProjectGeoJSON, importProject } from '../Service';
 import { ChevronDownIcon, ChevronRightIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
+import ImportLumpsumDialog from '../dialogs/ImportLumpsumDialog';
+import type { ImportedProject } from '../Model.d';
+import { transformImportedProjects } from '../../Program/utils/transformImportedProjects';
 import type { ProgramList } from '../../Program/Model';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/react';
@@ -83,6 +86,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const [ isConfirmDialogOpen, setIsConfirmDialogOpen ] = useState<boolean>(false);
   const [ isProceedDialogOpen, setIsProceedDialogOpen ] = useState<boolean>(false);
   const [ proceedMessage, setProceedMessage ] = useState<string>('');
+  const [ isImportLumpsumOpen, setIsImportLumpsumOpen ] = useState<boolean>(false);
 
   
   // SetMaxAmount in ComponentCostForm
@@ -908,6 +912,44 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     }
   };
 
+  // ── Lump Sum Import ──────────────────────────────────────────────────────
+  const handleImportLumpsumSubmit = async (projects: ImportedProject[]) => {
+    try {
+      const programId = initialData?.ProgramDetails?.ProgramId ?? '';
+      const stageName = initialData?.ProgramDetails?.StageName ?? '';
+
+      const transformed = transformImportedProjects(projects, programId, stageName);
+
+      console.group('[Lump Sum Import — Exact API Payload → /Importing/ImportProject/]');
+      console.log('programDetails:',       transformed.programDetails);
+      console.log('projectDetails:',       transformed.projectDetails);
+      console.log('fundingProfile:',       transformed.fundingProfile);
+      console.log('componentCosts:',       transformed.componentCosts);
+      console.log('componentCostPerYear:', transformed.componentCostPerYear);
+      console.log('majorItemOfWorks:',     transformed.majorItemOfWorks);
+      console.log('majorItemLocations:',   transformed.majorItemLocations);
+      console.log('── Full JSON ──', JSON.stringify(transformed, null, 2));
+      console.groupEnd();
+
+      await importProject(transformed);
+      showToast({
+        type: 'success',
+        message: `Successfully imported ${transformed.projectDetails.length} project${transformed.projectDetails.length !== 1 ? 's' : ''}.`,
+      });
+
+      // Refresh the page after successful import
+      if (initialData?.ProjectDetails?.ProjectId && stageName) {
+        navigate(`/projects/project-details/${initialData.ProjectDetails.ProjectId}:${stageName}`);
+      }
+    } catch (error) {
+      console.error('Error importing lump sum project:', error);
+      showToast({
+        type: 'error',
+        message: 'Failed to import lump sum project. Please try again.',
+      });
+    }
+  };
+
   const handleReviseProject = (projectId: string, stageName: string, revisionTypeId: number, revisionTypeDescription: string) => {
     // navigate(`/projects/modify-project/${projectId}:${stageName}`);
     if (!projectId || !stageName || !revisionTypeId || !revisionTypeDescription) {
@@ -952,7 +994,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                 <Button
                   color="blue"
                   className="cursor-pointer"
-                  onClick={() => navigate(`/lumpsum/${initialData?.ProjectDetails?.ProjectId}`)}
+                  onClick={() => setIsImportLumpsumOpen(true)}
                 >
                   <ArrowUpTrayIcon className="h-4 w-4" />
                   Import Lump Sum Project
@@ -1225,6 +1267,16 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         onConfirm={handleProceedAnyway}
         message={proceedMessage}
         projectName={projectDetails.Description}
+      />
+
+      {/* Lump Sum Import Dialog */}
+      <ImportLumpsumDialog
+        isOpen={isImportLumpsumOpen}
+        onClose={() => setIsImportLumpsumOpen(false)}
+        onSubmit={handleImportLumpsumSubmit}
+        projectId={initialData?.ProjectDetails?.ProjectId ?? ''}
+        programId={initialData?.ProgramDetails?.ProgramId ?? ''}
+        stageName={initialData?.ProgramDetails?.StageName ?? ''}
       />
 
     </div>

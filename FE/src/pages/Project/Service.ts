@@ -1,6 +1,6 @@
 import { httpClient, type ApiResponse } from "../../services/httpClient";
 import type { ProgramList } from "../Program/Model";
-import type { ProjectLists, ComponentCost, ProjectDetails, MajorItemOfWork, MajorItemLocations, FundingProfile, ProjectNote, ProjectEnums, ProjectFormPayload, ProjectPagination, AddNotes, InfraData, ProjectSupportingDocs, ProjectRevisionList, ComponentCostPerYear } from "./Model.d";
+import type { ProjectLists, ComponentCost, ProjectDetails, MajorItemOfWork, MajorItemLocations, FundingProfile, ProjectNote, ProjectEnums, ProjectFormPayload, ProjectPagination, AddNotes, InfraData, ProjectSupportingDocs, ProjectRevisionList, ComponentCostPerYear, ImportProjectDTO } from "./Model.d";
 
 // #region INITIALIZE Project Lists
 export const fetchProject = async (data: ProjectPagination) => {
@@ -262,6 +262,20 @@ export const chainageToLrpConverter = async (sectionId: string, chainage: number
         throw error;
     }
 };
+
+// #region Import
+export const importProject = async (payload: ImportProjectDTO) => {
+    try {
+        const response = await httpClient.post(`/Importing/ImportProject/`, payload, {
+            preloaderMessage: 'Importing lump sum project...'
+        });
+        return response;
+    } catch (ErrorResponse) {
+        console.error('Error importing lump sum project:', ErrorResponse);
+        throw ErrorResponse;
+    }
+};
+// #endregion
 
 export const lrpToChainageConverter = async (sectionId: string, lrp: string) => {
     try {
