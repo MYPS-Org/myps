@@ -240,8 +240,8 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
-                        var CheckMaxId = _db.tOptionProgramStage.OrderByDescending(x => x.NameId).FirstOrDefault()!;
-                        data.NameId = CheckMaxId.NameId + 1;
+                        var CheckMaxId = _db.tOptionProgramStage.OrderByDescending(x => x.NameId).FirstOrDefault();
+                        data.NameId = (CheckMaxId != null) ? CheckMaxId.NameId + 1 : 1;
                         await _db.tOptionProgramStage.AddAsync(data);
                     }
                     else if (dto.TransactionType == CodeTransactionType.Update)
@@ -316,8 +316,8 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
-                        var CheckMaxId = _db.tOptionProgramStatus.OrderByDescending(x => x.NameId).FirstOrDefault()!;
-                        data.NameId = CheckMaxId.NameId + 1;
+                        var CheckMaxId = _db.tOptionProgramStatus.OrderByDescending(x => x.NameId).FirstOrDefault();
+                        data.NameId = (CheckMaxId != null) ? CheckMaxId.NameId + 1 : 1;
                         await _db.tOptionProgramStatus.AddAsync(data);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Update)
@@ -392,8 +392,8 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
-                        var CheckMaxId = _db.tOptionProgramType.OrderByDescending(x => x.NameId).FirstOrDefault()!;
-                        data.NameId = CheckMaxId.NameId + 1;
+                        var CheckMaxId = _db.tOptionProgramType.OrderByDescending(x => x.NameId).FirstOrDefault();
+                        data.NameId = (CheckMaxId != null) ? CheckMaxId.NameId + 1 : 1;
                         await _db.tOptionProgramType.AddAsync(data);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Update)
@@ -468,8 +468,8 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
-                        var CheckMaxId = _db.tOptionProjectCategory.OrderByDescending(x => x.CategoryId).FirstOrDefault()!;
-                        data.CategoryId = CheckMaxId.CategoryId + 1;
+                        var CheckMaxId = _db.tOptionProjectCategory.OrderByDescending(x => x.CategoryId).FirstOrDefault();
+                        data.CategoryId = (CheckMaxId != null) ? CheckMaxId.CategoryId + 1 : 1;
                         await _db.tOptionProjectCategory.AddAsync(data);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Update)
@@ -766,8 +766,8 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
-                        var CheckMaxId = _db.tOptionProjectOrigin.OrderByDescending(x => x.NameId).FirstOrDefault()!;
-                        data.NameId = CheckMaxId.NameId + 1;
+                        var CheckMaxId = _db.tOptionProjectOrigin.OrderByDescending(x => x.NameId).FirstOrDefault();
+                        data.NameId = (CheckMaxId != null) ? CheckMaxId.NameId + 1 : 1;
                         await _db.tOptionProjectOrigin.AddAsync(data);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Update)
@@ -1039,8 +1039,8 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
-                        var CheckMaxId = _db.tOptionScopeOfWork.OrderByDescending(x => x.Enum).FirstOrDefault()!;
-                        data.Enum = CheckMaxId.Enum + 1;
+                        var CheckMaxId = _db.tOptionScopeOfWork.OrderByDescending(x => x.Enum).FirstOrDefault();
+                        data.Enum = (CheckMaxId != null) ? CheckMaxId.Enum + 1 : 1;
                         await _db.tOptionScopeOfWork.AddAsync(data);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Update)
@@ -1174,8 +1174,8 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
-                        var CheckMaxId = _db.tOptionInfraType.OrderByDescending(x => x.InfraCode).FirstOrDefault()!;
-                        data.InfraId = CheckMaxId.InfraId + 1;
+                        var CheckMaxId = _db.tOptionInfraType.OrderByDescending(x => x.InfraCode).FirstOrDefault();
+                        data.InfraId = (CheckMaxId != null) ? CheckMaxId.InfraId + 1 : 1;
                         await _db.tOptionInfraType.AddAsync(data);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Update)
@@ -1341,8 +1341,8 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
-                        var CheckMaxId = _db.tOptionRevisionHeader.OrderByDescending(x => x.RevisionGroupId).FirstOrDefault()!;
-                        data.RevisionGroupId = CheckMaxId.RevisionGroupId + 1;
+                        var CheckMaxId = _db.tOptionRevisionHeader.OrderByDescending(x => x.RevisionGroupId).FirstOrDefault();
+                        data.RevisionGroupId = (CheckMaxId != null) ? CheckMaxId.RevisionGroupId + 1 : 1;
                         await _db.tOptionRevisionHeader.AddAsync(data);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Update)
@@ -1410,8 +1410,8 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
-                        var CheckMaxId = _db.tOptionRevisionCategory.OrderByDescending(x => x.CategoryId).FirstOrDefault()!;
-                        data.CategoryId = CheckMaxId.CategoryId + 1;
+                        var CheckMaxId = _db.tOptionRevisionCategory.OrderByDescending(x => x.CategoryId).FirstOrDefault();
+                        data.CategoryId = (CheckMaxId != null) ? CheckMaxId.CategoryId + 1 : 1;
                         await _db.tOptionRevisionCategory.AddAsync(data);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Update)
@@ -1479,8 +1479,8 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
-                        var CheckMaxId = _db.tOptionRevisionReasons.OrderByDescending(x => x.ReasonId).FirstOrDefault()!;
-                        data.ReasonId = CheckMaxId.ReasonId + 1;
+                        var CheckMaxId = _db.tOptionRevisionReasons.OrderByDescending(x => x.ReasonId).FirstOrDefault();
+                        data.ReasonId = (CheckMaxId != null) ? CheckMaxId.ReasonId + 1 : 1;
                         await _db.tOptionRevisionReasons.AddAsync(data);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Update)
@@ -1776,8 +1776,8 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
-                        var CheckMaxId = _db.tOptionRevisionStatus.OrderByDescending(x => x.Enum).FirstOrDefault()!;
-                        data.Enum = CheckMaxId.Enum + 1;
+                        var CheckMaxId = _db.tOptionRevisionStatus.OrderByDescending(x => x.Enum).FirstOrDefault();
+                        //data.Enum = (CheckMaxId != null) ? CheckMaxId.Enum + 1 : 1;
                         await _db.tOptionRevisionStatus.AddAsync(data);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Update)
@@ -1807,7 +1807,7 @@ namespace WebAPI.Controllers.CodeTable
                 }
                 else
                 {
-                    return BadRequest(new
+                    return new BadRequestObjectResult(new
                     {
                         Title = "Invalid Code",
                         Message = $"The code {dto.Code} is not valid."

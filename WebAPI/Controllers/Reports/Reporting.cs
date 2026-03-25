@@ -215,13 +215,20 @@ namespace WebAPI.Controllers.Revision
         #region RBPTier
         [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> RequestReportRBPTier()
+        public async Task<IActionResult> RequestReportRBPTier(RequestReportRBPTierDTO dto)
         {
             try
             {
-                var data = MockData.GetRBP();
-
-                var bytes = GenerateRBPTier.GenerateReport(data);
+                var param = new Dictionary<string, object> {
+                    { "@ProgramId", dto.ProgramId }
+                };
+                if (!string.IsNullOrEmpty(dto.RegionName)) { param.Add("@RegionName", dto.RegionName); }
+                string aipSql = "EXEC pGenerateRBP " + string.Join(", ", param.Keys.Select(k => $"{k} = {k}"));
+                List<DBHelper.Models.Procedures.GenerateRBP> RBP = Sql.NormalQuery<DBHelper.Models.Procedures.GenerateRBP>(
+                    Appsetting.ConnectionString,
+                    aipSql, param
+                );
+                var bytes = GenerateRBPTier.GenerateReport(RBP);
 
                 var fileName = $"RBPTier_Report.pdf";
                 System.IO.File.WriteAllBytes(fileName, bytes);
@@ -237,18 +244,24 @@ namespace WebAPI.Controllers.Revision
         #region RDIP
         [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> RequestReportRDIP()
+        public async Task<IActionResult> RequestReportRDIP([FromBody] RequestReportRDIPDTO dto)
         {
             try
             {
-                return Ok();
-                var data = MockData.GetRDIP();
+                var param = new Dictionary<string, object> {
+                    { "@ProgramId", dto.ProgramId }
+                };
+                if (!string.IsNullOrEmpty(dto.RegionName)) { param.Add("@RegionName", dto.RegionName); }
+                string aipSql = "EXEC pGenerateRDIP " + string.Join(", ", param.Keys.Select(k => $"{k} = {k}"));
+                List<DBHelper.Models.Procedures.GenerateRDIP> RDIP = Sql.NormalQuery<DBHelper.Models.Procedures.GenerateRDIP>(
+                    Appsetting.ConnectionString,
+                    aipSql, param
+                );
+                var bytes = ReportGeneration.GenerateRDIP.GenerateReport(RDIP);
 
-                //var bytes = GenerateRDIP.GenerateReport(data);
-
-                //var fileName = $"RDIP_Report.pdf";
-                //System.IO.File.WriteAllBytes(fileName, bytes);
-                //return File(bytes, "application/pdf", fileName);
+                var fileName = $"RDIP_Report.pdf";
+                System.IO.File.WriteAllBytes(fileName, bytes);
+                return File(bytes, "application/pdf", fileName);
             }
             catch (Exception ex)
             {
@@ -256,5 +269,7 @@ namespace WebAPI.Controllers.Revision
             }
         }
         #endregion
+
+
     }
 }

@@ -99,21 +99,35 @@ namespace ReportGeneration
                     .GroupBy(r => r.Region)
                     .OrderBy(g => g.Key))
                 {
-                    foreach (var deoGrp in regionGrp
-                        .GroupBy(r => r.DEO)
+                    // ── Region summary row ────────────────────
+                    WriteDataRow(table, regionGrp.Key, regionGrp,
+                        fontSize: 7, bold: true, topBorder: true);
+
+                    foreach (var tierGrp in regionGrp
+                        .GroupBy(r => r.Tier)
                         .OrderBy(g => g.Key))
                     {
-                        // ── DEO row ───────────────────────────────
-                        WriteDataRow(table, deoGrp.Key, deoGrp,
+                        // ── Tier summary row ─────────────────────
+                        WriteDataRow(table,
+                            $"Tier {ToRoman(tierGrp.Key)}", tierGrp,
                             fontSize: 7, bold: true, topBorder: true);
 
-                        foreach (var distGrp in deoGrp
-                            .GroupBy(r => r.LegislativeDistrict)
+                        foreach (var deoGrp in tierGrp
+                            .GroupBy(r => r.DEO)
                             .OrderBy(g => g.Key))
                         {
-                            // ── District row ──────────────────────
-                            WriteDataRow(table, distGrp.Key, distGrp,
-                                indent: 8, fontSize: 7);
+                            // ── DEO row ───────────────────────────────
+                            WriteDataRow(table, deoGrp.Key, deoGrp,
+                                indent: 4, fontSize: 7, bold: true, topBorder: true);
+
+                            foreach (var distGrp in deoGrp
+                                .GroupBy(r => r.LegislativeDistrict)
+                                .OrderBy(g => g.Key))
+                            {
+                                // ── District row ──────────────────────
+                                WriteDataRow(table, distGrp.Key, distGrp,
+                                    indent: 10, fontSize: 7);
+                            }
                         }
                     }
                 }
