@@ -41,6 +41,12 @@ namespace WebAPI.Controllers.Programs
         [Required]
         public int Classification { get; set; }
     }
+    public class DeleteFutureRoadDTO
+    {
+        [Required]
+        [MaxLength(100)]
+        public string RoadId { get; set; } = string.Empty;
+    }
     #endregion
     #region Road Sections
     public class ShowFutureRoadSectionsDTO : EnumPagination<ShowFutureRoadSectionsFilterDTO> { }
@@ -81,6 +87,12 @@ namespace WebAPI.Controllers.Programs
         [Required]
         [MaxLength(100)]
         public string DEO { get; set; } = string.Empty;
+    }
+    public class DeleteFutureRoadSectionDTO
+    {
+        [Required]
+        [MaxLength(100)]
+        public string RoadSectionId { get; set; } = string.Empty;
     }
     #endregion
     #region Bridges
@@ -132,6 +144,12 @@ namespace WebAPI.Controllers.Programs
         public double CarriageWay { get; set; }
         [Required]
         public double OverallWidth { get; set; }
+    }
+    public class DeleteFutureBridgeDTO
+    {
+        [Required]
+        [MaxLength(100)]
+        public string BridgeId { get; set; } = string.Empty;
     }
     #endregion
 }
