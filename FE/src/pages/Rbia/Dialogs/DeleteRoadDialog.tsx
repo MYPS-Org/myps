@@ -3,6 +3,7 @@ import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import type { Road } from '../state/rbiaAtoms';
+import { deleteFutureRoad } from '../Service';
 
 interface DeleteRoadDialogProps {
   isOpen: boolean;
@@ -30,6 +31,7 @@ const DeleteRoadDialog: React.FC<DeleteRoadDialogProps> = ({ isOpen, onClose, on
     setIsDeleting(true);
     try {
       onSubmit(road.RoadId); // Call the onSubmit prop with the road ID
+      await deleteFutureRoad(road.RoadId);
       handleClose();
     } catch (error) {
       console.error('Error deleting road:', error);

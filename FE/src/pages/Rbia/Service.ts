@@ -45,7 +45,7 @@ export const editFutureRoad = async (road: FutureRoads) => {
 
 export const deleteFutureRoad = async (roadId: string) => {
     try {
-        const response = await httpClient.post<{ success: boolean }>('/rbia/deleteFutureRoad', { RoadId: roadId });
+        const response = await httpClient.post<{ success: boolean }>('/futureinfra/deleteFutureRoad', { RoadId: roadId });
         return response;
     } catch (error) {
         console.error('Error deleting future road:', error);
@@ -133,7 +133,7 @@ export const addFutureBridge = async (bridge: BridgeFilter) => {
 
 export const editFutureBridge = async (bridge: FutureBridge) => {
     try {
-        const response = await httpClient.post<FutureBridge>('/rbia/editFutureBridge', bridge, );
+        const response = await httpClient.post<FutureBridge>('/futureinfra/editFutureBridge', bridge, );
         return response;
     } catch (error) {
         console.error('Error editing future bridge:', error);
@@ -143,10 +143,61 @@ export const editFutureBridge = async (bridge: FutureBridge) => {
 
 export const deleteFutureBridge = async (bridgeId: string) => {
     try {
-        const response = await httpClient.post<{ success: boolean }>('/rbia/deleteFutureBridge', { BridgeId: bridgeId });
+        const response = await httpClient.post<{ success: boolean }>('/futureinfra/deleteFutureBridge', { BridgeId: bridgeId });
         return response;
     } catch (error) {
         console.error('Error deleting future bridge:', error);
+        throw error;
+    }
+}
+
+export const importNationalRoads = async (userName: string) => {
+    try {
+        const apiUrl = `http://localhost:8001/api_v2.0/inventory/import_national_roads?username=${encodeURIComponent(userName)}`;
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'ngrok-skip-browser-warning': 'true',
+            },
+        });
+        return response;
+    } catch (error) {
+        console.error('Error importing national roads:', error);
+        throw error;
+    }
+}
+
+export const importRoadSections = async (userName: string) => {
+    try {        
+        const apiUrl = `http://localhost:8001/api_v2.0/inventory/import_national_road_sections?username=${encodeURIComponent(userName)}`;
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'ngrok-skip-browser-warning': 'true',
+            },
+        });
+        return response;
+    } catch (error) {
+        console.error('Error importing national road sections:', error);
+        throw error;
+    }
+}
+
+export const importBridges = async (userName: string) => {
+    try {        
+        const apiUrl = `http://localhost:8001/api_v2.0/inventory/import_national_bridges?username=${encodeURIComponent(userName)}`;
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'ngrok-skip-browser-warning': 'true',
+            },
+        });
+        return response;
+    } catch (error) {
+        console.error('Error importing national bridges:', error);
         throw error;
     }
 }
