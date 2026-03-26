@@ -3,6 +3,8 @@ import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import type { Bridge } from '../state/rbiaAtoms';
+import { deleteFutureBridge } from '../Service';
+import { useToast } from '../../../components/toaster/ToasterContext';
 
 interface DeleteBridgeDialogProps {
   isOpen: boolean;
@@ -14,6 +16,7 @@ interface DeleteBridgeDialogProps {
 const DeleteBridgeDialog: React.FC<DeleteBridgeDialogProps> = ({ isOpen, onClose, onSubmit, bridge }) => {
   const [confirmText, setConfirmText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+  const { showToast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,19 +25,20 @@ const DeleteBridgeDialog: React.FC<DeleteBridgeDialogProps> = ({ isOpen, onClose
       return;
     }
 
-    if (!bridge.RoadSectionId || !bridge.Name) {
-      console.error('Bridge identification is incomplete');
+    if (!bridge.BridgeId) {
+      console.error('Bridge ID is undefined');
       return;
     }
 
     setIsDeleting(true);
     try {
-      // Use a combination of RoadSectionId and Name as unique identifier
-      const bridgeKey = `${bridge.RoadSectionId}-${bridge.Name}`;
-      onSubmit(bridgeKey); // Call the onSubmit prop with the bridge key
+      await deleteFutureBridge(bridge.BridgeId);
+      onSubmit(bridge.BridgeId);
+      showToast({ type: 'success', message: 'Bridge deleted successfully.' });
       handleClose();
     } catch (error) {
       console.error('Error deleting bridge:', error);
+      showToast({ type: 'error', message: 'Failed to delete bridge. Please try again.' });
     } finally {
       setIsDeleting(false);
     }

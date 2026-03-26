@@ -3,6 +3,8 @@ import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import type { RoadSection } from '../state/rbiaAtoms';
+import { deleteFutureRoadSection } from '../Service';
+import { useToast } from '../../../components/toaster/ToasterContext';
 
 interface DeleteRoadSectionDialogProps {
   isOpen: boolean;
@@ -14,6 +16,7 @@ interface DeleteRoadSectionDialogProps {
 const DeleteRoadSectionDialog: React.FC<DeleteRoadSectionDialogProps> = ({ isOpen, onClose, onSubmit, roadSection }) => {
   const [confirmText, setConfirmText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+  const { showToast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,10 +32,13 @@ const DeleteRoadSectionDialog: React.FC<DeleteRoadSectionDialogProps> = ({ isOpe
 
     setIsDeleting(true);
     try {
-      onSubmit(roadSection.RoadSectionId); // Call the onSubmit prop with the section road ID
+      await deleteFutureRoadSection(roadSection.RoadSectionId);
+      onSubmit(roadSection.RoadSectionId);
+      showToast({ type: 'success', message: 'Road section deleted successfully.' });
       handleClose();
     } catch (error) {
       console.error('Error deleting road section:', error);
+      showToast({ type: 'error', message: 'Failed to delete road section. Please try again.' });
     } finally {
       setIsDeleting(false);
     }

@@ -45,7 +45,7 @@ export const editFutureRoad = async (road: FutureRoads) => {
 
 export const deleteFutureRoad = async (roadId: string) => {
     try {
-        const response = await httpClient.post<{ success: boolean }>('/futureinfra/deleteFutureRoad', { RoadId: roadId });
+        const response = await httpClient.post<{ success: boolean }>('/futureinfra/DeleteFutureRoad', { RoadId: roadId });
         return response;
     } catch (error) {
         console.error('Error deleting future road:', error);
@@ -94,7 +94,7 @@ export const editFutureRoadSection = async (section: FutureRoadSections) => {
 
 export const deleteFutureRoadSection = async (sectionRoadId: string) => {
     try {
-        const response = await httpClient.post<{ success: boolean }>('/futureinfra/deleteFutureRoadSection', { SectionRoadId: sectionRoadId });
+        const response = await httpClient.post<{ success: boolean }>('/futureinfra/DeleteFutureRoadSection', { RoadSectionId: sectionRoadId });
         return response;
     } catch (error) {
         console.error('Error deleting future road section:', error);
@@ -143,7 +143,7 @@ export const editFutureBridge = async (bridge: FutureBridge) => {
 
 export const deleteFutureBridge = async (bridgeId: string) => {
     try {
-        const response = await httpClient.post<{ success: boolean }>('/futureinfra/deleteFutureBridge', { BridgeId: bridgeId });
+        const response = await httpClient.post<{ success: boolean }>('/futureinfra/DeleteFutureBridge', { BridgeId: bridgeId });
         return response;
     } catch (error) {
         console.error('Error deleting future bridge:', error);

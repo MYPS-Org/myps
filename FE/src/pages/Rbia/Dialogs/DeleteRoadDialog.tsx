@@ -4,6 +4,7 @@ import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import type { Road } from '../state/rbiaAtoms';
 import { deleteFutureRoad } from '../Service';
+import { useToast } from '../../../components/toaster/ToasterContext';
 
 interface DeleteRoadDialogProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ interface DeleteRoadDialogProps {
 const DeleteRoadDialog: React.FC<DeleteRoadDialogProps> = ({ isOpen, onClose, onSubmit, road }) => {
   const [confirmText, setConfirmText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+  const { showToast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,11 +32,13 @@ const DeleteRoadDialog: React.FC<DeleteRoadDialogProps> = ({ isOpen, onClose, on
 
     setIsDeleting(true);
     try {
-      onSubmit(road.RoadId); // Call the onSubmit prop with the road ID
       await deleteFutureRoad(road.RoadId);
+      onSubmit(road.RoadId);
+      showToast({ type: 'success', message: 'Road deleted successfully.' });
       handleClose();
     } catch (error) {
       console.error('Error deleting road:', error);
+      showToast({ type: 'error', message: 'Failed to delete road. Please try again.' });
     } finally {
       setIsDeleting(false);
     }
