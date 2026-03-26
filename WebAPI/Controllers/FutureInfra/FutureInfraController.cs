@@ -18,9 +18,9 @@ namespace WebAPI.Controllers.Programs
 {
     [ApiController]
     [Route("api/[controller]/[action]")]
-    public class FutureInfra : CoreController
+    public class FutureInfraController : CoreController
     {
-        public FutureInfra(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
+        public FutureInfraController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
         #region Future Roads
         [AllowAnonymous]
         [HttpPost]
@@ -128,11 +128,11 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                if (!dto.RoadId.IsValidFutureInfraId())
+                if (!"FR".IsValidFutureInfraId(dto.RoadId))
                 {
                     return new BadRequestObjectResult(new
                     {
-                        Message = $"Road ID '{dto.RoadId}' is invalid. Expected format: 2 letters, 5 digits, 2-letter island code (e.g., AB12345LU).",
+                        Message = $"Road ID '{dto.RoadId}' is invalid. Expected format: 2 letters, 5 digits, 2-letter island code (e.g., FR12345LZ).",
                         Title = "Invalid Road ID Format"
                     });
                 }
@@ -235,11 +235,11 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                if (!dto.RoadId.IsValidFutureInfraId())
+                if (!"FR".IsValidFutureInfraId(dto.RoadId))
                 {
                     return new BadRequestObjectResult(new
                     {
-                        Message = $"Road ID '{dto.RoadId}' is invalid. Expected format: 2 letters, 5 digits, 2-letter island code (e.g., AB12345LU).",
+                        Message = $"Road ID '{dto.RoadId}' is invalid. Expected format: 2 letters, 5 digits, 2-letter island code (e.g., FR12345LZ).",
                         Title = "Invalid Road ID Format"
                     });
                 }
@@ -275,6 +275,62 @@ namespace WebAPI.Controllers.Programs
                 {
                     Message = "Future Road added successfully",
                     Title = "Add Complete"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> DeleteFutureRoad([FromBody] DeleteFutureRoadDTO dto)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                if (!"FR".IsValidFutureInfraId(dto.RoadId))
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Road ID '{dto.RoadId}' is invalid. Expected format: 2 letters, 5 digits, 2-letter island code (e.g., FR12345LZ).",
+                        Title = "Invalid Road ID Format"
+                    });
+                }
+                var checkRoad = await _db.tFutureRoads.AsNoTracking().FirstOrDefaultAsync(x => x.RoadId == dto.RoadId);
+                if (checkRoad == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Road does not exists in the System", Title = "Invalid Road" });
+                }
+                var RoadSectionIds = await _db.tFutureRoadSections.AsNoTracking().Where(x => x.RoadId == dto.RoadId).ToListAsync();
+                HashSet<string> RoadIds = RoadSectionIds.Select(x => x.RoadSectionId).ToHashSet<string>();
+                var ValidateRoadSections = await _db.tProjectMajorWorkLocations.Where(x => RoadIds.Contains(x.InfraId)).ToListAsync();
+                if (ValidateRoadSections.Count > 0) {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = "The selected road has road sections that are currently in use and cannot be deleted.",
+                        Title = "Road In Use"
+                    });
+                }
+                var FutureBridgeIds = await _db.tFutureBridge.AsNoTracking().Where(x => RoadIds.Contains(x.RoadSectionId)).ToListAsync();
+                HashSet<string> BridgeIds = FutureBridgeIds.Select(x => x.BridgeId).ToHashSet<string>();
+                var ValidateBridgeIds = await _db.tProjectMajorWorkLocations.Where(x => BridgeIds.Contains(x.InfraId)).ToListAsync();
+                if (ValidateBridgeIds.Count > 0)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = "The selected road has bridge that are currently in use and cannot be deleted.",
+                        Title = "Bridge In Use"
+                    });
+                }
+                _db.tFutureRoads.Remove(checkRoad);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return Ok(new
+                {
+                    Message = "Future Road deleted successfully",
+                    Title = "Remove Complete"
                 });
             }
             catch (Exception ex)
@@ -389,11 +445,11 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                if (!dto.RoadSectionId.IsValidFutureInfraId())
+                if (!"FS".IsValidFutureInfraId(dto.RoadSectionId))
                 {
                     return new BadRequestObjectResult(new
                     {
-                        Message = $"Road Section ID '{dto.RoadSectionId}' is invalid. Expected format: 2 letters, 5 digits, 2-letter island code (e.g., AB12345LU).",
+                        Message = $"Road Section ID '{dto.RoadSectionId}' is invalid. Expected format: 2 letters, 5 digits, 2-letter island code (e.g., FS12345LZ).",
                         Title = "Invalid Road Section ID Format"
                     });
                 }
@@ -435,11 +491,11 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                if (!dto.RoadSectionId.IsValidFutureInfraId())
+                if (!"FS".IsValidFutureInfraId(dto.RoadSectionId))
                 {
                     return new BadRequestObjectResult(new
                     {
-                        Message = $"Road Section ID '{dto.RoadSectionId}' is invalid. Expected format: 2 letters, 5 digits, 2-letter island code (e.g., AB12345LU).",
+                        Message = $"Road Section ID '{dto.RoadSectionId}' is invalid. Expected format: 2 letters, 5 digits, 2-letter island code (e.g., FS12345LZ).",
                         Title = "Invalid Road Section ID Format"
                     });
                 }
@@ -562,6 +618,61 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> DeleteFutureRoadSection([FromBody] DeleteFutureRoadSectionDTO dto)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                if (!"FS".IsValidFutureInfraId(dto.RoadSectionId))
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Road ID '{dto.RoadSectionId}' is invalid. Expected format: 2 letters, 5 digits, 2-letter island code (e.g., FS12345LZ).",
+                        Title = "Invalid Road ID Format"
+                    });
+                }
+                var checkRoadSection = await _db.tFutureRoadSections.AsNoTracking().FirstOrDefaultAsync(x => x.RoadSectionId == dto.RoadSectionId);
+                if (checkRoadSection == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Road section does not exists in the System", Title = "Invalid Road Section" });
+                }
+                var ValidateRoadSections = await _db.tProjectMajorWorkLocations.Where(x => x.InfraId == dto.RoadSectionId).ToListAsync();
+                if (ValidateRoadSections.Count > 0)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = "The selected road has road sections that are currently in use and cannot be deleted.",
+                        Title = "Road In Use"
+                    });
+                }
+                var FutureBridgeIds = await _db.tFutureBridge.AsNoTracking().Where(x => x.RoadSectionId == dto.RoadSectionId).ToListAsync();
+                HashSet<string> BridgeIds = FutureBridgeIds.Select(x => x.BridgeId).ToHashSet<string>();
+                var ValidateBridgeIds = await _db.tProjectMajorWorkLocations.Where(x => BridgeIds.Contains(x.InfraId)).ToListAsync();
+                if (ValidateBridgeIds.Count > 0)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = "The selected bridge has locations that are currently in use and cannot be deleted.",
+                        Title = "Bridge In Use"
+                    });
+                }
+                _db.tFutureRoadSections.Remove(checkRoadSection);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return Ok(new
+                {
+                    Message = "Future Road section deleted successfully",
+                    Title = "Remove Complete"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
         #endregion
         #region Future Bridge
         [AllowAnonymous]
@@ -668,11 +779,11 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                if (!dto.BridgeId.IsValidFutureInfraId())
+                if (!"FB".IsValidFutureInfraId(dto.BridgeId))
                 {
                     return new BadRequestObjectResult(new
                     {
-                        Message = $"Bridge ID '{dto.BridgeId}' is invalid. Expected format: 2 letters, 5 digits, 2-letter island code (e.g., AB12345LU).",
+                        Message = $"Bridge ID '{dto.BridgeId}' is invalid. Expected format: 2 letters, 5 digits, 2-letter island code (e.g., FB12345LU).",
                         Title = "Invalid Bridge ID Format"
                     });
                 }
@@ -722,7 +833,7 @@ namespace WebAPI.Controllers.Programs
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                if (!dto.BridgeId.IsValidFutureInfraId())
+                if (!"FB".IsValidFutureInfraId(dto.BridgeId))
                 {
                     return new BadRequestObjectResult(new
                     {
@@ -856,6 +967,50 @@ namespace WebAPI.Controllers.Programs
                 {
                     Message = "Future Road added successfully",
                     Title = "Add Complete"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> DeleteFutureBridg([FromBody] DeleteFutureBridgeDTO dto)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                if (!"FB".IsValidFutureInfraId(dto.BridgeId))
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Bridge ID '{dto.BridgeId}' is invalid. Expected format: 2 letters, 5 digits, 2-letter island code (e.g., FB12345LZ).",
+                        Title = "Invalid Bridge ID Format"
+                    });
+                }
+                var checkBridge = await _db.tFutureBridge.AsNoTracking().FirstOrDefaultAsync(x => x.BridgeId == dto.BridgeId);
+                if (checkBridge == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Bridge does not exists in the System", Title = "Invalid Bridge" });
+                }
+                var ValidateRoadSections = await _db.tProjectMajorWorkLocations.Where(x => x.InfraId == dto.BridgeId).ToListAsync();
+                if (ValidateRoadSections.Count > 0)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = "The selected road has road sections that are currently in use and cannot be deleted.",
+                        Title = "Road In Use"
+                    });
+                }
+                _db.tFutureBridge.Remove(checkBridge);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return Ok(new
+                {
+                    Message = "Future Bridge deleted successfully",
+                    Title = "Remove Complete"
                 });
             }
             catch (Exception ex)

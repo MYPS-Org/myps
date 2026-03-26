@@ -28,9 +28,9 @@ namespace WebAPI.Controllers.Revision
 {
     [ApiController]
     [Route("api/[controller]/[action]")]
-    public class Reporting : CoreController
+    public class ReportingController : CoreController
     {
-        public Reporting(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
+        public ReportingController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
         #region AIP 
         [AllowAnonymous]
         [HttpPost]
