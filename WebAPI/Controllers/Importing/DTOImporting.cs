@@ -66,9 +66,9 @@ namespace WebAPI.Controllers.Importing
         [Required]
         public string Agreement { get; set; } = string.Empty;
         [Required]
-        public double Percentage { get; set; }
+        public Double Percentage { get; set; }
         [Required]
-        public int Amount { get; set; }
+        public Double Amount { get; set; }
     }
     public class ImportComponentCost
     {
@@ -82,14 +82,14 @@ namespace WebAPI.Controllers.Importing
         public string ComponentId { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         [Required]
-        public double Total { get; set; }
+        public Double Total { get; set; }
     }
     public class ImportComponentCostPerYear
     {
         [Required]
         public string ComponentCostId { get; set; } = string.Empty;
         [Required]
-        public int Amount { get; set; }
+        public Double Amount { get; set; }
         [Required]
         public int Year { get; set; }
         public string? StartDate { get; set; }

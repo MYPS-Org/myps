@@ -66,11 +66,6 @@ namespace WebAPI.Controllers.GlobalSearch
                     var Projects = await _db.vProjectPerStages.Where(x => x.AlternateId.Contains(dto.SearchFor)).ToListAsync();
                     return Ok( new { Data = Projects, Title = $"{Projects.Count} project/s found." });
                 }
-                if (dto.Category == "Bridge")
-                {
-                    var Bridges = await _db.tFutureBridge.Where(x => x.BridgeId.Contains(dto.SearchFor)).ToListAsync();
-                    return Ok(new { Data = Bridges, Title = $"{Bridges.Count} bridge/s found." });
-                }
                 if (dto.Category == "Description")
                 {
                     var Projects = await _db.vProjectPerStages.Where(x => x.Description.Contains(dto.SearchFor)).ToListAsync();
@@ -86,14 +81,19 @@ namespace WebAPI.Controllers.GlobalSearch
                     var Projects = await _db.vProjectPerStages.Where(x => x.ProjectId.Contains(dto.SearchFor)).ToListAsync();
                     return Ok( new { Data = Projects, Title = $"{Projects.Count} project/s found." });
                 }
-                if(dto.Category == "Road Sections")
+                if (dto.Category == "Bridge")
                 {
-                    var RoadSections = await _db.tFutureRoadSections.Where(x => x.RoadSectionId.Contains(dto.SearchFor)).ToListAsync();
+                    var Bridges = await _db.tFutureBridge.Where(x => x.BridgeId.Contains(dto.SearchFor) || x.Name.Contains(dto.SearchFor)).ToListAsync();
+                    return Ok(new { Data = Bridges, Title = $"{Bridges.Count} bridge/s found." });
+                }
+                if (dto.Category == "Road Sections")
+                {
+                    var RoadSections = await _db.tFutureRoadSections.Where(x => x.RoadSectionId.Contains(dto.SearchFor) || x.RoadId.Contains(dto.SearchFor)).ToListAsync();
                     return Ok( new { Data = RoadSections, Title = $"{RoadSections.Count} road section/s found." });
                 }
                 if(dto.Category == "Roads")
                 {
-                    var Roads = await _db.tFutureRoads.Where(x => x.RoadId.Contains(dto.SearchFor)).ToListAsync();
+                    var Roads = await _db.tFutureRoads.Where(x => x.RoadId.Contains(dto.SearchFor) || x.Name.Contains(dto.SearchFor)).ToListAsync();
                     return Ok( new { Data = Roads, Title = $"{Roads.Count} road/s found." });
                 }
                 if(dto.Category == "UACS")

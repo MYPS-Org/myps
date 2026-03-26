@@ -562,12 +562,12 @@ namespace Helpers
              */
             return true;
         }
-        private static readonly Regex RFutureInfra = new Regex(
-            @"^(?<prefix>[A-Z]{2})(?<digits>\d{5})(?<island>[A-Z]{2})$",
-            RegexOptions.Compiled | RegexOptions.CultureInvariant
-        );
-        public static bool IsValidFutureInfraId(this string id)
+        public static bool IsValidFutureInfraId(this string First2Letter, string id)
         {
+            Regex RFutureInfra = new Regex(
+                $@"^(?<prefix>{Regex.Escape(First2Letter)})(?<digits>\d{{5}})(?<island>[A-Z]{{2}})$",
+                RegexOptions.Compiled | RegexOptions.CultureInvariant
+            );
             // Format: 2 letters + 5 digits + 2 letters (island code)
             // Example: AB12345LU
             if (string.IsNullOrWhiteSpace(id))
