@@ -990,7 +990,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                   </Button>
                 </>
               )}
-              {mode === 'edit' && initialData?.ProjectDetails?.ProjectId?.toUpperCase().endsWith('LS') && (
+              {mode === 'edit' && initialData?.ProgramDetails?.StageId !== 10 && initialData?.ProjectDetails?.ProjectId?.toUpperCase().endsWith('LS') && (
                 <Button
                   color="blue"
                   className="cursor-pointer"
