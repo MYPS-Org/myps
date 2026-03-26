@@ -40,4 +40,9 @@ namespace WebAPI.Controllers.Revision
     {
         public string? RegionName { get; set; }
     }
+    public class RequestRawProjectsDTO : GenerateReportDTO
+    {
+        [Required]
+        public string StageName { get; set; } = string.Empty;
+    }
 }

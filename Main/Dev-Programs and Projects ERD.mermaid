@@ -1,0 +1,512 @@
+erDiagram
+
+    %% ─── PROGRAM GROUP ───────────────────────────────────────
+
+    tPrograms {
+        int         Id                  PK
+        nvarchar    ProgramId           UK
+        nvarchar    CreatedBy
+        datetime    CreatedDate
+        bit         IsDeleted
+        bit         IsSkipped
+        nvarchar    SkipReason
+        bit         IsPublished
+        int         RevisionNumber
+    }
+
+    tProgramStages {
+        int         Id                  PK
+        nvarchar    ProgramId           FK
+        nvarchar    ProgramUniqueId
+        int         RevisionId          FK
+        int         StageId             FK
+        nvarchar    StageName           FK
+        nvarchar    CreatedBy
+        datetime    CreatedDate
+        bit         IsPublished
+    }
+
+    tProgramRevisions {
+        int         Id                  PK
+        nvarchar    ProgramId           FK
+        int         RevisionNumber
+        nvarchar    Name
+        nvarchar    UserGroup
+        nvarchar    DataSecurityGroup
+        int         Status
+        int         Type
+        float       Cost
+        int         YearStart
+        nvarchar    CreatedBy
+        datetime    CreatedDate
+    }
+
+    %% ─── PROJECT GROUP ───────────────────────────────────────
+
+    tProjects {
+        int         Id                  PK
+        nvarchar    ProgramId           FK
+        nvarchar    ReferenceId         UK
+        nvarchar    CreatedBy
+        datetime    CreatedDate
+        bit         IsDeleted
+        bit         IsPublished
+    }
+
+    tProjectStages {
+        int         Id                  PK
+        nvarchar    ReferenceId         FK
+        nvarchar    ProgramId           FK
+        nvarchar    ProgramUniqueId
+        int         RevisionId          FK
+        int         StageId             FK
+        nvarchar    StageName           FK
+        nvarchar    CreatedBy
+        datetime    CreatedDate
+    }
+
+    tProjectRevisions {
+        int         Id                  PK
+        nvarchar    ProgramId           FK
+        nvarchar    ReferenceId
+        nvarchar    ProjectId           FK
+        nvarchar    AlternateId
+        nvarchar    ExternalId
+        nvarchar    MYId
+        nvarchar    UACS
+        datetime    MYCAApprovalDate
+        int         RevisionNumber
+        nvarchar    Description
+        int         Category            FK
+        int         Thrust              FK
+        int         Origin              FK
+        nvarchar    City                FK
+        nvarchar    Province            FK
+        nvarchar    LegislativeDistrict FK
+        nvarchar    OperatingUnit       FK
+        nvarchar    ImplementingOffice  FK
+        nvarchar    DEO                 FK
+        nvarchar    Region              FK
+        int         Agency              FK
+        int         ImplementationMode  FK
+        int         EmergencyMode       FK
+        nvarchar    IslandCode          FK
+        int         Feasibility         FK
+        datetime    FeasibilityDate
+        int         DetailedDesign      FK
+        datetime    DetailedDesignDate
+        int         RowAvailable        FK
+        int         RegionWide          FK
+        int         Tier
+        float       Rank
+        bit         IsRevised
+        int         RevisedNumber
+        nvarchar    CreatedBy
+        datetime    CreatedDate
+        bit         IsPublishable
+        bit         IsDeleted
+    }
+
+    %% ─── COMPONENT GROUP ─────────────────────────────────────
+
+    tOptionProjectComponent {
+        int         Id                  PK
+        nvarchar    ComponentId         UK
+        nvarchar    ComponentName
+        bit         ExportToPCMA
+        bit         IsDeleted
+    }
+
+    tProjectComponentCost {
+        int         Id                  PK
+        nvarchar    ProjectId           FK
+        nvarchar    CostId              UK
+        nvarchar    ComponentType
+        nvarchar    ComponentId         FK
+        nvarchar    Description
+        float       Total
+        nvarchar    StageName           FK
+        nvarchar    CreatedBy
+        datetime    CreatedDate
+        nvarchar    UpdatedBy
+        datetime    UpdatedDate
+        bit         IsDeleted
+    }
+
+    tProjectComponentCostPerYear {
+        int         Id                  PK
+        nvarchar    ComponentCostId     FK
+        float       Amount
+        int         Year
+        datetime    StartDate
+        datetime    EndDate
+        nvarchar    StageName           FK
+        nvarchar    CreatedBy
+        datetime    CreatedDate
+        nvarchar    UpdatedBy
+        datetime    UpdatedDate
+        bit         IsDeleted
+    }
+
+    %% ─── MAJOR WORK GROUP ────────────────────────────────────
+
+    tOptionScopeOfWork {
+        int         Id                  PK
+        int         Enum                UK
+        nvarchar    InfraType
+        nvarchar    WorkCategory
+        nvarchar    Description
+        nvarchar    Measure
+        int         MaxAmount
+        int         MinAmount
+    }
+
+    tOptionInfraType {
+        int         Id                  PK
+        int         InfraId
+        nvarchar    InfraCode           UK
+        nvarchar    InfraName
+    }
+
+    tProjectMajorWorkItem {
+        int         Id                  PK
+        nvarchar    ProjectId           FK
+        nvarchar    ReferenceId         UK
+        nvarchar    ComponentId         FK
+        int         YearOfWork
+        int         WorkTypeId          FK
+        nvarchar    InfraType           FK
+        nvarchar    StageName           FK
+        nvarchar    CreatedBy
+        datetime    CreatedDate
+        nvarchar    UpdatedBy
+        datetime    UpdatedDate
+        bit         IsDeleted
+    }
+
+    tProjectMajorWorkLocations {
+        int         Id                  PK
+        nvarchar    ParentId            FK
+        nvarchar    InfraId
+        nvarchar    DetailedScope
+        int         TargetUnitId
+        nvarchar    TargetUnit
+        float       StartX
+        float       StartY
+        float       EndX
+        float       EndY
+        float       PhysicalTarget
+        nvarchar    StartStationLimit
+        nvarchar    EndStationLimit
+        float       EndChainage
+        float       StartChainage
+        float       Length
+        nvarchar    CreatedBy
+        datetime    CreatedDate
+        nvarchar    UpdatedBy
+        datetime    UpdatedDate
+        bit         IsDeleted
+    }
+
+    %% ─── FUNDING GROUP ───────────────────────────────────────
+
+    tOptionFundingSource {
+        int         Id                  PK
+        nvarchar    Organization        UK
+        nvarchar    Name
+        nvarchar    Nature
+        nvarchar    CreatedBy
+        datetime    CreatedDate
+        nvarchar    UpdatedBy
+        datetime    UpdatedDate
+    }
+
+    tOptionFundingAgreement {
+        int         Id                  PK
+        nvarchar    SourceOrg
+        nvarchar    Code                UK
+        nvarchar    Name
+        nvarchar    FinancingSourceSegmentCode
+        nvarchar    CreatedBy
+        datetime    CreatedDate
+        nvarchar    UpdatedBy
+        datetime    UpdatedDate
+    }
+
+    tProjectFundingProfile {
+        int         Id                  PK
+        nvarchar    ProjectId           FK
+        nvarchar    Source              FK
+        nvarchar    Agreement           FK
+        float       Amount
+        float       Percentage
+        nvarchar    StageName           FK
+        nvarchar    CreatedBy
+        datetime    CreatedDate
+        nvarchar    UpdatedBy
+        datetime    UpdatedDate
+        bit         IsDeleted
+    }
+
+    %% ─── PROJECT REVISION LOOKUPS ────────────────────────────
+
+    tOptionProjectCategory {
+        int         Id                  PK
+        int         CategoryId          UK
+        nvarchar    CategoryName
+        int         Minimum
+        int         Maximum
+        int         ValidUntil
+    }
+
+    tProjectThrustLists {
+        int         Id                  PK
+        int         PAPKey              UK
+        nvarchar    ProgramName
+        nvarchar    SubProgramName
+        nvarchar    ActivityName
+        int         SequenceNumber
+        int         ValidFromDate
+        int         ValidToDate
+        nvarchar    InfrastructureType
+        nvarchar    ThrustDescription
+    }
+
+    tOptionProjectOrigin {
+        int         Id                  PK
+        int         NameId              UK
+        nvarchar    Name
+        nvarchar    Description
+    }
+
+    tOptionAdminAreaCityMunicipality {
+        int         Id                  PK
+        nvarchar    GdbId               UK
+        nvarchar    Name
+        nvarchar    Code
+        nvarchar    ProvinceGdbId       FK
+        nvarchar    ProvinceName
+    }
+
+    tOptionAdminAreaProvince {
+        int         Id                  PK
+        nvarchar    GdbId               UK
+        nvarchar    Name
+        nvarchar    Code
+        nvarchar    RegionParticipantId FK
+        nvarchar    RegionName
+    }
+
+    tOptionAdminAreaCongressionalDistrict {
+        int         Id                  PK
+        nvarchar    GdbId               UK
+        nvarchar    Name
+        nvarchar    Code
+        nvarchar    ProvinceGdbId       FK
+        nvarchar    ProvinceName
+    }
+
+    tOptionAdminAreaDistrictEngineeringOffice {
+        int         Id                  PK
+        nvarchar    GdbId
+        nvarchar    Name
+        nvarchar    ParticipantId       UK
+        nvarchar    ProvinceGdbId
+        nvarchar    ProvinceName
+        nvarchar    RegionParticipantId FK
+        nvarchar    RegionName
+    }
+
+    tOptionAdminAreaRegion {
+        int         Id                  PK
+        nvarchar    GdbId               UK
+        nvarchar    Name
+        nvarchar    ParticipantId       UK
+        varchar     IslandCode
+    }
+
+    tOptionAdminAreaCentralOffices {
+        int         Id                  PK
+        nvarchar    Name
+        nvarchar    ParticipantId       UK
+    }
+
+    tOptionAdminAreaUPMO {
+        int         Id                  PK
+        nvarchar    Name
+        nvarchar    ParticipantId       UK
+    }
+
+    tOptionAdminBureau {
+        int         Id                  PK
+        nvarchar    Name
+        nvarchar    ParticipantId       UK
+    }
+
+    %% ─── VIEWS ───────────────────────────────────────────────
+
+    %% vAdminOperatingUnit (view)
+    %% Sources: tOptionAdminAreaDistrictEngineeringOffice, tOptionAdminAreaRegion, tOptionAdminAreaCentralOffices
+    vAdminOperatingUnit {
+        nvarchar    Name
+        nvarchar    ParticipantId       UK
+        nvarchar    OrgType
+        nvarchar    RegionParticipantId
+        nvarchar    RegionName
+    }
+
+    %% vAdminImplementingOffice (view)
+    %% Sources: tOptionAdminAreaDistrictEngineeringOffice, tOptionAdminAreaRegion, tOptionAdminAreaCentralOffices, tOptionAdminAreaUPMO, tOptionAdminBureau
+    vAdminImplementingOffice {
+        nvarchar    Name
+        nvarchar    ParticipantId       UK
+        nvarchar    OrgType
+        nvarchar    RegionParticipantId
+        nvarchar    RegionName
+    }
+
+    tOptionProjectAgency {
+        int         Id                  PK
+        int         NameId              UK
+        nvarchar    Name
+        nvarchar    Description
+    }
+
+    tOptionProjectImplementationMode {
+        int         Id                  PK
+        int         NameId              UK
+        nvarchar    Name
+        nvarchar    Description
+    }
+
+    tOptionProjectEmergencyMode {
+        int         Id                  PK
+        int         NameId              UK
+        nvarchar    Name
+        nvarchar    Description
+    }
+
+    tOptionProjectFeasibilityStudy {
+        int         Id                  PK
+        int         NameId              UK
+        nvarchar    Name
+        nvarchar    Description
+    }
+
+    tOptionProjectDetailedDesign {
+        int         Id                  PK
+        int         NameId              UK
+        nvarchar    Name
+        nvarchar    Description
+    }
+
+    tOptionProjectRowAvailable {
+        int         Id                  PK
+        int         NameId              UK
+        nvarchar    Name
+        nvarchar    Description
+    }
+
+    tOptionRegionWide {
+        int         Id                  PK
+        int         NameId              UK
+        nvarchar    Name
+        nvarchar    Description
+    }
+
+    %% ─── STAGE LOOKUP ────────────────────────────────────────
+
+    tOptionProgramStage {
+        int         Id                  PK
+        int         NameId              UK
+        nvarchar    Name                UK
+        nvarchar    Description
+    }
+
+    %% ─── TRANSACTION LOG ─────────────────────────────────────
+
+    tTransactionLog {
+        int         Id                  PK
+        nvarchar    TransactionId
+        nvarchar    TypeOfTransaction
+        nvarchar    AffectedTable
+        nvarchar    AffectedColumn
+        nvarchar    OldValue
+        nvarchar    NewValue
+        nvarchar    CreatedBy
+        datetime    CreatedDate
+    }
+
+    %% ─── RELATIONSHIPS ───────────────────────────────────────
+
+    %% Program relationships
+    tPrograms               ||--o{ tProgramStages               : "ProgramId"
+    tPrograms               ||--o{ tProgramRevisions            : "ProgramId"
+    tProgramRevisions       ||--o{ tProgramStages               : "RevisionId > Id"
+    tOptionProgramStage     ||--o{ tProgramStages               : "NameId > StageId"
+    tOptionProgramStage     ||--o{ tProgramStages               : "Name > StageName"
+
+    %% Project relationships
+    tPrograms               ||--o{ tProjects                    : "ProgramId"
+    tProjects               ||--o{ tProjectStages               : "ReferenceId"
+    tProjectStages          }o--|| tProjectRevisions            : "RevisionId > Id"
+    tProjects               ||--o{ tProjectRevisions            : "ReferenceId > ProjectId"
+    tOptionProgramStage     ||--o{ tProjectStages               : "NameId > StageId"
+    tOptionProgramStage     ||--o{ tProjectStages               : "Name > StageName"
+
+    %% Component Cost relationships
+    tProjects               ||--o{ tProjectComponentCost        : "ReferenceId > ProjectId"
+    tOptionProjectComponent ||--o{ tProjectComponentCost        : "ComponentId"
+    tProjectComponentCost   ||--o{ tProjectComponentCostPerYear : "CostId > ComponentCostId"
+    tOptionProgramStage     ||--o{ tProjectComponentCost        : "Name > StageName"
+    tOptionProgramStage     ||--o{ tProjectComponentCostPerYear : "Name > StageName"
+
+    %% Major Work relationships
+    tProjects               ||--o{ tProjectMajorWorkItem        : "ReferenceId > ProjectId"
+    tOptionProjectComponent ||--o{ tProjectMajorWorkItem        : "ComponentId"
+    tOptionScopeOfWork      ||--o{ tProjectMajorWorkItem        : "Enum > WorkTypeId"
+    tOptionInfraType        ||--o{ tProjectMajorWorkItem        : "InfraCode > InfraType"
+    tProjectMajorWorkItem   ||--o{ tProjectMajorWorkLocations   : "ReferenceId > ParentId"
+    tOptionProgramStage     ||--o{ tProjectMajorWorkItem        : "Name > StageName"
+
+    %% Funding relationships
+    tProjects               ||--o{ tProjectFundingProfile       : "ReferenceId > ProjectId"
+    tOptionFundingSource    ||--o{ tProjectFundingProfile       : "Organization > Source"
+    tOptionFundingAgreement ||--o{ tProjectFundingProfile       : "Code > Agreement"
+    tOptionProgramStage     ||--o{ tProjectFundingProfile       : "Name > StageName"
+
+    %% ProjectRevisions lookup relationships
+    tOptionProjectCategory              ||--o{ tProjectRevisions : "CategoryId > Category"
+    tProjectThrustLists                 ||--o{ tProjectRevisions : "PAPKey > Thrust"
+    tOptionProjectOrigin                ||--o{ tProjectRevisions : "NameId > Origin"
+    tOptionAdminAreaCityMunicipality    ||--o{ tProjectRevisions : "GdbId > City"
+    tOptionAdminAreaProvince            ||--o{ tProjectRevisions : "GdbId > Province"
+    tOptionAdminAreaCongressionalDistrict ||--o{ tProjectRevisions : "GdbId > LegislativeDistrict"
+    tOptionAdminAreaDistrictEngineeringOffice ||--o{ tProjectRevisions : "ParticipantId > DEO"
+    tOptionAdminAreaRegion              ||--o{ tProjectRevisions : "ParticipantId > Region"
+    tOptionAdminAreaRegion              ||--o{ tProjectRevisions : "IslandCode > IslandCode"
+    tOptionProjectAgency                ||--o{ tProjectRevisions : "NameId > Agency"
+    tOptionProjectImplementationMode    ||--o{ tProjectRevisions : "NameId > ImplementationMode"
+    tOptionProjectEmergencyMode         ||--o{ tProjectRevisions : "NameId > EmergencyMode"
+    tOptionProjectFeasibilityStudy      ||--o{ tProjectRevisions : "NameId > Feasibility"
+    tOptionProjectDetailedDesign        ||--o{ tProjectRevisions : "NameId > DetailedDesign"
+    tOptionProjectRowAvailable          ||--o{ tProjectRevisions : "NameId > RowAvailable"
+    tOptionRegionWide                   ||--o{ tProjectRevisions : "NameId > RegionWide"
+
+    %% Admin area hierarchy
+    tOptionAdminAreaRegion              ||--o{ tOptionAdminAreaProvince                   : "ParticipantId > RegionParticipantId"
+    tOptionAdminAreaProvince            ||--o{ tOptionAdminAreaCityMunicipality           : "GdbId > ProvinceGdbId"
+    tOptionAdminAreaProvince            ||--o{ tOptionAdminAreaCongressionalDistrict      : "GdbId > ProvinceGdbId"
+    tOptionAdminAreaRegion              ||--o{ tOptionAdminAreaDistrictEngineeringOffice  : "ParticipantId > RegionParticipantId"
+
+    %% View source relationships
+    tOptionAdminAreaDistrictEngineeringOffice ||--o{ vAdminOperatingUnit         : "ParticipantId (DEO)"
+    tOptionAdminAreaRegion                   ||--o{ vAdminOperatingUnit         : "ParticipantId (Region)"
+    tOptionAdminAreaCentralOffices           ||--o{ vAdminOperatingUnit         : "ParticipantId (CO)"
+    tOptionAdminAreaDistrictEngineeringOffice ||--o{ vAdminImplementingOffice    : "ParticipantId (DEO)"
+    tOptionAdminAreaRegion                   ||--o{ vAdminImplementingOffice    : "ParticipantId (Region)"
+    tOptionAdminAreaCentralOffices           ||--o{ vAdminImplementingOffice    : "ParticipantId (CO)"
+    tOptionAdminAreaUPMO                     ||--o{ vAdminImplementingOffice    : "ParticipantId (UPMO)"
+    tOptionAdminBureau                       ||--o{ vAdminImplementingOffice    : "ParticipantId (Bureau)"
+    vAdminOperatingUnit                      ||--o{ tProjectRevisions           : "ParticipantId > OperatingUnit"
+    vAdminImplementingOffice                 ||--o{ tProjectRevisions           : "ParticipantId > ImplementingOffice"
