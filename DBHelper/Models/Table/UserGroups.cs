@@ -15,7 +15,7 @@ namespace DBHelper.Models.Table
         [MaxLength(50)]
         public string UserId { get; set; } = string.Empty;
         [Required]
-        public int GroupId { get; set; }
+        public int[] GroupIds { get; set; } = Array.Empty<int>();
         [MaxLength(50)]
         public string? CreatedBy { get; set; }
         public DateTime? CreatedDate { get; set; }

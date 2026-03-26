@@ -34,6 +34,48 @@ namespace WebAPI.Controllers.Revision
         #region AIP 
         [AllowAnonymous]
         [HttpPost]
+        public async Task<IActionResult> GetAIPReportDropdowns()
+        {
+            try
+            {
+                var stage = await _db.tOptionProgramStage
+                    .AsNoTracking()
+                    .ToListAsync();
+                var categories = await _db.tOptionProjectCategory
+                    .AsNoTracking()
+                    .ToListAsync();
+                var regions = await _db.tOptionAdminAreaRegion
+                    .AsNoTracking()
+                    .ToListAsync();
+                var operatingUnits = await _db.vAdminOperatingUnit
+                    .AsNoTracking()
+                    .ToListAsync();
+                var deos = await _db.tOptionAdminAreaDistrictEngineeringOffice
+                    .AsNoTracking()
+                    .ToListAsync();
+                var implementingOffices = await _db.vAdminImplementingOffice
+                    .AsNoTracking()
+                    .ToListAsync();
+                var legislativeDistricts = await _db.tOptionAdminAreaCongressionalDistrict
+                    .AsNoTracking()
+                    .ToListAsync();
+                return new OkObjectResult(new
+                {
+                    Categories = categories,
+                    Regions = regions,
+                    OperatingUnits = operatingUnits,
+                    DEOs = deos,
+                    ImplementingOffices = implementingOffices,
+                    LegislativeDistricts = legislativeDistricts
+                });
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
+        [AllowAnonymous]
+        [HttpPost]
         public async Task<IActionResult> RequestReportAIP([FromBody] RequestReportAIPDTO dto)
         {
             try
@@ -92,9 +134,6 @@ namespace WebAPI.Controllers.Revision
                 return ExceptionHandler(ex);
             }
         }
-        #endregion
-
-        #region AIP02
         [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> RequestReportAIP02([FromBody] RequestReportAIPDTO dto)
@@ -159,6 +198,29 @@ namespace WebAPI.Controllers.Revision
         #endregion
 
         #region RBPComponents
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> GetRBPReportDropdowns()
+        {
+            try
+            {
+                var regions = await _db.tOptionAdminAreaRegion
+                    .AsNoTracking()
+                    .ToListAsync();
+                var stage = await _db.tOptionProgramStage
+                    .AsNoTracking()
+                    .ToListAsync();
+                return new OkObjectResult(new
+                {
+                    Regions = regions,
+                    Stages = stage
+                });
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
         [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> RequestReportRBPComponents([FromBody] RequestReportRBPComponentsDTO dto)
@@ -246,6 +308,29 @@ namespace WebAPI.Controllers.Revision
         #endregion
 
         #region RDIP
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> GetRDIPReportDropdowns()
+        {
+            try
+            {
+                var regions = await _db.tOptionAdminAreaRegion
+                    .AsNoTracking()
+                    .ToListAsync();
+                var stage = await _db.tOptionProgramStage
+                    .AsNoTracking()
+                    .ToListAsync();
+                return new OkObjectResult(new
+                {
+                    Regions = regions,
+                    Stage = stage
+                });
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
         [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> RequestReportRDIP([FromBody] RequestReportRDIPDTO dto)

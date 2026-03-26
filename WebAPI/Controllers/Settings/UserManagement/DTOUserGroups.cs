@@ -12,10 +12,11 @@ namespace WebAPI.Controllers.Settings.UserManagement
     {
         public int Id { get; set; }
     }
-    public class AddUserGroupsDTO
+    public class AddUserGroupDTO
     {
         public string? GroupName { get; set; }
         public string? Description { get; set; }
-        public int[] PermissionIds { get; set; } = Array.Empty<int>();
+        public int[] ActionIds { get; set; } = Array.Empty<int>();
     }
+    public class UpdateUserGroupDTO : GroupRoles { }
 }

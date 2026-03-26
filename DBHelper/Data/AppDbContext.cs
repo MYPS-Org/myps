@@ -10,8 +10,8 @@ namespace DBHelper.Data
         }
         #region Tables
         public DbSet<Models.Table.Users> tUsers { get; set; }
-        public DbSet<Models.Table.PermissionGroups> tPermissionGroups { get; set; }
-        public DbSet<Models.Table.Permissions> tPermissions { get; set; }
+        public DbSet<Models.Table.PermissionControllers> tPermissionControllers { get; set; }
+        public DbSet<Models.Table.PermissionActions> tPermissionActions { get; set; }
         public DbSet<Models.Table.GroupRoles> tGroupRoles { get; set; }
         public DbSet<Models.Table.UserGroups> tUserGroups { get; set; }
         public DbSet<Models.Table.Groups> tGroups { get; set; }

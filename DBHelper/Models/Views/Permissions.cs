@@ -9,11 +9,8 @@ namespace DBHelper.Models.Views
     public class Permissions
     {
         public int Id { get; set; }
-        public int PermissionGroupId { get; set; }
-        public string? PermissionGroupName { get; set; }
+        public string Module { get; set; } = string.Empty;
         public string ModuleFunction { get; set; } = string.Empty;
-        public string Description { get; set; } = string.Empty;
-        public string CreatedBy { get; set; } = string.Empty;
-        public DateTime CreatedDate { get; set; }
+        public string? ModuleFunctionDescription { get; set; }
     }
 }
