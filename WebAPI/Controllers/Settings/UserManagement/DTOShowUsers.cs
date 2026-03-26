@@ -6,7 +6,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
     public class UserFilterDTO
     {
         public string? Name { get; set; }
-        public string? UserGroup { get; set; }
+        public int UserGroupId { get; set; }
         public bool? IsActive { get; set; }
     }
 }

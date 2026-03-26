@@ -59,7 +59,7 @@ namespace WebAPI.Controllers.Revision
                     .Where(x => x.Enum == EnumRevisionStatus.Approved)
                     .Select(x => (EnumRevisionStatus?)x.Enum)
                     .ToListAsync();
-                bool isCentralOffice = _Session.UserGroups.Contains("AUC");
+                bool isCentralOffice = _Session.UserGroupNames.Contains("AUC");
                 var baseQuery = _db.vRevisionLists.AsNoTracking();
                 if (isCentralOffice)
                 {
@@ -573,7 +573,7 @@ namespace WebAPI.Controllers.Revision
             var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                if (string.IsNullOrEmpty(_Session.UserGroups))
+                if (_Session.UserGroupNames.Count() == 0)
                 {
                     return new BadRequestObjectResult(new { Message = "Account usergroup is not allowed to submit Revision. Please contact administrator!", Title = "User Groups Missing" });
                 }
@@ -655,8 +655,8 @@ namespace WebAPI.Controllers.Revision
                     var SplitTransaction = HasTransactionId.TransactionId.Split("-");
                     TransactionId = Project.ProjectId + "-" + (int.Parse(SplitTransaction[1]) + 1).ToString();
                 }
-                bool isROUser = _Session.UserGroups.Contains("RPC");
-                bool isCOUser = _Session.UserGroups.Contains("AUC");
+                bool isROUser = _Session.UserGroupNames.Contains("RPC");
+                bool isCOUser = _Session.UserGroupNames.Contains("AUC");
                 #endregion
                 #region ProjectRevision
                 var ProjectDetailsRules = jsonRules.ProjectDetailsRules.GetType()
@@ -1517,12 +1517,12 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = $"Revision Transaction ID {dto.TransactionId} does not exist in revision requests", Title = "Transaction ID not found" });
                 }
-                if (string.IsNullOrEmpty(_Session.UserGroups))
+                if (_Session.UserGroupNames.Count() == 0)
                 {
                     return new BadRequestObjectResult(new { Message = "Account usergroup is not allowed to submit Revision. Please contact administrator!", Title = "User Groups Missing" });
                 }
-                bool isROUser = _Session.UserGroups.Contains("RPC");
-                bool isCOUser = _Session.UserGroups.Contains("AUC");
+                bool isROUser = _Session.UserGroupNames.Contains("RPC");
+                bool isCOUser = _Session.UserGroupNames.Contains("AUC");
                 if(!isCOUser && !isROUser)
                 {
                     return new BadRequestObjectResult(new { Message = "Account usergroup is not allowed to update Revision. Please contact administrator!", Title = "Invalid User Group" });
@@ -1697,7 +1697,7 @@ namespace WebAPI.Controllers.Revision
                 #endregion
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
-                return Ok(new { Message = $"Revision Updated by {_Session.UserGroups}", Title = "Updated Successfully" });
+                return Ok(new { Message = $"Revision Updated by {_Session.UserGroupNames}", Title = "Updated Successfully" });
             }
             catch (Exception ex)
             {
@@ -1712,7 +1712,7 @@ namespace WebAPI.Controllers.Revision
             var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                if (string.IsNullOrEmpty(_Session.UserGroups))
+                if (_Session.UserGroupNames.Count() == 0)
                 {
                     return new BadRequestObjectResult(new { Message = "Account usergroup is not allowed to submit Revision. Please contact administrator!", Title = "User Groups Missing" });
                 }

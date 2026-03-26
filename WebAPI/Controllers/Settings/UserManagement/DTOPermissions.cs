@@ -23,4 +23,5 @@ namespace WebAPI.Controllers.Settings.UserManagement
     }
     public class UpdatePermissionControllerDetailsDTO : PermissionControllers { }
     public class UpdatePermissionActionDetailsDTO : PermissionActions { }
+    public class DeletePermissionActionDetailsDTO : PermissionActions { }
 }
