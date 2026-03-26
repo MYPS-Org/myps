@@ -3,6 +3,7 @@ import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { Button } from '../../../components/tailwindui/button';
 import type { AIPReportParams } from '../../Program/Model';
+import { fetchAIPReportDropdownData } from '../../Program/Service';
 
 interface AIPReportDialogProps {
   isOpen: boolean;
@@ -34,6 +35,7 @@ const AIPReportDialog: React.FC<AIPReportDialogProps> = ({
 
   useEffect(() => {
     if (isOpen) {
+      fetchAIPReportDropdownData()
       setFormData({
         ProgramId: programId,
         ProgramName: programName,
@@ -90,29 +92,6 @@ const AIPReportDialog: React.FC<AIPReportDialogProps> = ({
     setErrors({});
     onClose();
   };
-
-  // Default regions if none provided
-  const defaultRegions = [
-    'NCR',
-    'CAR',
-    'Region I',
-    'Region II',
-    'Region III',
-    'Region IV-A',
-    'Region IV-B',
-    'Region V',
-    'Region VI',
-    'Region VII',
-    'Region VIII',
-    'Region IX',
-    'Region X',
-    'Region XI',
-    'Region XII',
-    'Region XIII',
-    'BARMM'
-  ];
-
-  const regionOptions = regions.length > 0 ? regions : defaultRegions;
 
   return (
     <Dialog open={isOpen} onClose={handleCancel} className="relative z-50">
@@ -195,11 +174,11 @@ const AIPReportDialog: React.FC<AIPReportDialogProps> = ({
                       }`}
                     >
                       <option value="">Select a region</option>
-                      {regionOptions.map((region) => (
+                      {/* {regionOptions.map((region) => (
                         <option key={region} value={region}>
                           {region}
                         </option>
-                      ))}
+                      ))} */}
                     </select>
                     {errors.Region && (
                       <p className="mt-1 text-sm text-red-600">{errors.Region}</p>

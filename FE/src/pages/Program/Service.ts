@@ -222,3 +222,15 @@ export const importProjects = async (payload: ImportProjectDTO) => {
         throw ErrorResponse;
     }
 };
+
+export const fetchAIPReportDropdownData = async () => {
+    try {
+        const response = await httpClient.post('/Reporting/GetAIPReportDropdowns', null, {
+            preloaderMessage: 'Loading AIP report dropdown data...'
+        });
+        return response;
+    } catch (ErrorResponse) {
+        console.error('Error fetching AIP report dropdown data:', ErrorResponse);
+        throw ErrorResponse;
+    }
+};
