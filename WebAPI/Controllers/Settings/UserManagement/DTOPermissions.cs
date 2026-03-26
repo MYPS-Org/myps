@@ -1,9 +1,10 @@
-﻿using System;
+﻿using DBHelper.Models.Enums;
+using DBHelper.Models.Table;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using DBHelper.Models.Enums;
 
 namespace WebAPI.Controllers.Settings.UserManagement
 {
@@ -20,4 +21,6 @@ namespace WebAPI.Controllers.Settings.UserManagement
         public string ModuleFunction { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
     }
+    public class UpdatePermissionControllerDetailsDTO : PermissionControllers { }
+    public class UpdatePermissionActionDetailsDTO : PermissionActions { }
 }

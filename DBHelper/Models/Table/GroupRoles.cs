@@ -11,11 +11,15 @@ namespace DBHelper.Models.Table
     {
         [Key]
         public int Id { get; set; }
-        public int? GroupId { get; set; }
+        [Required]
+        public int GroupId { get; set; }
+        [Required]
         [MaxLength(100)]
-        public int PermissionId { get; set; }
+        public int[] ActionIds { get; set; } = Array.Empty<int>();
+        [Required]
         [MaxLength(100)]
-        public string? CreatedBy { get; set; }
-        public DateTime? CreatedDate { get; set; }
+        public string CreatedBy { get; set; } = string.Empty;
+        [Required]
+        public DateTime CreatedDate { get; set; }
     }
 }

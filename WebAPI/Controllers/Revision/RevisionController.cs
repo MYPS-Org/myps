@@ -20,9 +20,9 @@ namespace WebAPI.Controllers.Revision
 {
     [ApiController]
     [Route("api/[controller]/[action]")]
-    public class Revision : CoreController
+    public class RevisionController : CoreController
     {
-        public Revision(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
+        public RevisionController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
         [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> RevisionRequests([FromBody] RevisionRequestsDTO dto)
