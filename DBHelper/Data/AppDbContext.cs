@@ -120,6 +120,7 @@ namespace DBHelper.Data
             modelBuilder.Entity<AdminImplementingOffice>().HasNoKey().ToView("vAdminImplementingOffice");
             modelBuilder.Entity<GetProjectCategoryVersions>().HasNoKey().ToView("vGetProjectCategoryVersions");
             modelBuilder.Entity<ProjectComponentStatus>().HasNoKey().ToView("vProjectComponentStatus");
+            modelBuilder.Entity<AIPBase>().HasNoKey().ToView("vAIPBase");
             base.OnModelCreating(modelBuilder);
         }
     }

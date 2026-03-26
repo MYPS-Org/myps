@@ -9,26 +9,30 @@ export interface ProgramModel {
 	AddedName?: string;
 	YearStart: number;
 	YearEnd: number;
-	UserGroup: number;
+	UserGroup: number[];
 	IsSkipped: boolean;
 	SkipReason: string;
 	DataSecurityGroup?: string[];
 }
 export interface ProgramEnums {
 	Id: number;
-	Enum: number;
+	ParticipantId: string;
+	Name?: string;
 	GroupName?: string;
-	Name: string;
-	Description: string;
-	ParticipantId?: string;
 	OrgName?: string;
 	OrgType?: string;
+	ProvinceName?: string;
+	RegionName?: string;
+	CongressionalDistrictName?: string;
+	IslandCode?: string;
+	RegionParticipantId: string;
 }
 
 export interface ParentProgram {
 	Id: number;
 	RevisionId: number;
 	ProgramId: string;
+	NumberOfProjects?: number;
 	StageName: string;
 	Name: string;
 	GroupName?: string;
@@ -54,7 +58,7 @@ export interface ProgramDetails {
 	IsSkipped: boolean;
 	IsPublished: boolean;
 	SkipReason: string;
-	UserGroup: number;
+	UserGroup: number[];
 	RegionCode: string;
 	Status: number;
 	Type: number;
@@ -76,6 +80,7 @@ export interface ProgramDetailsWithStages {
 	Id: number;
 	ProgramId: string;
 	RevisionNumber: number;
+	NumberOfProjects?: number;
 	Name: string;
 	StageId: number;
 	StageName: string;
@@ -100,12 +105,19 @@ export interface ProgramDetailsEnums{
   Projects: ProjectLists[];
   IsActive: boolean;
   Dropdowns: {
-    Stages: ProgramEnums[];
-    Statuses: ProgramEnums[];
-    Types: ProgramEnums[];
+    Stages: TableEnums[];
+    Statuses: TableEnums[];
+    Types: TableEnums[];
     Groups: ProgramEnums[];
 	DataSecurity: ProgramEnums[];
   };
+}
+
+export interface TableEnum {
+	Id: number;
+	NameId: number;
+	Name: string;
+	Description?: string;
 }
 
 export interface ProgramPagination extends PaginationParams {
@@ -127,19 +139,27 @@ export interface ProgramList {
 	Id: number;
 	RevisionId: number;
 	ProgramId: string;
+	NumberOfProjects?: number;
 	TypeName?: string;
 	StageName: string;
 	StageId?: number;
 	Name: string;
 	GroupName?: string;
 	RegionCode: string;
-	Status?: string;
+	Status?: number;
 	Type?: string;
 	Cost?: number;
 	YearStart: number;
 	YearEnd: number;
 	CreatedBy: string;
 	CreatedDate: string;
-	IsPublished: boolean;
+	// IsPublished: boolean;
+	IsPublishable: boolean;
 }
 
+export interface AIPReportParams {
+  ProgramId: string;
+  ProgramName?: string;
+  StageName: string;
+  Region: string;
+}

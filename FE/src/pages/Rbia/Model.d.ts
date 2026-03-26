@@ -1,6 +1,6 @@
 export interface FutureRoadsClassification {
 	Id: number;
-	Classification: string;
+	Classification: number;
 	Description: string;
 	CreatedBy: string;
 	CreatedDate: string;
@@ -9,11 +9,13 @@ export interface FutureRoadsClassification {
 }
 export interface FutureRoads {
 	Id: number;
+	NetworkStatusId: number;
+	InfraExistingOrFutureId: number;
 	RoadId: string;
 	Name: string;
-	Classification: string;
-	CreatedBy?: string;
-	CreatedDate?: string;
+	Classification: number;
+	CreatedBy: string;
+	CreatedDate: string;
 	UpdatedBy?: string;
 	UpdatedDate?: string;
 }
@@ -29,14 +31,16 @@ export interface RoadFilter {
 }
 export interface FutureRoadSections {
 	Id: number;
+	NetworkStatusId: number;
+	InfraExistingOrFutureId: number;
 	RoadId: string;
-  RoadSectionId: string;
-	RoadLength: string;
+	RoadSectionId: string;
+	RoadLength: number;
 	DEO: string;
 	CreatedBy: string;
 	CreatedDate: string;
-	UpdatedBy: string;
-	UpdatedDate: string;
+	UpdatedBy?: string;
+	UpdatedDate?: string;
 }
 export interface RoadSectionPagination extends PaginationParams {
   filters?: RoadSectionFilter;
@@ -51,16 +55,19 @@ export interface RoadSectionFilter {
 }
 export interface FutureBridge {
 	Id: number;
+	NetworkStatusId: number;
+	InfraExistingOrFutureId: number;
 	RoadSectionId: string;
 	BridgeId: string;
 	Name: string;
-	From: string;
-	Length: string;
-	CarriageWay: string;
+	From: number;
+	Length: number;
+	CarriageWay?: number;
+	OverallWidth: number;
 	CreatedBy: string;
 	CreatedDate: string;
-	UpdatedBy: string;
-	UpdatedDate: string;
+	UpdatedBy?: string;
+	UpdatedDate?: string;
 }
 export interface BridgePagination extends PaginationParams {
   filters?: BridgeFilter;
@@ -71,7 +78,7 @@ export interface BridgeFilter {
   RoadSectionId?: string,
   BridgeId?: string,
   Name?: string,
-  From?: string,
-  Length?: string,
-  CarriageWay?: string
+  From?: number,
+  Length?: number,
+  CarriageWay?: number
 }

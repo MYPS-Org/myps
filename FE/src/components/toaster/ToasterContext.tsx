@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, type ReactNode } from "react";
-import { Toaster } from "./Toaster";
+import { Toaster } from "./toaster";
 
 type ToastType = "success" | "error" | "info" | "warning";
 
@@ -43,7 +43,7 @@ export const ToasterProvider: React.FC<{ children: ReactNode }> = ({ children })
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      <div className="fixed top-4 right-4 z-50 max-w-sm">
+      <div className="fixed top-4 right-4 z-51 max-w-sm">
         {toasts.map((toast) => (
           <Toaster
             key={toast.id}

@@ -14,12 +14,10 @@ export interface ProjectFormPayload {
   IsModify?: boolean;
   IsActive: boolean;
   IsUnlock?: boolean;
-  ModificationCategory?: string; // Category from database if modification is submitted
-  ModificationReason?: string; // Reason from database if modification is submitted
   ProgramDetails: ProgramList;
   ProjectDetails: ProjectDetails;
   ComponentCosts: ComponentCost[];
-  ComponentCostPerYear: ComponentCostYear[];
+  ComponentCostPerYear: ComponentCostPerYear[];
   MajorItemOfWorks: MajorItemOfWork[];
   MajorItemLocations: MajorItemLocations[];
   ProjectNotes: ProjectNote[];
@@ -30,34 +28,33 @@ export interface ProjectFormPayload {
   TransactionLogs: TransactionLog[];
 }
 
-export interface AddProject {
-  ProjectName: string;
-  ProgramName: string;
-  Category: string;
-  TotalProjectCost: number;
-  DataSecurity: string;
-  CreatedBy: string;
-  CreatedDate: string;
+export interface RevisionDropdown {
+	Headers: OptionRevisionHeader[];
+	Reasons: OptionRevisionReasons[];
+	Categories: OptionRevisionCategory[];
 }
 
-export interface ProgramDetails {
+export interface OptionRevisionReasons {
 	Id: number;
-  	ProgramId: string;
-	RevisionNumber: number;
-	Name: string;
-	StageId: number;
-	StageName: string;
-	UserGroup: number;
-	RegionCode: string;
-	Status: number;
-	Type: number;
-	Cost?: number;
-	YearStart: number;
-	YearEnd: number;
-	CreatedBy?: string;
+	Reason: string;
+	RevisionGroupId: number;
+	ReasonId: number;
+    CategoryId?: number[];
+	CreatedBy: string;
 	CreatedDate?: string;
-	UpdatedBy?: string;
-	UpdatedDate?: string;
+}
+
+export interface OptionRevisionHeader {
+	Id: number;
+	RevisionName: string;
+	RevisionGroupId: number;
+}
+
+export interface OptionRevisionCategory {
+	Id: number;
+	CategoryName: string;
+	CategoryId: number;
+	RevisionGroupId: number;
 }
 
 export interface ProjectDetails {
@@ -70,9 +67,9 @@ export interface ProjectDetails {
 	ExternalId?: string;
 	MYId?: string;
 	UACS?: string;
-	MYCAApprovalDate?: string;
+	MYCAApprovalDate?: string | null;
 	IslandCode?: string;
-	RevisionNumber?: number;
+	RevisionId?: number;
 	Description?: string;
 	Category?: number;
 	Thrust?: number;
@@ -86,18 +83,20 @@ export interface ProjectDetails {
 	Region?: string;
 	Agency?: number;
 	ImplementationMode?: number;
-	EmergencyMode?: boolean;
+	EmergencyMode?: number;
 	Feasibility?: number;
 	FeasibilityDate?: string;
-	DetailedDesign?: boolean;
+	DetailedDesign?: number;
 	DetailedDesignDate?: string;
-	RowAvailable?: boolean;
+	RowAvailable?: number;
 	RegionWide?: number;
 	Tier: number;
+	Rank?: number;
 	CreatedBy?: string;
 	CreatedDate?: string;
 	UpdatedBy?: string;
 	UpdatedDate?: string;
+	IsAllowedToProceed?: boolean;
 }
 export interface ProjectLists {
 	Id: number;
@@ -126,7 +125,8 @@ export interface ProjectLists {
 	CreatedDate: string;
 	UpdateBy?: string;
 	UpdatedDate?: string;
-	IsPublished: boolean;
+	IsPublished?: boolean;
+	IsPublishable: boolean;
 }
 
 export interface Activity {
@@ -138,6 +138,7 @@ export interface Activity {
 export interface TransactionLog {
   Id: number;
   TransactionId: string;
+  ReferenceId?: string;
   TypeOfTransaction: string;
   AffectedTable: string;
   AffectedColumn: string;
@@ -147,27 +148,22 @@ export interface TransactionLog {
   CreatedDate: string;
 }
 
-export interface ProjectById {
-  ProgramDetails: ProgramDetails,
-  ProjectDetails: ProjectDetails,
-  ComponentCosts: ProjectComponentCost[],
-  ComponentCostPerYear: ProjectComponentCostYear[],
-  MajorItemOfWorks: ProjectMajorItemOfWorks[],
-  ProjectNotes: Notes,
-  Docs: Docs,
-  FundingProfile: Funding,
-  Dropdowns: Dropdowns
-}
-
 export interface ScopeOfWorkEnum {
 	Id: number;
 	Enum: number;
-	InfraType: string;
+	InfraType: string[];
 	WorkCategory: string;
 	Description: string;
 	Measure: number;
 	MaxAmount: number;
 	MinAmount: number;
+}
+
+export interface InfraTypeEnum {
+	Id: number;
+	InfraId: number;
+	InfraCode: string;
+	InfraName: string;
 }
 
 export interface RoadSections {
@@ -215,10 +211,10 @@ export interface OtherInfra {
 }
 
 export interface InfraData {
-	RoadSections: RoadSections[];
-	Bridges: Bridge[];
-	FCS: FCS[];
-	OtherInfra: OtherInfra[];
+	RoadSections?: import('../Rbia/Model.d').FutureRoadSections[];
+	Bridges?: import('../Rbia/Model.d').FutureBridge[];
+	FCS?: any[];
+	OtherInfra?: any[];
 }
 
 // #region Notes
@@ -236,41 +232,44 @@ export interface FileEntity {
 	DataUrl: string
 }
 
-export interface ComponentCostFormType
- {
-	ComponentCost: ComponentCost[];
-	ComponentCostYear: ComponentCostYear[];
-}
-
-// #region fetch data interfaces
+// #region ComponentCost
 export interface ComponentCost {
 	Id: number;
-	StageName?: string;
 	ProjectId: string;
-	ReferenceId: string;
+	CostId: string;
 	ComponentType: string;
 	ComponentId: string;
-	Description: string;
+	Description?: string;
 	Total: number;
-	CreatedBy?: string;
-	CreatedDate?: string;
+	StageName?: string;
+	IsDeleted: boolean;
+	RevisedNumber?: number;
+	ConstructionStatusCode?: number;
+	ConstructionStatusName?: string;
+	PackedStatusCode?: boolean;
+	PackedStatusName?: string;
+	CreatedBy: string;
+	CreatedDate: string;
 	UpdatedBy?: string;
 	UpdatedDate?: string;
 }
 
-// Combined interface for UI (ComponentCost with its related ComponentCostYear)
-export interface ComponentCostWithYears extends ComponentCost {
-	CostPerYear?: ComponentCostYear[];
+export interface ComponentCostPerYear {
+	Id: number;
+	ComponentCostId: string;
+	StageName?: string;
+	Amount?: number;
+	Year?: number;
+	StartDate?: string | null;
+	EndDate?: string | null;
+	CreatedBy: string;
+	CreatedDate: string;
+	UpdatedBy?: string;
+	UpdatedDate?: string;
+	IsDeleted: boolean;
 }
 
-export interface ComponentCostYear {
-	Id: number;
-	ParentId: string;
-	CostYear: number;
-	Cost: number;
-	StartDate?: string;
-	EndDate?: string;
-}
+// #endregion ComponentCost
 export interface MajorItemOfWorksWithDropdown extends MajorItemOfWork {
 	DropdownData: ScopeOfWorkEnum[];
 	MajorItemLocations: MajorItemLocations[]; // Keep for UI functionality
@@ -278,15 +277,16 @@ export interface MajorItemOfWorksWithDropdown extends MajorItemOfWork {
 export interface MajorItemOfWork {
 	Id: number;
 	ProjectId: string;
+	ReferenceId: string;
 	StageName?: string;
 	ComponentId: string;
-	ReferenceId: string;
 	YearOfWork: number;
 	WorkTypeId: number;
 	InfraType: string;
 	TargetUnitId: number;
 	TargetUnit: string;
 	CreatedBy: string;
+	IsDeleted: boolean;
 }
 export interface MajorItemLocations {
 	Id: number;
@@ -298,14 +298,15 @@ export interface MajorItemLocations {
 	TargetUnit: string; // Changed from number to string to match the UI usage
 	PhysicalTarget?: number | null;
 	Length?: number | null;
-	To: number;
-	From: number;
-	StartX: string;
-	StartY: string;
-	EndX: string;
-	EndY: string;
+	EndChainage: number;
+	StartChainage: number;
+	StartX: number;
+	StartY: number;
+	EndX: number | null;
+	EndY: number | null;
 	StartStationLimit: string;
 	EndStationLimit: string;
+	IsDeleted: boolean;
 }
 export interface ProjectNote {
 	Id: number;
@@ -327,40 +328,34 @@ export interface ProjectSupportingDocs {
 	Description: string;
 	CreatedBy: string;
 	CreatedDate?: string;
+	IsDeleted?: boolean;
 }
 export interface FundingProfile {
 	Id: number;
 	ProjectId: string;
 	StageName?: string;
 	Source: string;
-	Agreement: number;
+	Agreement: string;
 	Percentage: number;
 	Amount: number;
 	CreatedBy: string;
 	CreatedDate: string;
+	IsDeleted: boolean;
 }
 
 // #region Additional interfaces for dropdowns and enums
 export interface Dropdowns {
-	Categories: CategoryEnum[];
-	Thrusts: ThrustEnum[];
-	Origins: OriginEnum[];
-	Cities: CityEnum[];
 	ComponentTypes: ComponentTypeEnum[];
-	LDs: LDEnum[];
-	OperatingUnits: OperatingUnitEnum[];
-	IOs: IOEnum[];
-	DEOs: RODEOEnum[];
-	Agencies: AgencyEnum[];
-	ImplementationModes: ImplementationModeEnum[];
-	EmergencyModes: EmergencyModeEnum[];
-	Feasibility: FeasibEnum[];
 	// Funding Profile
 	Agreements: AgreementEnum[];
 	Sources: SourceEnum[];
 	// Major Item of Works
 	ScopeOfWorks: ScopeOfWorkEnum[];
+	InfraTypes: InfraTypeEnum[];
+	// Supporting Documents
 	SupportingDocs: DropdownSupportingDocs[];
+	// Revisions
+	Revisions?: RevisionDropdown;
 }
 export interface DropdownSupportingDocs {
 	Id: number;
@@ -371,16 +366,16 @@ export interface DropdownSupportingDocs {
 	ValidUntil: number;
 }
 export interface ComponentTypeEnum {
-	Description: string;
-	Enum: number;
-	ExportToPCMA: string;
 	Id: number;
-	Name: string;
+	ComponentId?: string;
+	ComponentName?: string;
+	ExportToPCMA: boolean;
+	IsDeleted: boolean;
 }
 export interface CategoryEnum {
 	Id: number;
-	Enum: number;
-	Name: string;
+	CategoryId?: string;
+	CategoryName?: string;
 	Minimum: number;
 	Maximum: number;
 	ValidUntil: number;
@@ -397,59 +392,27 @@ export interface ThrustEnum {
 	InfrastructureType?: string;
 	ThrustDescription: string;
 }
-export interface OriginEnum {
+export interface TableEnum {
 	Id: number;
-	Enum: number;
+	NameId: number;
 	Name: string;
-	Description: string;
-}
-export interface CityEnum {
-	Id: number;
-	Enum: number;
-	Name: string;
-	Description: string;
-}
-export interface LDEnum {
-	Id: number;
-	Enum: number;
-	Name: string;
-}
-export interface OperatingUnitEnum {
-	Name: string;
-	ParticipantId: string;
-	OrgType: string;
-}
-export interface IOEnum {
-	Name: string;
-	ParticipantId: string;
-	OrgType: string;
+	Description?: string;
 }
 export interface RODEOEnum {
 	Id: number;
 	GdbId?: string;
 	Name: string;
 	ParticipantId: string;
-	ProvinceId?: string;
+	ProvinceGdbId?: string;
 	ProvinceName?: string;
 	RegionParticipantId: string;
 	RegionName: string;
 }
-export interface FeasibEnum {
-	Id: number;
-	Enum: number;
-	Name: string;
-	Description: string;
-}
 export interface AgencyEnum {
 	Id: number;
-	Code: string;
-	AgencyName: string;
-}
-export interface ImplementationModeEnum {
-	Id: number;
-	Enum: number;
+	NameId: number;
 	Name: string;
-	Description: string;
+	Description: null | string;
 }
 export interface EmergencyModeEnum {
 	Id: number;
@@ -484,46 +447,21 @@ export interface SourceEnum {
 export interface ProjectEnums {
   Programs: ProgramList[];
   Categories: CategoryEnum[];
-  Thrusts: ProjectThurstEnum[];
-  Origins: ProjectOriginEnum[];
+  Thrusts: ThrustEnum[];
+  Origins: TableEnum[];
   Cities: ProjectCityEnum[];
   Provinces: ProjectProvinceEnum[];
   LDs: ProjectLegislativeDistrictEnum[];
   OperatingUnits: ProjectOperatingUnitEnum[];
   IOs: ProjectImplementingOfficeEnum[];
-  DEOs: ProjectRODEOEnum[];
-  Agencies: ProjectAgencyLists[];
-  ImplementationModes: ProjectImplementModeEnum[];
-  EmergencyModes: ProjectEmergencyModeEnum[];
-  Feasibility: ProjectLongFeasibilityEnum[];
-  RegionWide: ProjectCategoryEnum[];
-}
-
-export interface ProjectCategoryEnum {
-	Id: number;
-	Enum: number;
-	Name: string;
-	Description: string;
-}
-
-export interface ProjectThurstEnum {
-	Id: number;
-	PAPKey: number;
-	ProgramName: string;
-	SubProgramName: string;
-	ActivityName: string;
-	SequenceNumber: number;
-	ValidFromDate: number;
-	ValidToDate: number;
-	InfrastructureType?: string;
-	ThrustDescription: string;
-}
-
-export interface ProjectOriginEnum {
-	Id: number;
-	Enum: number;
-	Name: string;
-	Description: string;
+  DEOs: RODEOEnum[];
+  Agencies: AgencyEnum[];
+  ImplementationModes: TableEnum[];
+  EmergencyModes: TableEnum[];
+  RowsAvailable: TableEnum[];
+  Feasibility: TableEnum[];
+  DetailedDesign: TableEnum[];
+  RegionWide: TableEnum[];
 }
 
 export interface ProjectCityEnum {
@@ -531,7 +469,7 @@ export interface ProjectCityEnum {
 	GdbId: string;
 	Name: string;
 	Code: string;
-	ProvinceId: string;
+	ProvinceGdbId: string;
 	ProvinceName: string;
 }
 
@@ -549,7 +487,7 @@ export interface ProjectLegislativeDistrictEnum {
 	GdbId: string;
 	Name: string;
 	Code: string;
-	ProvinceId: string;
+	ProvinceGdbId: string;
 	ProvinceName: string;
 }
 
@@ -575,44 +513,6 @@ export interface ProjectImplementingOfficeEnum {
 	CongressionalDistrictName?: string;
 	IslandCode?: string;
 	RegionParticipantId: string;
-}
-
-export interface ProjectRODEOEnum {
-	Id: number;
-	GdbId?: string;
-	Name: string;
-	ParticipantId: string;
-	ProvinceId?: string;
-	ProvinceName?: string;
-	RegionParticipantId: string;
-	RegionName: string;
-}
-
-export interface ProjectAgencyLists {
-	Id: number;
-	Code: string;
-	AgencyName: string;
-}
-
-export interface ProjectImplementModeEnum {
-	Id: number;
-	Enum: number;
-	Name: string;
-	Description: string;
-}
-
-export interface ProjectEmergencyModeEnum {
-	Id: number;
-	Enum: boolean;
-	Name: string;
-	Description: string;
-}
-
-export interface ProjectLongFeasibilityEnum {
-	Id: number;
-	Enum: number;
-	Name: string;
-	Description: string;
 }
 
 // #region Project Revisions
@@ -642,9 +542,226 @@ export interface ProjectRevisionList {
 	Stages: ProjectStages[];
 	Dropdowns: {
 		CategoryEnum: CategoryEnum[];
-		ThrustEnum: ProjectThurstEnum[];
+		ThrustEnum: ThrustEnum[];
 	};
 }
 // #endregion Project Revisions
 
 // #endregion Enums
+
+// #region Import
+
+// ---------------------------------------------------------------------------
+// Backend DTO interfaces (camelCase, flat — matches ImportProjectDTO endpoint)
+// Prefixed with "Dto" to avoid name collisions with existing app interfaces.
+// ---------------------------------------------------------------------------
+
+export interface DtoProgramDetails {
+  programId: string;
+  stageName: string;
+}
+
+export interface DtoProjectDetails {
+  projectId: string;
+  externalId?: string | null;
+  myId?: string | null;
+  uacs?: string | null;
+  mycaApprovalDate?: string | null;
+  description?: string | null;
+  province: string;
+  city: string;
+  legislativeDistrict: string;
+  operatingUnit: string;
+  implementingOffice: string;
+  deo: string;
+  region: string;
+  category: string;
+  thrust: string;
+  origin: string;
+  agency: string;
+  implementationMode: string;
+  emergencyMode: string;
+  feasibility: string;
+  feasibilityDate: string | null;
+  detailedDesign: string;
+  detailedDesignDate: string | null;
+  rowAvailable: string;
+  regionWide: string;
+  tier: string;
+  rank?: number | null;
+}
+
+export interface DtoFundingProfile {
+  projectId: string;
+  source: string;
+  agreement: string;
+  percentage: number;
+  amount: number;
+}
+
+export interface DtoComponentCost {
+  projectId: string;
+  costId: string;
+  componentType: string;
+  componentId: string;
+  description: string;
+  total: number;
+}
+
+export interface DtoComponentCostPerYear {
+  componentCostId: string;
+  amount: number;
+  year: number;
+  startDate?: string | null;
+  endDate?: string | null;
+}
+
+export interface DtoMajorItemOfWork {
+  projectId: string;
+  referenceId: string;
+  componentId: string;
+  yearOfWork: number;
+  infraType: string;
+  workTypeId: string;
+  targetUnitId: string;
+  targetUnit: string;
+}
+
+export interface DtoMajorItemLocation {
+  parentId: string;
+  infraId: string;
+  detailedScope: string;
+  targetUnitId: string;
+  targetUnit: string;
+  physicalTarget: number;
+  length: number;
+  startChainage?: string | null;
+  endChainage?: string | null;
+  startX?: string | null;
+  startY?: string | null;
+  endX?: string | null;
+  endY?: string | null;
+  startStationLimit?: string | null;
+  endStationLimit?: string | null;
+}
+
+/** Flat DTO sent to the backend import endpoint. Mirrors ImportProjectDTO on the server. */
+export interface ImportProjectDTO {
+  programDetails: DtoProgramDetails;
+  projectDetails: DtoProjectDetails[];
+  fundingProfile: DtoFundingProfile[];
+  componentCosts: DtoComponentCost[];
+  componentCostPerYear: DtoComponentCostPerYear[];
+  majorItemOfWorks: DtoMajorItemOfWork[];
+  majorItemLocations: DtoMajorItemLocation[];
+}
+
+// ---------------------------------------------------------------------------
+// Raw parsed Excel interfaces (used by parseImportFile → transformer input)
+// ---------------------------------------------------------------------------
+
+/**
+ * Raw row data parsed directly from the Excel import file.
+ * String values are used for name-based lookup fields before the server resolves them to IDs.
+ */
+export interface ImportedProjectDetails {
+  ProjectId: string;
+  MYId?: string;
+  ExternalId?: string;
+  UACS?: string;
+  TierName?: string;           // raw text e.g. "Tier II"
+  Rank?: number;
+  CategoryName?: string;       // raw text e.g. "MFO 2: ..."
+  ThrustName?: string;         // Sub-Category raw text
+  MYCAApprovalDate?: string;
+  Province?: string;
+  City?: string;
+  LegislativeDistrict?: string;
+  Region?: string;
+  DEO?: string;
+  ImplementingOffice?: string;
+  OperatingUnit?: string;
+  RegionWideName?: string;     // "Yes" / "No" / "Region Wide"
+  OriginName?: string;
+  AgencyName?: string;
+  ImplementationModeName?: string;
+  EmergencyModeName?: string;
+  RowAvailableName?: string;
+  FeasibilityName?: string;
+  FeasibilityDate?: string;
+  DetailedDesignName?: string;
+  DetailedDesignDate?: string;
+  Description?: string;
+}
+
+export interface ImportedComponentCost {
+  ProjectId: string;
+  ComponentType: string;
+  ComponentId: string;
+  Description?: string;
+  Total: number;
+  StartDate?: string;
+  EndDate?: string;
+  InfraTypeName?: string;      // raw text for Infrastructure Type
+  WorkTypeName?: string;       // raw text for Type of Work
+  ActivityYear?: number;
+}
+
+export interface ImportedFundingProfile {
+  ProjectId: string;
+  Source: string;
+  Agreement: string;
+  Amount: number;
+}
+
+export interface ImportedMajorItem {
+  ProjectId: string;
+  ComponentId: string;
+  ReferenceId: string;
+  InfraId?: string;
+  DetailedScope?: string;
+  TargetUnit?: string;
+  StartX?: number;
+  StartY?: number;
+  EndX?: number;
+  EndY?: number;
+  PhysicalTarget?: number;
+  StartStation?: string;
+  EndStation?: string;
+  StartChainage?: number;
+  EndChainage?: number;
+  Length?: number;
+  ActivityYear?: number;
+}
+
+export interface ImportedProject {
+  ProjectDetails: ImportedProjectDetails;
+  ComponentCosts: ImportedComponentCost[];
+  FundingProfiles: ImportedFundingProfile[];
+  MajorItemsOfWork: ImportedMajorItem[];
+}
+
+export interface ImportParseResult {
+  projects: ImportedProject[];
+  errors: string[];
+  totalRows: {
+    details: number;
+    components: number;
+    funding: number;
+    majorItems: number;
+  };
+}
+
+/**
+ * Alias kept for backward compatibility — use ImportProjectDTO for new code.
+ * @deprecated Use ImportProjectDTO directly.
+ */
+export type ImportProjectPayload = ImportProjectDTO;
+
+/** Top-level batch request sent to the API. */
+export interface BatchImportPayload {
+  ProgramId: string;
+  StageName: string;
+  Projects: ImportProjectPayload[];
+}
+// #endregion Import

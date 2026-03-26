@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import type { ProjectDetails, ProjectEnums } from "../Model.d";
+import type { ProgramList } from "../../Program/Model.d";
 import type { FormValidationError } from "../../../utils/FormValidation";
 import { getDisabledClass, formatDropdownOptions } from '../../../utils/GlobalFunctions';
 import SearchableDropdown from '../../../components/ui/SearchableDropdown';
@@ -9,18 +10,19 @@ interface ProjectDetailsFormProps {
     onChange: (field: keyof ProjectDetails, value: any) => void;
     mode?: string; // 'add' or 'edit'
     projectEnums?: ProjectEnums;
-    initialData?: any;
+    programDetails?: ProgramList;
     errors?: FormValidationError<ProjectDetails>;
     disabled?: boolean;
 }
 
 const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({ 
+    programDetails,
     projectDetails, 
     onChange, 
     projectEnums,
     mode = '',
     errors = {},
-    disabled = false
+    disabled = false,
 }) => {
     const [ filteredCities, setFilteredCities ] = useState<ProjectEnums['Cities']>([]);
     const [ filteredLegislativeDistricts, setFilteredLegislativeDistricts ] = useState<ProjectEnums['LDs']>([]);
@@ -47,15 +49,15 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
         // If province is selected, filter cities and LDs by province
         if (projectDetails?.Province) {
             // Use Id for filtering since you're storing Id values
-            const ProvinceId = projectDetails.Province;
+            const ProvinceGdbId = projectDetails.Province;
             availableCities = projectEnums.Cities?.filter(
-                (city) => city.ProvinceId === ProvinceId
+                (city) => city.ProvinceGdbId === ProvinceGdbId
             ) || [];
             availableLDs = projectEnums.LDs?.filter(
-                (ld) => ld.ProvinceId === ProvinceId
+                (ld) => ld.ProvinceGdbId === ProvinceGdbId
             ) || [];
             availableDEOs = projectEnums.DEOs?.filter(
-                (deo) => deo.ProvinceId === ProvinceId
+                (deo) => deo.ProvinceGdbId === ProvinceGdbId
             ) || [];
 
             console.log('Filtered Cities and LDs by Province:', projectDetails.Province, availableCities, availableLDs, availableDEOs);
@@ -65,7 +67,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             const selectedCity = projectEnums.Cities?.find((city) => city.GdbId === projectDetails.City);
             if (selectedCity) {
                 availableLDs = projectEnums.LDs?.filter(
-                    (ld) => ld.ProvinceId === selectedCity.ProvinceId
+                    (ld) => ld.ProvinceGdbId === selectedCity.ProvinceGdbId
                 ) || [];
             }
             console.log('Filtered City:', projectDetails.City);
@@ -77,17 +79,17 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             console.log('Selected LD for City filtering:', selectedLD);
             if (selectedLD) {
                 availableCities = projectEnums.Cities?.filter(
-                    (city) => city.ProvinceId === selectedLD.ProvinceId
+                    (city) => city.ProvinceGdbId === selectedLD.ProvinceGdbId
                 ) || [];
             }
             console.log('Filtered Cities by LD:', projectDetails.LegislativeDistrict, availableCities);
-            console.log('Selected province:', selectedLD?.ProvinceId);
+            console.log('Selected province:', selectedLD?.ProvinceGdbId);
         }
         else if (projectDetails?.DEO) {
             const selectedDEO = projectEnums.DEOs?.find((deo) => deo.ParticipantId === projectDetails.DEO?.toString());
             if (selectedDEO) {
                 availableCities = projectEnums.Cities?.filter(
-                    (city) => city.ProvinceId === selectedDEO.ProvinceId
+                    (city) => city.ProvinceGdbId === selectedDEO.ProvinceGdbId
                 ) || [];
             }
         }
@@ -101,7 +103,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             const selectedDEO = projectEnums.DEOs?.find((deo) => deo.ParticipantId === projectDetails.DEO?.toString());
             if (selectedDEO) {
                 availableIOs = projectEnums.IOs?.filter(
-                    (io) => io.RegionParticipantId === selectedDEO.RegionParticipantId || io.OrgType === 'UPMO'
+                    (io) => (io.RegionParticipantId === selectedDEO.RegionParticipantId && io.OrgType === 'R') || io.OrgType === 'UPMO' ||  io.ParticipantId === selectedDEO.ParticipantId
                 ) || [];
             }
         } else {
@@ -111,14 +113,24 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
         setFilteredIOs(availableIOs);
 
-        // Filter OU based on selected IO
+        // Filter OU based on selected IO and DEO
         if(projectDetails?.ImplementingOffice) {
             const selectedIO = projectEnums.IOs?.find((io) => io.ParticipantId === projectDetails.ImplementingOffice);
+            const selectedDEO = projectEnums.DEOs?.find((deo) => deo.ParticipantId === projectDetails.DEO?.toString());
             console.log('Selected IO for OU filtering:', selectedIO);
+            console.log('Selected DEO for OU filtering:', selectedDEO);
+            
             if (selectedIO) {
-                // Show OUs that belong to the selected IO or are Central Office (CO)
+                // Show only 3 options:
+                // 1. CO (Central Office)
+                // 2. OU matching DEO's ParticipantId
+                // 3. IF UPMO match the DEO participant ID
                 availableOUs = projectEnums.OperatingUnits?.filter(
-                    (ou) => ou.ParticipantId === selectedIO.ParticipantId || (selectedIO.OrgType === 'UPMO' && ou.OrgType === 'CO')
+                    (ou) => 
+                        ou.OrgType === 'CO' ||
+                        selectedDEO?.RegionParticipantId === ou.ParticipantId ||
+                        selectedIO.ParticipantId === ou.ParticipantId ||
+                        (selectedIO.OrgType === 'UPMO' ? selectedDEO?.ParticipantId === ou.ParticipantId : false) // If UPMO is selected, show OU matching its ParticipantId
                 ) || [];
                 console.log('Filtered OUs:', availableOUs);
             }
@@ -142,7 +154,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             
             if (newCity) {
                 const cityBelongsToProvince = projectEnums?.Cities?.find(
-                    (city) => city.GdbId === newCity && city.ProvinceId === newProvince
+                    (city) => city.GdbId === newCity && city.ProvinceGdbId === newProvince
                 );
                 if (!cityBelongsToProvince) {
                     newCity = undefined;
@@ -151,7 +163,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
             if (newLD) {
                 const ldBelongsToProvince = projectEnums?.LDs?.find(
-                    (ld) => ld.GdbId === newLD && ld.ProvinceId === newProvince
+                    (ld) => ld.GdbId === newLD && ld.ProvinceGdbId === newProvince
                 );
                 if (!ldBelongsToProvince) {
                     newLD = undefined;
@@ -160,7 +172,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
             if (newDEO) {
                 const deoBelongsToProvince = projectEnums?.DEOs?.find(
-                    (deo) => deo.ParticipantId === newDEO && deo.ProvinceId === newProvince
+                    (deo) => deo.ParticipantId === newDEO && deo.ProvinceGdbId === newProvince
                 );
                 if (!deoBelongsToProvince) {
                     newDEO = undefined;
@@ -175,8 +187,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
         else if (field === 'City') {
             const selectedCity = projectEnums?.Cities?.find((city) => city.GdbId === value);
             if (selectedCity) {
-                const selectedProvince = projectEnums?.Provinces.find(p => p.GdbId === selectedCity.ProvinceId);
-                console.log('City auto-set to ' + selectedCity.Name + ' (Province ID: ' + selectedCity.ProvinceId + ')');
+                const selectedProvince = projectEnums?.Provinces.find(p => p.GdbId === selectedCity.ProvinceGdbId);
+                console.log('City auto-set to ' + selectedCity.Name + ' (Province ID: ' + selectedCity.ProvinceGdbId + ')');
                 if (selectedProvince && selectedProvince.GdbId !== projectDetails?.Province) {
                     onChange('Province', selectedProvince.GdbId);
                     console.log('Province auto-set to ' + selectedProvince.Name + ' (ID: ' + selectedProvince.Id + ')');
@@ -187,7 +199,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     const currentLD = projectEnums?.LDs?.find(
                         (ld) => ld.GdbId === projectDetails.LegislativeDistrict
                     );
-                    if (currentLD && currentLD.ProvinceId !== selectedCity.ProvinceId) {
+                    if (currentLD && currentLD.ProvinceGdbId !== selectedCity.ProvinceGdbId) {
                         onChange('LegislativeDistrict', undefined);
                     }
                 }
@@ -198,10 +210,10 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             const selectedLD = projectEnums?.LDs?.find((ld) => ld.GdbId === value);
             if (selectedLD) {
                 // Auto-set province if not set or different
-                const currentProvinceId = projectDetails?.Province;
-                const selectedProvince = projectEnums?.Provinces.find(p => p.GdbId === selectedLD.ProvinceId);
+                const currentProvinceGdbId = projectDetails?.Province;
+                const selectedProvince = projectEnums?.Provinces.find(p => p.GdbId === selectedLD.ProvinceGdbId);
                 
-                if (currentProvinceId !== selectedLD.ProvinceId && selectedProvince) {
+                if (currentProvinceGdbId !== selectedLD.ProvinceGdbId && selectedProvince) {
                     onChange('Province', selectedProvince.GdbId);
                     console.log('Province auto-set from LD to:', selectedProvince.Name);
                 }
@@ -209,7 +221,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                 // Clear city if it doesn't belong to the same province
                 if (projectDetails?.City) {
                     const currentCity = projectEnums?.Cities?.find((city) => city.GdbId === projectDetails.City);
-                    if (currentCity && currentCity.ProvinceId !== selectedLD.ProvinceId) {
+                    if (currentCity && currentCity.ProvinceGdbId !== selectedLD.ProvinceGdbId) {
                         onChange('City', undefined);
                     }
                 }
@@ -220,10 +232,10 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
             const selectedDEO = projectEnums?.DEOs?.find((deo) => deo.ParticipantId === value?.toString());
             if (selectedDEO) {
                 // Auto-set province if not set or different
-                const currentProvinceId = projectDetails?.Province;
-                const selectedProvince = projectEnums?.Provinces.find(p => p.GdbId === selectedDEO.ProvinceId);
+                const currentProvinceGdbId = projectDetails?.Province;
+                const selectedProvince = projectEnums?.Provinces.find(p => p.GdbId === selectedDEO.ProvinceGdbId);
 
-                if (currentProvinceId !== selectedDEO.ProvinceId && selectedProvince) {
+                if (currentProvinceGdbId !== selectedDEO.ProvinceGdbId && selectedProvince) {
                     onChange('Province', selectedProvince.GdbId);
                     console.log('Province auto-set from DEO to:', selectedProvince.Name);
                 }
@@ -233,12 +245,38 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     const currentCity = projectEnums?.Cities?.find(
                         (city) => city.GdbId === projectDetails.City
                     );
-                    if (currentCity && currentCity.ProvinceId !== selectedDEO.ProvinceId) {
+                    if (currentCity && currentCity.ProvinceGdbId !== selectedDEO.ProvinceGdbId) {
                         onChange('City', undefined);
                     }
                 }
             }
             onChange(field, value);
+        }
+        else if (field === 'ImplementingOffice') {
+            // When IO changes, clear OU if it doesn't belong to the new IO
+            let newOU = projectDetails?.OperatingUnit;
+            
+            if (newOU && value) {
+                const selectedIO = projectEnums?.IOs?.find((io) => io.ParticipantId === value.toString());
+                if (selectedIO) {
+                    // Check if current OU belongs to the new IO
+                    const ouBelongsToIO = projectEnums?.OperatingUnits?.find(
+                        (ou) => ou.ParticipantId === newOU && 
+                        (ou.ParticipantId === selectedIO.ParticipantId || (selectedIO.OrgType === 'UPMO' && ou.OrgType === 'CO'))
+                    );
+                    if (!ouBelongsToIO) {
+                        newOU = undefined;
+                    }
+                }
+            } else if (!value) {
+                // If IO is cleared, also clear OU
+                newOU = undefined;
+            }
+            
+            onChange(field, value);
+            if (newOU !== projectDetails?.OperatingUnit) {
+                onChange('OperatingUnit', newOU);
+            }
         }
         else {
             onChange(field, value);
@@ -349,33 +387,64 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                             </div>
                         </div>
 
-                        <div className='w-full flex flex-col text-left gap-2'>
-                            <div className='flex flex-row gap-5 items-center'>
-                                <label className={`w-1/3 ${errors.Tier ? 'text-red-500' : 'text-gray-600'}`}>Tier</label>
-                                <select
-                                    value={projectDetails?.Tier}
-                                    onChange={(e) => handleInputChange('Tier', parseInt(e.target.value))}
-                                    className={`w-2/3 mt-1 px-3 py-2 border ${errors.Tier ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
-                                    disabled={disabled}
-                                >
-                                    <option value={1}>Tier I</option>
-                                    <option value={2}>Tier II</option>
-                                </select>
+                        <div className="w-full flex flex-row gap-5 items-center">
+                            <label
+                                className={`w-1/3 text-sm font-medium ${
+                                errors.Tier ? 'text-red-500' : 'text-gray-700'
+                                }`}
+                            >
+                                Tier
+                            </label>
+                            <select
+                                value={projectDetails?.Tier}
+                                onChange={(e) => handleInputChange('Tier', parseInt(e.target.value))}
+                                className={`w-2/3 mt-1 px-3 py-2 border ${
+                                errors.Tier ? 'border-red-500' : 'border-gray-300'
+                                } ${getDisabledClass(disabled)} rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none`}
+                                disabled={disabled}
+                            >
+                                <option value={1}>Tier I</option>
+                                <option value={2}>Tier II</option>
+                            </select>
                             </div>
-                        </div>
-
+                            {programDetails?.StageId === 3 && (
+                            <div className="flex flex-row gap-5 items-center">
+                                <label
+                                className={`w-1/3 text-sm font-medium ${
+                                    errors.Rank ? 'text-red-500' : 'text-gray-700'
+                                }`}
+                                >
+                                Rank
+                                </label>
+                                <input
+                                type="number"
+                                value={projectDetails?.Rank || ''}
+                                onChange={(e) =>
+                                    handleInputChange(
+                                    'Rank',
+                                    e.target.value ? parseInt(e.target.value) : undefined
+                                    )
+                                }
+                                className={`w-2/3 mt-1 px-3 py-2 border ${
+                                    errors.Rank ? 'border-red-500' : 'border-gray-300'
+                                } ${getDisabledClass(disabled)} rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none`}
+                                disabled={disabled}
+                                min={1}
+                                />
+                            </div>
+                            )}
                     </div>
 
                     <div className="grid grid-cols-3 gap-5 border-t-2 pt-4 border-gray-200">
                         <div className="w-full flex flex-col text-left gap-2">
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.Category ? 'text-red-500' : 'text-gray-600'}`}>*Category:</label>
-                                <div className="w-2/3">
+                                <label className={`w-1/3 ${errors.Category ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>Category:</label>
+                                <div className="w-2/3 min-w-0">
                                     <SearchableDropdown
                                         options={formatDropdownOptions(
-                                            projectEnums?.Categories?.filter(x => x.ValidUntil === 0 || x.ValidUntil > new Date().getFullYear()) || [], 
-                                            'Enum', 
-                                            'Name', 
+                                            projectEnums?.Categories?.filter(x => x.ValidUntil === 0 || x.ValidUntil >= new Date().getFullYear()) || [], 
+                                            'CategoryId', 
+                                            'CategoryName', 
                                             'Id'
                                         )}
                                         value={projectDetails?.Category || ''}
@@ -392,8 +461,8 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.Thrust ? 'text-red-500' : 'text-gray-600'}`}>*Sub-Category:</label>
-                                <div className='w-2/3'>
+                                <label className={`w-1/3 ${errors.Thrust ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>Sub-Category:</label>
+                                <div className='w-2/3 min-w-0'>
                                     <SearchableDropdown
                                         options={formatDropdownOptions(
                                             projectEnums?.Thrusts?.filter(x => x.ValidFromDate < new Date().getFullYear() && x.ValidToDate > new Date().getFullYear() || x.ValidToDate === 0) || [],
@@ -429,7 +498,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
                     <div className="grid grid-cols-1 gap-2">
                         <div className='w-full flex text-left gap-2'>
-                            <label className={`w-1/9 ${errors.Description ? 'text-red-500' : 'text-gray-600'}`}>*Description:</label>
+                            <label className={`w-1/9 ${errors.Description ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>Description:</label>
                             <div className="w-8/9">
                                 <textarea
                                     value={projectDetails?.Description}
@@ -453,11 +522,11 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     <div className="grid grid-cols-3 gap-5">
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className="w-1/3 text-gray-600">Province:</label>
+                                <label className={`w-1/3 ${errors.Province ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>Province:</label>
                                 <div className="w-2/3">
                                     <SearchableDropdown
                                         options={formatDropdownOptions(projectEnums?.Provinces || [], 'GdbId', 'Name', 'Id')}
-                                        value={projectDetails?.Province || ''}
+                                        value={projectDetails?.Province}
                                         onChange={(value) => handleInputChange('Province', value === '' ? undefined : value.toString())}
                                         placeholder="Select Province"
                                         disabled={mode === 'edit' || disabled}
@@ -471,11 +540,11 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.City ? 'text-red-500' : 'text-gray-600'}`}>*City/Municipality:</label>
+                                <label className={`w-1/3 ${errors.City ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>City/Municipality:</label>
                                 <div className="w-2/3">
                                     <SearchableDropdown
                                         options={formatDropdownOptions(filteredCities || [], 'GdbId', 'Name', 'Id')}
-                                        value={projectDetails?.City || ''}
+                                        value={projectDetails?.City}
                                         onChange={(value) => handleInputChange('City', value === '' ? undefined : value.toString())}
                                         placeholder="Select City/Municipality"
                                         disabled={disabled}
@@ -489,11 +558,11 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.LegislativeDistrict ? 'text-red-500' : 'text-gray-600'}`}>*Legislative District:</label>
+                                <label className={`w-1/3 ${errors.LegislativeDistrict ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>Legislative District:</label>
                                 <div className="w-2/3">
                                     <SearchableDropdown
                                        options={formatDropdownOptions(filteredLegislativeDistricts || [], 'GdbId', 'Name', 'Id')}
-                                        value={projectDetails?.LegislativeDistrict || ''}
+                                        value={projectDetails?.LegislativeDistrict}
                                         onChange={(value) => handleInputChange('LegislativeDistrict', value === '' ? undefined : value.toString())}
                                         placeholder="Select Legislative District"
                                         disabled={disabled}
@@ -517,11 +586,11 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.DEO ? 'text-red-500' : 'text-gray-600'}`}>*District Engineering Office:</label>
+                                <label className={`w-1/3 ${errors.DEO ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>District Engineering Office:</label>
                                 <div className='w-2/3'>
                                     <SearchableDropdown
                                         options={formatDropdownOptions(filteredDEOs || [], 'ParticipantId', 'Name')}
-                                        value={projectDetails?.DEO || ''}
+                                        value={projectDetails?.DEO}
                                         onChange={(value) => handleInputChange('DEO', value === '' ? undefined : value.toString())}
                                         placeholder="Select District Engineering Office"
                                         disabled={mode === 'edit' || disabled}
@@ -535,7 +604,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.Region ? 'text-red-500' : 'text-gray-600'}`}>Region:</label>
+                                <label className={`w-1/3 ${errors.Region ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>Region:</label>
                                 <div className='w-2/3'>
                                     <SearchableDropdown
                                         options={formatDropdownOptions(
@@ -544,7 +613,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                             'RegionName',
                                             'Id'
                                         )}
-                                        value={projectDetails?.Region || ''}
+                                        value={projectDetails?.Region}
                                         onChange={(value) => handleInputChange('Region', value === '' ? undefined : value.toString())}
                                         placeholder="Select Regional Office"
                                         disabled={mode === 'edit' || disabled}
@@ -560,7 +629,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     <div className="grid grid-cols-2 gap-5">
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.ImplementingOffice ? 'text-red-500' : 'text-gray-600'}`}>*Implementing Office:</label>
+                                <label className={`w-1/3 ${errors.ImplementingOffice ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>Implementing Office:</label>
                                 <div className="w-2/3">
                                     <SearchableDropdown
                                         options={formatDropdownOptions(
@@ -582,14 +651,14 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.OperatingUnit ? 'text-red-500' : 'text-gray-600'}`}>*Operating Unit:</label>
+                                <label className={`w-1/3 ${errors.OperatingUnit ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>Operating Unit:</label>
                                 <div className="w-2/3">
                                     <SearchableDropdown
                                         options={formatDropdownOptions(filteredOUs || [], 'ParticipantId', 'Name')}
                                         value={projectDetails?.OperatingUnit || ''}
                                         onChange={(value) => handleInputChange('OperatingUnit', value === '' ? undefined : value.toString())}
                                         placeholder="Select Operating Unit"
-                                        disabled={disabled}
+                                        disabled={disabled || !projectDetails?.ImplementingOffice}
                                         error={!!errors.OperatingUnit}
                                         allowClear={true}
                                         searchPlaceholder="Search operating units..."
@@ -602,7 +671,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     <div className='grid grid-cols-2 gap-5'>
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.RegionWide ? 'text-red-500' : 'text-gray-600'}`}>Region Wide:</label>
+                                <label className={`w-1/3 ${errors.RegionWide ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>Region Wide:</label>
                                 <select 
                                     value={projectDetails?.RegionWide} 
                                     onChange={(e) => handleInputChange('RegionWide', e.target.value ? parseInt(e.target.value) : undefined)}
@@ -635,11 +704,11 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     <div className="grid grid-cols-2 gap-5">
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.Origin ? 'text-red-500' : 'text-gray-600'}`}>Origin:</label>
+                                <label className={`w-1/3 ${errors.Origin ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>Origin:</label>
                                 <div className='w-2/3'>
                                     <SearchableDropdown
                                         options={formatDropdownOptions(projectEnums?.Origins || [],
-                                            'Enum',
+                                            'NameId',
                                             'Name',
                                             'Id'
                                         )}
@@ -672,12 +741,12 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                         
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.Agency ? 'text-red-500' : 'text-gray-600'}`}>Originating Agency:</label>
+                                <label className={`w-1/3 ${errors.Agency ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>Originating Agency:</label>
                                 <div className='w-2/3'>
                                     <SearchableDropdown
                                         options={formatDropdownOptions(projectEnums?.Agencies || [],
-                                            'Id',
-                                            'AgencyName',
+                                            'NameId',
+                                            'Name',
                                         )}
                                         value={projectDetails?.Agency || ''}
                                         onChange={(value) => handleInputChange('Agency', value === '' ? undefined : parseInt(value.toString()))}
@@ -702,7 +771,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     <div className="grid grid-cols-3 gap-5">
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.ImplementationMode ? 'text-red-500' : 'text-gray-600'}`}>Implementation Mode:</label>
+                                <label className={`w-1/3 ${errors.ImplementationMode ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>Implementation Mode:</label>
                                 <select
                                     value={projectDetails?.ImplementationMode}
                                     onChange={(e) => handleInputChange('ImplementationMode', parseInt(e.target.value))}
@@ -711,7 +780,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 >
                                     <option value="">Select Implementation Mode</option>
                                     {projectEnums?.ImplementationModes?.map((mode) => (
-                                        <option key={mode.Id} value={mode.Enum}>
+                                        <option key={mode.Id} value={mode.NameId}>
                                             {mode.Name}
                                         </option>
                                     ))}
@@ -721,32 +790,40 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.EmergencyMode ? 'text-red-500' : 'text-gray-600'}`}>Emergency Mode:</label>
+                                <label className={`w-1/3 ${errors.EmergencyMode ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>Emergency Mode:</label>
                                 <select 
-                                    name="EmergencyCode" 
-                                    id="EmergencyCode" 
-                                    value={projectDetails?.EmergencyMode ? 'true' : 'false'} 
-                                    onChange={(e) => handleInputChange('EmergencyMode', e.target.value === 'true')} 
+                                    name="EmergencyMode" 
+                                    id="EmergencyMode" 
+                                    value={projectDetails?.EmergencyMode} 
+                                    onChange={(e) => handleInputChange('EmergencyMode', parseInt(e.target.value))} 
                                     className={`w-2/3 mt-1 px-3 py-2 border ${errors.EmergencyMode ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
                                     disabled={disabled}
                                 >
-                                    <option value="false">No</option>
-                                    <option value="true">Yes</option>
+                                <option value="">Select Emergency Mode</option>
+                                {projectEnums?.EmergencyModes?.map((mode) => (
+                                    <option key={mode.Id} value={mode.NameId}>
+                                        {mode.Name}
+                                    </option>
+                                ))}
                                 </select>
                             </div>
                         </div>
 
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`flex-1/3 ${errors.RowAvailable ? 'text-red-500' : 'text-gray-600'}`}>ROW Available:</label>
+                                <label className={`flex-1/3 ${errors.RowAvailable ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>ROW Available:</label>
                                 <select 
-                                    value={projectDetails?.RowAvailable ? 'true' : 'false'} 
-                                    onChange={(e) => handleInputChange('RowAvailable', e.target.value === 'true')}
+                                    value={projectDetails?.RowAvailable} 
+                                    onChange={(e) => handleInputChange('RowAvailable', parseInt(e.target.value))}
                                     className={`flex-2/3 mt-1 px-3 py-2 border ${errors.RowAvailable ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md`}
                                     disabled={disabled}
                                 >
-                                    <option value="false">No</option>
-                                    <option value="true">Yes</option>
+                                    <option value="">Select ROW Availability</option>
+                                    {projectEnums?.RowsAvailable?.map((row) => (
+                                        <option key={row.Id} value={row.NameId}>
+                                            {row.Name}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
                         </div>
@@ -760,16 +837,16 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     <div className='grid grid-cols-2 gap-5'>
                         <div className="w-full flex flex-col text-left gap-2">
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.Feasibility ? 'text-red-500' : 'text-gray-600'}`}>Feasibility Study:</label>
+                                <label className={`w-1/3 ${errors.Feasibility ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500'>*</span>Feasibility Study:</label>
                                 <select 
-                                    value={projectDetails?.Feasibility || ''} 
+                                    value={projectDetails?.Feasibility} 
                                     onChange={(e) => handleInputChange('Feasibility', e.target.value ? parseInt(e.target.value) : undefined)}
                                     className={`w-2/3 mt-1 px-3 py-2 border ${errors.Feasibility ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
                                     disabled={disabled}
                                 >
                                     <option value="">Select Feasibility Study</option>
                                     {projectEnums?.Feasibility?.map((feasibility) => (
-                                        <option key={feasibility.Id} value={feasibility.Enum}>
+                                        <option key={feasibility.Id} value={feasibility.NameId}>
                                             {feasibility.Name}
                                         </option>
                                     ))}
@@ -794,15 +871,19 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     <div className="grid grid-cols-2 gap-5">
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.DetailedDesign ? 'text-red-500' : 'text-gray-600'}`}>Detailed Design:</label>
+                                <label className={`w-1/3 ${errors.DetailedDesign ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>Detailed Design:</label>
                                 <select 
-                                    value={projectDetails?.DetailedDesign ? 'true' : 'false'} 
-                                    onChange={(e) => handleInputChange('DetailedDesign', e.target.value === 'true')}
+                                    value={projectDetails?.DetailedDesign} 
+                                    onChange={(e) => handleInputChange('DetailedDesign', parseInt(e.target.value))}
                                     className={`w-2/3 mt-1 px-3 py-2 border ${errors.DetailedDesign ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
                                     disabled={disabled}
                                 >
-                                    <option value="false">No</option>
-                                    <option value="true">Yes</option>
+                                    <option value="">Select Detailed Design</option>
+                                    {projectEnums?.DetailedDesign?.map((design) => (
+                                        <option key={design.Id} value={design.NameId}>
+                                            {design.Name}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
                         </div>

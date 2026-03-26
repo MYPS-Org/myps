@@ -40,7 +40,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             setAuthState({
                 isAuthenticated: true,
                 isLoading: false,
-                user: { id: 'dev', name: 'Dev User', UserRole: 'admin' }
+                user: { id: 'dev', name: 'Dev User', UserGroup: 'admin' }
             });
             return;
         }
@@ -54,7 +54,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 user: {
                     id: 'dev-user',
                     name: 'Development User',
-                    UserRole: 'admin'
+                    UserGroup: 'admin'
                 }
             });
             return;
@@ -63,12 +63,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
             try {
                 const response = await authService.validateSession();
-                console.log('rine => ', response);
+                // console.log('rine => ', response);
                 if (response.Data.Data.Authenticated) {
+                    localStorage.setItem('currentPath', window.location.pathname);
+                    // console.log('✅ Valid session found', response);
                     setAuthState({
                         isAuthenticated: true,
                         isLoading: false,
-                        user: response.Data.Data.User
+                        user: { ...response.Data.Data.User,
+                            // UserGroup: response.Data.Data.User.UserGroup
+                         }
                     });
                     if(window.location.pathname === '/login') {
                         const storedPath = localStorage.getItem('currentPath');

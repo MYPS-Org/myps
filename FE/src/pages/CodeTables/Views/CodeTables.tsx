@@ -1,102 +1,198 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from 'react';
-import CategoryTable from './ProjectCategoryTable';
-import ThrustTable from './ThrustTable';
-import ProjectOriginTable from './ProjectOriginTable';
-import MajorWorkCategoryTable from './MajorWorkCategoryTable';
-import MultiCriteriaAnalysisTable from './MultiCriteriaAnalysisTable';
-import FundingSourceTable from './FundingSourceTable';
-import ModificationValidationDatesTable from './ModificationValidationDatesTable';
-import ModificationCategoryTable from './ModificationCategoryTable';
-import ModificationReasonTable from './ModificationReasonTable';
-import CostTypeTable from './CostTypeTable';
-import OtherInfraTable from './OtherInfraTable';
-import TypeOfWorkTable from './TypeOfWorkTable';
+import ProjectDetailsDropdowns from '../tables/projectDetails/ProjectDetailsDropdowns';
+import CostTypeTable from '../tables/componentCost/CostTypeTable';
+import WorkCategoryTable from '../tables/majorItemOfWorks/WorkCategoryTable';
+import TypeOfWorkTable from '../tables/majorItemOfWorks/TypeOfWorkTable';
+import InfraTypeTable from '../tables/majorItemLocation/InfraTypeTable';
+import FundingAgreementTable from '../tables/fundingProfile/FundingAgreementTable';
+import FundingSourceTable from '../tables/fundingProfile/FundingSourceTable';
+import RevisionCategoryTable from '../tables/revisions/RevisionCategoryTable';
+import RevisionHeaderTable from '../tables/revisions/RevisionHeaderTable';
+import RevisionDocumentTable from '../tables/revisions/RevisionDocumentTable';
+import ModificationReasonTable from '../tables/revisions/ModificationReasonTable';
+import RevisionStatusTable from '../tables/revisions/RevisionStatusTable';
+import RevisionFieldPermissionTable from '../tables/revisions/RevisionFieldPermissionTable';
+import ValidationDatesTable from '../tables/revisions/ValidationDatesTable';
+import ProgramStageTable from '../tables/program/ProgramStageTable';
+import ProgramTypeTable from '../tables/program/ProgramTypeTable';
+import ProgramStatusTable from '../tables/program/ProgramStatusTable';
+import { CodeTableProvider } from '../CodeTableContext';
+import {
+  ClipboardDocumentListIcon,
+  CubeIcon,
+  WrenchScrewdriverIcon,
+  BanknotesIcon,
+  ArrowPathIcon,
+  PresentationChartBarIcon,
+} from '@heroicons/react/24/outline';
 
-type TableType = 'Category' | 'Thrust' | 'ProjectOrigin' | 'MajorWorkCategory' | 'MultiCriteriaAnalysis' | 'FundingSource' | 'ModificationValidationDates' | 'ModificationCategory' | 'ModificationReason' | 'CostType' | 'OtherInfra' | 'TypeOfWork' | '';
+interface TableTab {
+  id: string;
+  label: string;
+  component: React.FC;
+}
+
+interface GroupTab {
+  id: string;
+  label: string;
+  icon: React.FC<{ className?: string }>;
+  tables: TableTab[];
+}
+
+const GROUPS: GroupTab[] = [
+  {
+    id: 'project-details',
+    label: 'Project Details',
+    icon: ClipboardDocumentListIcon,
+    tables: [
+      { id: 'form-dropdowns', label: 'Form Dropdowns', component: ProjectDetailsDropdowns },
+    ],
+  },
+  {
+    id: 'component-cost',
+    label: 'Component Cost',
+    icon: CubeIcon,
+    tables: [
+      { id: 'cost-type', label: 'Cost Type', component: CostTypeTable },
+    ],
+  },
+  {
+    id: 'major-item',
+    label: 'Major Item',
+    icon: WrenchScrewdriverIcon,
+    tables: [
+      { id: 'work-category', label: 'Work Category',        component: WorkCategoryTable },
+      { id: 'type-of-work',  label: 'Type of Work',         component: TypeOfWorkTable },
+      { id: 'infra-type',    label: 'Infrastructure Types',  component: InfraTypeTable },
+    ],
+  },
+  {
+    id: 'funding-profile',
+    label: 'Funding Profile',
+    icon: BanknotesIcon,
+    tables: [
+      { id: 'funding-agreement', label: 'Funding Agreement', component: FundingAgreementTable },
+      { id: 'funding-source',    label: 'Funding Source',    component: FundingSourceTable },
+    ],
+  },
+  {
+    id: 'revisions',
+    label: 'Revisions',
+    icon: ArrowPathIcon,
+    tables: [
+      { id: 'rev-category',     label: 'Categories',      component: RevisionCategoryTable },
+      { id: 'rev-header',       label: 'Headers',         component: RevisionHeaderTable },
+      { id: 'rev-document',     label: 'Documents',       component: RevisionDocumentTable },
+      { id: 'rev-reason',       label: 'Reasons',         component: ModificationReasonTable },
+      { id: 'rev-status',       label: 'Statuses',        component: RevisionStatusTable },
+      { id: 'rev-rules',        label: 'Rules',           component: RevisionFieldPermissionTable },
+      { id: 'validation-dates', label: 'Validation Dates',component: ValidationDatesTable },
+    ],
+  },
+  {
+    id: 'programs',
+    label: 'Programs',
+    icon: PresentationChartBarIcon,
+    tables: [
+      { id: 'program-stage',  label: 'Program Stage',  component: ProgramStageTable },
+      { id: 'program-type',   label: 'Program Type',   component: ProgramTypeTable },
+      { id: 'program-status', label: 'Program Status', component: ProgramStatusTable },
+    ],
+  },
+];
+
 
 const CodeTables: React.FC = () => {
-  const [selectedTable, setSelectedTable] = useState<TableType>('');
+  const [activeGroupId, setActiveGroupId] = useState(GROUPS[0].id);
+  const [activeTableId, setActiveTableId] = useState(GROUPS[0].tables[0].id);
 
-  const handleTableChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedTable(event.target.value as TableType);
+  const switchGroup = (groupId: string) => {
+    const group = GROUPS.find(g => g.id === groupId);
+    setActiveGroupId(groupId);
+    if (group) setActiveTableId(group.tables[0].id);
   };
 
-  const renderSelectedTable = () => {
-    switch (selectedTable) {
-      case 'Category':
-        return <CategoryTable />;
-      case 'Thrust':
-        return <ThrustTable />;
-      case 'ProjectOrigin':
-        return <ProjectOriginTable />;
-      case 'MajorWorkCategory':
-        return <MajorWorkCategoryTable />;
-      case 'MultiCriteriaAnalysis':
-        return <MultiCriteriaAnalysisTable />;
-      case 'FundingSource':
-        return <FundingSourceTable />;
-      case 'ModificationValidationDates':
-        return <ModificationValidationDatesTable />;
-      case 'ModificationCategory':
-        return <ModificationCategoryTable />;
-      case 'ModificationReason':
-        return <ModificationReasonTable />;
-      case 'CostType':
-        return <CostTypeTable />;
-      case 'OtherInfra':
-        return <OtherInfraTable />;
-      case 'TypeOfWork':
-        return <TypeOfWorkTable />;
-      default:
-        return (
-          <div className="text-center py-8 text-gray-500">
-            Please select a table from the dropdown above to view and manage the data.
-          </div>
-        );
-    }
-  };
+  const activeGroup = GROUPS.find(g => g.id === activeGroupId)!;
+  const activeTable = activeGroup.tables.find(t => t.id === activeTableId)!;
+  const ActiveComponent = activeTable.component;
 
   return (
-    <div className="w-full text-left space-y-6">
-        <div className="m-6 p-6 bg-white rounded-lg shadow">
-            <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Code Tables</h3>
-            </div>
-            <div className="w-full max-w-sm">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Select Table
-              </label>
-              <select
-                value={selectedTable}
-                onChange={handleTableChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
-              >
-                <option value="">-- Select a Table --</option>
-                <option value="Category">Category</option>
-                <option value="Thrust">Thrust</option>
-                <option value="ProjectOrigin">Project Origin</option>
-                <option value="MajorWorkCategory">Major Work Category</option>
-                <option value="MultiCriteriaAnalysis">Multi Criteria Analysis</option>
-                <option value="FundingSource">Funding Source</option>
-                <option value="ModificationValidationDates">Modification Validation Dates</option>
-                <option value="ModificationCategory">Modification Category</option>
-                <option value="ModificationReason">Modification Reason</option>
-                <option value="CostType">Cost Type</option>
-                <option value="OtherInfra">Other Infrastructure</option>
-                <option value="TypeOfWork">Type of Work</option>
-              </select>
-            </div>
-        </div>
+    <CodeTableProvider>
+    <div className="min-h-screen bg-gray-50">
 
-        <div className='m-6 p-6 bg-white rounded-lg shadow'>
-          <div className="mt-6 overflow-x-auto">
-                {renderSelectedTable()}
-            </div>
+      {/* ── Page header + primary (group) tabs ───────────────────── */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="px-6 pt-5 pb-5">
+          <h2 className="text-xl font-semibold text-gray-900">Code Tables</h2>
+          <p className="text-sm text-gray-500 mt-0.5 mb-4">Manage system reference and lookup data</p>
+
+          {/* Group tabs — pill style */}
+          <div className="flex flex-wrap gap-2">
+            {GROUPS.map(group => {
+              const Icon = group.icon;
+              const isActive = group.id === activeGroupId;
+              return (
+                <button
+                  key={group.id}
+                  onClick={() => switchGroup(group.id)}
+                  className={`
+                    flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-full border transition-colors
+                    ${isActive
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                      : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}
+                  `}
+                >
+                  <Icon className="h-4 w-4" />
+                  {group.label}
+                  <span className={`
+                    inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 text-[11px] font-semibold rounded-full
+                    ${isActive ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-500'}
+                  `}>
+                    {group.tables.length}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
+      </div>
+
+      {/* ── Sub-tabs + content ────────────────────────────────────── */}
+      <div className="pt-5 pb-8">
+
+        {/* Secondary (table) tabs — pill style */}
+        {activeGroup.tables.length > 1 && (
+          <div className="flex flex-wrap gap-1.5 mb-5">
+            {activeGroup.tables.map(table => {
+              const isActive = table.id === activeTableId;
+              return (
+                <button
+                  key={table.id}
+                  onClick={() => setActiveTableId(table.id)}
+                  className={`
+                    px-3.5 py-1.5 text-sm font-medium rounded-full transition-colors
+                    ${isActive
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 hover:text-gray-900'}
+                  `}
+                >
+                  {table.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Table card */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <ActiveComponent />
+        </div>
+      </div>
     </div>
+    </CodeTableProvider>
   );
-}
+};
 
 export default CodeTables;

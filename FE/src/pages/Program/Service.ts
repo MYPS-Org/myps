@@ -1,12 +1,14 @@
 // import type { PaginationParams, PaginationResponse } from '../../model/Pagination';
 import { httpClient } from '../../services/httpClient';
+import type { TableEnum } from './Model';
+import type { ImportProjectDTO } from '../Project/Model';
 
 
 import type { ProgramModel, ProgramEnums, ProgramPagination, ProgramList, ProgramDetailsEnums, ProgramDetails, ParentProgram, StageList } from './Model';
 
 export const fetchProgramEnums = async () => {
     try {
-        const response = await httpClient.post< { Stages: ProgramEnums[]; Types: ProgramEnums[]; Groups: ProgramEnums[], DataSecurity: ProgramEnums[] } >(
+        const response = await httpClient.post< { Stages: TableEnum[]; Types: TableEnum[]; Groups: ProgramEnums[], DataSecurity: ProgramEnums[] } >(
             '/Program/InitAddProgram',
             null,
             {
@@ -123,3 +125,100 @@ export const publishToPCMA = async (programId: string) => {
         throw error;
     }
 }
+
+export const generateAIPReport = async (params: { ProgramName?: string; ProgramId: string; StageName: string; Region: string }) => {
+    try {
+        const apiURL = 'https://localhost:44331/api/Reporting/GetProgramProjectDetails';
+        const response = await fetch(apiURL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(params)
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error generating AIP report:', error);
+        throw error;
+    }
+};
+
+export const downloadAIPReport = async (params: { ProgramName?: string; ProgramId: string; StageName: string; Region: string }) => {
+    try {
+        // const apiURL = 'https://localhost:44331/api/Reporting/DownloadProgramProjectDetailsPDF';
+        // const response = await fetch(apiURL, {
+        //     method: 'POST',
+        //     headers: {
+        //         'Content-Type': 'application/json',
+        //     },
+        //     body: JSON.stringify(params)
+        // });
+        // if (!response.ok) {
+        //     throw new Error(`HTTP error! status: ${response.status}`);
+        // }
+        const response = await httpClient.post<Blob>('/Reporting/DownloadProgramProjectDetailsPDF', params, {
+            preloaderMessage: 'Downloading AIP report...',
+            responseType: 'blob'
+        });
+        
+        const blob = response.Data as Blob;
+        const filename = `AIP_Report_${params.ProgramId}_${params.Region}_${new Date().getTime()}.pdf`;
+        
+        return { blob, filename };
+    } catch (error) {
+        console.error('Error downloading AIP report:', error);
+        throw error;
+    }
+};
+
+export const batchDeleteProjects = async (data: { ProgramId: string; ProjectIds: string  }) => {
+    try {
+        const request = await httpClient.post('/Program/BatchDelete', data, {
+            preloaderMessage: 'Deleting projects...'
+        });
+        return request;
+    } catch (ErrorResponse) {
+        console.error('Error deleting projects:', ErrorResponse);
+        throw ErrorResponse;
+    }
+}
+export const batchAllowPublishing = async (data: { ProgramId: string; ProjectIds: string  }) => {
+    try {
+        const request = await httpClient.post('/Program/BatchAllowPublish', data, {
+            preloaderMessage: 'Allowing publishing of projects...'
+        });
+        return request;
+    } catch (ErrorResponse) {
+        console.error('Error allowing publishing of projects:', ErrorResponse);
+        throw ErrorResponse;
+    }
+}
+export const batchRestrictPublishing = async (data: { ProgramId: string; ProjectIds: string }) => {
+    try {
+        const request = await httpClient.post('/Program/BatchRestrictPublish', data, {
+            preloaderMessage: 'Restricting publishing of projects...'
+        });
+        return request;
+    } catch (ErrorResponse) {
+        console.error('Error restricting publishing of projects:', ErrorResponse);
+        throw ErrorResponse;
+    }
+}
+
+export const importProjects = async (payload: ImportProjectDTO) => {
+    try {
+        const response = await httpClient.post(`/Importing/ImportProject/`, payload, {
+            preloaderMessage: 'Importing projects...'
+        });
+        return response;
+    } catch (ErrorResponse) {
+        console.error('Error importing projects:', ErrorResponse);
+        throw ErrorResponse;
+    }
+};

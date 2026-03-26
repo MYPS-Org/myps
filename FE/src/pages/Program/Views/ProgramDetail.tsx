@@ -2,14 +2,23 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
-import type { ProgramDetailsEnums } from '../Model.d'; // Adjust the import path as necessary
+import type { ProgramDetailsEnums, AIPReportParams } from '../Model.d'; // Adjust the import path as necessary
 import { Button } from '../../../components/tailwindui/button';
-import { editProgram, fetchProgramById, publishToPCMA } from '../Service';
+import { editProgram, fetchProgramById, publishToPCMA, downloadAIPReport, batchAllowPublishing, batchDeleteProjects, batchRestrictPublishing } from '../Service';
+import { importProjects } from '../Service'; // TODO: uncomment when wiring up API call
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
-import { ChevronDownIcon, ChevronRightIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
+import { ChevronDownIcon, Cog6ToothIcon, TagIcon } from '@heroicons/react/24/outline';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import NextStageDialog from '../dialogs/NextStageDialog';
-import MetroManilaMap from '../../../components/map/MetroManilaMap';
+// import MetroManilaMap from '../../../components/map/MetroManilaMap';
+import AIPReportDialog from '../dialogs/AIPReportDialog';
+import PublishProgramDialog from '../dialogs/PublishProgramDialog';
+import BatchTagDialog from '../dialogs/BatchTagDialog';
+import AddExistingProjectDialog from '../dialogs/AddExistingProjectDialog';
+import ImportProjectsDialog from '../dialogs/ImportProjectsDialog';
+import type { ImportedProject } from '../../Project/Model.d';
+import { transformImportedProjects } from '../utils/transformImportedProjects';
+import CheckboxList from '../../../components/ui/CheckboxList';
 // import { formatCurrency } from '../../../utils/GlobalFunctions';
 // import { Badge } from '../../../components/tailwindui/badge';
 
@@ -19,6 +28,8 @@ const ProgramDetail: React.FC = () => {
   const id = useMemo(() => program?.split(':'), [program]);
   const navigate = useNavigate();
   const [nextStageName, setNextStageName] = useState<string | null>(null);
+  const [skipStageName, setSkipStageName] = useState<string | null>(null);
+  const [isSkipStage, setIsSkip] = useState(false);
   const { showToast } = useToast();
   const [programEnums, setProgramEnums] = useState<ProgramDetailsEnums>({
     Details: {
@@ -31,7 +42,7 @@ const ProgramDetail: React.FC = () => {
         IsSkipped: false,
       IsPublished: false,
         SkipReason: '',
-        UserGroup: 0,
+        UserGroup: [],
         RegionCode: '',
         Status: 0,
         Type: 0,
@@ -65,7 +76,7 @@ const ProgramDetail: React.FC = () => {
         IsSkipped: false,
         SkipReason: '',
         IsPublished: false,
-        UserGroup: 0,
+        UserGroup: [],
         RegionCode: '',
         Status: 0,
         Type: 0,
@@ -89,22 +100,29 @@ const ProgramDetail: React.FC = () => {
     }
   });
   const [isLoading, setIsLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isDataSecurityExpanded, setIsDataSecurityExpanded] = useState(false);
+  // const [searchTerm, setSearchTerm] = useState('');
+  // const [isDataSecurityExpanded, setIsDataSecurityExpanded] = useState(false);
   const [isNextStageDialogOpen, setIsNextStageDialogOpen] = useState(false);
   const [isActionDropdownOpen, setIsActionDropdownOpen] = useState(false);
+  const [isAIPReportDialogOpen, setIsAIPReportDialogOpen] = useState(false);
+  const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
+  const [isBatchTagDialogOpen, setIsBatchTagDialogOpen] = useState(false);
+  const [isBatchTagDropDownOpen, setIsBatchTagDropDownOpen] = useState(false);
+  const [batchAction, setBatchAction] = useState<'tag' | 'delete' | 'unpublish' | 'publish'>('tag');
+  const [isAddExistingProjectDialogOpen, setIsAddExistingProjectDialogOpen] = useState(false);
+  const [isImportProjectsDialogOpen, setIsImportProjectsDialogOpen] = useState(false);
   
   // Group data security by OrgType
-  const groupedDataSecurity = useMemo(() => {
-    return (programEnums?.Dropdowns.DataSecurity || []).reduce((acc, item) => {
-      const orgType = item.OrgType || 'Other';
-      if (!acc[orgType]) {
-        acc[orgType] = [];
-      }
-      acc[orgType].push(item);
-      return acc;
-    }, {} as {[key: string]: typeof programEnums.Dropdowns.DataSecurity});
-  }, [programEnums?.Dropdowns.DataSecurity]);
+  // const groupedDataSecurity = useMemo(() => {
+  //   return (programEnums?.Dropdowns.DataSecurity || []).reduce((acc, item) => {
+  //     const orgType = item.OrgType || 'Other';
+  //     if (!acc[orgType]) {
+  //       acc[orgType] = [];
+  //     }
+  //     acc[orgType].push(item);
+  //     return acc;
+  //   }, {} as {[key: string]: typeof programEnums.Dropdowns.DataSecurity});
+  // }, [programEnums?.Dropdowns.DataSecurity]);
 
   useEffect(() => {
     const loadProgramDetail = async () => {
@@ -132,6 +150,10 @@ const ProgramDetail: React.FC = () => {
       const nextStageId = response.Data.Details.StageId + 1;
       const nextStage = response.Data.Dropdowns.Stages.find(stage => stage.Id === nextStageId);
       setNextStageName(nextStage ? nextStage.Name : 'Final Stage');
+
+      const skipStageId = response.Data.Details.StageId + 2;
+      const skipStage = response.Data.Dropdowns.Stages.find(stage => stage.Id === skipStageId);
+      setSkipStageName(skipStage ? skipStage.Name : null);
     } catch (error) {
       console.error('Error fetching program details:', error);
       setProgramEnums(defaultProgramEnums);
@@ -152,12 +174,33 @@ const ProgramDetail: React.FC = () => {
     };
 
   const handleAddProject = () => {
-      navigate(`/projects/addproject?programId=${programEnums?.Details.ProgramId}`);
+    navigate(`/projects/addproject?programId=${programEnums?.Details.ProgramId}&stageName=${programEnums?.Details.StageName}`);
   };
 
-  // const handleBack = () => {
-  //   navigate('/programs');
-  // };
+  const handleAddExistingProject = () => {
+setIsAddExistingProjectDialogOpen(true);
+  };
+
+  const handleAddExistingProjectSubmit = async (projectIds: string[]) => {
+    try {
+      setIsLoading(true);
+      // TODO: Call API to link selected projects to this program
+      console.log('Adding existing projects to program:', programEnums?.Details.ProgramId, projectIds);
+      showToast({
+        type: 'success',
+        message: `${projectIds.length} project${projectIds.length !== 1 ? 's' : ''} added successfully.`,
+      });
+      await fetchProgramDetail(programEnums?.Details.ProgramId, programEnums?.Details.StageName);
+    } catch (error) {
+      console.error('Error adding existing projects:', error);
+      showToast({
+        type: 'error',
+        message: 'Failed to add projects. Please try again.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleChange = (field: string, value: any) => {
     setProgramEnums(prev => ({
@@ -181,61 +224,74 @@ const ProgramDetail: React.FC = () => {
     }));
   };
 
-  // Helper function to check if all items in a group are selected
-  const isGroupSelected = (orgType: string): boolean => {
-    const groupItems = groupedDataSecurity[orgType] || [];
-    const currentDataSecurityGroup = programEnums?.Details.DataSecurityGroup || [];
-    return groupItems.length > 0 && groupItems.every(item => 
-      currentDataSecurityGroup.includes(item.ParticipantId ?? '')
-    );
+  const handleUserGroupToggle = (userGroupId: string) => {
+    const numericId = parseInt(userGroupId);
+    setProgramEnums(prev => ({
+      ...prev,
+      Details: {
+        ...prev.Details,
+        UserGroup: (prev.Details.UserGroup || []).includes(numericId)
+          ? (prev.Details.UserGroup || []).filter(id => id !== numericId)
+          : [...(prev.Details.UserGroup || []), numericId]
+      }
+    }));
   };
+
+  // Helper function to check if all items in a group are selected
+  // const isGroupSelected = (orgType: string): boolean => {
+  //   const groupItems = groupedDataSecurity[orgType] || [];
+  //   const currentDataSecurityGroup = programEnums?.Details.DataSecurityGroup || [];
+  //   return groupItems.length > 0 && groupItems.every(item => 
+  //     currentDataSecurityGroup.includes(item.ParticipantId ?? '')
+  //   );
+  // };
 
   // Helper function to check if some items in a group are selected
-  const isGroupPartiallySelected = (orgType: string): boolean => {
-    const groupItems = groupedDataSecurity[orgType] || [];
-    const currentDataSecurityGroup = programEnums?.Details.DataSecurityGroup || [];
-    return groupItems.some(item => 
-      currentDataSecurityGroup.includes(item.ParticipantId ?? '')
-    ) && !isGroupSelected(orgType);
-  };
+  // const isGroupPartiallySelected = (orgType: string): boolean => {
+  //   const groupItems = groupedDataSecurity[orgType] || [];
+  //   const currentDataSecurityGroup = programEnums?.Details.DataSecurityGroup || [];
+  //   return groupItems.some(item => 
+  //     currentDataSecurityGroup.includes(item.ParticipantId ?? '')
+  //   ) && !isGroupSelected(orgType);
+  // };
 
   // Helper function to toggle all items in a group
-  const handleGroupToggle = (orgType: string) => {
-    const groupItems = groupedDataSecurity[orgType] || [];
-    const groupItemIds = groupItems.map(item => item.ParticipantId ?? '');
-    const currentDataSecurityGroup = programEnums?.Details.DataSecurityGroup || [];
+  // const handleGroupToggle = (orgType: string) => {
+  //   const groupItems = groupedDataSecurity[orgType] || [];
+  //   const groupItemIds = groupItems.map(item => item.ParticipantId ?? '');
+  //   const currentDataSecurityGroup = programEnums?.Details.DataSecurityGroup || [];
     
-    if (isGroupSelected(orgType)) {
-      // Remove all group items
-      setProgramEnums(prev => ({
-        ...prev,
-        Details: {
-          ...prev.Details,
-          DataSecurityGroup: currentDataSecurityGroup.filter(id => !groupItemIds.includes(id))
-        }
-      }));
-    } else {
-      // Add all group items
-      setProgramEnums(prev => ({
-        ...prev,
-        Details: {
-          ...prev.Details,
-          DataSecurityGroup: [...new Set([...currentDataSecurityGroup, ...groupItemIds])]
-        }
-      }));
-    }
-  };
+  //   if (isGroupSelected(orgType)) {
+  //     // Remove all group items
+  //     setProgramEnums(prev => ({
+  //       ...prev,
+  //       Details: {
+  //         ...prev.Details,
+  //         DataSecurityGroup: currentDataSecurityGroup.filter(id => !groupItemIds.includes(id))
+  //       }
+  //     }));
+  //   } else {
+  //     // Add all group items
+  //     setProgramEnums(prev => ({
+  //       ...prev,
+  //       Details: {
+  //         ...prev.Details,
+  //         DataSecurityGroup: [...new Set([...currentDataSecurityGroup, ...groupItemIds])]
+  //       }
+  //     }));
+  //   }
+  // };
 
   // Get program location for map display
-  const getProgramLocation = () => {
-    // You can map region codes or program data to coordinates later
-    // For now, return a sample location in Metro Manila
-    return {
-      lat: 14.6091,
-      lng: 121.0223,
-      name: programEnums?.Details.Name || "Program Location"
-    };
-  };
+  // const getProgramLocation = () => {
+  //   // You can map region codes or program data to coordinates later
+  //   // For now, return a sample location in Metro Manila
+  //   return {
+  //     lat: 14.6091,
+  //     lng: 121.0223,
+  //     name: programEnums?.Details.Name || "Program Location"
+  //   };
+  // };
 
   const handleUpdate = async () => {
     setIsLoading(true);
@@ -268,8 +324,23 @@ const ProgramDetail: React.FC = () => {
     
     // Helper function to compare arrays
     const arraysEqual = (arr1: string[] = [], arr2: string[] = []) => {
+      if (!Array.isArray(arr1) || !Array.isArray(arr2)) return arr1 === arr2;
       if (arr1.length !== arr2.length) return false;
-      return arr1.sort().every((val, index) => val === arr2.sort()[index]);
+      const sorted1 = [...arr1].sort();
+      const sorted2 = [...arr2].sort();
+      return sorted1.every((val, index) => val === sorted2[index]);
+    };
+
+    // Helper function to compare number arrays
+    const numberArraysEqual = (arr1: number[] | number = [], arr2: number[] | number = []) => {
+      // Handle if they're not arrays (backward compatibility)
+      if (!Array.isArray(arr1) || !Array.isArray(arr2)) {
+        return arr1 === arr2;
+      }
+      if (arr1.length !== arr2.length) return false;
+      const sorted1 = [...arr1].sort((a, b) => a - b);
+      const sorted2 = [...arr2].sort((a, b) => a - b);
+      return sorted1.every((val, index) => val === sorted2[index]);
     };
     
     // Check if any editable field has changed
@@ -279,13 +350,14 @@ const ProgramDetail: React.FC = () => {
       currentDetails.YearEnd === defaultDetails.YearEnd &&
       currentDetails.Status === defaultDetails.Status &&
       currentDetails.Type === defaultDetails.Type &&
-      currentDetails.UserGroup === defaultDetails.UserGroup &&
+      numberArraysEqual(currentDetails.UserGroup, defaultDetails.UserGroup) &&
       arraysEqual(currentDetails.DataSecurityGroup, defaultDetails.DataSecurityGroup)
     );
   };
 
-  const handleProceed = async () => {
+  const handleProceed = async (isSkip: boolean) => {
     setIsNextStageDialogOpen(true);
+    setIsSkip(isSkip);
   };
 
   const handleNextStageSubmit = async (data: { ProgramId: string; Stage: number; Name?: string }) => {
@@ -303,14 +375,19 @@ const ProgramDetail: React.FC = () => {
     }
   };
 
-  const handlePublishToPCMA = async() => {
+  const handlePublishToPCMA = () => {
+    if (programEnums?.Details.Status !== 1 || programEnums?.Details.StageId !== 10) return;
+    setIsPublishDialogOpen(true);
+  };
+
+  const handleConfirmPublish = async() => {
     try {
-      if (programEnums?.Details.Status !== 1 && programEnums?.Details.StageId !== 9) return;
       await publishToPCMA(programEnums?.Details.ProgramId);
       showToast({
         type: 'success',
         message: 'Program published to PCMA successfully.',
       });
+      await fetchProgramDetail(programEnums?.Details.ProgramId, programEnums?.Details.StageName);
     } catch (error) {
       console.error('Error publishing program to PCMA:', error);
       showToast({
@@ -334,9 +411,9 @@ const ProgramDetail: React.FC = () => {
     }
   };
 
-  const handleModifyProject = (projectId: string, stageName: string) => {
-    alert('Modify Project clicked'+ ' ' + projectId + ' at stage ' + stageName);
-  };
+  // const handleModifyProject = (projectId: string, stageName: string) => {
+  //   alert('Modify Project clicked'+ ' ' + projectId + ' at stage ' + stageName);
+  // };
 
   const handleDownloadTemplate = () => {
     // TODO: Implement download template functionality
@@ -344,10 +421,109 @@ const ProgramDetail: React.FC = () => {
     setIsActionDropdownOpen(false);
   };
 
-  const handleImportProjects = () => {
-    // TODO: Implement import projects functionality
-    console.log('Import Projects clicked');
+  const handleBatchTagging = (action: 'tag' | 'delete' | 'unpublish' | 'publish' = 'tag') => {
+    setBatchAction(action);
+    setIsBatchTagDialogOpen(true);
     setIsActionDropdownOpen(false);
+    setIsBatchTagDropDownOpen(false);
+  };
+
+  const handleBatchTagSubmit = async ( programId: string, projectIds: string, action: 'tag' | 'delete' | 'unpublish' | 'publish') => {
+    try {
+      setIsLoading(true);
+      
+      // TODO: Call your API endpoint here based on action type
+      switch (action) {
+        case 'delete':
+          await batchDeleteProjects({ ProgramId: programId, ProjectIds: projectIds });
+          console.log('Batch deleting projects:', projectIds);
+          showToast({
+            type: 'success',
+            message: 'Projects deleted successfully.',
+          });
+          break;
+        case 'unpublish':
+          await batchRestrictPublishing({ ProgramId: programId, ProjectIds: projectIds });
+          console.log('Batch restricting publishing of projects:', projectIds);
+          showToast({
+            type: 'success',
+            message: 'Projects publishing restricted successfully.',
+          });
+          break;
+        case 'publish':
+          await batchAllowPublishing({ ProgramId: programId, ProjectIds: projectIds });
+          console.log('Batch allowing publishing of projects:', projectIds);
+          showToast({
+            type: 'success',
+            message: 'Projects publishing allowed successfully.',
+          });
+          break;
+        default:
+          // await batchTagProjects(programEnums?.Details.ProgramId, projectIds);
+          console.log('Batch tagging projects with:', projectIds);
+          showToast({
+            type: 'success',
+            message: 'Tags applied successfully to all projects.',
+          });
+      }
+      
+      // Refresh the program details to show updated data
+      await fetchProgramDetail(programEnums?.Details.ProgramId, programEnums?.Details.StageName);
+    } catch (error) {
+      console.error(`Error performing batch ${action}:`, error);
+      showToast({
+        type: 'error',
+        message: `Failed to ${action} projects. Please try again.`,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleImportProjects = () => {
+    setIsImportProjectsDialogOpen(true);
+    setIsActionDropdownOpen(false);
+  };
+
+  const handleImportProjectsSubmit = async (projects: ImportedProject[]) => {
+    try {
+      setIsLoading(true);
+
+      const programId  = programEnums?.Details.ProgramId  ?? '';
+      const stageName  = programEnums?.Details.StageName  ?? '';
+
+      // Transform raw Excel rows → single flat server-ready DTO
+      const transformed = transformImportedProjects(projects, programId, stageName);
+
+      // ── Exact API Payload ──────────────────────────────────────────────
+      console.group('[Import Projects — Exact API Payload → /Importing/ImportProject/]');
+      console.log('programDetails:',       transformed.programDetails);
+      console.log('projectDetails:',       transformed.projectDetails);
+      console.log('fundingProfile:',       transformed.fundingProfile);
+      console.log('componentCosts:',       transformed.componentCosts);
+      console.log('componentCostPerYear:', transformed.componentCostPerYear);
+      console.log('majorItemOfWorks:',     transformed.majorItemOfWorks);
+      console.log('majorItemLocations:',   transformed.majorItemLocations);
+      console.log('── Full JSON ──', JSON.stringify(transformed, null, 2));
+      console.groupEnd();
+
+      // TODO: uncomment when backend is ready
+      await importProjects(transformed);
+      showToast({
+        type: 'success',
+        message: `Payload built for ${transformed.projectDetails.length} project${transformed.projectDetails.length !== 1 ? 's' : ''}. Check console for full JSON.`,
+      });
+
+      await fetchProgramDetail(programId, stageName);
+    } catch (error) {
+      console.error('Error importing projects:', error);
+      showToast({
+        type: 'error',
+        message: 'Failed to import projects. Please try again.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleExportProjects = () => {
@@ -356,13 +532,54 @@ const ProgramDetail: React.FC = () => {
     setIsActionDropdownOpen(false);
   };
 
+  const handleViewAIP = () => {
+    setIsAIPReportDialogOpen(true);
+    setIsActionDropdownOpen(false);
+  };
+
+  const handleGenerateAIPReport = async (params: AIPReportParams) => {
+    try {
+      setIsLoading(true);
+      
+      // Download PDF blob from API
+      const { blob, filename } = await downloadAIPReport(params);
+
+      console.log(blob, filename)
+      
+      // Create download link for PDF
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      showToast({
+        type: 'success',
+        message: 'AIP Report PDF downloaded successfully.',
+      });
+      
+      setIsAIPReportDialogOpen(false);
+    } catch (error) {
+      console.error('Error downloading AIP report:', error);
+      showToast({
+        type: 'error',
+        message: 'Failed to download AIP report. Please try again.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="mx-auto p-6">
         <div className="animate-pulse">
-          <div className="h-8 bg-gray-300 rounded w-1/3 mb-4"></div>
-          <div className="h-4 bg-gray-300 rounded w-full mb-2"></div>
-          <div className="h-4 bg-gray-300 rounded w-2/3"></div>
+          <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
+          <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
+          <div className="h-4 bg-gray-200 rounded w-2/3"></div>
         </div>
       </div>
     );
@@ -398,6 +615,7 @@ const ProgramDetail: React.FC = () => {
                   onChange={(e) => handleChange('YearStart', e.target.value)}
                   value={programEnums?.Details.YearStart}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
+                  disabled
                 />
               </div>
               <div>
@@ -432,7 +650,7 @@ const ProgramDetail: React.FC = () => {
                   type="text" // Changed to "text" to allow formatted currency strings
                   value={programEnums?.Details.Cost?.FormatToCurrency()}
                   readOnly
-                  className="w-full text-left px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
+                  className="w-full text-left px-3 py-2 border border-gray-300 rounded-md bg-gray-200 text-gray-900"
                 />
               </div>
               <div>
@@ -445,7 +663,7 @@ const ProgramDetail: React.FC = () => {
                     disabled={!programEnums?.IsActive}
                   >
                     {programEnums?.Dropdowns.Statuses.map((status) => (
-                      <option key={status.Id} value={status.Id}>
+                      <option key={status.Id} value={status.NameId}>
                         {status.Name}
                       </option>
                     ))}
@@ -454,176 +672,52 @@ const ProgramDetail: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-left text-sm font-medium text-gray-700 mb-1">Program Stage</label>
-                <input type="text" 
-                  value={programEnums?.Details.StageName}
-                  disabled
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
-                />
-                {/* <select name="programStage" id="programStage" className='w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900'>
-                  {programEnums?.Dropdowns.Stages.map((stage) => (
-                    <option key={stage.Id} value={stage.Id}>
-                      {stage.Name}
-                    </option>
-                  ))}
-                </select> */}
-              </div>
-              <div>
-                <label className="block text-left text-sm font-medium text-gray-700 mb-1">User Group</label>
-                <select 
-                  value={programEnums?.Details.UserGroup}
-                  onChange={(e) => handleChange('UserGroup', Number(e.target.value))}
-                  className='w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900'>
-                  {programEnums?.Dropdowns.Groups.map((group) => (
-                    <option key={group.Id} value={group.Id}>
-                      {group.GroupName}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+            {/* User Group Multiple Select */}
+            <CheckboxList
+              title="User Groups"
+              items={(programEnums?.Dropdowns.Groups || []).map(group => ({
+                id: group.Id?.toString() || '',
+                name: group.GroupName ?? '',
+              }))}
+              selectedIds={(Array.isArray(programEnums?.Details.UserGroup) ? programEnums.Details.UserGroup : []).map(id => id?.toString() || '')}
+              onToggle={handleUserGroupToggle}
+              onSelectAll={() => {
+                const allGroupIds = programEnums?.Dropdowns.Groups.map(g => g.Id) || [];
+                handleChange('UserGroup', allGroupIds);
+              }}
+              onClearAll={() => handleChange('UserGroup', [])}
+              idKey="id"
+              nameKey="name"
+              searchPlaceholder="Search user groups..."
+              emptyMessage="No user groups available"
+              disabled={!programEnums?.IsActive}
+            />
 
             {/* Data Security Multiple Select */}
-            <div className="mb-6 border border-gray-200 rounded-lg">
-              <div className="flex items-center justify-between p-3 bg-gray-50 border-b border-gray-200 rounded-t-lg">
-                <button
-                  type="button"
-                  onClick={() => setIsDataSecurityExpanded(!isDataSecurityExpanded)}
-                  className="flex items-center text-sm font-medium text-gray-700 hover:text-gray-900 focus:outline-none transition-colors duration-200"
-                >
-                  {isDataSecurityExpanded ? (
-                    <ChevronDownIcon className="w-4 h-4 mr-2 text-gray-500 transition-transform duration-200" />
-                  ) : (
-                    <ChevronRightIcon className="w-4 h-4 mr-2 text-gray-500 transition-transform duration-200" />
-                  )}
-                  Data Security Access
-                  <span className={`ml-2 text-xs font-normal ${
-                    (programEnums?.Details.DataSecurityGroup || []).length > 0 
-                      ? 'text-blue-600 bg-blue-100 px-2 py-1 rounded-full' 
-                      : 'text-gray-500'
-                  }`}>
-                    {(programEnums?.Details.DataSecurityGroup || []).length > 0 
-                      ? `${(programEnums?.Details.DataSecurityGroup || []).length} selected`
-                      : 'None selected'
-                    }
-                  </span>
-                </button>
-                {isDataSecurityExpanded && (
-                  <div className="flex space-x-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const allDataSecurityIds = programEnums?.Dropdowns.DataSecurity.map(item => item.ParticipantId ?? '') || [];
-                        handleChange('DataSecurityGroup', allDataSecurityIds);
-                      }}
-                      className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                    >
-                      Select All
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleChange('DataSecurityGroup', [])}
-                      className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
-                    >
-                      Clear All
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <div className={`transition-all duration-300 ease-in-out overflow-hidden ${
-                isDataSecurityExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
-              }`}>
-                <div className="p-4">
-                  <div className="mb-4">
-                  <input
-                    type="text"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Search organizations..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
-                  />
-                </div>
-
-                  <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-md p-3">
-                {Object.keys(groupedDataSecurity).map((orgType) => {
-                  const groupItems = groupedDataSecurity[orgType].filter(item =>
-                    item.OrgName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    item.ParticipantId?.toLowerCase().includes(searchTerm.toLowerCase())
-                  );
-                  
-                  if (groupItems.length === 0) return null;
-                  
-                  return (
-                    <div key={orgType} className="mb-6">
-                      <div className="flex items-center space-x-2 mb-3 pb-2 border-b border-gray-200">
-                        <input
-                          type="checkbox"
-                          checked={isGroupSelected(orgType)}
-                          ref={(input) => {
-                            if (input) input.indeterminate = isGroupPartiallySelected(orgType);
-                          }}
-                          onChange={() => handleGroupToggle(orgType)}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                        />
-                        <h4 className="font-semibold text-gray-800">
-                          {orgType === 'C' ? 'Central Office' : 
-                           orgType === 'R' ? 'Regional Offices' : 
-                           orgType === 'B' ? 'Bureaus' :
-                           orgType === 'PMO' ? 'Project Management Offices' : 
-                           orgType}
-                        </h4>
-                        <span className="text-xs text-gray-500">
-                          ({groupItems.length} organizations)
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-1 gap-2 ml-6">
-                        {groupItems.map((item) => (
-                          <label key={item.Id} className="flex items-center space-x-2">
-                            <input
-                              type="checkbox"
-                              checked={(programEnums?.Details.DataSecurityGroup || []).includes(item.ParticipantId ?? '')}
-                              onChange={() => handleDataSecurityToggle(item.ParticipantId ?? '')}
-                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                            />
-                            <div className="flex flex-col">
-                              <span className="text-sm text-gray-700 font-medium">
-                                {item.OrgName}
-                              </span>
-                              {/* <span className="text-xs text-gray-500">
-                                {item.ParticipantId}
-                              </span> */}
-                            </div>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-                {(programEnums?.Dropdowns.DataSecurity || []).length === 0 && (
-                  <div className="text-center py-4 text-gray-500">
-                    No data security options available
-                  </div>
-                )}
-                {Object.keys(groupedDataSecurity).every(orgType => 
-                  groupedDataSecurity[orgType].filter(item =>
-                    item.OrgName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    item.ParticipantId?.toLowerCase().includes(searchTerm.toLowerCase())
-                  ).length === 0
-                ) && searchTerm && (
-                  <div className="text-center py-4 text-gray-500">
-                    No organizations found matching "{searchTerm}"
-                  </div>
-                )}
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Selected: {(programEnums?.Details.DataSecurityGroup || []).length} organizations
-                  </p>
-                </div>
-              </div>
-            </div>
+            <CheckboxList
+              title="Data Security Access"
+              items={(programEnums?.Dropdowns.DataSecurity || []).map(item => ({
+                id: item.ParticipantId ?? '',
+                name: item.Name ?? '',
+                groupType: item.OrgType === 'C' ? 'Central Office' : 
+                           item.OrgType === 'R' ? 'Regional Offices' : 
+                           item.OrgType === 'B' ? 'Bureaus' :
+                           item.OrgType === 'PMO' ? 'Project Management Offices' : 
+                           item.OrgType || 'Other'
+              }))}
+              selectedIds={programEnums?.Details.DataSecurityGroup || []}
+              onToggle={handleDataSecurityToggle}
+              onSelectAll={() => {
+                const allDataSecurityIds = programEnums?.Dropdowns.DataSecurity.map(item => item.ParticipantId ?? '') || [];
+                handleChange('DataSecurityGroup', allDataSecurityIds);
+              }}
+              onClearAll={() => handleChange('DataSecurityGroup', [])}
+              groupBy="groupType"
+              idKey="id"
+              nameKey="name"
+              searchPlaceholder="Search organizations..."
+              emptyMessage="No data security options available"
+            />
 
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -632,7 +726,7 @@ const ProgramDetail: React.FC = () => {
                   // value={programEnums?.Details.User}
                   value={programEnums?.Details.CreatedDate.StringToDate()}
                   readOnly
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-200 text-gray-900"
                 />
               </div>
               <div>
@@ -641,7 +735,7 @@ const ProgramDetail: React.FC = () => {
                   // value={programEnums?.Details.User}
                   value={programEnums?.Details.CreatedBy}
                   readOnly
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-200 text-gray-900"
                 />
               </div>
             </div>
@@ -651,9 +745,16 @@ const ProgramDetail: React.FC = () => {
                 programEnums.Details &&
                 programEnums.Details.StageId >= 4 &&
                 programEnums.Details.StageId < 10 && (
-                <Button color="blue" className="w-auto items-center text-nowrap" onClick={handleProceed}>
-                  Proceed to {nextStageName}
-                </Button>
+                  <Button color="blue" className="w-auto items-center text-nowrap" onClick={() => handleProceed(false)}>
+                    Proceed to {nextStageName}
+                  </Button>
+              )}
+              {programEnums.IsActive &&
+                programEnums.Details &&
+                (programEnums?.Details?.StageId === 5 || programEnums?.Details?.StageId === 7) && (
+                  <Button color="blue" className="w-auto items-center text-nowrap" onClick={() => handleProceed(true)}>
+                    Proceed to {skipStageName}
+                  </Button>
               )}
               {programEnums.IsActive && (
                 <Button 
@@ -673,14 +774,15 @@ const ProgramDetail: React.FC = () => {
             <div className="bg-white shadow-sm ring-1 ring-gray-900/5 rounded-xl">
               <div className="px-4 py-4 border-b border-gray-200">
                 <h3 className="text-lg font-semibold leading-7 text-gray-900">
-                  Program Location - Metro Manila
+                  Program Location
                 </h3>
               </div>
-              <div className="p-4">
-                <MetroManilaMap 
+              <div className="p-4 h-[400px] text-lg flex items-center justify-center border border-gray-200 rounded-b-lg bg-gray-100">
+                This section is for Future Map Integration 
+                {/* <MetroManilaMap 
                   projectLocation={getProgramLocation()}
                   height="400px"
-                />
+                /> */}
               </div>
             </div>
           </div>
@@ -697,16 +799,89 @@ const ProgramDetail: React.FC = () => {
                 Publish Program
               </Button>
             )}
-            {programEnums.IsActive && programEnums?.Details?.StageId < 10 && (
+            {programEnums.IsActive && defaultProgramEnums.Details.Status === 3 && programEnums?.Details?.StageId <= 10 && (
               <Button color="blue" onClick={handleAddProject}>
                 Add Project
+              </Button>
+            )}
+            {programEnums.IsActive && programEnums?.Details?.StageId < 10 && (
+              <Button color="blue" onClick={handleAddExistingProject}>
+                Add Existing Project
               </Button>
             )}
             <div className="relative">
               <button
                 type="button"
+                onClick={() => setIsBatchTagDropDownOpen(!isBatchTagDropDownOpen)}
+                className="inline-flex items-center gap-x-1.5 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-100 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+              >
+                <TagIcon  className="-ml-0.5 h-5 w-5 text-gray-400" aria-hidden="true" />
+                Batch Actions
+                <ChevronDownIcon className="-mr-1 h-5 w-5 text-gray-400" aria-hidden="true" />
+              </button>
+
+              {isBatchTagDropDownOpen && (
+                <>
+                  {/* Backdrop */}
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setIsBatchTagDropDownOpen(false)}
+                  />
+                  
+                  {/* Batch Actions Menu */}
+                  <div className="absolute left-0 top-full z-20 mt-2 w-56 origin-top-left rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                    <div className="py-1">
+                      {/* <button
+                        onClick={() => handleBatchTagging('tag')}
+                        className="group flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-blue-500 hover:text-white"
+                      >
+                        <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-white" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6z" />
+                        </svg>
+                        Batch Tag
+                      </button> */}
+                      <button
+                        onClick={() => handleBatchTagging('delete')}
+                        className="group flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-red-500 hover:text-white"
+                      >
+                        <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-white" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                        </svg>
+                        Batch Delete
+                      </button>
+                      {programEnums.IsActive && programEnums.Details.StageId === 10 && defaultProgramEnums.Details.Status === 1 && (
+                        <>
+                        <button
+                          onClick={() => handleBatchTagging('unpublish')}
+                          className="group flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-orange-500 hover:text-white"
+                        >
+                          <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-white" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+                          </svg>
+                          Restrict Publishing
+                        </button>
+                        <button
+                          onClick={() => handleBatchTagging('publish')}
+                          className="group flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-green-500 hover:text-white"
+                        >
+                          <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-white" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Allow Publishing
+                        </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="relative">
+              <button
+                type="button"
                 onClick={() => setIsActionDropdownOpen(!isActionDropdownOpen)}
-                className="inline-flex items-center gap-x-1.5 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                className="inline-flex items-center gap-x-1.5 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-100 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
               >
                 <Cog6ToothIcon className="-ml-0.5 h-5 w-5 text-gray-400" aria-hidden="true" />
                 Actions
@@ -721,8 +896,8 @@ const ProgramDetail: React.FC = () => {
                     onClick={() => setIsActionDropdownOpen(false)}
                   />
                   
-                  {/* Dropdown Menu */}
-                  <div className="absolute right-0 z-20 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                  {/* Import Export Menu */}
+                  <div className="absolute right-0 top-full z-20 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
                     <div className="py-1">
                       <button
                         onClick={handleDownloadTemplate}
@@ -751,6 +926,15 @@ const ProgramDetail: React.FC = () => {
                         </svg>
                         Export Projects
                       </button>
+                      <button
+                        onClick={handleViewAIP}
+                        className="group flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-blue-500 hover:text-white"
+                      >
+                        <svg className="mr-3 h-5 w-5 text-gray-400 group-hover:text-white" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                        </svg>
+                        View AIP Report
+                      </button>
                     </div>
                   </div>
                 </>
@@ -776,27 +960,30 @@ const ProgramDetail: React.FC = () => {
                   SubProgram
                 </TableHeader>
                 <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  City
+                  Implementing Office
                 </TableHeader>
                 <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Legislative District
+                  Operating Unit
                 </TableHeader>
                 {/* <TableHeader className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Total Project Cost
                 </TableHeader> */}
                 <TableHeader className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Created Date
+                  Publishable
                 </TableHeader>
-                { programEnums?.IsActive && programEnums?.Details?.StageId === 10 && (
+                <TableHeader className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Published
+                </TableHeader>
+                {/* { programEnums?.IsActive && programEnums?.Details?.StageId === 10 && (
                 <TableHeader className='px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider'>
                   Actions
                 </TableHeader>
-                )}
+                )} */}
               </TableRow>
             </TableHead>
             
             <TableBody className="bg-white divide-y divide-gray-200">
-              {programEnums.Projects.map((project) => (
+              {programEnums?.Projects ? programEnums.Projects.map((project) => (
                 <TableRow key={project.Id} className="hover:bg-gray-50">
                   <TableCell className="px-6 py-4 whitespace-nowrap">
                     <button onClick={() => handleViewProject(project.ProjectId, project.StageName)} className="text-blue-600 hover:text-blue-800 font-medium cursor-pointer">
@@ -812,24 +999,34 @@ const ProgramDetail: React.FC = () => {
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-60">
                     {project.Thrust}
                   </TableCell>
-                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {project.City}
+                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-60">
+                    {project.ImplementingOffice}
                   </TableCell>
-                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {project.LegislativeDistrict}
+                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-60">
+                    {project.OperatingUnit}
                   </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-20">
-                    {project.CreatedDate.StringToDate()}
+                    {project.IsPublishable ? 'Yes' : 'No'}
                   </TableCell>
-                  { programEnums?.IsActive && programEnums?.Details?.StageId === 10 && programEnums?.Details?.IsPublished && (
+                  <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-20">
+                    {project.IsPublishable ? 'Yes' : 'No'}
+                  </TableCell>
+                  {/* { programEnums?.IsActive && programEnums?.Details?.StageId === 10 && programEnums?.Details?.IsPublished && (
                   <TableCell className='px-6 py-4 whitespace-nowrap text-sm font-medium text-center'>
                     <Button className="w-24 items-center" onClick={() => handleModifyProject(project.ProjectId, project.StageName)}>
                       Modify
                     </Button>
                   </TableCell>
-                  )}
+                  )} */}
                 </TableRow>
-              ))}
+              ))
+            : (
+              <TableRow>
+                <TableCell colSpan={8} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                  No projects available for this program.
+                </TableCell>
+              </TableRow>
+            )}
             </TableBody>
           </Table>
         </div>
@@ -843,6 +1040,65 @@ const ProgramDetail: React.FC = () => {
           onSubmit={handleNextStageSubmit}
           program={programEnums?.Details}
           stages={programEnums?.Dropdowns.Stages || []}
+          isSkip={isSkipStage}
+        />
+      )}
+
+      {/* AIP Report Dialog */}
+      {isAIPReportDialogOpen && (
+        <AIPReportDialog
+          isOpen={isAIPReportDialogOpen}
+          onClose={() => setIsAIPReportDialogOpen(false)}
+          onGenerate={handleGenerateAIPReport}
+          programId={programEnums?.Details.ProgramId}
+          programName={programEnums?.Details.Name}
+          stageName={programEnums?.Details.StageName}
+        />
+      )}
+
+      {/* Publish Program Dialog */}
+      {isPublishDialogOpen && (
+        <PublishProgramDialog
+          isOpen={isPublishDialogOpen}
+          onClose={() => setIsPublishDialogOpen(false)}
+          onConfirm={handleConfirmPublish}
+          programName={programEnums?.Details.Name}
+          programId={programEnums?.Details.ProgramId}
+        />
+      )}
+
+      {/* Batch Tag Dialog */}
+      {isBatchTagDialogOpen && (
+        <BatchTagDialog
+          isOpen={isBatchTagDialogOpen}
+          onClose={() => setIsBatchTagDialogOpen(false)}
+          onSubmit={handleBatchTagSubmit}
+          programId={programEnums?.Details.ProgramId}
+          programName={programEnums?.Details.Name}
+          action={batchAction}
+        />
+      )}
+
+      {/* Add Existing Project Dialog */}
+      {isAddExistingProjectDialogOpen && (
+        <AddExistingProjectDialog
+          isOpen={isAddExistingProjectDialogOpen}
+          onClose={() => setIsAddExistingProjectDialogOpen(false)}
+          onSubmit={handleAddExistingProjectSubmit}
+          programId={programEnums?.Details.ProgramId}
+          programName={programEnums?.Details.Name}
+        />
+      )}
+
+      {/* Import Projects Dialog */}
+      {isImportProjectsDialogOpen && (
+        <ImportProjectsDialog
+          isOpen={isImportProjectsDialogOpen}
+          onClose={() => setIsImportProjectsDialogOpen(false)}
+          onSubmit={handleImportProjectsSubmit}
+          programId={programEnums?.Details.ProgramId}
+          programName={programEnums?.Details.Name}
+          stageName={programEnums?.Details.StageName}
         />
       )}
     </div>

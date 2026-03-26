@@ -1,11 +1,7 @@
 "use-client";
 
-import React, { useState, useEffect } from 'react';
-import { MagnifyingGlassIcon } from '@heroicons/react/16/solid';
-import { useDropDownData } from '../hooks/useDropDown';
-import { Button } from '../../../components/tailwindui/button';
+import React, { useState } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
-import { getModificationCase } from '../components/ModificationCases';
 
 interface RevisionState {
     projectId?: string;
@@ -23,15 +19,6 @@ const ModifyProject: React.FC = () => {
     const [searchInput, setSearchInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
-    const {
-        initializeData,
-        modCategories,
-        modReasons
-    } = useDropDownData();
-
-    useEffect(() => {
-        initializeData();
-    }, [initializeData]);
 
     const [projectForm, setProjectForm] = useState({
         projectId: projectId || '',
@@ -57,10 +44,10 @@ const ModifyProject: React.FC = () => {
         setProjectForm(prev => ({ ...prev, [field]: value }));
     }
 
-    const renderField = (fieldName: string, index: number, modification: any) => {
-        const CaseComponent = getModificationCase(fieldName);
-        return <CaseComponent fieldName={fieldName} index={index} modification={modification} />;
-    };
+    // const renderField = (fieldName: string, index: number, modification: any) => {
+    //     const CaseComponent = getModificationCase(fieldName);
+    //     return <CaseComponent fieldName={fieldName} index={index} modification={modification} />;
+    // };
 
     return (
         
@@ -94,7 +81,7 @@ const ModifyProject: React.FC = () => {
                                         <label className='w-1/3 block text-sm font-medium text-gray-700'>
                                             Reasons :
                                         </label>
-                                        <select
+                                        {/* <select
                                             value={projectForm?.reason}
                                             onChange={(e) => handleChange('reason', e.target.value)}
                                             className='w-2/3 border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500'>
@@ -105,7 +92,7 @@ const ModifyProject: React.FC = () => {
                                                     {reason.CodeDescription}
                                                 </option>
                                             ))}
-                                        </select>
+                                        </select> */}
                                     </div>
                                     ) }
                                     <div className='flex justify-between gap-5 items-center'>
@@ -171,7 +158,7 @@ const ModifyProject: React.FC = () => {
                             
                             <div className="w-2/3 bg-gray-100 p-6 space-y-4 rounded-lg">
                                 <h3 className="text-lg font-medium text-gray-900">Modify: {projectForm.reason}</h3>
-                                {renderField(projectForm.reason, 0, null)}
+                                {/* {renderField(projectForm.reason, 0, null)} */}
                             </div>
                         </form>
                     </div>

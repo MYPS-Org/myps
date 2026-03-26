@@ -72,6 +72,14 @@ const NotesForm: React.FC<NotesFormProps> = ({
     }
   };
 
+  const getFilePath = (filePath?: string) => {
+    if (!filePath) return '#';
+    return new URL(
+      filePath,
+      import.meta.env.VITE_API_BASE_URL
+    )
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
       <div className="flex justify-between items-center mb-4">
@@ -97,7 +105,13 @@ const NotesForm: React.FC<NotesFormProps> = ({
             <TableRow key={`${doc.Id}-${index}-${doc.CreatedDate}`}>
               <TableCell className="w-lg text-center">
                 {doc.FileName && (
-                  <span className="text-xs text-gray-500 mt-1 cursor-pointer !underline" onClick={() => window.open(`/${doc.FilePath}`, '_blank')}>{doc.FileName}</span>
+                  <a href={getFilePath(doc.FilePath).toString()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-gray-500 mt-1 underline cursor-pointer"
+                  >
+                    {doc.FileName}
+                  </a>
                 )}
               </TableCell>
               <TableCell className="text-center">

@@ -1,0 +1,180 @@
+import React from 'react';
+import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
+import { Button } from '../../../../components/tailwindui/button';
+import { XMarkIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { useToast } from '../../../../components/toaster/ToasterContext';
+import { useState } from 'react';
+import type { ComponentCost } from '../../../Project/Model';
+
+interface DeleteComponentDialogProps {
+  isOpen: boolean;
+  component: ComponentCost | null;
+  index: number | null;
+  projectId?: string;
+  onClose: () => void;
+  onConfirmDelete: (index?: number) => Promise<void> | void;
+  relatedMajorItemsCount?: number; // Number of related major items that will be deleted
+}
+
+const DeleteComponentDialog: React.FC<DeleteComponentDialogProps> = ({
+  isOpen,
+  component: selectedComponent,
+  index: deleteIndex,
+  onClose: closeDialog,
+  onConfirmDelete,
+  relatedMajorItemsCount = 0,
+}) => {
+  const [isDeleting, setIsDeleting] = useState(false);
+  const { showToast } = useToast();
+
+  const formatCurrency = (amount: number) => {
+    return amount.toLocaleString('en-PH');
+  };
+
+  const handleClose = () => {
+    if (!isDeleting) {
+      closeDialog();
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!selectedComponent || deleteIndex === null || isDeleting) return;
+
+    try {
+      setIsDeleting(true);
+      await onConfirmDelete(deleteIndex);
+
+      showToast({
+        type: 'success',
+        message: 'Component cost removed successfully'
+      });
+
+      closeDialog();
+
+    } catch (error: any) {
+      console.error('Error removing component cost:', error);
+
+      showToast({
+        type: 'error',
+        message: 'Failed to remove component cost. Please try again.'
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  if (!isOpen || !selectedComponent || deleteIndex === null) {
+    return null;
+  }
+
+  return (
+    <Dialog open={isOpen} onClose={handleClose} className="relative z-50">
+      <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+      
+      <div className="fixed inset-0 flex w-screen items-center justify-center p-4">
+        <DialogPanel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+          
+          {/* Header */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center">
+              <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                <ExclamationTriangleIcon className="h-6 w-6 text-red-600" aria-hidden="true" />
+              </div>
+              <DialogTitle className="ml-3 text-lg font-semibold leading-6 text-gray-900">
+                Delete Component Cost
+              </DialogTitle>
+            </div>
+            
+            <button
+              type="button"
+              className="text-gray-400 hover:text-gray-500 disabled:cursor-not-allowed"
+              onClick={handleClose}
+              disabled={isDeleting}
+            >
+              <span className="sr-only">Close</span>
+              <XMarkIcon className="h-6 w-6" aria-hidden="true" />
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="mt-3">
+            <div className="mt-2">
+              <p className="text-sm text-gray-500 mb-4">
+                Are you sure you want to remove this component cost? This will remove it from the current form. Changes will be saved when you save the form.
+              </p>
+              
+              {/* Component Details */}
+              <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                <h4 className="font-medium text-gray-900 mb-2">Component Details:</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Component ID:</span>
+                    <span className="font-medium">{selectedComponent.ComponentId}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Type:</span>
+                    <span className="font-medium">{selectedComponent.ComponentType}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Total Cost:</span>
+                    <span className="font-medium text-red-600">₱{formatCurrency(selectedComponent.Amount || 0)}</span>
+                  </div>
+                  {selectedComponent.Description && (
+                    <div className="pt-2 border-t">
+                      <span className="text-gray-600">Description:</span>
+                      <p className="mt-1 text-gray-900">{selectedComponent.Description}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Cascade Delete Warning */}
+              {relatedMajorItemsCount > 0 && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-4">
+                  <div className="flex">
+                    <ExclamationTriangleIcon className="h-5 w-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+                    <div className="ml-2">
+                      <h5 className="text-sm font-medium text-yellow-800">Cascade Delete Warning</h5>
+                      <p className="text-sm text-yellow-600 mt-1">
+                        Deleting this component will also delete <span className="font-semibold">{relatedMajorItemsCount} related major item(s)</span> and their work locations.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="mt-6 flex justify-end space-x-3">
+            <Button
+              type="button"
+              color="white"
+              onClick={handleClose}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              color="red"
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <div className="flex items-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Removing...
+                </div>
+              ) : (
+                'Remove Component'
+              )}
+            </Button>
+          </div>
+        </DialogPanel>
+      </div>
+    </Dialog>
+  );
+};
+
+export default DeleteComponentDialog;

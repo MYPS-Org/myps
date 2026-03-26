@@ -1,4 +1,4 @@
-	import { Avatar } from '../components/tailwindui/avatar'
+import { Avatar } from '../components/tailwindui/avatar'
 import {
 Dropdown,
 DropdownButton,
@@ -18,6 +18,7 @@ SidebarSection,
 SidebarSpacer,
 SidebarDropdown,
 SidebarDropdownItem,
+SidebarDivider,
 } from '../components/tailwindui/sidebar'
 import {
 ArrowRightStartOnRectangleIcon,
@@ -27,11 +28,23 @@ import {
 Cog6ToothIcon,
 HomeIcon,
 QuestionMarkCircleIcon,
-Square2StackIcon,
 FolderIcon,
-CalendarDateRangeIcon,
+FolderOpenIcon,
+BriefcaseIcon,
+BanknotesIcon,
+ArrowPathIcon,
+RectangleGroupIcon,
+CalendarDaysIcon,
+DocumentChartBarIcon,
+TableCellsIcon,
+ShieldCheckIcon,
+UsersIcon,
+ServerStackIcon,
+UserIcon,
+UserGroupIcon,
 } from '@heroicons/react/20/solid'
-import { authService } from '../pages/login/Service' // Adjust the import path as necessary
+import { authService } from '../pages/login/Service' // for getting the service logout
+import { useAuth } from '../contexts/AuthContext' // for getting data friom context
 import Logo from '../assets/img/logo.png' // Adjust the import path as necessary
 
 // If using React Router, you can import useLocation
@@ -52,6 +65,8 @@ export default function SideBar() {
 // const location = useLocation()
 // const currentPath = location.pathname
 
+const { user } = useAuth();
+
 // For now, you can manually set which item should be current
 // Change this to your actual routing logic or pass it as a prop
 const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/dashboard'
@@ -59,17 +74,17 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 		<Sidebar>
 		<SidebarHeader>
 			<Dropdown>
-			<DropdownButton as={SidebarItem} className="mb-2.5">
+			<DropdownButton as={SidebarItem} className="">
 				<Avatar src={Logo} />
 				<SidebarLabel className="text-gray-500">MYPS</SidebarLabel>
 				<ChevronDownIcon />
 			</DropdownButton>
 			<DropdownMenu className="min-w-64" anchor="bottom start">
 				<DropdownDivider />
-				<DropdownItem href="/profile">
+				{/* <DropdownItem href="/profile">
 					<Avatar slot="icon" src="/tailwind-logo.svg" />
 					<DropdownLabel>Profile</DropdownLabel>
-				</DropdownItem>
+				</DropdownItem> */}
 				<DropdownItem onClick={handleLogout}>
 					<ArrowRightStartOnRectangleIcon />
 					<DropdownLabel>Log out</DropdownLabel>
@@ -84,41 +99,71 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 		</SidebarHeader>
 		<SidebarBody>
 			<SidebarSection>
-			<SidebarItem href="/dashboard" current={currentPath === '/dashboard'}>
-				<HomeIcon />
-				<SidebarLabel className="text-gray-500">Dashboard</SidebarLabel>
-			</SidebarItem>
-			<SidebarItem href="/programs" current={currentPath === '/programs'}>
-				<FolderIcon />
-				<SidebarLabel className="text-gray-500">Programs</SidebarLabel>
-			</SidebarItem>
-			<SidebarItem href="/projects" current={currentPath === '/projects'}>
-				<Square2StackIcon />
-				<SidebarLabel className="text-gray-500">Projects</SidebarLabel>
-			</SidebarItem>
-			<SidebarItem href="/revision" current={currentPath === '/revision'}>
-				<Square2StackIcon />
-				<SidebarLabel className="text-gray-500">Revision</SidebarLabel>
-			</SidebarItem>
-			<SidebarItem href="/project-groups" current={currentPath === '/project-groups'}>
-				<Square2StackIcon />
-				<SidebarLabel className="text-gray-500">Project Groups</SidebarLabel>
-			</SidebarItem>	
-			{/* <SidebarItem href="/program-stages" current={currentPath === '/program-stages'}>	
-				<Square2StackIcon />
-				<SidebarLabel className="text-gray-500">Program Stages</SidebarLabel>
+				<SidebarItem>
+					<UserIcon />
+					<SidebarLabel className="text-gray-500">{user?.Name || 'no name'}</SidebarLabel>
+				</SidebarItem>
+				<SidebarItem>
+					<UserGroupIcon />
+					<SidebarLabel className="text-gray-500">{user?.UserGroups || 'no role'}</SidebarLabel>
+				</SidebarItem>
+			<SidebarDivider>
+			</SidebarDivider>
+				<SidebarItem href="/dashboard" current={currentPath === '/dashboard'}>
+					<HomeIcon />
+					<SidebarLabel className="text-gray-500">Dashboard</SidebarLabel>
+				</SidebarItem>
+				<SidebarItem href="/programs" current={currentPath === '/programs'}>
+					<FolderOpenIcon />
+					<SidebarLabel className="text-gray-500">Programs</SidebarLabel>
+				</SidebarItem>
+				<SidebarItem href="/projects" current={currentPath === '/projects'}>
+					<BriefcaseIcon />
+					<SidebarLabel className="text-gray-500">Projects</SidebarLabel>
+				</SidebarItem>
+				{/* <SidebarItem href="/lumpsum" current={currentPath === '/lumpsum'}>
+					<BanknotesIcon />
+					<SidebarLabel className="text-gray-500">Lump Sum</SidebarLabel>
+				</SidebarItem> */}
+				<SidebarItem href="/revision" current={currentPath === '/revision'}>
+					<ArrowPathIcon />
+					<SidebarLabel className="text-gray-500">Revision</SidebarLabel>
+				</SidebarItem>
+				<SidebarItem href="/project-groups" current={currentPath === '/project-groups'}>
+					<RectangleGroupIcon />
+					<SidebarLabel className="text-gray-500">Project Groups</SidebarLabel>
+				</SidebarItem>	
+				{/* <SidebarItem href="/program-stages" current={currentPath === '/program-stages'}>	
+					<Square2StackIcon />
+					<SidebarLabel className="text-gray-500">Program Stages</SidebarLabel>
 			</SidebarItem> */}
 			<SidebarDropdown
 				label="Multi-Year Management"
 				defaultOpen={false}
 				className="text-gray-500"
 				>
-				<Cog6ToothIcon />
+				<CalendarDaysIcon />
 				<SidebarDropdownItem href="/multiyear/programs" current={currentPath === '/multiyear/programs'}>
 					<SidebarLabel>Programs</SidebarLabel>
 				</SidebarDropdownItem>
 				<SidebarDropdownItem href="/multiyear/projects" current={currentPath === '/multiyear/projects'}>
 					<SidebarLabel>Projects</SidebarLabel>
+				</SidebarDropdownItem>
+			</SidebarDropdown>
+			<SidebarDropdown
+				label="Reports"
+				defaultOpen={false}
+				className="text-gray-500"
+				>
+				<DocumentChartBarIcon />
+				<SidebarDropdownItem href="/reports/programs" current={currentPath === '/reports/programs'}>
+					<SidebarLabel>Programs</SidebarLabel>
+				</SidebarDropdownItem>
+				<SidebarDropdownItem href="/reports/projects" current={currentPath === '/reports/projects'}>
+					<SidebarLabel>Projects</SidebarLabel>
+				</SidebarDropdownItem>
+				<SidebarDropdownItem href="/reports/multiyear" current={currentPath === '/reports/multiyear'}>
+					<SidebarLabel>Multi-Year</SidebarLabel>
 				</SidebarDropdownItem>
 			</SidebarDropdown>
 			<SidebarDropdown
@@ -128,15 +173,19 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 				>
 				<Cog6ToothIcon />
 				<SidebarDropdownItem href="/code-tables" current={currentPath === '/code-tables'}>
+					<TableCellsIcon />
 					<SidebarLabel>Code Tables</SidebarLabel>
 				</SidebarDropdownItem>
 				<SidebarDropdownItem href="/settings/security" current={currentPath === '/settings/security'}>
+					<ShieldCheckIcon />
 					<SidebarLabel>Security</SidebarLabel>
 				</SidebarDropdownItem>
 				<SidebarDropdownItem href="/user-management" current={currentPath === '/user-management'}>
+					<UsersIcon />
 					<SidebarLabel>User Management</SidebarLabel>
 				</SidebarDropdownItem>
 				<SidebarDropdownItem href="/infrastructure-management" current={currentPath === '/infrastructure-management'}>
+					<ServerStackIcon />
 					<SidebarLabel>Infra Management</SidebarLabel>
 				</SidebarDropdownItem>
 			</SidebarDropdown>
@@ -195,4 +244,4 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 		</SidebarFooter>
 		</Sidebar>
 	)
-	}
+}

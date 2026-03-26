@@ -17,7 +17,7 @@ interface PaginationResponse<T> {
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '../../../components/tailwindui/table'; // Adjust the import path as necessary
 
 // #region Import Dialogs
-import { AddProgramDialog, DeleteProgramDialog } from '../dialogs';
+import { AddProgramDialog, DeleteProgramDialog, FilterDialogProgramList } from '../dialogs';
 // #endregion
 
 import { Button } from '../../../components/tailwindui/button'; // Adjust the import path as necessary
@@ -27,22 +27,25 @@ import {
     TrashIcon,
     ChevronDownIcon,
     ChevronRightIcon,
-    XMarkIcon
+    XMarkIcon,
+    FunnelIcon
 } from '@heroicons/react/24/outline'; // Adjust the import path as necessary
+import type { TableEnum } from '../../Project/Model';
 
 const Program: React.FC = () => {
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(false);
     const [programEnums, setProgramEnums] = useState<{
         // Statuses: ProgramEnums[];
-        Stages: ProgramEnums[];
-        Types: ProgramEnums[];
+        Stages: TableEnum[];
+        Types: TableEnum[];
         Groups: ProgramEnums[];
         DataSecurity: ProgramEnums[];
     } | null>(null);
 
     const [isAddProgramOpen, setIsAddProgramOpen] = useState(false);
     const [isDeleteProgramOpen, setIsDeleteProgramOpen] = useState(false);
+    const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
     const [selectedProgram, setSelectedProgram] = useState<string | null>(); // Initialize with an empty string or a default value
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set()); // Track expanded rows
     const [stageLists, setStageLists] = useState<Record<string, StageList>>({}); // Store stages per program ID
@@ -52,7 +55,7 @@ const Program: React.FC = () => {
         const getPrograms = async () => {
             setIsLoading(true);
             try {
-                const response = await fetchProgram(ProgramData);
+                const response = await fetchProgram(ProgramFilters);
                 setProgramData(response.Data);
             } catch (error) {
                 console.error('Error fetching programs:', error);
@@ -72,14 +75,17 @@ const Program: React.FC = () => {
     });
 
     const [ProgramFilters, setProgramFilters] = useState<ProgramPagination>({
-            filters: {
-                Name: '',
-            },
-            sortField: '',
-            sortDirection: 1,
-            page: 1,
-            limit: 20
-        });
+        filters: {
+            Name: '',
+            YearStart: '',
+            GroupName: '',
+            StageName: '',
+        },
+        sortField: '',
+        sortDirection: 1,
+        page: 1,
+        limit: 10
+    });
 
     const handleOpenDialog = async () => {
         try {
@@ -94,19 +100,7 @@ const Program: React.FC = () => {
         }
     };
 
-    // Helper function to map status numbers to strings
-    // const getStatusString = (statusId: number): string => {
-    //     const statusMap: { [key: number]: string } = {
-    //         1: 'Working',
-    //         2: 'Approved', 
-    //         3: 'Pending',
-    //         4: 'Rejected',
-    //         5: 'Proposed'
-    //     };
-    //     return statusMap[statusId] || 'Unknown';
-    // };
 
-    // Helper function to render status badge
     const getStatusBadge = (status: string) => {
         const statusColors = {
             'Working': 'bg-orange-100 text-orange-800 border-orange-200',
@@ -132,7 +126,22 @@ const Program: React.FC = () => {
                 const isCurrentlyExpanded = expandedRows.has(programId);
                 
                 // Toggle the expanded state for this row
-                setExpandedRows(prev => {
+                if (isCurrentlyExpanded) {
+                    setExpandedRows(new Set())
+                } else {
+                    setExpandedRows(new Set([programId]));
+                    if (!stageLists[programId]) {
+                        const response = await fetchStagesByProgramId(programId);
+                        setStageLists(prev => ({
+                            ...prev,
+                            [programId]: response.Data
+                        }));
+                    }
+                }
+                /**
+                 * use this code to allow multiple rows expanded at the same time
+                 */
+                /** setExpandedRows(prev => {
                     const newExpanded = new Set(prev);
                     if (newExpanded.has(programId)) {
                         newExpanded.delete(programId);
@@ -142,7 +151,7 @@ const Program: React.FC = () => {
                     return newExpanded;
                 });
 
-                // Only fetch data if we're expanding (not collapsing) and data doesn't already exist
+                Only fetch data if we're expanding (not collapsing) and data doesn't already exist
                 if (!isCurrentlyExpanded && !stageLists[programId]) {
                     const response = await fetchStagesByProgramId(programId);
                     setStageLists(prev => ({
@@ -150,6 +159,7 @@ const Program: React.FC = () => {
                         [programId]: response.Data
                     }));
                 }
+                */
             }
         } catch (error) {
             console.error('Error toggling program details:', error);
@@ -217,6 +227,34 @@ const Program: React.FC = () => {
             setProgramData(response.Data);
         } catch (error) {
             console.error('Error clearing search:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleOpenFilterDialog = async () => {
+        try {
+            if (!programEnums) {
+                setIsLoading(true);
+                const response = await fetchProgramEnums();
+                setProgramEnums(response.Data);
+                setIsLoading(false);
+            }
+            setIsFilterDialogOpen(true);
+        } catch (error) {
+            console.error('Error fetching program enums:', error);
+            setIsLoading(false);
+        }
+    };
+
+    const handleApplyFilters = async (filters: ProgramPagination) => {
+        setProgramFilters(filters);
+        try {
+            setIsLoading(true);
+            const response = await fetchProgram(filters);
+            setProgramData(response.Data);
+        } catch (error) {
+            console.error('Error applying filters:', error);
         } finally {
             setIsLoading(false);
         }
@@ -310,6 +348,20 @@ const Program: React.FC = () => {
                                         </Button>
                                     )}
                                 </div>
+                                <Button 
+                                    color="yellow" 
+                                    onClick={handleOpenFilterDialog}
+                                    disabled={isLoading}
+                                    className="text-xs px-3 py-1.5"
+                                >
+                                    <FunnelIcon className="w-4 h-4 mr-1 text-white" />
+                                    Filters
+                                    {(ProgramFilters.filters?.YearStart || ProgramFilters.filters?.GroupName || ProgramFilters.filters?.StageName) && (
+                                        <span className="ml-1.5 bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                                            {[ProgramFilters.filters?.YearStart, ProgramFilters.filters?.GroupName, ProgramFilters.filters?.StageName].filter(Boolean).length}
+                                        </span>
+                                    )}
+                                </Button>
                                 <Button color="blue" onClick={handleOpenDialog} disabled={isLoading} className="text-xs px-3 py-1.5">
                                     <PlusIcon className="w-4 h-4 mr-1" />
                                     {isLoading ? 'Loading...' : 'Add Program'}
@@ -321,9 +373,10 @@ const Program: React.FC = () => {
                     <TableHead>
                     <TableRow>
                         <TableHeader>Name</TableHeader>
-                        {/* <TableHeader>Status</TableHeader> */}
+                        <TableHeader>Status</TableHeader>
                         {/* <TableHeader>Program Stage</TableHeader> */}
                         <TableHeader>Program Type</TableHeader>
+                        <TableHeader>No. of Projects</TableHeader>
                         <TableHeader>Start Year</TableHeader>
                         {/* <TableHeader>End Year</TableHeader> */}
                         <TableHeader>Actions</TableHeader>
@@ -349,20 +402,20 @@ const Program: React.FC = () => {
                                     </div>
                                 </TableCell>
                                 <TableCell>
+                                    {program.Status}
+                                </TableCell>
+                                <TableCell>
                                     {getStatusBadge(program.Type || '')}
                                 </TableCell>
                                 {/* <TableCell>
                                     {program.StageName}
-                                </TableCell>
-                                <TableCell>
-                                    {program.Type}
                                 </TableCell> */}
+                                <TableCell>
+                                    {program.NumberOfProjects !== undefined ? program.NumberOfProjects : 'N/A'}
+                                </TableCell>
                                 <TableCell>
                                     {program.YearStart}
                                 </TableCell>
-                                {/* <TableCell>
-                                    {program.YearEnd}
-                                </TableCell> */}
                                 <TableCell>
                                     <div className="flex items-center space-x-1">
                                         <Button 
@@ -400,7 +453,7 @@ const Program: React.FC = () => {
                                                             {/* <TableHeader className="text-xs">Status</TableHeader> */}
                                                             <TableHeader justify="center" className="text-xs">Type</TableHeader>
                                                             <TableHeader justify="center" className="text-xs">Start Year</TableHeader>
-                                                            {/* <TableHeader className="text-xs">End Year</TableHeader> */}
+                                                            <TableHeader justify="center" className="text-xs">Projects</TableHeader>
                                                             <TableHeader justify="center" className="text-xs">Cost</TableHeader>
                                                             <TableHeader justify="center" className="text-xs">Actions</TableHeader>
                                                         </TableRow>
@@ -415,6 +468,9 @@ const Program: React.FC = () => {
                                                                 <TableCell className="text-sm text-gray-600 text-center">{stage.TypeName}</TableCell>
                                                                 <TableCell className="text-sm text-gray-600 text-center">{stage.YearStart}</TableCell>
                                                                 {/* <TableCell className="text-sm text-gray-600">{stage.YearEnd}</TableCell> */}
+                                                                <TableCell className="text-sm font-medium text-center">
+                                                                    {stage.NumberOfProjects !== undefined ? stage.NumberOfProjects : 'N/A'}
+                                                                </TableCell>
                                                                 <TableCell className="text-sm font-medium text-center">
                                                                     {stage.Cost ? `₱${stage.Cost.toLocaleString()}` : 'N/A'}
                                                                 </TableCell>
@@ -498,7 +554,7 @@ const Program: React.FC = () => {
                         )
                     }
                 </Pagination>
-                    <div className='mb-3.5'>
+                    <div className='mb-3.5 text-center'>
                         {
                             ProgramData.lists.length > 0 ? (
                                 <p className="text-sm text-gray-500">
@@ -532,17 +588,27 @@ const Program: React.FC = () => {
             {selectedProgram && (
                 <DeleteProgramDialog
                     isOpen={isDeleteProgramOpen}
-                    onClose={() => setIsDeleteProgramOpen(false)}
-                    program={ProgramData.lists?.find((program: any) => program.ProgramId === selectedProgram) as any} // Cast to match expected type
-                    onSubmit={(programId: any) => {
-                        setProgramData(prev => ({
-                            ...prev,
-                            lists: prev.lists.filter(program => program.ProgramId !== programId),
-                            total: prev.total - 1
-                        }));
+                    onClose={() => {
+                        setIsDeleteProgramOpen(false);
+                        setSelectedProgram(null);
                     }}
-            />
+                    program={ProgramData.lists?.find((program: any) => program.ProgramId === selectedProgram) as any}
+                    onDeleteSuccess={async () => {
+                        // Refresh program list after deletion
+                        const response = await fetchProgram(ProgramFilters);
+                        setProgramData(response.Data);
+                    }}
+                />
             )}
+
+            {/* Filter Dialog */}
+            <FilterDialogProgramList
+                isOpen={isFilterDialogOpen}
+                onClose={() => setIsFilterDialogOpen(false)}
+                currentFilters={ProgramFilters}
+                programEnums={programEnums || undefined}
+                onApplyFilters={handleApplyFilters}
+            />
         </div>
     );
 }

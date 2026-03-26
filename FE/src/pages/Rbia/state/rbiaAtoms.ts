@@ -40,7 +40,7 @@ export const roadFiltersAtom = atom<RoadPagination>({
   filters: {
     Name: '',
     RoadId: '',
-    Classification: ''
+    Classification: '',
   },
   sortField: '',
   sortDirection: 1,
@@ -184,7 +184,7 @@ export const clearRoadFiltersAtom = atom(
       filters: {
         Name: '',
         RoadId: '',
-        Classification: ''
+        Classification: '',
       },
       sortField: '',
       sortDirection: 1,

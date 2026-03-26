@@ -12,7 +12,9 @@ import { useRoadData } from "../hooks/useRoadData";
 import FutureRoadDialog from "../Dialogs/FutureRoadDialog";
 import FutureRoadSectionDialog from "../Dialogs/FutureRoadSectionDialog";
 import DeleteRoadDialog from "../Dialogs/DeleteRoadDialog";
+import FilterRoadDialog from "../Dialogs/FilterRoadDialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../components/tailwindui/table";
+import { Pagination, PaginationList, PaginationNext, PaginationPrevious, PaginationPage, PaginationGap } from "../../../components/tailwindui/pagination";
 
 // Simple Badge component
 const Badge: React.FC<{ children: React.ReactNode; className?: string; color?: string }> = ({ 
@@ -57,6 +59,7 @@ const FutureRoadList: React.FC = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isSectionDialogOpen, setIsSectionDialogOpen] = useState(false);
+  const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
   const [roadToAddSection, setRoadToAddSection] = useState<Road | null>(null);
   const [roadToDelete, setRoadToDelete] = useState<Road | null>(null);
   const [sortField, setSortField] = useState<string>('');
@@ -74,6 +77,7 @@ const FutureRoadList: React.FC = () => {
     handleSearchSubmit,
     handleClearSearch,
     handlePagination,
+    handleFilterChange,
     removeRoadFromState
   } = useRoadData();
 
@@ -157,7 +161,7 @@ const FutureRoadList: React.FC = () => {
             <Button 
               color="white" 
               className={`flex items-center shadow-md ${hasActiveFilters ? 'ring-2 ring-orange-500 bg-orange-50' : ''}`}
-              onClick={() => { /* TODO: Open filter dialog */ }}
+              onClick={() => setIsFilterDialogOpen(true)}
             >
               <AdjustmentsVerticalIcon className="w-4 h-4 mr-1" />
               Filter
@@ -236,7 +240,10 @@ const FutureRoadList: React.FC = () => {
                   </TableCell>
                   <TableCell className="text-center px-6 py-4 whitespace-nowrap">
                     <Badge color="green" className="text-xs">
-                      Class {road.Classification}
+                      {road.Classification === 1 ? "Primary" :
+                       road.Classification === 2 ? "Secondary" :
+                       road.Classification === 3 ? "Tertiary" :
+                       road.Classification === 4 ? "Quaternary" : "Unknown"}
                     </Badge>
                   </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap">
@@ -272,40 +279,55 @@ const FutureRoadList: React.FC = () => {
       </div>
 
       {/* Pagination */}
-      {roadData.totalPages > 1 && (
-        <div className="px-6 py-4 border-t border-gray-200">
-          <div className="flex justify-center">
-            <div className="flex space-x-1">
-              <Button
-                color="white"
-                onClick={() => Paginate(roadData.page - 1)}
-                disabled={roadData.page === 1 || isLoading}
-              >
-                Previous
-              </Button>
-              
-              {Array.from({ length: roadData.totalPages }, (_, i) => i + 1).map((pageNum) => (
-                <Button
-                  key={pageNum}
-                  color={pageNum === roadData.page ? "blue" : "white"}
-                  onClick={() => Paginate(pageNum)}
-                  disabled={isLoading}
-                >
-                  {pageNum}
-                </Button>
-              ))}
-              
-              <Button
-                color="white"
-                onClick={() => Paginate(roadData.page + 1)}
-                disabled={roadData.page === roadData.totalPages || isLoading}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Pagination className="my-6">
+        {roadData.totalPages > 1 && (
+          <>
+            <PaginationPrevious 
+              onClick={async () => await Paginate(1)}
+              disabled={roadData.page <= 1 || isLoading}
+            >
+              First
+            </PaginationPrevious>
+            <PaginationList>
+              {Array.from({ length: roadData.totalPages }, (_, i) => {
+                const pageNum = i + 1;
+                const currentPage = roadData.page;
+                const totalPages = roadData.totalPages;
+                
+                // Show first page, last page, current page, and pages around current
+                if (
+                  pageNum === 1 ||
+                  pageNum === totalPages ||
+                  (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+                ) {
+                  return (
+                    <PaginationPage
+                      key={pageNum}
+                      onClick={async () => await Paginate(pageNum)}
+                      current={pageNum === currentPage}
+                      // disabled={isLoading}
+                    >
+                      {pageNum}
+                    </PaginationPage>
+                  );
+                } else if (
+                  pageNum === currentPage - 2 ||
+                  pageNum === currentPage + 2
+                ) {
+                  return <PaginationGap key={pageNum} />;
+                }
+                return null;
+              })}
+            </PaginationList>
+            <PaginationNext 
+              onClick={async () => await Paginate(roadData.totalPages)}
+              disabled={roadData.page >= roadData.totalPages || isLoading}
+            >
+              Last
+            </PaginationNext>
+          </>
+        )}
+      </Pagination>
 
       {/* Footer info */}
       <div className='mb-3.5 px-6 py-4 border-t border-gray-200'>
@@ -339,6 +361,15 @@ const FutureRoadList: React.FC = () => {
           }}
           onSubmit={handleConfirmDelete}
           road={roadToDelete}
+        />
+      )}
+      {isFilterDialogOpen && (
+        <FilterRoadDialog
+          isOpen={isFilterDialogOpen}
+          onClose={() => setIsFilterDialogOpen(false)}
+          onSubmit={(filterData) => handleFilterChange({ filters: filterData })}
+          onClear={() => { handleClearSearch(); setIsFilterDialogOpen(false); }}
+          initialData={roadFilters.filters}
         />
       )}
     </div>

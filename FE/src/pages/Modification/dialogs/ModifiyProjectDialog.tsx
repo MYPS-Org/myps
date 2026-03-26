@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/16/solid';
-import { useDropDownData } from '../hooks/useDropDown';
 import { Button } from '../../../components/tailwindui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
 
@@ -17,27 +16,26 @@ interface AdjustProjectDialogProps {
 const AdjustProjectDialog: React.FC<AdjustProjectDialogProps> = ({ 
     isOpen, 
     onClose, 
-    revisionTypeId, 
+    revisionTypeId: _revisionTypeId, 
     revisionTypeDescription, 
     projectId, 
     stageName, 
 }) => {
 
-    const { initializeData, modCategories, modReasons } = useDropDownData();
-    useEffect(() => {
-        initializeData();
-    }, []);
 
     const project = {
         date: new Date().toISOString().split('T')[0], // Default to today's date in YYYY-MM-DD format
         revisionType: revisionTypeDescription,
     };
 
-    const handleChange = (index: number, fieldName: string, value: string) => {
-        // Update the form state with the new value
-    };
+    // Commented out - will be implemented when form state management is added
+    // const handleChange = (index: number, fieldName: string, value: string) => {
+    //     // Update the form state with the new value
+    // };
 
+    // Commented out - will be implemented when form rendering is added
     // Change the type any to real model later
+    /*
     const renderFormField = (modification: any, fieldName: string, index: number) => {
         switch (fieldName) {
             // Category A
@@ -83,6 +81,7 @@ const AdjustProjectDialog: React.FC<AdjustProjectDialogProps> = ({
             // Category E not yet known
         }
     }
+    */
 
     return (
         <Dialog open={isOpen} onClose={onClose} className="fixed z-10 inset-0 overflow-y-auto">
@@ -134,11 +133,11 @@ const AdjustProjectDialog: React.FC<AdjustProjectDialogProps> = ({
                                     className='w-2/3 border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500'
                                     defaultValue={revisionTypeDescription}
                                 >
-                                    {modCategories.filter((category) => !category.Obsolete).map((category) => (
-                                        <option key={category.Id} value={category.CodeGroup}>
+                                    {/* {modCategories.filter((category) => !category.Obsolete).map((category) => ( */}
+                                        {/* <option key={category.Id} value={category.CodeGroup}>
                                             {category.CodeDescription}
                                         </option>
-                                    ))}
+                                    ))} */}
                                 </select>
                             </div>
                             <div className='flex justify-between gap-5 items-center'>
@@ -165,24 +164,24 @@ const AdjustProjectDialog: React.FC<AdjustProjectDialogProps> = ({
                                     Revision Category :
                                 </label>
                                 <select className='w-2/3 border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500'>
-                                    {modCategories.filter((category) => category.Obsolete).map((category) => (
+                                    {/* {modCategories.filter((category) => category.Obsolete).map((category) => (
                                         <option key={category.Id} value={category.CodeGroup}>
                                             {category.CodeDescription}
                                         </option>
-                                    ))}
+                                    ))} */}
                                 </select>
                             </div>
                             <div className='flex justify-between gap-5 items-center'>
                                 <label className='w-1/3 block text-sm font-medium text-gray-700'>
                                     Reasons :
                                 </label>
-                                <select className='w-2/3 border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500'>
+                                {/* <select className='w-2/3 border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500'>
                                     {modReasons.map((reason) => (
                                         <option key={reason.Id} value={reason.CodeGroup}>
                                             {reason.CodeDescription}
                                         </option>
                                     ))}
-                                </select>
+                                </select> */}
                             </div>
                             <div className='flex justify-between gap-5 items-center'>
                                 <label className='w-1/3 block text-sm font-medium text-gray-700'>

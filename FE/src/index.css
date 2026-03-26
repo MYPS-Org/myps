@@ -1,8 +1,9 @@
 @import "tailwindcss";
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
+  line-height: 1.1;
   font-weight: 400;
+  font-size: 13px; /* Base font size - smaller for 1920px at 100% zoom */
 
   /*color-scheme: light;*/
   /* color: #1f2937;
@@ -23,6 +24,8 @@
   --theme-secondary-hover: #001690;
   --theme-secondary-light: #1a2bc0;
   --theme-secondary-dark: #00138a;
+
+  --h1-size: 1rem; /* 16px */
 }
 
 /* a {
@@ -55,10 +58,31 @@ button:focus-visible {
 } */
 
 h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-  /* color: #1f2937; */
+  font-size: var(--h1-size);
+  line-height: 1.2;
 }
+
+h2 {
+  font-size: calc(var(--h1-size) * 0.9);
+  line-height: 1.3;
+}
+
+h3 {
+  font-size: calc(var(--h1-size) * 0.8);
+  line-height: 1.4;
+}
+
+h4 {
+  font-size: calc(var(--h1-size) * 0.7);
+  line-height: 1.5;
+}
+
+h5,
+h6 {
+  font-size: calc(var(--h1-size) * 0.6);
+  line-height: 1.5;
+}
+
 
 /* Autofill styles for Tailwind input fields */
 input:-webkit-autofill,

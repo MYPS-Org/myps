@@ -1,5 +1,6 @@
 import { httpClient, type ApiResponse } from "../../services/httpClient";
-import type { ProjectLists, ProgramDetails, ComponentCost, ComponentCostYear, ProjectDetails, MajorItemOfWork, MajorItemLocations, FundingProfile, ProjectNote, ProjectEnums, ProjectFormPayload, ProjectPagination, AddNotes, InfraData, ProjectSupportingDocs, ProjectRevisionList } from "./Model.d";
+import type { ProgramList } from "../Program/Model";
+import type { ProjectLists, ComponentCost, ProjectDetails, MajorItemOfWork, MajorItemLocations, FundingProfile, ProjectNote, ProjectEnums, ProjectFormPayload, ProjectPagination, AddNotes, InfraData, ProjectSupportingDocs, ProjectRevisionList, ComponentCostPerYear, ImportProjectDTO } from "./Model.d";
 
 // #region INITIALIZE Project Lists
 export const fetchProject = async (data: ProjectPagination) => {
@@ -17,7 +18,7 @@ export const fetchProject = async (data: ProjectPagination) => {
 // #region INITIALIZE Project details and Enums
 export const initProgramDetails = async (programId: number) => {
     try {
-        const response = await httpClient.post<ProgramDetails>(`/Project/Details/${programId}`, null, {
+        const response = await httpClient.post<ProgramList>(`/Project/Details/${programId}`, null, {
             preloaderMessage: 'Loading program details...'
         });
         return response;
@@ -29,7 +30,7 @@ export const initProgramDetails = async (programId: number) => {
 
 export const searchProgram = async (programName: string) => {
     try {
-        const response = await httpClient.post<ProgramDetails>(`/Project/Search/${programName}`, null, {
+        const response = await httpClient.post<ProgramList>(`/Project/Search/${programName}`, null, {
             preloaderMessage: 'Searching program...'
         });
         return response;
@@ -55,7 +56,7 @@ export const getProjectEnums = async () => {
 // #region Project Details
 export const addProjectDetails = async (projectDetails: ProjectDetails) => {
     try {
-        const response = await httpClient.post<{ProjectId: string, StageName: string, Title: string, Message: string}>(`/Project/addproject/`, projectDetails, {
+        const response = await httpClient.post<{ProjectId: string, StageName: string, Type: string, Title: string, Message: string}>(`/Project/addproject/`, projectDetails, {
             preloaderMessage: 'Adding project details...'
         });
         return response;
@@ -92,13 +93,14 @@ export const updateProjectDetails = async (projectDetails: ProjectDetails) => {
 export const updateEntireProject = async (payload: {
     ProjectDetails: ProjectDetails;
     ComponentCosts: ComponentCost[];
-    ComponentCostYear: ComponentCostYear[];
+    ComponentCostPerYear: ComponentCostPerYear[];
     MajorItemOfWorks: MajorItemOfWork[];
     MajorItemLocations: MajorItemLocations[];
     FundingProfile: FundingProfile[];
+    IsAllowedToProceed: boolean;
 }) => {
     try {
-        const response = await httpClient.post(`/Project/UpdateProjectDetails/`, payload, {
+        const response = await httpClient.post<{Type: string, Message: string, Title: string}>(`/Project/UpdateProjectDetails/`, payload, {
             preloaderMessage: 'Updating entire project...'
         });
         return response;
@@ -107,122 +109,6 @@ export const updateEntireProject = async (payload: {
         throw ErrorResponse;
     }
 };
-// #endregion
-
-// #region Component Costs
-export const addComponentCost = async (componentCost: ComponentCost) => {
-    try {
-        const response = await httpClient.post<ComponentCost>(`/Program/AddComponentCost/`, componentCost, {
-            preloaderMessage: 'Adding component cost...'
-        });
-        return response;
-    } catch (ErrorResponse) {
-        console.error('Error adding component cost:', ErrorResponse);
-        throw ErrorResponse;
-    }
-}
-
-export const updateComponentCost = async (componentCost: ComponentCost) => {
-    try {
-        const response = await httpClient.post(`/Program/UpdateComponentCost/`, componentCost, {
-            preloaderMessage: 'Updating component cost...'
-        });
-        return response;
-    } catch (ErrorResponse) {
-        console.error('Error updating component cost:', ErrorResponse);
-        throw ErrorResponse;
-    }
-}
-
-export const deleteComponentCost = async (componentCostId: string) => {
-    try {
-        const response = await httpClient.post(`/Program/DeleteComponentCost/${componentCostId}`, null, {
-            preloaderMessage: 'Deleting component cost...'
-        });
-        return response;
-    } catch (ErrorResponse) {
-        console.error('Error deleting component cost:', ErrorResponse);
-        throw ErrorResponse;
-    }
-}
-// #endregion
-
-// #region Major Items of Work
-export const addMajorItemOfWork = async (majorItems: MajorItemOfWork[]) => {
-    try {
-        const response = await httpClient.post<MajorItemOfWork[]>(`/Program/AddMajorItemOfWork/`, majorItems, {
-            preloaderMessage: 'Adding major item of work...'
-        });
-        return response;
-    } catch (ErrorResponse) {
-        console.error('Error adding major item of work:', ErrorResponse);
-        throw ErrorResponse;
-    }
-}
-
-export const updateMajorItemOfWork = async (majorItems: MajorItemOfWork[]) => {
-    try {
-        const response = await httpClient.post<MajorItemOfWork[]>(`/Program/UpdateMajorItemOfWork/`, majorItems, {
-            preloaderMessage: 'Updating major item of work...'
-        });
-        return response;
-    } catch (ErrorResponse) {
-        console.error('Error updating major item of work:', ErrorResponse);
-        throw ErrorResponse;
-    }
-}
-
-export const deleteMajorItemOfWork = async (majorItems: MajorItemOfWork[]) => {
-    try {
-        const response = await httpClient.post<MajorItemOfWork[]>(`/Program/DeleteMajorItemOfWork/`, majorItems, {
-            preloaderMessage: 'Deleting major item of work...'
-        });
-        return response;
-    } catch (ErrorResponse) {
-        console.error('Error deleting major item of work:', ErrorResponse);
-        throw ErrorResponse;
-    }
-}
-
-// #endregion
-
-// #region Funding Profiles
-export const addFundingProfile = async (fundingProfiles: FundingProfile[]) => {
-    try {
-        const response = await httpClient.post<FundingProfile[]>(`/Program/AddFundingProfile/`, fundingProfiles, {
-            preloaderMessage: 'Adding funding profile...'
-        });
-        return response;
-    } catch (ErrorResponse) {
-        console.error('Error adding funding profile:', ErrorResponse);
-        throw ErrorResponse;
-    }
-}
-
-export const updateFundingProfile = async (fundingProfiles: FundingProfile[]) => {
-    try {
-        const response = await httpClient.post<FundingProfile[]>(`/Program/UpdateFundingProfile/`, fundingProfiles, {
-            preloaderMessage: 'Updating funding profile...'
-        });
-        return response;
-    } catch (ErrorResponse) {
-        console.error('Error updating funding profile:', ErrorResponse);
-        throw ErrorResponse;
-    }
-}
-
-export const deleteFundingProfile = async (fundingProfiles: FundingProfile[]) => {
-    try {
-        const response = await httpClient.post(`/Program/DeleteFundingProfile/`, fundingProfiles, {
-            preloaderMessage: 'Deleting funding profile...'
-        });
-        return response;
-    } catch (ErrorResponse) {
-        console.error('Error deleting funding profile:', ErrorResponse);
-        throw ErrorResponse;
-    }
-}
-
 // #endregion
 
 // #region Notes
@@ -307,6 +193,113 @@ export const fetchProjectStagesByProjectId = async (projectId: string) => {
             Status: 200,
             Message: "No revisions found"
         }
+    }
+};
+// #endregion
+
+// #region GeoJSON Data
+export const fetchProjectGeoJSON = async (projectId: string, programId: string, username: string, stageName: string) => {
+    try {
+        const params = new URLSearchParams({
+            project_id: projectId,
+            program_id: programId,
+            username,
+            program_stage_name: stageName,
+        });
+        const apiUrl = `https://slavishly-otoscopic-adelynn.ngrok-free.dev/api_v1.0/project/features_v4?${params.toString()}`;
+
+        const response = await fetch(apiUrl, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'ngrok-skip-browser-warning': 'true',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        return {
+            Data: data,
+            Status: response.status,
+            Message: 'Success'
+        };
+    } catch (error) {
+        console.error('Error fetching GeoJSON data:', error);
+        throw error;
+    }
+};
+
+export const chainageToLrpConverter = async (sectionId: string, chainage: number) => {
+    try {
+        const params = new URLSearchParams({
+            road_section_id: sectionId,
+            chainage: chainage.toString(),
+        });
+        const apiUrl = `https://slavishly-otoscopic-adelynn.ngrok-free.dev/api_v1.0/infra/chainage_to_lrp?${params.toString()}`;
+
+        const response = await fetch(apiUrl, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'ngrok-skip-browser-warning': 'true',
+            },
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        return {
+            Data: data,
+            Status: response.status,
+            Message: 'Success'
+        };
+    } catch (error) {
+        console.error('Error converting chainage to LRP:', error);
+        throw error;
+    }
+};
+
+// #region Import
+export const importProject = async (payload: ImportProjectDTO) => {
+    try {
+        const response = await httpClient.post(`/Importing/ImportProject/`, payload, {
+            preloaderMessage: 'Importing lump sum project...'
+        });
+        return response;
+    } catch (ErrorResponse) {
+        console.error('Error importing lump sum project:', ErrorResponse);
+        throw ErrorResponse;
+    }
+};
+// #endregion
+
+export const lrpToChainageConverter = async (sectionId: string, lrp: string) => {
+    try {
+        const apiUrl = `https://slavishly-otoscopic-adelynn.ngrok-free.dev/api_v1.0/infra/lrp_to_chainage?road_section_id=${encodeURIComponent(sectionId)}&lrp_string=${encodeURIComponent(lrp)}`;
+
+        const response = await fetch(apiUrl, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'ngrok-skip-browser-warning': 'true',
+            },
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        return {
+            Data: data,
+            Status: response.status,
+            Message: 'Success'
+        };
+    } catch (error) {
+        console.error('Error converting chainage to LRP:', error);
+        throw error;
     }
 };
 // #endregion
