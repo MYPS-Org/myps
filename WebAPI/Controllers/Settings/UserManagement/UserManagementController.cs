@@ -157,7 +157,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 return ExceptionHandler(ex);
             }
         }
-        [HttpPut]
+        [HttpPost]
         public async Task<IActionResult> UpdateUser([FromBody] DBHelper.Models.Views.Users dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -683,6 +683,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 return ExceptionHandler(ex);
             }
         }
+        [HttpPost]
         public async Task<IActionResult> DeletePermissionAction(int id)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -894,7 +895,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 return ExceptionHandler(ex);
             }
         }
-        [HttpPut]
+        [HttpPost]
         public async Task<IActionResult> UpdateUserGroup([FromBody] UpdateUserGroupDTO dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -997,7 +998,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 return ExceptionHandler(ex);
             }
         }
-        [HttpDelete("{id}")]
+        [HttpPost]
         public async Task<IActionResult> DeleteUserGroup(int id)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
