@@ -6,7 +6,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
     public class UserGroupFilterDTO
     {
         public string? GroupName { get; set; }
-        public string? PermissionNames { get; set; }
+        public int[]? PermissionActionIds { get; set; }
     }
     public class DeleteUserGroupDto
     {
@@ -18,5 +18,5 @@ namespace WebAPI.Controllers.Settings.UserManagement
         public string? Description { get; set; }
         public int[] ActionIds { get; set; } = Array.Empty<int>();
     }
-    public class UpdateUserGroupDTO : GroupRoles { }
+    public class UpdateUserGroupDTO : DBHelper.Models.Views.UserGroups { }
 }
