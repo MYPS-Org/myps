@@ -21,6 +21,29 @@ namespace WebAPI.Controllers.Programs
     public class FutureInfraController : CoreController
     {
         public FutureInfraController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> GetInfraInfo()
+        {
+            try
+            {
+                var FutureRoads = await _db.tFutureRoads.AsNoTracking().ToListAsync();
+                var FutureRoadSections = await _db.tFutureRoadSections.AsNoTracking().ToListAsync();
+                var FutureBridges = await _db.tFutureBridge.AsNoTracking().ToListAsync();
+                var response = new
+                {
+                    Roads = FutureRoads,
+                    RoadSections = FutureRoadSections,
+                    Bridge = FutureBridges
+                };
+
+                return Ok(response); // Remove the extra wrapper
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
         #region Future Roads
         [AllowAnonymous]
         [HttpPost]

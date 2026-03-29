@@ -22,7 +22,7 @@ using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace WebAPI.Controllers
 {
-    [AuthorizeSession]
+    [PermissionFilter]
     public abstract class CoreController : Controller
     {
         public AppDbContext _db;
@@ -61,7 +61,7 @@ namespace WebAPI.Controllers
                     RPC: olegalml
                     AUC: jimeneznr
                  */
-                string userId = User.FindFirstValue(ClaimTypes.NameIdentifier);// ?? "jimeneznr";
+                string userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "jimeneznr";
                 if (!hasAllowAnonymous || IsAuthenticated || !string.IsNullOrEmpty(userId))
                 {
                     var user = _db.vUsers.FirstOrDefault(x => x.UserId == userId && x.IsActive == true);
