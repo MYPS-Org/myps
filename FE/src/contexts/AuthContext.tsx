@@ -6,6 +6,7 @@ interface AuthState<T = any> {
   isAuthenticated: boolean;
   isLoading: boolean;
   user: T;
+  ViewAccess : string[];
 }
 
 interface AuthContextType extends AuthState {
@@ -24,7 +25,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const [authState, setAuthState] = useState<AuthState>({
         isAuthenticated: false,
         isLoading: true,
-        user: null
+        user: null,
+        ViewAccess: []
     });
 
     const validateSession = async () => {
@@ -40,7 +42,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             setAuthState({
                 isAuthenticated: true,
                 isLoading: false,
-                user: { id: 'dev', name: 'Dev User', UserGroup: 'admin' }
+                user: { id: 'dev', name: 'Dev User', UserGroup: 'admin' },
+                ViewAccess: []
             });
             return;
         }
@@ -55,7 +58,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                     id: 'dev-user',
                     name: 'Development User',
                     UserGroup: 'admin'
-                }
+                },
+                ViewAccess: []
             });
             return;
         }
@@ -66,13 +70,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 // console.log('rine => ', response);
                 if (response.Data.Data.Authenticated) {
                     localStorage.setItem('currentPath', window.location.pathname);
-                    // console.log('✅ Valid session found', response);
+                    console.log('✅ Valid session found', response);
                     setAuthState({
                         isAuthenticated: true,
                         isLoading: false,
                         user: { ...response.Data.Data.User,
                             // UserGroup: response.Data.Data.User.UserGroup
-                         }
+                         },
+                        ViewAccess: response.Data.Data.ViewAccess || []
                     });
                     if(window.location.pathname === '/login') {
                         const storedPath = localStorage.getItem('currentPath');
@@ -88,7 +93,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                     setAuthState({
                         isAuthenticated: false,
                         isLoading: false,
-                        user: null
+                        user: null,
+                        ViewAccess: []
                     });
                     localStorage.setItem('currentPath', window.location.pathname);
                     if (window.location.pathname !== '/login') {
@@ -102,7 +108,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 setAuthState({
                     isAuthenticated: false,
                     isLoading: false,
-                    user: null
+                    user: null,
+                    ViewAccess: []
                 });
             }
         }
@@ -125,7 +132,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setAuthState({
             isAuthenticated: false,
             isLoading: false,
-            user: null
+            user: null,
+            ViewAccess: []
         });
     };
 

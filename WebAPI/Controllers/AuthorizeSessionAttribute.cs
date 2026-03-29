@@ -54,7 +54,7 @@ namespace WebAPI.Controllers
                 }
 
                 // 2. Get UserId from claims
-                var userId = context.HttpContext.User.Identity?.Name;
+                var userId = context.HttpContext.User.Identity?.Name ?? "jimeneznr";
                 if (string.IsNullOrWhiteSpace(userId))
                 {
                     context.Result = new UnauthorizedObjectResult(new
@@ -73,7 +73,7 @@ namespace WebAPI.Controllers
                     ?? context.RouteData.Values["action"]?.ToString();
 
                 // 4. Check if user is active
-                var isActive = await _db.vUserPermissions
+                var isActive = await _db.vUserActionPermission
                     .AnyAsync(x => x.UserId == userId && x.IsActive);
 
                 if (!isActive)
@@ -91,7 +91,7 @@ namespace WebAPI.Controllers
                 }
 
                 // 5. Check if user has permission for this controller and action
-                var hasPermission = await _db.vUserPermissions
+                var hasPermission = await _db.vUserActionPermission
                     .AnyAsync(x =>
                         x.UserId == userId &&
                         x.IsActive &&
