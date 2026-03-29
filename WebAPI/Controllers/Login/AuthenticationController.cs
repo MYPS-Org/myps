@@ -93,7 +93,7 @@ namespace WebAPI.Controllers.Auth
                 _db.tLoginHistory.Add(LoginLog);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
-                return ldap_conn.Bound ? Ok(new { Message = "Login successful", Data = new { Authenticated = true, User = verifyAccount } }) : UnauthorizedUser();
+                return LoginLog.IsValid ? Ok(new { Message = "Login successful", Data = new { Authenticated = true, User = verifyAccount } }) : UnauthorizedUser();
             }
             catch (LdapException error)
             {
@@ -120,7 +120,6 @@ namespace WebAPI.Controllers.Auth
                 return ExceptionHandler(ex); 
             }
         }
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> GetLoginLogs()
         {

@@ -38,9 +38,6 @@ namespace WebAPI.Controllers.Revision
         {
             try
             {
-                var stage = await _db.tOptionProgramStage
-                    .AsNoTracking()
-                    .ToListAsync();
                 var categories = await _db.tOptionProjectCategory
                     .AsNoTracking()
                     .ToListAsync();
@@ -207,13 +204,9 @@ namespace WebAPI.Controllers.Revision
                 var regions = await _db.tOptionAdminAreaRegion
                     .AsNoTracking()
                     .ToListAsync();
-                var stage = await _db.tOptionProgramStage
-                    .AsNoTracking()
-                    .ToListAsync();
                 return new OkObjectResult(new
                 {
-                    Regions = regions,
-                    Stages = stage
+                    Regions = regions
                 });
             }
             catch (Exception ex)
@@ -236,6 +229,14 @@ namespace WebAPI.Controllers.Revision
                     Appsetting.ConnectionString,
                     aipSql, param
                 );
+                if (RBP.Count == 0)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Title = "No Data Found",
+                        Message = "No RBP Components data found for the given parameters."
+                    });
+                }
                 var bytes = RBPComponents.GenerateReport(RBP);
 
                 var fileName = $"RBPComponents_Report.pdf";
@@ -265,6 +266,13 @@ namespace WebAPI.Controllers.Revision
                     Appsetting.ConnectionString,
                     aipSql, param
                 );
+                if (RBP.Count == 0) {
+                    return new BadRequestObjectResult(new
+                    {
+                        Title = "No Data Found",
+                        Message = "No RBP data found for the given parameters."
+                    });
+                }
                 var bytes = ReportGeneration.GenerateRBP.GenerateReport(RBP);
 
                 var fileName = $"RBP_Report.pdf";
@@ -294,6 +302,14 @@ namespace WebAPI.Controllers.Revision
                     Appsetting.ConnectionString,
                     aipSql, param
                 );
+                if(RBP.Count == 0)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Title = "No Data Found",
+                        Message = "No RBP data found for the given parameters."
+                    });
+                }
                 var bytes = GenerateRBPTier.GenerateReport(RBP);
 
                 var fileName = $"RBPTier_Report.pdf";
@@ -317,13 +333,9 @@ namespace WebAPI.Controllers.Revision
                 var regions = await _db.tOptionAdminAreaRegion
                     .AsNoTracking()
                     .ToListAsync();
-                var stage = await _db.tOptionProgramStage
-                    .AsNoTracking()
-                    .ToListAsync();
                 return new OkObjectResult(new
                 {
-                    Regions = regions,
-                    Stage = stage
+                    Regions = regions
                 });
             }
             catch (Exception ex)
@@ -346,6 +358,14 @@ namespace WebAPI.Controllers.Revision
                     Appsetting.ConnectionString,
                     aipSql, param
                 );
+                if(RDIP.Count == 0)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Title = "No Data Found",
+                        Message = "No RDIP data found for the given parameters."
+                    });
+                }
                 var bytes = ReportGeneration.GenerateRDIP.GenerateReport(RDIP);
 
                 var fileName = $"RDIP_Report.pdf";

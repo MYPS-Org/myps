@@ -649,6 +649,45 @@ namespace WebAPI.Controllers.Projects
                 #region Major Work Item
                 #endregion
                 #region Major Work Location
+
+                var duplicates = dto.MajorItemLocations
+                    .Select((item, index) => new { Item = item, Index = index })
+                    .GroupBy(x => new
+                    {
+                        DetailedScope = (x.Item.DetailedScope ?? string.Empty).Trim().ToUpperInvariant(),
+                        StartStation = (x.Item.StartStationLimit ?? string.Empty).Trim().ToUpperInvariant(),
+                        EndStation = (x.Item.EndStationLimit ?? string.Empty).Trim().ToUpperInvariant()
+                    })
+                    .Where(g => g.Count() > 1)
+                    .Select(g => new
+                    {
+                        DetailedScope = g.Key.DetailedScope,
+                        StartStationLimit = g.Key.StartStation,
+                        EndStationLimit = g.Key.EndStation,
+                        Count = g.Count(),
+                        Rows = g.Select(x => new
+                        {
+                            Id = x.Item.Id,
+                            ParentId = x.Item.ParentId,
+                            InfraId = x.Item.InfraId,
+                            DetailedScopeOriginal = x.Item.DetailedScope,
+                            StartStationLimitOriginal = x.Item.StartStationLimit,
+                            EndStationLimitOriginal = x.Item.EndStationLimit
+                        }).ToList()
+                    })
+                    .ToList();
+
+                if (duplicates.Any())
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Title = "Duplicate MajorItemLocations",
+                        Message = "Found duplicate MajorItemLocations by DetailedScope + StartStationLimit + EndStationLimit.",
+                        Duplicates = duplicates
+                    });
+                }
+
+                // continue processing when no duplicates found
                 #endregion
                 #endregion
 
