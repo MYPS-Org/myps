@@ -22,7 +22,7 @@ using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace WebAPI.Controllers
 {
-    [AuthorizeSession]
+    [PermissionFilter]
     public abstract class CoreController : Controller
     {
         public AppDbContext _db;
