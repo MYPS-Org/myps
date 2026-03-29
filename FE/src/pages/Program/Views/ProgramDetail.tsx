@@ -540,13 +540,11 @@ setIsAddExistingProjectDialogOpen(true);
   const handleGenerateAIPReport = async (params: AIPReportParams) => {
     try {
       setIsLoading(true);
-      
-      // Download PDF blob from API
+
       const { blob, filename } = await downloadAIPReport(params);
 
       console.log(blob, filename)
-      
-      // Create download link for PDF
+
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -555,18 +553,18 @@ setIsAddExistingProjectDialogOpen(true);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      
+
       showToast({
         type: 'success',
-        message: 'AIP Report PDF downloaded successfully.',
+        message: `${params.ReportType} Report PDF downloaded successfully.`,
       });
-      
+
       setIsAIPReportDialogOpen(false);
     } catch (error) {
-      console.error('Error downloading AIP report:', error);
+      console.error('Error downloading report:', error);
       showToast({
         type: 'error',
-        message: 'Failed to download AIP report. Please try again.',
+        message: 'Failed to download report. Please try again.',
       });
     } finally {
       setIsLoading(false);
@@ -1053,6 +1051,7 @@ setIsAddExistingProjectDialogOpen(true);
           programId={programEnums?.Details.ProgramId}
           programName={programEnums?.Details.Name}
           stageName={programEnums?.Details.StageName}
+          stageId={programEnums?.Details.StageId ?? 0}
         />
       )}
 

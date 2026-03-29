@@ -4,7 +4,7 @@ import type { TableEnum } from './Model';
 import type { ImportProjectDTO } from '../Project/Model';
 
 
-import type { ProgramModel, ProgramEnums, ProgramPagination, ProgramList, ProgramDetailsEnums, ProgramDetails, ParentProgram, StageList } from './Model';
+import type { ProgramModel, ProgramEnums, ProgramPagination, ProgramList, ProgramDetailsEnums, ProgramDetails, ParentProgram, StageList, AIPReportParams, AIPReportDropdowns, AIPReportType } from './Model';
 
 export const fetchProgramEnums = async () => {
     try {
@@ -126,53 +126,47 @@ export const publishToPCMA = async (programId: string) => {
     }
 }
 
-export const generateAIPReport = async (params: { ProgramName?: string; ProgramId: string; StageName: string; Region: string }) => {
-    try {
-        const apiURL = 'https://localhost:44331/api/Reporting/GetProgramProjectDetails';
-        const response = await fetch(apiURL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(params)
-        });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        return data;
-    } catch (error) {
-        console.error('Error generating AIP report:', error);
-        throw error;
-    }
-};
+export const downloadAIPReport = async (params: AIPReportParams) => {
+    const endpoints: Record<AIPReportType, string> = {
+        AIP: '/Reporting/RequestReportAIP',
+        AIP02: '/Reporting/RequestReportAIP02',
+        RBP: '/Reporting/RequestReportRBP',
+        RBPComponents: '/Reporting/RequestReportRBPComponents',
+        RBPTier: '/Reporting/RequestReportRBPTier',
+        RDIP: '/Reporting/RequestReportRDIP',
+    };
 
-export const downloadAIPReport = async (params: { ProgramName?: string; ProgramId: string; StageName: string; Region: string }) => {
+    const endpoint = endpoints[params.ReportType];
+    const isAIPType = params.ReportType === 'AIP' || params.ReportType === 'AIP02';
+
+    const payload = isAIPType
+        ? {
+            ProgramId: params.ProgramId,
+            StageName: params.StageName?.trim() || undefined,
+            CategoryName: params.CategoryName?.trim() || undefined,
+            RegionName: params.RegionName?.trim() || undefined,
+            OperatingUnitName: params.OperatingUnitName?.trim() || undefined,
+            DistrictEngineeringOffice: params.DistrictEngineeringOffice?.trim() || undefined,
+            ImplementingOfficeName: params.ImplementingOfficeName?.trim() || undefined,
+            LegislativeDistrictName: params.LegislativeDistrictName?.trim() || undefined,
+        }
+        : {
+            ProgramId: params.ProgramId,
+            RegionName: params.RegionName?.trim() || undefined,
+        };
+
     try {
-        // const apiURL = 'https://localhost:44331/api/Reporting/DownloadProgramProjectDetailsPDF';
-        // const response = await fetch(apiURL, {
-        //     method: 'POST',
-        //     headers: {
-        //         'Content-Type': 'application/json',
-        //     },
-        //     body: JSON.stringify(params)
-        // });
-        // if (!response.ok) {
-        //     throw new Error(`HTTP error! status: ${response.status}`);
-        // }
-        const response = await httpClient.post<Blob>('/Reporting/DownloadProgramProjectDetailsPDF', params, {
-            preloaderMessage: 'Downloading AIP report...',
+        const response = await httpClient.post<Blob>(endpoint, payload, {
+            preloaderMessage: `Downloading ${params.ReportType} report...`,
             responseType: 'blob'
         });
-        
+
         const blob = response.Data as Blob;
-        const filename = `AIP_Report_${params.ProgramId}_${params.Region}_${new Date().getTime()}.pdf`;
-        
+        const filename = `${params.ReportType}_Report_${params.ProgramId}_${new Date().getTime()}.pdf`;
+
         return { blob, filename };
     } catch (error) {
-        console.error('Error downloading AIP report:', error);
+        console.error(`Error downloading ${params.ReportType} report:`, error);
         throw error;
     }
 };
@@ -219,6 +213,18 @@ export const importProjects = async (payload: ImportProjectDTO) => {
         return response;
     } catch (ErrorResponse) {
         console.error('Error importing projects:', ErrorResponse);
+        throw ErrorResponse;
+    }
+};
+
+export const fetchAIPReportDropdownData = async (): Promise<AIPReportDropdowns> => {
+    try {
+        const response = await httpClient.post<AIPReportDropdowns>('/Reporting/GetAIPReportDropdowns', null, {
+            preloaderMessage: 'Loading AIP report dropdown data...'
+        });
+        return response.Data;
+    } catch (ErrorResponse) {
+        console.error('Error fetching AIP report dropdown data:', ErrorResponse);
         throw ErrorResponse;
     }
 };

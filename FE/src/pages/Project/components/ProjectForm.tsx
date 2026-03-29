@@ -982,7 +982,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     
     <div className="overflow-hidden max-w-10xl mx-auto p-6 space-y-6">
         <div className='flex items-center justify-between mb-6'>
-          <div className="flex flex-end space-y-3 fixed top-2 right-25 z-50">
+          <div className="flex flex-end fixed top-2 right-25 z-50 gap-2 items-center">
               {mode === 'edit' && initialData?.IsActive === true && initialData?.IsUnlock === true && initialData?.ProgramDetails?.StageId !== 10 && (
                 <>
                   <Button color="red" className='cursor-pointer' onClick={() => handleLock(initialData?.ProjectDetails?.ProjectId ?? '', initialData?.ProgramDetails?.StageName ?? '')} disabled={updateAllProject}>
@@ -990,14 +990,14 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
                   </Button>
                 </>
               )}
-              {mode === 'edit' && initialData?.ProjectDetails?.ProjectId?.toUpperCase().endsWith('LS') && (
+              {mode === 'edit' && initialData?.ProgramDetails?.StageId !== 10 && initialData?.ProjectDetails?.ProjectId?.toUpperCase().endsWith('LS') && (
                 <Button
                   color="blue"
                   className="cursor-pointer"
                   onClick={() => setIsImportLumpsumOpen(true)}
                 >
                   <ArrowUpTrayIcon className="h-4 w-4" />
-                  Import Lump Sum Project
+                  Itemized Lump Sum
                 </Button>
               )}
               {mode === 'edit' && initialData?.IsActive === true && initialData?.ProgramDetails?.Status !== 1 && (

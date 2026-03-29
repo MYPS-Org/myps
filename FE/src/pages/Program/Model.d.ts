@@ -157,9 +157,85 @@ export interface ProgramList {
 	IsPublishable: boolean;
 }
 
+export type AIPReportType = 'AIP' | 'AIP02' | 'RBP' | 'RBPComponents' | 'RBPTier' | 'RDIP';
+
+/** Matches tOptionProjectCategory (same shape as CategoryEnum in Project model) */
+export interface AIPDropdownCategory {
+  Id: number;
+  CategoryId: number;
+  CategoryName: string | null;
+  Minimum: number;
+  Maximum: number;
+  ValidUntil: number;
+}
+
+/** Matches tOptionAdminAreaRegion */
+export interface AIPDropdownRegion {
+  Id: number;
+  GdbId: string;
+  Name: string;
+  ParticipantId: string;
+  IslandCode: string;
+}
+
+/** Matches vAdminOperatingUnit (same shape as ProjectOperatingUnitEnum in Project model) */
+export interface AIPDropdownOperatingUnit {
+  Name: string;
+  ParticipantId: string;
+  OrgType: string;
+  RegionParticipantId: string;
+  RegionName: string;
+}
+
+/** Matches tOptionAdminAreaDistrictEngineeringOffice (same shape as RODEOEnum in Project model) */
+export interface AIPDropdownDEO {
+  Id: number;
+  GdbId?: string;
+  Name: string;
+  ParticipantId: string;
+  ProvinceGdbId: string;
+  ProvinceName?: string;
+  RegionParticipantId: string;
+  RegionName: string;
+}
+
+/** Matches vAdminImplementingOffice (same shape as ProjectImplementingOfficeEnum in Project model) */
+export interface AIPDropdownImplementingOffice {
+  Name: string;
+  ParticipantId: string;
+  OrgType: string;
+  RegionParticipantId: string;
+  RegionName: string;
+}
+
+/** Matches tOptionAdminAreaCongressionalDistrict (same shape as ProjectLegislativeDistrictEnum in Project model) */
+export interface AIPDropdownLegislativeDistrict {
+  Id: number;
+  GdbId: string;
+  Name: string;
+  Code?: string;
+  ProvinceGdbId: string;
+  ProvinceName: string;
+}
+
+export interface AIPReportDropdowns {
+  Categories: AIPDropdownCategory[];
+  Regions: AIPDropdownRegion[];
+  OperatingUnits: AIPDropdownOperatingUnit[];
+  DEOs: AIPDropdownDEO[];
+  ImplementingOffices: AIPDropdownImplementingOffice[];
+  LegislativeDistricts: AIPDropdownLegislativeDistrict[];
+}
+
 export interface AIPReportParams {
+  ReportType: AIPReportType;
   ProgramId: string;
   ProgramName?: string;
-  StageName: string;
-  Region: string;
+  StageName?: string;
+  CategoryName?: string;
+  RegionName?: string;
+  OperatingUnitName?: string;
+  DistrictEngineeringOffice?: string;
+  ImplementingOfficeName?: string;
+  LegislativeDistrictName?: string;
 }

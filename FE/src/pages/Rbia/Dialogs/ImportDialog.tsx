@@ -1,97 +1,162 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
-import { XMarkIcon, ArrowUpTrayIcon, DocumentArrowUpIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
+import { useAuth } from '../../../contexts/AuthContext';
+import { importNationalRoads, importRoadSections, importBridges } from '../Service';
 
+// Keep these exports so Rbia.tsx doesn't break — they're no longer used internally
+// but may be referenced elsewhere.
 export type ImportType =
-  | 'national-roads'
-  | 'national-road-sections'
-  | 'national-bridges'
-  | 'lrps'
-  | 'regions-provinces'
-  | 'cities-municipalities'
-  | 'congressional-districts'
-  | 'dpwh-offices';
+  | 'roads'
+  | 'road-section'
+  | 'bridges'
+  | 'region-data-security'
+  | 'city-municipality-legislative-district'
+  | 'deo-implementing-office';
 
 export const IMPORT_LABELS: Record<ImportType, string> = {
-  'national-roads': 'Import National Roads',
-  'national-road-sections': 'Import National Road Sections',
-  'national-bridges': 'Import National Bridges',
-  'lrps': 'Import LRPs',
-  'regions-provinces': 'Import Regions and Provinces',
-  'cities-municipalities': 'Import Cities and Municipalities',
-  'congressional-districts': 'Import Congressional Districts',
-  'dpwh-offices': 'Import DPWH Offices',
+  'roads': 'Roads',
+  'road-section': 'Road Section',
+  'bridges': 'Bridges',
+  'region-data-security': 'Region',
+  'city-municipality-legislative-district': 'City/Municipality, Legislative District',
+  'deo-implementing-office': 'DEO, Implementing Office',
 };
+
+// ── Tree structure ────────────────────────────────────────────────────────────
+
+interface ImportItem {
+  id: ImportType;
+  label: string;
+}
+
+interface ImportGroup {
+  id: string;
+  label: string;
+  items: ImportItem[];
+}
+
+const IMPORT_GROUPS: ImportGroup[] = [
+  {
+    id: 'road-network',
+    label: 'Import Road Network Data from RBIA',
+    items: [
+      { id: 'roads', label: 'Roads' },
+      { id: 'road-section', label: 'Road Section' },
+      { id: 'bridges', label: 'Bridges' },
+      { id: 'region-data-security', label: 'Region' },
+    ],
+  },
+  {
+    id: 'admin-areas',
+    label: 'Import Lookup tables from Admin Areas',
+    items: [
+      { id: 'city-municipality-legislative-district', label: 'City/Municipality, Legislative District' },
+    ],
+  },
+  {
+    id: 'internal-org',
+    label: 'Import Lookup tables from Internal Org',
+    items: [
+      { id: 'deo-implementing-office', label: 'DEO, Implementing Office' },
+    ],
+  },
+];
+
+// ── Helper: compute group check state ────────────────────────────────────────
+
+type CheckState = 'all' | 'some' | 'none';
+
+function groupCheckState(group: ImportGroup, selected: Set<ImportType>): CheckState {
+  const checkedCount = group.items.filter((i) => selected.has(i.id)).length;
+  if (checkedCount === 0) return 'none';
+  if (checkedCount === group.items.length) return 'all';
+  return 'some';
+}
+
+// ── Indeterminate checkbox ────────────────────────────────────────────────────
+
+const IndeterminateCheckbox: React.FC<{
+  state: CheckState;
+  onChange: () => void;
+  id?: string;
+}> = ({ state, onChange, id }) => {
+  const ref = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    if (ref.current) {
+      ref.current.indeterminate = state === 'some';
+      ref.current.checked = state === 'all';
+    }
+  }, [state]);
+
+  return (
+    <input
+      ref={ref}
+      id={id}
+      type="checkbox"
+      className="h-4 w-4 rounded border-gray-400 text-blue-600 cursor-pointer accent-blue-600"
+      onChange={onChange}
+    />
+  );
+};
+
+// ── Props ─────────────────────────────────────────────────────────────────────
 
 interface ImportDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  importType: ImportType | null;
+  /** Kept for API compatibility with Rbia.tsx — not used internally */
+  importType?: ImportType | null;
 }
 
-const ImportDialog: React.FC<ImportDialogProps> = ({ isOpen, onClose, importType }) => {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+// ── Component ─────────────────────────────────────────────────────────────────
 
-  const label = importType ? IMPORT_LABELS[importType] : '';
+const ImportDialog: React.FC<ImportDialogProps> = ({ isOpen, onClose }) => {
+  const [selected, setSelected] = useState<Set<ImportType>>(new Set());
+  const [isImporting, setIsImporting] = useState(false);
+  const { user } = useAuth();
 
   const handleClose = () => {
-    setSelectedFile(null);
-    setIsDragging(false);
+    setSelected(new Set());
     setIsImporting(false);
     onClose();
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] ?? null;
-    setSelectedFile(file);
+  const toggleItem = (id: ImportType) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(true);
+  const toggleGroup = (group: ImportGroup) => {
+    const state = groupCheckState(group, selected);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (state === 'all') {
+        group.items.forEach((i) => next.delete(i.id));
+      } else {
+        group.items.forEach((i) => next.add(i.id));
+      }
+      return next;
+    });
   };
 
-  const handleDragLeave = () => {
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const file = e.dataTransfer.files?.[0] ?? null;
-    setSelectedFile(file);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!selectedFile) {
-      alert('Please select a file to import.');
-      return;
-    }
-
+  const handleImport = async () => {
+    if (selected.size === 0) return;
     setIsImporting(true);
+    const userName = user?.UserName ?? '';
     try {
-      // TODO: Replace with actual API import call
-      console.log('[ImportDialog] Submitting import:', {
-        importType,
-        label,
-        file: {
-          name: selectedFile.name,
-          size: selectedFile.size,
-          type: selectedFile.type,
-          lastModified: new Date(selectedFile.lastModified).toISOString(),
-        },
-      });
-
-      // Simulate async work
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      console.log('[ImportDialog] Import completed successfully for:', label);
+      const tasks: Promise<unknown>[] = [];
+      if (selected.has('roads')) tasks.push(importNationalRoads(userName));
+      if (selected.has('road-section')) tasks.push(importRoadSections(userName));
+      if (selected.has('bridges')) tasks.push(importBridges(userName));
+      // TODO: add service calls for region-data-security, city-municipality-legislative-district, deo-implementing-office
+      await Promise.all(tasks);
       handleClose();
     } catch (error) {
       console.error('[ImportDialog] Import failed:', error);
@@ -111,76 +176,67 @@ const ImportDialog: React.FC<ImportDialogProps> = ({ isOpen, onClose, importType
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <DialogTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <ArrowUpTrayIcon className="h-5 w-5 text-primary-600" />
-              {label}
+              <ArrowUpTrayIcon className="h-5 w-5 text-blue-600" />
+              Import Road Network
             </DialogTitle>
-            <button
-              onClick={handleClose}
-              className="text-gray-400 hover:text-gray-600"
-            >
+            <button onClick={handleClose} className="text-gray-400 hover:text-gray-600">
               <XMarkIcon className="h-6 w-6" />
             </button>
           </div>
 
           {/* Body */}
-          <form onSubmit={handleSubmit} className="p-6 space-y-5">
-            {/* Instructions */}
-            <p className="text-sm text-gray-600">
-              Upload an Excel or CSV file to import <span className="font-medium text-gray-800">{label.replace('Import ', '')}</span> into the system.
-            </p>
+          <div className="px-6 py-5 space-y-4">
+            <p className="text-sm text-gray-500 font-medium">Road Network to Import</p>
 
-            {/* Drop Zone */}
-            <div
-              onClick={() => fileInputRef.current?.click()}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              className={`flex flex-col items-center justify-center gap-3 border-2 border-dashed rounded-lg p-8 cursor-pointer transition-colors duration-200 ${
-                isDragging
-                  ? 'border-primary-400 bg-primary-50'
-                  : 'border-gray-300 hover:border-primary-400 hover:bg-gray-50'
-              }`}
+            <div className="border border-gray-200 rounded-md divide-y divide-gray-100">
+              {IMPORT_GROUPS.map((group) => {
+                const state = groupCheckState(group, selected);
+                return (
+                  <div key={group.id} className="p-3">
+                    {/* Group row */}
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <IndeterminateCheckbox
+                        state={state}
+                        onChange={() => toggleGroup(group)}
+                        id={`group-${group.id}`}
+                      />
+                      <span className="text-sm font-semibold text-gray-800">{group.label}</span>
+                    </label>
+
+                    {/* Child items */}
+                    <div className="mt-2 ml-6 space-y-1.5">
+                      {group.items.map((item) => (
+                        <label key={item.id} className="flex items-center gap-2 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-gray-400 text-blue-600 cursor-pointer accent-blue-600"
+                            checked={selected.has(item.id)}
+                            onChange={() => toggleItem(item.id)}
+                          />
+                          <span className="text-sm text-gray-700">{item.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-200">
+            <Button type="button" plain onClick={handleClose} disabled={isImporting}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              color="blue"
+              onClick={handleImport}
+              disabled={selected.size === 0 || isImporting}
             >
-              <DocumentArrowUpIcon className="h-10 w-10 text-gray-400" />
-              {selectedFile ? (
-                <div className="text-center">
-                  <p className="text-sm font-medium text-gray-800 truncate max-w-xs">
-                    {selectedFile.name}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {(selectedFile.size / 1024).toFixed(1)} KB
-                  </p>
-                </div>
-              ) : (
-                <div className="text-center">
-                  <p className="text-sm text-gray-600">
-                    Drag & drop your file here, or{' '}
-                    <span className="text-primary-600 font-medium">browse</span>
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">Supports .xlsx, .xls, .csv</p>
-                </div>
-              )}
-            </div>
-
-            {/* Hidden file input */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xlsx,.xls,.csv"
-              className="hidden"
-              onChange={handleFileChange}
-            />
-
-            {/* Actions */}
-            <div className="flex justify-end gap-3 pt-2">
-              <Button type="button" plain onClick={handleClose} disabled={isImporting}>
-                Cancel
-              </Button>
-              <Button type="submit" color="blue" disabled={!selectedFile || isImporting}>
-                {isImporting ? 'Importing...' : 'Import'}
-              </Button>
-            </div>
-          </form>
+              {isImporting ? 'Importing...' : 'Import'}
+            </Button>
+          </div>
         </DialogPanel>
       </div>
     </Dialog>

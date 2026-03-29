@@ -1,16 +1,15 @@
 "use-client";
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { 
   RectangleStackIcon, 
   BuildingOffice2Icon, 
   ArrowsPointingOutIcon,
   ArrowUpTrayIcon,
-  ChevronDownIcon,
 } from '@heroicons/react/16/solid';
 import RoadList from "../components/Road";
 import RoadSectionList from "../components/RoadSection";
 import BridgeList from "../components/Bridge";
-import ImportDialog, { type ImportType, IMPORT_LABELS } from '../Dialogs/ImportDialog';
+import ImportDialog from '../Dialogs/ImportDialog';
 
 // Simple Badge component
 const Badge: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = "" }) => (
@@ -21,27 +20,7 @@ const Badge: React.FC<{ children: React.ReactNode; className?: string }> = ({ ch
 
 const Rbia: React.FC = () => {
     const [selectedTab, setSelectedTab] = useState<'roads' | 'roadSections' | 'bridges'>('roads');
-    const [isImportDropdownOpen, setIsImportDropdownOpen] = useState(false);
     const [importDialogOpen, setImportDialogOpen] = useState(false);
-    const [activeImportType, setActiveImportType] = useState<ImportType | null>(null);
-    const dropdownRef = useRef<HTMLDivElement>(null);
-
-    // Close dropdown when clicking outside
-    useEffect(() => {
-        const handleClickOutside = (e: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-                setIsImportDropdownOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
-    const handleImportSelect = (type: ImportType) => {
-        setActiveImportType(type);
-        setIsImportDropdownOpen(false);
-        setImportDialogOpen(true);
-    };
 
     // For now, we'll show static counts until we implement proper data fetching for all tabs
     // TODO: Replace with actual API calls when roadSections and bridges components are updated
@@ -93,34 +72,14 @@ const Rbia: React.FC = () => {
                     <p className="text-gray-600">Manage future roads, road sections, and bridges</p>
                 </div>
 
-                {/* Import Dropdown Button */}
-                <div className="relative" ref={dropdownRef}>
-                    <button
-                        onClick={() => setIsImportDropdownOpen((prev) => !prev)}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200 shadow-sm"
-                    >
-                        <ArrowUpTrayIcon className="w-4 h-4" />
-                        Import
-                        <ChevronDownIcon className={`w-4 h-4 transition-transform duration-200 ${isImportDropdownOpen ? 'rotate-180' : ''}`} />
-                    </button>
-
-                    {isImportDropdownOpen && (
-                        <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-20">
-                            <ul className="py-1">
-                                {(Object.keys(IMPORT_LABELS) as ImportType[]).map((type) => (
-                                    <li key={type}>
-                                        <button
-                                            onClick={() => handleImportSelect(type)}
-                                            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-500 hover:text-white transition-colors duration-150"
-                                        >
-                                            {IMPORT_LABELS[type]}
-                                        </button>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    )}
-                </div>
+                {/* Import Button */}
+                <button
+                    onClick={() => setImportDialogOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200 shadow-sm"
+                >
+                    <ArrowUpTrayIcon className="w-4 h-4" />
+                    Import
+                </button>
             </div>
 
             {/* Tab Navigation */}
@@ -156,7 +115,6 @@ const Rbia: React.FC = () => {
             <ImportDialog
                 isOpen={importDialogOpen}
                 onClose={() => setImportDialogOpen(false)}
-                importType={activeImportType}
             />
         </div>
     );
