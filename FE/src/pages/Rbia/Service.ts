@@ -201,3 +201,13 @@ export const importBridges = async (userName: string) => {
         throw error;
     }
 }
+
+export const getInfraCounts = async () => {
+    try {
+        const response = await httpClient.post<{ roadCount: number; roadSectionCount: number; bridgeCount: number }>('FutureInfra/GetInfraInfo');
+        return response;
+    } catch (error) {
+        console.error('Error fetching infrastructure counts:', error);
+        throw error;
+    }
+}
