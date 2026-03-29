@@ -51,7 +51,7 @@ namespace WebAPI.Controllers
                         context.Result = new BadRequestObjectResult(response);
                     }
                 }
-                var controllerActionDescriptor = context.ActionDescriptor as ControllerActionDescriptor;
+                //var controllerActionDescriptor = context.ActionDescriptor as ControllerActionDescriptor;
                 bool hasAllowAnonymous = context.ActionDescriptor.EndpointMetadata
                     .Any(meta => meta is AllowAnonymousAttribute);
 
@@ -61,7 +61,7 @@ namespace WebAPI.Controllers
                     RPC: olegalml
                     AUC: jimeneznr
                  */
-                string userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "jimeneznr";
+                string userId = User.FindFirstValue(ClaimTypes.NameIdentifier);// ?? "jimeneznr";
                 if (!hasAllowAnonymous || IsAuthenticated || !string.IsNullOrEmpty(userId))
                 {
                     var user = _db.vUsers.FirstOrDefault(x => x.UserId == userId && x.IsActive == true);
