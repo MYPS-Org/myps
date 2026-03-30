@@ -35,6 +35,9 @@ export default function AppRoutes() {
           </ProtectedRoute>
         }
       />
+
+      {/* Redirect unknown routes based on access */}
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
 }

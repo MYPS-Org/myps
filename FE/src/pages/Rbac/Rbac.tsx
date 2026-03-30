@@ -16,10 +16,10 @@ import { Button } from '../../components/tailwindui/button'
 import { Badge } from '../../components/tailwindui/badge'
 
 // Interfaces
-import type { Users, Permissions, PermissionPagination, UserPagination, UserGroupPagination, UserGroups} from './Model.d';
+import type { Users, Permissions, PermissionPagination, UserPagination, UserGroupPagination, UserGroups, vUserGroups} from './Model.d';
 
 // Services
-import { fetchInitialData, fetchPermissions, fetchUsers, fetchUserGroups } from './service';
+import { fetchInitialData, fetchPermissions, fetchUsers, fetchUserGroups, fetchUserGroupDropdowns } from './service';
 
 // Dialog imports
 import { AddUserDialog, AddPermissionDialog, AddGroupDialog, ViewUserDialog, UpdateUserDialog, DeleteUserDialog, 
@@ -59,7 +59,7 @@ const Rbac: React.FC = () => {
 		totalPages: 0
 	});
 
-	const [UserGroupsData, setUserGroups] = useState<PaginationResponse<UserGroups>>({
+	const [UserGroupsData, setUserGroups] = useState<PaginationResponse<vUserGroups>>({
 		lists: [],
 		page: 1,
 		limit: 20,
@@ -480,6 +480,12 @@ const Rbac: React.FC = () => {
 				
 				setIsLoadingUserGroups(true);
 				console.log('Fetching user groups with current filter:', UserGroupFilter);
+				const UserGroupDropdowns = await fetchUserGroupDropdowns();
+				console.log('UserGroupDropdowns response:', UserGroupDropdowns);
+				if(UserGroupDropdowns.Data) {
+					console.log('Setting UserGroupDropdowns data:', UserGroupDropdowns);
+					// setUserGroupDropdowns(UserGroupDropdowns.Data);
+				}
 				const res = await fetchUserGroups(UserGroupFilter);
 				console.log('UserGroups response:', res);
 				if(res.Data.lists) {
@@ -1325,17 +1331,18 @@ const Rbac: React.FC = () => {
 					} catch (error) {
 						console.error('Error refreshing user groups:', error);
 						// Fallback to local update if server refresh fails
-						const newGroupWithId: UserGroups = { 
+						const newGroupWithId: vUserGroups = { 
 							Id: (UserGroupsData.lists?.length || 0) + 1, 
 							GroupName: newGroup.GroupName,
 							Description: newGroup.Description,
-							PermissionIds: Array.isArray(newGroup.permissionIds) 
-								? newGroup.permissionIds.join(',') 
-								: (newGroup.permissionIds || ''), // Convert array to comma-separated string of IDs
-							PermissionNames: Array.isArray(newGroup.permissionNames) 
-								? newGroup.permissionNames.join(',') 
-								: (newGroup.permissionNames || ''), // Convert array to comma-separated string of names
+							PermissionActionIds: Array.isArray(newGroup.permissionIds) 
+								? newGroup.permissionIds 
+								: (newGroup.permissionIds || []), // Convert array to array of IDs
+							PermissionViewIds: Array.isArray(newGroup.permissionNames) 
+								? newGroup.permissionNames 
+								: (newGroup.permissionNames || []), // Convert array to array of names
 							NumberOfUsers: 0, // New group starts with 0 users
+							CreatedBy: "",
 							CreatedDate: new Date().toISOString()
 						};
 						setUserGroups(prev => ({
