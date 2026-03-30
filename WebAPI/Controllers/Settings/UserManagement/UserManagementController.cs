@@ -431,6 +431,332 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 if (dto.page < 1) dto.page = 1;
                 if (dto.limit < 1) dto.limit = 10;
 
+                var baseQuery = _db.tPermissionViews.AsNoTracking();
+
+                if (!string.IsNullOrEmpty(dto.Filters?.ModuleFunction))
+                    baseQuery = baseQuery.Where(e => e.ModuleFunction!.Contains(dto.Filters.ModuleFunction));
+
+                if (!string.IsNullOrEmpty(dto.Filters?.Description))
+                    baseQuery = baseQuery.Where(e => e.ModuleFunctionDescription!.Contains(dto.Filters.Description));
+
+                if (!string.IsNullOrEmpty(dto.Filters?.PermissionGroupName))
+                    baseQuery = baseQuery.Where(e => e.Module!.Contains(dto.Filters.PermissionGroupName));
+
+                // Get total count of filtered results (before pagination)
+                var totalRecords = await baseQuery.CountAsync();
+                dto.sortDirection = string.IsNullOrEmpty(dto.SortField) ? sortDirectionList.DESC : dto.sortDirection;
+                dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "Id";
+                // Apply sorting and pagination
+                var sortedQuery = dto.sortDirection == sortDirectionList.ASC
+                        ? baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField))
+                        : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField));
+
+                // Apply pagination and execute query
+                var permissionLists = await sortedQuery
+                    .Skip((dto.page - 1) * dto.limit)
+                    .Take(dto.limit)
+                    .ToListAsync();
+
+                var totalPages = (int)Math.Ceiling((double)totalRecords / dto.limit);
+
+                var response = new
+                {
+                    lists = permissionLists, // Match your frontend expectation
+                    dto.page,
+                    dto.limit,
+                    total = totalRecords,
+                    totalPages
+                };
+
+                return Ok(response); // Remove the extra wrapper
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
+        [HttpPost]
+        public async Task<IActionResult> ShowPermissionGroups()
+        {
+            try
+            {
+                List<PermissionControllers> Groups = await _db.tPermissionControllers.ToListAsync();
+                return Ok(Groups);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> SyncPermission()
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                // 1. Discover all controller Types via reflection
+                var controllerTypes = typeof(CoreController).Assembly
+                    .GetTypes()
+                    .Where(t => t.IsClass && !t.IsAbstract && t.IsSubclassOf(typeof(CoreController)))
+                    .ToList();
+
+                // 2. Sync controllers to tPermissionControllers
+                var existingControllers = await _db.tPermissionControllers.ToListAsync();
+                var existingNames = existingControllers
+                    .Select(x => x.ControllerName)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                var newControllers = controllerTypes
+                    .Where(t => !existingNames.Contains(t.Name))
+                    .Select(t => new PermissionControllers
+                    {
+                        ControllerName = t.Name
+                    })
+                    .ToList();
+
+                if (newControllers.Count > 0)
+                {
+                    await _db.tPermissionControllers.AddRangeAsync(newControllers);
+                    await _db.SaveChangesAsync();
+                }
+
+                // 3. Discover all action methods per controller
+                var discoveredActions = controllerTypes.SelectMany(type =>
+                    type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+                        .Where(m => !m.IsSpecialName &&
+                            (m.ReturnType == typeof(IActionResult) || m.ReturnType == typeof(Task<IActionResult>)))
+                        .Select(m => new { ControllerName = type.Name, ActionName = m.Name })
+                ).ToList();
+
+                // 4. Sync actions to tPermissionActions
+                var existingActions = await _db.tPermissionActions.ToListAsync();
+                var existingActionKeys = existingActions
+                    .Select(x => x.ActionName)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                var newActions = discoveredActions
+                    .Where(a => !existingActionKeys.Contains(a.ActionName))
+                    .Select(a => new PermissionActions
+                    {
+                        ControllerName = a.ControllerName,
+                        ActionName = a.ActionName,
+                        Description = null
+                    })
+                    .ToList();
+
+                if (newActions.Count > 0)
+                {
+                    await _db.tPermissionActions.AddRangeAsync(newActions);
+                }
+
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                var allControllers = await _db.tPermissionControllers
+                    .OrderBy(x => x.ControllerName)
+                    .ToListAsync();
+
+                var allActions = await _db.tPermissionActions
+                    .OrderBy(x => x.ControllerName)
+                    .ThenBy(x => x.ActionName)
+                    .ToListAsync();
+
+                return Ok(new
+                {
+                    Message = $"Sync complete! Controllers added: {newControllers.Count}, Actions added: {newActions.Count}",
+                    Title = "Sync Complete",
+                    Controllers = allControllers,
+                    Actions = allActions
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
+        [HttpPost]
+        public async Task<IActionResult> UpdatePermissionControllerDetails([FromBody] UpdatePermissionControllerDetailsDTO dto)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var getPermission = await _db.tPermissionControllers.FirstOrDefaultAsync(x => x.Id == dto.Id);
+                if (getPermission == null)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"'{dto.ControllerName}' is not a recognized permission controller. Try syncing permissions to update the list.",
+                        Title = "Unrecognized Controller"
+                    });
+                }
+                getPermission.Description = dto.Description;
+                _db.tPermissionControllers.Update(getPermission);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync(); return Ok(new
+                {
+                    Message = $"'{dto.ControllerName}' details have been saved successfully.",
+                    Title = "Changes Saved"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
+        [HttpPost]
+        public async Task<IActionResult> UpdatePermissionActionDetails([FromBody] UpdatePermissionActionDetailsDTO dto)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var getPermission = await _db.tPermissionActions.FirstOrDefaultAsync(x => x.Id == dto.Id);
+                if (getPermission == null)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"'{dto.ActionName}' is not a recognized permission action. Try syncing permissions to update the list.",
+                        Title = "Unrecognized Action"
+                    });
+                }
+                getPermission.Description = dto.Description;
+                _db.tPermissionActions.Update(getPermission);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync(); return Ok(new
+                {
+                    Message = $"'{dto.ActionName}' details have been saved successfully.",
+                    Title = "Changes Saved"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
+        [HttpPost]
+        public async Task<IActionResult> DeletePermissionController(int id)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var getPermission = await _db.tPermissionControllers.FirstOrDefaultAsync(x => x.Id == id);
+                if (getPermission == null)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"The permission controller could not be found. Please ensure permissions are synced.",
+                        Title = "Controller Not Found"
+                    });
+                }
+
+                var hasActions = await _db.tPermissionActions
+                    .AnyAsync(x => x.ControllerName == getPermission.ControllerName);
+
+                if (hasActions)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"'{getPermission.ControllerName}' cannot be deleted because it still has associated actions. Please remove the actions first.",
+                        Title = "Deletion Not Allowed"
+                    });
+                }
+
+                _db.tPermissionControllers.Remove(getPermission);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return Ok(new
+                {
+                    Message = $"Permission controller '{getPermission.ControllerName}' has been deleted successfully.",
+                    Title = "Delete Successful"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
+        [HttpPost]
+        public async Task<IActionResult> DeletePermissionAction(int id)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var getAction = await _db.tPermissionActions.FirstOrDefaultAsync(x => x.Id == id);
+                if (getAction == null)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"The permission action could not be found. Please ensure permissions are synced.",
+                        Title = "Action Not Found"
+                    });
+                }
+
+                // Check if action is currently assigned to any roles before deleting
+                var isAssignedToRole = await _db.tGroupRoles
+                    .AnyAsync(x => x.ActionIds.Contains(getAction.Id));
+
+                if (isAssignedToRole)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"'{getAction.ActionName}' cannot be deleted because it is currently assigned to one or more roles. Please remove the role assignments first.",
+                        Title = "Deletion Not Allowed"
+                    });
+                }
+
+                _db.tPermissionActions.Remove(getAction);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return Ok(new
+                {
+                    Message = $"Permission action '{getAction.ActionName}' has been deleted successfully.",
+                    Title = "Delete Successful"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
+        #endregion
+        #region PERMISSIONS TAB
+        [HttpPost]
+        public async Task<IActionResult> ShowPermissions([FromBody] ShowPermissionsDTO dto)
+        {
+            try
+            {
+                if (dto.Filters == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Expected Parametes missing!", Title = "Parameter Error" });
+                }
+                if (!string.IsNullOrEmpty(dto.SortField))
+                {
+                    bool isValid = typeof(DBHelper.Models.Views.Permissions)
+                        .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                        .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
+                    if (!isValid)
+                    {
+                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort!", Title = "Parameter Error" });
+                    }
+                }
+                dto.sortDirection = string.IsNullOrEmpty(dto.sortDirection.ToString()) ? sortDirectionList.DESC : dto.sortDirection;
+
+                bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!);
+                if (!isValidDirection)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed!", Title = "Invalid sort option" });
+                }
+                // Validate pagination parameters
+                if (dto.page < 1) dto.page = 1;
+                if (dto.limit < 1) dto.limit = 10;
+
                 var baseQuery = _db.vPermissions.AsNoTracking();
 
                 if (!string.IsNullOrEmpty(dto.Filters?.ModuleFunction))
