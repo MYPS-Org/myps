@@ -3,12 +3,12 @@ import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { Badge } from '../../../components/tailwindui/badge';
-import type { UserGroups } from '../Model.d';
+import type { vUserGroups } from '../Model.d';
 
 interface ViewGroupDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  group: UserGroups;
+  group: vUserGroups;
 }
 
 const ViewGroupDialog: React.FC<ViewGroupDialogProps> = ({ isOpen, onClose, group }) => {

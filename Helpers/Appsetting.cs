@@ -29,6 +29,7 @@ namespace Helpers
         public string ProjectNotes { get; set; } = string.Empty;
         public string SupportingDocs { get; set; } = string.Empty;
         public RevisionFolder Revision { get; set; } = new RevisionFolder();
+        public string SQLScripts { get; set; } = string.Empty;
     }
     public class RevisionFolder
     {
@@ -81,6 +82,7 @@ namespace Helpers
             Resources.Revision.RevisionsMain = Path.Combine(Resources.Main, Resources.Revision.RevisionsMain);
             Resources.Revision.CentralOffice = Path.Combine(Resources.Revision.RevisionsMain, Resources.Revision.CentralOffice);
             Resources.Revision.ImplementingOffice = Path.Combine(Resources.Revision.RevisionsMain, Resources.Revision.ImplementingOffice);
+            Resources.SQLScripts = Path.Combine(Resources.Main, Resources.SQLScripts);
             KafkaConfigs = config.GetSection("Kafka").Get<KafkaConfig>()!;
             SMTP = config.GetSection("SMTP").Get<SMTPClass>()!;
         }

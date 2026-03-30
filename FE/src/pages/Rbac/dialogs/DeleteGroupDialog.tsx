@@ -3,14 +3,14 @@ import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { Badge } from '../../../components/tailwindui/badge';
-import type { UserGroups } from '../Model.d';
+import type { vUserGroups } from '../Model.d';
 import { deleteUserGroup } from '../service';
 
 interface DeleteGroupDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (groupId: number) => void;
-  group: UserGroups;
+  group: vUserGroups;
 }
 
 const DeleteGroupDialog: React.FC<DeleteGroupDialogProps> = ({ isOpen, onClose, onSubmit, group }) => {

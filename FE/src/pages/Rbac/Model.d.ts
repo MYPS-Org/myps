@@ -26,22 +26,19 @@ export interface PermissionGroup {
 
 export interface Permissions {
 	Id: number;
-	PermissionGroupId: number;
-	PermissionGroupName?: string;
+	Module: string;
 	ModuleFunction: string;
-	Description: string;
-	CreatedBy: string;
-	CreatedDate: string;
+	ModuleFunctionDescription?: string | null;
 }
 export interface PermissionPagination extends PaginationParams {
     filters?: PermissionFilter;
-    sortField?: string; // Remove the = 'Id' default value - this is invalid in TypeScript interfaces
+    sortField?: string;
     sortDirection?: 0 | 1;
 }
 export interface PermissionFilter {
-    PermissionGroupName?: string;
+    Module?: string;
     ModuleFunction?: string;
-    Description?: string;
+    ModuleFunctionDescription?: string;
 }
 //#endregion
 
@@ -101,4 +98,45 @@ export interface AddUserGroups {
 
 export interface Pis {
  EmployeeId?: string;
+}
+
+export interface vUserGroups{
+    Id: number;
+    GroupName: string;
+    NumberOfUsers: number;
+    Description?: string;
+    CreatedBy: string;
+    CreatedDate: string;
+    PermissionActionIds: number[]; // API returns comma-separated string of numeric IDs
+    PermissionViewIds : number[]; // API returns comma-separated string of permission names
+}
+export interface UserGroupDropdowns{
+    PermissionControllers: PermissionControllers[];
+    PermissionActions: PermissionActions[];
+    PermissionViews: PermissionViews[];
+}
+export interface PermissionControllers {
+	Id: number;
+	ControllerName: string;
+	Description?: string;
+}
+export interface PermissionActions {
+	Id: number;
+	ControllerName: string;
+	ActionName: string;
+	Description?: string;
+}
+export interface PermissionViews {
+	Id: number;
+	RoutePath: string;
+	Description?: string;
+}
+export interface RoutePermissionPagination extends PaginationParams {
+    filters?: RoutePermissionFilter;
+    sortField?: string;
+    sortDirection?: 0 | 1;
+}
+export interface RoutePermissionFilter {
+    RoutePath?: string;
+    Description?: string;
 }

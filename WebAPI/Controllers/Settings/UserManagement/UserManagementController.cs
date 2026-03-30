@@ -400,6 +400,210 @@ namespace WebAPI.Controllers.Settings.UserManagement
             }
         }
         #endregion
+        #region VIEW PERMISSIONS TAB
+        [HttpPost]
+        public async Task<IActionResult> ShowViewPermissions([FromBody] ShowViewPermissionsDTO dto)
+        {
+            try
+            {
+                if (dto.Filters == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Expected Parametes missing!", Title = "Parameter Error" });
+                }
+                if (!string.IsNullOrEmpty(dto.SortField))
+                {
+                    bool isValid = typeof(DBHelper.Models.Views.Permissions)
+                        .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                        .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
+                    if (!isValid)
+                    {
+                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort!", Title = "Parameter Error" });
+                    }
+                }
+                dto.sortDirection = string.IsNullOrEmpty(dto.sortDirection.ToString()) ? sortDirectionList.DESC : dto.sortDirection;
+
+                bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!);
+                if (!isValidDirection)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed!", Title = "Invalid sort option" });
+                }
+                // Validate pagination parameters
+                if (dto.page < 1) dto.page = 1;
+                if (dto.limit < 1) dto.limit = 10;
+
+                var baseQuery = _db.tPermissionViews.AsNoTracking();
+
+                if (!string.IsNullOrEmpty(dto.Filters?.RoutePath))
+                    baseQuery = baseQuery.Where(e => e.RoutePath!.Contains(dto.Filters.RoutePath));
+
+                // Get total count of filtered results (before pagination)
+                var totalRecords = await baseQuery.CountAsync();
+                dto.sortDirection = string.IsNullOrEmpty(dto.SortField) ? sortDirectionList.DESC : dto.sortDirection;
+                dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "Id";
+                // Apply sorting and pagination
+                var sortedQuery = dto.sortDirection == sortDirectionList.ASC
+                        ? baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField))
+                        : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField));
+
+                // Apply pagination and execute query
+                var permissionLists = await sortedQuery
+                    .Skip((dto.page - 1) * dto.limit)
+                    .Take(dto.limit)
+                    .ToListAsync();
+
+                var totalPages = (int)Math.Ceiling((double)totalRecords / dto.limit);
+
+                var response = new
+                {
+                    lists = permissionLists, // Match your frontend expectation
+                    dto.page,
+                    dto.limit,
+                    total = totalRecords,
+                    totalPages
+                };
+
+                return Ok(response); // Remove the extra wrapper
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
+        [HttpPost]
+        public async Task<IActionResult> SyncViewPermissions([FromBody] SyncViewPermissionsDTO dto)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                // 1. Get all existing PermissionViews from DB
+                var existingViews = await _db.tPermissionViews.ToListAsync();
+
+                var existingPathMap = existingViews
+                    .ToDictionary(x => x.RoutePath, x => x, StringComparer.OrdinalIgnoreCase);
+
+                // 2. Separate incoming routes into new and existing
+                var newRoutes = new List<PermissionViews>();
+                var updatedRoutes = new List<PermissionViews>();
+
+                foreach (var route in dto.RoutesAvailable)
+                {
+                    if (existingPathMap.TryGetValue(route.path, out var existing))
+                    {
+                        // Update RouteName if it changed
+                        if (!string.Equals(existing.RouteName, route.RouteName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            existing.RouteName = route.RouteName;
+                            updatedRoutes.Add(existing);
+                        }
+                    }
+                    else
+                    {
+                        // New route — add it
+                        newRoutes.Add(new PermissionViews
+                        {
+                            RouteName = route.RouteName,
+                            RoutePath = route.path,
+                        });
+                    }
+                }
+
+                if (newRoutes.Count > 0)
+                    await _db.tPermissionViews.AddRangeAsync(newRoutes);
+
+                if (updatedRoutes.Count > 0)
+                    _db.tPermissionViews.UpdateRange(updatedRoutes);
+
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return Ok(new
+                {
+                    Message = $"Sync complete! Routes added: {newRoutes.Count}, updated: {updatedRoutes.Count}",
+                    Title = "Sync Complete"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
+        [HttpPost]
+        public async Task<IActionResult> UpdateViewPermissionDetails([FromBody] UpdateViewPermissionDetailsDTO dto)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var getPermission = await _db.tPermissionViews.FirstOrDefaultAsync(x => x.Id == dto.Id);
+                if (getPermission == null)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"'{dto.RoutePath}' is not a recognized permission view. Try syncing permissions to update the list.",
+                        Title = "Unrecognized View"
+                    });
+                }
+                getPermission.Description = dto.Description;
+                _db.tPermissionViews.Update(getPermission);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync(); return Ok(new
+                {
+                    Message = $"'{dto.RoutePath}' details have been saved successfully.",
+                    Title = "Changes Saved"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
+        [HttpPost]
+        public async Task<IActionResult> DeleteViewPermission(int id)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var getAction = await _db.tPermissionViews.FirstOrDefaultAsync(x => x.Id == id);
+                if (getAction == null)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"The permission action could not be found. Please ensure permissions are synced.",
+                        Title = "Action Not Found"
+                    });
+                }
+
+                // Check if action is currently assigned to any roles before deleting
+                var isAssignedToRole = await _db.tGroupRoles
+                    .AnyAsync(x => x.ViewIds.Contains(getAction.Id));
+
+                if (isAssignedToRole)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"'{getAction.RoutePath}' cannot be deleted because it is currently assigned to one or more roles. Please remove the role assignments first.",
+                        Title = "Deletion Not Allowed"
+                    });
+                }
+
+                _db.tPermissionViews.Remove(getAction);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return Ok(new
+                {
+                    Message = $"Permission view '{getAction.RoutePath}' has been deleted successfully.",
+                    Title = "Delete Successful"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
+        #endregion
         #region PERMISSIONS TAB
         [HttpPost]
         public async Task<IActionResult> ShowPermissions([FromBody] ShowPermissionsDTO dto)
@@ -433,14 +637,14 @@ namespace WebAPI.Controllers.Settings.UserManagement
 
                 var baseQuery = _db.vPermissions.AsNoTracking();
 
-                if (!string.IsNullOrEmpty(dto.Filters?.ModuleFunction))
-                    baseQuery = baseQuery.Where(e => e.ModuleFunction!.Contains(dto.Filters.ModuleFunction));
+                if (!string.IsNullOrEmpty(dto.Filters?.ControllerName))
+                    baseQuery = baseQuery.Where(e => e.ControllerName!.Contains(dto.Filters.ControllerName));
 
-                if (!string.IsNullOrEmpty(dto.Filters?.Description))
-                    baseQuery = baseQuery.Where(e => e.ModuleFunctionDescription!.Contains(dto.Filters.Description));
+                if (!string.IsNullOrEmpty(dto.Filters?.ActionName))
+                    baseQuery = baseQuery.Where(e => e.ActionName!.Contains(dto.Filters.ActionName));
 
-                if (!string.IsNullOrEmpty(dto.Filters?.PermissionGroupName))
-                    baseQuery = baseQuery.Where(e => e.Module!.Contains(dto.Filters.PermissionGroupName));
+                if (!string.IsNullOrEmpty(dto.Filters?.ControllerDescription))
+                    baseQuery = baseQuery.Where(e => e.ControllerDescription!.Contains(dto.Filters.ControllerDescription));
 
                 // Get total count of filtered results (before pagination)
                 var totalRecords = await baseQuery.CountAsync();
@@ -793,8 +997,6 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 if (!string.IsNullOrEmpty(dto.Filters?.GroupName))
                     baseQuery = _db.vUserGroups.AsNoTracking().Where(e => e.GroupName!.Contains(dto.Filters.GroupName));
 
-                if (dto.Filters?.PermissionActionIds != null && dto.Filters.PermissionActionIds.Length > 0)
-                    baseQuery = _db.vUserGroups.AsNoTracking().Where(e => e.PermissionActionIds!.Any(id => dto.Filters.PermissionActionIds.Contains(id)));
 
                 // Get total count of filtered results (before pagination)
                 var totalRecords = await baseQuery.CountAsync();
@@ -857,62 +1059,20 @@ namespace WebAPI.Controllers.Settings.UserManagement
                         Title = "Group Already Exists"
                     });
                 }
-
-                // 3. Validate ActionIds exist in tPermissionActions
-                if (dto.ActionIds.Length > 0)
-                {
-                    var existingActionIds = await _db.tPermissionActions
-                        .Where(x => dto.ActionIds.Contains(x.Id))
-                        .Select(x => x.Id)
-                        .ToListAsync();
-
-                    var invalidActionIds = dto.ActionIds
-                        .Except(existingActionIds)
-                        .ToList();
-
-                    if (invalidActionIds.Count > 0)
-                    {
-                        return new BadRequestObjectResult(new
-                        {
-                            Message = $"The following Action IDs do not exist: {string.Join(", ", invalidActionIds)}. Please sync permissions and try again.",
-                            Title = "Invalid Action IDs"
-                        });
-                    }
-                }
-
-                // 4. Create new Group
-                var newGroup = new Groups
+                var NewGroup = new DBHelper.Models.Table.Groups
                 {
                     GroupName = dto.GroupName.Trim(),
-                    Description = dto.Description?.Trim(),
-                    CreatedBy = User.Identity?.Name ?? "System",
-                    CreatedDate = DateTime.UtcNow
+                    Description = dto.Description?.Trim()
                 };
 
-                await _db.tGroups.AddAsync(newGroup);
-                await _db.SaveChangesAsync(); // Save first to get the generated Group Id
-
-                // 5. Create GroupRoles linking the new Group to ActionIds
-                var newGroupRoles = new GroupRoles
-                {
-                    GroupId = newGroup.Id,
-                    ActionIds = dto.ActionIds,
-                    ViewIds = dto.ViewIds,
-                };
-
-                await _db.tGroupRoles.AddAsync(newGroupRoles);
+                await _db.tGroups.AddAsync(NewGroup);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
 
                 return Ok(new
                 {
-                    Message = $"User group '{newGroup.GroupName}' has been created successfully.",
-                    Title = "Group Created",
-                    Data = new
-                    {
-                        Group = newGroup,
-                        GroupRoles = newGroupRoles
-                    }
+                    Message = $"User group '{NewGroup.GroupName}' has been created successfully.",
+                    Title = "Group Created"
                 });
             }
             catch (Exception ex)
@@ -983,17 +1143,40 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     }
                 }
 
-                // 5. Update Group details
+                // 5. Validate ViewIds exist in tPermissionViews
+                if (dto.PermissionViewIds.Length > 0)
+                {
+                    var existingViewIds = await _db.tPermissionViews
+                        .Where(x => dto.PermissionViewIds.Contains(x.Id))
+                        .Select(x => x.Id)
+                        .ToListAsync();
+
+                    var invalidViewIds = dto.PermissionViewIds
+                        .Except(existingViewIds)
+                        .ToList();
+
+                    if (invalidViewIds.Count > 0)
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            Message = $"The following View IDs do not exist: {string.Join(", ", invalidViewIds)}. Please sync permissions and try again.",
+                            Title = "Invalid View IDs"
+                        });
+                    }
+                }
+
+                // 6. Update Group details
                 getGroup.GroupName = dto.GroupName.Trim();
                 getGroup.Description = dto.Description?.Trim();
                 _db.tGroups.Update(getGroup);
 
-                // 6. Update GroupRoles — get existing GroupRoles for this Group
+                // 7. Update GroupRoles — get existing GroupRoles for this Group
                 var getGroupRoles = await _db.tGroupRoles.FirstOrDefaultAsync(x => x.GroupId == dto.Id);
                 if (getGroupRoles != null)
                 {
                     // Update existing GroupRoles
                     getGroupRoles.ActionIds = dto.PermissionActionIds;
+                    getGroupRoles.ViewIds = dto.PermissionViewIds;
                     _db.tGroupRoles.Update(getGroupRoles);
                 }
                 else

@@ -27,9 +27,9 @@ namespace WebAPI.Controllers.Programs
         {
             try
             {
-                var FutureRoads = await _db.tFutureRoads.AsNoTracking().ToListAsync();
-                var FutureRoadSections = await _db.tFutureRoadSections.AsNoTracking().ToListAsync();
-                var FutureBridges = await _db.tFutureBridge.AsNoTracking().ToListAsync();
+                var FutureRoads = await _db.tFutureRoads.AsNoTracking().CountAsync();
+                var FutureRoadSections = await _db.tFutureRoadSections.AsNoTracking().CountAsync();
+                var FutureBridges = await _db.tFutureBridge.AsNoTracking().CountAsync();
                 var response = new
                 {
                     Roads = FutureRoads,

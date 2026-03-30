@@ -1,8 +1,6 @@
-﻿using DBHelper.Models.Enums;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -13,6 +11,11 @@ namespace DBHelper.Models.Table
     {
         [Key]
         public int Id { get; set; }
+        [Required]
+        [MaxLength(50)]
+        public string ModuleName { get; set; } = string.Empty;
+        [MaxLength(50)]
+        public string? RouteName { get; set; }
         [Required]
         [MaxLength(100)]
         public string RoutePath { get; set; } = string.Empty;
