@@ -202,6 +202,24 @@ export const importBridges = async (userName: string) => {
     }
 }
 
+
+export const importImplementingOffices = async (userName: string) => {
+    try {        
+        const apiUrl = `http://localhost:8001/api_v2.0/admin_areas/aa_import_org_offices/?username=${encodeURIComponent(userName)}`;
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'ngrok-skip-browser-warning': 'true',
+            },
+        });
+        return response;
+    } catch (error) {
+        console.error('Error importing implementing offices:', error);
+        throw error;
+    }
+}
+
 export const getInfraCounts = async () => {
     try {
         const response = await httpClient.post<{ roadCount: number; roadSectionCount: number; bridgeCount: number }>('FutureInfra/GetInfraInfo');
