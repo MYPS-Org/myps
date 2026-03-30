@@ -25,8 +25,8 @@ interface AIPReportDialogProps {
 type ReportTypeOption = { value: AIPReportType; label: string };
 
 const AIP_REPORT_TYPES: ReportTypeOption[] = [
-  { value: 'AIP', label: 'AIP (Annual Investment Plan)' },
-  { value: 'AIP02', label: 'AIP-02 (Annual Investment Plan 02)' },
+  { value: 'AIP', label: 'AIP-Exec-01 (Annual Infrastructure Plan)' },
+  { value: 'AIP02', label: 'AIP-Exec-02 (Annual Infrastructure Plan)' },
 ];
 
 const RBP_REPORT_TYPES: ReportTypeOption[] = [
