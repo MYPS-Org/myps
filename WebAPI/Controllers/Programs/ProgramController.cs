@@ -96,6 +96,7 @@ namespace WebAPI.Controllers.Programs
                 if (!string.IsNullOrEmpty(dto.Filters?.StageName))
                     baseQuery = baseQuery.Where(e => e.StageName == dto.Filters.StageName);
 
+                baseQuery = baseQuery.Where(x => x.DataSecurityGroup.Contains(_Session.RegCode));
                 // Get total count of filtered results (before pagination)
                 var totalRecords = await baseQuery.CountAsync();
 
