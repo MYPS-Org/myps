@@ -34,46 +34,37 @@ namespace Helpers
             var tz = TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila");
             return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
         }
+        // ✅ Existing — for SELECT queries (returns IQueryable)
         public static IQueryable<T> QueryFromFile<T>(
             this DbContext db,
-            string sqlFilePath, string? query) where T : class
+            string sqlFilePath,
+            string? query = null) where T : class
         {
-            var sql = _sqlCache.GetOrAdd(
-                Path.Combine(Appsetting.Resources.Main, "Sql", sqlFilePath+".sql"),
-                path => File.ReadAllText(path)
-            );
+            var sql = GetSqlFromFile(sqlFilePath);
 
-            // Wrap to guarantee composability
-            var composableSql = $@"{sql}
-            {query}";
+            var composableSql = string.IsNullOrWhiteSpace(query)
+                ? sql
+                : $"{sql}{Environment.NewLine}{query}";
 
             return db.Set<T>()
                      .FromSqlRaw(composableSql)
-                     .AsNoTracking(); // critical for speed
+                     .AsNoTracking();
         }
-        public static List<T> QueryFile<T>(
-            DbContext db,
-            string sqlFilePath,
-            Dictionary<string, object>? parameters = null) where T : class
+
+        // ✅ Shared cache helper — avoids duplicating cache logic
+        private static string GetSqlFromFile(string sqlFilePath)
         {
-            var sql = _sqlCache.GetOrAdd(
-                Path.Combine(Appsetting.Resources.Main, "Sql", sqlFilePath + ".sql"),
-                path => File.ReadAllText(path)
-            );
+            var fullPath = Path.Combine(
+                Appsetting.Resources.Main, "Sql", sqlFilePath + ".sql");
 
-            var parameterizedSql = sql;
-            if (parameters != null && parameters.Count > 0)
+            return _sqlCache.GetOrAdd(fullPath, path =>
             {
-                foreach (var param in parameters)
-                {
-                    parameterizedSql = parameterizedSql.Replace($"{{{param.Key}}}", param.Key);
-                }
-            }
+                if (!File.Exists(path))
+                    throw new FileNotFoundException(
+                        $"SQL file not found: {path}");
 
-            return db.Set<T>()
-                     .FromSqlRaw(parameterizedSql, parameters?.Values.ToArray() ?? Array.Empty<object>())
-                     .AsNoTracking()
-                     .ToList();
+                return File.ReadAllText(path);
+            });
         }
         public static string UpdateReferenceId(this string Current, string StageName)
         {
