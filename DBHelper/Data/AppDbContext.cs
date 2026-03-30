@@ -12,6 +12,7 @@ namespace DBHelper.Data
         public DbSet<Models.Table.Users> tUsers { get; set; }
         public DbSet<Models.Table.PermissionControllers> tPermissionControllers { get; set; }
         public DbSet<Models.Table.PermissionActions> tPermissionActions { get; set; }
+        public DbSet<Models.Table.PermissionViews> tPermissionViews { get; set; }
         public DbSet<Models.Table.GroupRoles> tGroupRoles { get; set; }
         public DbSet<Models.Table.UserGroups> tUserGroups { get; set; }
         public DbSet<Models.Table.Groups> tGroups { get; set; }
@@ -93,7 +94,8 @@ namespace DBHelper.Data
         #endregion
         #region Views
         public DbSet<Models.Views.Users> vUsers { get; set; }
-        public DbSet<Models.Views.UserPermissions> vUserPermissions { get; set; }
+        public DbSet<Models.Views.UserActionPermission> vUserActionPermission { get; set; }
+        public DbSet<Models.Views.UserViewPermission> vUserViewPermission { get; set; }
         public DbSet<Models.Views.UserGroups> vUserGroups { get; set; }
         public DbSet<Models.Views.Permissions> vPermissions { get; set; }
         public DbSet<Models.Views.Programs> vPrograms { get; set; }

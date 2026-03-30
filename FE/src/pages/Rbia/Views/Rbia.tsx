@@ -1,5 +1,5 @@
 "use-client";
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   RectangleStackIcon, 
   BuildingOffice2Icon, 
@@ -10,6 +10,7 @@ import RoadList from "../components/Road";
 import RoadSectionList from "../components/RoadSection";
 import BridgeList from "../components/Bridge";
 import ImportDialog from '../Dialogs/ImportDialog';
+import { getInfraCounts } from './../Service';
 
 // Simple Badge component
 const Badge: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = "" }) => (
@@ -21,12 +22,20 @@ const Badge: React.FC<{ children: React.ReactNode; className?: string }> = ({ ch
 const Rbia: React.FC = () => {
     const [selectedTab, setSelectedTab] = useState<'roads' | 'roadSections' | 'bridges'>('roads');
     const [importDialogOpen, setImportDialogOpen] = useState(false);
+    const [infraCounts, setInfraCounts] = useState({ roadCount: 0, roadSectionCount: 0, bridgeCount: 0 });
 
-    // For now, we'll show static counts until we implement proper data fetching for all tabs
-    // TODO: Replace with actual API calls when roadSections and bridges components are updated
-    const roadsCount = 0; // Will be updated by the Road component
-    const roadSectionsCount = 0; // Placeholder
-    const bridgesCount = 0; // Placeholder
+    useEffect(() => {
+        const fetchInfraCounts = async () => {
+            try {
+                const counts = await getInfraCounts();
+                setInfraCounts(counts.Data);
+            } catch (error) {
+                console.error('Error fetching infrastructure counts:', error);
+            }
+        };
+
+        fetchInfraCounts();
+    }, []);
 
     // Function to handle tab switching
     const getTableData = async (tabName: 'roads' | 'roadSections' | 'bridges') => {
@@ -88,19 +97,19 @@ const Rbia: React.FC = () => {
                     label="Roads" 
                     value="roads" 
                     icon={RectangleStackIcon} 
-                    count={roadsCount} 
+                    count={infraCounts.roadCount} 
                 />
                 <TabButton 
                     label="Road Sections" 
                     value="roadSections" 
                     icon={BuildingOffice2Icon} 
-                    count={roadSectionsCount} 
+                    count={infraCounts.roadSectionCount} 
                 />
                 <TabButton 
                     label="Bridges" 
                     value="bridges" 
                     icon={ArrowsPointingOutIcon} 
-                    count={bridgesCount} 
+                    count={infraCounts.bridgeCount} 
                 />
             </div>
 

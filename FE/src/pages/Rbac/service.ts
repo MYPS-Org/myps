@@ -1,5 +1,5 @@
 // Service functions for RBAC operations
-import type { PermissionPagination, Permissions, AddPermission, PermissionGroup, Users, UserPagination, UserGroups, AddUserGroups, UserGroupPagination, Pis, InitialDataResponse } from './Model.d';
+import type { PermissionPagination, Permissions, AddPermission, PermissionGroup, Users, UserPagination, UserGroups, AddUserGroups, UserGroupPagination, Pis, InitialDataResponse, UserGroupDropdowns, vUserGroups } from './Model.d';
 import { httpClient, type ErrorResponse } from '../../services/httpClient';
 // import type { ErrorResponse } from '';
 
@@ -112,9 +112,19 @@ export const deletePermission = async (data: Permissions) => {
 //#endregion
 
 //#region  User Groups API functions
+
+
+export const fetchUserGroupDropdowns = async() => {
+    try {
+        const request = await httpClient.post<UserGroupDropdowns>('/UserManagement/ShowUserGroupDropdowns');
+        return request;
+    } catch (error) {
+        throw error;
+    }
+}
 export const fetchUserGroups = async (data: UserGroupPagination) => {
     try {
-        const request = await httpClient.post<PaginationResponse<UserGroups>>('/UserManagement/ShowUserGroups', data);
+        const request = await httpClient.post<PaginationResponse<vUserGroups>>('/UserManagement/ShowUserGroups', data);
         return request;
     } catch (error) {
         throw error;
