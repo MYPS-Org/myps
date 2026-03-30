@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 namespace DBHelper.Models.Views
 {
     public class UserGroups
@@ -8,6 +9,7 @@ namespace DBHelper.Models.Views
         public string? GroupName { get; set; }
         public string? Description { get; set; }
         public int? NumberOfUsers { get; set; }
+        [NotMapped]
         public List<ModulePermissionModel>? ModulePermissions { get; set; } = new List<ModulePermissionModel>();
         public string? CreatedBy { get; set; }
         public DateTime? CreatedDate { get; set; }
