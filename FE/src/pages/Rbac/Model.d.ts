@@ -26,8 +26,8 @@ export interface PermissionGroup {
 
 export interface Permissions {
 	Id: number;
-	Module: string;
-	ModuleFunction: string;
+	ControllerName: string;
+	ActionName: string;
 	ModuleFunctionDescription?: string | null;
 }
 export interface PermissionPagination extends PaginationParams {
