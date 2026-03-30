@@ -20,18 +20,18 @@ const FilterPermissionDialog: React.FC<FilterPermissionDialogProps> = ({
   initialData 
 }) => {
   const [formData, setFormData] = useState({
-    PermissionGroupName: initialData?.PermissionGroupName || '',
+    Module: initialData?.Module || '',
     ModuleFunction: initialData?.ModuleFunction || '',
-    Description: initialData?.Description || ''
+    ModuleFunctionDescription: initialData?.ModuleFunctionDescription || ''
   });
 
   // Reset form data when dialog opens or initialData changes
   useEffect(() => {
     if (isOpen) {
       setFormData({
-        PermissionGroupName: initialData?.PermissionGroupName || '',
+        Module: initialData?.Module || '',
         ModuleFunction: initialData?.ModuleFunction || '',
-        Description: initialData?.Description || ''
+        ModuleFunctionDescription: initialData?.ModuleFunctionDescription || ''
       });
     }
   }, [isOpen, initialData]);
@@ -44,9 +44,9 @@ const FilterPermissionDialog: React.FC<FilterPermissionDialogProps> = ({
 
   const handleClear = () => {
     setFormData({
-      PermissionGroupName: '',
+      Module: '',
       ModuleFunction: '',
-      Description: ''
+      ModuleFunctionDescription: ''
     });
     if (onClear) {
       onClear();
@@ -85,13 +85,13 @@ const FilterPermissionDialog: React.FC<FilterPermissionDialogProps> = ({
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Permission Group Name
+                  Module
                 </label>
                 <input
                   type="text"
-                  value={formData.PermissionGroupName || ''}
-                  onChange={(e) => handleChange('PermissionGroupName', e.target.value)}
-                  placeholder="Search by permission group name..."
+                  value={formData.Module || ''}
+                  onChange={(e) => handleChange('Module', e.target.value)}
+                  placeholder="Search by controller/module..."
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
                 />
               </div>
@@ -113,8 +113,8 @@ const FilterPermissionDialog: React.FC<FilterPermissionDialogProps> = ({
                 </label>
                 <input
                   type="text"
-                  value={formData.Description || ''}
-                  onChange={(e) => handleChange('Description', e.target.value)}
+                  value={formData.ModuleFunctionDescription || ''}
+                  onChange={(e) => handleChange('ModuleFunctionDescription', e.target.value)}
                   placeholder="Search by description..."
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
                 />
@@ -123,7 +123,7 @@ const FilterPermissionDialog: React.FC<FilterPermissionDialogProps> = ({
 
             <div className="flex justify-between pt-4 border-t border-gray-200">
               <Button type="button" onClick={handleClear} color="zinc" disabled={
-                !formData.PermissionGroupName && !formData.ModuleFunction && !formData.Description
+                !formData.Module && !formData.ModuleFunction && !formData.ModuleFunctionDescription
               }>
                 Clear Filter
               </Button>

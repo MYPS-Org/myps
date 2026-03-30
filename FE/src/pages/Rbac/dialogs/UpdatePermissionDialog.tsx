@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import type { PermissionGroup, Permissions } from '../Model.d';
-import { fetchPermissionGroups, updatePermission } from '../service';
+import type { Permissions } from '../Model.d';
+import { updatePermission } from '../service';
 
 interface UpdatePermissionDialogProps {
   isOpen: boolean;
@@ -15,39 +15,23 @@ interface UpdatePermissionDialogProps {
 const UpdatePermissionDialog: React.FC<UpdatePermissionDialogProps> = ({ isOpen, onClose, onSubmit, permission }) => {
   const [formData, setFormData] = useState({
     Id: permission.Id,
-    PermissionGroupId: permission.PermissionGroupId || 0,
+    Module: permission.Module || '',
     ModuleFunction: permission.ModuleFunction || '',
-    Description: permission.Description || '',
-    CreatedBy: permission.CreatedBy || '',
-    CreatedDate: permission.CreatedDate || ''
+    ModuleFunctionDescription: permission.ModuleFunctionDescription || '',
   });
 
-  const [availableGroups, setAvailableGroups] = useState<PermissionGroup[]>([]);
-  const [isLoadingGroups, setIsLoadingGroups] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (isOpen) {
-
-      fetchAvailableGroups();
+      setFormData({
+        Id: permission.Id,
+        Module: permission.Module || '',
+        ModuleFunction: permission.ModuleFunction || '',
+        ModuleFunctionDescription: permission.ModuleFunctionDescription || '',
+      });
     }
-  }, [isOpen]);
-
-  const fetchAvailableGroups = async () => {
-    try {
-      // Fetch available permission groups from the API
-      setIsLoadingGroups(true);
-      const response = await fetchPermissionGroups();
-      console.log('Available Groups:', response);
-      if (response.Data && response.Data) {
-        setAvailableGroups(response.Data);
-      }
-    } catch (error) {
-      console.error('Error fetching permission groups:', error);
-    }finally {
-      setIsLoadingGroups(false);
-    }
-  }
+  }, [isOpen, permission]);
 
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -69,10 +53,7 @@ const UpdatePermissionDialog: React.FC<UpdatePermissionDialogProps> = ({ isOpen,
   };
 
   const handleChange = (field: string, value: string) => {
-    setFormData(prev => ({ 
-      ...prev, 
-      [field]: field === 'PermissionGroupId' ? parseInt(value, 10) : value 
-    }));
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   return (
@@ -103,6 +84,20 @@ const UpdatePermissionDialog: React.FC<UpdatePermissionDialogProps> = ({ isOpen,
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
+                Module
+              </label>
+              <input
+                type="text"
+                value={formData.Module}
+                onChange={(e) => handleChange('Module', e.target.value)}
+                placeholder="e.g., UserManagementController"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Module Function
               </label>
               <input
@@ -121,36 +116,11 @@ const UpdatePermissionDialog: React.FC<UpdatePermissionDialogProps> = ({ isOpen,
               </label>
               <input
                 type="text"
-                value={formData.Description}
-                onChange={(e) => handleChange('Description', e.target.value)}
+                value={formData.ModuleFunctionDescription}
+                onChange={(e) => handleChange('ModuleFunctionDescription', e.target.value)}
                 placeholder="e.g., Manage Users"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                required
               />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Permission Group
-              </label>
-              <select
-                value={formData.PermissionGroupId}
-                onChange={(e) => handleChange('PermissionGroupId', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                required
-              >
-                <option value="">Select a group</option>
-                {isLoadingGroups ? (
-                  <option disabled>Loading groups...</option>
-                ) : (
-                  availableGroups.map(group => (
-                    <option key={group.Id} value={group.Id}>
-                      {group.Name}
-                    </option>
-                  ))
-                )}
-              </select>
-
             </div>
 
             <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
