@@ -44,6 +44,8 @@ UserGroupIcon,
 import { authService } from '../pages/login/Service' // for getting the service logout
 import { useAuth } from '../contexts/AuthContext' // for getting data friom context
 import Logo from '../assets/img/logo.png' // Adjust the import path as necessary
+import { usePermittedRoutes } from '../hooks/usePermittedRoutes'
+import protectedRoutes from '../components/Routes'
 
 // If using React Router, you can import useLocation
 // import { useLocation } from 'react-router-dom'
@@ -107,15 +109,15 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 				</SidebarItem>
 			<SidebarDivider>
 			</SidebarDivider>
-				<SidebarItem hidden={!ViewAccess.includes('/dashboard')} href="/dashboard" current={currentPath === '/dashboard'}>
+				<SidebarItem hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/dashboard')?.RouteName || '')} href="/dashboard" current={currentPath === '/dashboard'}>
 					<HomeIcon />
 					<SidebarLabel className="text-gray-500">Dashboard</SidebarLabel>
 				</SidebarItem>
-				<SidebarItem hidden={!ViewAccess.includes('/programs')} href="/programs" current={currentPath === '/programs'}>
+				<SidebarItem hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/programs')?.RouteName || '')} href="/programs" current={currentPath === '/programs'}>
 					<FolderOpenIcon />
 					<SidebarLabel className="text-gray-500">Programs</SidebarLabel>
 				</SidebarItem>
-				<SidebarItem hidden={!ViewAccess.includes('/projects')} href="/projects" current={currentPath === '/projects'}>
+				<SidebarItem hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/projects')?.RouteName || '')} href="/projects" current={currentPath === '/projects'}>
 					<BriefcaseIcon />
 					<SidebarLabel className="text-gray-500">Projects</SidebarLabel>
 				</SidebarItem>
@@ -123,11 +125,11 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 					<BanknotesIcon />
 					<SidebarLabel className="text-gray-500">Lump Sum</SidebarLabel>
 				</SidebarItem> */}
-				<SidebarItem hidden={!ViewAccess.includes('/revision')} href="/revision" current={currentPath === '/revision'}>
+				<SidebarItem hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/revision')?.RouteName || '')} href="/revision" current={currentPath === '/revision'}>
 					<ArrowPathIcon />
 					<SidebarLabel className="text-gray-500">Revision</SidebarLabel>
 				</SidebarItem>
-				<SidebarItem hidden={!ViewAccess.includes('/project-groups')} href="/project-groups" current={currentPath === '/project-groups'}>
+				<SidebarItem hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/project-groups')?.RouteName || '')} href="/project-groups" current={currentPath === '/project-groups'}>
 					<RectangleGroupIcon />
 					<SidebarLabel className="text-gray-500">Project Groups</SidebarLabel>
 				</SidebarItem>	
@@ -136,56 +138,56 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 					<SidebarLabel className="text-gray-500">Program Stages</SidebarLabel>
 			</SidebarItem> */}
 			<SidebarDropdown
-				hidden={!ViewAccess.includes('/multiyear/programs') && !ViewAccess.includes('/multiyear/projects')}
+				hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/multiyear/programs')?.RouteName || '') && !ViewAccess.includes(protectedRoutes.find(x => x.path == '/multiyear/projects')?.RouteName || '')}
 				label="Multi-Year Management"
 				defaultOpen={false}
 				className="text-gray-500"
 				>
 				<CalendarDaysIcon />
-				<SidebarDropdownItem hidden={!ViewAccess.includes('/multiyear/programs')} href="/multiyear/programs" current={currentPath === '/multiyear/programs'}>
+				<SidebarDropdownItem hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/multiyear/programs')?.RouteName || '')} href="/multiyear/programs" current={currentPath === '/multiyear/programs'}>
 					<SidebarLabel>Programs</SidebarLabel>
 				</SidebarDropdownItem>
-				<SidebarDropdownItem hidden={!ViewAccess.includes('/multiyear/projects')} href="/multiyear/projects" current={currentPath === '/multiyear/projects'}>
+				<SidebarDropdownItem hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/multiyear/projects')?.RouteName || '')} href="/multiyear/projects" current={currentPath === '/multiyear/projects'}>
 					<SidebarLabel>Projects</SidebarLabel>
 				</SidebarDropdownItem>
 			</SidebarDropdown>
 			<SidebarDropdown
-				 hidden={!ViewAccess.includes('/reports/programs') && !ViewAccess.includes('/reports/projects') && !ViewAccess.includes('/reports/multiyear')} 
+				 hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/reports/programs')?.RouteName || '') && !ViewAccess.includes(protectedRoutes.find(x => x.path == '/reports/projects')?.RouteName || '') && !ViewAccess.includes(protectedRoutes.find(x => x.path == '/reports/multiyear')?.RouteName || '')} 
 				label="Reports"
 				defaultOpen={false}
 				className="text-gray-500"
 				>
 				<DocumentChartBarIcon />
-				<SidebarDropdownItem hidden={!ViewAccess.includes('/reports/programs')} href="/reports/programs" current={currentPath === '/reports/programs'}>
+				<SidebarDropdownItem hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/reports/programs')?.RouteName || '')} href="/reports/programs" current={currentPath === '/reports/programs'}>
 					<SidebarLabel>Programs</SidebarLabel>
 				</SidebarDropdownItem>
-				<SidebarDropdownItem hidden={!ViewAccess.includes('/reports/projects')} href="/reports/projects" current={currentPath === '/reports/projects'}>
+				<SidebarDropdownItem hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/reports/projects')?.RouteName || '')} href="/reports/projects" current={currentPath === '/reports/projects'}>
 					<SidebarLabel>Projects</SidebarLabel>
 				</SidebarDropdownItem>
-				<SidebarDropdownItem hidden={!ViewAccess.includes('/reports/multiyear')} href="/reports/multiyear" current={currentPath === '/reports/multiyear'}>
+				<SidebarDropdownItem hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/reports/multiyear')?.RouteName || '')} href="/reports/multiyear" current={currentPath === '/reports/multiyear'}>
 					<SidebarLabel>Multi-Year</SidebarLabel>
 				</SidebarDropdownItem>
 			</SidebarDropdown>
 			<SidebarDropdown
-				hidden={!ViewAccess.includes('/settings') && !ViewAccess.includes('/code-tables') && !ViewAccess.includes('/settings/security') && !ViewAccess.includes('/user-management') && !ViewAccess.includes('/infrastructure-management')}
+				hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/settings')?.RouteName || '') && !ViewAccess.includes(protectedRoutes.find(x => x.path == '/code-tables')?.RouteName || '') && !ViewAccess.includes(protectedRoutes.find(x => x.path == '/settings/security')?.RouteName || '') && !ViewAccess.includes(protectedRoutes.find(x => x.path == '/user-management')?.RouteName || '') && !ViewAccess.includes(protectedRoutes.find(x => x.path == '/infrastructure-management')?.RouteName || '')}
 				label="Settings"
 				defaultOpen={false}
 				className="text-gray-500"
 				>
 				<Cog6ToothIcon />
-				<SidebarDropdownItem hidden={!ViewAccess.includes('/code-tables')} href="/code-tables" current={currentPath === '/code-tables'}>
+				<SidebarDropdownItem hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/code-tables')?.RouteName || '')} href="/code-tables" current={currentPath === '/code-tables'}>
 					<TableCellsIcon />
 					<SidebarLabel>Code Tables</SidebarLabel>
 				</SidebarDropdownItem>
-				<SidebarDropdownItem hidden={!ViewAccess.includes('/settings/security')} href="/settings/security" current={currentPath === '/settings/security'}>
+				<SidebarDropdownItem hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/settings/security')?.RouteName || '')} href="/settings/security" current={currentPath === '/settings/security'}>
 					<ShieldCheckIcon />
 					<SidebarLabel>Security</SidebarLabel>
 				</SidebarDropdownItem>
-				<SidebarDropdownItem hidden={!ViewAccess.includes('/user-management')} href="/user-management" current={currentPath === '/user-management'}>
+				<SidebarDropdownItem hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/user-management')?.RouteName || '')} href="/user-management" current={currentPath === '/user-management'}>
 					<UsersIcon />
 					<SidebarLabel>User Management</SidebarLabel>
 				</SidebarDropdownItem>
-				<SidebarDropdownItem hidden={!ViewAccess.includes('/infrastructure-management')} href="/infrastructure-management" current={currentPath === '/infrastructure-management'}>
+				<SidebarDropdownItem hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/infrastructure-management')?.RouteName || '')} href="/infrastructure-management" current={currentPath === '/infrastructure-management'}>
 					<ServerStackIcon />
 					<SidebarLabel>Infra Management</SidebarLabel>
 				</SidebarDropdownItem>
