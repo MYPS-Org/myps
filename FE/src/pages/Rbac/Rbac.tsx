@@ -739,7 +739,7 @@ const Rbac: React.FC = () => {
 						User Management
 					</Heading>
 					<p className="text-gray-600 mt-1">
-						Manage users, permissions, and user groups
+						Manage users, API permissions, route permissions, and user groups
 					</p>
 				</div>
 				{/* <Button color="blue" className="flex items-center space-x-2" onClick={() => setIsAddUserDialogOpen(true)}>
@@ -751,7 +751,7 @@ const Rbac: React.FC = () => {
 			{/* Tab Navigation */}
 			<div className="flex space-x-2 p-1 bg-white shadow-md rounded-lg">
 				<TabButton 
-					label="Permissions" 
+					label="API Permissions" 
 					value="permissions" 
 					icon={KeyIcon} 
 					count={tabNumbers.permissions} 
