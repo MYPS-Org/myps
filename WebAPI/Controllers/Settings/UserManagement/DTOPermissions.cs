@@ -19,15 +19,16 @@ namespace WebAPI.Controllers.Settings.UserManagement
     }
     public class AddViewPermissionDTO
     {
+        public string RouteName { get; set; } = string.Empty;
         public string path { get; set; } = string.Empty;
     }
     public class UpdateViewPermissionDetailsDTO : PermissionViews { }
     public class ShowPermissionsDTO : EnumPagination<ShowPermissionFilterDTO> { }
     public class ShowPermissionFilterDTO
     {
-        public string? PermissionGroupName { get; set; }
-        public string? ModuleFunction { get; set; }
-        public string? Description { get; set; }
+        public string? ControllerName { get; set; }
+        public string? ActionName { get; set; }
+        public string? ControllerDescription { get; set; }
     }
     public class UpdatePermissionControllerDetailsDTO : PermissionControllers { }
     public class UpdatePermissionActionDetailsDTO : PermissionActions { }

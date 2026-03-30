@@ -10,6 +10,7 @@ namespace DBHelper.Data
         }
         #region Tables
         public DbSet<Models.Table.Users> tUsers { get; set; }
+        public DbSet<Models.Table.AppModules> tAppModules { get; set; }
         public DbSet<Models.Table.PermissionControllers> tPermissionControllers { get; set; }
         public DbSet<Models.Table.PermissionActions> tPermissionActions { get; set; }
         public DbSet<Models.Table.PermissionViews> tPermissionViews { get; set; }
@@ -123,7 +124,6 @@ namespace DBHelper.Data
             modelBuilder.Entity<AdminImplementingOffice>().HasNoKey().ToView("vAdminImplementingOffice");
             modelBuilder.Entity<GetProjectCategoryVersions>().HasNoKey().ToView("vGetProjectCategoryVersions");
             modelBuilder.Entity<ProjectComponentStatus>().HasNoKey().ToView("vProjectComponentStatus");
-            modelBuilder.Entity<AIPBase>().HasNoKey().ToView("vAIPBase");
             base.OnModelCreating(modelBuilder);
         }
     }

@@ -400,7 +400,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
             }
         }
         #endregion
-        #region PERMISSIONS TAB
+        #region VIEW PERMISSIONS TAB
         [HttpPost]
         public async Task<IActionResult> ShowViewPermissions([FromBody] ShowViewPermissionsDTO dto)
         {
@@ -475,27 +475,50 @@ namespace WebAPI.Controllers.Settings.UserManagement
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                var existingNames = dto.RoutesAvailable
-                    .Select(x => x.path)
-                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                // 1. Get all existing PermissionViews from DB
+                var existingViews = await _db.tPermissionViews.ToListAsync();
 
-                var newControllers = await _db.tPermissionViews
-                    .Where(t => !existingNames.Contains(t.RoutePath))
-                    .Select(t => new PermissionViews
-                    {
-                        RoutePath = t.RoutePath
-                    })
-                    .ToListAsync();
+                var existingPathMap = existingViews
+                    .ToDictionary(x => x.RoutePath, x => x, StringComparer.OrdinalIgnoreCase);
 
-                if (newControllers.Count > 0)
+                // 2. Separate incoming routes into new and existing
+                var newRoutes = new List<PermissionViews>();
+                var updatedRoutes = new List<PermissionViews>();
+
+                foreach (var route in dto.RoutesAvailable)
                 {
-                    await _db.tPermissionViews.AddRangeAsync(newControllers);
-                    await _db.SaveChangesAsync();
+                    if (existingPathMap.TryGetValue(route.path, out var existing))
+                    {
+                        // Update RouteName if it changed
+                        if (!string.Equals(existing.RouteName, route.RouteName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            existing.RouteName = route.RouteName;
+                            updatedRoutes.Add(existing);
+                        }
+                    }
+                    else
+                    {
+                        // New route — add it
+                        newRoutes.Add(new PermissionViews
+                        {
+                            RouteName = route.RouteName,
+                            RoutePath = route.path,
+                        });
+                    }
                 }
+
+                if (newRoutes.Count > 0)
+                    await _db.tPermissionViews.AddRangeAsync(newRoutes);
+
+                if (updatedRoutes.Count > 0)
+                    _db.tPermissionViews.UpdateRange(updatedRoutes);
+
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
 
                 return Ok(new
                 {
-                    Message = $"Sync complete! View route added: {newControllers.Count}",
+                    Message = $"Sync complete! Routes added: {newRoutes.Count}, updated: {updatedRoutes.Count}",
                     Title = "Sync Complete"
                 });
             }
@@ -614,14 +637,14 @@ namespace WebAPI.Controllers.Settings.UserManagement
 
                 var baseQuery = _db.vPermissions.AsNoTracking();
 
-                if (!string.IsNullOrEmpty(dto.Filters?.ModuleFunction))
-                    baseQuery = baseQuery.Where(e => e.ModuleFunction!.Contains(dto.Filters.ModuleFunction));
+                if (!string.IsNullOrEmpty(dto.Filters?.ControllerName))
+                    baseQuery = baseQuery.Where(e => e.ControllerName!.Contains(dto.Filters.ControllerName));
 
-                if (!string.IsNullOrEmpty(dto.Filters?.Description))
-                    baseQuery = baseQuery.Where(e => e.ModuleFunctionDescription!.Contains(dto.Filters.Description));
+                if (!string.IsNullOrEmpty(dto.Filters?.ActionName))
+                    baseQuery = baseQuery.Where(e => e.ActionName!.Contains(dto.Filters.ActionName));
 
-                if (!string.IsNullOrEmpty(dto.Filters?.PermissionGroupName))
-                    baseQuery = baseQuery.Where(e => e.Module!.Contains(dto.Filters.PermissionGroupName));
+                if (!string.IsNullOrEmpty(dto.Filters?.ControllerDescription))
+                    baseQuery = baseQuery.Where(e => e.ControllerDescription!.Contains(dto.Filters.ControllerDescription));
 
                 // Get total count of filtered results (before pagination)
                 var totalRecords = await baseQuery.CountAsync();
@@ -974,8 +997,6 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 if (!string.IsNullOrEmpty(dto.Filters?.GroupName))
                     baseQuery = _db.vUserGroups.AsNoTracking().Where(e => e.GroupName!.Contains(dto.Filters.GroupName));
 
-                if (dto.Filters?.PermissionActionIds != null && dto.Filters.PermissionActionIds.Length > 0)
-                    baseQuery = _db.vUserGroups.AsNoTracking().Where(e => e.PermissionActionIds!.Any(id => dto.Filters.PermissionActionIds.Contains(id)));
 
                 // Get total count of filtered results (before pagination)
                 var totalRecords = await baseQuery.CountAsync();
@@ -1038,62 +1059,20 @@ namespace WebAPI.Controllers.Settings.UserManagement
                         Title = "Group Already Exists"
                     });
                 }
-
-                // 3. Validate ActionIds exist in tPermissionActions
-                if (dto.ActionIds.Length > 0)
-                {
-                    var existingActionIds = await _db.tPermissionActions
-                        .Where(x => dto.ActionIds.Contains(x.Id))
-                        .Select(x => x.Id)
-                        .ToListAsync();
-
-                    var invalidActionIds = dto.ActionIds
-                        .Except(existingActionIds)
-                        .ToList();
-
-                    if (invalidActionIds.Count > 0)
-                    {
-                        return new BadRequestObjectResult(new
-                        {
-                            Message = $"The following Action IDs do not exist: {string.Join(", ", invalidActionIds)}. Please sync permissions and try again.",
-                            Title = "Invalid Action IDs"
-                        });
-                    }
-                }
-
-                // 4. Create new Group
-                var newGroup = new Groups
+                var NewGroup = new DBHelper.Models.Table.Groups
                 {
                     GroupName = dto.GroupName.Trim(),
-                    Description = dto.Description?.Trim(),
-                    CreatedBy = User.Identity?.Name ?? "System",
-                    CreatedDate = DateTime.UtcNow
+                    Description = dto.Description?.Trim()
                 };
 
-                await _db.tGroups.AddAsync(newGroup);
-                await _db.SaveChangesAsync(); // Save first to get the generated Group Id
-
-                // 5. Create GroupRoles linking the new Group to ActionIds
-                var newGroupRoles = new GroupRoles
-                {
-                    GroupId = newGroup.Id,
-                    ActionIds = dto.ActionIds,
-                    ViewIds = dto.ViewIds,
-                };
-
-                await _db.tGroupRoles.AddAsync(newGroupRoles);
+                await _db.tGroups.AddAsync(NewGroup);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
 
                 return Ok(new
                 {
-                    Message = $"User group '{newGroup.GroupName}' has been created successfully.",
-                    Title = "Group Created",
-                    Data = new
-                    {
-                        Group = newGroup,
-                        GroupRoles = newGroupRoles
-                    }
+                    Message = $"User group '{NewGroup.GroupName}' has been created successfully.",
+                    Title = "Group Created"
                 });
             }
             catch (Exception ex)
@@ -1164,17 +1143,40 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     }
                 }
 
-                // 5. Update Group details
+                // 5. Validate ViewIds exist in tPermissionViews
+                if (dto.PermissionViewIds.Length > 0)
+                {
+                    var existingViewIds = await _db.tPermissionViews
+                        .Where(x => dto.PermissionViewIds.Contains(x.Id))
+                        .Select(x => x.Id)
+                        .ToListAsync();
+
+                    var invalidViewIds = dto.PermissionViewIds
+                        .Except(existingViewIds)
+                        .ToList();
+
+                    if (invalidViewIds.Count > 0)
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            Message = $"The following View IDs do not exist: {string.Join(", ", invalidViewIds)}. Please sync permissions and try again.",
+                            Title = "Invalid View IDs"
+                        });
+                    }
+                }
+
+                // 6. Update Group details
                 getGroup.GroupName = dto.GroupName.Trim();
                 getGroup.Description = dto.Description?.Trim();
                 _db.tGroups.Update(getGroup);
 
-                // 6. Update GroupRoles — get existing GroupRoles for this Group
+                // 7. Update GroupRoles — get existing GroupRoles for this Group
                 var getGroupRoles = await _db.tGroupRoles.FirstOrDefaultAsync(x => x.GroupId == dto.Id);
                 if (getGroupRoles != null)
                 {
                     // Update existing GroupRoles
                     getGroupRoles.ActionIds = dto.PermissionActionIds;
+                    getGroupRoles.ViewIds = dto.PermissionViewIds;
                     _db.tGroupRoles.Update(getGroupRoles);
                 }
                 else

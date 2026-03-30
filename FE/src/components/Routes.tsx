@@ -22,32 +22,35 @@ import ProgramReports from '../pages/Reports/ProgramReports';
 import ProjectReports from '../pages/Reports/ProjectReports';
 import LumpSumList from '../pages/LumpSum/Views/LumpSumList';
 import LumpSumDetails from '../pages/LumpSum/Views/LumpSumDetails';
-
-const protectedRoutes: RouteObject[] = [
-  { path: '/dashboard', element: <Dashboard /> },
-  { path: '/user-management', element: <Rbac /> },
-  { path: '/infrastructure-management', element: <Rbia /> },
-  { path: '/programs', element: <Programs /> },
-  { path: '/programs/programdetails/:program', element: <ProgramDetail /> },
-  { path: '/projects', element: <Project /> },
-  { path: '/projects/add', element: <AddProject /> },
-  { path: '/projects/addproject', element: <AddProject /> },
-  { path: '/projects/project-details/:project', element: <EditProject /> },
-  { path: '/modification/list', element: <ModificationList /> },
-  { path: '/revision', element: <ModificationList /> },
-  { path: '/revision/view/:modificationType/:transactionId', element: <ViewRevision /> },
-  { path: '/revision/:modificationType/:project', element: <ModificationDetails /> },
-  { path: '/project-groups', element: <ProjectGroup /> },
-  { path: '/project-groups/:groupId', element: <ProjectGroupDetails /> },
-  { path: '/multiyear/programs', element: <MultiYear /> },
-  { path: '/multiyear/programs/:programId', element: <MultiYearDetails /> },
-  { path: '/multiyear/project-details/:project', element: <MYProjectDetails /> },
-  { path: '/reports/multiyear', element: <MultiYearReports /> },
-  { path: '/reports/programs', element: <ProgramReports /> },
-  { path: '/reports/projects', element: <ProjectReports /> },
-  { path: '/settings', element: <Settings /> },
-  { path: '/code-tables', element: <CodeTables /> },
-  { path: '/lumpsum', element: <LumpSumList /> },
-  { path: '/lumpsum/:projectId', element: <LumpSumDetails /> },
+// ✅ Extend RouteObject with a permission key
+export type AppRoute = RouteObject & {
+  RouteName?: string; // matches keys returned by your session/API
+};
+const protectedRoutes: AppRoute[] = [
+  { RouteName: 'Dashboard', path: '/dashboard', element: <Dashboard /> },
+  { RouteName: 'UserManagement', path: '/user-management', element: <Rbac /> },
+  { RouteName: 'InfraManagement', path: '/infrastructure-management', element: <Rbia /> },
+  { RouteName: 'ProgramList', path: '/programs', element: <Programs /> },
+  { RouteName: 'ProgramDetails', path: '/programs/programdetails/:program', element: <ProgramDetail /> },
+  { RouteName: 'ProjectList', path: '/projects', element: <Project /> },
+  { RouteName: 'AddProject', path: '/projects/add', element: <AddProject /> },
+  { RouteName: 'AddProject', path: '/projects/addproject', element: <AddProject /> },
+  { RouteName: 'ProjectDetails', path: '/projects/project-details/:project', element: <EditProject /> },
+  { RouteName: '', path: '/modification/list', element: <ModificationList /> },
+  { RouteName: 'RevisionList', path: '/revision', element: <ModificationList /> },
+  { RouteName: '', path: '/revision/view/:modificationType/:transactionId', element: <ViewRevision /> },
+  { RouteName: '', path: '/revision/:modificationType/:project', element: <ModificationDetails /> },
+  { RouteName: '', path: '/project-groups', element: <ProjectGroup /> },
+  { RouteName: '', path: '/project-groups/:groupId', element: <ProjectGroupDetails /> },
+  { RouteName: '', path: '/multiyear/programs', element: <MultiYear /> },
+  { RouteName: '', path: '/multiyear/programs/:programId', element: <MultiYearDetails /> },
+  { RouteName: '', path: '/multiyear/project-details/:project', element: <MYProjectDetails /> },
+  { RouteName: '', path: '/reports/multiyear', element: <MultiYearReports /> },
+  { RouteName: '', path: '/reports/programs', element: <ProgramReports /> },
+  { RouteName: '', path: '/reports/projects', element: <ProjectReports /> },
+  { RouteName: '', path: '/settings', element: <Settings /> },
+  { RouteName: '', path: '/code-tables', element: <CodeTables /> },
+  { RouteName: '', path: '/lumpsum', element: <LumpSumList /> },
+  { RouteName: '', path: '/lumpsum/:projectId', element: <LumpSumDetails /> },
 ];
 export default protectedRoutes;

@@ -12,6 +12,11 @@ namespace DBHelper.Models.Table
         [Key]
         public int Id { get; set; }
         [Required]
+        [MaxLength(50)]
+        public string ModuleName { get; set; } = string.Empty;
+        [MaxLength(50)]
+        public string? RouteName { get; set; }
+        [Required]
         [MaxLength(100)]
         public string RoutePath { get; set; } = string.Empty;
         [MaxLength(200)]
