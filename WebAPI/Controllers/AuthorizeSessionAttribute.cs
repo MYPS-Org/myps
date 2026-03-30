@@ -35,77 +35,82 @@ namespace WebAPI.Controllers
         public async Task OnAuthorizationAsync(AuthorizationFilterContext context)
         {
             // 1. Get DbContext from DI
-            var db = context.HttpContext.RequestServices
-                .GetService<AppDbContext>();
-
-            if (db == null)
+            bool hasAllowAnonymous = context.ActionDescriptor.EndpointMetadata
+                .Any(meta => meta is AllowAnonymousAttribute);
+            if (!hasAllowAnonymous)
             {
-                context.Result = new ObjectResult(new
+                var _db = context.HttpContext.RequestServices
+                    .GetService<AppDbContext>();
+
+                if (_db == null)
                 {
-                    Message = "Authorization service is unavailable.",
-                    Title = "Service Unavailable"
-                })
-                { StatusCode = 503 };
-                return;
-            }
+                    context.Result = new ObjectResult(new
+                    {
+                        Message = "Authorization service is unavailable.",
+                        Title = "Service Unavailable"
+                    })
+                    { StatusCode = 503 };
+                    return;
+                }
 
-            // 2. Get UserId from claims
-            var userId = context.HttpContext.User.Identity?.Name ?? "jimeneznr";
-            if (string.IsNullOrWhiteSpace(userId))
-            {
-                context.Result = new UnauthorizedObjectResult(new
+                // 2. Get UserId from claims
+                var userId = context.HttpContext.User.Identity?.Name ?? "jimeneznr";
+                if (string.IsNullOrWhiteSpace(userId))
                 {
-                    Message = "You must be logged in to access this resource.",
-                    Title = "Unauthorized"
-                });
-                return;
-            }
+                    context.Result = new UnauthorizedObjectResult(new
+                    {
+                        Message = "You must be logged in to access this resource.",
+                        Title = "Unauthorized"
+                    });
+                    return;
+                }
 
-            // 3. Resolve controller and action name
-            var controllerName = _controllerName
-                ?? context.RouteData.Values["controller"]?.ToString() + "Controller";
+                // 3. Resolve controller and action name
+                var controllerName = _controllerName
+                    ?? context.RouteData.Values["controller"]?.ToString() + "Controller";
 
-            var actionName = _actionName
-                ?? context.RouteData.Values["action"]?.ToString();
+                var actionName = _actionName
+                    ?? context.RouteData.Values["action"]?.ToString();
 
-            // 4. Check if user is active
-            var isActive = await db.vUserPermissions
-                .AnyAsync(x => x.UserId == userId && x.IsActive);
+                // 4. Check if user is active
+                var isActive = await _db.vUserActionPermission
+                    .AnyAsync(x => x.UserId == userId && x.IsActive);
 
-            if (!isActive)
-            {
-
-                var responseObj = new
+                if (!isActive)
                 {
-                    Message = "Your account is inactive. Please contact your administrator.",
-                    Title = "Access Denied",
-                    data = new { Authenticated = false },
-                    user = new { }
-                };
-                context.Result = new UnauthorizedObjectResult(responseObj);
-                return;
-            }
 
-            // 5. Check if user has permission for this controller and action
-            var hasPermission = await db.vUserPermissions
-                .AnyAsync(x =>
-                    x.UserId == userId &&
-                    x.IsActive &&
-                    x.PermissionController == controllerName &&
-                    x.PermissionAction == actionName
-                );
+                    var responseObj = new
+                    {
+                        Message = "Your account is inactive. Please contact your administrator.",
+                        Title = "Access Denied",
+                        data = new { Authenticated = false },
+                        user = new { }
+                    };
+                    context.Result = new UnauthorizedObjectResult(responseObj);
+                    return;
+                }
 
-            if (!hasPermission)
-            {
-                var responseObj = new
+                // 5. Check if user has permission for this controller and action
+                var hasPermission = await _db.vUserActionPermission
+                    .AnyAsync(x =>
+                        x.UserId == userId &&
+                        x.IsActive &&
+                        x.PermissionController == controllerName &&
+                        x.PermissionAction == actionName
+                    );
+
+                if (!hasPermission)
                 {
-                    Message = $"You do not have permission to perform '{actionName}' on '{controllerName}'.",
-                    Title = "Access Denied",
-                    data = new { Authenticated = false },
-                    user = new { }
-                };
-                context.Result = new UnauthorizedObjectResult(responseObj);
-                return;
+                    var responseObj = new
+                    {
+                        Message = $"You do not have permission to perform '{actionName}' on '{controllerName}'.",
+                        Title = "Access Denied",
+                        data = new { Authenticated = false },
+                        user = new { }
+                    };
+                    context.Result = new UnauthorizedObjectResult(responseObj);
+                    return;
+                }
             }
         }
     }

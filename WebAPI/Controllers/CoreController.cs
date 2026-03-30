@@ -51,7 +51,7 @@ namespace WebAPI.Controllers
                         context.Result = new BadRequestObjectResult(response);
                     }
                 }
-                var controllerActionDescriptor = context.ActionDescriptor as ControllerActionDescriptor;
+                //var controllerActionDescriptor = context.ActionDescriptor as ControllerActionDescriptor;
                 bool hasAllowAnonymous = context.ActionDescriptor.EndpointMetadata
                     .Any(meta => meta is AllowAnonymousAttribute);
 

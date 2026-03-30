@@ -17,6 +17,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
         public string? GroupName { get; set; }
         public string? Description { get; set; }
         public int[] ActionIds { get; set; } = Array.Empty<int>();
+        public int[] ViewIds { get; set; } = Array.Empty<int>();
     }
     public class UpdateUserGroupDTO : DBHelper.Models.Views.UserGroups { }
 }
