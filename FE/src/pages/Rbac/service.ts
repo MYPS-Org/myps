@@ -187,7 +187,7 @@ export const getRoutePermissions = async (data: RoutePermissionPagination) => {
 
 export const callSyncPermissions = async () => {
 	try {
-		const response = await httpClient.post('/UserManagement/SyncPermissions');
+		const response = await httpClient.post('/UserManagement/SyncAPIPermissions');
 		return response;
 	} catch (error) {
 		console.error('Error syncing permissions:', error);

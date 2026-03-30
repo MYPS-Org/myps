@@ -37,12 +37,14 @@ import {
 	PaginationPrevious,
 	PaginationPage,
  } from '../../components/tailwindui/pagination';
+import { CogIcon } from '@heroicons/react/24/outline';
 // import { all } from 'axios';
 // import type { ErrorResponse } from '../../services/httpClient';
 
+type DefaultModelKey = 'users' | 'permissions' | 'userGroups' | 'routePermissions' | 'modules';
 
 const Rbac: React.FC = () => {
-	const [selectedTab, setSelectedTab] = useState<'users' | 'permissions' | 'userGroups' | 'routePermissions'>('users');
+	const [selectedTab, setSelectedTab] = useState<DefaultModelKey>('users');
 
 	const [UsersData, setUsersData] = useState<PaginationResponse<Users>>({
 		lists: [],
@@ -494,7 +496,7 @@ const Rbac: React.FC = () => {
 	// #endregion
 
 	// #region Function to handle dialog open/close
-	const getTableData = async (tabName: 'users' | 'permissions' | 'userGroups' | 'routePermissions') => {
+	const getTableData = async (tabName: DefaultModelKey) => {
 		console.log('Switching to tab:', tabName);
 		setSelectedTab(tabName);
 		
@@ -711,7 +713,7 @@ const Rbac: React.FC = () => {
 		count,
 	}: { 
 		label: string; 
-		value: 'users' | 'permissions' | 'userGroups' | 'routePermissions'; 
+		value: DefaultModelKey | 'modules'; 
 		icon: React.ComponentType<{ className?: string }>; 
 		count: number;
 	}) => (
@@ -751,6 +753,12 @@ const Rbac: React.FC = () => {
 			{/* Tab Navigation */}
 			<div className="flex space-x-2 p-1 bg-white shadow-md rounded-lg">
 				<TabButton 
+					label="App Modules" 
+					value="modules" 
+					icon={CogIcon} 
+					count={tabNumbers.permissions} 
+				/>
+				<TabButton 
 					label="API Permissions" 
 					value="permissions" 
 					icon={KeyIcon} 
@@ -778,6 +786,171 @@ const Rbac: React.FC = () => {
 			</div>
 			{/* Content Area */}
 			<div className="bg-white rounded-lg shadow-sm border border-gray-200">
+				{/* Permissions Table */}
+				{selectedTab === 'modules' && (
+					<div className="overflow-hidden">
+						<div className="px-6 py-4 border-b border-gray-200">
+							<div className="flex items-center justify-between">
+								<h3 className="text-lg font-medium text-gray-900">Permissions</h3>
+								<div className="flex items-center space-x-3">
+									{(PermissionFilter.filters?.ModuleFunction || PermissionFilter.filters?.ModuleFunctionDescription || PermissionFilter.filters?.Module) && (
+										<Button color="red" onClick={handleClear}>
+											Clear Filter
+										</Button>
+									)}
+									<Button 
+										color="white" 
+										className={`shadow-md ${(PermissionFilter.filters?.ModuleFunction || PermissionFilter.filters?.ModuleFunctionDescription || PermissionFilter.filters?.Module) ? 'ring-2 ring-orange-500 bg-orange-50' : ''}`}
+										onClick={() => setIsPermissionFilterDialogOpen(true)}
+									>
+										<AdjustmentsHorizontalIcon className="w-4 h-4 mr-1" />
+										Filter
+										{(() => {
+											const activeFilters = [
+												PermissionFilter.filters?.Module,
+												PermissionFilter.filters?.ModuleFunction,
+												PermissionFilter.filters?.ModuleFunctionDescription
+											].filter(Boolean).length;
+											
+											return activeFilters > 0 && (
+												<span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
+													{activeFilters}
+												</span>
+											);
+										})()}
+									</Button>
+									<Button color="blue" onClick={syncPermissions} disabled={isSyncingPermissions}>
+										<ArrowPathIcon className={`w-4 h-4 mr-1 ${isSyncingPermissions ? 'animate-spin' : ''}`} />
+										{isSyncingPermissions ? 'Syncing...' : 'Sync Permissions'}
+									</Button>
+								</div>
+							</div>
+						</div>
+						
+						<Table className='px-5'>
+							<TableHead>
+								<TableRow>
+									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(1, direction)} className="text-gray-500">Controller Name</TableHeader>
+									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(2, direction)} className="text-gray-500">Action Name</TableHeader>
+									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(3, direction)} className="text-gray-500">Description</TableHeader>
+									<TableHeader className="text-gray-500">Actions</TableHeader>
+								</TableRow>
+							</TableHead>
+							<TableBody>
+								{PermissionsData.lists.map((permission, index) => (
+									<TableRow key={permission.Id} className={`hover:bg-gray-50 ${
+										index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+									}`}>
+										{/* <TableCell>
+											<div className="font-medium text-gray-900">
+												{permission.Id}
+											</div>
+										</TableCell> */}
+										<TableCell>
+											<div className="font-medium text-gray-900">
+												{permission.ControllerName}
+											</div>
+										</TableCell>
+										<TableCell>
+											<div className="font-medium text-gray-900">
+												{permission.ActionName}
+											</div>
+										</TableCell>
+										<TableCell>
+											<div className="text-gray-500">
+												{permission.ModuleFunctionDescription ?? '—'}
+											</div>
+										</TableCell>
+										<TableCell>
+											<div className="flex items-center space-x-2">
+												<Button color="yellow" className="p-2"
+												onClick={() => {
+													setIsUpdatePermissionDialogOpen(true);
+													setSelectedPermissionId(permission.Id);
+												}}>
+													<PencilIcon className="w-4 h-4" />
+												</Button>
+												<Button color="red" className="p-2"
+												onClick={() => {
+													setIsDeletePermissionDialogOpen(true);
+													setSelectedPermissionId(permission.Id);
+												}}>
+													<TrashIcon className="w-4 h-4" />
+												</Button>
+											</div>
+										</TableCell>
+									</TableRow>
+								))}
+							</TableBody>
+						</Table>
+						<Pagination className="my-6">
+							{
+								PermissionsData.totalPages > 1 && (
+									<>
+										<PaginationPrevious 
+											onClick={async () => {
+												Paginate(1);
+											}}
+											disabled={PermissionsData.page <= 1}
+										>
+											First
+										</PaginationPrevious>
+										<PaginationList>
+											{Array.from({ length: Math.min(7, PermissionsData.totalPages) }, (_, index) => {
+												const pageNum = Math.max(1, PermissionsData.page - 3) + index;
+												if (pageNum > PermissionsData.totalPages) return null;
+												
+												if (pageNum === PermissionsData.page) {
+													return (
+														<PaginationPage
+															key={pageNum}
+															current
+														>
+															{pageNum}
+														</PaginationPage>
+													);
+												} else {
+													return (
+														<PaginationPage
+															key={pageNum}
+															onClick={() => {
+																Paginate(pageNum);
+															}}
+														>
+															{pageNum}
+														</PaginationPage>
+													);
+												}
+											})}
+										</PaginationList>
+										<PaginationNext 
+											onClick={async () => {
+												Paginate(PermissionsData.totalPages);
+											}}
+											disabled={PermissionsData.page >= PermissionsData.totalPages}
+										>
+											Last
+										</PaginationNext>
+									</>
+								)
+							}
+						</Pagination>
+						<div className='mb-3.5 text-center'>
+							{
+								PermissionsData.lists.length > 0 ? (
+									<p className="text-sm text-gray-500">
+										Showing {PermissionsData.limit * (PermissionsData.page - 1) + 1} to {Math.min(PermissionsData.limit * PermissionsData.page, PermissionsData.total)} of {PermissionsData.total} permissions
+									</p>
+								) : (
+									<p className="text-sm text-gray-500">
+										No permissions found
+									</p>
+								)
+							}
+						</div>
+					</div>
+				)}
+
 				{/* Users Table */}
 				{selectedTab === 'users' && (
 					<div className="overflow-hidden">
@@ -1020,8 +1193,8 @@ const Rbac: React.FC = () => {
 						<Table className='px-5'>
 							<TableHead>
 								<TableRow>
-									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(1, direction)} className="text-gray-500">Module</TableHeader>
-									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(2, direction)} className="text-gray-500">Module Function</TableHeader>
+									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(1, direction)} className="text-gray-500">Controller Name</TableHeader>
+									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(2, direction)} className="text-gray-500">Action Name</TableHeader>
 									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(3, direction)} className="text-gray-500">Description</TableHeader>
 									<TableHeader className="text-gray-500">Actions</TableHeader>
 								</TableRow>
@@ -1038,12 +1211,12 @@ const Rbac: React.FC = () => {
 										</TableCell> */}
 										<TableCell>
 											<div className="font-medium text-gray-900">
-												{permission.Module}
+												{permission.ControllerName}
 											</div>
 										</TableCell>
 										<TableCell>
 											<div className="font-medium text-gray-900">
-												{permission.ModuleFunction}
+												{permission.ActionName}
 											</div>
 										</TableCell>
 										<TableCell>
