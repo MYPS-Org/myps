@@ -3,23 +3,24 @@ import React, { useEffect, useState } from 'react';
 
 import { Heading } from '../../components/tailwindui/heading';
 import {
+  ArrowPathIcon,
   PlusIcon,
   PencilIcon,
   TrashIcon,
 //   EyeIcon,
   AdjustmentsHorizontalIcon,
 } from '@heroicons/react/16/solid'
-import { UsersIcon, KeyIcon, UserGroupIcon, AdjustmentsVerticalIcon } from '@heroicons/react/20/solid'
+import { UsersIcon, KeyIcon, UserGroupIcon, AdjustmentsVerticalIcon, GlobeAltIcon } from '@heroicons/react/20/solid'
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/tailwindui/table'
 import { Button } from '../../components/tailwindui/button'
 import { Badge } from '../../components/tailwindui/badge'
 
 // Interfaces
-import type { Users, Permissions, PermissionPagination, UserPagination, UserGroupPagination, UserGroups, vUserGroups} from './Model.d';
+import type { Users, Permissions, PermissionPagination, UserPagination, UserGroupPagination, vUserGroups, PermissionViews, RoutePermissionPagination} from './Model.d';
 
 // Services
-import { fetchInitialData, fetchPermissions, fetchUsers, fetchUserGroups, fetchUserGroupDropdowns } from './service';
+import { fetchInitialData, fetchPermissions, fetchUsers, fetchUserGroups, fetchUserGroupDropdowns, getRoutePermissions, callSyncPermissions } from './service';
 
 // Dialog imports
 import { AddUserDialog, AddPermissionDialog, AddGroupDialog, ViewUserDialog, UpdateUserDialog, DeleteUserDialog, 
@@ -41,7 +42,7 @@ import {
 
 
 const Rbac: React.FC = () => {
-	const [selectedTab, setSelectedTab] = useState<'users' | 'permissions' | 'userGroups' | 'userRoles'>('users');
+	const [selectedTab, setSelectedTab] = useState<'users' | 'permissions' | 'userGroups' | 'routePermissions'>('users');
 
 	const [UsersData, setUsersData] = useState<PaginationResponse<Users>>({
 		lists: [],
@@ -60,6 +61,14 @@ const Rbac: React.FC = () => {
 	});
 
 	const [UserGroupsData, setUserGroups] = useState<PaginationResponse<vUserGroups>>({
+		lists: [],
+		page: 1,
+		limit: 20,
+		total: 0,
+		totalPages: 0
+	});
+
+	const [RoutePermissionsData, setRoutePermissionsData] = useState<PaginationResponse<PermissionViews>>({
 		lists: [],
 		page: 1,
 		limit: 20,
@@ -121,8 +130,19 @@ const Rbac: React.FC = () => {
 	//Permission Filter
 	const [PermissionFilter, setPermissionFilter] = useState<PermissionPagination>({
 		filters: {
-			PermissionGroupName: '',
+			Module: '',
 			ModuleFunction: '',
+			ModuleFunctionDescription: '',
+		},
+		sortField: '',
+		sortDirection: 1,
+		page: 1,
+		limit: 20
+	});
+	//Route Permission Filter
+	const [RoutePermissionFilter, setRoutePermissionFilter] = useState<RoutePermissionPagination>({
+		filters: {
+			RoutePath: '',
 			Description: '',
 		},
 		sortField: '',
@@ -133,10 +153,13 @@ const Rbac: React.FC = () => {
 	const [isLoadingPermissions, setIsLoadingPermissions] = useState(false);
 	const [isLoadingUserGroups, setIsLoadingUserGroups] = useState(false);
 	const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+	const [isLoadingRoutePermissions, setIsLoadingRoutePermissions] = useState(false);
+	const [isSyncingPermissions, setIsSyncingPermissions] = useState(false);
 	const [tabNumbers, setTabNumbers] = useState({
 		users: 0,
 		permissions: 0,
-		userGroups: 0
+		userGroups: 0,
+		routePermissions: 0
 	});
 
 	const handleClear = () => {
@@ -162,9 +185,9 @@ const Rbac: React.FC = () => {
 				...PermissionFilter,
 				filters: {
 					...PermissionFilter.filters,
+					Module: '',
 					ModuleFunction: '',
-					Description: '',
-					PermissionGroupName: ''
+					ModuleFunctionDescription: ''
 				}
 			};
 			setPermissionFilter(newFilter);
@@ -192,8 +215,35 @@ const Rbac: React.FC = () => {
 				console.error("Error fetching user groups:", error);
 			}
 		}
+		if (selectedTab === 'routePermissions') {
+			const newFilter: RoutePermissionPagination = {
+				...RoutePermissionFilter,
+				filters: {
+					RoutePath: '',
+					Description: ''
+				}
+			};
+			setRoutePermissionFilter(newFilter);
+			try {
+				handleAutoRefresh(newFilter);
+			} catch (error) {
+				console.error("Error fetching route permissions:", error);
+			}
+		}
 	}
 
+	const syncPermissions = async () => {
+		try {
+			setIsSyncingPermissions(true);
+			await callSyncPermissions();
+			await handleAutoRefresh(PermissionFilter);
+		} catch (error) {
+			console.error('Error syncing permissions:', error);
+		} finally {
+			setIsSyncingPermissions(false);
+		}
+	}
+	
 
 	// Store all permissions for lookup
 	// const [allPermissions, setAllPermissions] = useState<Permissions[]>([]);
@@ -233,7 +283,8 @@ const Rbac: React.FC = () => {
 				setTabNumbers({
 					users: initialData.Data.NumberOfUsers || 0,
 					permissions: initialData.Data.NumberOfPermissions || 0,
-					userGroups: initialData.Data.NumberOfGroups || 0
+					userGroups: initialData.Data.NumberOfGroups || 0,
+					routePermissions: 0
 				});
 
 				if (initialData.Data.Users) {
@@ -322,7 +373,7 @@ const Rbac: React.FC = () => {
 			// Create new filter with updated sort
 			const newFilter: PermissionPagination = {
 				...PermissionFilter,
-				sortField: field === 0 ? 'Id' : field === 1 ? 'ModuleFunction' : field === 2 ? 'Description' : field === 3 ? 'CreatedBy' : field === 4 ? 'CreatedDate' : '',
+				sortField: field === 0 ? 'Id' : field === 1 ? 'Module' : field === 2 ? 'ModuleFunction' : field === 3 ? 'ModuleFunctionDescription' : '',
 				sortDirection: (direction || 0) as 0 | 1,
 				page: 1 // Reset to first page when sorting
 			};
@@ -339,14 +390,31 @@ const Rbac: React.FC = () => {
 				if(res.Data.lists) {
 					console.log('Setting permissions data:', res);
 					setPermissionsData(res.Data);
-					// Update the all permissions lookup for UserGroups display
-					// setAllPermissions(res.Data.lists);
 				}
 			} catch (error) {
 				console.error('Error fetching permissions:', error);
 				alert('Failed to fetch permissions: ' + (error instanceof Error ? error.message : 'Unknown error'));
 			} finally {
 				setIsLoadingPermissions(false);
+			}
+		} else if (selectedTab === 'routePermissions') {
+			const newFilter: RoutePermissionPagination = {
+				...RoutePermissionFilter,
+				sortField: field === 0 ? 'Id' : field === 1 ? 'RoutePath' : field === 2 ? 'Description' : '',
+				sortDirection: (direction || 0) as 0 | 1,
+				page: 1
+			};
+			setRoutePermissionFilter(newFilter);
+			try {
+				setIsLoadingRoutePermissions(true);
+				const res = await getRoutePermissions(newFilter);
+				if(res.Data.lists) {
+					setRoutePermissionsData(res.Data);
+				}
+			} catch (error) {
+				console.error('Error fetching route permissions:', error);
+			} finally {
+				setIsLoadingRoutePermissions(false);
 			}
 		}
 	};
@@ -377,7 +445,7 @@ const Rbac: React.FC = () => {
 	// #endregion
 
 	// #region Function to handle auto-refresh after dialog submissions
-	const handleAutoRefresh = async (filterData: UserPagination | PermissionPagination | UserGroupPagination) => {
+	const handleAutoRefresh = async (filterData: UserPagination | PermissionPagination | UserGroupPagination | RoutePermissionPagination) => {
 		try {
 			if (selectedTab === 'users') {
 				setIsLoadingUsers(true);
@@ -403,6 +471,12 @@ const Rbac: React.FC = () => {
 					console.log('Setting updated userGroups data:', res);
 					setUserGroups(res.Data);
 				}
+			} else if (selectedTab === 'routePermissions') {
+				setIsLoadingRoutePermissions(true);
+				const res = await getRoutePermissions(filterData as RoutePermissionPagination);
+				if (res.Data.lists) {
+					setRoutePermissionsData(res.Data);
+				}
 			}
 		} catch (error) {
 			console.error(`Error auto-refreshing ${selectedTab}:`, error);
@@ -413,12 +487,13 @@ const Rbac: React.FC = () => {
 			if (selectedTab === 'users') setIsLoadingUsers(false);
 			else if (selectedTab === 'permissions') setIsLoadingPermissions(false);
 			else if (selectedTab === 'userGroups') setIsLoadingUserGroups(false);
+			else if (selectedTab === 'routePermissions') setIsLoadingRoutePermissions(false);
 		}
 	};
 	// #endregion
 
 	// #region Function to handle dialog open/close
-	const getTableData = async (tabName: 'users' | 'permissions' | 'userGroups' | 'userRoles') => {
+	const getTableData = async (tabName: 'users' | 'permissions' | 'userGroups' | 'routePermissions') => {
 		console.log('Switching to tab:', tabName);
 		setSelectedTab(tabName);
 		
@@ -497,6 +572,27 @@ const Rbac: React.FC = () => {
 				alert('Failed to fetch userGroups: ' + (error instanceof Error ? error.message : 'Unknown error'));
 			} finally {
 				setIsLoadingUserGroups(false);
+			}
+		}
+		else if (tabName == 'routePermissions') {
+			if (isLoadingRoutePermissions) {
+				console.log('Already loading route permissions, skipping request');
+				return;
+			}
+			try {
+				setIsLoadingRoutePermissions(true);
+				console.log('Fetching route permissions with current filter:', RoutePermissionFilter);
+				const res = await getRoutePermissions(RoutePermissionFilter);
+				console.log('RoutePermissions response:', res);
+				if(res.Data.lists) {
+					setRoutePermissionsData(res.Data);
+					setTabNumbers(prev => ({ ...prev, routePermissions: res.Data.total }));
+				}
+			} catch (error) {
+				console.error('Error fetching route permissions:', error);
+				alert('Failed to fetch route permissions: ' + (error instanceof Error ? error.message : 'Unknown error'));
+			} finally {
+				setIsLoadingRoutePermissions(false);
 			}
 		}
 	}
@@ -587,18 +683,32 @@ const Rbac: React.FC = () => {
 				setIsLoadingUserGroups(false);
 			}
 		}
+		else if (selectedTab == 'routePermissions') {
+			const newFilter: RoutePermissionPagination = {
+				...RoutePermissionFilter,
+				page: page
+			};
+			setRoutePermissionFilter(newFilter);
+			try {
+				setIsLoadingRoutePermissions(true);
+				const res = await getRoutePermissions(newFilter);
+				if(res.Data.lists) {
+					setRoutePermissionsData(res.Data);
+				}
+			} catch (error) {
+				console.error('Error fetching route permissions:', error);
+				alert('Failed to fetch route permissions: ' + (error instanceof Error ? error.message : 'Unknown error'));
+			} finally {
+				setIsLoadingRoutePermissions(false);
+			}
+		}
 	}
-	// #endregion
-	
-	// #region Render Tab Button
-	const TabButton = ({ 
-		label, 
-		value, 
+	const TabButton = ({ label, value,
 		icon: Icon, 
 		count,
 	}: { 
 		label: string; 
-		value: 'users' | 'permissions' | 'userGroups'; 
+		value: 'users' | 'permissions' | 'userGroups' | 'routePermissions'; 
 		icon: React.ComponentType<{ className?: string }>; 
 		count: number;
 	}) => (
@@ -638,16 +748,22 @@ const Rbac: React.FC = () => {
 			{/* Tab Navigation */}
 			<div className="flex space-x-2 p-1 bg-white shadow-md rounded-lg">
 				<TabButton 
-					label="Users" 
-					value="users" 
-					icon={UsersIcon} 
-					count={tabNumbers.users} 
-				/>
-				<TabButton 
 					label="Permissions" 
 					value="permissions" 
 					icon={KeyIcon} 
 					count={tabNumbers.permissions} 
+				/>
+				<TabButton 
+					label="Route Permissions" 
+					value="routePermissions" 
+					icon={GlobeAltIcon} 
+					count={tabNumbers.routePermissions} 
+				/>
+				<TabButton 
+					label="Users" 
+					value="users" 
+					icon={UsersIcon} 
+					count={tabNumbers.users} 
 				/>
 				<TabButton 
 					label="User Groups" 
@@ -655,6 +771,7 @@ const Rbac: React.FC = () => {
 					icon={UserGroupIcon} 
 					count={tabNumbers.userGroups} 
 				/>
+				
 			</div>
 			{/* Content Area */}
 			<div className="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -863,23 +980,23 @@ const Rbac: React.FC = () => {
 							<div className="flex items-center justify-between">
 								<h3 className="text-lg font-medium text-gray-900">Permissions</h3>
 								<div className="flex items-center space-x-3">
-									{(PermissionFilter.filters?.ModuleFunction || PermissionFilter.filters?.Description || PermissionFilter.filters?.PermissionGroupName) && (
+									{(PermissionFilter.filters?.ModuleFunction || PermissionFilter.filters?.ModuleFunctionDescription || PermissionFilter.filters?.Module) && (
 										<Button color="red" onClick={handleClear}>
 											Clear Filter
 										</Button>
 									)}
 									<Button 
 										color="white" 
-										className={`shadow-md ${(PermissionFilter.filters?.ModuleFunction || PermissionFilter.filters?.Description || PermissionFilter.filters?.PermissionGroupName) ? 'ring-2 ring-orange-500 bg-orange-50' : ''}`}
+										className={`shadow-md ${(PermissionFilter.filters?.ModuleFunction || PermissionFilter.filters?.ModuleFunctionDescription || PermissionFilter.filters?.Module) ? 'ring-2 ring-orange-500 bg-orange-50' : ''}`}
 										onClick={() => setIsPermissionFilterDialogOpen(true)}
 									>
 										<AdjustmentsHorizontalIcon className="w-4 h-4 mr-1" />
 										Filter
 										{(() => {
 											const activeFilters = [
+												PermissionFilter.filters?.Module,
 												PermissionFilter.filters?.ModuleFunction,
-												PermissionFilter.filters?.Description,
-												PermissionFilter.filters?.PermissionGroupName
+												PermissionFilter.filters?.ModuleFunctionDescription
 											].filter(Boolean).length;
 											
 											return activeFilters > 0 && (
@@ -889,9 +1006,9 @@ const Rbac: React.FC = () => {
 											);
 										})()}
 									</Button>
-									<Button color="blue" onClick={() => setIsAddPermissionDialogOpen(true)}>
-										<PlusIcon className="w-4 h-4 mr-1" />
-										Add Permission
+									<Button color="blue" onClick={syncPermissions} disabled={isSyncingPermissions}>
+										<ArrowPathIcon className={`w-4 h-4 mr-1 ${isSyncingPermissions ? 'animate-spin' : ''}`} />
+										{isSyncingPermissions ? 'Syncing...' : 'Sync Permissions'}
 									</Button>
 								</div>
 							</div>
@@ -900,11 +1017,9 @@ const Rbac: React.FC = () => {
 						<Table className='px-5'>
 							<TableHead>
 								<TableRow>
-									{/* <TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(0, direction)} className="text-gray-500">ID</TableHeader> */}
-									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(1, direction)} className="text-gray-500">Module Function</TableHeader>
-									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(2, direction)} className="text-gray-500">Description</TableHeader>
-									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(3, direction)} className="text-gray-500">Permission Group</TableHeader>
-									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(4, direction)} className="text-gray-500">Created At</TableHeader>
+									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(1, direction)} className="text-gray-500">Module</TableHeader>
+									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(2, direction)} className="text-gray-500">Module Function</TableHeader>
+									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(3, direction)} className="text-gray-500">Description</TableHeader>
 									<TableHeader className="text-gray-500">Actions</TableHeader>
 								</TableRow>
 							</TableHead>
@@ -920,24 +1035,18 @@ const Rbac: React.FC = () => {
 										</TableCell> */}
 										<TableCell>
 											<div className="font-medium text-gray-900">
+												{permission.Module}
+											</div>
+										</TableCell>
+										<TableCell>
+											<div className="font-medium text-gray-900">
 												{permission.ModuleFunction}
 											</div>
 										</TableCell>
 										<TableCell>
-											<div className="text-gray-900">
-												{permission.Description}
+											<div className="text-gray-500">
+												{permission.ModuleFunctionDescription ?? '—'}
 											</div>
-										</TableCell>
-										<TableCell>
-											{permission.PermissionGroupName}
-											{/* <Badge color="zinc">{permission.CreatedBy}</Badge> */}
-										</TableCell>
-										<TableCell className="text-gray-900">
-											{new Date(permission.CreatedDate).toLocaleDateString('en-US', {
-												year: 'numeric',
-												month: 'numeric',
-												day: 'numeric'
-											})}
 										</TableCell>
 										<TableCell>
 											<div className="flex items-center space-x-2">
@@ -1108,62 +1217,35 @@ const Rbac: React.FC = () => {
 										<TableCell>
 											<div className="flex flex-wrap gap-1">
 												{(() => {
-													const isExpanded = expandedUserGroups.has(group.Id);
-													// Use PermissionNames for display (more readable than IDs)
-													if (group.PermissionNames && group.PermissionNames.length > 0) {
-														const permissionNames = group.PermissionNames.split(',').map(name => name.trim()).filter(name => name.length > 0);
-														const visiblePermissions = isExpanded ? permissionNames : permissionNames.slice(0, 2);
-														
-														return (
-															<>
-																{visiblePermissions.map((permissionName: string, index: number) => (
-																	<Badge key={index} color="blue" className="text-xs">
-																		{permissionName}
-																	</Badge>
-																))}
-																{permissionNames.length > 2 && (
-																	<Badge 
-																		color={isExpanded ? "red" : "green"} 
-																		className="text-xs cursor-pointer hover:opacity-75 transition-opacity"
-																		onClick={(e) => handleExpand(e, group.Id)}
-																	>
-																		{isExpanded ? 'Show less' : `+${permissionNames.length - 2} more`}
-																	</Badge>
-																)}
-															</>
-														);
-													}
-													// Fallback: try PermissionIds if PermissionNames doesn't work
-													else if (group.PermissionIds && group.PermissionIds.length > 0) {
-														const permissionIds = group.PermissionIds.split(',').map(id => id.trim()).filter(id => id.length > 0);
-														const visiblePermissions = isExpanded ? permissionIds : permissionIds.slice(0, 2);
-														
-														return (
-															<>
-																{visiblePermissions.map((permissionId: string, index: number) => (
-																	<Badge key={index} color="zinc" className="text-xs">
-																		ID: {permissionId}
-																	</Badge>
-																))}
-																{permissionIds.length > 2 && (
-																	<Badge 
-																		color={isExpanded ? "red" : "green"} 
-																		className="text-xs cursor-pointer hover:opacity-75 transition-opacity"
-																		onClick={(e) => handleExpand(e, group.Id)}
-																	>
-																		{isExpanded ? 'Show less' : `+${permissionIds.length - 2} more`}
-																	</Badge>
-																)}
-															</>
-														);
-													} else {
-														return (
-															<Badge color="zinc" className="text-xs">
-																No permissions
-															</Badge>
-														);
-													}
-												})()}
+																const isExpanded = expandedUserGroups.has(group.Id);
+																const permIds = group.PermissionViewIds || [];
+																const visiblePerms = isExpanded ? permIds : permIds.slice(0, 2);
+																if (permIds.length === 0) {
+																	return (
+																		<Badge color="zinc" className="text-xs">
+																			No permissions
+																		</Badge>
+																	);
+																}
+																return (
+																	<>
+																		{visiblePerms.map((id: number, index: number) => (
+																			<Badge key={index} color="blue" className="text-xs">
+																				ID: {id}
+																			</Badge>
+																		))}
+																		{permIds.length > 2 && (
+																			<Badge
+																				color={isExpanded ? "red" : "green"}
+																				className="text-xs cursor-pointer hover:opacity-75 transition-opacity"
+																				onClick={(e) => handleExpand(e, group.Id)}
+																			>
+																				{isExpanded ? 'Show less' : `+${permIds.length - 2} more`}
+																			</Badge>
+																		)}
+																	</>
+																);
+															})()}
 											</div>
 										</TableCell>
 										<TableCell className="text-gray-500 max-w-xs truncate">
@@ -1271,6 +1353,95 @@ const Rbac: React.FC = () => {
 							}
 						</div>
 						{/* #endregion */}
+					</div>
+				)}
+
+				{/* Route Permissions Table */}
+				{selectedTab === 'routePermissions' && (
+					<div className="overflow-hidden">
+						<div className="px-6 py-4 border-b border-gray-200">
+							<div className="flex items-center justify-between">
+								<h3 className="text-lg font-medium text-gray-900">Route Permissions</h3>
+								<div className="flex items-center space-x-3">
+									{(RoutePermissionFilter.filters?.RoutePath || RoutePermissionFilter.filters?.Description) && (
+										<Button color="red" onClick={handleClear}>
+											Clear Filter
+										</Button>
+									)}
+								</div>
+							</div>
+						</div>
+
+						<Table className='px-5'>
+							<TableHead>
+								<TableRow>
+									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(1, direction)} className="text-gray-500">Route Path</TableHeader>
+									<TableHeader sortable sortDirection={sortDirection} onSort={(direction) => handleSort(2, direction)} className="text-gray-500">Description</TableHeader>
+								</TableRow>
+							</TableHead>
+							<TableBody>
+								{RoutePermissionsData.lists.map((route, index) => (
+									<TableRow key={route.Id} className={`hover:bg-gray-50 ${
+										index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+									}`}>
+										<TableCell>
+											<div className="font-medium text-gray-900">
+												{route.RoutePath}
+											</div>
+										</TableCell>
+										<TableCell>
+											<div className="text-gray-500">
+												{route.Description ?? '—'}
+											</div>
+										</TableCell>
+									</TableRow>
+								))}
+							</TableBody>
+						</Table>
+						<Pagination className="my-6">
+							{
+								RoutePermissionsData.totalPages > 1 && (
+									<>
+										<PaginationPrevious
+											onClick={async () => { Paginate(1); }}
+											disabled={RoutePermissionsData.page <= 1}
+										>
+											First
+										</PaginationPrevious>
+										<PaginationList>
+											{Array.from({ length: Math.min(7, RoutePermissionsData.totalPages) }, (_, i) => {
+												const pageNum = Math.max(1, RoutePermissionsData.page - 3) + i;
+												if (pageNum > RoutePermissionsData.totalPages) return null;
+												if (pageNum === RoutePermissionsData.page) {
+													return (<PaginationPage key={pageNum} current>{pageNum}</PaginationPage>);
+												} else {
+													return (<PaginationPage key={pageNum} onClick={() => { Paginate(pageNum); }}>{pageNum}</PaginationPage>);
+												}
+											})}
+										</PaginationList>
+										<PaginationNext
+											onClick={async () => { Paginate(RoutePermissionsData.totalPages); }}
+											disabled={RoutePermissionsData.page >= RoutePermissionsData.totalPages}
+										>
+											Last
+										</PaginationNext>
+									</>
+								)
+							}
+						</Pagination>
+						<div className='mb-3.5 text-center'>
+							{
+								RoutePermissionsData.lists.length > 0 ? (
+									<p className="text-sm text-gray-500">
+										Showing {RoutePermissionsData.limit * (RoutePermissionsData.page - 1) + 1} to {Math.min(RoutePermissionsData.limit * RoutePermissionsData.page, RoutePermissionsData.total)} of {RoutePermissionsData.total} route permissions
+									</p>
+								) : (
+									<p className="text-sm text-gray-500">
+										No route permissions found
+									</p>
+								)
+							}
+						</div>
 					</div>
 				)}
 			</div>
@@ -1485,15 +1656,18 @@ const Rbac: React.FC = () => {
 						} catch (error) {
 							console.error('Error refreshing user groups:', error);
 							// Fallback to local update if server refresh fails
-							const updatedGroupData: UserGroups = {
+							const existing = UserGroupsData.lists.find(g => g.Id === updatedGroup.id);
+							const updatedGroupData: vUserGroups = {
 								Id: updatedGroup.id,
 								GroupName: updatedGroup.groupName,
 								Description: updatedGroup.description,
-								PermissionIds: updatedGroup.permissionIds, // This is now a comma-separated string of IDs
-								PermissionNames: updatedGroup.permissionNames, // This is a comma-separated string of names
-								NumberOfUsers: UserGroupsData.lists.find(g => g.Id === updatedGroup.id)?.NumberOfUsers || 0,
-								CreatedBy: UserGroupsData.lists.find(g => g.Id === updatedGroup.id)?.CreatedBy,
-								CreatedDate: UserGroupsData.lists.find(g => g.Id === updatedGroup.id)?.CreatedDate || new Date().toISOString()
+								PermissionViewIds: updatedGroup.permissionIds
+									? updatedGroup.permissionIds.split(',').map(Number).filter((n: number) => !isNaN(n))
+									: existing?.PermissionViewIds || [],
+								PermissionActionIds: existing?.PermissionActionIds || [],
+								NumberOfUsers: existing?.NumberOfUsers || 0,
+								CreatedBy: existing?.CreatedBy || '',
+								CreatedDate: existing?.CreatedDate || new Date().toISOString()
 							};
 							setUserGroups(prev => ({
 								...prev,
@@ -1611,9 +1785,9 @@ const Rbac: React.FC = () => {
 					const newFilter: PermissionPagination = {
 						...PermissionFilter,
 						filters: {
+							Module: '',
 							ModuleFunction: '',
-							Description: '',
-							PermissionGroupName: ''
+							ModuleFunctionDescription: ''
 						},
 						page: 1
 					};

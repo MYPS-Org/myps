@@ -2,14 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import type { UserGroups, Permissions, PermissionGroup, AddUserGroups } from '../Model.d';
-import { fetchPermissions as fetchPermissionsAPI, fetchPermissionGroups, editUserGroup } from '../service';
+import type { vUserGroups, Permissions, AddUserGroups } from '../Model.d';
+import { fetchPermissions as fetchPermissionsAPI, editUserGroup } from '../service';
 
 interface UpdateGroupDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (groupData: any) => void;
-  group: UserGroups;
+  group: vUserGroups;
 };
 
 const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({ isOpen, onClose, onSubmit, group }) => {
@@ -22,9 +22,8 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({ isOpen, onClose, 
   });
 
   const [availablePermissions, setAvailablePermissions] = useState<Permissions[]>([]);
-  const [permissionGroups, setPermissionGroups] = useState<PermissionGroup[]>([]);
   const [isLoadingPermissions, setIsLoadingPermissions] = useState(false);
-  const [groupedPermissions, setGroupedPermissions] = useState<{[key: number]: Permissions[]}>({});
+  const [groupedPermissions, setGroupedPermissions] = useState<{[key: string]: Permissions[]}>({});
   const [searchTerm, setSearchTerm] = useState('');
   useEffect(() => {
     // Fetch available permissions when the dialog opens
@@ -47,62 +46,38 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({ isOpen, onClose, 
       }
     };
 
-    const fetchAvailablePermissionGroups = async () => {
-      try {
-        const response = await fetchPermissionGroups();
-        console.log('Available Permission Groups:', response);
-        if (response.Data) {
-          setPermissionGroups(response.Data);
-        }
-      } catch (error) {
-        console.error('Error fetching permission groups:', error);
-      }
-    };
-
     if (isOpen) {
       fetchAvailablePermissions();
-      fetchAvailablePermissionGroups();
     }
   }, [isOpen]);
 
-  // Group permissions by permissionGroupId when data changes
+  // Group permissions by Module when data changes
   useEffect(() => {
     if (availablePermissions.length > 0) {
       const grouped = availablePermissions.reduce((acc, permission) => {
-        const groupId = permission.PermissionGroupId;
-        if (!acc[groupId]) {
-          acc[groupId] = [];
+        const module = permission.Module || 'Other';
+        if (!acc[module]) {
+          acc[module] = [];
         }
-        acc[groupId].push(permission);
+        acc[module].push(permission);
         return acc;
-      }, {} as {[key: number]: Permissions[]});
+      }, {} as {[key: string]: Permissions[]});
       setGroupedPermissions(grouped);
     }
   }, [availablePermissions]);
 
-  // Update form data when group prop changes and use PermissionIds directly
+  // Update form data when group prop changes — use PermissionViewIds directly
   useEffect(() => {
-    if (group && availablePermissions.length > 0) {
-      // Handle PermissionIds as comma-separated string of numeric IDs
-      let permissionIds: number[] = [];
-      
-      if (group.PermissionIds && typeof group.PermissionIds === 'string' && group.PermissionIds.trim().length > 0) {
-        // Convert comma-separated numeric IDs to array of numbers
-        permissionIds = group.PermissionIds
-          .split(',')
-          .map(id => parseInt(id.trim()))
-          .filter(id => !isNaN(id));
-      }
-      
+    if (group) {
       setFormData({
         id: group.Id,
         groupName: group.GroupName || '',
         description: group.Description || '',
-        permissions: permissionIds,
+        permissions: group.PermissionViewIds || [],
         numberOfUsers: group.NumberOfUsers || 0
       });
     }
-  }, [group, availablePermissions]);
+  }, [group]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -156,35 +131,33 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({ isOpen, onClose, 
     }));
   };
 
-  // Helper function to check if all permissions in a group are selected
-  const isGroupSelected = (groupId: number): boolean => {
-    const groupPermissions = groupedPermissions[groupId] || [];
+  // Helper function to check if all permissions in a module are selected
+  const isGroupSelected = (module: string): boolean => {
+    const groupPermissions = groupedPermissions[module] || [];
     return groupPermissions.length > 0 && groupPermissions.every(permission => 
       formData.permissions.includes(permission.Id)
     );
   };
 
-  // Helper function to check if some permissions in a group are selected
-  const isGroupPartiallySelected = (groupId: number): boolean => {
-    const groupPermissions = groupedPermissions[groupId] || [];
+  // Helper function to check if some permissions in a module are selected
+  const isGroupPartiallySelected = (module: string): boolean => {
+    const groupPermissions = groupedPermissions[module] || [];
     return groupPermissions.some(permission => 
       formData.permissions.includes(permission.Id)
-    ) && !isGroupSelected(groupId);
+    ) && !isGroupSelected(module);
   };
 
-  // Helper function to toggle all permissions in a group
-  const handleGroupToggle = (groupId: number) => {
-    const groupPermissions = groupedPermissions[groupId] || [];
+  // Helper function to toggle all permissions in a module
+  const handleGroupToggle = (module: string) => {
+    const groupPermissions = groupedPermissions[module] || [];
     const groupPermissionIds = groupPermissions.map(p => p.Id);
     
-    if (isGroupSelected(groupId)) {
-      // Remove all group permissions
+    if (isGroupSelected(module)) {
       setFormData(prev => ({
         ...prev,
         permissions: prev.permissions.filter(id => !groupPermissionIds.includes(id))
       }));
     } else {
-      // Add all group permissions
       setFormData(prev => ({
         ...prev,
         permissions: [...new Set([...prev.permissions, ...groupPermissionIds])]
@@ -193,17 +166,17 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({ isOpen, onClose, 
   };
 
   // Filter permissions based on search term
-  const filteredGroupedPermissions = Object.keys(groupedPermissions).reduce((acc, groupId) => {
-    const groupPermissions = groupedPermissions[parseInt(groupId)];
+  const filteredGroupedPermissions = Object.keys(groupedPermissions).reduce((acc, module) => {
+    const groupPermissions = groupedPermissions[module];
     const filteredPermissions = groupPermissions.filter(permission =>
       permission.ModuleFunction.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      permission.Description.toLowerCase().includes(searchTerm.toLowerCase())
+      (permission.ModuleFunctionDescription ?? '').toLowerCase().includes(searchTerm.toLowerCase())
     );
     if (filteredPermissions.length > 0) {
-      acc[parseInt(groupId)] = filteredPermissions;
+      acc[module] = filteredPermissions;
     }
     return acc;
-  }, {} as {[key: number]: Permissions[]});
+  }, {} as {[key: string]: Permissions[]});
 
   return (
     <Dialog open={isOpen} onClose={onClose} className="relative z-50">
@@ -316,24 +289,24 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({ isOpen, onClose, 
                   </div>
                 ) : (
                   <div className="max-h-100 overflow-y-auto border border-gray-200 rounded-md p-3">
-                    {permissionGroups.map((group) => {
-                      const groupPermissions = filteredGroupedPermissions[group.Id] || [];
+                    {Object.keys(filteredGroupedPermissions).map((module) => {
+                      const groupPermissions = filteredGroupedPermissions[module] || [];
                       if (groupPermissions.length === 0) return null;
                       
                       return (
-                        <div key={group.Id} className="mb-6">
+                        <div key={module} className="mb-6">
                           <div className="flex items-center space-x-2 mb-3 pb-2 border-b border-gray-200">
                             <input
                               type="checkbox"
-                              checked={isGroupSelected(group.Id)}
+                              checked={isGroupSelected(module)}
                               ref={(input) => {
-                                if (input) input.indeterminate = isGroupPartiallySelected(group.Id);
+                                if (input) input.indeterminate = isGroupPartiallySelected(module);
                               }}
-                              onChange={() => handleGroupToggle(group.Id)}
+                              onChange={() => handleGroupToggle(module)}
                               className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                             />
                             <h4 className="font-semibold text-gray-800">
-                              {group.Name}
+                              {module}
                             </h4>
                             <span className="text-xs text-gray-500">
                               ({groupPermissions.length} permissions)
@@ -353,7 +326,7 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({ isOpen, onClose, 
                                     {permission.ModuleFunction}
                                   </span>
                                   <span className="text-xs text-gray-500">
-                                    {permission.Description}
+                                    {permission.ModuleFunctionDescription}
                                   </span>
                                 </div>
                               </label>
@@ -362,9 +335,9 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({ isOpen, onClose, 
                         </div>
                       );
                     })}
-                    {permissionGroups.length === 0 && !isLoadingPermissions && (
+                    {Object.keys(groupedPermissions).length === 0 && !isLoadingPermissions && (
                       <div className="text-center py-4 text-gray-500">
-                        No permission groups available
+                        No permissions available
                       </div>
                     )}
                     {Object.keys(filteredGroupedPermissions).length === 0 && searchTerm && (
