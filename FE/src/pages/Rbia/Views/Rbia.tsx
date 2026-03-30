@@ -22,13 +22,17 @@ const Badge: React.FC<{ children: React.ReactNode; className?: string }> = ({ ch
 const Rbia: React.FC = () => {
     const [selectedTab, setSelectedTab] = useState<'roads' | 'roadSections' | 'bridges'>('roads');
     const [importDialogOpen, setImportDialogOpen] = useState(false);
-    const [infraCounts, setInfraCounts] = useState({ roadCount: 0, roadSectionCount: 0, bridgeCount: 0 });
+    const [roadCount, setRoadCount] = useState(0);
+    const [roadSectionCount, setRoadSectionCount ] = useState(0);
+    const [bridgeCount, setBridgeCount] = useState(0);
 
     useEffect(() => {
         const fetchInfraCounts = async () => {
             try {
                 const counts = await getInfraCounts();
-                setInfraCounts(counts.Data);
+                setRoadCount(counts.Data.Roads);
+                setRoadSectionCount(counts.Data.RoadSections);
+                setBridgeCount(counts.Data.Bridge);
             } catch (error) {
                 console.error('Error fetching infrastructure counts:', error);
             }
@@ -97,19 +101,19 @@ const Rbia: React.FC = () => {
                     label="Roads" 
                     value="roads" 
                     icon={RectangleStackIcon} 
-                    count={infraCounts.roadCount} 
+                    count={roadCount} 
                 />
                 <TabButton 
                     label="Road Sections" 
                     value="roadSections" 
                     icon={BuildingOffice2Icon} 
-                    count={infraCounts.roadSectionCount} 
+                    count={roadSectionCount} 
                 />
                 <TabButton 
                     label="Bridges" 
                     value="bridges" 
                     icon={ArrowsPointingOutIcon} 
-                    count={infraCounts.bridgeCount} 
+                    count={bridgeCount} 
                 />
             </div>
 

@@ -204,7 +204,7 @@ export const importBridges = async (userName: string) => {
 
 export const getInfraCounts = async () => {
     try {
-        const response = await httpClient.post<{ roadCount: number; roadSectionCount: number; bridgeCount: number }>('FutureInfra/GetInfraInfo');
+        const response = await httpClient.post<{ Roads: number; RoadSections: number; Bridge: number }>('FutureInfra/GetInfraInfo');
         return response;
     } catch (error) {
         console.error('Error fetching infrastructure counts:', error);
