@@ -728,6 +728,36 @@ namespace WebAPI.Controllers.Settings.UserManagement
         #endregion
         #region USER GROUP TAB
         [HttpPost]
+        public async Task<IActionResult> ShowUserGroupDropdowns()
+        {
+            try
+            {
+                var PermissionControllers = await _db.tPermissionControllers
+                    .AsNoTracking()
+                    .OrderBy(x => x.ControllerName)
+                    .ToListAsync();
+                var PermissionActions = await _db.tPermissionActions
+                    .AsNoTracking()
+                    .OrderBy(x => x.ActionName)
+                    .ToListAsync();
+                var PermissionViews = await _db.tPermissionViews
+                    .AsNoTracking()
+                    .OrderBy(x => x.RoutePath)
+                    .ToListAsync();
+
+                return Ok(new
+                {
+                    PermissionControllers,
+                    PermissionActions,
+                    PermissionViews
+                });
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
+        [HttpPost]
         public async Task<IActionResult> ShowUserGroups([FromBody] UserGroupsPaginationDto dto)
         {
             try
@@ -867,8 +897,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 {
                     GroupId = newGroup.Id,
                     ActionIds = dto.ActionIds,
-                    CreatedBy = User.Identity?.Name ?? "System",
-                    CreatedDate = DateTime.UtcNow
+                    ViewIds = dto.ViewIds,
                 };
 
                 await _db.tGroupRoles.AddAsync(newGroupRoles);
@@ -974,8 +1003,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     {
                         GroupId = dto.Id,
                         ActionIds = dto.PermissionActionIds,
-                        CreatedBy = User.Identity?.Name ?? "System",
-                        CreatedDate = DateTime.UtcNow
+                        ViewIds = dto.PermissionViewIds,
                     };
                     await _db.tGroupRoles.AddAsync(newGroupRoles);
                 }

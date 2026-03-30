@@ -93,7 +93,7 @@ namespace WebAPI.Controllers.Auth
                 _db.tLoginHistory.Add(LoginLog);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
-                return ldap_conn.Bound ? Ok(new { Message = "Login successful", Data = new { Authenticated = true, User = verifyAccount } }) : UnauthorizedUser();
+                return LoginLog.IsValid ? Ok(new { Message = "Login successful", Data = new { Authenticated = true, User = verifyAccount } }) : UnauthorizedUser();
             }
             catch (LdapException error)
             {
@@ -114,13 +114,13 @@ namespace WebAPI.Controllers.Auth
                 bool NoUserFound = string.IsNullOrEmpty(_Session.UserId);
                 if (NoUserFound)
                     return UnauthorizedUser();
-                return Ok(new { Message = "Login successful", Data = new { Authenticated = true, User = _Session } });
+                var ViewAccess = _db.vUserViewPermission.Where(x => x.UserId == _Session.UserId && x.IsActive == true).Select(x => x.RoutePath).ToList();
+                return Ok(new { Message = "Login successful", Data = new { Authenticated = true, User = _Session, ViewAccess = ViewAccess } });
             }
             catch (Exception ex) { 
                 return ExceptionHandler(ex); 
             }
         }
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> GetLoginLogs()
         {
