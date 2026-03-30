@@ -11,26 +11,16 @@ interface ViewPermissionDialogProps {
   permission: Permissions;
 }
 
-const ViewPermissionDialog: React.FC<ViewPermissionDialogProps> = ({ isOpen, onClose, /*onSubmit*/  permission }) => {
-  const [formData, setFormData] = useState({
+const ViewPermissionDialog: React.FC<ViewPermissionDialogProps> = ({ isOpen, onClose, permission }) => {
+  const [formData] = useState({
+    Module: permission.Module || '',
     ModuleFunction: permission.ModuleFunction || '',
-    CreatedBy: permission.CreatedBy || '',
-    CreatedDate: permission.CreatedDate || '',
+    ModuleFunctionDescription: permission.ModuleFunctionDescription || '',
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // onSubmit(formData);
-    setFormData({
-      ModuleFunction: '',
-      CreatedBy: '',
-      CreatedDate: ''
-    });
     onClose();
-  };
-
-  const handleChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   return (
@@ -54,22 +44,38 @@ const ViewPermissionDialog: React.FC<ViewPermissionDialogProps> = ({ isOpen, onC
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Module Function
+                Module
               </label>
               <input
                 type="text"
-                value={formData.ModuleFunction}
-                onChange={(e) => handleChange('ModuleFunction', e.target.value)}
-                placeholder="e.g., manage_users"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                required
+                value={formData.Module}
+                readOnly
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50"
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Created By {formData.CreatedBy}
+                Module Function
               </label>
+              <input
+                type="text"
+                value={formData.ModuleFunction}
+                readOnly
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Description
+              </label>
+              <input
+                type="text"
+                value={formData.ModuleFunctionDescription}
+                readOnly
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50"
+              />
             </div>
 
             <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">

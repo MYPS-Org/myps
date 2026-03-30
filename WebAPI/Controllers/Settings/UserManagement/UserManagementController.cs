@@ -402,6 +402,187 @@ namespace WebAPI.Controllers.Settings.UserManagement
         #endregion
         #region PERMISSIONS TAB
         [HttpPost]
+        public async Task<IActionResult> ShowViewPermissions([FromBody] ShowViewPermissionsDTO dto)
+        {
+            try
+            {
+                if (dto.Filters == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Expected Parametes missing!", Title = "Parameter Error" });
+                }
+                if (!string.IsNullOrEmpty(dto.SortField))
+                {
+                    bool isValid = typeof(DBHelper.Models.Views.Permissions)
+                        .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                        .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
+                    if (!isValid)
+                    {
+                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort!", Title = "Parameter Error" });
+                    }
+                }
+                dto.sortDirection = string.IsNullOrEmpty(dto.sortDirection.ToString()) ? sortDirectionList.DESC : dto.sortDirection;
+
+                bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!);
+                if (!isValidDirection)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed!", Title = "Invalid sort option" });
+                }
+                // Validate pagination parameters
+                if (dto.page < 1) dto.page = 1;
+                if (dto.limit < 1) dto.limit = 10;
+
+                var baseQuery = _db.tPermissionViews.AsNoTracking();
+
+                if (!string.IsNullOrEmpty(dto.Filters?.RoutePath))
+                    baseQuery = baseQuery.Where(e => e.RoutePath!.Contains(dto.Filters.RoutePath));
+
+                // Get total count of filtered results (before pagination)
+                var totalRecords = await baseQuery.CountAsync();
+                dto.sortDirection = string.IsNullOrEmpty(dto.SortField) ? sortDirectionList.DESC : dto.sortDirection;
+                dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "Id";
+                // Apply sorting and pagination
+                var sortedQuery = dto.sortDirection == sortDirectionList.ASC
+                        ? baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField))
+                        : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField));
+
+                // Apply pagination and execute query
+                var permissionLists = await sortedQuery
+                    .Skip((dto.page - 1) * dto.limit)
+                    .Take(dto.limit)
+                    .ToListAsync();
+
+                var totalPages = (int)Math.Ceiling((double)totalRecords / dto.limit);
+
+                var response = new
+                {
+                    lists = permissionLists, // Match your frontend expectation
+                    dto.page,
+                    dto.limit,
+                    total = totalRecords,
+                    totalPages
+                };
+
+                return Ok(response); // Remove the extra wrapper
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
+        [HttpPost]
+        public async Task<IActionResult> SyncViewPermissions([FromBody] SyncViewPermissionsDTO dto)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var existingNames = dto.RoutesAvailable
+                    .Select(x => x.path)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                var newControllers = await _db.tPermissionViews
+                    .Where(t => !existingNames.Contains(t.RoutePath))
+                    .Select(t => new PermissionViews
+                    {
+                        RoutePath = t.RoutePath
+                    })
+                    .ToListAsync();
+
+                if (newControllers.Count > 0)
+                {
+                    await _db.tPermissionViews.AddRangeAsync(newControllers);
+                    await _db.SaveChangesAsync();
+                }
+
+                return Ok(new
+                {
+                    Message = $"Sync complete! View route added: {newControllers.Count}",
+                    Title = "Sync Complete"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
+        [HttpPost]
+        public async Task<IActionResult> UpdateViewPermissionDetails([FromBody] UpdateViewPermissionDetailsDTO dto)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var getPermission = await _db.tPermissionViews.FirstOrDefaultAsync(x => x.Id == dto.Id);
+                if (getPermission == null)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"'{dto.RoutePath}' is not a recognized permission view. Try syncing permissions to update the list.",
+                        Title = "Unrecognized View"
+                    });
+                }
+                getPermission.Description = dto.Description;
+                _db.tPermissionViews.Update(getPermission);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync(); return Ok(new
+                {
+                    Message = $"'{dto.RoutePath}' details have been saved successfully.",
+                    Title = "Changes Saved"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
+        [HttpPost]
+        public async Task<IActionResult> DeleteViewPermission(int id)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var getAction = await _db.tPermissionViews.FirstOrDefaultAsync(x => x.Id == id);
+                if (getAction == null)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"The permission action could not be found. Please ensure permissions are synced.",
+                        Title = "Action Not Found"
+                    });
+                }
+
+                // Check if action is currently assigned to any roles before deleting
+                var isAssignedToRole = await _db.tGroupRoles
+                    .AnyAsync(x => x.ViewIds.Contains(getAction.Id));
+
+                if (isAssignedToRole)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"'{getAction.RoutePath}' cannot be deleted because it is currently assigned to one or more roles. Please remove the role assignments first.",
+                        Title = "Deletion Not Allowed"
+                    });
+                }
+
+                _db.tPermissionViews.Remove(getAction);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return Ok(new
+                {
+                    Message = $"Permission view '{getAction.RoutePath}' has been deleted successfully.",
+                    Title = "Delete Successful"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
+        #endregion
+        #region PERMISSIONS TAB
+        [HttpPost]
         public async Task<IActionResult> ShowPermissions([FromBody] ShowPermissionsDTO dto)
         {
             try
