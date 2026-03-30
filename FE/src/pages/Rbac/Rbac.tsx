@@ -155,6 +155,7 @@ const Rbac: React.FC = () => {
 	const [isLoadingUsers, setIsLoadingUsers] = useState(false);
 	const [isLoadingRoutePermissions, setIsLoadingRoutePermissions] = useState(false);
 	const [isSyncingPermissions, setIsSyncingPermissions] = useState(false);
+	const [permissionViewsLookup, setPermissionViewsLookup] = useState<Record<number, string>>({});
 	const [tabNumbers, setTabNumbers] = useState({
 		users: 0,
 		permissions: 0,
@@ -555,11 +556,13 @@ const Rbac: React.FC = () => {
 				
 				setIsLoadingUserGroups(true);
 				console.log('Fetching user groups with current filter:', UserGroupFilter);
-				const UserGroupDropdowns = await fetchUserGroupDropdowns();
-				console.log('UserGroupDropdowns response:', UserGroupDropdowns);
-				if(UserGroupDropdowns.Data) {
-					console.log('Setting UserGroupDropdowns data:', UserGroupDropdowns);
-					// setUserGroupDropdowns(UserGroupDropdowns.Data);
+				const dropdownsRes = await fetchUserGroupDropdowns();
+				if(dropdownsRes.Data?.PermissionViews) {
+					const lookup: Record<number, string> = {};
+					dropdownsRes.Data.PermissionViews.forEach((pv: any) => {
+						lookup[pv.Id] = pv.Description || pv.RoutePath || `ID: ${pv.Id}`;
+					});
+					setPermissionViewsLookup(lookup);
 				}
 				const res = await fetchUserGroups(UserGroupFilter);
 				console.log('UserGroups response:', res);
@@ -1230,8 +1233,8 @@ const Rbac: React.FC = () => {
 																return (
 																	<>
 																		{visiblePerms.map((id: number, index: number) => (
-																			<Badge key={index} color="blue" className="text-xs">
-																				ID: {id}
+																			<Badge key={index} color="blue" className="text-xs" title={`ID: ${id}`}>
+																				{permissionViewsLookup[id] || `ID: ${id}`}
 																			</Badge>
 																		))}
 																		{permIds.length > 2 && (
