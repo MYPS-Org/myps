@@ -28,10 +28,8 @@ import {
 Cog6ToothIcon,
 HomeIcon,
 QuestionMarkCircleIcon,
-FolderIcon,
 FolderOpenIcon,
 BriefcaseIcon,
-BanknotesIcon,
 ArrowPathIcon,
 RectangleGroupIcon,
 CalendarDaysIcon,
@@ -65,7 +63,7 @@ export default function SideBar() {
 // const location = useLocation()
 // const currentPath = location.pathname
 
-const { user } = useAuth();
+const { user, ViewAccess } = useAuth();
 
 // For now, you can manually set which item should be current
 // Change this to your actual routing logic or pass it as a prop
@@ -109,15 +107,15 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 				</SidebarItem>
 			<SidebarDivider>
 			</SidebarDivider>
-				<SidebarItem href="/dashboard" current={currentPath === '/dashboard'}>
+				<SidebarItem hidden={!ViewAccess.includes('/dashboard')} href="/dashboard" current={currentPath === '/dashboard'}>
 					<HomeIcon />
 					<SidebarLabel className="text-gray-500">Dashboard</SidebarLabel>
 				</SidebarItem>
-				<SidebarItem href="/programs" current={currentPath === '/programs'}>
+				<SidebarItem hidden={!ViewAccess.includes('/programs')} href="/programs" current={currentPath === '/programs'}>
 					<FolderOpenIcon />
 					<SidebarLabel className="text-gray-500">Programs</SidebarLabel>
 				</SidebarItem>
-				<SidebarItem href="/projects" current={currentPath === '/projects'}>
+				<SidebarItem hidden={!ViewAccess.includes('/projects')} href="/projects" current={currentPath === '/projects'}>
 					<BriefcaseIcon />
 					<SidebarLabel className="text-gray-500">Projects</SidebarLabel>
 				</SidebarItem>
@@ -125,11 +123,11 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 					<BanknotesIcon />
 					<SidebarLabel className="text-gray-500">Lump Sum</SidebarLabel>
 				</SidebarItem> */}
-				<SidebarItem href="/revision" current={currentPath === '/revision'}>
+				<SidebarItem hidden={!ViewAccess.includes('/revision')} href="/revision" current={currentPath === '/revision'}>
 					<ArrowPathIcon />
 					<SidebarLabel className="text-gray-500">Revision</SidebarLabel>
 				</SidebarItem>
-				<SidebarItem href="/project-groups" current={currentPath === '/project-groups'}>
+				<SidebarItem hidden={!ViewAccess.includes('/project-groups')} href="/project-groups" current={currentPath === '/project-groups'}>
 					<RectangleGroupIcon />
 					<SidebarLabel className="text-gray-500">Project Groups</SidebarLabel>
 				</SidebarItem>	
@@ -138,53 +136,56 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 					<SidebarLabel className="text-gray-500">Program Stages</SidebarLabel>
 			</SidebarItem> */}
 			<SidebarDropdown
+				hidden={!ViewAccess.includes('/multiyear/programs') && !ViewAccess.includes('/multiyear/projects')}
 				label="Multi-Year Management"
 				defaultOpen={false}
 				className="text-gray-500"
 				>
 				<CalendarDaysIcon />
-				<SidebarDropdownItem href="/multiyear/programs" current={currentPath === '/multiyear/programs'}>
+				<SidebarDropdownItem hidden={!ViewAccess.includes('/multiyear/programs')} href="/multiyear/programs" current={currentPath === '/multiyear/programs'}>
 					<SidebarLabel>Programs</SidebarLabel>
 				</SidebarDropdownItem>
-				<SidebarDropdownItem href="/multiyear/projects" current={currentPath === '/multiyear/projects'}>
+				<SidebarDropdownItem hidden={!ViewAccess.includes('/multiyear/projects')} href="/multiyear/projects" current={currentPath === '/multiyear/projects'}>
 					<SidebarLabel>Projects</SidebarLabel>
 				</SidebarDropdownItem>
 			</SidebarDropdown>
 			<SidebarDropdown
+				 hidden={!ViewAccess.includes('/reports/programs') && !ViewAccess.includes('/reports/projects') && !ViewAccess.includes('/reports/multiyear')} 
 				label="Reports"
 				defaultOpen={false}
 				className="text-gray-500"
 				>
 				<DocumentChartBarIcon />
-				<SidebarDropdownItem href="/reports/programs" current={currentPath === '/reports/programs'}>
+				<SidebarDropdownItem hidden={!ViewAccess.includes('/reports/programs')} href="/reports/programs" current={currentPath === '/reports/programs'}>
 					<SidebarLabel>Programs</SidebarLabel>
 				</SidebarDropdownItem>
-				<SidebarDropdownItem href="/reports/projects" current={currentPath === '/reports/projects'}>
+				<SidebarDropdownItem hidden={!ViewAccess.includes('/reports/projects')} href="/reports/projects" current={currentPath === '/reports/projects'}>
 					<SidebarLabel>Projects</SidebarLabel>
 				</SidebarDropdownItem>
-				<SidebarDropdownItem href="/reports/multiyear" current={currentPath === '/reports/multiyear'}>
+				<SidebarDropdownItem hidden={!ViewAccess.includes('/reports/multiyear')} href="/reports/multiyear" current={currentPath === '/reports/multiyear'}>
 					<SidebarLabel>Multi-Year</SidebarLabel>
 				</SidebarDropdownItem>
 			</SidebarDropdown>
 			<SidebarDropdown
+				hidden={!ViewAccess.includes('/settings') && !ViewAccess.includes('/code-tables') && !ViewAccess.includes('/settings/security') && !ViewAccess.includes('/user-management') && !ViewAccess.includes('/infrastructure-management')}
 				label="Settings"
 				defaultOpen={false}
 				className="text-gray-500"
 				>
 				<Cog6ToothIcon />
-				<SidebarDropdownItem href="/code-tables" current={currentPath === '/code-tables'}>
+				<SidebarDropdownItem hidden={!ViewAccess.includes('/code-tables')} href="/code-tables" current={currentPath === '/code-tables'}>
 					<TableCellsIcon />
 					<SidebarLabel>Code Tables</SidebarLabel>
 				</SidebarDropdownItem>
-				<SidebarDropdownItem href="/settings/security" current={currentPath === '/settings/security'}>
+				<SidebarDropdownItem hidden={!ViewAccess.includes('/settings/security')} href="/settings/security" current={currentPath === '/settings/security'}>
 					<ShieldCheckIcon />
 					<SidebarLabel>Security</SidebarLabel>
 				</SidebarDropdownItem>
-				<SidebarDropdownItem href="/user-management" current={currentPath === '/user-management'}>
+				<SidebarDropdownItem hidden={!ViewAccess.includes('/user-management')} href="/user-management" current={currentPath === '/user-management'}>
 					<UsersIcon />
 					<SidebarLabel>User Management</SidebarLabel>
 				</SidebarDropdownItem>
-				<SidebarDropdownItem href="/infrastructure-management" current={currentPath === '/infrastructure-management'}>
+				<SidebarDropdownItem hidden={!ViewAccess.includes('/infrastructure-management')} href="/infrastructure-management" current={currentPath === '/infrastructure-management'}>
 					<ServerStackIcon />
 					<SidebarLabel>Infra Management</SidebarLabel>
 				</SidebarDropdownItem>

@@ -102,3 +102,35 @@ export interface AddUserGroups {
 export interface Pis {
  EmployeeId?: string;
 }
+
+export interface vUserGroups{
+    Id: number;
+    GroupName: string;
+    NumberOfUsers: number;
+    Description?: string;
+    CreatedBy: string;
+    CreatedDate: string;
+    PermissionActionIds: number[]; // API returns comma-separated string of numeric IDs
+    PermissionViewIds : number[]; // API returns comma-separated string of permission names
+}
+export interface UserGroupDropdowns{
+    PermissionControllers: PermissionControllers[];
+    PermissionActions: PermissionActions[];
+    PermissionViews: PermissionViews[];
+}
+export interface PermissionControllers {
+	Id: number;
+	ControllerName: string;
+	Description?: string;
+}
+export interface PermissionActions {
+	Id: number;
+	ControllerName: string;
+	ActionName: string;
+	Description?: string;
+}
+export interface PermissionViews {
+	Id: number;
+	RoutePath: string;
+	Description?: string;
+}
