@@ -79,13 +79,18 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 if (dto.limit < 1) dto.limit = 10;
 
                 var baseQuery = _db.vUsers.AsNoTracking();
-
                 // Apply filters to base query
+                if (!string.IsNullOrEmpty(dto.Filters?.EmployeeId))
+                    baseQuery = baseQuery.Where(e => e.EmployeeId!.Contains(dto.Filters.EmployeeId));
+
+                if (!string.IsNullOrEmpty(dto.Filters?.UserId))
+                    baseQuery = baseQuery.Where(e => e.UserId!.Contains(dto.Filters.UserId));
+
                 if (!string.IsNullOrEmpty(dto.Filters?.Name))
                     baseQuery = baseQuery.Where(e => e.Name!.Contains(dto.Filters.Name));
 
-                if (dto.Filters?.UserGroupId != null)
-                    baseQuery = baseQuery.Where(e => e.UserGroupIds!.Contains(dto.Filters.UserGroupId));
+                if (!string.IsNullOrEmpty(dto.Filters?.Email))
+                    baseQuery = baseQuery.Where(e => e.Email!.Contains(dto.Filters.Email));
 
                 if (dto.Filters?.IsActive != null)
                     baseQuery = baseQuery.Where(e => e.IsActive == dto.Filters.IsActive);
@@ -694,7 +699,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
         }
         [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> SyncPermission()
+        public async Task<IActionResult> SyncAPIPermissions()
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -703,7 +708,8 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 var controllerTypes = typeof(CoreController).Assembly
                     .GetTypes()
                     .Where(t => t.IsClass && !t.IsAbstract && t.IsSubclassOf(typeof(CoreController)))
-                    .ToList();
+                    .ToList()
+                    .OrderBy(x => x.Name);
 
                 // 2. Sync controllers to tPermissionControllers
                 var existingControllers = await _db.tPermissionControllers.ToListAsync();
@@ -731,7 +737,8 @@ namespace WebAPI.Controllers.Settings.UserManagement
                         .Where(m => !m.IsSpecialName &&
                             (m.ReturnType == typeof(IActionResult) || m.ReturnType == typeof(Task<IActionResult>)))
                         .Select(m => new { ControllerName = type.Name, ActionName = m.Name })
-                ).ToList();
+                ).ToList()
+                .OrderBy(x => x.ActionName);
 
                 // 4. Sync actions to tPermissionActions
                 var existingActions = await _db.tPermissionActions.ToListAsync();

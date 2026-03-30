@@ -114,7 +114,7 @@ namespace WebAPI.Controllers.Auth
                 bool NoUserFound = string.IsNullOrEmpty(_Session.UserId);
                 if (NoUserFound)
                     return UnauthorizedUser();
-                var ViewAccess = _db.vUserViewPermission.Where(x => x.UserId == _Session.UserId && x.IsActive == true).Select(x => x.RoutePath).ToList();
+                var ViewAccess = _db.vUserViewPermission.Where(x => x.UserId == _Session.UserId && x.IsActive == true).Select(x => x.RouteName).ToList();
                 return Ok(new { Message = "Login successful", Data = new { Authenticated = true, User = _Session, ViewAccess = ViewAccess } });
             }
             catch (Exception ex) { 
