@@ -95,6 +95,7 @@ namespace DBHelper.Data
         #endregion
         #region Views
         public DbSet<Models.Views.Users> vUsers { get; set; }
+        public DbSet<Models.Views.AppModules> vAppModules { get; set; }
         public DbSet<Models.Views.UserActionPermission> vUserActionPermission { get; set; }
         public DbSet<Models.Views.UserViewPermission> vUserViewPermission { get; set; }
         public DbSet<Models.Views.UserGroups> vUserGroups { get; set; }

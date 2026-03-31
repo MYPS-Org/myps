@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using Newtonsoft.Json;
 using System.Reflection;
+using WebAPI.Controllers.Settings.Modules;
 
 namespace WebAPI.Controllers.Settings.UserManagement
 {
@@ -18,6 +19,166 @@ namespace WebAPI.Controllers.Settings.UserManagement
     public class UserManagementController : CoreController
     {
         public UserManagementController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
+        #region MODULE TAB
+        [HttpPost]
+        public async Task<IActionResult> ShowAppModules([FromBody] ModulePaginationDto dto)
+        {
+            try
+            {
+                if (dto.Filters == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Expected Parametes missing!", Title = "Parameter Error" });
+                }
+                if (!string.IsNullOrEmpty(dto.SortField))
+                {
+                    bool isValid = typeof(DBHelper.Models.Views.Users)
+                        .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                        .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
+                    if (!isValid)
+                    {
+                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort!", Title = "Parameter Error" });
+                    }
+                }
+                dto.sortDirection = string.IsNullOrEmpty(dto.sortDirection.ToString()) ? sortDirectionList.DESC : dto.sortDirection;
+
+                bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!);
+                if (!isValidDirection)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed!", Title = "Invalid sort option" });
+                }
+                // Validate pagination parameters
+                if (dto.page < 1) dto.page = 1;
+                if (dto.limit < 1) dto.limit = 10;
+
+                var baseQuery = _db.vAppModules.AsNoTracking();
+
+                // Get total count of filtered results (before pagination)
+                var totalRecords = await baseQuery.CountAsync();
+
+                // Apply sorting and pagination
+                dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "Id";
+                var sortedQuery = dto.sortDirection == sortDirectionList.ASC
+                        ? baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField))
+                        : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField));
+
+                // Apply pagination and execute query
+                List<DBHelper.Models.Views.AppModules> permissionLists = await sortedQuery
+                    .Skip((dto.page - 1) * dto.limit)
+                    .Take(dto.limit)
+                    .ToListAsync();
+
+                var totalPages = (int)Math.Ceiling((double)totalRecords / dto.limit);
+
+                var response = new
+                {
+                    lists = permissionLists,
+                    dto.page,
+                    dto.limit,
+                    total = totalRecords,
+                    totalPages
+                };
+
+                return Ok(response); // Remove the extra wrapper
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
+        [HttpPost]
+        public async Task<IActionResult> DeleteAppModule([FromBody] DBHelper.Models.Views.AppModules dto)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var getUser = await _db.tAppModules.FirstOrDefaultAsync(x => x.Id == dto.Id);
+                if (getUser == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Module '{dto.ModuleName}' does not exists in the System!", Title = "Mdoule not found" });
+                }
+                var CheckifUsedByController = await _db.tPermissionControllers.FirstOrDefaultAsync(x => x.ModuleName == getUser.ModuleName);
+                if(CheckifUsedByController != null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Module '{dto.ModuleName}' is still being used by the system controllers. Please remove the controllers first before deleting the module!", Title = "Module is still in use" });
+                }
+                var CheckifUsedByView = await _db.tPermissionViews.FirstOrDefaultAsync(x => x.ModuleName == getUser.ModuleName);
+                if(CheckifUsedByView != null) 
+                {
+                    return new BadRequestObjectResult(new { Message = $"Module '{dto.ModuleName}' is still being used by the system views. Please remove the views first before deleting the module!", Title = "Module is still in use" });
+                }
+                _db.tAppModules.Remove(getUser);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return Ok(new
+                {
+                    Message = "Module deleted updated successfully",
+                    Title = "Delete Complete"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
+        [HttpPost]
+        public async Task<IActionResult> UpdateAppModule([FromBody] DBHelper.Models.Views.AppModules dto)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var getModule = await _db.tAppModules.FirstOrDefaultAsync(x => x.Id == dto.Id);
+                if(getModule == null)
+                {
+                    return new BadRequestObjectResult(new { Message = $"Module '{dto.ModuleName}' does not exists in the System!", Title = "Module not found" });
+                }
+                getModule.Description = dto.Description;
+                _db.tAppModules.Update(getModule);
+
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return Ok(new
+                {
+                    Message = $"Module '{getModule.ModuleName}' has been updated successfully.",
+                    Title = "Update Successful"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
+        [HttpPost]
+        public async Task<IActionResult> AddAppModule([FromBody] DBHelper.Models.Views.AppModules dto)
+        {
+            using var transaction = await _db.Database.BeginTransactionAsync();
+            try
+            {
+                var newModule = new DBHelper.Models.Table.AppModules
+                {
+                    ModuleName = dto.ModuleName,
+                    Description = dto.Description
+                };
+
+                await _db.tAppModules.AddAsync(newModule);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return Ok(new
+                {
+                    Message = $"User '{dto.ModuleName}' has been created successfully.",
+                    Title = "User Created"
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return ExceptionHandler(ex);
+            }
+        }
+        #endregion
 
         [HttpPost]
         public async Task<IActionResult> InitUserManagement()
