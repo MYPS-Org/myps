@@ -25,11 +25,6 @@ namespace WebAPI.Controllers
     [PermissionFilter]
     public abstract class CoreController : Controller
     {
-        [AllowAnonymous]
-        public IActionResult Index()
-        {
-            return Ok("Welcome to the API");
-        }
         public AppDbContext _db;
         public DBHelper.Models.Views.Users _Session = new DBHelper.Models.Views.Users();
         private readonly IProducer<Null, string> _producer;
@@ -66,7 +61,7 @@ namespace WebAPI.Controllers
                     RPC: olegalml
                     AUC: jimeneznr
                  */
-                string userId = User.FindFirstValue(ClaimTypes.NameIdentifier);// ?? "jimeneznr";
+                string userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "jimeneznr";
                 if (!hasAllowAnonymous || IsAuthenticated || !string.IsNullOrEmpty(userId))
                 {
                     var user = _db.vUsers.FirstOrDefault(x => x.UserId == userId && x.IsActive == true);
