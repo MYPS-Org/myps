@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using Newtonsoft.Json;
 using System.Reflection;
+using System.Text.Json;
 using WebAPI.Controllers.Settings.Modules;
 
 namespace WebAPI.Controllers.Settings.UserManagement
@@ -20,6 +21,10 @@ namespace WebAPI.Controllers.Settings.UserManagement
     {
         public UserManagementController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
         #region MODULE TAB
+        // ── ShowAppModules ────────────────────────────────────────────────────────────
+        // Fetches vAppModules (raw), deserializes the JSON Controllers/Views columns,
+        // and projects to the AppModules response model with full Linked info.
+        // ─────────────────────────────────────────────────────────────────────────────
         [HttpPost]
         public async Task<IActionResult> ShowAppModules([FromBody] ModulePaginationDto dto)
         {
@@ -27,92 +32,153 @@ namespace WebAPI.Controllers.Settings.UserManagement
             {
                 if (dto.Filters == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Expected Parametes missing!", Title = "Parameter Error" });
+                    return new BadRequestObjectResult(new { Message = "Expected Parameters missing!", Title = "Parameter Error" });
                 }
+
+                // Validate sort field against AppModules (scalar columns only)
                 if (!string.IsNullOrEmpty(dto.SortField))
                 {
-                    bool isValid = typeof(DBHelper.Models.Views.Users)
+                    bool isValid = typeof(DBHelper.Models.Views.AppModules)
                         .GetProperties(BindingFlags.Public | BindingFlags.Instance)
                         .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
+
                     if (!isValid)
                     {
                         return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort!", Title = "Parameter Error" });
                     }
                 }
-                dto.sortDirection = string.IsNullOrEmpty(dto.sortDirection.ToString()) ? sortDirectionList.DESC : dto.sortDirection;
 
-                bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!);
-                if (!isValidDirection)
+                dto.sortDirection = string.IsNullOrEmpty(dto.sortDirection.ToString())
+                    ? sortDirectionList.DESC
+                    : dto.sortDirection;
+
+                if (!Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!))
                 {
                     return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed!", Title = "Invalid sort option" });
                 }
-                // Validate pagination parameters
+
                 if (dto.page < 1) dto.page = 1;
                 if (dto.limit < 1) dto.limit = 10;
 
                 var baseQuery = _db.vAppModules.AsNoTracking();
 
-                // Get total count of filtered results (before pagination)
                 var totalRecords = await baseQuery.CountAsync();
 
-                // Apply sorting and pagination
                 dto.SortField = !string.IsNullOrEmpty(dto.SortField) ? dto.SortField : "Id";
                 var sortedQuery = dto.sortDirection == sortDirectionList.ASC
-                        ? baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField))
-                        : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField));
+                    ? baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField))
+                    : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField));
 
-                // Apply pagination and execute query
-                List<DBHelper.Models.Views.AppModules> permissionLists = await sortedQuery
+                var rawList = await sortedQuery
                     .Skip((dto.page - 1) * dto.limit)
                     .Take(dto.limit)
                     .ToListAsync();
 
+
                 var totalPages = (int)Math.Ceiling((double)totalRecords / dto.limit);
 
-                var response = new
+                return Ok(new
                 {
-                    lists = permissionLists,
+                    lists = rawList,
                     dto.page,
                     dto.limit,
                     total = totalRecords,
                     totalPages
-                };
-
-                return Ok(response); // Remove the extra wrapper
+                });
             }
             catch (Exception ex)
             {
                 return ExceptionHandler(ex);
             }
         }
+
+        // ── AddAppModule ──────────────────────────────────────────────────────────────
+        // Creates the module, then links any controllers/views whose Linked = true.
+        // ─────────────────────────────────────────────────────────────────────────────
         [HttpPost]
-        public async Task<IActionResult> DeleteAppModule([FromBody] DBHelper.Models.Views.AppModules dto)
+        public async Task<IActionResult> AddAppModule([FromBody] DBHelper.Models.Views.AppModules dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                var getUser = await _db.tAppModules.FirstOrDefaultAsync(x => x.Id == dto.Id);
-                if (getUser == null)
+                // Guard: module name must be unique
+                var existing = await _db.tAppModules
+                    .FirstOrDefaultAsync(x => x.ModuleName == dto.ModuleName);
+                if (existing != null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Module '{dto.ModuleName}' does not exists in the System!", Title = "Mdoule not found" });
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Module '{dto.ModuleName}' already exists in the System!",
+                        Title = "Duplicate Module"
+                    });
                 }
-                var CheckifUsedByController = await _db.tPermissionControllers.FirstOrDefaultAsync(x => x.ModuleName == getUser.ModuleName);
-                if(CheckifUsedByController != null)
+
+                var newModule = new DBHelper.Models.Table.AppModules
                 {
-                    return new BadRequestObjectResult(new { Message = $"Module '{dto.ModuleName}' is still being used by the system controllers. Please remove the controllers first before deleting the module!", Title = "Module is still in use" });
-                }
-                var CheckifUsedByView = await _db.tPermissionViews.FirstOrDefaultAsync(x => x.ModuleName == getUser.ModuleName);
-                if(CheckifUsedByView != null) 
+                    ModuleName = dto.ModuleName,
+                    Description = dto.Description
+                };
+
+                await _db.tAppModules.AddAsync(newModule);
+                await _db.SaveChangesAsync(); // Get the inserted row into the DB first
+
+                // Link any controllers marked Linked = true
+                if (dto.Controllers != null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Module '{dto.ModuleName}' is still being used by the system views. Please remove the views first before deleting the module!", Title = "Module is still in use" });
+                    var Controllers = JsonConvert.DeserializeObject<List<AppModuleControllerModel>>(dto.Controllers);
+                    if(Controllers != null)
+                    {
+                        var linkedControllerNames = Controllers
+                            .Where(c => c.Linked)
+                            .Select(c => c.ControllerName)
+                            .ToList();
+
+                        if (linkedControllerNames.Any())
+                        {
+                            var controllers = await _db.tPermissionControllers
+                                .Where(x => linkedControllerNames.Contains(x.ControllerName))
+                                .ToListAsync();
+
+                            foreach (var ctrl in controllers)
+                                ctrl.ModuleName = newModule.ModuleName;
+
+                            _db.tPermissionControllers.UpdateRange(controllers);
+                        }
+                    }
                 }
-                _db.tAppModules.Remove(getUser);
+
+                // Link any views marked Linked = true
+                if (dto.Views != null)
+                {
+                    var Views = JsonConvert.DeserializeObject<List<AppModuleViewModel>>(dto.Views);
+                    if(Views != null)
+                    {
+                        var linkedRouteNames = Views
+                            .Where(v => v.Linked)
+                            .Select(v => v.RouteName)
+                            .ToList();
+
+                        if (linkedRouteNames.Any())
+                        {
+                            var views = await _db.tPermissionViews
+                                .Where(x => linkedRouteNames.Contains(x.RouteName))
+                                .ToListAsync();
+
+                            foreach (var view in views)
+                                view.ModuleName = newModule.ModuleName;
+
+                            _db.tPermissionViews.UpdateRange(views);
+                        }
+                    }
+                }
+
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
+
                 return Ok(new
                 {
-                    Message = "Module deleted updated successfully",
-                    Title = "Delete Complete"
+                    Message = $"Module '{dto.ModuleName}' has been created successfully.",
+                    Title = "Module Created"
                 });
             }
             catch (Exception ex)
@@ -121,6 +187,15 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 return ExceptionHandler(ex);
             }
         }
+
+        // ── UpdateAppModule ───────────────────────────────────────────────────────────
+        // Updates the module description, then reconciles controller and view linkages:
+        //   - Linked = true  → sets tPermissionControllers/tPermissionViews.ModuleName = this module
+        //   - Linked = false → clears ModuleName to NULL (unlinks from this module)
+        //
+        // NOTE: Only controllers/views listed in the payload are touched.
+        //       Unlisted ones are left as-is.
+        // ─────────────────────────────────────────────────────────────────────────────
         [HttpPost]
         public async Task<IActionResult> UpdateAppModule([FromBody] DBHelper.Models.Views.AppModules dto)
         {
@@ -128,12 +203,64 @@ namespace WebAPI.Controllers.Settings.UserManagement
             try
             {
                 var getModule = await _db.tAppModules.FirstOrDefaultAsync(x => x.Id == dto.Id);
-                if(getModule == null)
+                if (getModule == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Module '{dto.ModuleName}' does not exists in the System!", Title = "Module not found" });
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Module with Id '{dto.Id}' does not exist in the System!",
+                        Title = "Module not found"
+                    });
                 }
+
+                // Update description (ModuleName is immutable after creation)
                 getModule.Description = dto.Description;
                 _db.tAppModules.Update(getModule);
+
+                // ── Reconcile Controller linkages ─────────────────────────────────────
+                if (dto.Controllers != null && dto.Controllers.Any())
+                {
+                    var Controllers = JsonConvert.DeserializeObject<List<AppModuleControllerModel>>(dto.Controllers);
+                    var controllerNames = Controllers.Select(c => c.ControllerName).ToList();
+
+                    var dbControllers = await _db.tPermissionControllers
+                        .Where(x => controllerNames.Contains(x.ControllerName))
+                        .ToListAsync();
+
+                    foreach (var ctrl in dbControllers)
+                    {
+                        var payload = Controllers
+                            .First(c => c.ControllerName == ctrl.ControllerName);
+
+                        // Linked = true  → assign to this module
+                        // Linked = false → remove from this module (set NULL)
+                        ctrl.ModuleName = payload.Linked ? getModule.ModuleName : null;
+                    }
+
+                    _db.tPermissionControllers.UpdateRange(dbControllers);
+                }
+
+                // ── Reconcile View linkages ───────────────────────────────────────────
+                if (dto.Views != null && dto.Views.Any())
+                {
+                    var Views = JsonConvert.DeserializeObject<List<AppModuleViewModel>>(dto.Views);
+                    var routeNames = Views.Select(v => v.RouteName).ToList();
+
+                    var dbViews = await _db.tPermissionViews
+                        .Where(x => routeNames.Contains(x.RouteName))
+                        .ToListAsync();
+
+                    foreach (var view in dbViews)
+                    {
+                        var payload = Views
+                            .First(v => v.RouteName == view.RouteName);
+
+                        // Linked = true  → assign to this module
+                        // Linked = false → remove from this module (set NULL)
+                        view.ModuleName = payload.Linked ? getModule.ModuleName : null;
+                    }
+
+                    _db.tPermissionViews.UpdateRange(dbViews);
+                }
 
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
@@ -150,26 +277,64 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 return ExceptionHandler(ex);
             }
         }
+
+        // ── DeleteAppModule ───────────────────────────────────────────────────────────
+        // Blocks deletion if any controller or view is still linked to the module.
+        // The frontend should unlink all first (set Linked = false via UpdateAppModule)
+        // before calling delete.
+        // ─────────────────────────────────────────────────────────────────────────────
         [HttpPost]
-        public async Task<IActionResult> AddAppModule([FromBody] DBHelper.Models.Views.AppModules dto)
+        public async Task<IActionResult> DeleteAppModule([FromBody] DBHelper.Models.Views.AppModules dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                var newModule = new DBHelper.Models.Table.AppModules
+                var getModule = await _db.tAppModules.FirstOrDefaultAsync(x => x.Id == dto.Id);
+                if (getModule == null)
                 {
-                    ModuleName = dto.ModuleName,
-                    Description = dto.Description
-                };
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Module '{dto.ModuleName}' does not exist in the System!",
+                        Title = "Module not found"
+                    });
+                }
 
-                await _db.tAppModules.AddAsync(newModule);
+                // Block if any controller is still linked
+                var linkedController = await _db.tPermissionControllers
+                    .FirstOrDefaultAsync(x => x.ModuleName == getModule.ModuleName);
+
+                if (linkedController != null)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Module '{getModule.ModuleName}' is still linked to controller '{linkedController.ControllerName}'. " +
+                                  $"Please unlink all controllers before deleting.",
+                        Title = "Module still in use"
+                    });
+                }
+
+                // Block if any view is still linked
+                var linkedView = await _db.tPermissionViews
+                    .FirstOrDefaultAsync(x => x.ModuleName == getModule.ModuleName);
+
+                if (linkedView != null)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"Module '{getModule.ModuleName}' is still linked to view '{linkedView.RouteName}'. " +
+                                  $"Please unlink all views before deleting.",
+                        Title = "Module still in use"
+                    });
+                }
+
+                _db.tAppModules.Remove(getModule);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
 
                 return Ok(new
                 {
-                    Message = $"User '{dto.ModuleName}' has been created successfully.",
-                    Title = "User Created"
+                    Message = $"Module '{getModule.ModuleName}' has been deleted successfully.",
+                    Title = "Delete Complete"
                 });
             }
             catch (Exception ex)
