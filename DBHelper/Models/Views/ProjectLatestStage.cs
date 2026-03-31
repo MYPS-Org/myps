@@ -15,6 +15,7 @@ namespace DBHelper.Models.Views
         public string StageName { get; set; } = string.Empty;
         public string? ReferenceId { get; set; }
         public string ProjectId { get; set; } = string.Empty;
+        public string Region { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public int? CategoryId { get; set; }
         public string? Category { get; set; }

@@ -7,6 +7,7 @@ namespace DBHelper.Models.Views
         [Key]
         public int Id { get; set; }
         public string? GroupName { get; set; }
+        public bool ApplyFilter { get; set; } = false;
         public string? Description { get; set; }
         public int? NumberOfUsers { get; set; }
         [NotMapped]
