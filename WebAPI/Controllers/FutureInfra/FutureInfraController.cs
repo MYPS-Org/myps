@@ -326,6 +326,13 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Road does not exists in the System", Title = "Invalid Road" });
                 }
+                if (checkRoad.NetworkStatusId != 2) {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = "Only future roads that were not migrated from RBIA are eligible for deletion.",
+                        Title = "Invalid Network Status"
+                    });
+                }
                 var RoadSectionIds = await _db.tFutureRoadSections.AsNoTracking().Where(x => x.RoadId == dto.RoadId).ToListAsync();
                 HashSet<string> RoadIds = RoadSectionIds.Select(x => x.RoadSectionId).ToHashSet<string>();
                 var ValidateRoadSections = await _db.tProjectMajorWorkLocations.Where(x => RoadIds.Contains(x.InfraId)).ToListAsync();
@@ -660,6 +667,14 @@ namespace WebAPI.Controllers.Programs
                 if (checkRoadSection == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Road section does not exists in the System", Title = "Invalid Road Section" });
+                }
+                if (checkRoadSection.NetworkStatusId != 2)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = "Only future roads sections that were not migrated from RBIA are eligible for deletion.",
+                        Title = "Invalid Network Status"
+                    });
                 }
                 var ValidateRoadSections = await _db.tProjectMajorWorkLocations.Where(x => x.InfraId == dto.RoadSectionId).ToListAsync();
                 if (ValidateRoadSections.Count > 0)
@@ -1017,6 +1032,14 @@ namespace WebAPI.Controllers.Programs
                 if (checkBridge == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Bridge does not exists in the System", Title = "Invalid Bridge" });
+                }
+                if(checkBridge.NetworkStatusId != 2)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = "Only future bridges that were not migrated from RBIA are eligible for deletion.",
+                        Title = "Invalid Network Status"
+                    });
                 }
                 var ValidateRoadSections = await _db.tProjectMajorWorkLocations.Where(x => x.InfraId == dto.BridgeId).ToListAsync();
                 if (ValidateRoadSections.Count > 0)
