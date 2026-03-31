@@ -140,3 +140,11 @@ export interface RoutePermissionFilter {
     RoutePath?: string;
     Description?: string;
 }
+
+export interface AppModules {
+	Id: number;
+	ModuleName: string;
+	Description?: string;
+	ControllerCount?: number;
+	ViewCount?: number;
+}

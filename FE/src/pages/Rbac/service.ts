@@ -1,5 +1,5 @@
 // Service functions for RBAC operations
-import type { PermissionPagination, Permissions, AddPermission, PermissionGroup, Users, UserPagination, UserGroups, AddUserGroups, UserGroupPagination, Pis, InitialDataResponse, UserGroupDropdowns, vUserGroups, PermissionViews, RoutePermissionPagination } from './Model.d';
+import type { PermissionPagination, Permissions, AddPermission, PermissionGroup, Users, UserPagination, AddUserGroups, UserGroupPagination, Pis, InitialDataResponse, UserGroupDropdowns, vUserGroups, PermissionViews, RoutePermissionPagination, AppModules } from './Model.d';
 import { httpClient, type ErrorResponse } from '../../services/httpClient';
 // import type { ErrorResponse } from '';
 
@@ -191,6 +191,16 @@ export const callSyncPermissions = async () => {
 		return response;
 	} catch (error) {
 		console.error('Error syncing permissions:', error);
+		throw error;
+	}
+}
+
+export const getAppModules = async () => {
+	try {
+		const response = await httpClient.post<AppModules[]>('/UserManagement/ShowAppModules');
+		return response;
+	} catch (error) {
+		console.error('Error fetching app modules:', error);
 		throw error;
 	}
 }
