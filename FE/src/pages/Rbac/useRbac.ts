@@ -9,6 +9,7 @@ import type {
 	PermissionViews,
 	RoutePermissionPagination,
 	AppModules,
+	ShowAppModulesPagination,
 } from './Model.d';
 import {
 	fetchInitialData,
@@ -32,7 +33,9 @@ export function useRbac() {
 	const [PermissionsData, setPermissionsData] = useState<PaginationResponse<Permissions>>({
 		lists: [], page: 1, limit: 20, total: 0, totalPages: 0,
 	});
-	const [ModulesData, setModulesData] = useState<AppModules[]>([]);
+	const [ModulesData, setModulesData] = useState<PaginationResponse<AppModules>>({
+		lists: [], page: 1, limit: 20, total: 0, totalPages: 0,
+	});
 	const [UserGroupsData, setUserGroups] = useState<PaginationResponse<vUserGroups>>({
 		lists: [], page: 1, limit: 20, total: 0, totalPages: 0,
 	});
@@ -80,6 +83,12 @@ export function useRbac() {
 		filters: { RoutePath: '', Description: '' },
 		sortField: '', sortDirection: 1, page: 1, limit: 20,
 	});
+
+	const [ShowAppModulesFilter, setShowAppModulesFilter] = useState<ShowAppModulesPagination>({
+		filters: { ModuleName: '' },
+		sortField: '', sortDirection: 1, page: 1, limit: 20,
+	});
+
 
 	const [isLoadingPermissions, setIsLoadingPermissions] = useState(false);
 	const [isLoadingModules, setIsLoadingModules] = useState(false);
@@ -316,9 +325,9 @@ export function useRbac() {
 			try {
 				setIsLoadingModules(true);
 				console.log('Fetching app modules');
-				const res = await getAppModules();
+				const res = await getAppModules(ShowAppModulesFilter);
 				console.log('App modules response:', res);
-				if (res.Data) { setModulesData(res.Data); setTabNumbers(prev => ({ ...prev, modules: res.Data.length })); }
+				if (res.Data) { setModulesData(res.Data); setTabNumbers(prev => ({ ...prev, modules: res.Data.total })); }
 			} catch (error) {
 				console.error('Error fetching modules:', error);
 				alert('Failed to fetch modules: ' + (error instanceof Error ? error.message : 'Unknown error'));
@@ -440,6 +449,19 @@ export function useRbac() {
 			} finally {
 				setIsLoadingRoutePermissions(false);
 			}
+		} else if (selectedTab === 'modules') {
+			const newFilter: ShowAppModulesPagination = { ...ShowAppModulesFilter, page };
+			setShowAppModulesFilter(newFilter);
+			try {
+				setIsLoadingModules(true);
+				const res = await getAppModules(newFilter);
+				if (res.Data.lists) { setModulesData(res.Data); }
+			} catch (error) {
+				console.error('Error fetching modules:', error);
+				alert('Failed to fetch modules: ' + (error instanceof Error ? error.message : 'Unknown error'));
+			} finally {
+				setIsLoadingModules(false);
+			}
 		}
 	};
 
@@ -479,6 +501,7 @@ export function useRbac() {
 		UserGroupFilter, setUserGroupFilter,
 		PermissionFilter, setPermissionFilter,
 		RoutePermissionFilter, setRoutePermissionFilter,
+		ShowAppModulesFilter, setShowAppModulesFilter,
 		// Loading
 		isLoadingPermissions,
 		isLoadingModules,

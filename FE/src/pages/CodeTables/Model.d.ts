@@ -124,3 +124,57 @@ export interface ProgramEnums {
     Name: string;
     Description: string;
 }
+
+export interface AdminAreaRegion {
+    Id: number;
+    GdbId: string;
+    Name: string;
+    ParticipantId: string;
+    IslandCode: string;
+}
+
+export interface AdminAreaProvince {
+    Id: number;
+    GdbId: string;
+    Name: string;
+    Code?: string;
+    RegionParticipantId: string;
+    RegionName: string;
+}
+
+export interface AdminAreaCity {
+    Id: number;
+    GdbId: string;
+    Name: string;
+    Code?: string;
+    ProvinceGdbId: string;
+    ProvinceName: string;
+}
+
+export interface AdminAreaDistrict {
+    Id: number;
+    GdbId: string;
+    Name: string;
+    Code?: string;
+    ProvinceGdbId: string;
+    ProvinceName: string;
+}
+
+export interface AdminAreaDEO {
+    Id: number;
+    GdbId?: string;
+    Name: string;
+    ParticipantId: string;
+    ProvinceGdbId: string;
+    ProvinceName?: string;
+    RegionParticipantId: string;
+    RegionName: string;
+}
+
+export interface AdminAreaData {
+    Regions: AdminAreaRegion[];
+    Provinces: AdminAreaProvince[];
+    Cities: AdminAreaCity[];
+    Districts: AdminAreaDistrict[];
+    DEOs: AdminAreaDEO[];
+}

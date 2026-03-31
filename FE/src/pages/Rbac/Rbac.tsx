@@ -124,6 +124,7 @@ const Rbac: React.FC = () => {
 				<AppModuleTable
 					data={ModulesData}
 					isLoading={isLoadingModules}
+					onPaginate={Paginate}
 				/>
 			)}
 

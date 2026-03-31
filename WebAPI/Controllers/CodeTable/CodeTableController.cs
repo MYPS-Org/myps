@@ -91,6 +91,33 @@ namespace WebAPI.Controllers.CodeTable
         }
         [AllowAnonymous]
         [HttpPost]
+        public async Task<IActionResult> GetAdminAreas()
+        {
+            try
+            {
+                var regions   = await _db.tOptionAdminAreaRegion.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var provinces = await _db.tOptionAdminAreaProvince.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var cities    = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var districts = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                var deos      = await _db.tOptionAdminAreaDistrictEngineeringOffice.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+
+                return Ok(new
+                {
+                    Regions   = regions,
+                    Provinces = provinces,
+                    Cities    = cities,
+                    Districts = districts,
+                    DEOs      = deos
+                });
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpPost]
         public async Task<IActionResult> GetTransactionLog([FromBody] GetTransactionLogDTO dto)
         {
             try
@@ -1803,6 +1830,152 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.NewValue = string.Empty;
                         transactionLog.OldValue = JsonConvert.SerializeObject(CheckUpdate);
                         _db.tOptionRevisionStatus.Remove(CheckUpdate);
+                    }
+                }
+                else if (dto.Code == "AdminAreaRegion")
+                {
+                    tablename = "Admin Area Region";
+                    transactionLog.AffectedTable = "tOptionAdminAreaRegion";
+                    var data = JsonConvert.DeserializeObject<OptionAdminAreaRegion>(dto.Json);
+                    if (data == null) return new BadRequestObjectResult(new { Title = "Invalid Data", Message = "No data provided." });
+                    var existing = await _db.tOptionAdminAreaRegion.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id);
+                    if (existing == null && dto.TransactionType != CodeTransactionType.Create)
+                        return new BadRequestObjectResult(new { Title = "Not Found", Message = $"Region with Id {data.Id} was not found." });
+                    if (dto.TransactionType == CodeTransactionType.Create)
+                    {
+                        transactionLog.AffectedColumn = string.Empty; transactionLog.OldValue = string.Empty; transactionLog.NewValue = dto.Json;
+                        await _db.tOptionAdminAreaRegion.AddAsync(data);
+                    }
+                    else if (dto.TransactionType == CodeTransactionType.Update && existing != null)
+                    {
+                        transactionLog.OldValue = JsonConvert.SerializeObject(existing);
+                        existing.GdbId = data.GdbId; existing.Name = data.Name;
+                        existing.ParticipantId = data.ParticipantId; existing.IslandCode = data.IslandCode;
+                        transactionLog.NewValue = JsonConvert.SerializeObject(existing);
+                        transactionLog.AffectedColumn = "GdbId,ParticipantId,Name,IslandCode";
+                        _db.tOptionAdminAreaRegion.Update(existing);
+                    }
+                    else if (dto.TransactionType == CodeTransactionType.Delete && existing != null)
+                    {
+                        transactionLog.OldValue = JsonConvert.SerializeObject(existing); transactionLog.NewValue = string.Empty; transactionLog.AffectedColumn = string.Empty;
+                        _db.tOptionAdminAreaRegion.Remove(existing);
+                    }
+                }
+                else if (dto.Code == "AdminAreaProvince")
+                {
+                    tablename = "Admin Area Province";
+                    transactionLog.AffectedTable = "tOptionAdminAreaProvince";
+                    var data = JsonConvert.DeserializeObject<OptionAdminAreaProvince>(dto.Json);
+                    if (data == null) return new BadRequestObjectResult(new { Title = "Invalid Data", Message = "No data provided." });
+                    var existing = await _db.tOptionAdminAreaProvince.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id);
+                    if (existing == null && dto.TransactionType != CodeTransactionType.Create)
+                        return new BadRequestObjectResult(new { Title = "Not Found", Message = $"Province with Id {data.Id} was not found." });
+                    if (dto.TransactionType == CodeTransactionType.Create)
+                    {
+                        transactionLog.AffectedColumn = string.Empty; transactionLog.OldValue = string.Empty; transactionLog.NewValue = dto.Json;
+                        await _db.tOptionAdminAreaProvince.AddAsync(data);
+                    }
+                    else if (dto.TransactionType == CodeTransactionType.Update && existing != null)
+                    {
+                        transactionLog.OldValue = JsonConvert.SerializeObject(existing);
+                        existing.GdbId = data.GdbId; existing.Name = data.Name; existing.Code = data.Code;
+                        existing.RegionParticipantId = data.RegionParticipantId; existing.RegionName = data.RegionName;
+                        transactionLog.NewValue = JsonConvert.SerializeObject(existing);
+                        transactionLog.AffectedColumn = "GdbId,Name,Code,RegionParticipantId,RegionName";
+                        _db.tOptionAdminAreaProvince.Update(existing);
+                    }
+                    else if (dto.TransactionType == CodeTransactionType.Delete && existing != null)
+                    {
+                        transactionLog.OldValue = JsonConvert.SerializeObject(existing); transactionLog.NewValue = string.Empty; transactionLog.AffectedColumn = string.Empty;
+                        _db.tOptionAdminAreaProvince.Remove(existing);
+                    }
+                }
+                else if (dto.Code == "AdminAreaCity")
+                {
+                    tablename = "Admin Area City/Municipality";
+                    transactionLog.AffectedTable = "tOptionAdminAreaCityMunicipality";
+                    var data = JsonConvert.DeserializeObject<OptionAdminAreaCityMunicipality>(dto.Json);
+                    if (data == null) return new BadRequestObjectResult(new { Title = "Invalid Data", Message = "No data provided." });
+                    var existing = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id);
+                    if (existing == null && dto.TransactionType != CodeTransactionType.Create)
+                        return new BadRequestObjectResult(new { Title = "Not Found", Message = $"City/Municipality with Id {data.Id} was not found." });
+                    if (dto.TransactionType == CodeTransactionType.Create)
+                    {
+                        transactionLog.AffectedColumn = string.Empty; transactionLog.OldValue = string.Empty; transactionLog.NewValue = dto.Json;
+                        await _db.tOptionAdminAreaCityMunicipality.AddAsync(data);
+                    }
+                    else if (dto.TransactionType == CodeTransactionType.Update && existing != null)
+                    {
+                        transactionLog.OldValue = JsonConvert.SerializeObject(existing);
+                        existing.GdbId = data.GdbId; existing.Name = data.Name; existing.Code = data.Code;
+                        existing.ProvinceGdbId = data.ProvinceGdbId; existing.ProvinceName = data.ProvinceName;
+                        transactionLog.NewValue = JsonConvert.SerializeObject(existing);
+                        transactionLog.AffectedColumn = "GdbId,Name,Code,ProvinceGdbId,ProvinceName";
+                        _db.tOptionAdminAreaCityMunicipality.Update(existing);
+                    }
+                    else if (dto.TransactionType == CodeTransactionType.Delete && existing != null)
+                    {
+                        transactionLog.OldValue = JsonConvert.SerializeObject(existing); transactionLog.NewValue = string.Empty; transactionLog.AffectedColumn = string.Empty;
+                        _db.tOptionAdminAreaCityMunicipality.Remove(existing);
+                    }
+                }
+                else if (dto.Code == "AdminAreaDistrict")
+                {
+                    tablename = "Admin Area Congressional District";
+                    transactionLog.AffectedTable = "tOptionAdminAreaCongressionalDistrict";
+                    var data = JsonConvert.DeserializeObject<OptionAdminAreaCongressionalDistrict>(dto.Json);
+                    if (data == null) return new BadRequestObjectResult(new { Title = "Invalid Data", Message = "No data provided." });
+                    var existing = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id);
+                    if (existing == null && dto.TransactionType != CodeTransactionType.Create)
+                        return new BadRequestObjectResult(new { Title = "Not Found", Message = $"District with Id {data.Id} was not found." });
+                    if (dto.TransactionType == CodeTransactionType.Create)
+                    {
+                        transactionLog.AffectedColumn = string.Empty; transactionLog.OldValue = string.Empty; transactionLog.NewValue = dto.Json;
+                        await _db.tOptionAdminAreaCongressionalDistrict.AddAsync(data);
+                    }
+                    else if (dto.TransactionType == CodeTransactionType.Update && existing != null)
+                    {
+                        transactionLog.OldValue = JsonConvert.SerializeObject(existing);
+                        existing.GdbId = data.GdbId; existing.Name = data.Name; existing.Code = data.Code;
+                        existing.ProvinceGdbId = data.ProvinceGdbId; existing.ProvinceName = data.ProvinceName;
+                        transactionLog.NewValue = JsonConvert.SerializeObject(existing);
+                        transactionLog.AffectedColumn = "GdbId,Name,Code,ProvinceGdbId,ProvinceName";
+                        _db.tOptionAdminAreaCongressionalDistrict.Update(existing);
+                    }
+                    else if (dto.TransactionType == CodeTransactionType.Delete && existing != null)
+                    {
+                        transactionLog.OldValue = JsonConvert.SerializeObject(existing); transactionLog.NewValue = string.Empty; transactionLog.AffectedColumn = string.Empty;
+                        _db.tOptionAdminAreaCongressionalDistrict.Remove(existing);
+                    }
+                }
+                else if (dto.Code == "AdminAreaDEO")
+                {
+                    tablename = "Admin Area District Engineering Office";
+                    transactionLog.AffectedTable = "tOptionAdminAreaDistrictEngineeringOffice";
+                    var data = JsonConvert.DeserializeObject<OptionAdminAreaDistrictEngineeringOffice>(dto.Json);
+                    if (data == null) return new BadRequestObjectResult(new { Title = "Invalid Data", Message = "No data provided." });
+                    var existing = await _db.tOptionAdminAreaDistrictEngineeringOffice.AsNoTracking().FirstOrDefaultAsync(x => x.Id == data.Id);
+                    if (existing == null && dto.TransactionType != CodeTransactionType.Create)
+                        return new BadRequestObjectResult(new { Title = "Not Found", Message = $"DEO with Id {data.Id} was not found." });
+                    if (dto.TransactionType == CodeTransactionType.Create)
+                    {
+                        transactionLog.AffectedColumn = string.Empty; transactionLog.OldValue = string.Empty; transactionLog.NewValue = dto.Json;
+                        await _db.tOptionAdminAreaDistrictEngineeringOffice.AddAsync(data);
+                    }
+                    else if (dto.TransactionType == CodeTransactionType.Update && existing != null)
+                    {
+                        transactionLog.OldValue = JsonConvert.SerializeObject(existing);
+                        existing.GdbId = data.GdbId; existing.Name = data.Name; existing.ParticipantId = data.ParticipantId;
+                        existing.ProvinceGdbId = data.ProvinceGdbId; existing.ProvinceName = data.ProvinceName;
+                        existing.RegionParticipantId = data.RegionParticipantId; existing.RegionName = data.RegionName;
+                        transactionLog.NewValue = JsonConvert.SerializeObject(existing);
+                        transactionLog.AffectedColumn = "GdbId,ParticipantId,Name,ProvinceGdbId,ProvinceName,RegionParticipantId,RegionName";
+                        _db.tOptionAdminAreaDistrictEngineeringOffice.Update(existing);
+                    }
+                    else if (dto.TransactionType == CodeTransactionType.Delete && existing != null)
+                    {
+                        transactionLog.OldValue = JsonConvert.SerializeObject(existing); transactionLog.NewValue = string.Empty; transactionLog.AffectedColumn = string.Empty;
+                        _db.tOptionAdminAreaDistrictEngineeringOffice.Remove(existing);
                     }
                 }
                 else

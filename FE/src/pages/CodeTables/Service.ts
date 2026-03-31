@@ -1,5 +1,5 @@
 import { httpClient } from "../../services/httpClient";
-import type { ModificationCategoryReason, RevisionRules, CodeTableData } from "./Model.d";
+import type { ModificationCategoryReason, RevisionRules, CodeTableData, AdminAreaData } from "./Model.d";
 
 export const fetchRevisionReasons = async () => {
     try {
@@ -42,6 +42,16 @@ export const updateCodeTable = async (code: string, transactionType: number, jso
     }
     catch (error) {
         console.error('Error updating code table:', error);
+        throw error;
+    }
+}
+
+export const fetchAdminAreas = async () => {
+    try {
+        const response = await httpClient.post<AdminAreaData>('CodeTable/GetAdminAreas');
+        return response;
+    } catch (error) {
+        console.error('Error fetching admin area data:', error);
         throw error;
     }
 }
