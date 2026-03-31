@@ -26,6 +26,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
             {
                 var CountUsers = await _db.vUsers.CountAsync();
                 var CountPermissions = await _db.tPermissionActions.CountAsync();
+                var CountRoutePermissions = await _db.tPermissionViews.CountAsync();
                 var CountGroups = await _db.tGroups.CountAsync();
                 List<DBHelper.Models.Views.Users> UserLists = await _db.vUsers
                 .AsNoTracking()
@@ -35,7 +36,8 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 var response = new
                 {
                     NumberOfUsers = CountUsers,
-                    NumberOfPermissions = CountPermissions,
+                    NumberOfAPIPermissions = CountPermissions,
+                    NumberOfRoutePermissions = CountRoutePermissions,
                     NumberOfGroups = CountGroups,
                     Users = UserLists,
                 };

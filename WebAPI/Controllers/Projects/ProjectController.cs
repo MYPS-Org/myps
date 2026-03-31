@@ -70,6 +70,11 @@ namespace WebAPI.Controllers.Projects
                 if (!string.IsNullOrEmpty(dto.Filters?.ProjectId))
                     baseQuery = baseQuery.Where(e => e.ProjectId!.Contains(dto.Filters.ProjectId));
 
+                if (_Session.ApplyFilter)
+                {
+                    baseQuery = baseQuery.Where(e => e.Region == _Session.RegCode);
+                }
+
                 // Get total count of filtered results (before pagination)
                 var totalRecords = await baseQuery.CountAsync();
 
@@ -142,6 +147,14 @@ namespace WebAPI.Controllers.Projects
                 //var Stage = await _db.tProjectStages.AsNoTracking().FirstOrDefaultAsync(x => x.ReferenceId == ProjectId || x.ReferenceId == dto.ProjectId);
                 //var Projects = await _db.fProjectsPerStage.FromSqlInterpolated($"SELECT * FROM fProjectsInProgram({Stage.ProgramId}) fp WHERE fp.ReferenceId = {Stage.ReferenceId}").AsNoTracking().ToListAsync();
                 var Stage = await _db.vProjectPerStages.AsNoTracking().Where(x => x.ReferenceId == ProjectId || x.ReferenceId == dto.ProjectId).ToListAsync();
+                if (_Session.ApplyFilter && Stage != null)
+                {
+                    var getLatest = Stage.OrderByDescending(x => x.Id).FirstOrDefault();
+                    if(getLatest != null && getLatest.Region != _Session.RegCode)
+                    {
+                        return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
+                    }
+                }
                 return Ok(new
                 {
                     Stages = Stage
@@ -430,6 +443,10 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
                 }
+                if(_Session.ApplyFilter && Project.Region != _Session.RegCode)
+                {
+                    return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
+                }
                 var CurrentProgramVersion = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == Project.ProgramId);
                 if (CurrentProgramVersion == null)
                 {
@@ -600,6 +617,10 @@ namespace WebAPI.Controllers.Projects
                 .FirstOrDefaultAsync();
                 //var Project = await _db.vProjectDetails.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectDetails.ProjectId);
                 if (Project == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
+                }
+                if(_Session.ApplyFilter && Project.Region != _Session.RegCode)
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
                 }
@@ -2183,6 +2204,10 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
                 }
+                if(_Session.ApplyFilter && Project.Region != _Session.RegCode)
+                {
+                    return new BadRequestObjectResult(new { Message = "You don't have access to add notes for this project!", Title = "Access Denied" });
+                }
                 if (dto.File == null)
                 {
                     return new BadRequestObjectResult(new { Message = "No file uploaded!", Title = "File Upload Error" });
@@ -2227,6 +2252,10 @@ namespace WebAPI.Controllers.Projects
                 if (Project == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
+                }
+                if(_Session.ApplyFilter && Project.Region != _Session.RegCode)
+                {
+                    return new BadRequestObjectResult(new { Message = "You don't have access to delete notes for this project!", Title = "Access Denied" });
                 }
                 var Note = await _db.tProjectNotes.FirstOrDefaultAsync(x => x.Id == dto.Id);
                 if (Note == null)
@@ -2274,6 +2303,10 @@ namespace WebAPI.Controllers.Projects
                 if(Project == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
+                }
+                if(_Session.ApplyFilter && Project.Region != _Session.RegCode)
+                {
+                    return new BadRequestObjectResult(new { Message = "You don't have access to add supporting documents for this project!", Title = "Access Denied" });
                 }
                 if (dto.File == null)
                 {
@@ -2328,6 +2361,10 @@ namespace WebAPI.Controllers.Projects
                 if (Project == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
+                }
+                if(_Session.ApplyFilter && Project.Region != _Session.RegCode)
+                {
+                    return new BadRequestObjectResult(new { Message = "You don't have access to delete supporting documents for this project!", Title = "Access Denied" });
                 }
                 var Note = await _db.tProjectSupportingDocs.FirstOrDefaultAsync(x => x.Id == dto.Id);
                 if(Note == null)

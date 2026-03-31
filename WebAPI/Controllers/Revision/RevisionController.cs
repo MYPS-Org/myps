@@ -86,6 +86,7 @@ namespace WebAPI.Controllers.Revision
                 if (dto.Filters?.COStatus != null)
                     baseQuery = baseQuery.Where(e => e.COStatus == dto.Filters.COStatus);
 
+
                 // Get total count of filtered results (before pagination)
                 var totalRecords = await baseQuery.CountAsync();
 
@@ -94,6 +95,7 @@ namespace WebAPI.Controllers.Revision
                 var sortedQuery = dto.sortDirection == sortDirectionList.ASC
                         ? baseQuery.OrderBy(e => EF.Property<object>(e, dto.SortField))
                         : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField));
+
 
                 // Apply pagination and execute query
                 List<DBHelper.Models.Views.RevisionLists> permissionLists = await sortedQuery
@@ -137,6 +139,10 @@ namespace WebAPI.Controllers.Revision
                 if (Project == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found or not in GAA-R stage!", Title = "Invalid Project" });
+                }
+                if (_Session.ApplyFilter && Project.Region == _Session.RegCode)
+                {
+                    return new BadRequestObjectResult(new { Message = "You don't have permission to view this project!", Title = "Permission Denied" });
                 }
                 int? RevisedNumber = Project.RevisedNumber;
                 var RevisionDetails = await _db.vRevisionLists.AsNoTracking().FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId);

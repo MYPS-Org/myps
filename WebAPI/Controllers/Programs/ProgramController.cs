@@ -95,8 +95,10 @@ namespace WebAPI.Controllers.Programs
 
                 if (!string.IsNullOrEmpty(dto.Filters?.StageName))
                     baseQuery = baseQuery.Where(e => e.StageName == dto.Filters.StageName);
-
-                baseQuery = baseQuery.Where(x => x.DataSecurityGroup.Contains(_Session.RegCode));
+                if (_Session.ApplyFilter)
+                {
+                    baseQuery = baseQuery.Where(x => x.DataSecurityGroup.Contains(_Session.RegCode));
+                }
                 // Get total count of filtered results (before pagination)
                 var totalRecords = await baseQuery.CountAsync();
 
@@ -139,6 +141,11 @@ namespace WebAPI.Controllers.Programs
             try
             {
                 var Stage = await _db.vProgramDetails.AsNoTracking().Where(x => dto.ProgramId == x.ProgramId).ToListAsync();
+
+                if (_Session.ApplyFilter)
+                {
+                    Stage = Stage.Where(x => x.DataSecurityGroup.Contains(_Session.RegCode)).ToList();
+                }
                 return Ok(new
                 {
                     Stages = Stage
@@ -283,14 +290,27 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Programs table. Please contact administrator!", Title = "Program not found" });
                 }
-                var program = await _db.vProgramDetails.AsNoTracking().OrderByDescending(x => x.Id).FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId && x.StageName == dto.StageName);
+                var query = _db.vProgramDetails
+                .AsNoTracking()
+                .Where(x => x.ProgramId == dto.ProgramId && x.StageName == dto.StageName);
+
+                if (_Session.ApplyFilter)
+                    query = query.Where(x => x.DataSecurityGroup.Contains(_Session.RegCode));
+
+                var program = await query
+                    .OrderByDescending(x => x.Id)
+                    .FirstOrDefaultAsync();
                 if (program == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' with Stage {dto.StageName} does not exist in the Programs table. Please contact administrator!", Title = "Program not found" });
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = $"No Program ID found '{dto.ProgramId}' under stage '{dto.StageName}'. Please contact your administrator.",
+                        Title = "Program Not Found"
+                    });
                 }
-                //var ProjectLists = await _db.vProjects.AsNoTracking().Where(x => x.ProgramId == dto.ProgramId && x.StageName == dto.StageName).ToListAsync();
-                var ProjectLists = await _db.fProjectsPerStage
-                .FromSqlInterpolated($"SELECT * FROM fProjectsInProgram({dto.ProgramId}) fp WHERE fp.StageName = {dto.StageName}").AsNoTracking()
+                    //var ProjectLists = await _db.vProjects.AsNoTracking().Where(x => x.ProgramId == dto.ProgramId && x.StageName == dto.StageName).ToListAsync();
+                    var ProjectLists = await _db.fProjectsPerStage
+                .FromSqlInterpolated($"SELECT * FROM fProjectsInProgram({program.ProgramId}) fp WHERE fp.StageName = {dto.StageName}").AsNoTracking()
                     .OrderByDescending(x => x.Id)
                     .Skip(0 * 15)
                     .Take(15)
@@ -337,6 +357,14 @@ namespace WebAPI.Controllers.Programs
                 if (NotAllowed != null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program {dto.ProgramId} cannot be deleted because it has progressed beyond the BP stage.", Title = "Delete Not Allowed" });
+                }
+                if (_Session.ApplyFilter)
+                {
+                    var ProjectRevision = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dto.RevisionId && x.DataSecurityGroup.Contains(_Session.RegCode));
+                    if(ProjectRevision == null)
+                    {
+                        return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist or you do not have permission to delete this program. Please contact administrator!", Title = "Program not found or Access Denied" });
+                    }
                 }
                 var program = await _db.tPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
                 if (program == null)
@@ -422,6 +450,17 @@ namespace WebAPI.Controllers.Programs
                         Title = "Program Not Found",
                         Message = $"The program with ID '{referenceId}' does not exist in the system."
                     });
+                }
+                if (_Session.ApplyFilter)
+                {
+                    if (!currentVersion.DataSecurityGroup.Contains(_Session.RegCode))
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            Title = "Access Denied",
+                            Message = $"You do not have permission to update the program with ID '{referenceId}'. Please contact your administrator."
+                        });
+                    }
                 }
 
                 var getProgram = await _db.vProgramDetails
@@ -616,6 +655,13 @@ namespace WebAPI.Controllers.Programs
                 if (checkProgram == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Programs table. Please contact administrator!", Title = "Program not found" });
+                }
+                if (_Session.ApplyFilter)
+                {
+                    if (!checkProgram.DataSecurityGroup.Contains(_Session.RegCode))
+                    {
+                        return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist or you do not have permission to update this program. Please contact administrator!", Title = "Program not found or Access Denied" });
+                    }
                 }
                 var checkRevisions = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId && x.Id == checkProgram.RevisionId);
                 if (checkRevisions == null)
@@ -910,6 +956,13 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Programs table. Please contact administrator!", Title = "Program not found" });
                 }
+                if (_Session.ApplyFilter)
+                {
+                    if (!checkProgram.DataSecurityGroup.Contains(_Session.RegCode))
+                    {
+                        return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist or you do not have permission to update this program. Please contact administrator!", Title = "Program not found or Access Denied" });
+                    }
+                }
                 char[] delimiters = { ';', ',', ' ', '\n' };
                 var projectIds = dto.ProjectIds
                 .Split(delimiters, StringSplitOptions.RemoveEmptyEntries)
@@ -982,6 +1035,13 @@ namespace WebAPI.Controllers.Programs
                 if (checkProgram == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Programs table. Please contact administrator!", Title = "Program not found" });
+                }
+                if (_Session.ApplyFilter)
+                {
+                    if (!checkProgram.DataSecurityGroup.Contains(_Session.RegCode))
+                    {
+                        return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist or you do not have permission to update this program. Please contact administrator!", Title = "Program not found or Access Denied" });
+                    }
                 }
                 char[] delimiters = { ';', ',', '.', '&', ' ', '\n' };
                 var projectIds = dto.ProjectIds
@@ -1056,6 +1116,13 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Programs table. Please contact administrator!", Title = "Program not found" });
                 }
+                if(_Session.ApplyFilter)
+                {
+                    if (!checkProgram.DataSecurityGroup.Contains(_Session.RegCode))
+                    {
+                        return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist or you do not have permission to update this program. Please contact administrator!", Title = "Program not found or Access Denied" });
+                    }
+                }
                 char[] delimiters = { ';', ',', '.', '&', ' ', '\n' };
                 var projectIds = dto.ProjectIds
                 .Split(delimiters, StringSplitOptions.RemoveEmptyEntries)
@@ -1128,6 +1195,13 @@ namespace WebAPI.Controllers.Programs
                 if (checkProgram == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Programs table. Please contact administrator!", Title = "Program not found" });
+                }
+                if (_Session.ApplyFilter)
+                {
+                    if (!checkProgram.DataSecurityGroup.Contains(_Session.RegCode))
+                    {
+                        return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist or you do not have permission to update this program. Please contact administrator!", Title = "Program not found or Access Denied" });
+                    }
                 }
                 char[] delimiters = { ';', ',', '.', '&', ' ', '\n' };
                 var projectIds = dto.ProjectIds
