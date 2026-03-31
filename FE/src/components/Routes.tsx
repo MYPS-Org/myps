@@ -49,7 +49,7 @@ const protectedRoutes: AppRoute[] = [
   { RouteName: '', path: '/reports/programs', element: <ProgramReports /> },
   { RouteName: '', path: '/reports/projects', element: <ProjectReports /> },
   { RouteName: '', path: '/settings', element: <Settings /> },
-  { RouteName: '', path: '/code-tables', element: <CodeTables /> },
+  { RouteName: 'CodeTables', path: '/code-tables', element: <CodeTables /> },
   { RouteName: '', path: '/lumpsum', element: <LumpSumList /> },
   { RouteName: '', path: '/lumpsum/:projectId', element: <LumpSumDetails /> },
 ];
