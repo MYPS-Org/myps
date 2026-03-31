@@ -580,7 +580,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 }
                 if (!string.IsNullOrEmpty(dto.SortField))
                 {
-                    bool isValid = typeof(DBHelper.Models.Views.Permissions)
+                    bool isValid = typeof(DBHelper.Models.Views.APIPermissions)
                         .GetProperties(BindingFlags.Public | BindingFlags.Instance)
                         .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
                     if (!isValid)
@@ -784,7 +784,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 }
                 if (!string.IsNullOrEmpty(dto.SortField))
                 {
-                    bool isValid = typeof(DBHelper.Models.Views.Permissions)
+                    bool isValid = typeof(DBHelper.Models.Views.APIPermissions)
                         .GetProperties(BindingFlags.Public | BindingFlags.Instance)
                         .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
                     if (!isValid)
@@ -803,13 +803,10 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 if (dto.page < 1) dto.page = 1;
                 if (dto.limit < 1) dto.limit = 10;
 
-                var baseQuery = _db.vPermissions.AsNoTracking();
+                var baseQuery = _db.vAPIPermissions.AsNoTracking();
 
                 if (!string.IsNullOrEmpty(dto.Filters?.ControllerName))
                     baseQuery = baseQuery.Where(e => e.ControllerName!.Contains(dto.Filters.ControllerName));
-
-                if (!string.IsNullOrEmpty(dto.Filters?.ActionName))
-                    baseQuery = baseQuery.Where(e => e.ActionName!.Contains(dto.Filters.ActionName));
 
                 if (!string.IsNullOrEmpty(dto.Filters?.ControllerDescription))
                     baseQuery = baseQuery.Where(e => e.ControllerDescription!.Contains(dto.Filters.ControllerDescription));
