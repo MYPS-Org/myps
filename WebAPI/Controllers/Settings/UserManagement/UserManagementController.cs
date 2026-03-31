@@ -966,9 +966,11 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     });
                 }
                 getPermission.Description = dto.Description;
+                getPermission.ModuleName = dto.ModuleName;
                 _db.tPermissionControllers.Update(getPermission);
                 await _db.SaveChangesAsync();
-                await transaction.CommitAsync(); return Ok(new
+                await transaction.CommitAsync();
+                return Ok(new
                 {
                     Message = $"'{dto.ControllerName}' details have been saved successfully.",
                     Title = "Changes Saved"
@@ -998,7 +1000,8 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 getPermission.Description = dto.Description;
                 _db.tPermissionActions.Update(getPermission);
                 await _db.SaveChangesAsync();
-                await transaction.CommitAsync(); return Ok(new
+                await transaction.CommitAsync();
+                return Ok(new
                 {
                     Message = $"'{dto.ActionName}' details have been saved successfully.",
                     Title = "Changes Saved"
@@ -1023,6 +1026,17 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     {
                         Message = $"The permission controller could not be found. Please ensure permissions are synced.",
                         Title = "Controller Not Found"
+                    });
+                }
+                var controllerTypes = typeof(CoreController).Assembly
+                    .GetTypes()
+                    .FirstOrDefault(t => t.Name == getPermission.ControllerName);
+                if(controllerTypes != null)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Title = "Deletion Restricted",
+                        Message = $"The [{getPermission.ControllerName}] is still active in the code base. Delete the code-level controller before removing this permission record."
                     });
                 }
 

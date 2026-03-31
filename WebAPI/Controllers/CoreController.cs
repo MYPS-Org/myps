@@ -25,11 +25,6 @@ namespace WebAPI.Controllers
     [PermissionFilter]
     public abstract class CoreController : Controller
     {
-        [AllowAnonymous]
-        public IActionResult Index()
-        {
-            return Ok("Welcome to the API");
-        }
         public AppDbContext _db;
         public DBHelper.Models.Views.Users _Session = new DBHelper.Models.Views.Users();
         private readonly IProducer<Null, string> _producer;
