@@ -84,6 +84,7 @@ export interface ProgramDetailsWithStages {
 	Name: string;
 	StageId: number;
 	StageName: string;
+	Description?: string;
 	IsSkipped: boolean;
 	SkipReason: string;
 	UserGroup: number;

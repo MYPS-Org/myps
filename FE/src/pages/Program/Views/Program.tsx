@@ -478,7 +478,7 @@ const Program: React.FC = () => {
                                                                     <Button
                                                                         color="blue"
                                                                         className="text-xs px-3 py-1.5 text-center"
-                                                                        onClick={() => handleViewDetails(stage.ProgramId, stage.StageName)}
+                                                                        onClick={() => handleViewDetails(stage.ProgramId, stage.Description ?? stage.StageName)}
                                                                     >
                                                                         View Details
                                                                     </Button>
