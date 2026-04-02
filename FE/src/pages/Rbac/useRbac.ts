@@ -1,0 +1,525 @@
+import { useEffect, useState } from 'react';
+import type {
+	Users,
+	Permissions,
+	PermissionPagination,
+	UserPagination,
+	UserGroupPagination,
+	vUserGroups,
+	PermissionViews,
+	RoutePermissionPagination,
+	AppModules,
+	ShowAppModulesPagination,
+} from './Model.d';
+import {
+	fetchInitialData,
+	fetchPermissions,
+	fetchUsers,
+	fetchUserGroups,
+	fetchUserGroupDropdowns,
+	getRoutePermissions,
+	callSyncPermissions,
+	getAppModules,
+} from './service';
+
+export type DefaultModelKey = 'users' | 'permissions' | 'userGroups' | 'routePermissions' | 'modules';
+
+export function useRbac() {
+	const [selectedTab, setSelectedTab] = useState<DefaultModelKey>('users');
+
+	const [UsersData, setUsersData] = useState<PaginationResponse<Users>>({
+		lists: [], page: 1, limit: 20, total: 0, totalPages: 0,
+	});
+	const [PermissionsData, setPermissionsData] = useState<PaginationResponse<Permissions>>({
+		lists: [], page: 1, limit: 20, total: 0, totalPages: 0,
+	});
+	const [ModulesData, setModulesData] = useState<PaginationResponse<AppModules>>({
+		lists: [], page: 1, limit: 20, total: 0, totalPages: 0,
+	});
+	const [UserGroupsData, setUserGroups] = useState<PaginationResponse<vUserGroups>>({
+		lists: [], page: 1, limit: 20, total: 0, totalPages: 0,
+	});
+	const [RoutePermissionsData, setRoutePermissionsData] = useState<PaginationResponse<PermissionViews>>({
+		lists: [], page: 1, limit: 20, total: 0, totalPages: 0,
+	});
+
+	// Dialog open states
+	const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
+	const [isAddPermissionDialogOpen, setIsAddPermissionDialogOpen] = useState(false);
+	const [isAddGroupDialogOpen, setIsAddGroupDialogOpen] = useState(false);
+	const [isViewUserDialogOpen, setIsViewUserDialogOpen] = useState(false);
+	const [isUpdateUserDialogOpen, setIsUpdateUserDialogOpen] = useState(false);
+	const [isDeleteUserDialogOpen, setIsDeleteUserDialogOpen] = useState(false);
+	const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+	const [isViewPermissionDialogOpen, setIsViewPermissionDialogOpen] = useState(false);
+	const [isUpdatePermissionDialogOpen, setIsUpdatePermissionDialogOpen] = useState(false);
+	const [selectedPermissionId, setSelectedPermissionId] = useState<number | null>(null);
+	const [isDeletePermissionDialogOpen, setIsDeletePermissionDialogOpen] = useState(false);
+	const [isViewGroupDialogOpen, setIsViewGroupDialogOpen] = useState(false);
+	const [isUpdateGroupDialogOpen, setIsUpdateGroupDialogOpen] = useState(false);
+	const [isDeleteGroupDialogOpen, setIsDeleteGroupDialogOpen] = useState(false);
+	const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
+
+	// Filter dialog states
+	const [isFilterUserDialogOpen, setIsFilterUserDialogOpen] = useState(false);
+	const [isPermissionFilterDialogOpen, setIsPermissionFilterDialogOpen] = useState(false);
+	const [isUserGroupFilterDialogOpen, setIsUserGroupFilterDialogOpen] = useState(false);
+
+	const [expandedUserGroups, setExpandedUserGroups] = useState<Set<number>>(new Set());
+
+	const [UserFilter, setUserFilter] = useState<UserPagination>({
+		filters: { Name: '', UserGroup: '', IsActive: undefined },
+		sortField: '', sortDirection: 1, page: 1, limit: 20,
+	});
+	const [UserGroupFilter, setUserGroupFilter] = useState<UserGroupPagination>({
+		filters: { GroupName: '', PermissionNames: '' },
+		sortField: '', sortDirection: 1, page: 1, limit: 20,
+	});
+	const [PermissionFilter, setPermissionFilter] = useState<PermissionPagination>({
+		filters: { Module: '', ModuleFunction: '', ModuleFunctionDescription: '' },
+		sortField: '', sortDirection: 1, page: 1, limit: 20,
+	});
+	const [RoutePermissionFilter, setRoutePermissionFilter] = useState<RoutePermissionPagination>({
+		filters: { RoutePath: '', Description: '' },
+		sortField: '', sortDirection: 1, page: 1, limit: 20,
+	});
+
+	const [ShowAppModulesFilter, setShowAppModulesFilter] = useState<ShowAppModulesPagination>({
+		filters: { ModuleName: '' },
+		sortField: '', sortDirection: 1, page: 1, limit: 20,
+	});
+
+
+	const [isLoadingPermissions, setIsLoadingPermissions] = useState(false);
+	const [isLoadingModules, setIsLoadingModules] = useState(false);
+	const [isLoadingUserGroups, setIsLoadingUserGroups] = useState(false);
+	const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+	const [isLoadingRoutePermissions, setIsLoadingRoutePermissions] = useState(false);
+	const [isSyncingPermissions, setIsSyncingPermissions] = useState(false);
+	const [permissionViewsLookup, setPermissionViewsLookup] = useState<Record<number, string>>({});
+	const [tabNumbers, setTabNumbers] = useState({
+		users: 0, permissions: 0, modules: 0, userGroups: 0, routePermissions: 0,
+	});
+	const [sortDirection, setSortDirection] = useState<0 | 1 | null>(null);
+
+	useEffect(() => {
+		const fetchData = async () => {
+			try {
+				const initialData = await fetchInitialData();
+				setTabNumbers({
+					users: initialData.Data.NumberOfUsers || 0,
+					permissions: initialData.Data.NumberOfPermissions || 0,
+					modules: initialData.Data.NumberOfPermissions || 0,
+					userGroups: initialData.Data.NumberOfGroups || 0,
+					routePermissions: 0,
+				});
+				if (initialData.Data.Users) {
+					setUsersData({
+						lists: initialData.Data.Users || [],
+						page: 1,
+						limit: 20,
+						total: initialData.Data.NumberOfUsers,
+						totalPages: Math.ceil(initialData.Data.NumberOfUsers / 10),
+					});
+				}
+				console.log('Initial data fetched:', initialData);
+			} catch (error: any) {
+				console.error('Error fetching initial data:', error);
+			}
+		};
+		fetchData();
+	}, []);
+
+	const handleAutoRefresh = async (
+		filterData: UserPagination | PermissionPagination | UserGroupPagination | RoutePermissionPagination,
+	) => {
+		try {
+			if (selectedTab === 'users') {
+				setIsLoadingUsers(true);
+				console.log('Auto-refreshing users after dialog submission');
+				const res = await fetchUsers(filterData as UserPagination);
+				if (res.Data.lists) { console.log('Setting updated users data:', res); setUsersData(res.Data); }
+		} else if (selectedTab === 'permissions') {
+			setIsLoadingPermissions(true);
+			console.log('Auto-refreshing permissions after dialog submission');
+			const res = await fetchPermissions(filterData as PermissionPagination);
+			if (res.Data.lists) { console.log('Setting updated permissions data:', res); setPermissionsData(res.Data); }
+		} else if (selectedTab === 'userGroups') {
+				setIsLoadingUserGroups(true);
+				console.log('Auto-refreshing user groups after dialog submission');
+				const res = await fetchUserGroups(filterData as UserGroupPagination);
+				if (res.Data.lists) { console.log('Setting updated userGroups data:', res); setUserGroups(res.Data); }
+			} else if (selectedTab === 'routePermissions') {
+				setIsLoadingRoutePermissions(true);
+				const res = await getRoutePermissions(filterData as RoutePermissionPagination);
+				if (res.Data.lists) { setRoutePermissionsData(res.Data); }
+			}
+		} catch (error) {
+			console.error(`Error auto-refreshing ${selectedTab}:`, error);
+			throw error;
+		} finally {
+			if (selectedTab === 'users') setIsLoadingUsers(false);
+			else if (selectedTab === 'permissions') setIsLoadingPermissions(false);
+			else if (selectedTab === 'userGroups') setIsLoadingUserGroups(false);
+			else if (selectedTab === 'routePermissions') setIsLoadingRoutePermissions(false);
+		}
+	};
+
+	const handleClear = () => {
+		if (selectedTab === 'users') {
+			const newFilter: UserPagination = {
+				...UserFilter,
+				filters: { ...UserFilter.filters, Name: '', UserGroup: '', IsActive: undefined },
+			};
+			setUserFilter(newFilter);
+			try { handleAutoRefresh(newFilter); } catch (error) { console.error('Error clearing user filter:', error); }
+		}
+		if (selectedTab === 'permissions') {
+			const newFilter: PermissionPagination = {
+				...PermissionFilter,
+				filters: { ...PermissionFilter.filters, Module: '', ModuleFunction: '', ModuleFunctionDescription: '' },
+			};
+			setPermissionFilter(newFilter);
+			try { handleAutoRefresh(newFilter); } catch (error) { console.error('Error clearing permission filter:', error); }
+		}
+		if (selectedTab === 'userGroups') {
+			const newFilter: UserGroupPagination = {
+				...UserGroupFilter,
+				filters: { ...UserGroupFilter.filters, GroupName: '', PermissionNames: '' },
+			};
+			setUserGroupFilter(newFilter);
+			try { handleAutoRefresh(newFilter); } catch (error) { console.error('Error clearing user group filter:', error); }
+		}
+		if (selectedTab === 'routePermissions') {
+			const newFilter: RoutePermissionPagination = {
+				...RoutePermissionFilter,
+				filters: { RoutePath: '', Description: '' },
+			};
+			setRoutePermissionFilter(newFilter);
+			try { handleAutoRefresh(newFilter); } catch (error) { console.error('Error clearing route permission filter:', error); }
+		}
+	};
+
+	const syncPermissions = async () => {
+		try {
+			setIsSyncingPermissions(true);
+			await callSyncPermissions();
+			await handleAutoRefresh(PermissionFilter);
+		} catch (error) {
+			console.error('Error syncing permissions:', error);
+		} finally {
+			setIsSyncingPermissions(false);
+		}
+	};
+
+	const handleExpand = (e: React.MouseEvent, id: number) => {
+		e.preventDefault();
+		e.stopPropagation();
+		setExpandedUserGroups(prev => {
+			const newSet = new Set(prev);
+			if (newSet.has(id)) { newSet.delete(id); } else { newSet.add(id); }
+			return newSet;
+		});
+	};
+
+	const handleSort = async (field: number, direction: 0 | 1 | null) => {
+		setSortDirection(direction);
+
+		if (selectedTab === 'userGroups') {
+			const newFilter: UserGroupPagination = {
+				...UserGroupFilter,
+				sortField: field === 0 ? 'GroupName' : '',
+				sortDirection: (direction || 0) as 0 | 1,
+				page: 1,
+			};
+			setUserGroupFilter(newFilter);
+			try {
+				setIsLoadingUserGroups(true);
+				const res = await fetchUserGroups(newFilter);
+				console.log('UserGroups response:', res);
+				if (res.Data.lists) { console.log('Setting userGroups data:', res); setUserGroups(res.Data); }
+			} catch (error) {
+				console.error('Error fetching userGroups:', error);
+			} finally {
+				setIsLoadingUserGroups(false);
+			}
+		} else if (selectedTab === 'users') {
+			const newFilter: UserPagination = {
+				...UserFilter,
+				sortField: field === 0 ? 'Name' : field === 1 ? 'Email' : field === 2 ? 'Office' : field === 3 ? 'Status' : '',
+				sortDirection: (direction || 0) as 0 | 1,
+				page: 1,
+			};
+			setUserFilter(newFilter);
+			try {
+				setIsLoadingUsers(true);
+				console.log('Fetching users with new sort:', newFilter);
+				const res = await fetchUsers(newFilter);
+				console.log('Users response:', res);
+				if (res.Data.lists) { console.log('Setting users data:', res); setUsersData(res.Data); }
+			} catch (error) {
+				console.error('Error fetching users:', error);
+			} finally {
+				setIsLoadingUsers(false);
+			}
+		} else if (selectedTab === 'permissions') {
+			const newFilter: PermissionPagination = {
+				...PermissionFilter,
+				sortField: field === 0 ? 'Id' : field === 1 ? 'Module' : field === 2 ? 'ModuleFunction' : field === 3 ? 'ModuleFunctionDescription' : '',
+				sortDirection: (direction || 0) as 0 | 1,
+				page: 1,
+			};
+			setPermissionFilter(newFilter);
+			try {
+				setIsLoadingPermissions(true);
+				console.log('Fetching permissions with new sort:', newFilter);
+				const res = await fetchPermissions(newFilter);
+				console.log('Permissions response:', res);
+				if (res.Data.lists) { console.log('Setting permissions data:', res); setPermissionsData(res.Data); }
+			} catch (error) {
+				console.error('Error fetching permissions:', error);
+				alert('Failed to fetch permissions: ' + (error instanceof Error ? error.message : 'Unknown error'));
+			} finally {
+				setIsLoadingPermissions(false);
+			}
+		} else if (selectedTab === 'routePermissions') {
+			const newFilter: RoutePermissionPagination = {
+				...RoutePermissionFilter,
+				sortField: field === 0 ? 'Id' : field === 1 ? 'RoutePath' : field === 2 ? 'Description' : '',
+				sortDirection: (direction || 0) as 0 | 1,
+				page: 1,
+			};
+			setRoutePermissionFilter(newFilter);
+			try {
+				setIsLoadingRoutePermissions(true);
+				const res = await getRoutePermissions(newFilter);
+				if (res.Data.lists) { setRoutePermissionsData(res.Data); }
+			} catch (error) {
+				console.error('Error fetching route permissions:', error);
+			} finally {
+				setIsLoadingRoutePermissions(false);
+			}
+		}
+	};
+
+	const getTableData = async (tabName: DefaultModelKey) => {
+		console.log('Switching to tab:', tabName);
+		setSelectedTab(tabName);
+
+		if (tabName === 'permissions') {
+			if (isLoadingPermissions) { console.log('Already loading permissions, skipping request'); return; }
+			try {
+				setIsLoadingPermissions(true);
+				console.log('Fetching permissions with current filter:', PermissionFilter);
+				const res = await fetchPermissions(PermissionFilter);
+				console.log('Permissions response:', res);
+				if (res.Data.lists) { console.log('Setting permissions data:', res); setPermissionsData(res.Data); }
+			} catch (error) {
+				console.error('Error fetching permissions:', error);
+				alert('Failed to fetch permissions: ' + (error instanceof Error ? error.message : 'Unknown error'));
+			} finally {
+				setIsLoadingPermissions(false);
+			}
+		} else if (tabName === 'modules') {
+			if (isLoadingModules) { console.log('Already loading modules, skipping request'); return; }
+			try {
+				setIsLoadingModules(true);
+				console.log('Fetching app modules');
+				const res = await getAppModules(ShowAppModulesFilter);
+				console.log('App modules response:', res);
+				if (res.Data) { setModulesData(res.Data); setTabNumbers(prev => ({ ...prev, modules: res.Data.total })); }
+			} catch (error) {
+				console.error('Error fetching modules:', error);
+				alert('Failed to fetch modules: ' + (error instanceof Error ? error.message : 'Unknown error'));
+			} finally {
+				setIsLoadingModules(false);
+			}
+		} else if (tabName === 'users') {
+			if (isLoadingUsers) { console.log('Already loading users, skipping request'); return; }
+			try {
+				setIsLoadingUsers(true);
+				console.log('Fetching users with current filter:', UserFilter);
+				const res = await fetchUsers(UserFilter);
+				console.log('Users response:', res);
+				if (res.Data.lists) { console.log('Setting users data:', res); setUsersData(res.Data); }
+			} catch (error) {
+				console.error('Error fetching users:', error);
+				alert('Failed to fetch users: ' + (error instanceof Error ? error.message : 'Unknown error'));
+			} finally {
+				setIsLoadingUsers(false);
+			}
+		} else if (tabName === 'userGroups') {
+			if (isLoadingUserGroups) { console.log('Already loading user groups, skipping request'); return; }
+			try {
+				setIsLoadingUserGroups(true);
+				console.log('Fetching user groups with current filter:', UserGroupFilter);
+				const dropdownsRes = await fetchUserGroupDropdowns();
+				if (dropdownsRes.Data?.PermissionViews) {
+					const lookup: Record<number, string> = {};
+					dropdownsRes.Data.PermissionViews.forEach((pv: any) => {
+						lookup[pv.Id] = pv.Description || pv.RoutePath || `ID: ${pv.Id}`;
+					});
+					setPermissionViewsLookup(lookup);
+				}
+				const res = await fetchUserGroups(UserGroupFilter);
+				console.log('UserGroups response:', res);
+				if (res.Data.lists) { console.log('Setting userGroups data:', res); setUserGroups(res.Data); }
+			} catch (error) {
+				console.error('Error fetching userGroups:', error);
+				alert('Failed to fetch userGroups: ' + (error instanceof Error ? error.message : 'Unknown error'));
+			} finally {
+				setIsLoadingUserGroups(false);
+			}
+		} else if (tabName === 'routePermissions') {
+			if (isLoadingRoutePermissions) { console.log('Already loading route permissions, skipping request'); return; }
+			try {
+				setIsLoadingRoutePermissions(true);
+				console.log('Fetching route permissions with current filter:', RoutePermissionFilter);
+				const res = await getRoutePermissions(RoutePermissionFilter);
+				console.log('RoutePermissions response:', res);
+				if (res.Data.lists) {
+					setRoutePermissionsData(res.Data);
+					setTabNumbers(prev => ({ ...prev, routePermissions: res.Data.total }));
+				}
+			} catch (error) {
+				console.error('Error fetching route permissions:', error);
+				alert('Failed to fetch route permissions: ' + (error instanceof Error ? error.message : 'Unknown error'));
+			} finally {
+				setIsLoadingRoutePermissions(false);
+			}
+		}
+	};
+
+	const Paginate = async (page: number) => {
+		if (selectedTab === 'permissions') {
+			const newFilter: PermissionPagination = { ...PermissionFilter, page };
+			setPermissionFilter(newFilter);
+			try {
+				setIsLoadingPermissions(true);
+				console.log('Fetching permissions for page:', page, 'with filter:', newFilter);
+				const res = await fetchPermissions(newFilter);
+				console.log('Permissions response:', res);
+				if (res.Data.lists) { console.log('Setting permissions data:', res); setPermissionsData(res.Data); }
+			} catch (error) {
+				console.error('Error fetching permissions:', error);
+				alert('Failed to fetch permissions: ' + (error instanceof Error ? error.message : 'Unknown error'));
+			} finally {
+				setIsLoadingPermissions(false);
+			}
+		} else if (selectedTab === 'users') {
+			const newFilter: UserPagination = { ...UserFilter, page };
+			setUserFilter(newFilter);
+			try {
+				setIsLoadingUsers(true);
+				console.log('Fetching users for page:', page, 'with filter:', newFilter);
+				const res = await fetchUsers(newFilter);
+				console.log('Users response:', res);
+				if (res.Data.lists) { console.log('Setting users data:', res); setUsersData(res.Data); }
+			} catch (error) {
+				console.error('Error fetching users:', error);
+				alert('Failed to fetch users: ' + (error instanceof Error ? error.message : 'Unknown error'));
+			} finally {
+				setIsLoadingUsers(false);
+			}
+		} else if (selectedTab === 'userGroups') {
+			const newFilter: UserGroupPagination = { ...UserGroupFilter, page };
+			setUserGroupFilter(newFilter);
+			try {
+				setIsLoadingUserGroups(true);
+				console.log('Fetching user groups for page:', page, 'with filter:', newFilter);
+				const res = await fetchUserGroups(newFilter);
+				console.log('UserGroups response:', res);
+				if (res.Data.lists) { console.log('Setting userGroups data:', res); setUserGroups(res.Data); }
+			} catch (error) {
+				console.error('Error fetching user groups:', error);
+				alert('Failed to fetch user groups: ' + (error instanceof Error ? error.message : 'Unknown error'));
+			} finally {
+				setIsLoadingUserGroups(false);
+			}
+		} else if (selectedTab === 'routePermissions') {
+			const newFilter: RoutePermissionPagination = { ...RoutePermissionFilter, page };
+			setRoutePermissionFilter(newFilter);
+			try {
+				setIsLoadingRoutePermissions(true);
+				const res = await getRoutePermissions(newFilter);
+				if (res.Data.lists) { setRoutePermissionsData(res.Data); }
+			} catch (error) {
+				console.error('Error fetching route permissions:', error);
+				alert('Failed to fetch route permissions: ' + (error instanceof Error ? error.message : 'Unknown error'));
+			} finally {
+				setIsLoadingRoutePermissions(false);
+			}
+		} else if (selectedTab === 'modules') {
+			const newFilter: ShowAppModulesPagination = { ...ShowAppModulesFilter, page };
+			setShowAppModulesFilter(newFilter);
+			try {
+				setIsLoadingModules(true);
+				const res = await getAppModules(newFilter);
+				if (res.Data.lists) { setModulesData(res.Data); }
+			} catch (error) {
+				console.error('Error fetching modules:', error);
+				alert('Failed to fetch modules: ' + (error instanceof Error ? error.message : 'Unknown error'));
+			} finally {
+				setIsLoadingModules(false);
+			}
+		}
+	};
+
+	return {
+		// Tab
+		selectedTab, setSelectedTab,
+		// Data
+		UsersData, setUsersData,
+		PermissionsData, setPermissionsData,
+		ModulesData,
+		UserGroupsData, setUserGroups,
+		RoutePermissionsData, setRoutePermissionsData,
+		// Dialog states
+		isAddUserDialogOpen, setIsAddUserDialogOpen,
+		isAddPermissionDialogOpen, setIsAddPermissionDialogOpen,
+		isAddGroupDialogOpen, setIsAddGroupDialogOpen,
+		isViewUserDialogOpen, setIsViewUserDialogOpen,
+		isUpdateUserDialogOpen, setIsUpdateUserDialogOpen,
+		isDeleteUserDialogOpen, setIsDeleteUserDialogOpen,
+		selectedUserId, setSelectedUserId,
+		isViewPermissionDialogOpen, setIsViewPermissionDialogOpen,
+		isUpdatePermissionDialogOpen, setIsUpdatePermissionDialogOpen,
+		selectedPermissionId, setSelectedPermissionId,
+		isDeletePermissionDialogOpen, setIsDeletePermissionDialogOpen,
+		isViewGroupDialogOpen, setIsViewGroupDialogOpen,
+		isUpdateGroupDialogOpen, setIsUpdateGroupDialogOpen,
+		isDeleteGroupDialogOpen, setIsDeleteGroupDialogOpen,
+		selectedGroupId, setSelectedGroupId,
+		// Filter dialog states
+		isFilterUserDialogOpen, setIsFilterUserDialogOpen,
+		isPermissionFilterDialogOpen, setIsPermissionFilterDialogOpen,
+		isUserGroupFilterDialogOpen, setIsUserGroupFilterDialogOpen,
+		// Expand state
+		expandedUserGroups,
+		// Filters
+		UserFilter, setUserFilter,
+		UserGroupFilter, setUserGroupFilter,
+		PermissionFilter, setPermissionFilter,
+		RoutePermissionFilter, setRoutePermissionFilter,
+		ShowAppModulesFilter, setShowAppModulesFilter,
+		// Loading
+		isLoadingPermissions,
+		isLoadingModules,
+		isLoadingUserGroups,
+		isLoadingUsers,
+		isLoadingRoutePermissions,
+		isSyncingPermissions,
+		// Lookup
+		permissionViewsLookup,
+		tabNumbers,
+		sortDirection,
+		// Handlers
+		handleClear,
+		syncPermissions,
+		handleExpand,
+		handleAutoRefresh,
+		handleSort,
+		getTableData,
+		Paginate,
+	};
+}

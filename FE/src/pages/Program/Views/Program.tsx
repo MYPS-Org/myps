@@ -454,7 +454,7 @@ const Program: React.FC = () => {
                                                             <TableHeader justify="center" className="text-xs">Type</TableHeader>
                                                             <TableHeader justify="center" className="text-xs">Start Year</TableHeader>
                                                             <TableHeader justify="center" className="text-xs">Projects</TableHeader>
-                                                            <TableHeader justify="center" className="text-xs">Cost</TableHeader>
+                                                            <TableHeader justify="center" className="text-xs">Amount</TableHeader>
                                                             <TableHeader justify="center" className="text-xs">Actions</TableHeader>
                                                         </TableRow>
                                                     </TableHead>

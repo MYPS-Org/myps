@@ -52,7 +52,7 @@ const LoginForm: React.FC = () => {
 			<div className="w-full md:w-1/2 p-10 flex flex-col justify-center">
 				{/* Welcome */}
 				<h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome to MYPS</h2>
-				<Text className="text-gray-500 mb-8"><strong>Multi Year Planning System:</strong> Plan and manage proposed projects efficiently.</Text>
+				<Text className="text-gray-500 mb-8"><strong>Multi-Year Planning and Scheduling Application:</strong> Plan and manage proposed projects efficiently.</Text>
 				<form onSubmit={handleSubmit} className="space-y-6">
 					<div>
 					<Input

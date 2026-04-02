@@ -18,7 +18,13 @@ import ValidationDatesTable from '../tables/revisions/ValidationDatesTable';
 import ProgramStageTable from '../tables/program/ProgramStageTable';
 import ProgramTypeTable from '../tables/program/ProgramTypeTable';
 import ProgramStatusTable from '../tables/program/ProgramStatusTable';
+import RegionTable from '../tables/adminArea/RegionTable';
+import ProvinceTable from '../tables/adminArea/ProvinceTable';
+import CityTable from '../tables/adminArea/CityTable';
+import LegislativeDistrictTable from '../tables/adminArea/LegislativeDistrictTable';
+import DEOTable from '../tables/adminArea/DEOTable';
 import { CodeTableProvider } from '../CodeTableContext';
+import { AdminAreaProvider } from '../AdminAreaContext';
 import {
   ClipboardDocumentListIcon,
   CubeIcon,
@@ -26,6 +32,7 @@ import {
   BanknotesIcon,
   ArrowPathIcon,
   PresentationChartBarIcon,
+  MapPinIcon,
 } from '@heroicons/react/24/outline';
 
 interface TableTab {
@@ -101,6 +108,18 @@ const GROUPS: GroupTab[] = [
       { id: 'program-status', label: 'Program Status', component: ProgramStatusTable },
     ],
   },
+  {
+    id: 'admin-areas',
+    label: 'Admin Areas',
+    icon: MapPinIcon,
+    tables: [
+      { id: 'region',        label: 'Regions',               component: RegionTable },
+      { id: 'province',      label: 'Provinces',             component: ProvinceTable },
+      { id: 'city',          label: 'Cities/Municipalities', component: CityTable },
+      { id: 'leg-district',  label: 'Legislative Districts', component: LegislativeDistrictTable },
+      { id: 'deo',           label: 'DEOs',                  component: DEOTable },
+    ],
+  },
 ];
 
 
@@ -120,6 +139,7 @@ const CodeTables: React.FC = () => {
 
   return (
     <CodeTableProvider>
+    <AdminAreaProvider>
     <div className="min-h-screen bg-gray-50">
 
       {/* ── Page header + primary (group) tabs ───────────────────── */}
@@ -191,6 +211,7 @@ const CodeTables: React.FC = () => {
         </div>
       </div>
     </div>
+    </AdminAreaProvider>
     </CodeTableProvider>
   );
 };

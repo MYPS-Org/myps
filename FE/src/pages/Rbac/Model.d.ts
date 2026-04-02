@@ -140,3 +140,21 @@ export interface RoutePermissionFilter {
     RoutePath?: string;
     Description?: string;
 }
+
+export interface ShowAppModulesPagination extends PaginationParams {
+    filters?: AppModuleFilter;
+    sortField?: string;
+    sortDirection?: 0 | 1;
+}
+
+export interface AppModuleFilter {
+    ModuleName?: string;
+}
+
+export interface AppModules {
+	Id: number;
+	ModuleName: string;
+	Description?: string;
+	ControllerCount?: number;
+	ViewCount?: number;
+}
