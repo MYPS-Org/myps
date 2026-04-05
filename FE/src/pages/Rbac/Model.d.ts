@@ -94,6 +94,14 @@ export interface AddUserGroups {
 	Description?: string;
 }
 
+export interface UpdateUserGroupPayload {
+	Id: number;
+	GroupName: string;
+	Description?: string;
+	PermissionActionIds: number[];
+	PermissionViewIds: number[];
+}
+
 //#endregion
 
 export interface Pis {
@@ -157,4 +165,6 @@ export interface AppModules {
 	Description?: string;
 	ControllerCount?: number;
 	ViewCount?: number;
+	Controllers?: string;
+	Views?: string;
 }

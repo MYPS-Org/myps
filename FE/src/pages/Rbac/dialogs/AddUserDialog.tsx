@@ -5,6 +5,7 @@ import { XMarkIcon } from '@heroicons/react/24/outline';
 import { MagnifyingGlassIcon } from '@heroicons/react/16/solid';
 import { addUser, fetchUserData, fetchUserGroups } from '../service';
 import type { UserGroups } from '../Model.d';
+import { useToast } from '../../../components/toaster/ToasterContext';
 
 interface AddUserDialogProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ interface AddUserDialogProps {
 }
 
 const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit}) => {
+  const { showToast } = useToast();
   const [formData, setFormData] = useState({
     employeeId: '',
     name: '',
@@ -122,6 +124,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
       };
       
       onSubmit(newUserData);
+      showToast({ message: 'User added successfully.', type: 'success' });
       resetForm();
       onClose();
     } catch (error: any) {

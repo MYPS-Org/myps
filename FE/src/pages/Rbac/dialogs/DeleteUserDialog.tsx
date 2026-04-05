@@ -4,6 +4,7 @@ import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import type { Users } from '../Model.d';
 import { deleteUser } from '../service';
+import { useToast } from '../../../components/toaster/ToasterContext';
 
 interface DeleteUserDialogProps {
   isOpen: boolean;
@@ -14,6 +15,8 @@ interface DeleteUserDialogProps {
 
 const DeleteUserDialog: React.FC<DeleteUserDialogProps> = ({ isOpen, onClose, onSubmit, user }) => {
 
+  const { showToast } = useToast();
+
   const handleSubmit = async(e: React.FormEvent) => {
     e.preventDefault();
 
@@ -23,6 +26,7 @@ const DeleteUserDialog: React.FC<DeleteUserDialogProps> = ({ isOpen, onClose, on
         }
         await deleteUser(user);
         onSubmit(user.Id);
+        showToast({ message: 'User deleted successfully.', type: 'success' });
         onClose();
     } catch (error) {
         console.error('Error deleting user:', error);
