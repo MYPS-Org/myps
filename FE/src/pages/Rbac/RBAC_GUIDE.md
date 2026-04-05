@@ -122,7 +122,9 @@ All state and data-fetching logic lives here. `Rbac.tsx` simply destructures fro
 
 The `permissionViewsLookup` map (built from `fetchUserGroupDropdowns`) resolves `PermissionViewIds` to readable route names for display in the table.
 
-On tab switch, `getTableData('userGroups')` calls `fetchUserGroupDropdowns` then `fetchUserGroups` in sequence.
+On tab switch, `getTableData('userGroups')` calls only `fetchUserGroups` — no extra API calls.
+
+The `permissionViewsLookup` is populated once on page mount via `fetchUserGroupDropdowns`, run in parallel with `fetchInitialData`. This means the lookup is ready before any tab is clicked.
 
 ### Group Dialogs
 
