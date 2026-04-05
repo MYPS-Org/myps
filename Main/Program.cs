@@ -73,8 +73,7 @@ if (app.Environment.IsDevelopment())
     app.UseDeveloperExceptionPage();
     app.AddDevSwaggerUI();
 }
-else { app.MapFallbackToFile("index.html"); }
-
+app.UseStaticFiles(); // For wwwroot
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(Path.Combine(Appsetting.RootPath, "Resources")),
@@ -85,5 +84,7 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+//SPA fallback
+app.MapFallbackToFile("index.html");
 app.MapHub<RegistrationHub>("/notificationHub").RequireCors("AllowReactApp");
 app.Run();
