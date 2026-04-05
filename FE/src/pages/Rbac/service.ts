@@ -204,3 +204,30 @@ export const getAppModules = async (data: ShowAppModulesPagination) => {
 		throw error;
 	}
 }
+
+export const addAppModule = async (data: AppModules) => {
+	try {
+		const response = await httpClient.post<AppModules>('/UserManagement/AddAppModule', data);
+		return response;
+	} catch (error) {
+		throw error;
+	}
+}
+
+export const updateAppModule = async (data: AppModules) => {
+	try {
+		const response = await httpClient.post<AppModules>('/UserManagement/UpdateAppModule', data);
+		return response;
+	} catch (error) {
+		throw error;
+	}
+}
+
+export const deleteAppModule = async (data: AppModules) => {
+	try {
+		const response = await httpClient.post('/UserManagement/DeleteAppModule', data);
+		return response;
+	} catch (error) {
+		throw error;
+	}
+}

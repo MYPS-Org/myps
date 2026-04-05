@@ -471,7 +471,7 @@ export function useRbac() {
 		// Data
 		UsersData, setUsersData,
 		PermissionsData, setPermissionsData,
-		ModulesData,
+		ModulesData, setModulesData,
 		UserGroupsData, setUserGroups,
 		RoutePermissionsData, setRoutePermissionsData,
 		// Dialog states

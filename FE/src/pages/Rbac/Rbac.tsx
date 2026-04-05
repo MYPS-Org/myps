@@ -33,7 +33,7 @@ const Rbac: React.FC = () => {
 		selectedTab,
 		UsersData, setUsersData,
 		PermissionsData, setPermissionsData,
-		ModulesData,
+		ModulesData, setModulesData,
 		UserGroupsData, setUserGroups,
 		RoutePermissionsData,
 		isAddUserDialogOpen, setIsAddUserDialogOpen,
@@ -125,6 +125,7 @@ const Rbac: React.FC = () => {
 					data={ModulesData}
 					isLoading={isLoadingModules}
 					onPaginate={Paginate}
+					onDataChange={setModulesData}
 				/>
 			)}
 
@@ -489,6 +490,7 @@ const Rbac: React.FC = () => {
 					initialData={UserGroupFilter.filters}
 				/>
 			)}
+
 		</div>
 	);
 };

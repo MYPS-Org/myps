@@ -157,4 +157,6 @@ export interface AppModules {
 	Description?: string;
 	ControllerCount?: number;
 	ViewCount?: number;
+	Controllers?: string;
+	Views?: string;
 }
