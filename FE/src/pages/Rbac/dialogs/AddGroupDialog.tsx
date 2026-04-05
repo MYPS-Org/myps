@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
@@ -169,188 +169,60 @@ const AddGroupDialog: React.FC<AddGroupDialogProps> = ({ isOpen, onClose, onSubm
     }
   };
 
-  // Helper function to get selected permission names for form submission
-  const getSelectedPermissionNames = (): string[] => {
-    return formData.permissions.map(id => {
-      const permission = availablePermissions.find(p => p.Id === id);
-      return permission ? permission.ModuleFunction : '';
-    }).filter(name => name !== '');
+  const handleClose = () => {
+    setFormData({ groupName: '', description: '' });
+    setError('');
+    onClose();
   };
 
-  // Filter permissions based on search term
-  const filteredGroupedPermissions = Object.keys(groupedPermissions).reduce((acc, groupId) => {
-    const groupPermissions = groupedPermissions[parseInt(groupId)];
-    const filteredPermissions = groupPermissions.filter(permission =>
-      permission.ModuleFunction.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      permission.Description.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    if (filteredPermissions.length > 0) {
-      acc[parseInt(groupId)] = filteredPermissions;
-    }
-    return acc;
-  }, {} as {[key: number]: Permissions[]});
-
   return (
-    <Dialog open={isOpen} onClose={onClose} className="relative z-50">
-      {/* Backdrop */}
+    <Dialog open={isOpen} onClose={handleClose} className="relative z-50">
       <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
-
-      {/* Full-screen container */}
       <div className="fixed inset-0 flex items-center justify-center p-4">
-        <DialogPanel className="w-full max-w-4xl bg-white rounded-lg shadow-xl">
+        <DialogPanel className="w-full max-w-lg bg-white rounded-lg shadow-xl">
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-            <DialogTitle className="text-lg font-semibold text-gray-900">
-              Add New Group
-            </DialogTitle>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 "
-            >
+            <DialogTitle className="text-lg font-semibold text-gray-900">Add New Group</DialogTitle>
+            <button onClick={handleClose} className="text-gray-400 hover:text-gray-600">
               <XMarkIcon className="h-6 w-6" />
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-6 space-y-6">
-
-            <div className="grid grid-cols-3 gap-4">
-              <div className='col-span-1'>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Group Name
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.groupName}
-                    onChange={(e) => handleChange('groupName', e.target.value)}
-                    placeholder="Enter group name"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Description
-                  </label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => handleChange('description', e.target.value)}
-                    placeholder="Enter group description"
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
-                  />
-                </div>
-              </div>
-
-              <div className='col-span-2'>
-                <div className="flex items-center justify-between mb-3">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Permissions
-                  </label>
-                  <div className="flex space-x-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const allPermissionIds = availablePermissions.map(p => p.Id);
-                        setFormData(prev => ({ ...prev, permissions: allPermissionIds }));
-                      }}
-                      className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                    >
-                      Select All
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, permissions: [] }))}
-                      className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
-                    >
-                      Clear All
-                    </button>
-                  </div>
-                </div>
-                <div className="mb-4">
-                  <input
-                    type="text"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Search permissions..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
-                  />
-                </div>
-                {isLoadingPermissions ? (
-                  <div className="flex items-center justify-center p-4 border border-gray-200 rounded-md">
-                    <span className="text-gray-500">Loading permissions...</span>
-                  </div>
-                ) : (
-                  <div className="max-h-100 overflow-y-auto border border-gray-200 rounded-md p-3">
-                    {permissionGroups.map((group) => {
-                      const groupPermissions = filteredGroupedPermissions[group.Id] || [];
-                      if (groupPermissions.length === 0) return null;
-                      
-                      return (
-                        <div key={group.Id} className="mb-6">
-                          <div className="flex items-center space-x-2 mb-3 pb-2 border-b border-gray-200">
-                            <input
-                              type="checkbox"
-                              checked={isGroupSelected(group.Id)}
-                              ref={(input) => {
-                                if (input) input.indeterminate = isGroupPartiallySelected(group.Id);
-                              }}
-                              onChange={() => handleGroupToggle(group.Id)}
-                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                            />
-                            <h4 className="font-semibold text-gray-800">
-                              {group.Name}
-                            </h4>
-                            <span className="text-xs text-gray-500">
-                              ({groupPermissions.length} permissions)
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-1 gap-2 ml-6">
-                            {groupPermissions.map((permission) => (
-                              <label key={permission.Id} className="flex items-center space-x-2">
-                                <input
-                                  type="checkbox"
-                                  checked={formData.permissions.includes(permission.Id)}
-                                  onChange={() => handlePermissionToggle(permission.Id)}
-                                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                                />
-                                <div className="flex flex-col">
-                                  <span className="text-sm text-gray-700 font-medium">
-                                    {permission.ModuleFunction}
-                                  </span>
-                                  <span className="text-xs text-gray-500">
-                                    {permission.Description}
-                                  </span>
-                                </div>
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                    {permissionGroups.length === 0 && !isLoadingPermissions && (
-                      <div className="text-center py-4 text-gray-500">
-                        No permission groups available
-                      </div>
-                    )}
-                    {Object.keys(filteredGroupedPermissions).length === 0 && searchTerm && (
-                      <div className="text-center py-4 text-gray-500">
-                        No permissions found matching "{searchTerm}"
-                      </div>
-                    )}
-                  </div>
-                )}
-                <p className="text-xs text-gray-500 mt-1">
-                  Selected: {formData.permissions.length} permissions
-                </p>
-              </div>
+          <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Group Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.groupName}
+                onChange={(e) => setFormData(prev => ({ ...prev, groupName: e.target.value }))}
+                placeholder="Enter group name"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
+                autoComplete="off"
+              />
             </div>
-            
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Enter description (optional)"
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500 resize-none"
+              />
+            </div>
+
+            <p className="text-xs text-gray-400">Permissions can be assigned after the group is created via the Edit action.</p>
+
+            {error && (
+              <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">{error}</div>
+            )}
+
             <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-              <Button type="button" onClick={onClose} color="zinc">
-                Cancel
-              </Button>
-              <Button type="submit" color="orange">
-                Add Group
+              <Button color="zinc" type="button" onClick={handleClose} disabled={isSubmitting}>Cancel</Button>
+              <Button color="blue" type="submit" disabled={isSubmitting || !formData.groupName.trim()}>
+                {isSubmitting ? 'Creating...' : 'Create Group'}
               </Button>
             </div>
           </form>

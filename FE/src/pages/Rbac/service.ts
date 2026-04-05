@@ -1,5 +1,5 @@
 // Service functions for RBAC operations
-import type { ShowAppModulesPagination, PermissionPagination, Permissions, AddPermission, PermissionGroup, Users, UserPagination, AddUserGroups, UserGroupPagination, Pis, InitialDataResponse, UserGroupDropdowns, vUserGroups, PermissionViews, RoutePermissionPagination, AppModules } from './Model.d';
+import type { ShowAppModulesPagination, PermissionPagination, Permissions, AddPermission, PermissionGroup, Users, UserPagination, AddUserGroups, UpdateUserGroupPayload, UserGroupPagination, Pis, InitialDataResponse, UserGroupDropdowns, vUserGroups, PermissionViews, RoutePermissionPagination, AppModules } from './Model.d';
 import { httpClient, type ErrorResponse } from '../../services/httpClient';
 // import type { ErrorResponse } from '';
 
@@ -140,7 +140,7 @@ export const addUserGroup = async (data: AddUserGroups) => {
 	}
 }
 
-export const editUserGroup = async (data: AddUserGroups) => {
+export const editUserGroup = async (data: UpdateUserGroupPayload) => {
 	try {
 		const request = await httpClient.post('/UserManagement/UpdateUserGroup', data);
 		return request;
@@ -151,7 +151,7 @@ export const editUserGroup = async (data: AddUserGroups) => {
 
 export const deleteUserGroup = async (groupId: number) => {
     try {
-        const request = await httpClient.post('/UserManagement/DeleteUserGroup', { Id: groupId });
+        const request = await httpClient.post(`/UserManagement/DeleteUserGroup?id=${groupId}`);
         return request;
     } catch (error) {
         throw error;
