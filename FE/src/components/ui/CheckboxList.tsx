@@ -229,11 +229,11 @@ const CheckboxList: React.FC<CheckboxListProps> = ({
                             className="ml-2 text-sm text-gray-700 cursor-pointer hover:text-gray-900"
                           >
                             {itemName}
-                            {item[idKey] && (
+                            {/* {item[idKey] && (
                               <span className="ml-1 text-xs text-gray-500">
                                 ({item[idKey]})
                               </span>
-                            )}
+                            )} */}
                           </label>
                         </div>
                       );

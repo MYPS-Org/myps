@@ -1,5 +1,5 @@
 // Service functions for RBAC operations
-import type { PermissionPagination, Permissions, AddPermission, PermissionGroup, Users, UserPagination, UserGroups, AddUserGroups, UserGroupPagination, Pis, InitialDataResponse, UserGroupDropdowns, vUserGroups, PermissionViews, RoutePermissionPagination } from './Model.d';
+import type { ShowAppModulesPagination, PermissionPagination, Permissions, AddPermission, PermissionGroup, Users, UserPagination, AddUserGroups, UpdateUserGroupPayload, UserGroupPagination, Pis, InitialDataResponse, UserGroupDropdowns, vUserGroups, PermissionViews, RoutePermissionPagination, AppModules } from './Model.d';
 import { httpClient, type ErrorResponse } from '../../services/httpClient';
 // import type { ErrorResponse } from '';
 
@@ -140,7 +140,7 @@ export const addUserGroup = async (data: AddUserGroups) => {
 	}
 }
 
-export const editUserGroup = async (data: AddUserGroups) => {
+export const editUserGroup = async (data: UpdateUserGroupPayload) => {
 	try {
 		const request = await httpClient.post('/UserManagement/UpdateUserGroup', data);
 		return request;
@@ -151,7 +151,7 @@ export const editUserGroup = async (data: AddUserGroups) => {
 
 export const deleteUserGroup = async (groupId: number) => {
     try {
-        const request = await httpClient.post('/UserManagement/DeleteUserGroup', { Id: groupId });
+        const request = await httpClient.post(`/UserManagement/DeleteUserGroup?id=${groupId}`);
         return request;
     } catch (error) {
         throw error;
@@ -191,6 +191,53 @@ export const callSyncPermissions = async () => {
 		return response;
 	} catch (error) {
 		console.error('Error syncing permissions:', error);
+		throw error;
+	}
+}
+
+export const callSyncViewPermissions = async (routes: { RouteName?: string; path: string }[]) => {
+	try {
+		const response = await httpClient.post('/UserManagement/SyncViewPermissions', { RoutesAvailable: routes });
+		return response;
+	} catch (error) {
+		console.error('Error syncing view permissions:', error);
+		throw error;
+	}
+}
+
+export const getAppModules = async (data: ShowAppModulesPagination) => {
+	try {
+		const response = await httpClient.post<PaginationResponse<AppModules>>('/UserManagement/ShowAppModules', data);
+		return response;
+	} catch (error) {
+		console.error('Error fetching app modules:', error);
+		throw error;
+	}
+}
+
+export const addAppModule = async (data: AppModules) => {
+	try {
+		const response = await httpClient.post<AppModules>('/UserManagement/AddAppModule', data);
+		return response;
+	} catch (error) {
+		throw error;
+	}
+}
+
+export const updateAppModule = async (data: AppModules) => {
+	try {
+		const response = await httpClient.post<AppModules>('/UserManagement/UpdateAppModule', data);
+		return response;
+	} catch (error) {
+		throw error;
+	}
+}
+
+export const deleteAppModule = async (data: AppModules) => {
+	try {
+		const response = await httpClient.post('/UserManagement/DeleteAppModule', data);
+		return response;
+	} catch (error) {
 		throw error;
 	}
 }

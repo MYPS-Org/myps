@@ -5,6 +5,7 @@ import { XMarkIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import { Badge } from '../../../components/tailwindui/badge';
 import type { vUserGroups } from '../Model.d';
 import { deleteUserGroup } from '../service';
+import { useToast } from '../../../components/toaster/ToasterContext';
 
 interface DeleteGroupDialogProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ const DeleteGroupDialog: React.FC<DeleteGroupDialogProps> = ({ isOpen, onClose, 
   const [confirmText, setConfirmText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string>('');
+  const { showToast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,6 +36,7 @@ const DeleteGroupDialog: React.FC<DeleteGroupDialogProps> = ({ isOpen, onClose, 
       
       // Call the parent component's onSubmit handler to update the UI
       onSubmit(group.Id);
+      showToast({ message: 'Group deleted successfully.', type: 'success' });
       handleClose();
     } catch (error: any) {
       console.error('Error deleting group:', error);
@@ -108,7 +111,7 @@ const DeleteGroupDialog: React.FC<DeleteGroupDialogProps> = ({ isOpen, onClose, 
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Permissions:</span>
                   <Badge color="green">
-                    {group.PermissionNames ? group.PermissionNames.split(',').filter((p: string) => p.trim()).length : 0} permissions
+                    {(group.PermissionViewIds?.length || 0) + (group.PermissionActionIds?.length || 0)} permissions
                   </Badge>
                 </div>
               </div>

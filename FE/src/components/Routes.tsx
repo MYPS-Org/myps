@@ -30,27 +30,50 @@ const protectedRoutes: AppRoute[] = [
   { RouteName: 'Dashboard', path: '/dashboard', element: <Dashboard /> },
   { RouteName: 'UserManagement', path: '/user-management', element: <Rbac /> },
   { RouteName: 'InfraManagement', path: '/infrastructure-management', element: <Rbia /> },
+  // #region Program Routes
   { RouteName: 'ProgramList', path: '/programs', element: <Programs /> },
   { RouteName: 'ProgramDetails', path: '/programs/programdetails/:program', element: <ProgramDetail /> },
+  // #endregion Program Routes
+
+  // #region Project Routes
   { RouteName: 'ProjectList', path: '/projects', element: <Project /> },
-  { RouteName: 'AddProject', path: '/projects/add', element: <AddProject /> },
+  // { RouteName: 'AddProject', path: '/projects/add', element: <AddProject /> },
   { RouteName: 'AddProject', path: '/projects/addproject', element: <AddProject /> },
   { RouteName: 'ProjectDetails', path: '/projects/project-details/:project', element: <EditProject /> },
-  { RouteName: '', path: '/modification/list', element: <ModificationList /> },
+  // #endregion Project Routes
+
+  // #region Revision Routes
+  // { RouteName: '', path: '/modification/list', element: <ModificationList /> },
   { RouteName: 'RevisionList', path: '/revision', element: <ModificationList /> },
-  { RouteName: '', path: '/revision/view/:modificationType/:transactionId', element: <ViewRevision /> },
-  { RouteName: '', path: '/revision/:modificationType/:project', element: <ModificationDetails /> },
-  { RouteName: '', path: '/project-groups', element: <ProjectGroup /> },
-  { RouteName: '', path: '/project-groups/:groupId', element: <ProjectGroupDetails /> },
-  { RouteName: '', path: '/multiyear/programs', element: <MultiYear /> },
-  { RouteName: '', path: '/multiyear/programs/:programId', element: <MultiYearDetails /> },
-  { RouteName: '', path: '/multiyear/project-details/:project', element: <MYProjectDetails /> },
-  { RouteName: '', path: '/reports/multiyear', element: <MultiYearReports /> },
-  { RouteName: '', path: '/reports/programs', element: <ProgramReports /> },
-  { RouteName: '', path: '/reports/projects', element: <ProjectReports /> },
-  { RouteName: '', path: '/settings', element: <Settings /> },
-  { RouteName: '', path: '/code-tables', element: <CodeTables /> },
-  { RouteName: '', path: '/lumpsum', element: <LumpSumList /> },
-  { RouteName: '', path: '/lumpsum/:projectId', element: <LumpSumDetails /> },
+  { RouteName: 'RevisionView', path: '/revision/view/:modificationType/:transactionId', element: <ViewRevision /> },
+  { RouteName: 'RevisionDetails', path: '/revision/:modificationType/:project', element: <ModificationDetails /> },
+  // #endregion Revision Routes
+
+  // #region Project Group Routes
+  { RouteName: 'ProjectGroupList', path: '/project-groups', element: <ProjectGroup /> },
+  { RouteName: 'ProjectGroupDetails', path: '/project-groups/:groupId', element: <ProjectGroupDetails /> },
+  // #endregion Project Group Routes
+
+  // #region MultiYear Routes
+  { RouteName: 'MultiYearList', path: '/multiyear/programs', element: <MultiYear /> },
+  { RouteName: 'MultiYearDetails', path: '/multiyear/programs/:programId', element: <MultiYearDetails /> },
+  { RouteName: 'MYProjectDetails', path: '/multiyear/project-details/:project', element: <MYProjectDetails /> },
+  // #endregion MultiYear Routes
+
+  // #region Reports Routes
+  { RouteName: 'MultiYearReports', path: '/reports/multiyear', element: <MultiYearReports /> },
+  { RouteName: 'ProgramReports', path: '/reports/programs', element: <ProgramReports /> },
+  { RouteName: 'ProjectReports', path: '/reports/projects', element: <ProjectReports /> },
+  // #endregion Reports Routes
+
+  // #region Settings Routes
+  { RouteName: 'Settings', path: '/settings', element: <Settings /> },
+  { RouteName: 'CodeTables', path: '/code-tables', element: <CodeTables /> },
+  // #endregion Settings Routes
+
+  // #region LumpSum Routes
+  { RouteName: 'LumpSumList', path: '/lumpsum', element: <LumpSumList /> },
+  { RouteName: 'LumpSumDetails', path: '/lumpsum/:projectId', element: <LumpSumDetails /> },
+  // #endregion LumpSum Routes
 ];
 export default protectedRoutes;

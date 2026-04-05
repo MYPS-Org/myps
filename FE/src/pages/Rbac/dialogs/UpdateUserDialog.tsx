@@ -4,6 +4,7 @@ import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import type { Users, UserGroups } from '../Model.d';
 import { fetchUserGroups, editUser } from '../service';
+import { useToast } from '../../../components/toaster/ToasterContext';
 
 interface UpdateUserDialogProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ interface UpdateUserDialogProps {
 }
 
 const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, onSubmit, user }) => {
+  const { showToast } = useToast();
   const [availableGroups, setAvailableGroups] = useState<UserGroups[]>([]);
   const [isLoadingGroups, setIsLoadingGroups] = useState(false);
   
@@ -102,6 +104,7 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
     try {
       await editUser(submissionData);
       onSubmit(submissionData);
+      showToast({ message: 'User updated successfully.', type: 'success' });
       setFormData({
         id: 0,
         employeeId: '',

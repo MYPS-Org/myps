@@ -99,7 +99,7 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
           filters: {
             RoadId: '',
             RoadSectionId: search || '',
-            DEO: deo || ''
+            DEO: ''
           },
           sortField: '',
           sortDirection: 1,
