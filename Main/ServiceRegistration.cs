@@ -46,7 +46,7 @@ namespace Main
                     //options.AccessDeniedPath = "/login"; // Handle forbidden access
                     options.Cookie.IsEssential = true; // Ensures cookie is stored even without user consent
                     options.SlidingExpiration = true;
-                    options.ExpireTimeSpan = TimeSpan.FromSeconds(10); // Make session persistent
+                    options.ExpireTimeSpan = TimeSpan.FromHours(8); // Make session persistent
                     options.Events.OnRedirectToLogin = context =>
                     {
                         context.Response.StatusCode = 401;

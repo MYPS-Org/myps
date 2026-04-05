@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 using Novell.Directory.Ldap;
 using System.Configuration;
 using System.Net;
@@ -53,7 +54,7 @@ namespace WebAPI.Controllers.Auth
                     LogDate = CurrentDate,
                     IsValid = false,
                 };
-                var verifyAccount = await _db.tUsers.FirstOrDefaultAsync(x => x.UserId == dto.UserName && x.IsActive == true);
+                var verifyAccount = await _db.vUsers.FirstOrDefaultAsync(x => x.UserId == dto.UserName && x.IsActive == true);
 
                 if (verifyAccount == null) { LoginLog.ValidationMessage = "Account not active"; return UnauthorizedUser(); }
 
@@ -69,21 +70,22 @@ namespace WebAPI.Controllers.Auth
                     var claims = new List<Claim>
                     {
                         new Claim(ClaimTypes.NameIdentifier, verifyAccount.UserId),
-                        new Claim(ClaimTypes.Name, verifyAccount.Name),
-                        new Claim(ClaimTypes.Role, "Admin"),
-                        new Claim(ClaimTypes.GivenName, hostName)
+                        new Claim("Name", verifyAccount.Name),
+                        new Claim("UserGroup", JsonConvert.SerializeObject(verifyAccount.UserGroupNames)),
+                        new Claim("HostName", hostName)
                     };
 
                     var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
                     var authProperties = new AuthenticationProperties
                     {
-                        IsPersistent = true,
-                        ExpiresUtc = Functions.CurrentDate().AddDays(365),
-                        AllowRefresh = true
+                        IsPersistent = true
                     };
 
-                    await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
-                        new ClaimsPrincipal(claimsIdentity), authProperties);
+                    await HttpContext.SignInAsync(
+                        CookieAuthenticationDefaults.AuthenticationScheme,
+                        new ClaimsPrincipal(claimsIdentity),
+                        authProperties
+                    );
                     LoginLog.IsValid = true;
                 }
                 else
@@ -111,7 +113,9 @@ namespace WebAPI.Controllers.Auth
         {
             try
             {
+                //var userId = User.Claims.ToList();
                 bool NoUserFound = string.IsNullOrEmpty(_Session.UserId);
+                //return Ok(new { Message = NoUserFound ? "No active session found" : "Session is valid", Data = new { Authenticated = !NoUserFound, User = _Session, userId } });
                 if (NoUserFound)
                     return UnauthorizedUser();
                 var ViewAccess = _db.vUserViewPermission.Where(x => x.UserId == _Session.UserId && x.IsActive == true).Select(x => x.RouteName).ToList();
