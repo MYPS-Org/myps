@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import type { vUserGroups, Permissions, AddUserGroups } from '../Model.d';
-import { fetchPermissions as fetchPermissionsAPI, editUserGroup } from '../service';
+import type { vUserGroups, UserGroupDropdowns, UpdateUserGroupPayload, PermissionActions } from '../Model.d';
+import { fetchUserGroupDropdowns, editUserGroup } from '../service';
 import { useToast } from '../../../components/toaster/ToasterContext';
 
 interface UpdateGroupDialogProps {
@@ -15,17 +15,11 @@ interface UpdateGroupDialogProps {
 
 const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({ isOpen, onClose, onSubmit, group }) => {
   const { showToast } = useToast();
-  const [formData, setFormData] = useState({
-    groupName: group.GroupName || '',
-    description: group.Description || '',
-    actionIds: [] as number[],
-    viewIds: [] as number[],
-  });
-  const [dropdowns, setDropdowns] = useState<UserGroupDropdowns>({
-    PermissionControllers: [],
-    PermissionActions: [],
-    PermissionViews: [],
-  });
+  const [groupName, setGroupName] = useState('');
+  const [description, setDescription] = useState('');
+  const [actionIds, setActionIds] = useState<number[]>([]);
+  const [viewIds, setViewIds] = useState<number[]>([]);
+  const [dropdowns, setDropdowns] = useState<UserGroupDropdowns>({ PermissionControllers: [], PermissionActions: [], PermissionViews: [] });
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -34,84 +28,46 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({ isOpen, onClose, 
 
   useEffect(() => {
     if (isOpen) {
-      setFormData({
-        groupName: group.GroupName || '',
-        description: group.Description || '',
-        permissions: group.PermissionViewIds || [],
-        numberOfUsers: group.NumberOfUsers || 0
-      });
+      setGroupName(group.GroupName || '');
+      setDescription(group.Description || '');
+      setActionIds(group.PermissionActionIds || []);
+      setViewIds(group.PermissionViewIds || []);
+      setError('');
+      setSearchAction('');
+      setSearchView('');
+      loadDropdowns();
     }
-  }, [group]);
+  }, [isOpen, group]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const loadDropdowns = async () => {
     try {
-      // Prepare API payload according to AddUserGroups interface
-      const apiPayload: AddUserGroups = {
-        Id: formData.id, // Include the ID for update
-        GroupName: formData.groupName,
-        Description: formData.description,
-        PermissionIds: formData.permissions
-      };
-      
-      // Call the API to update the group
-      await editUserGroup(apiPayload);
-      
-      // Convert permission IDs to comma-separated strings for display
-      const permissionIdsString = formData.permissions.join(',');
-      const permissionNames = formData.permissions.map(id => {
-        const permission = availablePermissions.find(p => p.Id === id);
-        return permission ? permission.ModuleFunction : '';
-      }).filter(name => name !== '').join(',');
-      
-      // Prepare data for parent component to match API response format
-      const submissionData = {
-        id: formData.id,
-        groupName: formData.groupName,
-        description: formData.description,
-        permissionIds: permissionIdsString, // Return as comma-separated string of IDs
-        permissionNames: permissionNames, // Return as comma-separated string of names
-        numberOfUsers: formData.numberOfUsers
-      };
-      
-      onSubmit(submissionData);
-      showToast({ message: 'Group updated successfully.', type: 'success' });
-      onClose();
-    } catch (error) {
-      console.error('Error updating group:', error);
+      setIsLoading(true);
+      const res = await fetchUserGroupDropdowns();
+      if (res.Data) setDropdowns(res.Data);
+    } catch (err) {
+      console.error('Error loading dropdowns:', err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleChange = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const toggleActionId = (id: number) => {
+    setActionIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
   const toggleViewId = (id: number) => {
-    setFormData(prev => ({
-      ...prev,
-      viewIds: prev.viewIds.includes(id)
-        ? prev.viewIds.filter(x => x !== id)
-        : [...prev.viewIds, id],
-    }));
+    setViewIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
   const toggleAllActionsInController = (controllerName: string) => {
-    const ids = dropdowns.PermissionActions
-      .filter(a => a.ControllerName === controllerName)
-      .map(a => a.Id);
-    const allSelected = ids.every(id => formData.actionIds.includes(id));
-    setFormData(prev => ({
-      ...prev,
-      actionIds: allSelected
-        ? prev.actionIds.filter(id => !ids.includes(id))
-        : [...new Set([...prev.actionIds, ...ids])],
-    }));
+    const ids = dropdowns.PermissionActions.filter(a => a.ControllerName === controllerName).map(a => a.Id);
+    const allSelected = ids.every(id => actionIds.includes(id));
+    setActionIds(prev => allSelected ? prev.filter(id => !ids.includes(id)) : [...new Set([...prev, ...ids])]);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.groupName.trim()) {
+    if (!groupName.trim()) {
       setError('Group name is required.');
       return;
     }
@@ -120,21 +76,18 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({ isOpen, onClose, 
     try {
       const payload: UpdateUserGroupPayload = {
         Id: group.Id,
-        GroupName: formData.groupName.trim(),
-        Description: formData.description.trim() || undefined,
-        PermissionActionIds: formData.actionIds,
-        PermissionViewIds: formData.viewIds,
+        GroupName: groupName.trim(),
+        Description: description.trim() || undefined,
+        PermissionActionIds: actionIds,
+        PermissionViewIds: viewIds,
       };
       await editUserGroup(payload);
-      onSubmit({
-        id: group.Id,
-        groupName: formData.groupName.trim(),
-        description: formData.description.trim(),
-        permissionIds: formData.viewIds.join(','),
-      });
+      showToast({ message: `Group '${groupName.trim()}' updated successfully.`, type: 'success' });
+      onSubmit({ id: group.Id, groupName: groupName.trim(), description: description.trim(), permissionIds: viewIds.join(',') });
       onClose();
     } catch (err: any) {
-      setError(err?.response?.data?.Message || err?.Message || 'Failed to update group. Please try again.');
+      const msg = err?.response?.data?.Message || err?.Message || 'Failed to update group. Please try again.';
+      setError(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -182,8 +135,8 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({ isOpen, onClose, 
                 </label>
                 <input
                   type="text"
-                  value={formData.groupName}
-                  onChange={e => setFormData(prev => ({ ...prev, groupName: e.target.value }))}
+                  value={groupName}
+                  onChange={e => setGroupName(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                   autoComplete="off"
                 />
@@ -192,8 +145,8 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({ isOpen, onClose, 
                 <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
                 <input
                   type="text"
-                  value={formData.description}
-                  onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  value={description}
+                  onChange={e => setDescription(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                   autoComplete="off"
                 />
@@ -204,12 +157,12 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({ isOpen, onClose, 
               <div className="text-center py-8 text-gray-500">Loading permissions...</div>
             ) : (
               <>
-                {/* API Permissions (PermissionActions) */}
+                {/* API Permissions */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-sm font-semibold text-gray-700">
                       API Permissions
-                      <span className="ml-2 text-xs font-normal text-gray-500">({formData.actionIds.length} selected)</span>
+                      <span className="ml-2 text-xs font-normal text-gray-500">({actionIds.length} selected)</span>
                     </h3>
                     <input
                       type="text"
@@ -221,8 +174,8 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({ isOpen, onClose, 
                   </div>
                   <div className="border border-gray-200 rounded-md max-h-64 overflow-y-auto divide-y divide-gray-100">
                     {Object.entries(filteredActions).map(([controller, actions]) => {
-                      const allSelected = actions.every(a => formData.actionIds.includes(a.Id));
-                      const someSelected = actions.some(a => formData.actionIds.includes(a.Id));
+                      const allSelected = actions.every(a => actionIds.includes(a.Id));
+                      const someSelected = actions.some(a => actionIds.includes(a.Id));
                       return (
                         <div key={controller}>
                           <div
@@ -238,7 +191,7 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({ isOpen, onClose, 
                             />
                             <span className="text-xs font-semibold text-gray-700">{controller}</span>
                             <span className="ml-auto text-xs text-gray-400">
-                              {actions.filter(a => formData.actionIds.includes(a.Id)).length}/{actions.length}
+                              {actions.filter(a => actionIds.includes(a.Id)).length}/{actions.length}
                             </span>
                           </div>
                           {actions.map(action => (
@@ -249,13 +202,13 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({ isOpen, onClose, 
                             >
                               <input
                                 type="checkbox"
-                                checked={formData.actionIds.includes(action.Id)}
+                                checked={actionIds.includes(action.Id)}
                                 onChange={() => toggleActionId(action.Id)}
                                 className="rounded border-gray-300 text-blue-600"
                               />
                               <span className="text-xs text-gray-700">{action.ActionName}</span>
                               {action.Description && (
-                                <span className="text-xs text-gray-400 truncate">� {action.Description}</span>
+                                <span className="text-xs text-gray-400 truncate">— {action.Description}</span>
                               )}
                             </div>
                           ))}
@@ -268,12 +221,12 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({ isOpen, onClose, 
                   </div>
                 </div>
 
-                {/* Route Permissions (PermissionViews) */}
+                {/* Route Permissions */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-sm font-semibold text-gray-700">
                       Route Permissions
-                      <span className="ml-2 text-xs font-normal text-gray-500">({formData.viewIds.length} selected)</span>
+                      <span className="ml-2 text-xs font-normal text-gray-500">({viewIds.length} selected)</span>
                     </h3>
                     <input
                       type="text"
@@ -292,13 +245,13 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({ isOpen, onClose, 
                       >
                         <input
                           type="checkbox"
-                          checked={formData.viewIds.includes(view.Id)}
+                          checked={viewIds.includes(view.Id)}
                           onChange={() => toggleViewId(view.Id)}
                           className="rounded border-gray-300 text-blue-600"
                         />
                         <span className="text-xs text-gray-700">{view.RoutePath}</span>
                         {view.Description && (
-                          <span className="text-xs text-gray-400 truncate">� {view.Description}</span>
+                          <span className="text-xs text-gray-400 truncate">— {view.Description}</span>
                         )}
                       </div>
                     ))}
@@ -316,7 +269,7 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({ isOpen, onClose, 
 
             <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
               <Button color="zinc" type="button" onClick={onClose} disabled={isSubmitting}>Cancel</Button>
-              <Button color="blue" type="submit" disabled={isSubmitting || !formData.groupName.trim()}>
+              <Button color="blue" type="submit" disabled={isSubmitting || !groupName.trim()}>
                 {isSubmitting ? 'Saving...' : 'Save Changes'}
               </Button>
             </div>

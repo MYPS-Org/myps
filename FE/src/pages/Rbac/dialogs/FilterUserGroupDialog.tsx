@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import type { UserGroupFilter } from '../Model';
+import type { UserGroupFilter } from '../Model.d';
 
 interface FilterUserGroupDialogProps {
   isOpen: boolean;

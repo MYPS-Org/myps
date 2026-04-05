@@ -73,20 +73,23 @@ All state and data-fetching logic lives here. `Rbac.tsx` simply destructures fro
 
 ## `service.ts` — API Functions
 
-| Function                       | Endpoint                                              |
-|--------------------------------|-------------------------------------------------------|
-| `fetchInitialData()`           | `POST /UserManagement/InitUserManagement`             |
-| `fetchUsers(filter)`           | `POST /UserManagement/ShowUsers`                      |
-| `fetchUserGroups(filter)`      | `POST /UserManagement/ShowUserGroups`                 |
-| `fetchUserGroupDropdowns()`    | `POST /UserManagement/ShowUserGroupDropdowns`         |
-| `fetchPermissions(filter)`     | `POST /UserManagement/ShowPermissions`                |
-| `fetchPermissionGroups(filter)`| `POST /UserManagement/ShowPermissionGroups`           |
-| `getAppModules(filter)`        | `POST /UserManagement/ShowAppModules`                 |
-| `addAppModule(data)`           | `POST /UserManagement/AddAppModule`                   |
-| `updateAppModule(data)`        | `POST /UserManagement/UpdateAppModule`                |
-| `deleteAppModule(data)`        | `POST /UserManagement/DeleteAppModule`                |
-| `callSyncPermissions()`        | `POST /UserManagement/SyncAPIPermissions`             |
-| `callSyncViewPermissions(routes)`| `POST /UserManagement/SyncViewPermissions`          |
+| Function                       | Endpoint                                              | Notes                                                              |
+|--------------------------------|-------------------------------------------------------|--------------------------------------------------------------------|
+| `fetchInitialData()`           | `POST /UserManagement/InitUserManagement`             |                                                                    |
+| `fetchUsers(filter)`           | `POST /UserManagement/ShowUsers`                      |                                                                    |
+| `fetchUserGroups(filter)`      | `POST /UserManagement/ShowUserGroups`                 |                                                                    |
+| `fetchUserGroupDropdowns()`    | `POST /UserManagement/ShowUserGroupDropdowns`         | Returns `PermissionControllers`, `PermissionActions`, `PermissionViews` |
+| `addUserGroup(data)`           | `POST /UserManagement/AddUserGroup`                   | Only accepts `GroupName` + `Description` — no permissions on create |
+| `editUserGroup(data)`          | `POST /UserManagement/UpdateUserGroup`                | Accepts `UpdateUserGroupPayload` with `PermissionActionIds` + `PermissionViewIds` |
+| `deleteUserGroup(id)`          | `POST /UserManagement/DeleteUserGroup?id={id}`        | Passes id as query param (not body)                                |
+| `fetchPermissions(filter)`     | `POST /UserManagement/ShowPermissions`                |                                                                    |
+| `fetchPermissionGroups(filter)`| `POST /UserManagement/ShowPermissionGroups`           |                                                                    |
+| `getAppModules(filter)`        | `POST /UserManagement/ShowAppModules`                 |                                                                    |
+| `addAppModule(data)`           | `POST /UserManagement/AddAppModule`                   |                                                                    |
+| `updateAppModule(data)`        | `POST /UserManagement/UpdateAppModule`                |                                                                    |
+| `deleteAppModule(data)`        | `POST /UserManagement/DeleteAppModule`                |                                                                    |
+| `callSyncPermissions()`        | `POST /UserManagement/SyncAPIPermissions`             |                                                                    |
+| `callSyncViewPermissions(routes)`| `POST /UserManagement/SyncViewPermissions`          |                                                                    |
 
 ---
 
@@ -98,13 +101,40 @@ All state and data-fetching logic lives here. `Rbac.tsx` simply destructures fro
 | `AppModules`                | App module record — `ModuleName`, `Description`, `ControllerCount`, `ViewCount`, `Controllers` (stringified JSON), `Views` (stringified JSON) |
 | `AppModuleFilter`           | Filter params for App Modules (`ModuleName`)                                 |
 | `ShowAppModulesPagination`  | Paginated filter params for App Modules                                      |
-| `vUserGroups`               | User group view model                                                        |
+| `vUserGroups`               | User group view model — `PermissionActionIds: number[]`, `PermissionViewIds: number[]` |
+| `AddUserGroups`             | Payload for `addUserGroup` (create only — permissions ignored by backend)    |
+| `UpdateUserGroupPayload`    | Payload for `editUserGroup` — `Id`, `GroupName`, `Description`, `PermissionActionIds`, `PermissionViewIds` |
+| `UserGroupDropdowns`        | Dropdown data for group dialogs — `PermissionControllers`, `PermissionActions`, `PermissionViews` |
+| `PermissionActions`         | Action record (`Id`, `ControllerName`, `ActionName`, `Description`)          |
+| `PermissionViews`           | Route permission record (`Id`, `RoutePath`, `Description`)                   |
 | `Permissions`               | API permission record (`ControllerName`, `ActionName`)                       |
 | `UserPagination`            | Paginated filter params for users                                            |
 | `UserGroupPagination`       | Paginated filter params for user groups                                      |
 | `InitialDataResponse`       | Shape of the initial data fetch response                                     |
 
 > `Controllers` and `Views` in `AppModules` are stored as **stringified JSON arrays** — `[{"ControllerName":"...","Linked":false}]` and `[{"RouteName":"...","Linked":false}]`. `ControllerCount` / `ViewCount` are derived counts of items where `Linked === true`.
+
+---
+
+## User Groups Tab — How It Works
+
+`UserGroupsTab` renders `UserGroupsData` (type `PaginationResponse<vUserGroups>`).
+
+The `permissionViewsLookup` map (built from `fetchUserGroupDropdowns`) resolves `PermissionViewIds` to readable route names for display in the table.
+
+On tab switch, `getTableData('userGroups')` calls `fetchUserGroupDropdowns` then `fetchUserGroups` in sequence.
+
+### Group Dialogs
+
+| Dialog               | Trigger                                  | API Call                           | Notes                                                        |
+|----------------------|------------------------------------------|------------------------------------|--------------------------------------------------------------|
+| `AddGroupDialog`     | "Add Group" button                       | `addUserGroup`                     | Name + Description only — backend does not accept permissions on create |
+| `UpdateGroupDialog`  | Edit (pencil) button                     | `fetchUserGroupDropdowns` on open + `editUserGroup` on submit | Shows grouped PermissionActions by ControllerName and PermissionViews list; pre-selects existing ids |
+| `DeleteGroupDialog`  | Delete (trash) button                    | `deleteUserGroup(id)` — query param | Requires typing "DELETE" to confirm                         |
+| `FilterUserGroupDialog` | Filter button                         | —                                  | Filters by `GroupName`                                       |
+| `ViewGroupDialog`    | (available, not wired to a button)       | —                                  | Read-only                                                    |
+
+> **Backend constraint:** `AddUserGroup` only creates the group record. Use the Edit dialog to assign `PermissionActionIds` and `PermissionViewIds`. The `AddGroupDialog` shows a hint to inform the user.
 
 ---
 
