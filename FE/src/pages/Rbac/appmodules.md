@@ -90,14 +90,31 @@ Defined in `service.ts`:
 | File | Change |
 |------|--------|
 | `Model.d.ts` | Added `Controllers` and `Views` fields to `AppModules` |
-| `service.ts` | Added `addAppModule`, `updateAppModule`, `deleteAppModule` |
-| `components/AppModuleTab.tsx` | Fully rewritten with inline row editing and `ModuleLinksEditor` toggle panel |
-| `useRbac.ts` | Removed module dialog states; `setModulesData` passed as `onDataChange` prop |
-| `Rbac.tsx` | Updated `AppModuleTable` to use `onDataChange` prop; removed dialog imports and renders |
+| `service.ts` | Added `addAppModule`, `updateAppModule`, `deleteAppModule`, `callSyncViewPermissions` |
+| `components/AppModuleTab.tsx` | Fully rewritten with inline row editing, `ModuleLinksEditor` toggle panel, and Sync API / Sync Routes buttons |
+| `useRbac.ts` | Removed `permissions` and `routePermissions` tab state, handlers, and `DefaultModelKey` entries; `setModulesData` passed as `onDataChange` prop |
+| `Rbac.tsx` | Removed API Permissions and Route Permissions tabs, their content blocks, and all permission-related dialogs |
+
+## Sync Buttons
+
+Two sync buttons are embedded in the `AppModuleTab` header. They are self-contained — no props or parent state needed.
+
+| Button | API Endpoint | Description |
+|--------|-------------|-------------|
+| **Sync API** | `POST /api/UserManagement/SyncAPIPermissions` | Discovers all controllers/actions via reflection and upserts into `tPermissionControllers` / `tPermissionActions` |
+| **Sync Routes** | `POST /api/UserManagement/SyncViewPermissions` | Sends the frontend `protectedRoutes` array (with `RouteName` + `path`, no `element`) as `RoutesAvailable` payload to upsert into `tPermissionViews` |
+
+### Sync implementation notes
+- Both buttons are disabled while a save/edit is in progress (`editId !== null`) or while the respective sync is running
+- Success/error feedback is shown inline in the header via a `syncMessage` state (`{ text, type: 'success' | 'error' }`)
+- Routes payload is built from `protectedRoutes` in `components/Routes.tsx`, mapping each entry to `{ RouteName, path }` (element is stripped)
+- The `SyncViewPermissions` DTO payload shape: `{ RoutesAvailable: [{ RouteName?: string, path: string }] }`
+
+### Removed tabs
+The **API Permissions** and **Route Permissions** tabs have been removed from the RBAC page. Those views were static (no CRUD needed). The sync operations that previously lived on the API Permissions tab have been moved here.
 
 ---
 
-## Inline Editing Behavior
 
 All CRUD operations are handled directly inside `AppModuleTab.tsx` — no separate dialogs.
 
@@ -136,7 +153,10 @@ editForm        // { ModuleName, Description, controllers: ControllerItem[], vie
 expandedId      // ID of the row whose toggle panel is expanded (view mode)
 deleteConfirmId // ID of the row showing inline delete confirmation
 isSaving        // prevents double-submit
-error           // inline error message shown in header
+error           // inline error message shown in header (for CRUD operations)
+isSyncingApi    // true while Sync API call is in-flight
+isSyncingViews  // true while Sync Routes call is in-flight
+syncMessage     // { text: string, type: 'success' | 'error' } | null — shown in header after a sync
 ```
 
 `onDataChange` (passed from `Rbac.tsx` as `setModulesData`) is called to perform optimistic updates to the parent pagination state.

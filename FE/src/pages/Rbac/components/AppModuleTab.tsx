@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/16/solid';
-import { CheckIcon, XMarkIcon, ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { CheckIcon, XMarkIcon, ChevronDownIcon, ChevronRightIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
 import { Button } from '../../../components/tailwindui/button';
 import {
@@ -11,7 +11,9 @@ import {
 	PaginationPrevious,
 } from '../../../components/tailwindui/pagination';
 import type { AppModules } from '../Model.d';
-import { addAppModule, updateAppModule, deleteAppModule } from '../service';
+import { addAppModule, updateAppModule, deleteAppModule, callSyncPermissions, callSyncViewPermissions } from '../service';
+import protectedRoutes from '../../../components/Routes';
+import { useToast } from '../../../components/toaster/ToasterContext';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type ControllerItem = { ControllerName: string; Linked: boolean };
@@ -134,6 +136,36 @@ export const AppModuleTable: React.FC<AppModuleTableProps> = ({ data, isLoading,
 	const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
 	const [isSaving, setIsSaving] = useState(false);
 	const [error, setError] = useState('');
+	const [isSyncingApi, setIsSyncingApi] = useState(false);
+	const [isSyncingViews, setIsSyncingViews] = useState(false);
+	const { showToast } = useToast();
+
+	const handleSyncApi = async () => {
+		setIsSyncingApi(true);
+		try {
+			const res = await callSyncPermissions();
+			showToast({ message: (res?.Data as any)?.Message || 'API permissions synced.', type: 'success' });
+		} catch (err: any) {
+			console.error('Sync API error:', err);
+		} finally {
+			setIsSyncingApi(false);
+		}
+	};
+
+	const handleSyncViews = async () => {
+		setIsSyncingViews(true);
+		try {
+			const payload = protectedRoutes
+				.filter(r => r.path)
+				.map(({ RouteName, path }) => ({ RouteName, path: path! }));
+			const res = await callSyncViewPermissions(payload);
+			showToast({ message: (res?.Data as any)?.Message || 'Route permissions synced.', type: 'success' });
+		} catch (err: any) {
+			console.error('Sync views error:', err);
+		} finally {
+			setIsSyncingViews(false);
+		}
+	};
 
 	// Use the first existing row as a template for controller/view lists (all unlinked)
 	const getTemplate = () => {
@@ -192,9 +224,11 @@ export const AppModuleTable: React.FC<AppModuleTableProps> = ({ data, isLoading,
 				const res = await addAppModule(payload);
 				const newItem: AppModules = { ...payload, Id: res?.Data?.Id ?? Date.now() };
 				onDataChange(prev => ({ ...prev, lists: [newItem, ...prev.lists], total: prev.total + 1 }));
+				showToast({ message: 'Module added successfully.', type: 'success' });
 			} else {
 				await updateAppModule(payload);
 				onDataChange(prev => ({ ...prev, lists: prev.lists.map(m => m.Id === payload.Id ? payload : m) }));
+				showToast({ message: 'Module updated successfully.', type: 'success' });
 			}
 			setEditId(null);
 		} catch (err: any) {
@@ -214,6 +248,7 @@ export const AppModuleTable: React.FC<AppModuleTableProps> = ({ data, isLoading,
 				total: Math.max(0, prev.total - 1),
 			}));
 			setDeleteConfirmId(null);
+			showToast({ message: 'Module deleted successfully.', type: 'success' });
 		} catch (err: any) {
 			setError(err.Message || 'Failed to delete module.');
 		} finally {
@@ -234,12 +269,22 @@ export const AppModuleTable: React.FC<AppModuleTableProps> = ({ data, isLoading,
 						<h3 className="text-lg font-medium text-gray-900">App Modules</h3>
 						<p className="text-sm text-gray-500 mt-0.5">{data.total} module{data.total !== 1 ? 's' : ''}</p>
 					</div>
-					{editId === null && (
-						<Button color="blue" onClick={startAdd}>
-							<PlusIcon className="w-4 h-4 mr-1" />
-							Add Module
+					<div className="flex items-center gap-2">
+						<Button color="white" onClick={handleSyncViews} disabled={isSyncingViews || editId !== null}>
+							<ArrowPathIcon className={`w-4 h-4 mr-1 ${isSyncingViews ? 'animate-spin' : ''}`} />
+							{isSyncingViews ? 'Syncing...' : 'Sync Routes'}
 						</Button>
-					)}
+						<Button color="white" onClick={handleSyncApi} disabled={isSyncingApi || editId !== null}>
+							<ArrowPathIcon className={`w-4 h-4 mr-1 ${isSyncingApi ? 'animate-spin' : ''}`} />
+							{isSyncingApi ? 'Syncing...' : 'Sync API'}
+						</Button>
+						{editId === null && (
+							<Button color="blue" onClick={startAdd}>
+								<PlusIcon className="w-4 h-4 mr-1" />
+								Add Module
+							</Button>
+						)}
+					</div>
 				</div>
 				{error && (
 					<div className="mt-2 bg-red-50 border border-red-200 rounded-md px-3 py-2">
@@ -247,7 +292,6 @@ export const AppModuleTable: React.FC<AppModuleTableProps> = ({ data, isLoading,
 					</div>
 				)}
 			</div>
-
 			{isLoading ? (
 				<div className="flex items-center justify-center py-16 text-gray-400">Loading...</div>
 			) : (

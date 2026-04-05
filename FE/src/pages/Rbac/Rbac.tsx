@@ -1,8 +1,8 @@
 ﻿'use-client'
-import React from 'react';
+import React, { use } from 'react';
 
 import { Heading } from '../../components/tailwindui/heading';
-import { UsersIcon, KeyIcon, UserGroupIcon, GlobeAltIcon } from '@heroicons/react/20/solid';
+import { UsersIcon, UserGroupIcon } from '@heroicons/react/20/solid';
 import { Badge } from '../../components/tailwindui/badge';
 import { CogIcon } from '@heroicons/react/24/outline';
 
@@ -10,68 +10,57 @@ import { CogIcon } from '@heroicons/react/24/outline';
 import { useRbac, type DefaultModelKey } from './useRbac';
 
 // Tab components
-import { PermissionsTable } from './components/ApiPermissionsTab';
 import { AppModuleTable } from './components/AppModuleTab';
 import { UsersTab } from './components/UsersTab';
 import { UserGroupsTab } from './components/UserGroupsTab';
-import { RoutePermissionsTab } from './components/RoutePermissionsTab';
+
+import { useToast } from '../../components/toaster/ToasterContext';
 
 // Interfaces
-import type { vUserGroups, UserPagination, PermissionPagination, UserGroupPagination } from './Model.d';
+import type { vUserGroups, UserPagination, UserGroupPagination } from './Model.d';
 
 // Dialog imports
 import {
-	AddUserDialog, AddPermissionDialog, AddGroupDialog,
+	AddUserDialog, AddGroupDialog,
 	ViewUserDialog, UpdateUserDialog, DeleteUserDialog,
-	ViewPermissionDialog, UpdatePermissionDialog, DeletePermissionDialog,
 	ViewGroupDialog, UpdateGroupDialog, DeleteGroupDialog,
-	FilterUserDialog, FilterPermissionDialog, FilterUserGroupDialog,
+	FilterUserDialog, FilterUserGroupDialog,
 } from './dialogs';
 
 const Rbac: React.FC = () => {
 	const {
 		selectedTab,
 		UsersData, setUsersData,
-		PermissionsData, setPermissionsData,
 		ModulesData, setModulesData,
 		UserGroupsData, setUserGroups,
-		RoutePermissionsData,
 		isAddUserDialogOpen, setIsAddUserDialogOpen,
-		isAddPermissionDialogOpen, setIsAddPermissionDialogOpen,
 		isAddGroupDialogOpen, setIsAddGroupDialogOpen,
 		isViewUserDialogOpen, setIsViewUserDialogOpen,
 		isUpdateUserDialogOpen, setIsUpdateUserDialogOpen,
 		isDeleteUserDialogOpen, setIsDeleteUserDialogOpen,
 		selectedUserId, setSelectedUserId,
-		isViewPermissionDialogOpen, setIsViewPermissionDialogOpen,
-		isUpdatePermissionDialogOpen, setIsUpdatePermissionDialogOpen,
-		selectedPermissionId, setSelectedPermissionId,
-		isDeletePermissionDialogOpen, setIsDeletePermissionDialogOpen,
 		isViewGroupDialogOpen, setIsViewGroupDialogOpen,
 		isUpdateGroupDialogOpen, setIsUpdateGroupDialogOpen,
 		isDeleteGroupDialogOpen, setIsDeleteGroupDialogOpen,
 		selectedGroupId, setSelectedGroupId,
 		isFilterUserDialogOpen, setIsFilterUserDialogOpen,
-		isPermissionFilterDialogOpen, setIsPermissionFilterDialogOpen,
 		isUserGroupFilterDialogOpen, setIsUserGroupFilterDialogOpen,
 		expandedUserGroups,
 		UserFilter, setUserFilter,
 		UserGroupFilter, setUserGroupFilter,
-		PermissionFilter, setPermissionFilter,
-		RoutePermissionFilter,
-		isSyncingPermissions,
 		isLoadingModules,
 		permissionViewsLookup,
 		tabNumbers,
 		sortDirection,
 		handleClear,
-		syncPermissions,
 		handleExpand,
 		handleAutoRefresh,
 		handleSort,
 		getTableData,
 		Paginate,
 	} = useRbac();
+
+	const { showToast } = useToast();
 
 	const TabButton = ({
 		label,
@@ -111,11 +100,9 @@ const Rbac: React.FC = () => {
 
 			{/* Tab Navigation */}
 			<div className="flex space-x-2 p-1 bg-white shadow-md rounded-lg">
-		<TabButton label="App Modules"       value="modules"           icon={CogIcon}       count={tabNumbers.modules} />
-				<TabButton label="API Permissions"   value="permissions"       icon={KeyIcon}       count={tabNumbers.permissions} />
-				<TabButton label="Route Permissions" value="routePermissions"  icon={GlobeAltIcon}  count={tabNumbers.routePermissions} />
-				<TabButton label="Users"             value="users"             icon={UsersIcon}     count={tabNumbers.users} />
-				<TabButton label="User Groups"       value="userGroups"        icon={UserGroupIcon} count={tabNumbers.userGroups} />
+				<TabButton label="App Modules" value="modules"    icon={CogIcon}       count={tabNumbers.modules} />
+				<TabButton label="Users"       value="users"      icon={UsersIcon}     count={tabNumbers.users} />
+				<TabButton label="User Groups" value="userGroups" icon={UserGroupIcon} count={tabNumbers.userGroups} />
 			</div>
 
 			{/* Content Area */}
@@ -128,22 +115,6 @@ const Rbac: React.FC = () => {
 					onDataChange={setModulesData}
 				/>
 			)}
-
-			{selectedTab === 'permissions' && (
-					<PermissionsTable
-						data={PermissionsData}
-						filter={PermissionFilter}
-						sortDirection={sortDirection}
-						isSyncingPermissions={isSyncingPermissions}
-						onSort={handleSort}
-						onClear={handleClear}
-						onSync={syncPermissions}
-						onPaginate={Paginate}
-						onOpenFilter={() => setIsPermissionFilterDialogOpen(true)}
-						onEdit={(id) => { setSelectedPermissionId(id); setIsUpdatePermissionDialogOpen(true); }}
-						onDelete={(id) => { setSelectedPermissionId(id); setIsDeletePermissionDialogOpen(true); }}
-					/>
-				)}
 
 				{selectedTab === 'users' && (
 					<UsersTab
@@ -180,16 +151,6 @@ const Rbac: React.FC = () => {
 					/>
 				)}
 
-				{selectedTab === 'routePermissions' && (
-					<RoutePermissionsTab
-						data={RoutePermissionsData}
-						filter={RoutePermissionFilter}
-						sortDirection={sortDirection}
-						onSort={handleSort}
-						onClear={handleClear}
-						onPaginate={Paginate}
-					/>
-				)}
 			</div>
 
 			{/* ===== Dialogs ===== */}
@@ -208,28 +169,6 @@ const Rbac: React.FC = () => {
 						lists: [newUserWithId, ...(prev.lists || [])],
 						total: (prev.total || 0) + 1,
 					}));
-				}}
-			/>
-
-			<AddPermissionDialog
-				isOpen={isAddPermissionDialogOpen}
-				onClose={() => setIsAddPermissionDialogOpen(false)}
-				onSubmit={async (newPermission: any) => {
-					try {
-						await handleAutoRefresh(PermissionFilter);
-					} catch (error) {
-						console.error('Error refreshing permissions:', error);
-						const newPermissionWithId = {
-							...newPermission,
-							Id: (PermissionsData.lists?.length || 0) + 1,
-							CreatedDate: new Date().toLocaleDateString(),
-						};
-						setPermissionsData(prev => ({
-							...prev,
-							lists: [...(prev.lists || []), newPermissionWithId],
-							total: (prev.total || 0) + 1,
-						}));
-					}
 				}}
 			/>
 
@@ -287,48 +226,6 @@ const Rbac: React.FC = () => {
 						setUsersData(prev => ({
 							...prev,
 							lists: prev.lists?.filter(u => u.Id !== deletedUserId) || [],
-							total: Math.max(0, (prev.total || 1) - 1),
-						}));
-					}}
-				/>
-			)}
-
-			{isViewPermissionDialogOpen && selectedPermissionId && (
-				<ViewPermissionDialog
-					isOpen={isViewPermissionDialogOpen}
-					onClose={() => { setIsViewPermissionDialogOpen(false); setSelectedPermissionId(null); }}
-					permission={PermissionsData.lists?.find((p: any) => p.Id === selectedPermissionId)!}
-				/>
-			)}
-
-			{isUpdatePermissionDialogOpen && selectedPermissionId && (
-				<UpdatePermissionDialog
-					isOpen={isUpdatePermissionDialogOpen}
-					onClose={() => { setIsUpdatePermissionDialogOpen(false); setSelectedPermissionId(null); }}
-					permission={PermissionsData.lists?.find((p: any) => p.Id === selectedPermissionId)!}
-					onSubmit={async (updatedPermission: any) => {
-						try {
-							await handleAutoRefresh(PermissionFilter);
-						} catch (error) {
-							console.error('Error refreshing permissions:', error);
-							setPermissionsData(prev => ({
-								...prev,
-								lists: prev.lists?.map((p: any) => p.Id === updatedPermission.Id ? updatedPermission : p) || [],
-							}));
-						}
-					}}
-				/>
-			)}
-
-			{isDeletePermissionDialogOpen && selectedPermissionId && (
-				<DeletePermissionDialog
-					isOpen={isDeletePermissionDialogOpen}
-					onClose={() => { setIsDeletePermissionDialogOpen(false); setSelectedPermissionId(null); }}
-					permission={PermissionsData.lists?.find((p: any) => p.Id === selectedPermissionId)!}
-					onSubmit={(deletedPermissionId: number) => {
-						setPermissionsData(prev => ({
-							...prev,
-							lists: prev.lists?.filter((p: any) => p.Id !== deletedPermissionId) || [],
 							total: Math.max(0, (prev.total || 1) - 1),
 						}));
 					}}
@@ -421,40 +318,6 @@ const Rbac: React.FC = () => {
 						}
 					}}
 					initialData={UserFilter.filters}
-				/>
-			)}
-
-			{isPermissionFilterDialogOpen && (
-				<FilterPermissionDialog
-					isOpen={isPermissionFilterDialogOpen}
-					onClose={() => setIsPermissionFilterDialogOpen(false)}
-					onSubmit={async (filterData) => {
-						console.log('Filter data received:', filterData);
-						const newFilter: PermissionPagination = { ...PermissionFilter, filters: filterData, page: 1 };
-						setPermissionFilter(newFilter);
-						try {
-							await handleAutoRefresh(newFilter);
-						} catch (error) {
-							console.error('Error fetching permissions:', error);
-							alert('Failed to fetch permissions: ' + (error instanceof Error ? error.message : 'Unknown error'));
-						}
-					}}
-					onClear={async () => {
-						console.log('Clearing permission filters');
-						const newFilter: PermissionPagination = {
-							...PermissionFilter,
-							filters: { Module: '', ModuleFunction: '', ModuleFunctionDescription: '' },
-							page: 1,
-						};
-						setPermissionFilter(newFilter);
-						try {
-							await handleAutoRefresh(newFilter);
-						} catch (error) {
-							console.error('Error fetching permissions:', error);
-							alert('Failed to fetch permissions: ' + (error instanceof Error ? error.message : 'Unknown error'));
-						}
-					}}
-					initialData={PermissionFilter.filters}
 				/>
 			)}
 

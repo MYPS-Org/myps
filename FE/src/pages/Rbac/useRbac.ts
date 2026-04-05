@@ -1,36 +1,26 @@
 import { useEffect, useState } from 'react';
 import type {
 	Users,
-	Permissions,
-	PermissionPagination,
 	UserPagination,
 	UserGroupPagination,
 	vUserGroups,
-	PermissionViews,
-	RoutePermissionPagination,
 	AppModules,
 	ShowAppModulesPagination,
 } from './Model.d';
 import {
 	fetchInitialData,
-	fetchPermissions,
 	fetchUsers,
 	fetchUserGroups,
 	fetchUserGroupDropdowns,
-	getRoutePermissions,
-	callSyncPermissions,
 	getAppModules,
 } from './service';
 
-export type DefaultModelKey = 'users' | 'permissions' | 'userGroups' | 'routePermissions' | 'modules';
+export type DefaultModelKey = 'users' | 'userGroups' | 'modules';
 
 export function useRbac() {
 	const [selectedTab, setSelectedTab] = useState<DefaultModelKey>('users');
 
 	const [UsersData, setUsersData] = useState<PaginationResponse<Users>>({
-		lists: [], page: 1, limit: 20, total: 0, totalPages: 0,
-	});
-	const [PermissionsData, setPermissionsData] = useState<PaginationResponse<Permissions>>({
 		lists: [], page: 1, limit: 20, total: 0, totalPages: 0,
 	});
 	const [ModulesData, setModulesData] = useState<PaginationResponse<AppModules>>({
@@ -39,22 +29,14 @@ export function useRbac() {
 	const [UserGroupsData, setUserGroups] = useState<PaginationResponse<vUserGroups>>({
 		lists: [], page: 1, limit: 20, total: 0, totalPages: 0,
 	});
-	const [RoutePermissionsData, setRoutePermissionsData] = useState<PaginationResponse<PermissionViews>>({
-		lists: [], page: 1, limit: 20, total: 0, totalPages: 0,
-	});
 
 	// Dialog open states
 	const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
-	const [isAddPermissionDialogOpen, setIsAddPermissionDialogOpen] = useState(false);
 	const [isAddGroupDialogOpen, setIsAddGroupDialogOpen] = useState(false);
 	const [isViewUserDialogOpen, setIsViewUserDialogOpen] = useState(false);
 	const [isUpdateUserDialogOpen, setIsUpdateUserDialogOpen] = useState(false);
 	const [isDeleteUserDialogOpen, setIsDeleteUserDialogOpen] = useState(false);
 	const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
-	const [isViewPermissionDialogOpen, setIsViewPermissionDialogOpen] = useState(false);
-	const [isUpdatePermissionDialogOpen, setIsUpdatePermissionDialogOpen] = useState(false);
-	const [selectedPermissionId, setSelectedPermissionId] = useState<number | null>(null);
-	const [isDeletePermissionDialogOpen, setIsDeletePermissionDialogOpen] = useState(false);
 	const [isViewGroupDialogOpen, setIsViewGroupDialogOpen] = useState(false);
 	const [isUpdateGroupDialogOpen, setIsUpdateGroupDialogOpen] = useState(false);
 	const [isDeleteGroupDialogOpen, setIsDeleteGroupDialogOpen] = useState(false);
@@ -62,7 +44,6 @@ export function useRbac() {
 
 	// Filter dialog states
 	const [isFilterUserDialogOpen, setIsFilterUserDialogOpen] = useState(false);
-	const [isPermissionFilterDialogOpen, setIsPermissionFilterDialogOpen] = useState(false);
 	const [isUserGroupFilterDialogOpen, setIsUserGroupFilterDialogOpen] = useState(false);
 
 	const [expandedUserGroups, setExpandedUserGroups] = useState<Set<number>>(new Set());
@@ -75,14 +56,6 @@ export function useRbac() {
 		filters: { GroupName: '', PermissionNames: '' },
 		sortField: '', sortDirection: 1, page: 1, limit: 20,
 	});
-	const [PermissionFilter, setPermissionFilter] = useState<PermissionPagination>({
-		filters: { Module: '', ModuleFunction: '', ModuleFunctionDescription: '' },
-		sortField: '', sortDirection: 1, page: 1, limit: 20,
-	});
-	const [RoutePermissionFilter, setRoutePermissionFilter] = useState<RoutePermissionPagination>({
-		filters: { RoutePath: '', Description: '' },
-		sortField: '', sortDirection: 1, page: 1, limit: 20,
-	});
 
 	const [ShowAppModulesFilter, setShowAppModulesFilter] = useState<ShowAppModulesPagination>({
 		filters: { ModuleName: '' },
@@ -90,15 +63,12 @@ export function useRbac() {
 	});
 
 
-	const [isLoadingPermissions, setIsLoadingPermissions] = useState(false);
 	const [isLoadingModules, setIsLoadingModules] = useState(false);
 	const [isLoadingUserGroups, setIsLoadingUserGroups] = useState(false);
 	const [isLoadingUsers, setIsLoadingUsers] = useState(false);
-	const [isLoadingRoutePermissions, setIsLoadingRoutePermissions] = useState(false);
-	const [isSyncingPermissions, setIsSyncingPermissions] = useState(false);
 	const [permissionViewsLookup, setPermissionViewsLookup] = useState<Record<number, string>>({});
 	const [tabNumbers, setTabNumbers] = useState({
-		users: 0, permissions: 0, modules: 0, userGroups: 0, routePermissions: 0,
+		users: 0, modules: 0, userGroups: 0,
 	});
 	const [sortDirection, setSortDirection] = useState<0 | 1 | null>(null);
 
@@ -108,10 +78,8 @@ export function useRbac() {
 				const initialData = await fetchInitialData();
 				setTabNumbers({
 					users: initialData.Data.NumberOfUsers || 0,
-					permissions: initialData.Data.NumberOfPermissions || 0,
-					modules: initialData.Data.NumberOfPermissions || 0,
+					modules: 0,
 					userGroups: initialData.Data.NumberOfGroups || 0,
-					routePermissions: 0,
 				});
 				if (initialData.Data.Users) {
 					setUsersData({
@@ -131,7 +99,7 @@ export function useRbac() {
 	}, []);
 
 	const handleAutoRefresh = async (
-		filterData: UserPagination | PermissionPagination | UserGroupPagination | RoutePermissionPagination,
+		filterData: UserPagination | UserGroupPagination,
 	) => {
 		try {
 			if (selectedTab === 'users') {
@@ -139,29 +107,18 @@ export function useRbac() {
 				console.log('Auto-refreshing users after dialog submission');
 				const res = await fetchUsers(filterData as UserPagination);
 				if (res.Data.lists) { console.log('Setting updated users data:', res); setUsersData(res.Data); }
-		} else if (selectedTab === 'permissions') {
-			setIsLoadingPermissions(true);
-			console.log('Auto-refreshing permissions after dialog submission');
-			const res = await fetchPermissions(filterData as PermissionPagination);
-			if (res.Data.lists) { console.log('Setting updated permissions data:', res); setPermissionsData(res.Data); }
 		} else if (selectedTab === 'userGroups') {
 				setIsLoadingUserGroups(true);
 				console.log('Auto-refreshing user groups after dialog submission');
 				const res = await fetchUserGroups(filterData as UserGroupPagination);
 				if (res.Data.lists) { console.log('Setting updated userGroups data:', res); setUserGroups(res.Data); }
-			} else if (selectedTab === 'routePermissions') {
-				setIsLoadingRoutePermissions(true);
-				const res = await getRoutePermissions(filterData as RoutePermissionPagination);
-				if (res.Data.lists) { setRoutePermissionsData(res.Data); }
 			}
 		} catch (error) {
 			console.error(`Error auto-refreshing ${selectedTab}:`, error);
 			throw error;
 		} finally {
 			if (selectedTab === 'users') setIsLoadingUsers(false);
-			else if (selectedTab === 'permissions') setIsLoadingPermissions(false);
 			else if (selectedTab === 'userGroups') setIsLoadingUserGroups(false);
-			else if (selectedTab === 'routePermissions') setIsLoadingRoutePermissions(false);
 		}
 	};
 
@@ -174,14 +131,6 @@ export function useRbac() {
 			setUserFilter(newFilter);
 			try { handleAutoRefresh(newFilter); } catch (error) { console.error('Error clearing user filter:', error); }
 		}
-		if (selectedTab === 'permissions') {
-			const newFilter: PermissionPagination = {
-				...PermissionFilter,
-				filters: { ...PermissionFilter.filters, Module: '', ModuleFunction: '', ModuleFunctionDescription: '' },
-			};
-			setPermissionFilter(newFilter);
-			try { handleAutoRefresh(newFilter); } catch (error) { console.error('Error clearing permission filter:', error); }
-		}
 		if (selectedTab === 'userGroups') {
 			const newFilter: UserGroupPagination = {
 				...UserGroupFilter,
@@ -189,26 +138,6 @@ export function useRbac() {
 			};
 			setUserGroupFilter(newFilter);
 			try { handleAutoRefresh(newFilter); } catch (error) { console.error('Error clearing user group filter:', error); }
-		}
-		if (selectedTab === 'routePermissions') {
-			const newFilter: RoutePermissionPagination = {
-				...RoutePermissionFilter,
-				filters: { RoutePath: '', Description: '' },
-			};
-			setRoutePermissionFilter(newFilter);
-			try { handleAutoRefresh(newFilter); } catch (error) { console.error('Error clearing route permission filter:', error); }
-		}
-	};
-
-	const syncPermissions = async () => {
-		try {
-			setIsSyncingPermissions(true);
-			await callSyncPermissions();
-			await handleAutoRefresh(PermissionFilter);
-		} catch (error) {
-			console.error('Error syncing permissions:', error);
-		} finally {
-			setIsSyncingPermissions(false);
 		}
 	};
 
@@ -262,43 +191,6 @@ export function useRbac() {
 			} finally {
 				setIsLoadingUsers(false);
 			}
-		} else if (selectedTab === 'permissions') {
-			const newFilter: PermissionPagination = {
-				...PermissionFilter,
-				sortField: field === 0 ? 'Id' : field === 1 ? 'Module' : field === 2 ? 'ModuleFunction' : field === 3 ? 'ModuleFunctionDescription' : '',
-				sortDirection: (direction || 0) as 0 | 1,
-				page: 1,
-			};
-			setPermissionFilter(newFilter);
-			try {
-				setIsLoadingPermissions(true);
-				console.log('Fetching permissions with new sort:', newFilter);
-				const res = await fetchPermissions(newFilter);
-				console.log('Permissions response:', res);
-				if (res.Data.lists) { console.log('Setting permissions data:', res); setPermissionsData(res.Data); }
-			} catch (error) {
-				console.error('Error fetching permissions:', error);
-				alert('Failed to fetch permissions: ' + (error instanceof Error ? error.message : 'Unknown error'));
-			} finally {
-				setIsLoadingPermissions(false);
-			}
-		} else if (selectedTab === 'routePermissions') {
-			const newFilter: RoutePermissionPagination = {
-				...RoutePermissionFilter,
-				sortField: field === 0 ? 'Id' : field === 1 ? 'RoutePath' : field === 2 ? 'Description' : '',
-				sortDirection: (direction || 0) as 0 | 1,
-				page: 1,
-			};
-			setRoutePermissionFilter(newFilter);
-			try {
-				setIsLoadingRoutePermissions(true);
-				const res = await getRoutePermissions(newFilter);
-				if (res.Data.lists) { setRoutePermissionsData(res.Data); }
-			} catch (error) {
-				console.error('Error fetching route permissions:', error);
-			} finally {
-				setIsLoadingRoutePermissions(false);
-			}
 		}
 	};
 
@@ -306,21 +198,7 @@ export function useRbac() {
 		console.log('Switching to tab:', tabName);
 		setSelectedTab(tabName);
 
-		if (tabName === 'permissions') {
-			if (isLoadingPermissions) { console.log('Already loading permissions, skipping request'); return; }
-			try {
-				setIsLoadingPermissions(true);
-				console.log('Fetching permissions with current filter:', PermissionFilter);
-				const res = await fetchPermissions(PermissionFilter);
-				console.log('Permissions response:', res);
-				if (res.Data.lists) { console.log('Setting permissions data:', res); setPermissionsData(res.Data); }
-			} catch (error) {
-				console.error('Error fetching permissions:', error);
-				alert('Failed to fetch permissions: ' + (error instanceof Error ? error.message : 'Unknown error'));
-			} finally {
-				setIsLoadingPermissions(false);
-			}
-		} else if (tabName === 'modules') {
+		if (tabName === 'modules') {
 			if (isLoadingModules) { console.log('Already loading modules, skipping request'); return; }
 			try {
 				setIsLoadingModules(true);
@@ -370,43 +248,11 @@ export function useRbac() {
 			} finally {
 				setIsLoadingUserGroups(false);
 			}
-		} else if (tabName === 'routePermissions') {
-			if (isLoadingRoutePermissions) { console.log('Already loading route permissions, skipping request'); return; }
-			try {
-				setIsLoadingRoutePermissions(true);
-				console.log('Fetching route permissions with current filter:', RoutePermissionFilter);
-				const res = await getRoutePermissions(RoutePermissionFilter);
-				console.log('RoutePermissions response:', res);
-				if (res.Data.lists) {
-					setRoutePermissionsData(res.Data);
-					setTabNumbers(prev => ({ ...prev, routePermissions: res.Data.total }));
-				}
-			} catch (error) {
-				console.error('Error fetching route permissions:', error);
-				alert('Failed to fetch route permissions: ' + (error instanceof Error ? error.message : 'Unknown error'));
-			} finally {
-				setIsLoadingRoutePermissions(false);
-			}
 		}
 	};
 
 	const Paginate = async (page: number) => {
-		if (selectedTab === 'permissions') {
-			const newFilter: PermissionPagination = { ...PermissionFilter, page };
-			setPermissionFilter(newFilter);
-			try {
-				setIsLoadingPermissions(true);
-				console.log('Fetching permissions for page:', page, 'with filter:', newFilter);
-				const res = await fetchPermissions(newFilter);
-				console.log('Permissions response:', res);
-				if (res.Data.lists) { console.log('Setting permissions data:', res); setPermissionsData(res.Data); }
-			} catch (error) {
-				console.error('Error fetching permissions:', error);
-				alert('Failed to fetch permissions: ' + (error instanceof Error ? error.message : 'Unknown error'));
-			} finally {
-				setIsLoadingPermissions(false);
-			}
-		} else if (selectedTab === 'users') {
+		if (selectedTab === 'users') {
 			const newFilter: UserPagination = { ...UserFilter, page };
 			setUserFilter(newFilter);
 			try {
@@ -436,19 +282,6 @@ export function useRbac() {
 			} finally {
 				setIsLoadingUserGroups(false);
 			}
-		} else if (selectedTab === 'routePermissions') {
-			const newFilter: RoutePermissionPagination = { ...RoutePermissionFilter, page };
-			setRoutePermissionFilter(newFilter);
-			try {
-				setIsLoadingRoutePermissions(true);
-				const res = await getRoutePermissions(newFilter);
-				if (res.Data.lists) { setRoutePermissionsData(res.Data); }
-			} catch (error) {
-				console.error('Error fetching route permissions:', error);
-				alert('Failed to fetch route permissions: ' + (error instanceof Error ? error.message : 'Unknown error'));
-			} finally {
-				setIsLoadingRoutePermissions(false);
-			}
 		} else if (selectedTab === 'modules') {
 			const newFilter: ShowAppModulesPagination = { ...ShowAppModulesFilter, page };
 			setShowAppModulesFilter(newFilter);
@@ -470,52 +303,38 @@ export function useRbac() {
 		selectedTab, setSelectedTab,
 		// Data
 		UsersData, setUsersData,
-		PermissionsData, setPermissionsData,
 		ModulesData, setModulesData,
 		UserGroupsData, setUserGroups,
-		RoutePermissionsData, setRoutePermissionsData,
 		// Dialog states
 		isAddUserDialogOpen, setIsAddUserDialogOpen,
-		isAddPermissionDialogOpen, setIsAddPermissionDialogOpen,
 		isAddGroupDialogOpen, setIsAddGroupDialogOpen,
 		isViewUserDialogOpen, setIsViewUserDialogOpen,
 		isUpdateUserDialogOpen, setIsUpdateUserDialogOpen,
 		isDeleteUserDialogOpen, setIsDeleteUserDialogOpen,
 		selectedUserId, setSelectedUserId,
-		isViewPermissionDialogOpen, setIsViewPermissionDialogOpen,
-		isUpdatePermissionDialogOpen, setIsUpdatePermissionDialogOpen,
-		selectedPermissionId, setSelectedPermissionId,
-		isDeletePermissionDialogOpen, setIsDeletePermissionDialogOpen,
 		isViewGroupDialogOpen, setIsViewGroupDialogOpen,
 		isUpdateGroupDialogOpen, setIsUpdateGroupDialogOpen,
 		isDeleteGroupDialogOpen, setIsDeleteGroupDialogOpen,
 		selectedGroupId, setSelectedGroupId,
 		// Filter dialog states
 		isFilterUserDialogOpen, setIsFilterUserDialogOpen,
-		isPermissionFilterDialogOpen, setIsPermissionFilterDialogOpen,
 		isUserGroupFilterDialogOpen, setIsUserGroupFilterDialogOpen,
 		// Expand state
 		expandedUserGroups,
 		// Filters
 		UserFilter, setUserFilter,
 		UserGroupFilter, setUserGroupFilter,
-		PermissionFilter, setPermissionFilter,
-		RoutePermissionFilter, setRoutePermissionFilter,
 		ShowAppModulesFilter, setShowAppModulesFilter,
 		// Loading
-		isLoadingPermissions,
 		isLoadingModules,
 		isLoadingUserGroups,
 		isLoadingUsers,
-		isLoadingRoutePermissions,
-		isSyncingPermissions,
 		// Lookup
 		permissionViewsLookup,
 		tabNumbers,
 		sortDirection,
 		// Handlers
 		handleClear,
-		syncPermissions,
 		handleExpand,
 		handleAutoRefresh,
 		handleSort,

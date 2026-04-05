@@ -195,6 +195,16 @@ export const callSyncPermissions = async () => {
 	}
 }
 
+export const callSyncViewPermissions = async (routes: { RouteName?: string; path: string }[]) => {
+	try {
+		const response = await httpClient.post('/UserManagement/SyncViewPermissions', { RoutesAvailable: routes });
+		return response;
+	} catch (error) {
+		console.error('Error syncing view permissions:', error);
+		throw error;
+	}
+}
+
 export const getAppModules = async (data: ShowAppModulesPagination) => {
 	try {
 		const response = await httpClient.post<PaginationResponse<AppModules>>('/UserManagement/ShowAppModules', data);

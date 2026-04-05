@@ -4,6 +4,7 @@ import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import type { vUserGroups, Permissions, AddUserGroups } from '../Model.d';
 import { fetchPermissions as fetchPermissionsAPI, editUserGroup } from '../service';
+import { useToast } from '../../../components/toaster/ToasterContext';
 
 interface UpdateGroupDialogProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ interface UpdateGroupDialogProps {
 };
 
 const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({ isOpen, onClose, onSubmit, group }) => {
+  const { showToast } = useToast();
   const [formData, setFormData] = useState({
     id: group.Id,
     groupName: group.GroupName || '',
@@ -112,6 +114,7 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({ isOpen, onClose, 
       };
       
       onSubmit(submissionData);
+      showToast({ message: 'Group updated successfully.', type: 'success' });
       onClose();
     } catch (error) {
       console.error('Error updating group:', error);

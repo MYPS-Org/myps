@@ -4,6 +4,7 @@ import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import type { Permissions, PermissionGroup } from '../Model.d';
 import { fetchPermissions, fetchPermissionGroups, addUserGroup } from '../service';
+import { useToast } from '../../../components/toaster/ToasterContext';
 
 interface AddGroupDialogProps {
   isOpen: boolean;
@@ -12,6 +13,7 @@ interface AddGroupDialogProps {
 }
 
 const AddGroupDialog: React.FC<AddGroupDialogProps> = ({ isOpen, onClose, onSubmit }) => {
+  const { showToast } = useToast();
   const [formData, setFormData] = useState({
     groupName: '',
     description: '',
@@ -103,6 +105,7 @@ const AddGroupDialog: React.FC<AddGroupDialogProps> = ({ isOpen, onClose, onSubm
       };
       
       onSubmit(responseData);
+      showToast({ message: 'Group added successfully.', type: 'success' });
       setFormData({
         groupName: '',
         description: '',
