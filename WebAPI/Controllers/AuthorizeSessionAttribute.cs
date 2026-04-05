@@ -54,7 +54,7 @@ namespace WebAPI.Controllers
                 }
 
                 // 2. Get UserId from claims
-                var userId = context.HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "jimeneznr";
+                var userId = context.HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);// ?? "jimeneznr";
                 if (string.IsNullOrWhiteSpace(userId))
                 {
                     context.Result = new UnauthorizedObjectResult(new
@@ -73,7 +73,7 @@ namespace WebAPI.Controllers
                     ?? context.RouteData.Values["action"]?.ToString();
 
                 // 4. Check if user is active
-                var isActive = await _db.vUserActionPermission
+                var isActive = await _db.vUsers
                     .AnyAsync(x => x.UserId == userId && x.IsActive);
 
                 if (!isActive)
@@ -99,7 +99,7 @@ namespace WebAPI.Controllers
                         x.PermissionAction == actionName
                     );
 
-                if (!hasPermission)
+                if (hasPermission)
                 {
                     var responseObj = new
                     {

@@ -344,7 +344,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
             }
         }
         #endregion
-
+        #region USERS TAB
         [HttpPost]
         public async Task<IActionResult> InitUserManagement()
         {
@@ -375,7 +375,6 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 return ExceptionHandler(ex);
             }
         }
-        #region USERS TAB
         [HttpPost]
         public async Task<IActionResult> ShowUsers([FromBody] UsersPaginationDto dto)
         {
