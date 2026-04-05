@@ -69,7 +69,7 @@ namespace WebAPI.Controllers.Auth
 
                     var claims = new List<Claim>
                     {
-                        new Claim("UserId", verifyAccount.UserId),
+                        new Claim(ClaimTypes.NameIdentifier, verifyAccount.UserId),
                         new Claim("Name", verifyAccount.Name),
                         new Claim("UserGroup", JsonConvert.SerializeObject(verifyAccount.UserGroupNames)),
                         new Claim("HostName", hostName)

@@ -220,7 +220,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 if (dto.Controllers != null && dto.Controllers.Any())
                 {
                     var Controllers = JsonConvert.DeserializeObject<List<AppModuleControllerModel>>(dto.Controllers);
-                    var controllerNames = Controllers.Select(c => c.ControllerName).ToList();
+                    var controllerNames = Controllers.Where(x => x.Linked).Select(c => c.ControllerName).ToList();
 
                     var dbControllers = await _db.tPermissionControllers
                         .Where(x => controllerNames.Contains(x.ControllerName))
@@ -243,7 +243,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 if (dto.Views != null && dto.Views.Any())
                 {
                     var Views = JsonConvert.DeserializeObject<List<AppModuleViewModel>>(dto.Views);
-                    var routeNames = Views.Select(v => v.RouteName).ToList();
+                    var routeNames = Views.Where(x => x.Linked).Select(v => v.RouteName).ToList();
 
                     var dbViews = await _db.tPermissionViews
                         .Where(x => routeNames.Contains(x.RouteName))

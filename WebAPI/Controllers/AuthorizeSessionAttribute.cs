@@ -54,7 +54,7 @@ namespace WebAPI.Controllers
                 }
 
                 // 2. Get UserId from claims
-                var userId = context.HttpContext.User.FindFirstValue("UserId");// ?? "jimeneznr";
+                var userId = context.HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);// ?? "jimeneznr";
                 if (string.IsNullOrWhiteSpace(userId))
                 {
                     context.Result = new UnauthorizedObjectResult(new
@@ -99,7 +99,7 @@ namespace WebAPI.Controllers
                         x.PermissionAction == actionName
                     );
 
-                if (hasPermission)
+                if (!hasPermission)
                 {
                     var responseObj = new
                     {
