@@ -59,7 +59,7 @@ All state and data-fetching logic lives here. `Rbac.tsx` simply destructures fro
 | Loading flags  | `isLoadingUsers`, `isLoadingModules`, `isLoadingUserGroups`                  |
 | Dialog states  | `isAddUserDialogOpen`, `selectedUserId`, `isUpdateGroupDialogOpen`, etc.     |
 | Handlers       | `handleSort`, `handleAutoRefresh`, `handleClear`, `handleExpand`, `Paginate` |
-| Misc           | `tabNumbers`, `sortDirection`, `permissionViewsLookup`, `expandedUserGroups` |
+| Misc           | `tabNumbers`, `sortDirection`, `permissionViewsLookup`, `userGroupDropdowns`, `expandedUserGroups` |
 
 ### Key handlers
 
@@ -131,7 +131,7 @@ The `permissionViewsLookup` is populated once on page mount via `fetchUserGroupD
 | Dialog               | Trigger                                  | API Call                           | Notes                                                        |
 |----------------------|------------------------------------------|------------------------------------|--------------------------------------------------------------|
 | `AddGroupDialog`     | "Add Group" button                       | `addUserGroup`                     | Name + Description only — backend does not accept permissions on create |
-| `UpdateGroupDialog`  | Edit (pencil) button                     | `fetchUserGroupDropdowns` on open + `editUserGroup` on submit | Shows grouped PermissionActions by ControllerName and PermissionViews list; pre-selects existing ids |
+| `UpdateGroupDialog`  | Edit (pencil) button                     | `editUserGroup` on submit — no extra API call on open | Receives `dropdowns: UserGroupDropdowns` prop from parent. Uses `CheckboxSelect` component for `PermissionActions` (grouped by `ControllerName`, with indeterminate "select all" per controller) and `PermissionViews` (flat list). Pre-selects from `group.PermissionActionIds` / `group.PermissionViewIds` (empty until backend populates the view). |
 | `DeleteGroupDialog`  | Delete (trash) button                    | `deleteUserGroup(id)` — query param | Requires typing "DELETE" to confirm                         |
 | `FilterUserGroupDialog` | Filter button                         | —                                  | Filters by `GroupName`                                       |
 | `ViewGroupDialog`    | (available, not wired to a button)       | —                                  | Read-only                                                    |

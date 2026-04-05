@@ -6,6 +6,7 @@ import type {
 	vUserGroups,
 	AppModules,
 	ShowAppModulesPagination,
+	UserGroupDropdowns,
 } from './Model.d';
 import {
 	fetchInitialData,
@@ -67,6 +68,9 @@ export function useRbac() {
 	const [isLoadingUserGroups, setIsLoadingUserGroups] = useState(false);
 	const [isLoadingUsers, setIsLoadingUsers] = useState(false);
 	const [permissionViewsLookup, setPermissionViewsLookup] = useState<Record<number, string>>({});
+	const [userGroupDropdowns, setUserGroupDropdowns] = useState<UserGroupDropdowns>({
+		PermissionControllers: [], PermissionActions: [], PermissionViews: [],
+	});
 	const [tabNumbers, setTabNumbers] = useState({
 		users: 0, modules: 0, userGroups: 0,
 	});
@@ -93,12 +97,15 @@ export function useRbac() {
 						totalPages: Math.ceil(initialData.Data.NumberOfUsers / 10),
 					});
 				}
-				if (dropdownsRes.Data?.PermissionViews) {
-					const lookup: Record<number, string> = {};
-					dropdownsRes.Data.PermissionViews.forEach((pv: any) => {
-						lookup[pv.Id] = pv.Description || pv.RoutePath || `ID: ${pv.Id}`;
-					});
-					setPermissionViewsLookup(lookup);
+				if (dropdownsRes.Data) {
+					setUserGroupDropdowns(dropdownsRes.Data);
+					if (dropdownsRes.Data.PermissionViews) {
+						const lookup: Record<number, string> = {};
+						dropdownsRes.Data.PermissionViews.forEach((pv: any) => {
+							lookup[pv.Id] = pv.Description || pv.RoutePath || `ID: ${pv.Id}`;
+						});
+						setPermissionViewsLookup(lookup);
+					}
 				}
 				console.log('Initial data fetched:', initialData);
 			} catch (error: any) {
@@ -333,6 +340,7 @@ export function useRbac() {
 		isLoadingUsers,
 		// Lookup
 		permissionViewsLookup,
+		userGroupDropdowns,
 		tabNumbers,
 		sortDirection,
 		// Handlers

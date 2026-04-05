@@ -50,6 +50,7 @@ const Rbac: React.FC = () => {
 		UserGroupFilter, setUserGroupFilter,
 		isLoadingModules,
 		permissionViewsLookup,
+		userGroupDropdowns,
 		tabNumbers,
 		sortDirection,
 		handleClear,
@@ -244,8 +245,7 @@ const Rbac: React.FC = () => {
 				<UpdateGroupDialog
 					isOpen={isUpdateGroupDialogOpen}
 					onClose={() => { setIsUpdateGroupDialogOpen(false); setSelectedGroupId(null); }}
-					group={UserGroupsData.lists.find(g => g.Id === selectedGroupId)!}
-					onSubmit={async (updatedGroup: any) => {
+					group={UserGroupsData.lists.find(g => g.Id === selectedGroupId)!}				dropdowns={userGroupDropdowns}					onSubmit={async (updatedGroup: any) => {
 						try {
 							await handleAutoRefresh(UserGroupFilter);
 						} catch (error) {
