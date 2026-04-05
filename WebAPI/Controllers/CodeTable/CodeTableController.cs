@@ -225,7 +225,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Program has been selected, please select a program."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tProgramStages.FirstOrDefaultAsync(x => x.StageName == data.Name);
+                    var CheckIfAlreadyUse = await _db.tProgramStages.AsNoTracking().FirstOrDefaultAsync(x => x.StageName == data.Name);
                     if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
                     {
                         return new BadRequestObjectResult(new
@@ -242,7 +242,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = $"The program stage {data.Name} already exists, please select another program stage."
                         });
                     }
-                    var CheckNameIfExists = await _db.tOptionProgramStage.FirstOrDefaultAsync(x => x.Name == data.Name);
+                    var CheckNameIfExists = await _db.tOptionProgramStage.AsNoTracking().FirstOrDefaultAsync(x => x.Name == data.Name);
                     if (CheckNameIfExists != null && dto.TransactionType == CodeTransactionType.Create)
                     {
                         return new BadRequestObjectResult(new
@@ -267,7 +267,7 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
-                        var CheckMaxId = _db.tOptionProgramStage.OrderByDescending(x => x.NameId).FirstOrDefault();
+                        var CheckMaxId = _db.tOptionProgramStage.AsNoTracking().OrderByDescending(x => x.NameId).FirstOrDefault();
                         data.NameId = (CheckMaxId != null) ? CheckMaxId.NameId + 1 : 1;
                         await _db.tOptionProgramStage.AddAsync(data);
                     }
@@ -310,7 +310,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Program Status has been selected, please select a program status."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tProgramRevisions.FirstOrDefaultAsync(x => x.Status == (EnumProgramStatus)data.NameId);
+                    var CheckIfAlreadyUse = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Status == (EnumProgramStatus)data.NameId);
                     if (CheckIfAlreadyUse == null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
                     {
                         return new BadRequestObjectResult(new
@@ -319,7 +319,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "The selected program status is currently in use and cannot be updated or deleted."
                         });
                     }
-                    var CheckNameIfExists = await _db.tOptionProgramStatus.FirstOrDefaultAsync(x => x.Name == data.Name);
+                    var CheckNameIfExists = await _db.tOptionProgramStatus.AsNoTracking().FirstOrDefaultAsync(x => x.Name == data.Name);
                     if (CheckNameIfExists != null && dto.TransactionType == CodeTransactionType.Create)
                     {
                         return new BadRequestObjectResult(new
@@ -343,7 +343,7 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
-                        var CheckMaxId = _db.tOptionProgramStatus.OrderByDescending(x => x.NameId).FirstOrDefault();
+                        var CheckMaxId = _db.tOptionProgramStatus.AsNoTracking().OrderByDescending(x => x.NameId).FirstOrDefault();
                         data.NameId = (CheckMaxId != null) ? CheckMaxId.NameId + 1 : 1;
                         await _db.tOptionProgramStatus.AddAsync(data);
                     }
@@ -386,7 +386,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Program Type has been selected, please select a program type."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tProgramRevisions.FirstOrDefaultAsync(x => x.Type == (EnumProgramType)data.NameId);
+                    var CheckIfAlreadyUse = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Type == (EnumProgramType)data.NameId);
                     if (CheckIfAlreadyUse == null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
                     {
                         return new BadRequestObjectResult(new
@@ -395,7 +395,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "The selected program type is currently in use and cannot be updated or deleted."
                         });
                     }
-                    var CheckNameIfExists = await _db.tOptionProgramType.FirstOrDefaultAsync(x => x.Name == data.Name);
+                    var CheckNameIfExists = await _db.tOptionProgramType.AsNoTracking().FirstOrDefaultAsync(x => x.Name == data.Name);
                     if (CheckNameIfExists != null && dto.TransactionType == CodeTransactionType.Create)
                     {
                         return new BadRequestObjectResult(new
@@ -419,7 +419,7 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
-                        var CheckMaxId = _db.tOptionProgramType.OrderByDescending(x => x.NameId).FirstOrDefault();
+                        var CheckMaxId = _db.tOptionProgramType.AsNoTracking().OrderByDescending(x => x.NameId).FirstOrDefault();
                         data.NameId = (CheckMaxId != null) ? CheckMaxId.NameId + 1 : 1;
                         await _db.tOptionProgramType.AddAsync(data);
                     }
@@ -462,7 +462,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Project Category has been selected, please select a project category."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tProjectRevisions.FirstOrDefaultAsync(x => x.Category == data.CategoryId);
+                    var CheckIfAlreadyUse = await _db.tProjectRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Category == data.CategoryId);
                     if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
                     {
                         return new BadRequestObjectResult(new
@@ -471,7 +471,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "The selected project category is currently in use and cannot be updated or deleted."
                         });
                     }
-                    var CheckNameIfExists = await _db.tOptionProjectCategory.FirstOrDefaultAsync(x => x.CategoryName == data.CategoryName);
+                    var CheckNameIfExists = await _db.tOptionProjectCategory.AsNoTracking().FirstOrDefaultAsync(x => x.CategoryName == data.CategoryName);
                     if (CheckNameIfExists != null && dto.TransactionType == CodeTransactionType.Create)
                     {
                         return new BadRequestObjectResult(new
@@ -495,7 +495,7 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
-                        var CheckMaxId = _db.tOptionProjectCategory.OrderByDescending(x => x.CategoryId).FirstOrDefault();
+                        var CheckMaxId = _db.tOptionProjectCategory.AsNoTracking().OrderByDescending(x => x.CategoryId).FirstOrDefault();
                         data.CategoryId = (CheckMaxId != null) ? CheckMaxId.CategoryId + 1 : 1;
                         await _db.tOptionProjectCategory.AddAsync(data);
                     }
@@ -552,7 +552,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Project Thrust has been selected, please select a project thrust."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tProjectRevisions.FirstOrDefaultAsync(x => x.Thrust == data.PAPKey);
+                    var CheckIfAlreadyUse = await _db.tProjectRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Thrust == data.PAPKey);
                     if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
                     {
                         return new BadRequestObjectResult(new
@@ -561,7 +561,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "The selected project thrust is currently in use and cannot be updated or deleted."
                         });
                     }
-                    var CheckDescriptionIfExists = await _db.tProjectThrustLists.FirstOrDefaultAsync(x => x.ThrustDescription == data.ThrustDescription);
+                    var CheckDescriptionIfExists = await _db.tProjectThrustLists.AsNoTracking().FirstOrDefaultAsync(x => x.ThrustDescription == data.ThrustDescription);
                     if (CheckDescriptionIfExists != null && dto.TransactionType == CodeTransactionType.Create)
                     {
                         return new BadRequestObjectResult(new
@@ -570,7 +570,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = $"The project thrust {data.ThrustDescription} already exists, please select another project thrust."
                         });
                     }
-                    var CheckIfPAPKeyExist = await _db.tProjectThrustLists.FirstOrDefaultAsync(x => x.PAPKey == data.PAPKey);
+                    var CheckIfPAPKeyExist = await _db.tProjectThrustLists.AsNoTracking().FirstOrDefaultAsync(x => x.PAPKey == data.PAPKey);
                     if (CheckIfPAPKeyExist != null && dto.TransactionType == CodeTransactionType.Create)
                     {
                         return new BadRequestObjectResult(new
@@ -677,7 +677,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Project Agency has been selected, please select a project agency."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tProjectRevisions.FirstOrDefaultAsync(x => x.Agency == data.NameId);
+                    var CheckIfAlreadyUse = await _db.tProjectRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Agency == data.NameId);
                     if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
                     {
                         return new BadRequestObjectResult(new
@@ -686,7 +686,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "The selected project agency is currently in use and cannot be updated or deleted."
                         });
                     }
-                    var CheckNameIfExists = await _db.tOptionProjectAgency.FirstOrDefaultAsync(x => x.Name == data.Name);
+                    var CheckNameIfExists = await _db.tOptionProjectAgency.AsNoTracking().FirstOrDefaultAsync(x => x.Name == data.Name);
                     if (CheckNameIfExists != null && dto.TransactionType == CodeTransactionType.Create)
                     {
                         return new BadRequestObjectResult(new
@@ -695,7 +695,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = $"The project agency {data.Name} already exists, please select another project agency."
                         });
                     }
-                    var CheckIfNameIdExist = await _db.tOptionProjectAgency.FirstOrDefaultAsync(x => x.NameId == data.NameId);
+                    var CheckIfNameIdExist = await _db.tOptionProjectAgency.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == data.NameId);
                     if (CheckIfNameIdExist != null && dto.TransactionType == CodeTransactionType.Create)
                     {
                         return new BadRequestObjectResult(new
@@ -760,7 +760,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Project Origin has been selected, please select a project origin."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tProjectRevisions.FirstOrDefaultAsync(x => x.Origin == data.NameId);
+                    var CheckIfAlreadyUse = await _db.tProjectRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Origin == data.NameId);
                     if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
                     {
                         return new BadRequestObjectResult(new
@@ -769,7 +769,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "The selected project origin is currently in use and cannot be updated or deleted."
                         });
                     }
-                    var CheckNameIfExists = await _db.tOptionProjectOrigin.FirstOrDefaultAsync(x => x.Name == data.Name);
+                    var CheckNameIfExists = await _db.tOptionProjectOrigin.AsNoTracking().FirstOrDefaultAsync(x => x.Name == data.Name);
                     if (CheckNameIfExists != null && dto.TransactionType == CodeTransactionType.Create)
                     {
                         return new BadRequestObjectResult(new
@@ -793,7 +793,7 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
-                        var CheckMaxId = _db.tOptionProjectOrigin.OrderByDescending(x => x.NameId).FirstOrDefault();
+                        var CheckMaxId = _db.tOptionProjectOrigin.AsNoTracking().OrderByDescending(x => x.NameId).FirstOrDefault();
                         data.NameId = (CheckMaxId != null) ? CheckMaxId.NameId + 1 : 1;
                         await _db.tOptionProjectOrigin.AddAsync(data);
                     }
@@ -836,7 +836,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Funding Agreement has been selected, please select a funding agreement."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tProjectFundingProfile.FirstOrDefaultAsync(x => x.Agreement == data.Code);
+                    var CheckIfAlreadyUse = await _db.tProjectFundingProfile.AsNoTracking().FirstOrDefaultAsync(x => x.Agreement == data.Code);
                     if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
                     {
                         return new BadRequestObjectResult(new
@@ -845,7 +845,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "The selected funding agreement is currently in use and cannot be updated or deleted."
                         });
                     }
-                    var CheckNameIfExists = await _db.tOptionFundingAgreement.FirstOrDefaultAsync(x => x.Name == data.Name);
+                    var CheckNameIfExists = await _db.tOptionFundingAgreement.AsNoTracking().FirstOrDefaultAsync(x => x.Name == data.Name);
                     if (CheckNameIfExists != null && dto.TransactionType == CodeTransactionType.Create)
                     {
                         return new BadRequestObjectResult(new
@@ -854,7 +854,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = $"The funding agreement {data.Name} already exists, please select another funding agreement."
                         });
                     }
-                    var CheckIfCodeExist = await _db.tOptionFundingAgreement.FirstOrDefaultAsync(x => x.Code == data.Code);
+                    var CheckIfCodeExist = await _db.tOptionFundingAgreement.AsNoTracking().FirstOrDefaultAsync(x => x.Code == data.Code);
                     if (CheckIfCodeExist != null && dto.TransactionType == CodeTransactionType.Create)
                     {
                         return new BadRequestObjectResult(new
@@ -886,7 +886,7 @@ namespace WebAPI.Controllers.CodeTable
                     {
                         if (CheckUpdate.SourceOrg != data.SourceOrg)
                         {
-                            var checkSource = await _db.tOptionFundingSource.FirstOrDefaultAsync(x => x.Organization == data.SourceOrg);
+                            var checkSource = await _db.tOptionFundingSource.AsNoTracking().FirstOrDefaultAsync(x => x.Organization == data.SourceOrg);
                             if (checkSource == null)
                             {
                                 return new BadRequestObjectResult(new
@@ -946,7 +946,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Funding Source has been selected, please select a funding source."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tProjectFundingProfile.FirstOrDefaultAsync(x => x.Source == data.Organization);
+                    var CheckIfAlreadyUse = await _db.tProjectFundingProfile.AsNoTracking().FirstOrDefaultAsync(x => x.Source == data.Organization);
                     if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
                     {
                         return new BadRequestObjectResult(new
@@ -955,7 +955,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "The selected funding source is currently in use and cannot be updated or deleted."
                         });
                     }
-                    var CheckNameIfExists = await _db.tOptionFundingSource.FirstOrDefaultAsync(x => x.Name == data.Name);
+                    var CheckNameIfExists = await _db.tOptionFundingSource.AsNoTracking().FirstOrDefaultAsync(x => x.Name == data.Name);
                     if (CheckNameIfExists != null && dto.TransactionType == CodeTransactionType.Create)
                     {
                         return new BadRequestObjectResult(new
@@ -964,7 +964,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = $"The funding source {data.Name} already exists, please select another funding source."
                         });
                     }
-                    var CheckIfOrganizationExist = await _db.tOptionFundingSource.FirstOrDefaultAsync(x => x.Organization == data.Organization);
+                    var CheckIfOrganizationExist = await _db.tOptionFundingSource.AsNoTracking().FirstOrDefaultAsync(x => x.Organization == data.Organization);
                     if (CheckIfOrganizationExist != null && dto.TransactionType == CodeTransactionType.Create)
                     {
                         return new BadRequestObjectResult(new
@@ -1033,7 +1033,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Scope Of Work has been selected, please select a scope of work."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tProjectMajorWorkItem.FirstOrDefaultAsync(x => x.WorkTypeId == data.Enum);
+                    var CheckIfAlreadyUse = await _db.tProjectMajorWorkItem.AsNoTracking().FirstOrDefaultAsync(x => x.WorkTypeId == data.Enum);
                     if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
                     {
                         return new BadRequestObjectResult(new
@@ -1042,7 +1042,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "The selected scope of work is currently in use and cannot be updated or deleted."
                         });
                     }
-                    var CheckNameIfExists = await _db.tOptionScopeOfWork.FirstOrDefaultAsync(x => x.WorkCategory == data.WorkCategory);
+                    var CheckNameIfExists = await _db.tOptionScopeOfWork.AsNoTracking().FirstOrDefaultAsync(x => x.WorkCategory == data.WorkCategory);
                     if (CheckNameIfExists != null && dto.TransactionType == CodeTransactionType.Create)
                     {
                         return new BadRequestObjectResult(new
@@ -1066,7 +1066,7 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
-                        var CheckMaxId = _db.tOptionScopeOfWork.OrderByDescending(x => x.Enum).FirstOrDefault();
+                        var CheckMaxId = _db.tOptionScopeOfWork.AsNoTracking().OrderByDescending(x => x.Enum).FirstOrDefault();
                         data.Enum = (CheckMaxId != null) ? CheckMaxId.Enum + 1 : 1;
                         await _db.tOptionScopeOfWork.AddAsync(data);
                     }
@@ -1159,7 +1159,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Infra Type has been selected, please select an infra type."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tProjectMajorWorkItem.FirstOrDefaultAsync(x => x.InfraType == data.InfraName);
+                    var CheckIfAlreadyUse = await _db.tProjectMajorWorkItem.AsNoTracking().FirstOrDefaultAsync(x => x.InfraType == data.InfraName);
                     if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
                     {
                         return new BadRequestObjectResult(new
@@ -1168,7 +1168,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "The selected infra type is currently in use and cannot be updated or deleted."
                         });
                     }
-                    var CheckNameIfExists = await _db.tOptionInfraType.FirstOrDefaultAsync(x => x.InfraName == data.InfraName);
+                    var CheckNameIfExists = await _db.tOptionInfraType.AsNoTracking().FirstOrDefaultAsync(x => x.InfraName == data.InfraName);
                     if (CheckNameIfExists != null && dto.TransactionType == CodeTransactionType.Create)
                     {
                         return new BadRequestObjectResult(new
@@ -1177,7 +1177,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = $"The infra type {data.InfraName} already exists, please select another infra type."
                         });
                     }
-                    var CheckIfInfraCodeExist = await _db.tOptionInfraType.FirstOrDefaultAsync(x => x.InfraCode == data.InfraCode);
+                    var CheckIfInfraCodeExist = await _db.tOptionInfraType.AsNoTracking().FirstOrDefaultAsync(x => x.InfraCode == data.InfraCode);
                     if (CheckIfInfraCodeExist != null && dto.TransactionType == CodeTransactionType.Create)
                     {
                         return new BadRequestObjectResult(new
@@ -1201,7 +1201,7 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
-                        var CheckMaxId = _db.tOptionInfraType.OrderByDescending(x => x.InfraCode).FirstOrDefault();
+                        var CheckMaxId = _db.tOptionInfraType.AsNoTracking().OrderByDescending(x => x.InfraCode).FirstOrDefault();
                         data.InfraId = (CheckMaxId != null) ? CheckMaxId.InfraId + 1 : 1;
                         await _db.tOptionInfraType.AddAsync(data);
                     }
@@ -1245,7 +1245,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Project Component has been selected, please select a project component."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tProjectComponentCost.FirstOrDefaultAsync(x => x.ComponentType == data.ComponentName);
+                    var CheckIfAlreadyUse = await _db.tProjectComponentCost.AsNoTracking().FirstOrDefaultAsync(x => x.ComponentType == data.ComponentName);
                     if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
                     {
                         return new BadRequestObjectResult(new
@@ -1254,7 +1254,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "The selected project component is currently in use and cannot be updated or deleted."
                         });
                     }
-                    var CheckNameIfExists = await _db.tOptionProjectComponent.FirstOrDefaultAsync(x => x.ComponentName == data.ComponentName);
+                    var CheckNameIfExists = await _db.tOptionProjectComponent.AsNoTracking().FirstOrDefaultAsync(x => x.ComponentName == data.ComponentName);
                     if (CheckNameIfExists != null && dto.TransactionType == CodeTransactionType.Create)
                     {
                         return new BadRequestObjectResult(new
@@ -1263,7 +1263,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = $"The project component {data.ComponentName} already exists, please select another project component."
                         });
                     }
-                    var CheckIfComponentIdExist = await _db.tOptionProjectComponent.FirstOrDefaultAsync(x => x.ComponentId == data.ComponentId);
+                    var CheckIfComponentIdExist = await _db.tOptionProjectComponent.AsNoTracking().FirstOrDefaultAsync(x => x.ComponentId == data.ComponentId);
                     if (CheckIfComponentIdExist != null && dto.TransactionType == CodeTransactionType.Create)
                     {
                         return new BadRequestObjectResult(new
@@ -1335,7 +1335,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Revision Header has been selected, please select a revision header."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tRevisionDetails.FirstOrDefaultAsync(x => x.RevisionGroupId == data.RevisionGroupId);
+                    var CheckIfAlreadyUse = await _db.tRevisionDetails.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionGroupId == data.RevisionGroupId);
                     if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
                     {
                         return new BadRequestObjectResult(new
@@ -1344,7 +1344,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "The selected revision header is currently in use and cannot be updated or deleted."
                         });
                     }
-                    var CheckNameIfExists = await _db.tOptionRevisionHeader.FirstOrDefaultAsync(x => x.RevisionName == data.RevisionName);
+                    var CheckNameIfExists = await _db.tOptionRevisionHeader.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionName == data.RevisionName);
                     if (CheckNameIfExists != null && dto.TransactionType == CodeTransactionType.Create)
                     {
                         return new BadRequestObjectResult(new
@@ -1368,7 +1368,7 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
-                        var CheckMaxId = _db.tOptionRevisionHeader.OrderByDescending(x => x.RevisionGroupId).FirstOrDefault();
+                        var CheckMaxId = _db.tOptionRevisionHeader.AsNoTracking().OrderByDescending(x => x.RevisionGroupId).FirstOrDefault();
                         data.RevisionGroupId = (CheckMaxId != null) ? CheckMaxId.RevisionGroupId + 1 : 1;
                         await _db.tOptionRevisionHeader.AddAsync(data);
                     }
@@ -1404,7 +1404,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Revision Category has been selected, please select a revision category."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tRevisionDetails.FirstOrDefaultAsync(x => x.CategoryId == data.CategoryId);
+                    var CheckIfAlreadyUse = await _db.tRevisionDetails.AsNoTracking().FirstOrDefaultAsync(x => x.CategoryId == data.CategoryId);
                     if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
                     {
                         return new BadRequestObjectResult(new
@@ -1413,7 +1413,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "The selected revision category is currently in use and cannot be updated or deleted."
                         });
                     }
-                    var CheckNameIfExists = await _db.tOptionRevisionCategory.FirstOrDefaultAsync(x => x.CategoryName == data.CategoryName);
+                    var CheckNameIfExists = await _db.tOptionRevisionCategory.AsNoTracking().FirstOrDefaultAsync(x => x.CategoryName == data.CategoryName);
                     if (CheckNameIfExists != null && dto.TransactionType == CodeTransactionType.Create)
                     {
                         return new BadRequestObjectResult(new
@@ -1437,7 +1437,7 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
-                        var CheckMaxId = _db.tOptionRevisionCategory.OrderByDescending(x => x.CategoryId).FirstOrDefault();
+                        var CheckMaxId = _db.tOptionRevisionCategory.AsNoTracking().OrderByDescending(x => x.CategoryId).FirstOrDefault();
                         data.CategoryId = (CheckMaxId != null) ? CheckMaxId.CategoryId + 1 : 1;
                         await _db.tOptionRevisionCategory.AddAsync(data);
                     }
@@ -1473,7 +1473,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Revision Reason has been selected, please select a revision reason."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tRevisionDetails.FirstOrDefaultAsync(x => x.ReasonId == data.ReasonId);
+                    var CheckIfAlreadyUse = await _db.tRevisionDetails.AsNoTracking().FirstOrDefaultAsync(x => x.ReasonId == data.ReasonId);
                     if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
                     {
                         return new BadRequestObjectResult(new
@@ -1482,7 +1482,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "The selected revision reason is currently in use and cannot be updated or deleted."
                         });
                     }
-                    var CheckNameIfExists = await _db.tOptionRevisionReasons.FirstOrDefaultAsync(x => x.Reason == data.Reason);
+                    var CheckNameIfExists = await _db.tOptionRevisionReasons.AsNoTracking().FirstOrDefaultAsync(x => x.Reason == data.Reason);
                     if (CheckNameIfExists != null && dto.TransactionType == CodeTransactionType.Create)
                     {
                         return new BadRequestObjectResult(new
@@ -1506,7 +1506,7 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
-                        var CheckMaxId = _db.tOptionRevisionReasons.OrderByDescending(x => x.ReasonId).FirstOrDefault();
+                        var CheckMaxId = _db.tOptionRevisionReasons.AsNoTracking().OrderByDescending(x => x.ReasonId).FirstOrDefault();
                         data.ReasonId = (CheckMaxId != null) ? CheckMaxId.ReasonId + 1 : 1;
                         await _db.tOptionRevisionReasons.AddAsync(data);
                     }
@@ -1571,7 +1571,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Revision Rule has been selected, please select a revision rule."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tRevisionDetails.FirstOrDefaultAsync(x => x.ReasonId == data.ReasonId);
+                    var CheckIfAlreadyUse = await _db.tRevisionDetails.AsNoTracking().FirstOrDefaultAsync(x => x.ReasonId == data.ReasonId);
                     if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
                     {
                         return new BadRequestObjectResult(new
@@ -1580,7 +1580,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "The selected revision rule is currently in use and cannot be updated or deleted."
                         });
                     }
-                    var CheckNameIfExists = await _db.tRevisionRules.FirstOrDefaultAsync(x => x.PCMA_Status == data.PCMA_Status && x.Package_Status == data.Package_Status && x.Field == data.Field);
+                    var CheckNameIfExists = await _db.tRevisionRules.AsNoTracking().FirstOrDefaultAsync(x => x.PCMA_Status == data.PCMA_Status && x.Package_Status == data.Package_Status && x.Field == data.Field);
                     if (CheckNameIfExists != null && dto.TransactionType == CodeTransactionType.Create)
                     {
                         return new BadRequestObjectResult(new
@@ -1610,7 +1610,7 @@ namespace WebAPI.Controllers.CodeTable
                     {
                         if (CheckUpdate.ReasonId != data.ReasonId)
                         {
-                            var CheckReasonId = await _db.tOptionRevisionReasons.FirstOrDefaultAsync(x => x.ReasonId == data.ReasonId);
+                            var CheckReasonId = await _db.tOptionRevisionReasons.AsNoTracking().FirstOrDefaultAsync(x => x.ReasonId == data.ReasonId);
                             if (CheckReasonId == null)
                             {
                                 return new BadRequestObjectResult(new
@@ -1668,7 +1668,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Revision Document has been selected, please select a revision document."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tRevisionDetails.FirstOrDefaultAsync(x => x.RevisionGroupId == data.RevisionGroupId);
+                    var CheckIfAlreadyUse = await _db.tRevisionDetails.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionGroupId == data.RevisionGroupId);
                     if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
                     {
                         return new BadRequestObjectResult(new
@@ -1677,7 +1677,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "The selected revision document is currently in use and cannot be updated or deleted."
                         });
                     }
-                    var CheckNameIfExists = await _db.tOptionRevisionDocuments.FirstOrDefaultAsync(x => x.SecondSegmentName == data.SecondSegmentName);
+                    var CheckNameIfExists = await _db.tOptionRevisionDocuments.AsNoTracking().FirstOrDefaultAsync(x => x.SecondSegmentName == data.SecondSegmentName);
                     if (CheckNameIfExists != null && dto.TransactionType == CodeTransactionType.Create)
                     {
                         return new BadRequestObjectResult(new
@@ -1714,7 +1714,7 @@ namespace WebAPI.Controllers.CodeTable
                         }
                         if (CheckUpdate.RevisionGroupId != data.RevisionGroupId)
                         {
-                            var CheckRevisionGroupId = await _db.tOptionRevisionHeader.FirstOrDefaultAsync(x => x.RevisionGroupId == data.RevisionGroupId);
+                            var CheckRevisionGroupId = await _db.tOptionRevisionHeader.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionGroupId == data.RevisionGroupId);
                             if (CheckRevisionGroupId == null)
                             {
                                 return new BadRequestObjectResult(new
@@ -1732,7 +1732,7 @@ namespace WebAPI.Controllers.CodeTable
                         {
                             if(data.CategoryId != null)
                             {
-                                var CheckCategoryId = await _db.tOptionRevisionCategory.FirstOrDefaultAsync(x => x.CategoryId == data.CategoryId);
+                                var CheckCategoryId = await _db.tOptionRevisionCategory.AsNoTracking().FirstOrDefaultAsync(x => x.CategoryId == data.CategoryId);
                                 if (CheckCategoryId == null)
                                 {
                                     return new BadRequestObjectResult(new
@@ -1770,7 +1770,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "No Revision Status has been selected, please select a revision status."
                         });
                     }
-                    var CheckIfAlreadyUse = await _db.tRevisionDetails.FirstOrDefaultAsync(x => x.RegionStatus == data.Enum || x.COStatus == data.Enum);
+                    var CheckIfAlreadyUse = await _db.tRevisionDetails.AsNoTracking().FirstOrDefaultAsync(x => x.RegionStatus == data.Enum || x.COStatus == data.Enum);
                     if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
                     {
                         return new BadRequestObjectResult(new
@@ -1779,7 +1779,7 @@ namespace WebAPI.Controllers.CodeTable
                             Message = "The selected revision status is currently in use and cannot be updated or deleted."
                         });
                     }
-                    var CheckNameIfExists = await _db.tOptionRevisionStatus.FirstOrDefaultAsync(x => x.Name == data.Name);
+                    var CheckNameIfExists = await _db.tOptionRevisionStatus.AsNoTracking().FirstOrDefaultAsync(x => x.Name == data.Name);
                     if (CheckNameIfExists != null && dto.TransactionType == CodeTransactionType.Create)
                     {
                         return new BadRequestObjectResult(new
@@ -1803,7 +1803,7 @@ namespace WebAPI.Controllers.CodeTable
                         transactionLog.AffectedColumn = string.Empty;
                         transactionLog.NewValue = dto.Json;
                         transactionLog.OldValue = string.Empty;
-                        var CheckMaxId = _db.tOptionRevisionStatus.OrderByDescending(x => x.Enum).FirstOrDefault();
+                        var CheckMaxId = _db.tOptionRevisionStatus.AsNoTracking().OrderByDescending(x => x.Enum).FirstOrDefault();
                         //data.Enum = (CheckMaxId != null) ? CheckMaxId.Enum + 1 : 1;
                         await _db.tOptionRevisionStatus.AddAsync(data);
                     }

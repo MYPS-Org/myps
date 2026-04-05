@@ -1,1 +1,1 @@
-cd ../FE && npm run build:dev
+cd ../FE && npm run build

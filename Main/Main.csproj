@@ -4,9 +4,16 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <Configurations>Debug;Release;Staging</Configurations>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
   </PropertyGroup>
+	
+    <PropertyGroup Condition="'$(Configuration)'=='Staging'">
+	    <EnvironmentName>Staging</EnvironmentName>
+	    <DebugType>pdbonly</DebugType>
+	    <Optimize>true</Optimize>
+    </PropertyGroup>
 
   <ItemGroup>
     <Compile Remove="Controllers\**" />
@@ -57,7 +64,9 @@
   </ItemGroup>
 
 	<Target Name="PreBuild" BeforeTargets="PreBuildEvent">
-		<Exec Command="if $(ConfigurationName) == Release (&#xD;&#xA;   call &quot;$(ProjectDir)React-PreBuild.bat&quot;&#xD;&#xA;)" />
+		<!-- <Exec Command="if $(ConfigurationName) == Release (&#xD;&#xA;   call &quot;$(ProjectDir)React-PreBuild.bat&quot;&#xD;&#xA;)" /> -->
+		<Exec Command="if &quot;$(ConfigurationName)&quot; == &quot;Release&quot; call &quot;$(ProjectDir)React-PreBuild.bat&quot;" />
+		<Exec Command="if &quot;$(ConfigurationName)&quot; == &quot;Staging&quot; call &quot;$(ProjectDir)React-PreBuild.bat&quot;" />
 	</Target>
 
 </Project>
