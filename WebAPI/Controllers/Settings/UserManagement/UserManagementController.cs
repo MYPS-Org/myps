@@ -802,6 +802,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 return ExceptionHandler(ex);
             }
         }
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> SyncViewPermissions([FromBody] SyncViewPermissionsDTO dto)
         {
@@ -1282,6 +1283,10 @@ namespace WebAPI.Controllers.Settings.UserManagement
         {
             try
             {
+                var AppModules = await _db.tAppModules
+                    .AsNoTracking()
+                    .OrderBy(x => x.ModuleName)
+                    .ToListAsync();
                 var PermissionControllers = await _db.tPermissionControllers
                     .AsNoTracking()
                     .OrderBy(x => x.ControllerName)
@@ -1297,6 +1302,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
 
                 return Ok(new
                 {
+                    AppModules,
                     PermissionControllers,
                     PermissionActions,
                     PermissionViews
