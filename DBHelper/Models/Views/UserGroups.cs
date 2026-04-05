@@ -57,6 +57,8 @@ namespace DBHelper.Models.Views
 
     public class UserGroupAPIActionModel
     {
+        [Key]
+        public int Id { get; set; }
         [Required]
         [JsonPropertyName("ActionName")]
         public string ActionName { get; set; } = string.Empty;
@@ -67,6 +69,8 @@ namespace DBHelper.Models.Views
 
     public class UserGroupViewAccessModel
     {
+        [Key]
+        public int Id { get; set; }
         [Required]
         [JsonPropertyName("RouteName")]
         public string RouteName { get; set; } = string.Empty;
