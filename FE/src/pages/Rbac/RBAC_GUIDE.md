@@ -78,7 +78,7 @@ All state and data-fetching logic lives here. `Rbac.tsx` simply destructures fro
 | `fetchInitialData()`           | `POST /UserManagement/InitUserManagement`             |                                                                    |
 | `fetchUsers(filter)`           | `POST /UserManagement/ShowUsers`                      |                                                                    |
 | `fetchUserGroups(filter)`      | `POST /UserManagement/ShowUserGroups`                 |                                                                    |
-| `fetchUserGroupDropdowns()`    | `POST /UserManagement/ShowUserGroupDropdowns`         | Returns `PermissionControllers`, `PermissionActions`, `PermissionViews` |
+| `fetchUserGroupDropdowns()`    | `POST /UserManagement/ShowUserGroupDropdowns`         | Returns `AppModules`, `PermissionControllers`, `PermissionActions`, `PermissionViews` |
 | `addUserGroup(data)`           | `POST /UserManagement/AddUserGroup`                   | Only accepts `GroupName` + `Description` — no permissions on create |
 | `editUserGroup(data)`          | `POST /UserManagement/UpdateUserGroup`                | Accepts `UpdateUserGroupPayload` with `PermissionActionIds` + `PermissionViewIds` |
 | `deleteUserGroup(id)`          | `POST /UserManagement/DeleteUserGroup?id={id}`        | Passes id as query param (not body)                                |
@@ -104,9 +104,11 @@ All state and data-fetching logic lives here. `Rbac.tsx` simply destructures fro
 | `vUserGroups`               | User group view model — `PermissionActionIds: number[]`, `PermissionViewIds: number[]` |
 | `AddUserGroups`             | Payload for `addUserGroup` (create only — permissions ignored by backend)    |
 | `UpdateUserGroupPayload`    | Payload for `editUserGroup` — `Id`, `GroupName`, `Description`, `PermissionActionIds`, `PermissionViewIds` |
-| `UserGroupDropdowns`        | Dropdown data for group dialogs — `PermissionControllers`, `PermissionActions`, `PermissionViews` |
-| `PermissionActions`         | Action record (`Id`, `ControllerName`, `ActionName`, `Description`)          |
-| `PermissionViews`           | Route permission record (`Id`, `RoutePath`, `Description`)                   |
+| `AppModuleDropdown`         | Simplified module record returned by `ShowUserGroupDropdowns` — `Id`, `ModuleName`, `Description` |
+| `UserGroupDropdowns`        | Full dropdown response — `AppModules: AppModuleDropdown[]`, `PermissionControllers`, `PermissionActions`, `PermissionViews` |
+| `PermissionControllers`     | Controller record — `Id`, `ModuleName?` (links to AppModule, currently empty until mapped), `ControllerName`, `Description` |
+| `PermissionActions`         | Action record — `Id`, `ControllerName`, `ActionName`, `Description`          |
+| `PermissionViews`           | Route permission record — `Id`, `RouteName?` (friendly name), `RoutePath`, `Description` |
 | `Permissions`               | API permission record (`ControllerName`, `ActionName`)                       |
 | `UserPagination`            | Paginated filter params for users                                            |
 | `UserGroupPagination`       | Paginated filter params for user groups                                      |

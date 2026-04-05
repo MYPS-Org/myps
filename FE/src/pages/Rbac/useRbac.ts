@@ -69,7 +69,7 @@ export function useRbac() {
 	const [isLoadingUsers, setIsLoadingUsers] = useState(false);
 	const [permissionViewsLookup, setPermissionViewsLookup] = useState<Record<number, string>>({});
 	const [userGroupDropdowns, setUserGroupDropdowns] = useState<UserGroupDropdowns>({
-		PermissionControllers: [], PermissionActions: [], PermissionViews: [],
+		AppModules: [], PermissionControllers: [], PermissionActions: [], PermissionViews: [],
 	});
 	const [tabNumbers, setTabNumbers] = useState({
 		users: 0, modules: 0, userGroups: 0,
@@ -102,7 +102,7 @@ export function useRbac() {
 					if (dropdownsRes.Data.PermissionViews) {
 						const lookup: Record<number, string> = {};
 						dropdownsRes.Data.PermissionViews.forEach((pv: any) => {
-							lookup[pv.Id] = pv.Description || pv.RoutePath || `ID: ${pv.Id}`;
+							lookup[pv.Id] = pv.RouteName || pv.Description || pv.RoutePath || `ID: ${pv.Id}`;
 						});
 						setPermissionViewsLookup(lookup);
 					}

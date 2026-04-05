@@ -281,10 +281,6 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
   };
 
   const handleInfraSelect = (infraId: string, _infraName: string, _infraType: string) => {
-    // Get length from the selected infrastructure
-    const infraLength = getInfraLength(infraId);
-    const lengthValue = infraLength ? Number(infraLength) : null;
-
     if (isAddingNew) {
       // Create new work location
       const newWorkLocation: MajorItemLocations = {
@@ -314,8 +310,6 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
       const updatedWorkLocation = {
         ...currentLocation,
         InfraId: infraId,
-        // Only auto-populate length if current length is empty or 0
-        Length: (!currentLocation.Length || currentLocation.Length === 0) ? lengthValue : currentLocation.Length,
       };
       onEdit(editingIndex, updatedWorkLocation);
     }
@@ -437,11 +431,6 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
                 value={location.InfraId}
                 onChange={canSelectInfra ? undefined : (e) => {
                   handleFieldChange(index, 'InfraId', e.target.value);
-                  // Auto-populate length if available and current length is empty or 0
-                  const newInfraLength = getInfraLength(e.target.value);
-                  if (newInfraLength && (!location.Length || location.Length === 0)) {
-                    handleFieldChange(index, 'Length', Number(newInfraLength));
-                  }
                 }}
                 className={`flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
                 placeholder={canSelectInfra ? "Click to select infrastructure..." : canAutoGenerate ? "Auto-generated or enter custom ID..." : "Enter infrastructure ID..."}
@@ -464,11 +453,6 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
                   onClick={() => {
                     const newId = generateInfraId(infraType);
                     handleFieldChange(index, 'InfraId', newId);
-                    // Auto-populate length if available and current length is empty or 0
-                    const newInfraLength = getInfraLength(newId);
-                    if (newInfraLength && (!location.Length || location.Length === 0)) {
-                      handleFieldChange(index, 'Length', Number(newInfraLength));
-                    }
                   }}
                   className={`text-sm px-3 py-2 ${getDisabledClass(disabled)}`}
                   title="Generate new Infrastructure ID"
@@ -477,11 +461,6 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
                 </Button>
               )}
             </div>
-            {location.InfraId && getInfraLength(location.InfraId) && (
-              <div className="text-xs text-gray-500">
-                Length: {getInfraLength(location.InfraId)} meters
-              </div>
-            )}
             {canAutoGenerate && (
               <div className="text-xs text-blue-600">
                 Auto-generated IDs follow format: {infraType ? getInfraTypePrefix(infraType) : 'PREFIX'}+5 random numbers

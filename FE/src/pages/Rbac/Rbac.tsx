@@ -1,5 +1,5 @@
 ﻿'use-client'
-import React, { use } from 'react';
+// import React, { use } from 'react';
 
 import { Heading } from '../../components/tailwindui/heading';
 import { UsersIcon, UserGroupIcon } from '@heroicons/react/20/solid';
@@ -14,7 +14,7 @@ import { AppModuleTable } from './components/AppModuleTab';
 import { UsersTab } from './components/UsersTab';
 import { UserGroupsTab } from './components/UserGroupsTab';
 
-import { useToast } from '../../components/toaster/ToasterContext';
+// import { useToast } from '../../components/toaster/ToasterContext';
 
 // Interfaces
 import type { vUserGroups, UserPagination, UserGroupPagination } from './Model.d';
@@ -61,7 +61,7 @@ const Rbac: React.FC = () => {
 		Paginate,
 	} = useRbac();
 
-	const { showToast } = useToast();
+	// const { showToast } = useToast();
 
 	const TabButton = ({
 		label,

@@ -2,8 +2,7 @@
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
-import { CheckIcon } from '@heroicons/react/16/solid';
-import type { vUserGroups, UserGroupDropdowns, UpdateUserGroupPayload, PermissionActions } from '../Model.d';
+import type { vUserGroups, UserGroupDropdowns, UpdateUserGroupPayload, PermissionActions, PermissionViews } from '../Model.d';
 import { editUserGroup } from '../service';
 import { useToast } from '../../../components/toaster/ToasterContext';
 
@@ -354,15 +353,15 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({
             />
 
             {/* Route Permissions — PermissionViewIds */}
-            <CheckboxSelect<import('../Model.d').PermissionViews>
+            <CheckboxSelect<PermissionViews>
               label="Route Permissions"
               items={dropdowns.PermissionViews}
               selectedIds={viewIds}
               getId={v => v.Id}
-              getLabel={v => v.RoutePath}
-              getSubLabel={v => v.Description}
+              getLabel={v => v.RouteName || v.RoutePath}
+              getSubLabel={v => v.RouteName ? v.RoutePath : v.Description}
               onToggle={toggleViewId}
-              placeholder="Search by route path..."
+              placeholder="Search by route name or path..."
             />
 
             {error && (

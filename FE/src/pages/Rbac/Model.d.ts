@@ -119,12 +119,19 @@ export interface vUserGroups{
     PermissionViewIds : number[]; // API returns comma-separated string of permission names
 }
 export interface UserGroupDropdowns{
+    AppModules: AppModuleDropdown[];
     PermissionControllers: PermissionControllers[];
     PermissionActions: PermissionActions[];
     PermissionViews: PermissionViews[];
 }
+export interface AppModuleDropdown {
+    Id: number;
+    ModuleName: string;
+    Description?: string;
+}
 export interface PermissionControllers {
 	Id: number;
+	ModuleName?: string;
 	ControllerName: string;
 	Description?: string;
 }
@@ -136,6 +143,7 @@ export interface PermissionActions {
 }
 export interface PermissionViews {
 	Id: number;
+	RouteName?: string;
 	RoutePath: string;
 	Description?: string;
 }
