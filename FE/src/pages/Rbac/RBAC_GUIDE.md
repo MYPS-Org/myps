@@ -59,7 +59,7 @@ All state and data-fetching logic lives here. `Rbac.tsx` simply destructures fro
 | Loading flags  | `isLoadingUsers`, `isLoadingModules`, `isLoadingUserGroups`                  |
 | Dialog states  | `isAddUserDialogOpen`, `selectedUserId`, `isUpdateGroupDialogOpen`, etc.     |
 | Handlers       | `handleSort`, `handleAutoRefresh`, `handleClear`, `handleExpand`, `Paginate` |
-| Misc           | `tabNumbers`, `sortDirection`, `permissionViewsLookup`, `expandedUserGroups` |
+| Misc           | `tabNumbers`, `sortDirection`, `permissionViewsLookup`, `userGroupDropdowns`, `expandedUserGroups` |
 
 ### Key handlers
 
@@ -78,7 +78,7 @@ All state and data-fetching logic lives here. `Rbac.tsx` simply destructures fro
 | `fetchInitialData()`           | `POST /UserManagement/InitUserManagement`             |                                                                    |
 | `fetchUsers(filter)`           | `POST /UserManagement/ShowUsers`                      |                                                                    |
 | `fetchUserGroups(filter)`      | `POST /UserManagement/ShowUserGroups`                 |                                                                    |
-| `fetchUserGroupDropdowns()`    | `POST /UserManagement/ShowUserGroupDropdowns`         | Returns `PermissionControllers`, `PermissionActions`, `PermissionViews` |
+| `fetchUserGroupDropdowns()`    | `POST /UserManagement/ShowUserGroupDropdowns`         | Returns `AppModules`, `PermissionControllers`, `PermissionActions`, `PermissionViews` |
 | `addUserGroup(data)`           | `POST /UserManagement/AddUserGroup`                   | Only accepts `GroupName` + `Description` — no permissions on create |
 | `editUserGroup(data)`          | `POST /UserManagement/UpdateUserGroup`                | Accepts `UpdateUserGroupPayload` with `PermissionActionIds` + `PermissionViewIds` |
 | `deleteUserGroup(id)`          | `POST /UserManagement/DeleteUserGroup?id={id}`        | Passes id as query param (not body)                                |
@@ -104,9 +104,11 @@ All state and data-fetching logic lives here. `Rbac.tsx` simply destructures fro
 | `vUserGroups`               | User group view model — `PermissionActionIds: number[]`, `PermissionViewIds: number[]` |
 | `AddUserGroups`             | Payload for `addUserGroup` (create only — permissions ignored by backend)    |
 | `UpdateUserGroupPayload`    | Payload for `editUserGroup` — `Id`, `GroupName`, `Description`, `PermissionActionIds`, `PermissionViewIds` |
-| `UserGroupDropdowns`        | Dropdown data for group dialogs — `PermissionControllers`, `PermissionActions`, `PermissionViews` |
-| `PermissionActions`         | Action record (`Id`, `ControllerName`, `ActionName`, `Description`)          |
-| `PermissionViews`           | Route permission record (`Id`, `RoutePath`, `Description`)                   |
+| `AppModuleDropdown`         | Simplified module record returned by `ShowUserGroupDropdowns` — `Id`, `ModuleName`, `Description` |
+| `UserGroupDropdowns`        | Full dropdown response — `AppModules: AppModuleDropdown[]`, `PermissionControllers`, `PermissionActions`, `PermissionViews` |
+| `PermissionControllers`     | Controller record — `Id`, `ModuleName?` (links to AppModule, currently empty until mapped), `ControllerName`, `Description` |
+| `PermissionActions`         | Action record — `Id`, `ControllerName`, `ActionName`, `Description`          |
+| `PermissionViews`           | Route permission record — `Id`, `RouteName?` (friendly name), `RoutePath`, `Description` |
 | `Permissions`               | API permission record (`ControllerName`, `ActionName`)                       |
 | `UserPagination`            | Paginated filter params for users                                            |
 | `UserGroupPagination`       | Paginated filter params for user groups                                      |
@@ -122,14 +124,16 @@ All state and data-fetching logic lives here. `Rbac.tsx` simply destructures fro
 
 The `permissionViewsLookup` map (built from `fetchUserGroupDropdowns`) resolves `PermissionViewIds` to readable route names for display in the table.
 
-On tab switch, `getTableData('userGroups')` calls `fetchUserGroupDropdowns` then `fetchUserGroups` in sequence.
+On tab switch, `getTableData('userGroups')` calls only `fetchUserGroups` — no extra API calls.
+
+The `permissionViewsLookup` is populated once on page mount via `fetchUserGroupDropdowns`, run in parallel with `fetchInitialData`. This means the lookup is ready before any tab is clicked.
 
 ### Group Dialogs
 
 | Dialog               | Trigger                                  | API Call                           | Notes                                                        |
 |----------------------|------------------------------------------|------------------------------------|--------------------------------------------------------------|
 | `AddGroupDialog`     | "Add Group" button                       | `addUserGroup`                     | Name + Description only — backend does not accept permissions on create |
-| `UpdateGroupDialog`  | Edit (pencil) button                     | `fetchUserGroupDropdowns` on open + `editUserGroup` on submit | Shows grouped PermissionActions by ControllerName and PermissionViews list; pre-selects existing ids |
+| `UpdateGroupDialog`  | Edit (pencil) button                     | `editUserGroup` on submit — no extra API call on open | Receives `dropdowns: UserGroupDropdowns` prop from parent. Uses `CheckboxSelect` component for `PermissionActions` (grouped by `ControllerName`, with indeterminate "select all" per controller) and `PermissionViews` (flat list). Pre-selects from `group.PermissionActionIds` / `group.PermissionViewIds` (empty until backend populates the view). |
 | `DeleteGroupDialog`  | Delete (trash) button                    | `deleteUserGroup(id)` — query param | Requires typing "DELETE" to confirm                         |
 | `FilterUserGroupDialog` | Filter button                         | —                                  | Filters by `GroupName`                                       |
 | `ViewGroupDialog`    | (available, not wired to a button)       | —                                  | Read-only                                                    |
