@@ -10,7 +10,7 @@ export type RevisionAction = {
 
 type Params = {
   isEdit: boolean;
-  userGroup?: string;
+  userGroups?: string[];
   regionStatus?: number | null;
   coStatus?: number | null;
   isActive?: boolean;
@@ -39,7 +39,7 @@ type Params = {
 
 export const getRevisionActions = ({
   isEdit,
-  userGroup,
+  userGroups,
   regionStatus,
   coStatus,
   isActive,
@@ -52,28 +52,28 @@ export const getRevisionActions = ({
 }: Params): RevisionAction[] => [
   // --- AUC ---
   {
-    show: isEdit && userGroup === 'AUC' && regionStatus == null,
+    show: isEdit && userGroups?.find(g => g === 'AUC') && regionStatus == null,
     color: 'green',
     label: 'Submit Revision Request to CO',
     loading: loading.revise,
     onClick: () => actions.submit('new'),
   },
   {
-    show: isEdit && userGroup === 'AUC' && coStatus == 0,
+    show: isEdit && userGroups?.find(g => g === 'AUC') && coStatus == 0,
     color: 'green',
     label: 'Approve',
     loading: loading.approve,
     onClick: () => actions.submit('approve'),
   },
   {
-    show: isEdit && userGroup === 'AUC' && coStatus == 0,
+    show: isEdit && userGroups?.find(g => g === 'AUC') && coStatus == 0,
     color: 'amber',
     label: 'For Correction',
     loading: loading.review,
     onClick: () => actions.openReview(),
   },
   {
-    show: isEdit && userGroup === 'AUC' && coStatus == 0,
+    show: isEdit && userGroups?.find(g => g === 'AUC') && coStatus == 0,
     color: 'red',
     label: 'Disapprove',
     loading: loading.reject,
@@ -82,28 +82,28 @@ export const getRevisionActions = ({
 
   // --- RPC ---
   {
-    show: isEdit && userGroup === 'RPC' && regionStatus == null,
+    show: isEdit && userGroups?.find(g => g === 'RPC') && regionStatus == null,
     color: 'green',
     label: 'Submit Revision Request to CO',
     loading: loading.revise,
     onClick: () => actions.submit('new'),
   },
   {
-    show: isEdit && userGroup === 'RPC' && regionStatus == 0,
+    show: isEdit && userGroups?.find(g => g === 'RPC') && regionStatus == 0,
     color: 'green',
     label: 'Approve and Submit Revision to CO',
     loading: loading.approve,
     onClick: () => actions.openApprove(),
   },
   {
-    show: isEdit && userGroup === 'RPC' && regionStatus == 0,
+    show: isEdit && userGroups?.find(g => g === 'RPC') && regionStatus == 0,
     color: 'amber',
     label: 'For Correction',
     loading: loading.review,
     onClick: () => actions.openReview(),
   },
   {
-    show: isEdit && userGroup === 'RPC' && regionStatus == 0,
+    show: isEdit && userGroups?.find(g => g === 'RPC') && regionStatus == 0,
     color: 'red',
     label: 'Disapprove',
     loading: loading.reject,
@@ -112,7 +112,7 @@ export const getRevisionActions = ({
 
   // --- DPC ---
   {
-    show: isEdit && userGroup === 'DPC' && regionStatus == null,
+    show: isEdit && userGroups?.find(g => g === 'DPC') && regionStatus == null,
     color: 'green',
     label: 'Submit Revision Request to RO',
     loading: loading.revise,
@@ -121,7 +121,7 @@ export const getRevisionActions = ({
 
   // --- Re-Submit: whoever created the revision resubmits it (any group) ---
   {
-    show: isEdit && (regionStatus === 3 || coStatus === 3) && !!currentUserId && currentUserId === createdBy,
+    show: isEdit && (regionStatus === 3 || coStatus === 3) && !!currentUserId && currentUserId === createdBy && !!userGroups?.length,
     color: 'green',
     label: 'Re-Submit Revision',
     loading: loading.resubmit,

@@ -105,7 +105,7 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 				</SidebarItem>
 				<SidebarItem>
 					<UserGroupIcon />
-					<SidebarLabel className="text-gray-500">{user?.UserGroups || 'no role'}</SidebarLabel>
+					<SidebarLabel className="text-gray-500">{user?.UserGroupNames || 'no role'}</SidebarLabel>
 				</SidebarItem>
 			<SidebarDivider>
 			</SidebarDivider>

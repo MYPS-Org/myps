@@ -16,6 +16,7 @@ const ModifyProject: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const { setStatusFromAPI, setModificationContext, setFieldRules } = useAPIIntegration();
     const navigate = useNavigate();
+    const errorRedirectRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Get category and reason from navigation state
     const categoryDesc = location.state?.categoryDesc;
@@ -30,6 +31,15 @@ const ModifyProject: React.FC = () => {
     // console.log('ModificationDetails - Reason ID:', selectedReasonId);
     // console.log('ModificationDetails - Category ID:', selectedCategoryId);
     // console.log('ModificationDetails - Revision Group ID:', selectedRevisionGroupId);
+
+    // Cleanup error redirect timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (errorRedirectRef.current) {
+                clearTimeout(errorRedirectRef.current);
+            }
+        };
+    }, []);
 
     // Set modification context when navigation state changes
     useEffect(() => {
@@ -62,7 +72,7 @@ const ModifyProject: React.FC = () => {
     }, [id, selectedRevisionGroupId, selectedCategoryId, selectedReasonId]);
 
     
-    const fetchProjectDetails = useCallback(async (projectId: string, _stageName: string) => {
+    const fetchProjectDetails = useCallback(async (projectId: string, stageName: string) => {
         try {
             const response = await fetchRevisionData(
                 projectId,
@@ -151,8 +161,9 @@ const ModifyProject: React.FC = () => {
 
         } catch (error) {
             console.error('Error fetching project details:', error);
-            setTimeout(() => {
-                navigate('/revision'); // Go back to previous page
+            // Navigate back to project details using URL params instead of /revision
+            errorRedirectRef.current = setTimeout(() => {
+                navigate(`/projects/project-details/${projectId}:${stageName}`);
             }, 2000);
         } finally {
             setIsLoading(false);

@@ -6,6 +6,7 @@ import type {
 	vUserGroups,
 	AppModules,
 	ShowAppModulesPagination,
+	UserGroupDropdowns,
 } from './Model.d';
 import {
 	fetchInitialData,
@@ -67,6 +68,9 @@ export function useRbac() {
 	const [isLoadingUserGroups, setIsLoadingUserGroups] = useState(false);
 	const [isLoadingUsers, setIsLoadingUsers] = useState(false);
 	const [permissionViewsLookup, setPermissionViewsLookup] = useState<Record<number, string>>({});
+	const [userGroupDropdowns, setUserGroupDropdowns] = useState<UserGroupDropdowns>({
+		AppModules: [], PermissionControllers: [], PermissionActions: [], PermissionViews: [],
+	});
 	const [tabNumbers, setTabNumbers] = useState({
 		users: 0, modules: 0, userGroups: 0,
 	});
@@ -75,7 +79,10 @@ export function useRbac() {
 	useEffect(() => {
 		const fetchData = async () => {
 			try {
-				const initialData = await fetchInitialData();
+				const [initialData, dropdownsRes] = await Promise.all([
+					fetchInitialData(),
+					fetchUserGroupDropdowns(),
+				]);
 				setTabNumbers({
 					users: initialData.Data.NumberOfUsers || 0,
 					modules: 0,
@@ -89,6 +96,16 @@ export function useRbac() {
 						total: initialData.Data.NumberOfUsers,
 						totalPages: Math.ceil(initialData.Data.NumberOfUsers / 10),
 					});
+				}
+				if (dropdownsRes.Data) {
+					setUserGroupDropdowns(dropdownsRes.Data);
+					if (dropdownsRes.Data.PermissionViews) {
+						const lookup: Record<number, string> = {};
+						dropdownsRes.Data.PermissionViews.forEach((pv: any) => {
+							lookup[pv.Id] = pv.RouteName || pv.Description || pv.RoutePath || `ID: ${pv.Id}`;
+						});
+						setPermissionViewsLookup(lookup);
+					}
 				}
 				console.log('Initial data fetched:', initialData);
 			} catch (error: any) {
@@ -231,14 +248,6 @@ export function useRbac() {
 			try {
 				setIsLoadingUserGroups(true);
 				console.log('Fetching user groups with current filter:', UserGroupFilter);
-				const dropdownsRes = await fetchUserGroupDropdowns();
-				if (dropdownsRes.Data?.PermissionViews) {
-					const lookup: Record<number, string> = {};
-					dropdownsRes.Data.PermissionViews.forEach((pv: any) => {
-						lookup[pv.Id] = pv.Description || pv.RoutePath || `ID: ${pv.Id}`;
-					});
-					setPermissionViewsLookup(lookup);
-				}
 				const res = await fetchUserGroups(UserGroupFilter);
 				console.log('UserGroups response:', res);
 				if (res.Data.lists) { console.log('Setting userGroups data:', res); setUserGroups(res.Data); }
@@ -331,6 +340,7 @@ export function useRbac() {
 		isLoadingUsers,
 		// Lookup
 		permissionViewsLookup,
+		userGroupDropdowns,
 		tabNumbers,
 		sortDirection,
 		// Handlers

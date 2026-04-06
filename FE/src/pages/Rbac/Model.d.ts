@@ -108,6 +108,29 @@ export interface Pis {
  EmployeeId?: string;
 }
 
+// Mirrors UserGroups.cs backend models
+export interface UserGroupViewItem {
+    Id: number;
+    RouteName: string;
+    RoutePath: string;
+    IsGranted: boolean;
+}
+export interface UserGroupActionItem {
+    Id: number;
+    ActionName: string;
+    IsGranted: boolean;
+}
+export interface UserGroupAPIPermission {
+    ControllerName: string;
+    Actions: UserGroupActionItem[];
+    IsGranted: boolean;
+}
+export interface ModulePermission {
+    ModuleName: string;
+    APIPermissions: UserGroupAPIPermission[];
+    ViewAccess: UserGroupViewItem[];
+}
+
 export interface vUserGroups{
     Id: number;
     GroupName: string;
@@ -115,16 +138,25 @@ export interface vUserGroups{
     Description?: string;
     CreatedBy: string;
     CreatedDate: string;
-    PermissionActionIds: number[]; // API returns comma-separated string of numeric IDs
-    PermissionViewIds : number[]; // API returns comma-separated string of permission names
+    ModulePermissions: ModulePermission[];
+    // kept optional for locally-constructed fallback objects
+    PermissionActionIds?: number[];
+    PermissionViewIds?: number[];
 }
 export interface UserGroupDropdowns{
+    AppModules: AppModuleDropdown[];
     PermissionControllers: PermissionControllers[];
     PermissionActions: PermissionActions[];
     PermissionViews: PermissionViews[];
 }
+export interface AppModuleDropdown {
+    Id: number;
+    ModuleName: string;
+    Description?: string;
+}
 export interface PermissionControllers {
 	Id: number;
+	ModuleName?: string;
 	ControllerName: string;
 	Description?: string;
 }
@@ -136,6 +168,7 @@ export interface PermissionActions {
 }
 export interface PermissionViews {
 	Id: number;
+	RouteName?: string;
 	RoutePath: string;
 	Description?: string;
 }
