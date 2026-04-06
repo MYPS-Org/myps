@@ -96,9 +96,12 @@ export const UsersTab: React.FC<UsersTabProps> = ({
 							UserGroup
 						</TableHeader>
 						<TableHeader sortable sortDirection={sortDirection} onSort={(dir) => onSort(2, dir)} className="text-gray-500">
-							Office
+							Region
 						</TableHeader>
 						<TableHeader sortable sortDirection={sortDirection} onSort={(dir) => onSort(3, dir)} className="text-gray-500">
+							Office
+						</TableHeader>
+						<TableHeader sortable sortDirection={sortDirection} onSort={(dir) => onSort(4, dir)} className="text-gray-500">
 							Status
 						</TableHeader>
 						<TableHeader className="text-gray-500">Actions</TableHeader>
@@ -114,14 +117,15 @@ export const UsersTab: React.FC<UsersTabProps> = ({
 								<div className="flex items-center space-x-3s">
 									<div>
 										<div className="font-medium text-gray-900">{user.Name}</div>
-										<div className="text-sm text-gray-500">{user.Email}</div>
+										<div className="text-sm text-gray-500">{user.UserId}</div>
+										{user.Email?.trim() && <div className="text-xs text-gray-400">{user.Email.trim()}</div>}
 									</div>
 								</div>
 							</TableCell>
 							<TableCell>
 								<div className="flex flex-wrap gap-1">
 									{(() => {
-										const userGroups = user.UserGroups?.split(',').map(g => g.trim()) || [];
+									const userGroups = user.UserGroupNames || [];
 										const isExpanded = expandedUserGroups.has(user.Id);
 										const visibleGroups = isExpanded ? userGroups : userGroups.slice(0, 3);
 										return (
@@ -144,7 +148,10 @@ export const UsersTab: React.FC<UsersTabProps> = ({
 								</div>
 							</TableCell>
 							<TableCell>
-								{user.PlantillaOffice && <Badge color="blue">{user.PlantillaOffice}</Badge>}
+								{user.RegName?.trim() && <Badge color="zinc">{user.RegName.trim()}</Badge>}
+							</TableCell>
+							<TableCell>
+								{user.PlantillaOffice?.trim() && <Badge color="blue">{user.PlantillaOffice.trim()}</Badge>}
 							</TableCell>
 							<TableCell>
 								{getStatusBadge(user.IsActive ?? false)}

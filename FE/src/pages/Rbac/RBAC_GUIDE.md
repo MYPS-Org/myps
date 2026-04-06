@@ -77,6 +77,9 @@ All state and data-fetching logic lives here. `Rbac.tsx` simply destructures fro
 |--------------------------------|-------------------------------------------------------|--------------------------------------------------------------------|
 | `fetchInitialData()`           | `POST /UserManagement/InitUserManagement`             |                                                                    |
 | `fetchUsers(filter)`           | `POST /UserManagement/ShowUsers`                      |                                                                    |
+| `addUser(data)`                | `POST /UserManagement/AddUser`                        | Accepts `Users` interface; `UserGroupIds` + `UserGroupNames` required |
+| `editUser(data)`               | `POST /UserManagement/UpdateUser`                     | Same payload as `addUser`; `Id` must be set                        |
+| `deleteUser(data)`             | `POST /UserManagement/DeleteUser`                     |                                                                    |
 | `fetchUserGroups(filter)`      | `POST /UserManagement/ShowUserGroups`                 |                                                                    |
 | `fetchUserGroupDropdowns()`    | `POST /UserManagement/ShowUserGroupDropdowns`         | Returns `AppModules`, `PermissionControllers`, `PermissionActions`, `PermissionViews` |
 | `addUserGroup(data)`           | `POST /UserManagement/AddUserGroup`                   | Only accepts `GroupName` + `Description` — no permissions on create |
@@ -97,7 +100,7 @@ All state and data-fetching logic lives here. `Rbac.tsx` simply destructures fro
 
 | Type / Interface            | Purpose                                                                      |
 |-----------------------------|------------------------------------------------------------------------------|
-| `Users`                     | User record                                                                  |
+| `Users`                     | User record — `Id`, `UserGroupIds: number[]`, `UserGroupNames: string[]`, `ApplyFilter?`, `EmployeeId?`, `UserId`, `Name`, `Email?`, `RegCode`, `RegName?`, `PlantillaOffice?`, `PlantillaOfficeName?`, `IsActive` |
 | `AppModules`                | App module record — `ModuleName`, `Description`, `ControllerCount`, `ViewCount`, `Controllers` (stringified JSON), `Views` (stringified JSON) |
 | `AppModuleFilter`           | Filter params for App Modules (`ModuleName`)                                 |
 | `ShowAppModulesPagination`  | Paginated filter params for App Modules                                      |
@@ -119,6 +122,59 @@ All state and data-fetching logic lives here. `Rbac.tsx` simply destructures fro
 | `InitialDataResponse`       | Shape of the initial data fetch response                                     |
 
 > `Controllers` and `Views` in `AppModules` are stored as **stringified JSON arrays** — `[{"ControllerName":"...","Linked":false}]` and `[{"RouteName":"...","Linked":false}]`. `ControllerCount` / `ViewCount` are derived counts of items where `Linked === true`.
+
+---
+
+## Users Tab — How It Works
+
+`UsersTab` renders `UsersData` (type `PaginationResponse<Users>`).
+
+User group membership is stored as **parallel arrays** — `UserGroupIds: number[]` and `UserGroupNames: string[]` — matching the login/session API response shape. The tab reads `user.UserGroupNames` directly to render group badges (no string splitting needed).
+
+Whitespace-only field values (common in the API response for `Email`, `PlantillaOffice`, `RegName`) are treated as empty — `.trim()` guards are applied before rendering.
+
+### Columns
+
+| Column     | Source Field(s)                         | Notes                                                                 |
+|------------|-----------------------------------------|-----------------------------------------------------------------------|
+| User       | `Name` (bold), `UserId` (sub-text), `Email` (xs, only if non-empty) | `Email` is hidden if blank or whitespace-only |
+| UserGroup  | `UserGroupNames[]`                      | Blue badges; shows first 3, expandable with `+N more` / `Show less`  |
+| Region     | `RegName`                               | Zinc badge; hidden if blank/whitespace                                |
+| Office     | `PlantillaOffice`                       | Blue badge; hidden if blank/whitespace                                |
+| Status     | `IsActive`                              | Green `Active` / Red `Inactive` badge                                 |
+| Actions    | —                                       | Edit (yellow pencil), Delete (red trash)                              |
+
+### User Dialogs
+
+| Dialog               | Trigger                  | API Call                      | Notes                                                                                      |
+|----------------------|--------------------------|-------------------------------|--------------------------------------------------------------------------------------------|
+| `AddUserDialog`      | "Add User" button        | `addUser`                     | Looks up employee via `fetchUserData({ EmployeeId })` first; selects groups by name (checkbox); payload sends `UserGroupIds` + `UserGroupNames` |
+| `UpdateUserDialog`   | Edit (pencil) button     | `editUser`                    | Pre-populates from `user.UserGroupIds`; checkboxes toggle by group `Id`; payload sends `UserGroupIds` + `UserGroupNames` (names resolved from `availableGroups`) |
+| `DeleteUserDialog`   | Delete (trash) button    | `deleteUser`                  |                                                                                            |
+| `ViewUserDialog`     | (available, not wired)   | —                             | Read-only                                                                                  |
+| `FilterUserDialog`   | Filter button            | —                             | Filters by `Name`, `UserGroup`, `IsActive`                                                 |
+
+### Add / Update payload shape
+
+```json
+{
+  "Id": 0,
+  "UserGroupIds": [1],
+  "UserGroupNames": ["Admin"],
+  "ApplyFilter": false,
+  "EmployeeId": "string",
+  "UserId": "string",
+  "Name": "string",
+  "Email": "string",
+  "RegCode": "string",
+  "RegName": "string",
+  "PlantillaOffice": "string",
+  "PlantillaOfficeName": "string",
+  "IsActive": true
+}
+```
+
+> The old `UserGroups` comma-separated string field has been removed. The `service.ts` functions `addUser` and `editUser` both accept the `Users` interface directly — no extra mapping needed.
 
 ---
 
