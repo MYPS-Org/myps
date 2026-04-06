@@ -121,11 +121,21 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
   };
   
   // Helper: check if DetailedScope is duplicate within active work locations
-  const isDuplicateDetailedScope = (index: number, value: string): boolean => {
-    if (!value || !value.trim()) return false;
-    const trimmed = value.trim().toLowerCase();
+  // A location is only a duplicate if DetailedScope, StartChainage, EndChainage,
+  // StartStationLimit, AND EndStationLimit all match another active location.
+  const isDuplicateDetailedScope = (index: number, location: MajorItemLocations): boolean => {
+    const scope = location.DetailedScope;
+    if (!scope || !scope.trim()) return false;
+    const trimmedScope = scope.trim().toLowerCase();
     return workLocations.some(
-      (loc, i) => i !== index && !loc.IsDeleted && loc.DetailedScope?.trim().toLowerCase() === trimmed
+      (loc, i) =>
+        i !== index &&
+        !loc.IsDeleted &&
+        loc.DetailedScope?.trim().toLowerCase() === trimmedScope &&
+        loc.StartChainage === location.StartChainage &&
+        loc.EndChainage === location.EndChainage &&
+        (loc.StartStationLimit ?? '') === (location.StartStationLimit ?? '') &&
+        (loc.EndStationLimit ?? '') === (location.EndStationLimit ?? '')
     );
   };
 
@@ -281,6 +291,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
   };
 
   const handleInfraSelect = (infraId: string, _infraName: string, _infraType: string) => {
+    infraId = infraId.replace(/\s/g, '');
     if (isAddingNew) {
       // Create new work location
       const newWorkLocation: MajorItemLocations = {
@@ -470,7 +481,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
         );
 
       case 'DetailedScope': {
-        const hasDuplicateScope = isDuplicateDetailedScope(index, location.DetailedScope);
+        const hasDuplicateScope = isDuplicateDetailedScope(index, location);
         return (
           <div key={fieldName} className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">

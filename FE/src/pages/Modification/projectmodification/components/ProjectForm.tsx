@@ -610,10 +610,16 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         activeLocations.forEach((location, locIndex) => {
           const scope = location.DetailedScope?.trim();
           if (scope) {
-            const key = scope.toLowerCase();
+            const key = [
+              scope.toLowerCase(),
+              location.StartChainage ?? '',
+              location.EndChainage ?? '',
+              (location.StartStationLimit ?? '').trim(),
+              (location.EndStationLimit ?? '').trim(),
+            ].join('|');
             if (seenScopes.has(key)) {
               duplicateScopeErrors.push(
-                `Major Item ${majorIndex + 1}: Duplicate Detailed Scope "${scope}" found at locations ${(seenScopes.get(key)! + 1)} and ${locIndex + 1}. Each location must have a unique detailed scope.`
+                `Major Item ${majorIndex + 1}: Duplicate Detailed Scope "${scope}" with identical chainages and station limits found at locations ${(seenScopes.get(key)! + 1)} and ${locIndex + 1}.`
               );
             } else {
               seenScopes.set(key, locIndex);
