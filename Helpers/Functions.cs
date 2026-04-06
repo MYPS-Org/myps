@@ -155,33 +155,37 @@ namespace Helpers
             byte[] fileBytes = Convert.FromBase64String(base64Data);
             return fileBytes.LongLength <= maxBytes;
         }
-
-        public static bool UploadFile(this FileUpload File, string FilePath)
+        public static bool UploadFile(this FileUpload file, string filePath)
         {
             try
             {
-                if (File.IsFileCorrupted())
-                {
+                // Layer 1: Corruption check
+                if (file.IsFileCorrupted())
                     return false;
-                }
-                string folder = Path.GetDirectoryName(FilePath)!;
-                if (!Directory.Exists(folder))
-                {
+
+                // Layer 2: FilePath guard
+                if (string.IsNullOrWhiteSpace(filePath))
+                    return false;
+
+                // Layer 3: Decode (reuses the same padding-safe helper)
+                if (!TryDecodeBase64(file.DataUrl, out byte[] fileBytes))
+                    return false;
+
+                // Layer 4: Create directory if it doesn't exist
+                string folder = Path.GetDirectoryName(filePath)!;
+                if (!string.IsNullOrWhiteSpace(folder) && !Directory.Exists(folder))
                     Directory.CreateDirectory(folder);
-                }
-                string base64Data = File.DataUrl.Contains(",")
-                    ? File.DataUrl.Split(',')[1]
-                    : File.DataUrl;
-                byte[] fileBytes = Convert.FromBase64String(base64Data);
-                System.IO.File.WriteAllBytes(FilePath, fileBytes);
+
+                // Layer 5: Write to disk
+                System.IO.File.WriteAllBytes(filePath, fileBytes);
                 return true;
             }
-            catch
+            catch (Exception e)
             {
+                File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "error.log"), e.Message);
                 return false;
             }
         }
-
         // -------------------------------------------------------------------------
         // Compiled Regexes (shared, allocated once)
         // -------------------------------------------------------------------------
