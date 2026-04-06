@@ -3,7 +3,7 @@ import { getRevisionActions } from './revisionActions';
 
 type Props = {
   mode: string;
-  userGroup?: string;
+  userGroups?: string[];
   initialData: any;
   currentUserId?: string | null;
 
@@ -27,7 +27,7 @@ type Props = {
 
 export const RevisionActionButtons = ({
   mode,
-  userGroup,
+  userGroups,
   initialData,
   currentUserId,
   loading,
@@ -35,7 +35,7 @@ export const RevisionActionButtons = ({
 }: Props) => {
   const actionsList = getRevisionActions({
     isEdit: mode === 'edit',
-    userGroup,
+    userGroups,
     regionStatus: initialData?.RevisionDetails?.RegionStatus,
     coStatus: initialData?.RevisionDetails?.COStatus,
     isActive: initialData?.IsActive,
