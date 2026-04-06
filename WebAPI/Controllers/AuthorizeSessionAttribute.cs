@@ -47,7 +47,9 @@ namespace WebAPI.Controllers
                     context.Result = new ObjectResult(new
                     {
                         Message = "Authorization service is unavailable.",
-                        Title = "Service Unavailable"
+                        Title = "Service Unavailable",
+                        data = new { Authenticated = false },
+                        user = new { }
                     })
                     { StatusCode = 503 };
                     return;
@@ -59,8 +61,11 @@ namespace WebAPI.Controllers
                 {
                     context.Result = new UnauthorizedObjectResult(new
                     {
-                        Message = $"You must be logged in to access this resource. {hasAllowAnonymous} - {userId}",
-                        Title = "Unauthorized"
+                        Message = $"You must be logged in to access this resource.",
+                        Title = "Unauthorized",
+                        data = new { Authenticated = false },
+                        user = new { }
+
                     });
                     return;
                 }
@@ -104,9 +109,7 @@ namespace WebAPI.Controllers
                     var responseObj = new
                     {
                         Message = $"You do not have permission to perform '{actionName}' on '{controllerName}'.",
-                        Title = "Access Denied",
-                        data = new { Authenticated = false },
-                        user = new { }
+                        Title = "Access Denied"
                     };
                     context.Result = new UnauthorizedObjectResult(responseObj);
                     return;
