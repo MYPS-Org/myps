@@ -125,7 +125,7 @@ const ResubmitRevisionDialog: React.FC<ReviseProjectDialogProps> = ({
             return;
         }
 
-        // const isDPC = user?.UserGroups === 'DPC';
+        // const isDPC = user?.UserGroupNames === 'DPC';
         // if (isDPC && !isCertified) {
         //     showToast({
         //         type: 'error',
@@ -322,7 +322,7 @@ const ResubmitRevisionDialog: React.FC<ReviseProjectDialogProps> = ({
                         <Button
                             type="submit"
                             color="blue"
-                            disabled={isSubmitting || (user?.UserGroups === 'DPC' && !isCertified)}
+                            disabled={isSubmitting || (user?.UserGroupNames === 'DPC' && !isCertified)}
                         >
                             {isSubmitting ? 'Submitting...' : 'Submit'}
                         </Button>
