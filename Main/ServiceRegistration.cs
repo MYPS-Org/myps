@@ -39,8 +39,13 @@ namespace Main
                 .AddCookie(options =>
                 {
                     options.Cookie.HttpOnly = true; // Protect against XSS
-                    options.Cookie.SameSite = Appsetting.Environment != "Development" ? SameSiteMode.Strict : SameSiteMode.None; // Prevent CSRF attacks
-                    options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // Ensure secure transport
+                    options.Cookie.SameSite = Appsetting.Environment == "Production"
+                        ? SameSiteMode.Strict
+                        : SameSiteMode.Lax;              // ← works on HTTP, no Secure flag needed
+
+                    options.Cookie.SecurePolicy = Appsetting.Environment == "Production"
+                        ? CookieSecurePolicy.Always
+                        : CookieSecurePolicy.SameAsRequest; // ← HTTP request = HTTP cookie, no forced HTTPS
                     options.Cookie.Name = CookieAuthenticationDefaults.AuthenticationScheme; // Custom cookie name
                     //options.LoginPath = "/login"; // Redirect unauthorized users
                     //options.AccessDeniedPath = "/login"; // Handle forbidden access

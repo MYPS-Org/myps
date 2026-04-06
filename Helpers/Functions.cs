@@ -1,4 +1,5 @@
-﻿using DBHelper.Data;
+﻿using Dapper;
+using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Extra;
 using DBHelper.Models.Table;
@@ -82,19 +83,33 @@ namespace Helpers
             string FirstSegment = ProgramDetails.StageName.GenerateProjec1stSegment();
             string SecondSegment = ProgramDetails.YearStart.GenerateProjec2ndSegment();
 
-            var existingMaxIds = _db.vGetProjectCategoryVersions.AsNoTracking()
-                .Where(x => x.Category == Category.CategoryId
-                    && x.ProjectSuffix == FirstSegment
-                    && x.IslandCode == IslandCode
-                    && x.YearStart == ProgramDetails.YearStart)
-                .OrderByDescending(x => x.MaxId)
-                .FirstOrDefault();
-            int maxExisting = (existingMaxIds != null) ? existingMaxIds.MaxId : (_db.tOptionProjectCategory.FirstOrDefault(x => x.CategoryId == Category.CategoryId)!.Minimum);
+            //var existingMaxIds = _db.vGetProjectCategoryVersions.AsNoTracking()
+            //    .Where(x => x.Category == Category.CategoryId
+            //        && x.ProjectSuffix == FirstSegment
+            //        && x.IslandCode == IslandCode
+            //        && x.YearStart == ProgramDetails.YearStart)
+            //    .OrderByDescending(x => x.MaxId)
+            //    .FirstOrDefault();
+            //int maxExisting = (existingMaxIds != null) ? existingMaxIds.MaxId : (_db.tOptionProjectCategory.FirstOrDefault(x => x.CategoryId == Category.CategoryId)!.Minimum);
 
 
-            int nextId = Math.Max(maxExisting + 1, Category.Minimum);
-            string ThirdSegment = nextId.ToString("D5");
+            //int nextId = Math.Max(maxExisting + 1, Category.Minimum);
+            //string ThirdSegment = nextId.ToString("D5");
 
+
+            var param = new Dictionary<string, object>
+            {
+                { "@ProjectSuffix", FirstSegment },
+                { "@CategoryId", Category.CategoryId },
+                { "@YearStart", ProgramDetails.YearStart },
+                { "@IslandCode", IslandCode }
+            };
+
+            string ThirdSegment = Sql.NormalQuery<string>(
+                Appsetting.ConnectionString,
+                "EXEC pGenerateThirdSegment @ProjectSuffix, @CategoryId, @YearStart, @IslandCode",
+                param
+            ).FirstOrDefault() ?? string.Empty;
             return $"{FirstSegment}-{SecondSegment}-{ThirdSegment}-{IslandCode}";
         }
         public static string GenerateProjec1stSegment(this string StageName)
