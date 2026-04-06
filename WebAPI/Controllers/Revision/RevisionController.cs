@@ -608,6 +608,8 @@ namespace WebAPI.Controllers.Revision
                 var ProjectRevision = new ProjectRevisions();
                 List<RevisionTransactionLog> Logs = new List<RevisionTransactionLog>();
                 #region Validations
+
+                #region Project Details
                 var Project = await _db.tProjectRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectDetails.ProjectId && x.Id == dto.ProjectDetails.RevisionId);
                 if (Project == null)
                 {
@@ -664,6 +666,94 @@ namespace WebAPI.Controllers.Revision
                 bool isROUser = _Session.UserGroupNames.Contains("RPC");
                 bool isCOUser = _Session.UserGroupNames.Contains("AUC");
                 #endregion
+                #region Funding Profile
+                var BlankFunding = dto.FundingProfile.Where(x => x.Amount <= 0).ToList();
+                if (!BlankFunding.IsNullOrEmpty())
+                {
+                    return new BadRequestObjectResult(new { Message = "Funding Profile contains invalid amount(s). Please check and try again.", Title = "Invalid Funding Profile Amount" });
+                }
+                var BlankFundingSource = dto.FundingProfile.Where(x => string.IsNullOrEmpty(x.Source)).ToList();
+                if (!BlankFundingSource.IsNullOrEmpty())
+                {
+                    return new BadRequestObjectResult(new { Message = "Funding Profile contains invalid source(s). Please check and try again.", Title = "Invalid Funding Profile Source" });
+                }
+                var BlankFundingAgreement = dto.FundingProfile.Where(x => string.IsNullOrEmpty(x.Agreement)).ToList();
+                if (!BlankFundingAgreement.IsNullOrEmpty())
+                {
+                    return new BadRequestObjectResult(new { Message = "Funding Profile contains invalid agreement(s). Please check and try again.", Title = "Invalid Funding Profile Agreement" });
+                }
+                #endregion
+                #region Component Cost
+                var BlankComponentCost = dto.ComponentCosts.Where(x => x.Total < 1 && x.Id == 0).ToList();
+                if (!BlankComponentCost.IsNullOrEmpty())
+                {
+                    return new BadRequestObjectResult(new { Message = "Component Cost contains invalid amount(s). Please check and try again.", Title = "Invalid Component Cost Amount" });
+                }
+                var BlankComponentType = dto.ComponentCosts.Where(x => string.IsNullOrEmpty(x.ComponentType)).ToList();
+                if (!BlankComponentType.IsNullOrEmpty())
+                {
+                    return new BadRequestObjectResult(new { Message = "Component Cost contains invalid component type(s). Please check and try again.", Title = "Invalid Component Cost Type" });
+                }
+                var DuplicateComponentId = dto.ComponentCosts.Where(x => x.Id == 0).GroupBy(x => x.ComponentId).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+                if (DuplicateComponentId.Any())
+                {
+                    return new BadRequestObjectResult(new { Message = $"Component Cost contains duplicate component IDs: {string.Join(", ", DuplicateComponentId)}. Please check and try again.", Title = "Duplicate Component IDs" });
+                }
+                #endregion
+                #region Major Work Item
+                var DuplicateMajorItemComponentId = dto.MajorItemOfWorks.Where(x => x.Id == 0).GroupBy(x => x.ComponentId).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+                if (DuplicateMajorItemComponentId.Any())
+                {
+                    return new BadRequestObjectResult(new { Message = $"Major Work Item contains duplicate component IDs: {string.Join(", ", DuplicateMajorItemComponentId)}. Please check and try again.", Title = "Duplicate Major Work Item Component IDs" });
+                }
+                #endregion
+                #region Major Work Location
+
+                var duplicates = dto.MajorItemLocations
+                    .Select((item, index) => new { Item = item, Index = index })
+                    .GroupBy(x => new
+                    {
+                        DetailedScope = (x.Item.DetailedScope ?? string.Empty).Trim().ToUpperInvariant(),
+                        StartStation = (x.Item.StartStationLimit ?? string.Empty).Trim().ToUpperInvariant(),
+                        EndStation = (x.Item.EndStationLimit ?? string.Empty).Trim().ToUpperInvariant()
+                    })
+                    .Where(g => g.Count() > 1)
+                    .Select(g => new
+                    {
+                        DetailedScope = g.Key.DetailedScope,
+                        StartStationLimit = g.Key.StartStation,
+                        EndStationLimit = g.Key.EndStation,
+                        Count = g.Count(),
+                        Rows = g.Select(x => new
+                        {
+                            Id = x.Item.Id,
+                            ParentId = x.Item.ParentId,
+                            InfraId = x.Item.InfraId,
+                            DetailedScopeOriginal = x.Item.DetailedScope,
+                            StartStationLimitOriginal = x.Item.StartStationLimit,
+                            EndStationLimitOriginal = x.Item.EndStationLimit
+                        }).ToList()
+                    })
+                    .ToList();
+
+                if (duplicates.Any())
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Title = "Duplicate MajorItemLocations",
+                        Message = "Found duplicate MajorItemLocations by DetailedScope + StartStationLimit + EndStationLimit.",
+                        Duplicates = duplicates
+                    });
+                }
+                var DuplicateMajorWorkLocationParentId = dto.MajorItemLocations.Where(x => x.Id == 0).GroupBy(x => x.ParentId).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+                if (DuplicateMajorWorkLocationParentId.Any())
+                {
+                    return new BadRequestObjectResult(new { Message = $"Major Work Location contains duplicate Parent IDs: {string.Join(", ", DuplicateMajorWorkLocationParentId)}. Please check and try again.", Title = "Duplicate Major Work Location Parent IDs" });
+                }
+                #endregion
+
+                #endregion
+
                 #region ProjectRevision
                 var ProjectDetailsRules = jsonRules.ProjectDetailsRules.GetType()
                 .GetProperties()
