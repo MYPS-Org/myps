@@ -21,7 +21,7 @@ namespace WebAPI.Controllers.MockUps
         public PISController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
 
         [HttpPost]
-        [AllowAnonymous]
+        
         public async Task<IActionResult> SearchUser([FromBody] SearchUserDTO dto)
         {
             try
@@ -70,7 +70,7 @@ namespace WebAPI.Controllers.MockUps
             }
         }
         [HttpPost]
-        [AllowAnonymous]
+        
         public async Task<IActionResult> GetUserInfo([FromBody] SearchUserDTO dto)
         {
             try

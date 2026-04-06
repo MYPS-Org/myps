@@ -23,7 +23,7 @@ namespace WebAPI.Controllers.Revision
     public class RevisionController : CoreController
     {
         public RevisionController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> RevisionRequests([FromBody] RevisionRequestsDTO dto)
         {
@@ -123,7 +123,7 @@ namespace WebAPI.Controllers.Revision
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> ViewReviseProject([FromBody] ViewReviseProjectDTO dto)
         {
@@ -349,7 +349,7 @@ namespace WebAPI.Controllers.Revision
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> ReviseProject([FromBody] ReviseProjectDTO dto)
         {
@@ -572,7 +572,7 @@ namespace WebAPI.Controllers.Revision
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> RequestRevision([FromBody] RequstRevisionsDTO dto)  
         {
@@ -1510,7 +1510,7 @@ namespace WebAPI.Controllers.Revision
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> UpdateRevisionStatus([FromBody] UpdateRevisionStatusDTO dto)
         {
@@ -1711,7 +1711,7 @@ namespace WebAPI.Controllers.Revision
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> ResubmitRevision([FromBody] ResubmitRevisionDTO dto)
         {

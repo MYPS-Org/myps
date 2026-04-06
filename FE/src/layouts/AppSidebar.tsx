@@ -53,7 +53,7 @@ import protectedRoutes from '../components/Routes'
 const handleLogout = async () => {
 	try {
 		await authService.logout();
-		window.location.href = '/login';
+		//window.location.href = '/login';
 	} catch (error) {
 		console.error('Logout failed:', error);
 		alert('Logout failed. Please try again.');
@@ -69,7 +69,7 @@ const { user, ViewAccess } = useAuth();
 
 // For now, you can manually set which item should be current
 // Change this to your actual routing logic or pass it as a prop
-const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/dashboard'
+const currentPath = (localStorage.getItem('currentPath') != undefined) ? localStorage.getItem('currentPath') : '/dashboard'
 	return (
 		<Sidebar>
 		<SidebarHeader>

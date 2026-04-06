@@ -131,7 +131,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
         }
 
         // Only require certification if user is from Implementing Office
-        if ((user?.UserGroupNames === 'DPC' && !isCertified) || (user?.UserGroupNames === 'AUC' && !isCertified)) {
+        if ((user?.UserGroupNames.find((x: string) => x === 'DPC' || x === 'RPC') && !isCertified) || (user?.UserGroupNames.find((x: string) => x === 'AUC') && !isCertified)) {
             showToast({
                 type: 'error',
                 message: 'Please certify that the attached document is accurate and aligned with the revisions.'
@@ -141,8 +141,8 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
 
         setIsSubmitting(true);
 
-        const isImplementingOffice = user?.UserGroupNames === 'DPC' || user?.UserGroupNames === 'RPC';
-        const isAuc = user?.UserGroupNames === 'AUC';
+        const isImplementingOffice = user?.UserGroupNames.find((x: string) => x === 'DPC' || x === 'RPC');
+        const isAuc = user?.UserGroupNames.find((x: string) => x === 'AUC');
 
         const shouldCreateNewRevision = isImplementingOffice || (isAuc && !transactionId);
 
@@ -352,7 +352,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
                     </div>
 
                     {/* Certification Checkbox */}
-                    {(user?.UserGroupNames === 'AUC' || user?.UserGroupNames === 'DPC') && approvalDocument && (
+                    {(user?.UserGroupNames.find((x: string) => x === 'AUC') || user?.UserGroupNames.find((x: string) => x === 'DPC')) && approvalDocument && (
                     <div className='bg-amber-50 border border-amber-200 p-4 rounded-lg'>
                         <label className='flex items-start gap-3 cursor-pointer'>
                             <input 
@@ -372,7 +372,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
                         <Button
                             type="submit"
                             color="blue"
-                            disabled={isSubmitting || ((user?.UserGroupNames === 'DPC' || user?.UserGroupNames === 'AUC') && !isCertified)}
+                            disabled={isSubmitting || ((user?.UserGroupNames.find((x: string) => x === 'DPC') || user?.UserGroupNames.find((x: string) => x === 'AUC')) && !isCertified)}
                         >
                             {isSubmitting ? 'Submitting...' : 'Submit'}
                         </Button>

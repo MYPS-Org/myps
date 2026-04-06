@@ -59,7 +59,7 @@ namespace WebAPI.Controllers
                 {
                     context.Result = new UnauthorizedObjectResult(new
                     {
-                        Message = "You must be logged in to access this resource.",
+                        Message = $"You must be logged in to access this resource. {hasAllowAnonymous} - {userId}",
                         Title = "Unauthorized"
                     });
                     return;

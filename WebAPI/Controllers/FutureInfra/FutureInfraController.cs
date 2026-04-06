@@ -21,7 +21,7 @@ namespace WebAPI.Controllers.Programs
     public class FutureInfraController : CoreController
     {
         public FutureInfraController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> GetInfraInfo()
         {
@@ -45,7 +45,7 @@ namespace WebAPI.Controllers.Programs
             }
         }
         #region Future Roads
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> InitFilterFutureRoads()
         {
@@ -64,7 +64,7 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> ShowFutureRoads([FromBody] ShowFutureRoadsDTO dto)
         {
@@ -144,7 +144,7 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> EditFutureRoads([FromBody] EditFutureRoadsDTO dto)
         {
@@ -251,7 +251,7 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> AddFutureRoads([FromBody] AddFutureRoadsDTO dto)
         {
@@ -306,7 +306,7 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> DeleteFutureRoad([FromBody] DeleteFutureRoadDTO dto)
         {
@@ -371,7 +371,7 @@ namespace WebAPI.Controllers.Programs
         }
         #endregion
         #region Future Road Section
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> InitFilterFutureRoadSections()
         {
@@ -390,7 +390,7 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> ShowFutureRoadSections([FromBody] ShowFutureRoadSectionsDTO dto)
         {
@@ -468,7 +468,7 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> AddFutureRoadSections([FromBody] AddFutureRoadSectionsDTO dto)
         {
@@ -514,7 +514,7 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> EditFutureRoadSections([FromBody] EditFutureRoadSectionsDTO dto)
         {
@@ -648,7 +648,7 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> DeleteFutureRoadSection([FromBody] DeleteFutureRoadSectionDTO dto)
         {
@@ -713,7 +713,7 @@ namespace WebAPI.Controllers.Programs
         }
         #endregion
         #region Future Bridge
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> InitFilterFutureBridge()
         {
@@ -732,7 +732,7 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> ShowFutureBridge([FromBody] ShowFutureBridgeDTO dto)
         {
@@ -810,7 +810,7 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> AddFutureBridge([FromBody] AddFutureBridgeDTO dto)
         {
@@ -864,7 +864,7 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> EditFutureBridge([FromBody] EditFutureBridgeDTO dto)
         {
@@ -1013,7 +1013,7 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> DeleteFutureBridg([FromBody] DeleteFutureBridgeDTO dto)
         {

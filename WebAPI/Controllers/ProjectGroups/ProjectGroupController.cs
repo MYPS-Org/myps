@@ -16,7 +16,7 @@ namespace WebAPI.Controllers.ProjectGroup
     {
         public ProjectGroupController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
         #region Project Lists
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> ShowProjectGroups([FromBody] ShowProjectGroupDTO dto)
         {
@@ -98,7 +98,7 @@ namespace WebAPI.Controllers.ProjectGroup
         }
         #endregion
         #region Add Project Group
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> AddProjectGroup([FromBody] AddProjectGroupDTO dto)
         {
@@ -138,7 +138,7 @@ namespace WebAPI.Controllers.ProjectGroup
         }
         #endregion
         #region Delete Project Group
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> DeleteProjectGroup([FromBody] DeleteProjectGroupDTO dto)
         {
@@ -203,7 +203,7 @@ namespace WebAPI.Controllers.ProjectGroup
         }
         #endregion
         #region Add Project
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> SearchProject([FromBody] SearchProjectDTO dto)
         {
@@ -233,7 +233,7 @@ namespace WebAPI.Controllers.ProjectGroup
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> AddProject([FromBody] ProjectGroupAddProjectDTO dto)
         {
@@ -288,7 +288,7 @@ namespace WebAPI.Controllers.ProjectGroup
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> DeleteProject([FromBody] ProjectGroupDeleteProjectDTO dto)
         {
@@ -336,7 +336,7 @@ namespace WebAPI.Controllers.ProjectGroup
         }
         #endregion
         #region Project Group Details
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> ProjectGroupDetails([FromBody] ShowProjectGroupDetailsDTO dto)
         {
@@ -371,7 +371,7 @@ namespace WebAPI.Controllers.ProjectGroup
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> UpdateProjectGroupDetails([FromBody] UpdateProjectGroupDetailsDTO dto)
         {

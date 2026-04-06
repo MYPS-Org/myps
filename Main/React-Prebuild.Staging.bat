@@ -8,7 +8,7 @@ if %errorlevel% neq 0 (
 )
 
 echo Installing dependencies...
-call npm install
+@call npm install
 if %errorlevel% neq 0 (
     echo ERROR: npm install failed.
     exit /b %errorlevel%

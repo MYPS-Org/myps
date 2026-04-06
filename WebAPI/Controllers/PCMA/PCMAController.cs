@@ -17,7 +17,7 @@ namespace WebAPI.Controllers.MockUps
     {
         public PCMAController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
         [HttpPost]
-        [AllowAnonymous]
+        
         public async Task<IActionResult> PublishProgram([FromBody] PublishProgramDTO dto)
         {
             try
