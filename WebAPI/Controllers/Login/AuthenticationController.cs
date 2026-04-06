@@ -107,7 +107,6 @@ namespace WebAPI.Controllers.Auth
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> Validate()
         {
@@ -140,6 +139,7 @@ namespace WebAPI.Controllers.Auth
                 return ExceptionHandler(ex); 
             }
         }
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> Logout()
         {
