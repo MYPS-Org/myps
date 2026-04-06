@@ -156,7 +156,8 @@ export const deleteFutureBridge = async (bridgeId: string) => {
 export const importNationalRoads = async (userName: string) => {
     try {
         // const apiUrl = `http://localhost:8001/api_v2.0/inventory/import_national_roads?username=${encodeURIComponent(userName)}`;
-        const apiUrl = `${RODEO_API_BASE}/inventory/import_national_roads?username=${encodeURIComponent(userName)}`;
+        const apiUrl = `http://192.168.50.201:8001/api_v2.0/inventory/import_national_roads?username=${encodeURIComponent(userName)}`;
+        // const apiUrl = `${RODEO_API_BASE}/inventory/import_national_roads?username=${encodeURIComponent(userName)}`;
         const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
@@ -174,7 +175,8 @@ export const importNationalRoads = async (userName: string) => {
 export const importRoadSections = async (userName: string) => {
     try {        
         // const apiUrl = `http://localhost:8001/api_v2.0/inventory/import_national_road_sections?username=${encodeURIComponent(userName)}`;
-        const apiUrl = `${RODEO_API_BASE}/inventory/import_national_road_sections?username=${encodeURIComponent(userName)}`;
+        const apiUrl = `http://192.168.50.201:8001/api_v2.0/inventory/import_national_road_sections?username=${encodeURIComponent(userName)}`;
+        // const apiUrl = `${RODEO_API_BASE}/inventory/import_national_road_sections?username=${encodeURIComponent(userName)}`;
         const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
@@ -192,7 +194,8 @@ export const importRoadSections = async (userName: string) => {
 export const importBridges = async (userName: string) => {
     try {        
         // const apiUrl = `http://localhost:8001/api_v2.0/inventory/import_national_bridges?username=${encodeURIComponent(userName)}`;
-        const apiUrl = `${RODEO_API_BASE}/inventory/import_national_bridges?username=${encodeURIComponent(userName)}`;
+        const apiUrl = `http://192.168.50.201:8001/api_v2.0/inventory/import_national_bridges?username=${encodeURIComponent(userName)}`;
+        // const apiUrl = `${RODEO_API_BASE}/inventory/import_national_bridges?username=${encodeURIComponent(userName)}`;
         const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
@@ -211,7 +214,8 @@ export const importBridges = async (userName: string) => {
 export const importImplementingOffices = async (userName: string) => {
     try {        
         // const apiUrl = `http://localhost:8001/api_v2.0/admin_areas/aa_import_org_offices/?username=${encodeURIComponent(userName)}`;
-        const apiUrl = `${RODEO_API_BASE}/admin_areas/aa_import_org_offices/?username=${encodeURIComponent(userName)}`;
+        const apiUrl = `http://192.168.50.201:8001/api_v2.0/admin_areas/aa_import_org_offices/?username=${encodeURIComponent(userName)}`;
+        // const apiUrl = `${RODEO_API_BASE}/admin_areas/aa_import_org_offices/?username=${encodeURIComponent(userName)}`;
         const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
