@@ -131,7 +131,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
         }
 
         // Only require certification if user is from Implementing Office
-        if ((user?.UserGroups === 'DPC' && !isCertified) || (user?.UserGroups === 'AUC' && !isCertified)) {
+        if ((user?.UserGroupNames === 'DPC' && !isCertified) || (user?.UserGroupNames === 'AUC' && !isCertified)) {
             showToast({
                 type: 'error',
                 message: 'Please certify that the attached document is accurate and aligned with the revisions.'
@@ -352,7 +352,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
                     </div>
 
                     {/* Certification Checkbox */}
-                    {(user?.UserGroups === 'AUC' || user?.UserGroups === 'DPC') && approvalDocument && (
+                    {(user?.UserGroupNames === 'AUC' || user?.UserGroupNames === 'DPC') && approvalDocument && (
                     <div className='bg-amber-50 border border-amber-200 p-4 rounded-lg'>
                         <label className='flex items-start gap-3 cursor-pointer'>
                             <input 
@@ -372,7 +372,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
                         <Button
                             type="submit"
                             color="blue"
-                            disabled={isSubmitting || ((user?.UserGroups === 'DPC' || user?.UserGroups === 'AUC') && !isCertified)}
+                            disabled={isSubmitting || ((user?.UserGroupNames === 'DPC' || user?.UserGroupNames === 'AUC') && !isCertified)}
                         >
                             {isSubmitting ? 'Submitting...' : 'Submit'}
                         </Button>
