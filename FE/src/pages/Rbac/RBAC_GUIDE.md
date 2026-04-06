@@ -101,7 +101,11 @@ All state and data-fetching logic lives here. `Rbac.tsx` simply destructures fro
 | `AppModules`                | App module record — `ModuleName`, `Description`, `ControllerCount`, `ViewCount`, `Controllers` (stringified JSON), `Views` (stringified JSON) |
 | `AppModuleFilter`           | Filter params for App Modules (`ModuleName`)                                 |
 | `ShowAppModulesPagination`  | Paginated filter params for App Modules                                      |
-| `vUserGroups`               | User group view model — `PermissionActionIds: number[]`, `PermissionViewIds: number[]` |
+| `ModulePermission`          | Per-module permission shape returned by `ShowUserGroups` — `ModuleName`, `APIPermissions: UserGroupAPIPermission[]`, `ViewAccess: UserGroupViewItem[]` |
+| `UserGroupAPIPermission`    | Controller-level permission item — `ControllerName`, `Actions: UserGroupActionItem[]`, `IsGranted` |
+| `UserGroupActionItem`       | Action-level item — `Id`, `ActionName`, `IsGranted`                          |
+| `UserGroupViewItem`         | View/route-level item — `Id`, `RouteName`, `RoutePath`, `IsGranted`          |
+| `vUserGroups`               | User group view model — `ModulePermissions: ModulePermission[]` (mirrors `vUserGroups` SQL view). Flat `PermissionActionIds?` / `PermissionViewIds?` are kept as optional for error-fallback constructions only and are **not** returned by the API. |
 | `AddUserGroups`             | Payload for `addUserGroup` (create only — permissions ignored by backend)    |
 | `UpdateUserGroupPayload`    | Payload for `editUserGroup` — `Id`, `GroupName`, `Description`, `PermissionActionIds`, `PermissionViewIds` |
 | `AppModuleDropdown`         | Simplified module record returned by `ShowUserGroupDropdowns` — `Id`, `ModuleName`, `Description` |
@@ -122,7 +126,9 @@ All state and data-fetching logic lives here. `Rbac.tsx` simply destructures fro
 
 `UserGroupsTab` renders `UserGroupsData` (type `PaginationResponse<vUserGroups>`).
 
-The `permissionViewsLookup` map (built from `fetchUserGroupDropdowns`) resolves `PermissionViewIds` to readable route names for display in the table.
+The `permissionViewsLookup` map (built from `fetchUserGroupDropdowns`) resolves view permission IDs to readable route names for display in the table.
+
+Each group's granted view IDs are **derived at render time** from `group.ModulePermissions` by collecting all `ViewAccess` entries where `IsGranted === true`. This replaces the old flat `PermissionViewIds` array that was never populated.
 
 On tab switch, `getTableData('userGroups')` calls only `fetchUserGroups` — no extra API calls.
 
@@ -133,12 +139,45 @@ The `permissionViewsLookup` is populated once on page mount via `fetchUserGroupD
 | Dialog               | Trigger                                  | API Call                           | Notes                                                        |
 |----------------------|------------------------------------------|------------------------------------|--------------------------------------------------------------|
 | `AddGroupDialog`     | "Add Group" button                       | `addUserGroup`                     | Name + Description only — backend does not accept permissions on create |
-| `UpdateGroupDialog`  | Edit (pencil) button                     | `editUserGroup` on submit — no extra API call on open | Receives `dropdowns: UserGroupDropdowns` prop from parent. Uses `CheckboxSelect` component for `PermissionActions` (grouped by `ControllerName`, with indeterminate "select all" per controller) and `PermissionViews` (flat list). Pre-selects from `group.PermissionActionIds` / `group.PermissionViewIds` (empty until backend populates the view). |
+| `UpdateGroupDialog`  | Edit (pencil) button                     | `editUserGroup` on submit — no extra API call on open | Receives `dropdowns: UserGroupDropdowns` prop (kept for interface compat, no longer used for rendering). Uses `ModuleAccordion` component to display `group.ModulePermissions` organized by module. Pre-selects by extracting IDs where `IsGranted === true`. See **ModuleAccordion** section below. |
 | `DeleteGroupDialog`  | Delete (trash) button                    | `deleteUserGroup(id)` — query param | Requires typing "DELETE" to confirm                         |
 | `FilterUserGroupDialog` | Filter button                         | —                                  | Filters by `GroupName`                                       |
 | `ViewGroupDialog`    | (available, not wired to a button)       | —                                  | Read-only                                                    |
 
 > **Backend constraint:** `AddUserGroup` only creates the group record. Use the Edit dialog to assign `PermissionActionIds` and `PermissionViewIds`. The `AddGroupDialog` shows a hint to inform the user.
+
+---
+
+## `UpdateGroupDialog` — `ModuleAccordion` Component
+
+`ModuleAccordion` replaces the old flat `CheckboxSelect` panels. It renders one collapsible accordion panel per module from `group.ModulePermissions`.
+
+### Layout per module panel
+
+```
+▼ UserManagement        [25/25 API]  [1/1 Routes]   ← blue highlight = has grants
+  API Permissions
+  └ ☐ UserManagementController  0/25           ← indeterminate checkbox (select all)
+      ☒ AddAppModule
+      ☒ AddUser
+      ...
+  Route Access
+      ☒ UserManagement   /user-management
+
+► CodeTable             [0/3 API]  [1/1 Routes]   ← collapsed by default (no API grants)
+```
+
+### Behaviour
+
+| Feature | Detail |
+|---------|--------|
+| **Initial open state** | Modules with at least one `IsGranted === true` item start expanded; all others start collapsed |
+| **Expand All / Collapse All** | Buttons in the section header |
+| **Controller select-all** | `IndeterminateCheckbox` toggles all actions for that controller at once |
+| **Selection summary bar** | Shows total selected count with split API/Routes badges, always visible above the accordion |
+| **Color coding** | Blue border + blue header = module has grants; gray = nothing granted |
+| **Source of truth** | `group.ModulePermissions` provides structure; local `actionIds`/`viewIds` state tracks selection |
+| **Submit payload** | Sends flat `PermissionActionIds` + `PermissionViewIds` arrays to `UpdateUserGroup` endpoint |
 
 ---
 

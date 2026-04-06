@@ -708,6 +708,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   }
 
   useEffect(() => {
+    // Don't validate until initialData is fully loaded
+    if (!initialData) return;
+
     const normalizedCategory = modificationCategory?.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
     
     if (normalizedCategory !== 'termination') return;
@@ -724,9 +727,12 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         type: 'error',
         message: 'No terminated components found for this project.'
       });
-      navigate(`/projects/project-details/${projectDetails?.ProjectId}:${projectDetails?.StageName}`); // Go back to previous page /project
+      // Use initialData directly for reliable navigation URL
+      const pid = initialData?.ProjectDetails?.ProjectId || projectDetails?.ProjectId;
+      const stage = initialData?.ProgramDetails?.StageName || projectDetails?.StageName;
+      navigate(`/projects/project-details/${pid}:${stage}`); // Go back to previous page /project
     }
-  }, [modificationCategory, mode]);
+  }, [modificationCategory, mode, initialData]);
 
   return (
     <div className="overflow-hidden w-full mx-auto p-6 space-y-6">

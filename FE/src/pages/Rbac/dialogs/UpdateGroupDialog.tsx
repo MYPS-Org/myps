@@ -1,8 +1,8 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
-import { XMarkIcon, ChevronDownIcon, ChevronUpIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
-import type { vUserGroups, UserGroupDropdowns, UpdateUserGroupPayload, PermissionActions, PermissionViews } from '../Model.d';
+import { XMarkIcon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
+import type { vUserGroups, UserGroupDropdowns, UpdateUserGroupPayload, ModulePermission } from '../Model.d';
 import { editUserGroup } from '../service';
 import { useToast } from '../../../components/toaster/ToasterContext';
 
@@ -12,178 +12,6 @@ interface UpdateGroupDialogProps {
   onSubmit: (groupData: any) => void;
   group: vUserGroups;
   dropdowns: UserGroupDropdowns;
-}
-
-// ---------------------------------------------------------------------------
-// CheckboxSelect — collapsible panel with search + checkboxes
-// ---------------------------------------------------------------------------
-interface CheckboxSelectProps<T> {
-  label: string;
-  items: T[];
-  selectedIds: number[];
-  getId: (item: T) => number;
-  getLabel: (item: T) => string;
-  getSubLabel?: (item: T) => string | undefined;
-  groupBy?: (item: T) => string;
-  onToggle: (id: number) => void;
-  onToggleGroup?: (groupKey: string) => void;
-  placeholder?: string;
-}
-
-function CheckboxSelect<T>({
-  label,
-  items,
-  selectedIds,
-  getId,
-  getLabel,
-  getSubLabel,
-  groupBy,
-  onToggle,
-  onToggleGroup,
-  placeholder = 'Search...',
-}: CheckboxSelectProps<T>) {
-  const [open, setOpen] = useState(true);
-  const [search, setSearch] = useState('');
-
-  const filtered = items.filter(item => {
-    const q = search.toLowerCase();
-    return (
-      getLabel(item).toLowerCase().includes(q) ||
-      (getSubLabel?.(item) || '').toLowerCase().includes(q) ||
-      (groupBy?.(item) || '').toLowerCase().includes(q)
-    );
-  });
-
-  // Build grouped structure if groupBy provided
-  const grouped: Record<string, T[]> | null = groupBy
-    ? filtered.reduce((acc, item) => {
-        const key = groupBy(item);
-        if (!acc[key]) acc[key] = [];
-        acc[key].push(item);
-        return acc;
-      }, {} as Record<string, T[]>)
-    : null;
-
-  return (
-    <div className="border border-gray-200 rounded-lg overflow-hidden">
-      {/* Header row */}
-      <div
-        className="flex items-center justify-between px-4 py-2.5 bg-gray-50 cursor-pointer select-none hover:bg-gray-100 transition-colors"
-        onClick={() => setOpen(o => !o)}
-      >
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-gray-700">{label}</span>
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-            {selectedIds.length} selected
-          </span>
-          {items.length > 0 && (
-            <span className="text-xs text-gray-400">of {items.length}</span>
-          )}
-        </div>
-        {open ? (
-          <ChevronUpIcon className="w-4 h-4 text-gray-400" />
-        ) : (
-          <ChevronDownIcon className="w-4 h-4 text-gray-400" />
-        )}
-      </div>
-
-      {open && (
-        <div>
-          {/* Search */}
-          <div className="px-3 py-2 border-b border-gray-100 bg-white">
-            <div className="relative">
-              <MagnifyingGlassIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-              <input
-                type="text"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder={placeholder}
-                className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white text-gray-900"
-              />
-            </div>
-          </div>
-
-          {/* Items */}
-          <div className="max-h-56 overflow-y-auto divide-y divide-gray-50">
-            {grouped ? (
-              Object.keys(grouped).length === 0 ? (
-                <div className="px-4 py-4 text-center text-xs text-gray-400">No items found</div>
-              ) : (
-                Object.entries(grouped).map(([groupKey, groupItems]) => {
-                  const groupIds = groupItems.map(getId);
-                  const allSelected = groupIds.every(id => selectedIds.includes(id));
-                  const someSelected = groupIds.some(id => selectedIds.includes(id));
-                  return (
-                    <div key={groupKey}>
-                      {/* Controller header row */}
-                      <div
-                        className="flex items-center gap-2 px-3 py-2 bg-gray-50/80 hover:bg-gray-100 cursor-pointer"
-                        onClick={() => onToggleGroup?.(groupKey)}
-                      >
-                        <IndeterminateCheckbox
-                          checked={allSelected}
-                          indeterminate={someSelected && !allSelected}
-                          onChange={() => onToggleGroup?.(groupKey)}
-                        />
-                        <span className="text-xs font-semibold text-gray-600">{groupKey}</span>
-                        <span className="ml-auto text-xs text-gray-400">
-                          {groupIds.filter(id => selectedIds.includes(id)).length}/{groupIds.length}
-                        </span>
-                      </div>
-                      {/* Action rows */}
-                      {groupItems.map(item => (
-                        <div
-                          key={getId(item)}
-                          className="flex items-center gap-2 pl-8 pr-3 py-1.5 hover:bg-blue-50 cursor-pointer"
-                          onClick={() => onToggle(getId(item))}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.includes(getId(item))}
-                            onChange={() => onToggle(getId(item))}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                            onClick={e => e.stopPropagation()}
-                          />
-                          <span className="text-xs text-gray-700">{getLabel(item)}</span>
-                          {getSubLabel?.(item) && (
-                            <span className="text-xs text-gray-400 truncate ml-1">— {getSubLabel(item)}</span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })
-              )
-            ) : (
-              filtered.length === 0 ? (
-                <div className="px-4 py-4 text-center text-xs text-gray-400">No items found</div>
-              ) : (
-                filtered.map(item => (
-                  <div
-                    key={getId(item)}
-                    className="flex items-center gap-2 px-3 py-1.5 hover:bg-blue-50 cursor-pointer"
-                    onClick={() => onToggle(getId(item))}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.includes(getId(item))}
-                      onChange={() => onToggle(getId(item))}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      onClick={e => e.stopPropagation()}
-                    />
-                    <span className="text-xs text-gray-700">{getLabel(item)}</span>
-                    {getSubLabel?.(item) && (
-                      <span className="text-xs text-gray-400 truncate ml-1">— {getSubLabel(item)}</span>
-                    )}
-                  </div>
-                ))
-              )
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -215,6 +43,209 @@ function IndeterminateCheckbox({
 }
 
 // ---------------------------------------------------------------------------
+// ModuleAccordion — accordion by module, with API actions + route access
+// ---------------------------------------------------------------------------
+interface ModuleAccordionProps {
+  modules: ModulePermission[];
+  actionIds: number[];
+  viewIds: number[];
+  onToggleAction: (id: number) => void;
+  onToggleView: (id: number) => void;
+  onToggleAllActionsInController: (controllerName: string) => void;
+}
+
+function ModuleAccordion({
+  modules,
+  actionIds,
+  viewIds,
+  onToggleAction,
+  onToggleView,
+  onToggleAllActionsInController,
+}: ModuleAccordionProps) {
+  const [openModules, setOpenModules] = useState<Set<string>>(() => {
+    const initial = new Set<string>();
+    modules.forEach(m => {
+      const hasGranted =
+        m.APIPermissions.some(api => api.Actions.some(a => a.IsGranted)) ||
+        m.ViewAccess.some(v => v.IsGranted);
+      if (hasGranted) initial.add(m.ModuleName);
+    });
+    return initial;
+  });
+
+  const toggleModule = (name: string) =>
+    setOpenModules(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name); else next.add(name);
+      return next;
+    });
+
+  const expandAll = () => setOpenModules(new Set(modules.map(m => m.ModuleName)));
+  const collapseAll = () => setOpenModules(new Set());
+
+  return (
+    <div>
+      {/* Toolbar */}
+      <div className="flex justify-between items-center mb-2">
+        <span className="text-sm font-medium text-gray-700">Module Permissions</span>
+        <div className="flex gap-2 text-xs">
+          <button type="button" onClick={expandAll} className="text-blue-600 hover:text-blue-800 underline">Expand All</button>
+          <span className="text-gray-300">|</span>
+          <button type="button" onClick={collapseAll} className="text-blue-600 hover:text-blue-800 underline">Collapse All</button>
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        {modules.map(module => {
+          const isOpen = openModules.has(module.ModuleName);
+          const allActionIds = module.APIPermissions.flatMap(api => api.Actions.map(a => a.Id));
+          const grantedActionCount = allActionIds.filter(id => actionIds.includes(id)).length;
+          const totalActionCount = allActionIds.length;
+          const allViewIds = module.ViewAccess.map(v => v.Id);
+          const grantedViewCount = allViewIds.filter(id => viewIds.includes(id)).length;
+          const totalViewCount = allViewIds.length;
+          const hasAnyGranted = grantedActionCount > 0 || grantedViewCount > 0;
+
+          return (
+            <div
+              key={module.ModuleName}
+              className={`border rounded-lg overflow-hidden ${hasAnyGranted ? 'border-blue-200' : 'border-gray-200'}`}
+            >
+              {/* Module header */}
+              <div
+                className={`flex items-center justify-between px-4 py-2.5 cursor-pointer select-none transition-colors ${
+                  hasAnyGranted ? 'bg-blue-50 hover:bg-blue-100' : 'bg-gray-50 hover:bg-gray-100'
+                }`}
+                onClick={() => toggleModule(module.ModuleName)}
+              >
+                <div className="flex items-center gap-2">
+                  {isOpen
+                    ? <ChevronUpIcon className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                    : <ChevronDownIcon className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                  }
+                  <span className={`text-sm font-semibold ${hasAnyGranted ? 'text-blue-800' : 'text-gray-700'}`}>
+                    {module.ModuleName}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {totalActionCount > 0 && (
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                      grantedActionCount > 0 ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'
+                    }`}>
+                      {grantedActionCount}/{totalActionCount} API
+                    </span>
+                  )}
+                  {totalViewCount > 0 && (
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                      grantedViewCount > 0 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                    }`}>
+                      {grantedViewCount}/{totalViewCount} Routes
+                    </span>
+                  )}
+                  {totalActionCount === 0 && totalViewCount === 0 && (
+                    <span className="text-xs text-gray-400 italic">No permissions</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Module body */}
+              {isOpen && (
+                <div className="bg-white divide-y divide-gray-100">
+                  {/* API Permissions */}
+                  {module.APIPermissions.some(api => api.Actions.length > 0) && (
+                    <div className="px-4 py-3">
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">API Permissions</p>
+                      <div className="space-y-1.5">
+                        {module.APIPermissions.filter(api => api.Actions.length > 0).map(api => {
+                          const ctrlIds = api.Actions.map(a => a.Id);
+                          const allSelected = ctrlIds.every(id => actionIds.includes(id));
+                          const someSelected = ctrlIds.some(id => actionIds.includes(id));
+                          return (
+                            <div key={api.ControllerName} className="border border-gray-100 rounded-md overflow-hidden">
+                              {/* Controller header row */}
+                              <div
+                                className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 cursor-pointer"
+                                onClick={() => onToggleAllActionsInController(api.ControllerName)}
+                              >
+                                <IndeterminateCheckbox
+                                  checked={allSelected}
+                                  indeterminate={someSelected && !allSelected}
+                                  onChange={() => onToggleAllActionsInController(api.ControllerName)}
+                                />
+                                <span className="text-xs font-semibold text-gray-600">{api.ControllerName}</span>
+                                <span className="ml-auto text-xs text-gray-400">
+                                  {ctrlIds.filter(id => actionIds.includes(id)).length}/{ctrlIds.length}
+                                </span>
+                              </div>
+                              {/* Action rows */}
+                              <div className="divide-y divide-gray-50">
+                                {api.Actions.map(action => (
+                                  <div
+                                    key={action.Id}
+                                    className="flex items-center gap-2 pl-8 pr-3 py-1.5 hover:bg-blue-50 cursor-pointer"
+                                    onClick={() => onToggleAction(action.Id)}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={actionIds.includes(action.Id)}
+                                      onChange={() => onToggleAction(action.Id)}
+                                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                      onClick={e => e.stopPropagation()}
+                                    />
+                                    <span className="text-xs text-gray-700">{action.ActionName}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Route Access */}
+                  {module.ViewAccess.length > 0 && (
+                    <div className="px-4 py-3">
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Route Access</p>
+                      <div className="space-y-0.5">
+                        {module.ViewAccess.map(view => (
+                          <div
+                            key={view.Id}
+                            className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-green-50 cursor-pointer"
+                            onClick={() => onToggleView(view.Id)}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={viewIds.includes(view.Id)}
+                              onChange={() => onToggleView(view.Id)}
+                              className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                              onClick={e => e.stopPropagation()}
+                            />
+                            <span className="text-xs font-medium text-gray-700">{view.RouteName}</span>
+                            <span className="text-xs text-gray-400 ml-auto truncate max-w-[200px]">{view.RoutePath}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Empty module */}
+                  {!module.APIPermissions.some(api => api.Actions.length > 0) && module.ViewAccess.length === 0 && (
+                    <div className="px-4 py-4 text-center text-xs text-gray-400 italic">
+                      No permissions defined for this module
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main dialog
 // ---------------------------------------------------------------------------
 const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({
@@ -222,7 +253,7 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({
   onClose,
   onSubmit,
   group,
-  dropdowns,
+  dropdowns: _dropdowns,
 }) => {
   const { showToast } = useToast();
   const [groupName, setGroupName] = useState('');
@@ -237,9 +268,16 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({
     if (isOpen && group) {
       setGroupName(group.GroupName || '');
       setDescription(group.Description || '');
-      // Pre-select existing assignments (empty until backend populates the view)
-      setActionIds(group.PermissionActionIds ?? []);
-      setViewIds(group.PermissionViewIds ?? []);
+      // Derive pre-selected IDs from ModulePermissions where IsGranted === true
+      const mods = group.ModulePermissions || [];
+      const grantedActionIds = mods.flatMap(m =>
+        m.APIPermissions.flatMap(api => api.Actions.filter(a => a.IsGranted).map(a => a.Id))
+      );
+      const grantedViewIds = mods.flatMap(m =>
+        m.ViewAccess.filter(v => v.IsGranted).map(v => v.Id)
+      );
+      setActionIds(grantedActionIds);
+      setViewIds(grantedViewIds);
       setError('');
     }
   }, [isOpen, group]);
@@ -252,9 +290,10 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({
     setViewIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
   const toggleAllActionsInController = (controllerName: string) => {
-    const ids = dropdowns.PermissionActions
-      .filter(a => a.ControllerName === controllerName)
-      .map(a => a.Id);
+    const ids = (group?.ModulePermissions || [])
+      .flatMap(m => m.APIPermissions)
+      .filter(api => api.ControllerName === controllerName)
+      .flatMap(api => api.Actions.map(a => a.Id));
     const allSelected = ids.every(id => actionIds.includes(id));
     setActionIds(prev =>
       allSelected
@@ -338,31 +377,30 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({
               </div>
             </div>
 
-            {/* API Permissions — PermissionActionIds */}
-            <CheckboxSelect<PermissionActions>
-              label="API Permissions"
-              items={dropdowns.PermissionActions}
-              selectedIds={actionIds}
-              getId={a => a.Id}
-              getLabel={a => a.ActionName}
-              getSubLabel={a => a.Description}
-              groupBy={a => a.ControllerName}
-              onToggle={toggleActionId}
-              onToggleGroup={toggleAllActionsInController}
-              placeholder="Search by controller or action..."
-            />
+            {/* Selection summary */}
+            <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-lg text-xs text-gray-500">
+              <span className="font-medium text-gray-700">{actionIds.length + viewIds.length}</span>
+              {' '}permission{(actionIds.length + viewIds.length) !== 1 ? 's' : ''} selected
+              <span className="text-gray-300 mx-1">·</span>
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium">{actionIds.length} API</span>
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">{viewIds.length} Routes</span>
+            </div>
 
-            {/* Route Permissions — PermissionViewIds */}
-            <CheckboxSelect<PermissionViews>
-              label="Route Permissions"
-              items={dropdowns.PermissionViews}
-              selectedIds={viewIds}
-              getId={v => v.Id}
-              getLabel={v => v.RouteName || v.RoutePath}
-              getSubLabel={v => v.RouteName ? v.RoutePath : v.Description}
-              onToggle={toggleViewId}
-              placeholder="Search by route name or path..."
-            />
+            {/* Module Permissions Accordion */}
+            {(group?.ModulePermissions?.length ?? 0) > 0 ? (
+              <ModuleAccordion
+                modules={group.ModulePermissions}
+                actionIds={actionIds}
+                viewIds={viewIds}
+                onToggleAction={toggleActionId}
+                onToggleView={toggleViewId}
+                onToggleAllActionsInController={toggleAllActionsInController}
+              />
+            ) : (
+              <div className="text-center py-8 text-sm text-gray-400 border border-dashed border-gray-200 rounded-lg">
+                No module permissions available for this group.
+              </div>
+            )}
 
             {error && (
               <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">

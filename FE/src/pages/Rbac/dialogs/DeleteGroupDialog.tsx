@@ -111,7 +111,11 @@ const DeleteGroupDialog: React.FC<DeleteGroupDialogProps> = ({ isOpen, onClose, 
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Permissions:</span>
                   <Badge color="green">
-                    {(group.PermissionViewIds?.length || 0) + (group.PermissionActionIds?.length || 0)} permissions
+                    {(group.ModulePermissions || []).reduce((sum, m) => {
+                      const actions = m.APIPermissions.reduce((s, api) => s + api.Actions.filter(a => a.IsGranted).length, 0);
+                      const views = m.ViewAccess.filter(v => v.IsGranted).length;
+                      return sum + actions + views;
+                    }, 0)} permissions
                   </Badge>
                 </div>
               </div>
