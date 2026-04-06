@@ -71,7 +71,7 @@ namespace WebAPI.Controllers.GlobalSearch
                     var Projects = await _db.vProjectPerStages.Where(x => x.Description.Contains(dto.SearchFor)).ToListAsync();
                     return Ok(new { Data = Projects, Title = $"{Projects.Count} project/s found." });
                 }
-                if (dto.Category == "Program Name")
+                if (dto.Category == "Program Name") 
                 {
                     var Programs = await _db.vProgramDetails.Where(x => x.Name.Contains(dto.SearchFor)).ToListAsync();
                     return Ok(new { Data = Programs, Title = $"{Programs.Count} program/s found." });
