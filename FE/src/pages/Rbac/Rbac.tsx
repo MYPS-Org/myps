@@ -49,7 +49,6 @@ const Rbac: React.FC = () => {
 		UserFilter, setUserFilter,
 		UserGroupFilter, setUserGroupFilter,
 		isLoadingModules,
-		permissionViewsLookup,
 		userGroupDropdowns,
 		tabNumbers,
 		sortDirection,
@@ -139,12 +138,9 @@ const Rbac: React.FC = () => {
 						data={UserGroupsData}
 						filter={UserGroupFilter}
 						sortDirection={sortDirection}
-						expandedUserGroups={expandedUserGroups}
-						permissionViewsLookup={permissionViewsLookup}
 						onSort={handleSort}
 						onClear={handleClear}
 						onPaginate={Paginate}
-						onExpand={handleExpand}
 						onOpenFilter={() => setIsUserGroupFilterDialogOpen(true)}
 						onAddGroup={() => setIsAddGroupDialogOpen(true)}
 						onEdit={(id) => { setSelectedGroupId(id); setIsUpdateGroupDialogOpen(true); }}
@@ -185,8 +181,7 @@ const Rbac: React.FC = () => {
 							Id: (UserGroupsData.lists?.length || 0) + 1,
 							GroupName: newGroup.GroupName,
 							Description: newGroup.Description,
-							PermissionActionIds: Array.isArray(newGroup.permissionIds) ? newGroup.permissionIds : (newGroup.permissionIds || []),
-							PermissionViewIds: Array.isArray(newGroup.permissionNames) ? newGroup.permissionNames : (newGroup.permissionNames || []),
+							ModulePermissions: [],
 							NumberOfUsers: 0,
 							CreatedBy: '',
 							CreatedDate: new Date().toISOString(),
@@ -255,10 +250,7 @@ const Rbac: React.FC = () => {
 								Id: updatedGroup.id,
 								GroupName: updatedGroup.groupName,
 								Description: updatedGroup.description,
-								PermissionViewIds: updatedGroup.permissionIds
-									? updatedGroup.permissionIds.split(',').map(Number).filter((n: number) => !isNaN(n))
-									: existing?.PermissionViewIds || [],
-								PermissionActionIds: existing?.PermissionActionIds || [],
+								ModulePermissions: existing?.ModulePermissions || [],
 								NumberOfUsers: existing?.NumberOfUsers || 0,
 								CreatedBy: existing?.CreatedBy || '',
 								CreatedDate: existing?.CreatedDate || new Date().toISOString(),
