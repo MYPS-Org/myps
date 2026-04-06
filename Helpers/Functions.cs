@@ -182,7 +182,7 @@ namespace Helpers
             }
             catch (Exception e)
             {
-                File.WriteAllText(Path.Combine($"AAAAAAAA-{filePath}", "error.log"), e.Message);
+                throw new Exception(new { Message = $"Failed to upload file: {e.ToString()}", Title = "File Upload Error" }.ToString());
                 return false;
             }
         }
