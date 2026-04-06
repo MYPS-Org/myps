@@ -182,7 +182,7 @@ namespace Helpers
             }
             catch (Exception e)
             {
-                File.WriteAllText(Path.Combine(AppContext.BaseDirectory, "error.log"), e.Message);
+                File.WriteAllText(Path.Combine($"AAAAAAAA-{filePath}", "error.log"), e.Message);
                 return false;
             }
         }
