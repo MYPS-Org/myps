@@ -141,8 +141,8 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
 
         setIsSubmitting(true);
 
-        const isImplementingOffice = user?.UserGroups === 'DPC' || user?.UserGroups === 'RPC';
-        const isAuc = user?.UserGroups === 'AUC';
+        const isImplementingOffice = user?.UserGroupNames === 'DPC' || user?.UserGroupNames === 'RPC';
+        const isAuc = user?.UserGroupNames === 'AUC';
 
         const shouldCreateNewRevision = isImplementingOffice || (isAuc && !transactionId);
 
