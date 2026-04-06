@@ -24,7 +24,7 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
     name: user.Name || '',
     userId: user.UserId || '',
     email: user.Email || '',
-    userGroups: user.UserGroups ? user.UserGroups.split(',').map(g => g.trim()) : [],
+    userGroupIds: user.UserGroupIds || [] as number[],
     regCode: user.RegCode || '',
     plantillaOffice: user.PlantillaOffice || '',
     isActive: user.IsActive ? 'active' : 'inactive',
@@ -33,12 +33,12 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
   // Update form data when user prop changes
   useEffect(() => {
     setFormData({
-      id: user.Id, 
+      id: user.Id,
       employeeId: user.EmployeeId || '',
       name: user.Name || '',
       userId: user.UserId || '',
       email: user.Email || '',
-      userGroups: user.UserGroups ? user.UserGroups.split(',').map(g => g.trim()) : [],
+      userGroupIds: user.UserGroupIds || [],
       regCode: user.RegCode || '',
       plantillaOffice: user.PlantillaOffice || '',
       isActive: user.IsActive ? 'active' : 'inactive',
@@ -77,10 +77,13 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
   const handleSubmit = async(e: React.FormEvent) => {
     e.preventDefault();
     
-    // Convert userGroups array back to comma-separated string
+    const selectedGroupNames = availableGroups
+      .filter(g => formData.userGroupIds.includes(g.Id))
+      .map(g => g.GroupName || '');
     const submissionData = {
       Id: user.Id,
-      UserGroups: formData.userGroups.join(','),
+      UserGroupIds: formData.userGroupIds,
+      UserGroupNames: selectedGroupNames,
       EmployeeId: formData.employeeId,
       UserId: formData.userId,
       Name: formData.name,
@@ -90,17 +93,6 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
       IsActive: formData.isActive === 'active',
     };
     
-    setFormData({
-      id: 0,
-      employeeId: '',
-      name: '',
-      userId: '',
-      email: '',
-      userGroups: [],
-      regCode: '',
-      plantillaOffice: '',
-      isActive: 'active',
-    });
     try {
       await editUser(submissionData);
       onSubmit(submissionData);
@@ -111,10 +103,10 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
         name: '',
         userId: '',
         email: '',
-        userGroups: [],
+        userGroupIds: [],
         regCode: '',
         plantillaOffice: '',
-        isActive: '',
+        isActive: 'active',
       });
       onClose();
     } catch (error) {
@@ -126,12 +118,12 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleUserGroupChange = (groupName: string, isChecked: boolean) => {
+  const handleUserGroupChange = (groupId: number, isChecked: boolean) => {
     setFormData(prev => ({
       ...prev,
-      userGroups: isChecked
-        ? [...prev.userGroups, groupName]
-        : prev.userGroups.filter(group => group !== groupName)
+      userGroupIds: isChecked
+        ? [...prev.userGroupIds, groupId]
+        : prev.userGroupIds.filter(id => id !== groupId)
     }));
   };
 
@@ -238,8 +230,8 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
                       <div key={group.Id} className="flex items-center mb-2">
                         <input
                           type="checkbox"
-                          checked={formData.userGroups.includes(group.GroupName || '')}
-                          onChange={(e) => handleUserGroupChange(group.GroupName || '', e.target.checked)}
+                          checked={formData.userGroupIds.includes(group.Id)}
+                          onChange={(e) => handleUserGroupChange(group.Id, e.target.checked)}
                           className="mr-2 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                         />
                         <span className="text-sm">{group.GroupName}</span>

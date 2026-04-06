@@ -137,7 +137,7 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 					<Square2StackIcon />
 					<SidebarLabel className="text-gray-500">Program Stages</SidebarLabel>
 			</SidebarItem> */}
-			<SidebarDropdown
+			{/* <SidebarDropdown
 				hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/multiyear/programs')?.RouteName || '') && !ViewAccess.includes(protectedRoutes.find(x => x.path == '/multiyear/projects')?.RouteName || '')}
 				label="Multi-Year Management"
 				defaultOpen={false}
@@ -150,8 +150,8 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 				<SidebarDropdownItem hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/multiyear/projects')?.RouteName || '')} href="/multiyear/projects" current={currentPath === '/multiyear/projects'}>
 					<SidebarLabel>Projects</SidebarLabel>
 				</SidebarDropdownItem>
-			</SidebarDropdown>
-			<SidebarDropdown
+			</SidebarDropdown> */}
+			{/* <SidebarDropdown
 				 hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/reports/programs')?.RouteName || '') && !ViewAccess.includes(protectedRoutes.find(x => x.path == '/reports/projects')?.RouteName || '') && !ViewAccess.includes(protectedRoutes.find(x => x.path == '/reports/multiyear')?.RouteName || '')} 
 				label="Reports"
 				defaultOpen={false}
@@ -164,10 +164,7 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 				<SidebarDropdownItem hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/reports/projects')?.RouteName || '')} href="/reports/projects" current={currentPath === '/reports/projects'}>
 					<SidebarLabel>Projects</SidebarLabel>
 				</SidebarDropdownItem>
-				<SidebarDropdownItem hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/reports/multiyear')?.RouteName || '')} href="/reports/multiyear" current={currentPath === '/reports/multiyear'}>
-					<SidebarLabel>Multi-Year</SidebarLabel>
-				</SidebarDropdownItem>
-			</SidebarDropdown>
+			</SidebarDropdown> */}
 			<SidebarDropdown
 				hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/settings')?.RouteName || '') && !ViewAccess.includes(protectedRoutes.find(x => x.path == '/code-tables')?.RouteName || '') && !ViewAccess.includes(protectedRoutes.find(x => x.path == '/settings/security')?.RouteName || '') && !ViewAccess.includes(protectedRoutes.find(x => x.path == '/user-management')?.RouteName || '') && !ViewAccess.includes(protectedRoutes.find(x => x.path == '/infrastructure-management')?.RouteName || '')}
 				label="Settings"
@@ -179,10 +176,10 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 					<TableCellsIcon />
 					<SidebarLabel>Code Tables</SidebarLabel>
 				</SidebarDropdownItem>
-				<SidebarDropdownItem hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/settings/security')?.RouteName || '')} href="/settings/security" current={currentPath === '/settings/security'}>
+				{/* <SidebarDropdownItem hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/settings/security')?.RouteName || '')} href="/settings/security" current={currentPath === '/settings/security'}>
 					<ShieldCheckIcon />
 					<SidebarLabel>Security</SidebarLabel>
-				</SidebarDropdownItem>
+				</SidebarDropdownItem> */}
 				<SidebarDropdownItem hidden={!ViewAccess.includes(protectedRoutes.find(x => x.path == '/user-management')?.RouteName || '')} href="/user-management" current={currentPath === '/user-management'}>
 					<UsersIcon />
 					<SidebarLabel>User Management</SidebarLabel>
@@ -195,10 +192,10 @@ const currentPath = typeof window !== 'undefined' ? window.location.pathname : '
 			</SidebarSection>
 			<SidebarSpacer />
 			<SidebarSection>
-			<SidebarItem href="/support" current={currentPath === '/support'}>
+			{/* <SidebarItem href="/support" current={currentPath === '/support'}>
 				<QuestionMarkCircleIcon />
 				<SidebarLabel>Support</SidebarLabel>
-			</SidebarItem>
+			</SidebarItem> */}
 			{/* <SidebarItem href="/changelog">
 				<SparklesIcon />
 				<SidebarLabel>Changelog</SidebarLabel>

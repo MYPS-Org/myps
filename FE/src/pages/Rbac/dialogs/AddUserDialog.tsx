@@ -101,6 +101,12 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
       }
       
       // Map form data to Users interface
+      const selectedGroupNames = availableGroups
+        .filter(g => formData.userGroups.includes(g.GroupName || ''))
+        .map(g => g.GroupName || '');
+      const selectedGroupIds = availableGroups
+        .filter(g => formData.userGroups.includes(g.GroupName || ''))
+        .map(g => g.Id);
       const userData = {
         Id: 0, // Will be set by the backend
         EmployeeId: formData.employeeId,
@@ -110,7 +116,8 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
         RegCode: formData.regCode || '',
         PlantillaOffice: formData.plantillaOffice,
         IsActive: formData.isActive === 'active',
-        UserGroups: formData.userGroups.join(',') // Convert array to comma-separated string
+        UserGroupIds: selectedGroupIds,
+        UserGroupNames: selectedGroupNames,
       };
       
       const response = await addUser(userData);
