@@ -107,7 +107,6 @@ namespace WebAPI.Controllers.Auth
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> Validate()
         {
@@ -140,13 +139,20 @@ namespace WebAPI.Controllers.Auth
                 return ExceptionHandler(ex); 
             }
         }
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> Logout()
         {
             try
             {
-                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                return Ok(new { Message = "Logout successful", Data = new { Authenticated = false, User = new { } } });
+                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme, new AuthenticationProperties
+                {
+                    IsPersistent = true,
+                    RedirectUri = "/login"
+                });
+
+                return SignOut(new AuthenticationProperties { RedirectUri = "/login" },
+                    CookieAuthenticationDefaults.AuthenticationScheme);
             }
             catch (Exception ex)
             {

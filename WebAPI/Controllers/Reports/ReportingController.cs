@@ -32,7 +32,7 @@ namespace WebAPI.Controllers.Revision
     {
         public ReportingController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
         #region AIP 
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> GetAIPReportDropdowns()
         {
@@ -71,7 +71,7 @@ namespace WebAPI.Controllers.Revision
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> RequestReportAIP([FromBody] RequestReportAIPDTO dto)
         {
@@ -131,7 +131,7 @@ namespace WebAPI.Controllers.Revision
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> RequestReportAIP02([FromBody] RequestReportAIPDTO dto)
         {
@@ -195,7 +195,7 @@ namespace WebAPI.Controllers.Revision
         #endregion
 
         #region RBPComponents
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> GetRBPReportDropdowns()
         {
@@ -214,7 +214,7 @@ namespace WebAPI.Controllers.Revision
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> RequestReportRBPComponents([FromBody] RequestReportRBPComponentsDTO dto)
         {
@@ -251,7 +251,7 @@ namespace WebAPI.Controllers.Revision
         #endregion
 
         #region RBP
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> RequestReportRBP(RequestReportRBPDTO dto)
         {
@@ -287,7 +287,7 @@ namespace WebAPI.Controllers.Revision
         #endregion
 
         #region RBPTier
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> RequestReportRBPTier(RequestReportRBPTierDTO dto)
         {
@@ -324,7 +324,7 @@ namespace WebAPI.Controllers.Revision
         #endregion
 
         #region RDIP
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> GetRDIPReportDropdowns()
         {
@@ -343,7 +343,7 @@ namespace WebAPI.Controllers.Revision
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> RequestReportRDIP([FromBody] RequestReportRDIPDTO dto)
         {
@@ -380,7 +380,7 @@ namespace WebAPI.Controllers.Revision
         #endregion
 
         #region Export Raw Projects
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> RequestRawProjects([FromBody] RequestRawProjectsDTO dto)
         {

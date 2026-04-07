@@ -38,7 +38,7 @@ class AuthService {
     const response = await httpClient.post<null>(
       '/auth/logout',
       null,
-      { preloaderMessage: "Signing you out..." }
+      { preloaderMessage: "Signing you out...", withCredentials: true }
     );
     console.log('✅ Logout successful - cookie cleared by server');
     return response;
@@ -51,7 +51,7 @@ class AuthService {
       const response = await httpClient.post<{ message: string; Authenticated: boolean; User?: any }>(
         '/auth/validate',
         null,
-        { preloaderMessage: "Validating session..." }
+        { preloaderMessage: "Validating session...", withCredentials: true }
       );
       console.log('✅ Session validation completed:', response.Data.Authenticated ? 'Valid' : 'Invalid');
       return response;

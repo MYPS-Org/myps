@@ -39,13 +39,23 @@ namespace Main
                 .AddCookie(options =>
                 {
                     options.Cookie.HttpOnly = true; // Protect against XSS
-                    options.Cookie.SameSite = Appsetting.Environment == "Production"
-                        ? SameSiteMode.Strict
-                        : SameSiteMode.Lax;              // ← works on HTTP, no Secure flag needed
+                    if (Appsetting.Environment == "Development")
+                    {
+                        options.Cookie.SameSite = SameSiteMode.Lax; // cross-origin localhost
+                        options.Cookie.SecurePolicy = CookieSecurePolicy.None; // allow HTTP
+                    }
+                    else if (Appsetting.Environment == "Staging")
+                    {
+                        options.Cookie.SameSite = SameSiteMode.Lax;  // same domain
+                        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+                    }
+                    else // Production
+                    {
+                        options.Cookie.SameSite = SameSiteMode.Strict;
+                        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+                    }
 
-                    options.Cookie.SecurePolicy = Appsetting.Environment == "Production"
-                        ? CookieSecurePolicy.Always
-                        : CookieSecurePolicy.SameAsRequest; // ← HTTP request = HTTP cookie, no forced HTTPS
+
                     options.Cookie.Name = CookieAuthenticationDefaults.AuthenticationScheme; // Custom cookie name
                     //options.LoginPath = "/login"; // Redirect unauthorized users
                     //options.AccessDeniedPath = "/login"; // Handle forbidden access
@@ -66,12 +76,6 @@ namespace Main
                         return context.Response.WriteAsJsonAsync(responseObj);
                     };
                 });
-            Services.AddAuthorization(Options =>
-            {
-                Options.AddPolicy("Admin", policy => policy.RequireRole("Admin"));
-                Options.AddPolicy("Club", policy => policy.RequireRole("Club"));
-                Options.AddPolicy("User", policy => policy.RequireRole("User"));
-            });
             return Services;
         }
         public static async Task<IServiceCollection> AuthRolesBasedOnDbAsync(this IServiceCollection services)

@@ -45,13 +45,17 @@ export interface PermissionFilter {
 //#region Users Models
 export interface Users {
 	Id: number;
-	UserGroups?: string;
+	UserGroupIds?: number[];
+	UserGroupNames?: string[];
+	ApplyFilter?: boolean;
 	EmployeeId?: string;
 	UserId: string;
 	Name: string;
 	Email?: string;
 	RegCode: string;
+	RegName?: string;
 	PlantillaOffice?: string;
+	PlantillaOfficeName?: string;
 	IsActive: boolean;
 }
 export interface UserPagination extends PaginationParams {

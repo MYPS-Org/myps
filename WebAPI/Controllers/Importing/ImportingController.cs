@@ -31,7 +31,7 @@ namespace WebAPI.Controllers.Importing
     public class ImportingController : CoreController
     {
         public ImportingController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> ImportProject([FromBody] ImportProjectDTO dto)
         {

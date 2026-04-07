@@ -1,6 +1,8 @@
 ﻿using DBHelper.Data;
 using Eaf.Authorization;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
@@ -47,7 +49,9 @@ namespace WebAPI.Controllers
                     context.Result = new ObjectResult(new
                     {
                         Message = "Authorization service is unavailable.",
-                        Title = "Service Unavailable"
+                        Title = "Service Unavailable",
+                        data = new { Authenticated = false },
+                        user = new { }
                     })
                     { StatusCode = 503 };
                     return;
@@ -59,8 +63,11 @@ namespace WebAPI.Controllers
                 {
                     context.Result = new UnauthorizedObjectResult(new
                     {
-                        Message = "You must be logged in to access this resource.",
-                        Title = "Unauthorized"
+                        Message = $"You must be logged in to access this resource.",
+                        Title = "Unauthorized",
+                        data = new { Authenticated = false },
+                        user = new { },
+                        Redirect = "/login"
                     });
                     return;
                 }
@@ -84,7 +91,8 @@ namespace WebAPI.Controllers
                         Message = "Your account is inactive. Please contact your administrator.",
                         Title = "Access Denied",
                         data = new { Authenticated = false },
-                        user = new { }
+                        user = new { },
+                        Redirect = "/login"
                     };
                     context.Result = new UnauthorizedObjectResult(responseObj);
                     return;
@@ -104,11 +112,12 @@ namespace WebAPI.Controllers
                     var responseObj = new
                     {
                         Message = $"You do not have permission to perform '{actionName}' on '{controllerName}'.",
-                        Title = "Access Denied",
-                        data = new { Authenticated = false },
-                        user = new { }
+                        Title = "Access Denied"
                     };
-                    context.Result = new UnauthorizedObjectResult(responseObj);
+                    context.Result = new ObjectResult(responseObj)
+                    {
+                        StatusCode = StatusCodes.Status403Forbidden
+                    };
                     return;
                 }
             }

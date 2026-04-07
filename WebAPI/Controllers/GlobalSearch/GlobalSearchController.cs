@@ -17,7 +17,7 @@ namespace WebAPI.Controllers.GlobalSearch
     public class GlobalSearchController : CoreController
     {
         public GlobalSearchController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> GetSearchCategory()
         {
@@ -41,7 +41,7 @@ namespace WebAPI.Controllers.GlobalSearch
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> Search([FromBody] SearchDTO dto)
         {

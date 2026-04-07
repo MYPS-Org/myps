@@ -155,120 +155,396 @@ namespace Helpers
             byte[] fileBytes = Convert.FromBase64String(base64Data);
             return fileBytes.LongLength <= maxBytes;
         }
-
-        public static bool UploadFile(this FileUpload File, string FilePath)
+        public static bool UploadFile(this FileUpload file, string filePath)
         {
             try
             {
-                if (File.IsFileCorrupted())
-                {
+                // Layer 1: Corruption check
+                if (file.IsFileCorrupted())
                     return false;
-                }
-                string folder = Path.GetDirectoryName(FilePath)!;
-                if (!Directory.Exists(folder))
-                {
+
+                // Layer 2: FilePath guard
+                if (string.IsNullOrWhiteSpace(filePath))
+                    return false;
+
+                // Layer 3: Decode (reuses the same padding-safe helper)
+                if (!TryDecodeBase64(file.DataUrl, out byte[] fileBytes))
+                    return false;
+
+                // Layer 4: Create directory if it doesn't exist
+                string folder = Path.GetDirectoryName(filePath)!;
+                if (!string.IsNullOrWhiteSpace(folder) && !Directory.Exists(folder))
                     Directory.CreateDirectory(folder);
-                }
-                string base64Data = File.DataUrl.Contains(",")
-                    ? File.DataUrl.Split(',')[1]
-                    : File.DataUrl;
-                byte[] fileBytes = Convert.FromBase64String(base64Data);
-                System.IO.File.WriteAllBytes(FilePath, fileBytes);
+
+                // Layer 5: Write to disk
+                System.IO.File.WriteAllBytes(filePath, fileBytes);
+                return true;
+            }
+            catch (Exception e)
+            {
+                throw new Exception(new { Message = $"Failed to upload file: {e.ToString()}", Title = "File Upload Error" }.ToString());
+                return false;
+            }
+        }
+        // -------------------------------------------------------------------------
+        // Compiled Regexes (shared, allocated once)
+        // -------------------------------------------------------------------------
+        private static readonly Regex Base64Regex = new(
+            @"^[a-zA-Z0-9\+/]*={0,2}$",
+            RegexOptions.Compiled
+        );
+        private static readonly Regex PdfVersionRegex = new(
+            @"^[12]\.\d",
+            RegexOptions.Compiled
+        );
+        private static readonly Regex PdfObjectRegex = new(
+            @"\d+\s+\d+\s+obj",
+            RegexOptions.Compiled
+        );
+        private static readonly Regex XrefOffsetRegex = new(
+            @"startxref\s+(\d+)\s*%%EOF",
+            RegexOptions.Compiled
+        );
+
+        // -------------------------------------------------------------------------
+        // Allowed types
+        // -------------------------------------------------------------------------
+        private static readonly string[] AllowedImageExtensions = { "jpg", "jpeg", "png" };
+        private static readonly string[] AllowedExcelExtensions = { "xls", "xlsx" };
+        private static readonly string[] AllowedExcelContentTypes =
+        {
+            "application/vnd.ms-excel",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/excel",
+            "application/x-excel",
+            "application/x-msexcel"
+        };
+
+        // -------------------------------------------------------------------------
+        // Entry point
+        // -------------------------------------------------------------------------
+        public static bool IsFileCorrupted(this FileUpload file)
+        {
+            try
+            {
+                // Null guard
+                if (file is null)
+                    return true;
+
+                // DataUrl must be present
+                if (string.IsNullOrWhiteSpace(file.DataUrl))
+                    return true;
+
+                // Must be able to decode before routing
+                var result = TryDecodeBase64(file.DataUrl, out byte[] fileBytes);
+                if (!result || fileBytes is null || fileBytes.Length == 0)
+                    return true;
+
+                string ext = file.Extension.TrimStart('.').ToLowerInvariant().Trim();
+
+                if (AllowedImageExtensions.Contains(ext))
+                    return file.IsPhotoCorrupted();
+
+                if (ext == "pdf")
+                    return file.IsPdfCorrupted();
+
+                if (AllowedExcelExtensions.Contains(ext))
+                    return file.IsExcelCorrupted();
+
+                // Unknown extension — reject
                 return true;
             }
             catch
             {
-                return false;
+                return true;
             }
         }
-        public static bool IsFileCorrupted(this FileUpload File)
-        {
-            string base64Data = File.DataUrl.Contains(",")
-                ? File.DataUrl.Split(',')[1]
-                : File.DataUrl;
-            byte[] fileBytes = Convert.FromBase64String(base64Data);
-            if (fileBytes.Length == 0)
-            {
-                return false;
-            }
-            string FileName = File.Name;
-            string Extension = File.Extension;
-            var AllowedPngs = new[] { "jpg", "jpeg", "png" };
-            return AllowedPngs.Contains(Extension) ? File.IsPhotoCorrupted() : (Extension == "pdf" ? File.IsPdfCorrupted() : File.IsExcelCorrupted());
-        }
+
+        // -------------------------------------------------------------------------
+        // Image validation (jpg, jpeg, png)
+        // -------------------------------------------------------------------------
         public static bool IsPhotoCorrupted(this FileUpload file)
         {
             try
             {
-                string base64Data = file.DataUrl.Contains(",")
-                    ? file.DataUrl.Split(',')[1]
-                    : file.DataUrl;
+                // Layer 1: Null guard
+                if (file is null)
+                    return true;
 
-                byte[] imageBytes = Convert.FromBase64String(base64Data);
+                // Layer 2: Extension check
+                string ext = file.Extension.TrimStart('.').ToLowerInvariant().Trim();
+                if (!AllowedImageExtensions.Contains(ext))
+                    return true;
 
+                // Layer 3: ContentType check
+                if (string.IsNullOrWhiteSpace(file.ContentType) ||
+                    !file.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+                    return true;
+
+                // Layer 4: Decode base64
+                if (!TryDecodeBase64(file.DataUrl, out byte[] imageBytes))
+                    return true;
+
+                if (imageBytes is null || imageBytes.Length == 0)
+                    return true;
+
+                // Layer 5: Magic bytes check
+                // PNG: 89 50 4E 47
+                // JPG: FF D8 FF
+                bool isPng = imageBytes.Length >= 4 &&
+                             imageBytes[0] == 0x89 &&
+                             imageBytes[1] == 0x50 &&
+                             imageBytes[2] == 0x4E &&
+                             imageBytes[3] == 0x47;
+
+                bool isJpg = imageBytes.Length >= 3 &&
+                             imageBytes[0] == 0xFF &&
+                             imageBytes[1] == 0xD8 &&
+                             imageBytes[2] == 0xFF;
+
+                if (!isPng && !isJpg)
+                    return true;
+
+                // Layer 6: Match declared extension against actual magic bytes
+                if (ext == "png" && !isPng)
+                    return true;
+
+                if ((ext == "jpg" || ext == "jpeg") && !isJpg)
+                    return true;
+
+                // Layer 7: Full decode via ImageSharp (catches truncated/corrupted images)
                 using var ms = new MemoryStream(imageBytes);
                 using var image = SixLabors.ImageSharp.Image.Load(ms);
-
-                return image == null;
+                return image is null || image.Width == 0 || image.Height == 0;
             }
             catch
             {
-                return true; // Corrupted or invalid image
+                return true;
             }
         }
+
+        // -------------------------------------------------------------------------
+        // PDF validation
+        // -------------------------------------------------------------------------
         public static bool IsPdfCorrupted(this FileUpload file)
         {
             try
             {
-                if (file.ContentType != "application/pdf")
+                // Layer 1: Null guard
+                if (file is null)
                     return true;
 
-                string base64Data = file.DataUrl.Contains(",")
-                    ? file.DataUrl.Split(',')[1]
-                    : file.DataUrl;
+                // Layer 2: ContentType check
+                if (string.IsNullOrWhiteSpace(file.ContentType) ||
+                    !file.ContentType.Equals("application/pdf", StringComparison.OrdinalIgnoreCase))
+                    return true;
 
-                byte[] imageBytes = Convert.FromBase64String(base64Data);
+                // Layer 3: Extension check
+                string ext = file.Extension.TrimStart('.').ToLowerInvariant().Trim();
+                if (ext != "pdf")
+                    return true;
 
-                using (var ms = new MemoryStream(imageBytes))
-                {
-                    using var reader = new BinaryReader(ms);
-                    var signature = reader.ReadBytes(5);
-                    return !Encoding.ASCII.GetString(signature).StartsWith("%PDF-");
-                }
+                // Layer 4: Decode base64
+                if (!TryDecodeBase64(file.DataUrl, out byte[] pdfBytes))
+                    return true;
+
+                // Layer 5: Minimum viable PDF size
+                if (pdfBytes is null || pdfBytes.Length < 67)
+                    return true;
+
+                // Layer 6: Magic bytes — %PDF- (byte-level)
+                if (pdfBytes[0] != 0x25 || // %
+                    pdfBytes[1] != 0x50 || // P
+                    pdfBytes[2] != 0x44 || // D
+                    pdfBytes[3] != 0x46 || // F
+                    pdfBytes[4] != 0x2D)   // -
+                    return true;
+
+                // Layer 7: PDF version must be 1.x or 2.x
+                if (pdfBytes.Length < 8)
+                    return true;
+
+                string version = Encoding.ASCII.GetString(pdfBytes, 5, 3);
+                if (!PdfVersionRegex.IsMatch(version))
+                    return true;
+
+                // Layer 8: Must contain at least one object definition in header region
+                string headerRegion = Encoding.ASCII.GetString(pdfBytes, 0, Math.Min(pdfBytes.Length, 4096));
+                if (!PdfObjectRegex.IsMatch(headerRegion))
+                    return true;
+
+                // Layer 9: %%EOF must be within the last 128 bytes (strict tail)
+                int eofLen = Math.Min(128, pdfBytes.Length);
+                string eofRegion = Encoding.ASCII.GetString(pdfBytes, pdfBytes.Length - eofLen, eofLen);
+                if (!eofRegion.Contains("%%EOF"))
+                    return true;
+
+                // Layer 10: startxref must exist in trailer region
+                int trailerLen = Math.Min(1024, pdfBytes.Length);
+                string trailerRegion = Encoding.ASCII.GetString(pdfBytes, pdfBytes.Length - trailerLen, trailerLen);
+                if (!trailerRegion.Contains("startxref"))
+                    return true;
+
+                // Layer 11: startxref and %%EOF must appear together in sequence
+                var xrefMatch = XrefOffsetRegex.Match(trailerRegion);
+                if (!xrefMatch.Success)
+                    return true;
+
+                // Layer 12: xref offset must be within file bounds
+                if (!long.TryParse(xrefMatch.Groups[1].Value, out long xrefOffset))
+                    return true;
+
+                if (xrefOffset <= 0 || xrefOffset >= pdfBytes.Length)
+                    return true;
+
+                // Layer 13: Byte at xref offset must be a valid xref table or xref stream
+                // Supports both classic xref tables (PDF 1.0–1.4) and
+                // xref streams (PDF 1.5+ used by Adobe signed documents)
+                string xrefContent = Encoding.ASCII.GetString(
+                    pdfBytes,
+                    (int)xrefOffset,
+                    Math.Min(20, pdfBytes.Length - (int)xrefOffset)
+                );
+
+                bool hasXrefTable = xrefContent.TrimStart().StartsWith("xref", StringComparison.OrdinalIgnoreCase);
+                bool hasXrefStream = Regex.IsMatch(xrefContent.TrimStart(), @"^\d+\s+0\s+obj");
+
+                if (!hasXrefTable && !hasXrefStream)
+                    return true;
+
+                return false; // All checks passed
             }
             catch
             {
                 return true;
             }
         }
+
+        // -------------------------------------------------------------------------
+        // Excel validation (xls, xlsx)
+        // -------------------------------------------------------------------------
         public static bool IsExcelCorrupted(this FileUpload file)
         {
             try
             {
-                var allowedExtensions = new[] { ".xls", ".xlsx" };
-                var extension = Path.GetExtension(file.Extension).ToLowerInvariant();
-
-                if (!allowedExtensions.Contains(extension))
+                // Layer 1: Null guard
+                if (file is null)
                     return true;
 
-                if (!file.ContentType.Contains("excel") &&
-                    !file.ContentType.Contains("spreadsheet"))
+                // Layer 2: Extension check
+                string ext = file.Extension.TrimStart('.').ToLowerInvariant().Trim();
+                if (!AllowedExcelExtensions.Contains(ext))
                     return true;
 
-                string base64Data = file.DataUrl.Contains(",")
-                    ? file.DataUrl.Split(',')[1]
-                    : file.DataUrl;
+                // Layer 3: ContentType check (normalized list)
+                if (string.IsNullOrWhiteSpace(file.ContentType) ||
+                    !AllowedExcelContentTypes.Any(ct =>
+                        file.ContentType.Contains(ct, StringComparison.OrdinalIgnoreCase)))
+                    return true;
 
-                byte[] excelBytes = Convert.FromBase64String(base64Data);
-                using var stream = new MemoryStream(excelBytes);
+                // Layer 4: Decode base64
+                if (!TryDecodeBase64(file.DataUrl, out byte[] excelBytes))
+                    return true;
 
-                using var package = new ExcelPackage(stream);
-                var workbook = package.Workbook;
-                return workbook == null || workbook.Worksheets.Count == 0;
+                if (excelBytes is null || excelBytes.Length == 0)
+                    return true;
+
+                // Layer 5: Magic bytes check
+                // XLSX (ZIP/OOXML): PK header — 50 4B 03 04
+                // XLS (OLE2):       D0 CF 11 E0
+                bool isXlsx = excelBytes.Length >= 4 &&
+                              excelBytes[0] == 0x50 &&
+                              excelBytes[1] == 0x4B &&
+                              excelBytes[2] == 0x03 &&
+                              excelBytes[3] == 0x04;
+
+                bool isXls = excelBytes.Length >= 4 &&
+                             excelBytes[0] == 0xD0 &&
+                             excelBytes[1] == 0xCF &&
+                             excelBytes[2] == 0x11 &&
+                             excelBytes[3] == 0xE0;
+
+                if (!isXlsx && !isXls)
+                    return true;
+
+                // Layer 6: Match declared extension against actual magic bytes
+                if (ext == "xlsx" && !isXlsx)
+                    return true;
+
+                if (ext == "xls" && !isXls)
+                    return true;
+
+                // Layer 7: Full structural parse via EPPlus
+                // Note: EPPlus only supports xlsx — for xls fallback to magic bytes only
+                if (isXlsx)
+                {
+                    using var ms = new MemoryStream(excelBytes);
+                    using var package = new ExcelPackage(ms);
+                    var workbook = package.Workbook;
+
+                    if (workbook is null || workbook.Worksheets.Count == 0)
+                        return true;
+                }
+
+                return false; // All checks passed
             }
             catch
             {
                 return true;
+            }
+        }
+
+        // -------------------------------------------------------------------------
+        // Shared base64 decode helper
+        // Handles: padding normalization, data URI prefix stripping,
+        //          header validation, character set check
+        // -------------------------------------------------------------------------
+        private static bool TryDecodeBase64(string dataUrl, out byte[] bytes)
+        {
+            bytes = Array.Empty<byte>();
+
+            try
+            {
+                if (string.IsNullOrWhiteSpace(dataUrl))
+                    return false;
+
+                string base64Data;
+
+                if (dataUrl.Contains(','))
+                {
+                    var parts = dataUrl.Split(',');
+                    if (parts.Length < 2 || string.IsNullOrWhiteSpace(parts[1]))
+                        return false;
+
+                    // Header must contain "base64"
+                    if (!parts[0].ToLowerInvariant().Contains("base64"))
+                        return false;
+
+                    base64Data = parts[1].Trim();
+                }
+                else
+                {
+                    base64Data = dataUrl.Trim();
+                }
+
+                if (base64Data.Length == 0)
+                    return false;
+
+                // Normalize padding — browsers often strip trailing '='
+                base64Data = base64Data.PadRight(
+                    base64Data.Length + (4 - base64Data.Length % 4) % 4, '='
+                );
+
+                // Validate character set
+                if (!Base64Regex.IsMatch(base64Data))
+                    return false;
+
+                bytes = Convert.FromBase64String(base64Data);
+                return bytes.Length > 0;
+            }
+            catch
+            {
+                return false;
             }
         }
         public static string ToOrdinal(this int number)

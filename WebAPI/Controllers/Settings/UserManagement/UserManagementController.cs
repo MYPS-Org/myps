@@ -801,7 +801,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> SyncViewPermissions([FromBody] SyncViewPermissionsDTO dto)
         {
@@ -1022,7 +1022,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> SyncAPIPermissions()
         {
