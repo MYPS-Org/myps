@@ -41,7 +41,7 @@ namespace Main
                     options.Cookie.HttpOnly = true; // Protect against XSS
                     if (Appsetting.Environment == "Development")
                     {
-                        options.Cookie.SameSite = SameSiteMode.None; // cross-origin localhost
+                        options.Cookie.SameSite = SameSiteMode.Lax; // cross-origin localhost
                         options.Cookie.SecurePolicy = CookieSecurePolicy.None; // allow HTTP
                     }
                     else if (Appsetting.Environment == "Staging")
