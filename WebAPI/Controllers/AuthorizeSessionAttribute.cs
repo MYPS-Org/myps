@@ -1,6 +1,8 @@
 ﻿using DBHelper.Data;
 using Eaf.Authorization;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Controllers;
@@ -112,7 +114,10 @@ namespace WebAPI.Controllers
                         Message = $"You do not have permission to perform '{actionName}' on '{controllerName}'.",
                         Title = "Access Denied"
                     };
-                    context.Result = new UnauthorizedObjectResult(responseObj);
+                    context.Result = new ObjectResult(responseObj)
+                    {
+                        StatusCode = StatusCodes.Status403Forbidden
+                    };
                     return;
                 }
             }
