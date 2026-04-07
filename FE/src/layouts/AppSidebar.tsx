@@ -53,7 +53,9 @@ import protectedRoutes from '../components/Routes'
 const handleLogout = async () => {
 	try {
 		await authService.logout();
-		//window.location.href = '/login';
+		setTimeout(() => {
+			window.location.href = '/login';
+		}, 1000);
 	} catch (error) {
 		console.error('Logout failed:', error);
 		alert('Logout failed. Please try again.');

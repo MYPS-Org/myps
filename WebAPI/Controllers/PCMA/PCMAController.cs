@@ -17,7 +17,6 @@ namespace WebAPI.Controllers.MockUps
     {
         public PCMAController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
         [HttpPost]
-        
         public async Task<IActionResult> PublishProgram([FromBody] PublishProgramDTO dto)
         {
             try
@@ -36,7 +35,7 @@ namespace WebAPI.Controllers.MockUps
                 var pcmaData = new PublishPCMA
                 {
                     ProgramId = dto.ProgramId,
-                    MYPSUserName = "testuser"
+                    MYPSUserName = _Session.UserId
                 };
                 var request = new PCMA(pcmaData);
                 var employee = await APIRequest.XML(request);
