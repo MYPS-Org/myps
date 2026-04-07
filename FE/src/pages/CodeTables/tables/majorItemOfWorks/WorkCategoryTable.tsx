@@ -4,6 +4,7 @@ import { Button } from '../../../../components/tailwindui/button';
 import { PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useCodeTableContext } from '../../CodeTableContext';
 import { updateCodeTable } from '../../Service';
+import { useToast } from '../../../../components/toaster/ToasterContext';
 import ConfirmDialog from '../../dialogs/ConfirmDialog';
 import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
 
@@ -30,7 +31,8 @@ const WorkCategoryTable: React.FC = () => {
   const [editId, setEditId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<FormState>(EMPTY_FORM);
   const [deleteConfirmSourceId, setDeleteConfirmSourceId] = useState<number | null>(null);
-  const { data: codeTableData, loading } = useCodeTableContext();
+  const { data: codeTableData, loading, refetch } = useCodeTableContext();
+  const { showToast } = useToast();
   const confirm = useConfirmDialog();
 
   const allData = useMemo<WorkCategoryRow[]>(() => {
@@ -82,7 +84,13 @@ const WorkCategoryTable: React.FC = () => {
         { label: 'Work Category',  value: addForm.category },
       ],
       onConfirm: async () => {
-        await updateCodeTable(CODE, 0, JSON.stringify({ InfraType: addForm.infraType, WorkCategory: addForm.category }));
+        try {
+          await updateCodeTable(CODE, 0, JSON.stringify({ InfraType: addForm.infraType, WorkCategory: addForm.category }));
+          showToast({ type: 'success', message: 'Work category added successfully.' });
+          await refetch();
+        } catch {
+          showToast({ type: 'error', message: 'Failed to add work category.' });
+        }
         confirm.close();
         setAddForm(null);
       },
@@ -98,7 +106,13 @@ const WorkCategoryTable: React.FC = () => {
         { label: 'Work Category',  value: editForm.category },
       ],
       onConfirm: async () => {
-        await updateCodeTable(CODE, 1, JSON.stringify({ Id: row.sourceId, InfraType: editForm.infraType, WorkCategory: editForm.category }));
+        try {
+          await updateCodeTable(CODE, 1, JSON.stringify({ Id: row.sourceId, InfraType: editForm.infraType, WorkCategory: editForm.category }));
+          showToast({ type: 'success', message: 'Work category updated successfully.' });
+          await refetch();
+        } catch {
+          showToast({ type: 'error', message: 'Failed to update work category.' });
+        }
         confirm.close();
         cancelEdit();
       },
@@ -106,7 +120,13 @@ const WorkCategoryTable: React.FC = () => {
   };
 
   const confirmDelete = async (sourceId: number) => {
-    await updateCodeTable(CODE, 2, JSON.stringify({ Id: sourceId }));
+    try {
+      await updateCodeTable(CODE, 2, JSON.stringify({ Id: sourceId }));
+      showToast({ type: 'success', message: 'Work category deleted.' });
+      await refetch();
+    } catch {
+      showToast({ type: 'error', message: 'Failed to delete work category.' });
+    }
     setDeleteConfirmSourceId(null);
   };
 

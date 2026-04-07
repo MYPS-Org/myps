@@ -5,6 +5,7 @@ import { PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon, CheckIcon, XMarkI
 import type { InfraTypeEnum } from '../../../Project/Model.d';
 import { useCodeTableContext } from '../../CodeTableContext';
 import { updateCodeTable } from '../../Service';
+import { useToast } from '../../../../components/toaster/ToasterContext';
 import ConfirmDialog from '../../dialogs/ConfirmDialog';
 import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
 
@@ -22,7 +23,8 @@ const InfraTypeTable: React.FC = () => {
   const [editId, setEditId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<FormState>(EMPTY_FORM);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
-  const { data: codeTableData, loading } = useCodeTableContext();
+  const { data: codeTableData, loading, refetch } = useCodeTableContext();
+  const { showToast } = useToast();
   const confirm = useConfirmDialog();
 
   const data: InfraTypeEnum[] = codeTableData?.InfraTypes ?? [];
@@ -49,7 +51,13 @@ const InfraTypeTable: React.FC = () => {
         { label: 'Name',      value: addForm.InfraName },
       ],
       onConfirm: async () => {
-        await updateCodeTable(CODE, 0, JSON.stringify(addForm));
+        try {
+          await updateCodeTable(CODE, 0, JSON.stringify(addForm));
+          showToast({ type: 'success', message: 'Infrastructure type added successfully.' });
+          await refetch();
+        } catch {
+          showToast({ type: 'error', message: 'Failed to add infrastructure type.' });
+        }
         confirm.close();
         setAddForm(null);
       },
@@ -66,7 +74,13 @@ const InfraTypeTable: React.FC = () => {
         { label: 'Name',      value: editForm.InfraName },
       ],
       onConfirm: async () => {
-        await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm }));
+        try {
+          await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm }));
+          showToast({ type: 'success', message: 'Infrastructure type updated successfully.' });
+          await refetch();
+        } catch {
+          showToast({ type: 'error', message: 'Failed to update infrastructure type.' });
+        }
         confirm.close();
         cancelEdit();
       },
@@ -74,7 +88,13 @@ const InfraTypeTable: React.FC = () => {
   };
 
   const confirmDelete = async (id: number) => {
-    await updateCodeTable(CODE, 2, JSON.stringify({ Id: id }));
+    try {
+      await updateCodeTable(CODE, 2, JSON.stringify({ Id: id }));
+      showToast({ type: 'success', message: 'Infrastructure type deleted.' });
+      await refetch();
+    } catch {
+      showToast({ type: 'error', message: 'Failed to delete infrastructure type.' });
+    }
     setDeleteConfirmId(null);
   };
 

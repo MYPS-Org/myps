@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React, { useState } from 'react';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '../../../../components/tailwindui/table';
@@ -10,6 +10,7 @@ import type { CategoryEnum } from '../../../Project/Model.d';
 import ConfirmDialog from '../../dialogs/ConfirmDialog';
 import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
 import { updateCodeTable } from '../../Service';
+import { useCodeTableContext } from '../../CodeTableContext';
 import { useToast } from '../../../../components/toaster/ToasterContext';
 
 const CODE = 'ProjectCategory';
@@ -18,10 +19,8 @@ interface FormState { CategoryName: string; Minimum: number; Maximum: number; Va
 const EMPTY_FORM: FormState = { CategoryName: '', Minimum: 0, Maximum: 0, ValidUntil: new Date().getFullYear() };
 
 
-interface Props { data?: CategoryEnum[]; loading?: boolean; }
-
-const CategoryTable: React.FC<Props> = ({ data, loading = false }) => {
-  const [rows, setRows]                = useState<CategoryEnum[]>([]);
+const CategoryTable: React.FC = () => {
+  const { data: codeTableData, loading, refetch } = useCodeTableContext();
   const [editId, setEditId]            = useState<number | null>(null);
   const [editForm, setEditForm]        = useState<FormState>(EMPTY_FORM);
   const [addForm, setAddForm]          = useState<FormState | null>(null);
@@ -30,9 +29,7 @@ const CategoryTable: React.FC<Props> = ({ data, loading = false }) => {
   const confirm                        = useConfirmDialog();
   const { showToast }                  = useToast();
 
-  useEffect(() => {
-    if (!loading) setRows(data ?? []);
-  }, [data, loading]);
+  const rows: CategoryEnum[] = (codeTableData?.ProjectCategories ?? []) as CategoryEnum[];
 
   const filtered = rows.filter(r =>
     (r.CategoryName ?? '').toLowerCase().includes(search.toLowerCase()) ||
@@ -48,8 +45,8 @@ const CategoryTable: React.FC<Props> = ({ data, loading = false }) => {
   const saveEdit = async () => {
     try {
       await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm }));
-      setRows(prev => prev.map(r => r.Id === editId ? { ...r, ...editForm } : r));
       showToast({ type: 'success', message: 'Category updated successfully.' });
+      await refetch();
     } catch {
       showToast({ type: 'error', message: 'Failed to update category.' });
     }
@@ -59,8 +56,8 @@ const CategoryTable: React.FC<Props> = ({ data, loading = false }) => {
     if (!addForm) return;
     try {
       await updateCodeTable(CODE, 0, JSON.stringify(addForm));
-      setRows(prev => [{ ...addForm, Id: Date.now(), CategoryId: '' }, ...prev]);
       showToast({ type: 'success', message: 'Category added successfully.' });
+      await refetch();
     } catch {
       showToast({ type: 'error', message: 'Failed to add category.' });
     }
@@ -69,8 +66,8 @@ const CategoryTable: React.FC<Props> = ({ data, loading = false }) => {
   const confirmDelete = async (id: number) => {
     try {
       await updateCodeTable(CODE, 2, JSON.stringify({ Id: id }));
-      setRows(prev => prev.filter(r => r.Id !== id));
       showToast({ type: 'success', message: 'Category deleted.' });
+      await refetch();
     } catch {
       showToast({ type: 'error', message: 'Failed to delete category.' });
     }

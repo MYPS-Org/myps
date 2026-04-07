@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React, { useState } from 'react';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '../../../../components/tailwindui/table';
@@ -10,24 +10,17 @@ import type { TableEnum } from '../../../Project/Model.d';
 import ConfirmDialog from '../../dialogs/ConfirmDialog';
 import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
 import { updateCodeTable } from '../../Service';
+import { useCodeTableContext } from '../../CodeTableContext';
+import { useToast } from '../../../../components/toaster/ToasterContext';
 
 const CODE = 'ProjectOrigin';
 
-const SAMPLE_DATA: TableEnum[] = [
-  { Id: 1, NameId: 1, Name: 'Local',           Description: 'Locally-initiated infrastructure projects' },
-  { Id: 2, NameId: 2, Name: 'Foreign-Assisted',Description: 'Foreign-funded or ODA-backed projects' },
-  { Id: 3, NameId: 3, Name: 'GAA',             Description: 'General Appropriations Act-funded projects' },
-  { Id: 4, NameId: 4, Name: 'Supplemental',    Description: 'Projects funded through supplemental appropriations' },
-  { Id: 5, NameId: 5, Name: 'Contingent Fund', Description: 'Contingent fund allocations' },
-  { Id: 6, NameId: 6, Name: 'Special Road Fund',Description: 'Projects funded under the Special Road Fund' },
-];
-
 interface FormState { Name: string; Description: string; }
 const EMPTY_FORM: FormState = { Name: '', Description: '' };
-interface Props { data?: TableEnum[]; loading?: boolean; }
 
-const OriginTable: React.FC<Props> = ({ data, loading = false }) => {
-  const [rows, setRows]                = useState<TableEnum[]>([]);
+const OriginTable: React.FC = () => {
+  const { data: codeTableData, loading, refetch } = useCodeTableContext();
+  const { showToast } = useToast();
   const [editId, setEditId]            = useState<number | null>(null);
   const [editForm, setEditForm]        = useState<FormState>(EMPTY_FORM);
   const [addForm, setAddForm]          = useState<FormState | null>(null);
@@ -35,9 +28,7 @@ const OriginTable: React.FC<Props> = ({ data, loading = false }) => {
   const [search, setSearch]            = useState('');
   const confirm                        = useConfirmDialog();
 
-  useEffect(() => {
-    if (!loading) setRows(data !== undefined ? data : SAMPLE_DATA);
-  }, [data, loading]);
+  const rows: TableEnum[] = (codeTableData?.ProjectOrigins ?? []) as TableEnum[];
 
   const filtered = rows.filter(r =>
     r.Name.toLowerCase().includes(search.toLowerCase()) ||
@@ -47,20 +38,34 @@ const OriginTable: React.FC<Props> = ({ data, loading = false }) => {
   const startEdit = (r: TableEnum) => { setEditId(r.Id); setEditForm({ Name: r.Name, Description: r.Description ?? '' }); setDeleteConfirmId(null); };
   const cancelEdit = () => setEditId(null);
   const saveEdit = async () => {
-    await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm }));
-    setRows(prev => prev.map(r => r.Id === editId ? { ...r, ...editForm } : r));
+    try {
+      await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm }));
+      showToast({ type: 'success', message: 'Origin updated successfully.' });
+      await refetch();
+    } catch {
+      showToast({ type: 'error', message: 'Failed to update origin.' });
+    }
     cancelEdit();
   };
   const saveAdd = async () => {
     if (!addForm) return;
-    await updateCodeTable(CODE, 0, JSON.stringify(addForm));
-    const nextId = rows.length > 0 ? Math.max(...rows.map(r => r.NameId)) + 1 : 1;
-    setRows(prev => [{ Id: Date.now(), NameId: nextId, Name: addForm.Name, Description: addForm.Description }, ...prev]);
+    try {
+      await updateCodeTable(CODE, 0, JSON.stringify(addForm));
+      showToast({ type: 'success', message: 'Origin added successfully.' });
+      await refetch();
+    } catch {
+      showToast({ type: 'error', message: 'Failed to add origin.' });
+    }
     setAddForm(null);
   };
   const confirmDelete = async (id: number) => {
-    await updateCodeTable(CODE, 2, JSON.stringify({ Id: id }));
-    setRows(prev => prev.filter(r => r.Id !== id));
+    try {
+      await updateCodeTable(CODE, 2, JSON.stringify({ Id: id }));
+      showToast({ type: 'success', message: 'Origin deleted.' });
+      await refetch();
+    } catch {
+      showToast({ type: 'error', message: 'Failed to delete origin.' });
+    }
     setDeleteConfirmId(null);
   };
 
