@@ -43,21 +43,20 @@ await builder.Services.AuthRolesBasedOnDbAsync();
 
 builder.Services.AddEndpointsApiExplorer();
 
-if (builder.Environment.IsDevelopment())
+if (!builder.Environment.IsProduction())
 {
     builder.Services.AddCors(options =>
     {
         options.AddPolicy("AllowReactApp", builder =>
         {
-            builder.SetIsOriginAllowed(origin => true) // Allow any origin
-                    //WithOrigins("http://localhost:8080","http://myps.eptisa-dev.com")
-                   .AllowCredentials()
-                   .AllowAnyMethod()
-                   .AllowAnyHeader();
+            builder
+            .WithOrigins("http://localhost:8080", "http://192.168.50.201:8080", "http://myps.eptisa-dev.com")
+            .AllowCredentials()
+            .AllowAnyMethod()
+            .AllowAnyHeader();
         });
     });
-
-    builder.Services.AddDevSwagger();
+    if(builder.Environment.IsDevelopment()) builder.Services.AddDevSwagger();
 }
 builder.Services.AddSignalR(opt =>
 {
@@ -67,11 +66,14 @@ builder.Services.AddSignalR(opt =>
 var app = builder.Build();
 
 app.UseRouting();
-if (app.Environment.IsDevelopment())
+if (!app.Environment.IsProduction())
 {
     app.UseCors("AllowReactApp");
-    app.UseDeveloperExceptionPage();
-    app.AddDevSwaggerUI();
+    if (builder.Environment.IsDevelopment())
+    {
+        app.UseDeveloperExceptionPage();
+        app.AddDevSwaggerUI();
+    }
 }
 app.UseStaticFiles(); // For wwwroot
 app.UseStaticFiles(new StaticFileOptions

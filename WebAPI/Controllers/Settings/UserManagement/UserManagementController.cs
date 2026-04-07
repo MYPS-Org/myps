@@ -801,7 +801,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> SyncViewPermissions([FromBody] SyncViewPermissionsDTO dto)
         {
@@ -1022,7 +1022,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> SyncAPIPermissions()
         {
@@ -1388,6 +1388,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                DateTime CurrentDate = Functions.CurrentDate();
                 // 1. Validate GroupName
                 if (string.IsNullOrWhiteSpace(dto.GroupName))
                 {
@@ -1413,10 +1414,19 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 var NewGroup = new DBHelper.Models.Table.Groups
                 {
                     GroupName = dto.GroupName.Trim(),
-                    Description = dto.Description?.Trim()
+                    Description = dto.Description?.Trim(),
+                    CreatedBy = _Session.UserId,
+                    CreatedDate = CurrentDate,
                 };
-
                 await _db.tGroups.AddAsync(NewGroup);
+                await _db.SaveChangesAsync();
+                var NewGroupRoles = new GroupRoles
+                {
+                    GroupId = NewGroup.Id,
+                    ActionIds = Array.Empty<int>(),
+                    ViewIds = Array.Empty<int>(),
+                };
+                await _db.tGroupRoles.AddAsync(NewGroupRoles);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
 

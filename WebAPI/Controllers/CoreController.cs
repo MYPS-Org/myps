@@ -162,7 +162,7 @@ namespace WebAPI.Controllers
             {
                 Message = "Unauthorized",
                 Data = new { Authenticated = false, User = new { } },
-
+                Redirect = "/login"
             };
             return Unauthorized(responseObj);
         }

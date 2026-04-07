@@ -28,7 +28,7 @@ namespace WebAPI.Controllers.CodeTable
     public class CodeTableController : CoreController
     {
         public CodeTableController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> GetAllCodeTables()
         {
@@ -89,7 +89,7 @@ namespace WebAPI.Controllers.CodeTable
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> GetAdminAreas()
         {
@@ -116,7 +116,7 @@ namespace WebAPI.Controllers.CodeTable
             }
         }
 
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> GetTransactionLog([FromBody] GetTransactionLogDTO dto)
         {
@@ -191,7 +191,7 @@ namespace WebAPI.Controllers.CodeTable
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> UpdateCodeTable([FromBody] UpdateCodeTableDTO dto)
         {

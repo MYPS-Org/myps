@@ -107,9 +107,8 @@ namespace WebAPI.Controllers.Auth
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
         [HttpPost]
-        public IActionResult Validate()
+        public async Task<IActionResult> Validate()
         {
             try
             {
@@ -117,7 +116,10 @@ namespace WebAPI.Controllers.Auth
                 bool NoUserFound = string.IsNullOrEmpty(_Session.UserId);
                 //return Ok(new { Message = NoUserFound ? "No active session found" : "Session is valid", Data = new { Authenticated = !NoUserFound, User = _Session, userId } });
                 if (NoUserFound)
+                {
+                    await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
                     return UnauthorizedUser();
+                }
                 var ViewAccess = _db.vUserViewPermission.Where(x => x.UserId == _Session.UserId && x.IsActive == true).Select(x => x.RouteName).ToList();
                 return Ok(new { Message = "Login successful", Data = new { Authenticated = true, User = _Session, ViewAccess = ViewAccess } });
             }
@@ -137,13 +139,20 @@ namespace WebAPI.Controllers.Auth
                 return ExceptionHandler(ex); 
             }
         }
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> Logout()
         {
             try
             {
-                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                return Ok(new { Message = "Logout successful", Data = new { Authenticated = false, User = new { } } });
+                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme, new AuthenticationProperties
+                {
+                    IsPersistent = true,
+                    RedirectUri = "/login"
+                });
+
+                return SignOut(new AuthenticationProperties { RedirectUri = "/login" },
+                    CookieAuthenticationDefaults.AuthenticationScheme);
             }
             catch (Exception ex)
             {

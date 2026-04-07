@@ -24,7 +24,7 @@ namespace WebAPI.Controllers.Programs
     {
         public ProgramController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
         #region Program Lists
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> InitFilterProgram()
         {
@@ -53,7 +53,7 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> ShowProgram([FromBody] ShowProgramDTO dto)
         {
@@ -134,7 +134,7 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> ShowProgramStages([FromBody] ProgramDetailsDTO dto)
         {
@@ -156,7 +156,7 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> InitAddProgram()
         {
@@ -183,7 +183,7 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> AddProgram([FromBody] AddProgramDTO dto)
         {
@@ -275,7 +275,7 @@ namespace WebAPI.Controllers.Programs
         }
         #endregion
         #region Program Details
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> ProgramDetails([FromBody] ProgramDetailsDTO dto)
         {
@@ -342,7 +342,7 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> DeleteProgram([FromBody] DeleteProgramDTO dto)
         {
@@ -432,7 +432,7 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> UpdateProgramDetails([FromBody] UpdateProgramDTO dto)
         {
@@ -643,7 +643,7 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> UpdateProgramStage([FromBody] UpdateProgramStageDTO dto)
         {
@@ -943,7 +943,7 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> BatchRestrictPublish([FromBody] BatchUnpublishTaggingDTO dto)
         {
@@ -1023,7 +1023,7 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> BatchAllowPublish([FromBody] BatchUnpublishTaggingDTO dto)
         {
@@ -1103,7 +1103,7 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> BatchDelete([FromBody] BatchUnpublishTaggingDTO dto)
         {
@@ -1183,7 +1183,7 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> BatchAddExistingProject([FromBody] BatchAddExistingProjectDTO dto)
         {

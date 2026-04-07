@@ -5,6 +5,7 @@ using DBHelper.Models.Enums;
 using DBHelper.Models.Table;
 using DBHelper.Models.Views;
 using Helpers;
+using JetBrains.Annotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Endpoints;
 using Microsoft.AspNetCore.Mvc;
@@ -27,7 +28,7 @@ namespace WebAPI.Controllers.Projects
     {
         public ProjectController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
         #region Project Lists
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> ShowProjects([FromBody] ShowProjectDTO dto)
         {
@@ -116,7 +117,7 @@ namespace WebAPI.Controllers.Projects
             }
         }
 
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> ShowProjectStages([FromBody] ShowProjectStagesDTO dto)
         {
@@ -167,7 +168,7 @@ namespace WebAPI.Controllers.Projects
         }
         #endregion
         #region Add Project
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> InitAddProject()
         {
@@ -217,7 +218,7 @@ namespace WebAPI.Controllers.Projects
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> AddProject([FromBody] AddProjectDTO dto)
         {
@@ -427,7 +428,7 @@ namespace WebAPI.Controllers.Projects
         }
         #endregion
         #region Project Details
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> ProjectDetails([FromBody] ProjectDetailsDTO dto)
         {
@@ -568,7 +569,7 @@ namespace WebAPI.Controllers.Projects
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> UpdateProjectDetails([FromBody] UpdateProjectDetailsDTO dto)
         {
@@ -666,8 +667,18 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = "Component Cost contains invalid component type(s). Please check and try again.", Title = "Invalid Component Cost Type" });
                 }
+                var DuplicateComponentId = dto.ComponentCosts.Where(x => x.Id == 0).GroupBy(x => x.ComponentId).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+                if (DuplicateComponentId.Any())
+                {
+                    return new BadRequestObjectResult(new { Message = $"Component Cost contains duplicate component IDs: {string.Join(", ", DuplicateComponentId)}. Please check and try again.", Title = "Duplicate Component IDs" });
+                }
                 #endregion
                 #region Major Work Item
+                var DuplicateMajorItemComponentId = dto.MajorItemOfWorks.Where(x => x.Id == 0).GroupBy(x => x.ComponentId).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+                if (DuplicateMajorItemComponentId.Any())
+                {
+                    return new BadRequestObjectResult(new { Message = $"Major Work Item contains duplicate component IDs: {string.Join(", ", DuplicateMajorItemComponentId)}. Please check and try again.", Title = "Duplicate Major Work Item Component IDs" });
+                }
                 #endregion
                 #region Major Work Location
 
@@ -707,8 +718,11 @@ namespace WebAPI.Controllers.Projects
                         Duplicates = duplicates
                     });
                 }
-
-                // continue processing when no duplicates found
+                var DuplicateMajorWorkLocationParentId = dto.MajorItemLocations.Where(x => x.Id == 0).GroupBy(x => x.ParentId).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+                if (DuplicateMajorWorkLocationParentId.Any())
+                {
+                    return new BadRequestObjectResult(new { Message = $"Major Work Location contains duplicate Parent IDs: {string.Join(", ", DuplicateMajorWorkLocationParentId)}. Please check and try again.", Title = "Duplicate Major Work Location Parent IDs" });
+                }
                 #endregion
                 #endregion
 
@@ -2188,7 +2202,7 @@ namespace WebAPI.Controllers.Projects
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> UploadNotes([FromBody] AddNotesDTO dto)
         {
@@ -2238,7 +2252,7 @@ namespace WebAPI.Controllers.Projects
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> DeleteNotes([FromBody] DeleteNotesDTO dto)
         {
@@ -2288,7 +2302,7 @@ namespace WebAPI.Controllers.Projects
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> UploadSupportingDocs([FromBody] AddSupportingDocsDTO dto)
         {
@@ -2347,7 +2361,7 @@ namespace WebAPI.Controllers.Projects
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+        
         [HttpPost]
         public async Task<IActionResult> DeleteSupportingDocs([FromBody] DeleteSupportingDocsDTO dto)
         {
