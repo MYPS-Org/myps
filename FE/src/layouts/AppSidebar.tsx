@@ -107,7 +107,7 @@ const currentPath = (localStorage.getItem('currentPath') != undefined) ? localSt
 				</SidebarItem>
 				<SidebarItem>
 					<UserGroupIcon />
-					<SidebarLabel className="text-gray-500">{user?.UserGroupNames || 'no role'}</SidebarLabel>
+					<SidebarLabel className="text-gray-500">{user?.UserGroupNames.join(', ') || 'no role'}</SidebarLabel>
 				</SidebarItem>
 			<SidebarDivider>
 			</SidebarDivider>

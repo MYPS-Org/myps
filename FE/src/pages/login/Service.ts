@@ -20,10 +20,13 @@ export interface AuthError {
 export interface User {
   FirstName: string;
   LastName: string;
+  Name: string;
   UserName: string;
+  UserId: string;
   UserRole: string;
   PhoneNumber: string;
   Credit: number;
+  UserGroupNames: string[];
 }
 
 class AuthService {
