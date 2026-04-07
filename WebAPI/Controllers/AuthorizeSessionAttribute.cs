@@ -64,8 +64,8 @@ namespace WebAPI.Controllers
                         Message = $"You must be logged in to access this resource.",
                         Title = "Unauthorized",
                         data = new { Authenticated = false },
-                        user = new { }
-
+                        user = new { },
+                        Redirect = "/login"
                     });
                     return;
                 }
@@ -89,7 +89,8 @@ namespace WebAPI.Controllers
                         Message = "Your account is inactive. Please contact your administrator.",
                         Title = "Access Denied",
                         data = new { Authenticated = false },
-                        user = new { }
+                        user = new { },
+                        Redirect = "/login"
                     };
                     context.Result = new UnauthorizedObjectResult(responseObj);
                     return;

@@ -352,7 +352,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
                     </div>
 
                     {/* Certification Checkbox */}
-                    {(user?.UserGroupNames.find((x: string) => x === 'AUC') || user?.UserGroupNames.find((x: string) => x === 'DPC')) && approvalDocument && (
+                    {(user?.UserGroupNames.find((x: string) => x === 'AUC' || x === 'RPC') || user?.UserGroupNames.find((x: string) => x === 'DPC')) && approvalDocument && (
                     <div className='bg-amber-50 border border-amber-200 p-4 rounded-lg'>
                         <label className='flex items-start gap-3 cursor-pointer'>
                             <input 
@@ -372,7 +372,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
                         <Button
                             type="submit"
                             color="blue"
-                            disabled={isSubmitting || ((user?.UserGroupNames.find((x: string) => x === 'DPC') || user?.UserGroupNames.find((x: string) => x === 'AUC')) && !isCertified)}
+                            disabled={isSubmitting || ((user?.UserGroupNames.find((x: string) => x === 'DPC') || user?.UserGroupNames.find((x: string) => x === 'AUC' || x === 'RPC')) && !isCertified)}
                         >
                             {isSubmitting ? 'Submitting...' : 'Submit'}
                         </Button>

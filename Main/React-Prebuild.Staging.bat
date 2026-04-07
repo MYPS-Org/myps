@@ -7,12 +7,12 @@ if %errorlevel% neq 0 (
     exit /b %errorlevel%
 )
 
-echo Installing dependencies...
-@call npm install
-if %errorlevel% neq 0 (
-    echo ERROR: npm install failed.
-    exit /b %errorlevel%
-)
+:: echo Installing dependencies...
+:: call npm install
+:: if %errorlevel% neq 0 (
+::     echo ERROR: npm install failed.
+::     exit /b %errorlevel%
+:: )
 
 echo Building React app...
 call npm run build:dev
