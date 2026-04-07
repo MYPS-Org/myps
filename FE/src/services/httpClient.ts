@@ -30,7 +30,7 @@ class HttpClient {
 
     constructor() {
         this.client = axios.create({
-            baseURL: `${import.meta.env.VITE_API_BASE_URL}/api`,
+            baseURL: `/api`,
             timeout: 0, // No timeout
             withCredentials: true,
             headers: {
