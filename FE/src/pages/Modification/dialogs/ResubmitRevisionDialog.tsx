@@ -322,7 +322,7 @@ const ResubmitRevisionDialog: React.FC<ReviseProjectDialogProps> = ({
                         <Button
                             type="submit"
                             color="blue"
-                            disabled={isSubmitting || (user?.UserGroupNames === 'DPC' && !isCertified)}
+                            disabled={isSubmitting || (user?.UserGroupNames.find((x) => x === 'DPC') && !isCertified)}
                         >
                             {isSubmitting ? 'Submitting...' : 'Submit'}
                         </Button>
