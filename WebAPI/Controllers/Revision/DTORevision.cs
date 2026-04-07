@@ -157,7 +157,7 @@ namespace WebAPI.Controllers.Revision
         public double? EndX { get; set; }
         public double? EndY { get; set; }
         [Required]
-        public double PhysicalTarget { get; set; }
+        public Double PhysicalTarget { get; set; }
         [MaxLength(100)]
         public string? StartStationLimit { get; set; }
         [MaxLength(100)]
