@@ -762,7 +762,7 @@ namespace WebAPI.Controllers.Revision
                 .Select(p => p.Name)
                 .ToList();
                 ProjectRevision.ProjectId = (RevisionRules.RevisionGroupId == 13) ? $"{ProjectRevision.ProjectId}-A" : ProjectRevision.ProjectId;
-                if (ProjectDetailsRules.Count > 0)
+                if (Project != null)
                 {
                     var UpdateAndGenerateLogs = ProjectDetailsRules.UpdateRevisionData(User, TransactionId, "tRevisionProjects", CurrentDate, NewProjectRevision, Project);
                     Logs.AddRange(UpdateAndGenerateLogs.RevisionTransaction);
@@ -805,7 +805,7 @@ namespace WebAPI.Controllers.Revision
                 #region FundingProfile
                 var FundingIds = dto.FundingProfile.Where(x => x.Id != 0).Select(x => x.Id);
                 //var FundingProfile = await _db.tProjectFundingProfile.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && FundingIds.Contains(x.Id)).ToListAsync();
-                var FundingProfile = await _db.tProjectFundingProfile.FromSqlInterpolated($"SELECT * FROM fProjectFundingProfile({Project.ProjectId}) fp WHERE fp.StageName = {ProjectStage.StageName}").AsNoTracking().ToListAsync();
+                var FundingProfile = await _db.tProjectFundingProfile.FromSqlInterpolated($"SELECT * FROM fProjectFundingProfile({Project.ProjectId}) fp WHERE fp.StageName = {ProjectStage.StageName}").AsNoTracking().Where(x => !x.IsDeleted).ToListAsync();
                 var FundingProfileRules = jsonRules.FundingProfileRules.Fields.GetType()
                 .GetProperties()
                 .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
@@ -893,8 +893,8 @@ namespace WebAPI.Controllers.Revision
                 #region ComponentCosts
                 var CostIds = dto.ComponentCosts.Where(x => x.Id != 0).Select(x => x.Id).ToList();
                 //var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && CostIds.Contains(x.Id) && x.StageName == "GAA-R").ToListAsync();
-                var ComponentCost = await _db.tProjectComponentCost.FromSqlInterpolated($"SELECT * FROM fProjectComponentCost({Project.ProjectId}) fp WHERE fp.StageName = {ProjectStage.StageName}").AsNoTracking().ToListAsync();
-                var ComponentCostYear = await _db.tProjectComponentCostPerYear.FromSqlInterpolated($"SELECT * FROM fProjectComponentCostPerYear({Project.ProjectId}) fp WHERE fp.StageName = {ProjectStage.StageName}").AsNoTracking().Where(x => ComponentCost.Select(c => c.CostId).Contains(x.ComponentCostId)).ToListAsync();
+                var ComponentCost = await _db.tProjectComponentCost.FromSqlInterpolated($"SELECT * FROM fProjectComponentCost({Project.ProjectId}) fp WHERE fp.StageName = {ProjectStage.StageName}").AsNoTracking().Where(x => !x.IsDeleted).ToListAsync();
+                var ComponentCostYear = await _db.tProjectComponentCostPerYear.FromSqlInterpolated($"SELECT * FROM fProjectComponentCostPerYear({Project.ProjectId}) fp WHERE fp.StageName = {ProjectStage.StageName}").AsNoTracking().Where(x => ComponentCost.Select(c => c.CostId).Contains(x.ComponentCostId)).Where(x => !x.IsDeleted).ToListAsync();
                 var ComponentCostRules = jsonRules.ComponentCostRules.Fields.GetType()
                 .GetProperties()
                 .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
@@ -1076,9 +1076,9 @@ namespace WebAPI.Controllers.Revision
                 #endregion
                 #region MajorWorkItem
                 var MajorItemIds = dto.MajorItemOfWorks.Where(x => x.Id != 0).Select(x => x.Id);
-                var MajorWorkItem = await _db.tProjectMajorWorkItem.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkItem({Project.ProjectId}) fp WHERE fp.StageName = {ProjectStage.StageName}").AsNoTracking().ToListAsync();
+                var MajorWorkItem = await _db.tProjectMajorWorkItem.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkItem({Project.ProjectId}) fp WHERE fp.StageName = {ProjectStage.StageName}").AsNoTracking().Where(x => !x.IsDeleted).ToListAsync();
                 //var MajorWorkItem = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && MajorItemIds.Contains(x.Id)).ToListAsync();
-                var MajorWorkLocations = await _db.tProjectMajorWorkLocations.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkLocations({Project.ProjectId})").AsNoTracking().Where(x => MajorWorkItem.Select(c => c.ReferenceId).Contains(x.ParentId)).ToListAsync();
+                var MajorWorkLocations = await _db.tProjectMajorWorkLocations.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkLocations({Project.ProjectId})").AsNoTracking().Where(x => MajorWorkItem.Select(c => c.ReferenceId).Contains(x.ParentId) && !x.IsDeleted).ToListAsync();
                 var MajorWorkItemRules = jsonRules.MajorItemOfWorkRules.Fields.GetType()
                 .GetProperties()
                 .Where(p => p.PropertyType == typeof(bool) || p.PropertyType == typeof(bool?))
