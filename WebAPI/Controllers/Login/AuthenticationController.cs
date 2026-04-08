@@ -23,6 +23,12 @@ namespace WebAPI.Controllers.Auth
     {
         public AuthController(AppDbContext db, IProducer<Null, string> producer) : base (db, producer) { }
         [AllowAnonymous]
+        [HttpGet]
+        public async Task<IActionResult> GetEnvironment()
+        {
+            return Ok(new { Environment = Appsetting.Environment });
+        }
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> Login([FromBody] LoginDto dto)
         {

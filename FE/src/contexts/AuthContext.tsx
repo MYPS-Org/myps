@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { authService } from '../pages/login/Service';
+import type { User } from '../pages/login/Service';
 
-interface AuthState<T = any> {
+interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
-  user: T;
+  user: User | null;
   ViewAccess : string[];
 }
 
