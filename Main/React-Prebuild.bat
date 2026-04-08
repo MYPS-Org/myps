@@ -1,4 +1,5 @@
 @echo off
+echo Environment: Production
 echo Starting React build...
 
 cd /d "%~dp0..\FE"
