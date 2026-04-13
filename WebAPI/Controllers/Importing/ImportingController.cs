@@ -152,6 +152,7 @@ namespace WebAPI.Controllers.Importing
                         Validate.ComponentCost.CreatedBy = User;
                         Validate.ComponentCost.CreatedDate = CurrentDate;
                         Validate.ComponentCost.StageName = IsValidProgram.ProgramDetails.StageName;
+                        Validate.ComponentCost.CostId = $"{Validate.ComponentCost.ProjectId}-{Validate.ComponentCost.ComponentId}";
                         ComponentCost.Add(Validate.ComponentCost);
                     }
                 }
@@ -162,7 +163,8 @@ namespace WebAPI.Controllers.Importing
                 List<DBHelper.Models.Table.ProjectComponentCostPerYear> ComponentCostPerYear = new List<DBHelper.Models.Table.ProjectComponentCostPerYear>();
                 foreach (var Item in dto.ComponentCostPerYear)
                 {
-                    var Reference = ComponentCost.FirstOrDefault(x => x.CostId == Item.ComponentCostId);
+                    var OldReference = ProjectReference.FirstOrDefault(x => x.OldProjectId == Item.ComponentCostId.Split("-")[0]);
+                    var Reference = ComponentCost.FirstOrDefault(x => x.ProjectId == OldReference.NewProjectId);
                     if (Reference != null)
                     {
                         var Validate = _db.GenerateComponentCostPerYear(Item);
@@ -175,6 +177,7 @@ namespace WebAPI.Controllers.Importing
                         Validate.ComponentCostPerYear.CreatedBy = User;
                         Validate.ComponentCostPerYear.CreatedDate = CurrentDate;
                         Validate.ComponentCostPerYear.StageName = IsValidProgram.ProgramDetails.StageName;
+                        Validate.ComponentCostPerYear.ComponentCostId = $"{Reference.ProjectId}-{Reference.ComponentId}";
                         ComponentCostPerYear.Add(Validate.ComponentCostPerYear);
                     }
                 }
@@ -199,6 +202,7 @@ namespace WebAPI.Controllers.Importing
                         Validate.MajorWorkItem.CreatedBy = User;
                         Validate.MajorWorkItem.CreatedDate = CurrentDate;
                         Validate.MajorWorkItem.StageName = IsValidProgram.ProgramDetails.StageName;
+                        Validate.MajorWorkItem.ReferenceId = $"{Reference.NewProjectId}-{Validate.MajorWorkItem.ComponentId}";
                         MajorItemOfWork.Add(Validate.MajorWorkItem);
                     }
                 }
@@ -209,7 +213,8 @@ namespace WebAPI.Controllers.Importing
                 List<DBHelper.Models.Table.ProjectMajorWorkLocations> MajorWorkLocations = new List<DBHelper.Models.Table.ProjectMajorWorkLocations>();
                 foreach (var Item in dto.MajorItemLocations)
                 {
-                    var Reference = MajorItemOfWork.FirstOrDefault(x => x.ReferenceId == Item.ParentId);
+                    var OldReference = ProjectReference.FirstOrDefault(x => x.OldProjectId == Item.ParentId.Split("-")[0]);
+                    var Reference = MajorItemOfWork.FirstOrDefault(x => x.ProjectId == OldReference.NewProjectId);
                     if (Reference != null)
                     {
                         var Validate = _db.GenerateMajorWorkLocation(Item);
@@ -219,6 +224,7 @@ namespace WebAPI.Controllers.Importing
                             FailedMajorWorkLocations.Add(Validate);
                             continue;
                         }
+                        Validate.MajorWorkLocation.ParentId = $"{Reference.ProjectId}-{Reference.ComponentId}";
                         Validate.MajorWorkLocation.CreatedBy = User;
                         Validate.MajorWorkLocation.CreatedDate = CurrentDate;
                         Validate.MajorWorkLocation.TargetUnitId = Reference.WorkTypeId;
