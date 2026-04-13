@@ -471,7 +471,7 @@ namespace WebAPI.Controllers.Revision
                 var MajorItemOfWork = await _db.tProjectMajorWorkItem.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkItem({Project.ProjectId}) fp WHERE fp.StageName = {Project.StageName}").AsNoTracking().ToListAsync();
                 //var MajorItemOfWork = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && !x.IsDeleted).ToListAsync();
                 HashSet<string> ItemParents = MajorItemOfWork.Select(x => x.ReferenceId).ToHashSet();
-                var MajorWorkLocation = await _db.tProjectMajorWorkLocations.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkLocations({Project.ProjectId})").AsNoTracking().Where(x => ItemParents.Contains(x.ParentId) && !x.IsDeleted).ToListAsync();
+                var MajorWorkLocation = await _db.tProjectMajorWorkLocations.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkLocations({Project.ProjectId}) fp WHERE fp.StageName = {Project.StageName}").AsNoTracking().Where(x => ItemParents.Contains(x.ParentId) && !x.IsDeleted).ToListAsync();
 
 
                 var Notes = await _db.tProjectNotes.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
