@@ -1,14 +1,16 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Dialog, DialogTitle, DialogPanel } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import type { ComponentCost, ComponentCostPerYear, ComponentTypeEnum } from '../../Project/Model';
 import type { ProgramList } from '../../Program/Model';
-import { XMarkIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, PlusIcon, TrashIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import { useFieldPermissionState } from '../hooks/useFieldPermissions';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useToast } from '../../../components/toaster/ToasterContext';
 import { useAtomValue } from 'jotai';
 import { componentCostsAtom } from '../atoms/componentCosts.atom';
 import '../../../utils/GlobalFunctions';
+import { autoFillComponentDescription } from '../../Project/Service';
 
 interface ComponentCostDialogProps {
   isOpen: boolean;
@@ -47,6 +49,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   // reasonId // May be needed for validation logic
 }) => {
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [formData, setFormData] = useState<ComponentCost>({
     Id: 0,
     ProjectId: ProjectId,
@@ -57,13 +60,43 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     Total: 0,
     StageName: '',
     IsDeleted: false,
-    CreatedBy: user?.UserId,
+    CreatedBy: user?.UserId || '',
     CreatedDate: new Date().toISOString(),
-    UpdatedBy: '',
+    UpdatedBy: user?.UserId || '',
     UpdatedDate: new Date().toISOString(),
   });
 
   const [componentCostPerYear, setComponentCostPerYear] = useState<ComponentCostPerYear[]>([]);
+  const [isAutoFilling, setIsAutoFilling] = useState<boolean>(false);
+  const isInitializedRef = useRef<boolean>(false);
+
+  const handleAutoFillDescription = async () => {
+    if (!formData.ComponentId) {
+      showToast({ type: 'error', message: 'Please select a Component Type first.' });
+      return;
+    }
+    setIsAutoFilling(true);
+    try {
+      const response = await autoFillComponentDescription(
+        user?.UserId || '',
+        formData.ProjectId || ProjectId,
+        formData.ComponentId,
+        programDetails?.ProgramId || '',
+        programDetails?.StageName || ''
+      );
+      const description = response?.Data?.component_description ?? response?.Data?.description ?? response?.Data?.Description ?? '';
+      if (description) {
+        handleChange('Description', description);
+        showToast({ type: 'success', message: 'Description auto-filled successfully.' });
+      } else {
+        showToast({ type: 'info', message: 'No description found for this component.' });
+      }
+    } catch {
+      showToast({ type: 'error', message: 'Failed to auto-fill description. Please try again.' });
+    } finally {
+      setIsAutoFilling(false);
+    }
+  };
 
   // Get all component costs from Jotai atom (seeded from API)
   const allComponentCosts = useAtomValue(componentCostsAtom);
@@ -232,7 +265,13 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     );
   };
 
+  // Reset initialization flag when dialog opens/closes or mode changes
   useEffect(() => {
+    isInitializedRef.current = false;
+  }, [isOpen, mode]);
+
+  useEffect(() => {
+    if (isInitializedRef.current) return;
     if (editingCost && mode === 'edit') {
       setFormData({
         Id: editingCost.Id ?? 0,
@@ -254,6 +293,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
       if (editingCostPerYear) {
         setComponentCostPerYear(editingCostPerYear.filter(cost => !cost.IsDeleted));
       }
+      isInitializedRef.current = true;
     } else if (mode === 'add') {
       // Reset form for new entry
       const tempComponentId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -273,6 +313,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         UpdatedDate: new Date().toISOString(),
       });
       setComponentCostPerYear([]);
+      isInitializedRef.current = true;
     }
   }, [editingCost, editingCostPerYear, mode, isOpen, ProjectId, user?.UserId]);
 
@@ -312,20 +353,12 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     try {
         // Validate component type and ID
         if(formData.ComponentType === '' || formData.ComponentId === '') {
-          alert('Please select a Component Type.');
-          return;
-        }
-
-        const excludedComponents = ['EAO', 'EXC', 'SAV', 'COS', 'FS', 'DED', 'LS', 'OTH3', 'OTH4', 'OTH2', 'EXP', 'CS'];
-        const isExcludedComponent = excludedComponents.includes(formData.ComponentId?.toUpperCase());
-
-        if(!isExcludedComponent && formData.Description?.trim() === '') {
-          alert('Please enter a Description.');
+          showToast({ type: 'error', message: 'Please select a Component Type.' });
           return;
         }
 
         if(componentCostPerYear.filter(cost => !cost.IsDeleted).length === 0) {
-          alert('Please add at least one per-year cost.');
+          showToast({ type: 'error', message: 'Please add at least one per-year cost.' });
           return;
         }
 
@@ -334,19 +367,19 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         for (let i = 0; i < validPerYearCosts.length; i++) {
           const cost = validPerYearCosts[i];
           if (!cost.Year || cost.Year <= 0) {
-            alert(`Please enter a valid year for cost entry ${i + 1}.`);
+            showToast({ type: 'error', message: `Please enter a valid year for cost entry ${i + 1}.` });
             return;
           }
           if (!cost.Amount || cost.Amount <= 0) {
-            alert(`Please enter a valid amount for cost entry ${i + 1}.`);
+            showToast({ type: 'error', message: `Please enter a valid amount for cost entry ${i + 1}.` });
             return;
           }
           if (!cost.StartDate) {
-            alert(`Please select a Start Date for cost entry ${i + 1}.`);
+            showToast({ type: 'error', message: `Please select a Start Date for cost entry ${i + 1}.` });
             return;
           }
           if (!cost.EndDate) {
-            alert(`Please select an End Date for cost entry ${i + 1}.`);
+            showToast({ type: 'error', message: `Please select an End Date for cost entry ${i + 1}.` });
             return;
           }
         }
@@ -388,7 +421,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
           Description: formData.Description,
           Total: formData.Total,
           StageName: formData.StageName,
-          CreatedBy: user?.UserId,
+          CreatedBy: user?.UserId || '',
           CreatedDate: formData.CreatedDate,
           UpdatedBy: user?.UserId,
           UpdatedDate: new Date().toISOString(),
@@ -396,13 +429,13 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         };
 
         // Prepare per-year costs with updated metadata
+        // Include soft-deleted items (Id > 0) so the parent/backend can handle removal
         const perYearCosts = componentCostPerYear
-          .filter(cost => !cost.IsDeleted)
           .map(cost => ({
             ...cost,
             ComponentCostId: formData.CostId,
-            CreatedBy: cost.CreatedBy || user?.UserId,
-            UpdatedBy: user?.UserId,
+            CreatedBy: cost.CreatedBy || user?.UserId || '',
+            UpdatedBy: user?.UserId || '',
             UpdatedDate: new Date().toISOString()
           }));
 
@@ -454,7 +487,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                     {mode === 'add' ? 'Add Project Component Cost' : 'Edit Project Component Cost'}
                 </DialogTitle>
                 <button
-                    onClick={onClose}
+                    onClick={handleClose}
                     className="text-gray-400 hover:text-gray-600 "
                     >
                     <XMarkIcon className="h-6 w-6" />
@@ -544,9 +577,21 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
 
                 {/* Description */}
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Description <span className="text-xs text-gray-500">{isFieldEditable('Description') ? '✓ Editable' : '✗ Not Editable'}</span>
-                    </label>
+                    <div className="flex justify-between items-center mb-1">
+                        <label className="block text-sm font-medium text-gray-700">
+                            Description <span className="text-xs text-gray-500">{isFieldEditable('Description') ? '✓ Editable' : '✗ Not Editable'}</span>
+                        </label>
+                        <button
+                            type="button"
+                            onClick={handleAutoFillDescription}
+                            disabled={isAutoFilling || !formData.ComponentId || !isFieldEditable('Description')}
+                            className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                            title="Auto-fill description from GIS"
+                        >
+                            <SparklesIcon className="w-3.5 h-3.5" />
+                            {isAutoFilling ? 'Filling...' : 'Auto-fill'}
+                        </button>
+                    </div>
                     <textarea
                     value={formData.Description}
                     onChange={(e) => handleChange('Description', e.target.value)}
@@ -558,7 +603,6 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                     }`}
                     disabled={!isFieldEditable('Description')}
                     placeholder="Enter description..."
-                    required
                     title={`Description field is ${isFieldEditable('Description') ? 'editable' : 'not editable'}`}
                     />
                 </div>
@@ -704,7 +748,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                     <Button type="button" color="zinc" onClick={handleClose}>
                         Cancel
                     </Button>
-                    <Button type="submit" color="orange" onClick={handleSubmit} disabled={!canSave}>
+                    <Button type="submit" color="orange" disabled={!canSave}>
                         {mode === 'add' ? 'Add' : 'Save'}
                     </Button>
                 </div>

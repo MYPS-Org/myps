@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogTitle, DialogPanel } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import type { ComponentCost, ComponentCostPerYear, ComponentTypeEnum } from '../Model';
-import { XMarkIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, PlusIcon, TrashIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import '../../../utils/GlobalFunctions';
 import { getDisabledClass } from '../../../utils/GlobalFunctions';
 import type { ProgramList } from '../../Program/Model';
+import { autoFillComponentDescription } from '../Service';
 
 
 interface ComponentCostDialogProps {
@@ -59,7 +60,37 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   });
 
   const [componentCostPerYear, setComponentCostPerYear] = useState<ComponentCostPerYear[]>([]);
-  // const [displayValue, setDisplayValue] = useState('');
+  const [isAutoFilling, setIsAutoFilling] = useState<boolean>(false);
+  const isInitializedRef = useRef<boolean>(false);
+
+  const handleAutoFillDescription = async () => {
+    if (!formData.ComponentId) {
+      showToast({ type: 'error', message: 'Please select a Component Type first.' });
+      return;
+    }
+    setIsAutoFilling(true);
+    try {
+      const response = await autoFillComponentDescription(
+        user?.UserId || '',
+        formData.ProjectId || ProjectId,
+        formData.ComponentId,
+        programDetails.ProgramId,
+        programDetails.StageName
+      );
+      const description = response?.Data?.component_description ?? response?.Data?.description ?? response?.Data?.Description ?? '';
+      if (description) {
+        handleChange('Description', description);
+        console.log('Auto-filled description:', description);
+        showToast({ type: 'success', message: 'Description auto-filled successfully.' });
+      } else {
+        showToast({ type: 'info', message: 'No description found for this component.' });
+      }
+    } catch {
+      showToast({ type: 'error', message: 'Failed to auto-fill description. Please try again.' });
+    } finally {
+      setIsAutoFilling(false);
+    }
+  };
 
   // Calculate remaining budget for validation
   const calculateRemainingBudget = () => {
@@ -112,7 +143,13 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     );
   };
 
+  // Reset initialization flag when dialog opens/closes or mode changes
   useEffect(() => {
+    isInitializedRef.current = false;
+  }, [isOpen, mode]);
+
+  useEffect(() => {
+    if (isInitializedRef.current) return;
     if (editingCost && mode === 'edit') {
       setFormData({
         Id: editingCost.Id ?? 0,
@@ -135,6 +172,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
       if (editingCostPerYear) {
         setComponentCostPerYear(editingCostPerYear.filter(cost => !cost.IsDeleted));
       }
+      isInitializedRef.current = true;
     } else if (mode === 'add') {
       // Reset form for new entry
       const tempCostId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -155,6 +193,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         IsDeleted: false
       });
       setComponentCostPerYear([]);
+      isInitializedRef.current = true;
     }
   }, [editingCost, editingCostPerYear, mode, isOpen]);
 
@@ -212,17 +251,6 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
       showToast({
         type: 'error',
         message: 'Please select a Component Type.'
-      });
-      return;
-    }
-
-    const excludedComponents = ['EAO', 'EXC', 'SAV', 'COS', 'FS', 'DED', 'LS', 'OTH3', 'OTH4', 'OTH2', 'EXP', 'CS'];
-    const isExcludedComponent = excludedComponents.includes(formData.ComponentId?.toUpperCase());
-
-    if(!isExcludedComponent && formData.Description?.trim() === '') {
-      showToast({
-        type: 'error',
-        message: 'Please enter a Description.'
       });
       return;
     }
@@ -311,7 +339,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
           Total: formData.Total,
           StageName: formData.StageName,
           RevisedNumber: formData.RevisedNumber,
-          CreatedBy: user?.UserId,
+          CreatedBy: user?.UserId || '',
           CreatedDate: formData.CreatedDate,
           UpdatedBy: user?.UserId,
           UpdatedDate: new Date().toISOString(),
@@ -319,13 +347,13 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         };
 
         // Prepare per-year costs with updated metadata
+        // Include soft-deleted items (Id > 0) so the parent/backend can handle removal
         const perYearCosts = componentCostPerYear
-          .filter(cost => !cost.IsDeleted)
           .map(cost => ({
             ...cost,
             ComponentCostId: formData.CostId,
-            CreatedBy: cost.CreatedBy || user?.UserId,
-            UpdatedBy: user?.UserId,
+            CreatedBy: cost.CreatedBy || user?.UserId || '',
+            UpdatedBy: user?.UserId || '',
             UpdatedDate: new Date().toISOString()
           }));
 
@@ -377,7 +405,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                     {mode === 'add' ? 'Add Project Component Cost' : 'Edit Project Component Cost'}
                 </DialogTitle>
                 <button
-                    onClick={onClose}
+                    onClick={handleClose}
                     className="text-gray-400 hover:text-gray-600 "
                     >
                     <XMarkIcon className="h-6 w-6" />
@@ -434,16 +462,27 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
 
                 {/* Description */}
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Description
-                    </label>
+                    <div className="flex justify-between items-center mb-1">
+                        <label className="block text-sm font-medium text-gray-700">
+                            Description
+                        </label>
+                        <button
+                            type="button"
+                            onClick={handleAutoFillDescription}
+                            disabled={isAutoFilling || !formData.ComponentId}
+                            className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                            title="Auto-fill description from GIS"
+                        >
+                            <SparklesIcon className="w-3.5 h-3.5" />
+                            {isAutoFilling ? 'Filling...' : 'Auto-fill'}
+                        </button>
+                    </div>
                     <textarea
                     value={formData.Description}
                     onChange={(e) => handleChange('Description', e.target.value)}
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter description..."
-                    required
                     />
                 </div>
 
@@ -605,7 +644,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                     <Button type="button" color="zinc" onClick={handleClose}>
                         Cancel
                     </Button>
-                    <Button type="submit" color="orange" onClick={handleSubmit}>
+                    <Button type="submit" color="orange">
                         {mode === 'add' ? 'Add' : 'Save'}
                     </Button>
                 </div>
