@@ -1994,7 +1994,7 @@ namespace WebAPI.Controllers.Projects
                     }
                     await _db.tProjectMajorWorkItem.AddRangeAsync(newMajorItems.Select(item => new ProjectMajorWorkItem
                     {
-                        StageName = Project.StageName,
+                        StageName = Program.StageName,
                         ProjectId = Project.ProjectId!,
                         ReferenceId = item.ReferenceId,
                         ComponentId = item.ComponentId,
@@ -2006,6 +2006,7 @@ namespace WebAPI.Controllers.Projects
                     }));
                     await _db.tProjectMajorWorkLocations.AddRangeAsync(NewWorkLocations.Select(item => new ProjectMajorWorkLocations
                     {
+                        StageName = Program.StageName,
                         ParentId = item.ParentId,
                         InfraId = item.InfraId,
                         DetailedScope = item.DetailedScope,
