@@ -20,7 +20,7 @@ const inp = (v: 'add' | 'edit') =>
   }`;
 
 const FundingAgreementTable: React.FC = () => {
-  const { data: codeTableData, loading } = useCodeTableContext();
+  const { data: codeTableData, loading, refetch } = useCodeTableContext();
   const [search, setSearch]                 = useState('');
   const [addForm, setAddForm]               = useState<FormState | null>(null);
   const [editId, setEditId]                 = useState<number | null>(null);
@@ -63,6 +63,7 @@ const FundingAgreementTable: React.FC = () => {
         try {
           await updateCodeTable(CODE, 0, JSON.stringify(addForm));
           showToast({ type: 'success', message: 'Funding agreement added successfully.' });
+          await refetch();
         } catch {
           showToast({ type: 'error', message: 'Failed to add funding agreement.' });
         }
@@ -86,6 +87,7 @@ const FundingAgreementTable: React.FC = () => {
         try {
           await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm }));
           showToast({ type: 'success', message: 'Funding agreement updated successfully.' });
+          await refetch();
         } catch {
           showToast({ type: 'error', message: 'Failed to update funding agreement.' });
         }
@@ -99,6 +101,7 @@ const FundingAgreementTable: React.FC = () => {
     try {
       await updateCodeTable(CODE, 2, JSON.stringify({ Id: id }));
       showToast({ type: 'success', message: 'Funding agreement deleted.' });
+      await refetch();
     } catch {
       showToast({ type: 'error', message: 'Failed to delete funding agreement.' });
     }

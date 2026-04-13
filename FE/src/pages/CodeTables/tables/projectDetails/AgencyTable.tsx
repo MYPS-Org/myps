@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '../../../../components/tailwindui/table';
@@ -10,16 +10,17 @@ import type { AgencyEnum } from '../../../Project/Model.d';
 import ConfirmDialog from '../../dialogs/ConfirmDialog';
 import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
 import { updateCodeTable } from '../../Service';
+import { useCodeTableContext } from '../../CodeTableContext';
+import { useToast } from '../../../../components/toaster/ToasterContext';
 
 const CODE = 'ProjectAgency';
 
 interface FormState { NameId: number; Name: string; Description: string; }
 const EMPTY_FORM: FormState = { NameId: 0, Name: '', Description: '' };
 
-interface Props { data?: AgencyEnum[]; loading?: boolean; }
-
-const AgencyTable: React.FC<Props> = ({ data, loading = false }) => {
-  const [rows, setRows]                = useState<AgencyEnum[]>([]);
+const AgencyTable: React.FC = () => {
+  const { data: codeTableData, loading, refetch } = useCodeTableContext();
+  const { showToast } = useToast();
   const [editId, setEditId]            = useState<number | null>(null);
   const [editForm, setEditForm]        = useState<FormState>(EMPTY_FORM);
   const [addForm, setAddForm]          = useState<FormState | null>(null);
@@ -27,9 +28,7 @@ const AgencyTable: React.FC<Props> = ({ data, loading = false }) => {
   const [search, setSearch]            = useState('');
   const confirm                        = useConfirmDialog();
 
-  useEffect(() => {
-    if (!loading) setRows(data ?? []);
-  }, [data, loading]);
+  const rows: AgencyEnum[] = (codeTableData?.ProjectAgencies ?? []) as AgencyEnum[];
 
   const filtered = rows.filter(r =>
     r.Name.toLowerCase().includes(search.toLowerCase())
@@ -42,19 +41,34 @@ const AgencyTable: React.FC<Props> = ({ data, loading = false }) => {
   };
   const cancelEdit = () => setEditId(null);
   const saveEdit = async () => {
-    await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, NameId: editForm.NameId, Name: editForm.Name, Description: editForm.Description || null }));
-    setRows(prev => prev.map(r => r.Id === editId ? { ...r, NameId: editForm.NameId, Name: editForm.Name, Description: editForm.Description || null } : r));
+    try {
+      await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, NameId: editForm.NameId, Name: editForm.Name, Description: editForm.Description || null }));
+      showToast({ type: 'success', message: 'Agency updated successfully.' });
+      await refetch();
+    } catch {
+      showToast({ type: 'error', message: 'Failed to update agency.' });
+    }
     cancelEdit();
   };
   const saveAdd = async () => {
     if (!addForm) return;
-    await updateCodeTable(CODE, 0, JSON.stringify({ NameId: addForm.NameId, Name: addForm.Name, Description: addForm.Description || null }));
-    setRows(prev => [{ Id: Date.now(), NameId: addForm.NameId, Name: addForm.Name, Description: addForm.Description || null }, ...prev]);
+    try {
+      await updateCodeTable(CODE, 0, JSON.stringify({ NameId: addForm.NameId, Name: addForm.Name, Description: addForm.Description || null }));
+      showToast({ type: 'success', message: 'Agency added successfully.' });
+      await refetch();
+    } catch {
+      showToast({ type: 'error', message: 'Failed to add agency.' });
+    }
     setAddForm(null);
   };
   const confirmDelete = async (id: number) => {
-    await updateCodeTable(CODE, 2, JSON.stringify({ Id: id }));
-    setRows(prev => prev.filter(r => r.Id !== id));
+    try {
+      await updateCodeTable(CODE, 2, JSON.stringify({ Id: id }));
+      showToast({ type: 'success', message: 'Agency deleted.' });
+      await refetch();
+    } catch {
+      showToast({ type: 'error', message: 'Failed to delete agency.' });
+    }
     setDeleteConfirmId(null);
   };
 
