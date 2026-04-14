@@ -1669,7 +1669,7 @@ namespace WebAPI.Controllers.Revision
                             {
                                 var entities = await _db.tProjectComponentCost.FromSqlInterpolated($@"
                                     SELECT *
-                                    FROM fPendingProjectComponentsCost({SelectedProjectRevision.TransactionId}) fp
+                                    FROM fPendingProjectComponentCost({SelectedProjectRevision.TransactionId}) fp
                                     WHERE fp.IsDeleted = 0").ToListAsync();
                                 var status = _db.vProjectComponentCostStatus.Where(x => entities.Select(y => y.ComponentId).Contains(x.ComponentId) && x.ProjectId == SelectedProjectRevision.ProjectId);
 
