@@ -683,6 +683,7 @@ namespace WebAPI.Controllers.Projects
                 #region Major Work Location
 
                 var duplicates = dto.MajorItemLocations
+                    .Where(x => !x.IsDeleted)
                     .Select((item, index) => new { Item = item, Index = index })
                     .GroupBy(x => new
                     {
