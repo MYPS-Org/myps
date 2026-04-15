@@ -136,11 +136,15 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   };
 
   const handleDeletePerYearCost = (index: number) => {
-    setComponentCostPerYear(prev => 
-      prev.map((cost, i) => 
-        i === index ? { ...cost, IsDeleted: true } : cost
-      )
-    );
+    setComponentCostPerYear(prev => {
+      const cost = prev[index];
+      if (cost.Id === 0) {
+        // Hard delete: unsaved item, remove from array
+        return prev.filter((_, i) => i !== index);
+      }
+      // Soft delete: saved in DB, mark as deleted for backend
+      return prev.map((c, i) => i === index ? { ...c, IsDeleted: true } : c);
+    });
   };
 
   // Reset initialization flag when dialog opens/closes or mode changes
