@@ -388,18 +388,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const handleDeleteComponentCost = (index: number) => {
     const costToDelete = componentCosts[index];
     if (costToDelete) {
-      // CASCADE DELETE: Find all related major items and their work locations
-      const relatedMajorItems = majorItems.filter(
-        item => item.ComponentId === costToDelete.ComponentId && !item.IsDeleted
-      );
-      
-      if (relatedMajorItems.length > 0) {
-        const confirmMessage = `Deleting this component will also delete ${relatedMajorItems.length} related major item(s) and their work locations.\n\nDo you want to proceed?`;
-        if (!window.confirm(confirmMessage)) {
-          return; // User cancelled
-        }
-      }
-
       // Step 1: Delete ComponentCost itself based on its own Id
       if (costToDelete.Id === 0) {
         setComponentCosts(prev => prev.filter((_, i) => i !== index));
