@@ -148,9 +148,9 @@ function cascadeDeleteMajorItem(item: MajorItemOfWorksWithDropdown): MajorItemOf
 
 ## Implementation Checklist
 
-- [ ] **Fix `handleDeletePerYearCost` in `ComponentCostDialog.tsx`** — Hard-delete `Id === 0`, soft-delete `Id > 0`
-- [ ] **Fix `handleDeleteComponentCost` in `ProjectForm.tsx`** — Respect individual child `Id` values when cascading to PerYear costs, MajorItems, and Locations
-- [ ] **Fix `handleDeleteMajorItem` in `ProjectForm.tsx`** — Add cascade to MajorItemLocations with proper hard/soft logic
+- [x] **Fix `handleDeletePerYearCost` in `ComponentCostDialog.tsx`** — Hard-delete `Id === 0`, soft-delete `Id > 0`
+- [x] **Fix `handleDeleteComponentCost` in `ProjectForm.tsx`** — Respect individual child `Id` values when cascading to PerYear costs, MajorItems, and Locations
+- [x] **Fix `handleDeleteMajorItem` in `ProjectForm.tsx`** — Add cascade to MajorItemLocations with proper hard/soft logic
 - [ ] **Test scenarios:**
   - Delete per-year cost (Id=0) in dialog → removed from array, not soft-deleted
   - Delete per-year cost (Id>0) in dialog → IsDeleted: true
