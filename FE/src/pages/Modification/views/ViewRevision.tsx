@@ -108,10 +108,10 @@ const ViewRevision: React.FC = () => {
                 setRevisionData(response.Data);
             } catch (error) {
                 console.error('Error fetching revision details:', error);
-                showToast({
-                    type: 'error',
-                    message: 'Failed to fetch revision details'
-                });
+                // showToast({
+                //     type: 'error',
+                //     message: 'Failed to fetch revision details'
+                // });
             } finally {
                 setIsLoading(false);
             }

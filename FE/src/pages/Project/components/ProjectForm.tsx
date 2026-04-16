@@ -388,63 +388,51 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const handleDeleteComponentCost = (index: number) => {
     const costToDelete = componentCosts[index];
     if (costToDelete) {
-      // CASCADE DELETE: Find all related major items and their work locations
-      const relatedMajorItems = majorItems.filter(
-        item => item.ComponentId === costToDelete.ComponentId && !item.IsDeleted
-      );
-      
-      if (relatedMajorItems.length > 0) {
-        const confirmMessage = `Deleting this component will also delete ${relatedMajorItems.length} related major item(s) and their work locations.\n\nDo you want to proceed?`;
-        if (!window.confirm(confirmMessage)) {
-          return; // User cancelled
-        }
-      }
-
+      // Step 1: Delete ComponentCost itself based on its own Id
       if (costToDelete.Id === 0) {
-        // Hard delete for new items not yet saved to database
         setComponentCosts(prev => prev.filter((_, i) => i !== index));
-        
-        // Hard delete associated per-year costs
-        setComponentCostPerYear(prev => 
-          prev.filter(cost => cost.ComponentCostId !== costToDelete.CostId)
-        );
-        
-        // Cascade hard delete: Remove all related major items and their locations
-        setMajorItems(prev => prev.filter(item => item.ComponentId !== costToDelete.ComponentId));
-        
-        console.log('Hard deleted (removed) component cost, per-year costs, and related major items:', costToDelete);
       } else {
-        // Soft delete for existing database items
-        setComponentCosts(prev => prev.map((cost, i) => 
+        setComponentCosts(prev => prev.map((cost, i) =>
           i === index ? { ...cost, IsDeleted: true } : cost
         ));
-        
-        // Soft delete associated per-year costs
-        setComponentCostPerYear(prev => 
-          prev.map(cost => 
-            cost.ComponentCostId === costToDelete.CostId ? { ...cost, IsDeleted: true } : cost
-          )
-        );
-        
-        // Cascade soft delete: Mark all related major items as deleted
-        // This will also cascade to their work locations since they're part of MajorItemLocations array
-        setMajorItems(prev => prev.map(item => {
-          if (item.ComponentId === costToDelete.ComponentId && !item.IsDeleted) {
-            // Soft delete the major item and all its work locations
-            return {
-              ...item,
-              IsDeleted: true,
-              MajorItemLocations: item.MajorItemLocations?.map(location => ({
-                ...location,
-                IsDeleted: true
-              }))
-            };
-          }
-          return item;
-        }));
-        
-        console.log('Soft deleted (IsDeleted=true) component cost, per-year costs, and cascaded to related major items:', costToDelete);
       }
+
+      // Step 2: Cascade to ComponentCostPerYear — each child's Id decides hard vs soft
+      setComponentCostPerYear(prev =>
+        prev
+          .filter(cost => !(cost.ComponentCostId === costToDelete.CostId && cost.Id === 0))
+          .map(cost =>
+            cost.ComponentCostId === costToDelete.CostId
+              ? { ...cost, IsDeleted: true }
+              : cost
+          )
+      );
+
+      // Step 3: Cascade to MajorItems — each item's and each location's Id decides hard vs soft
+      setMajorItems(prev => {
+        const updated = prev.map(item => {
+          if (item.ComponentId !== costToDelete.ComponentId || item.IsDeleted) {
+            return item;
+          }
+          // Step 3a: Cascade to Locations — hard-delete Id===0, soft-delete Id>0
+          const processedLocations = (item.MajorItemLocations || [])
+            .filter(loc => loc.Id !== 0)
+            .map(loc => ({ ...loc, IsDeleted: true }));
+
+          // Step 3b: Decide MajorItem fate
+          if (item.Id === 0 && processedLocations.length === 0) {
+            return null; // Fully unsaved — hard delete
+          }
+          return {
+            ...item,
+            IsDeleted: true,
+            MajorItemLocations: processedLocations
+          };
+        });
+        return updated.filter(item => item !== null) as typeof prev;
+      });
+
+      console.log('Deleted component cost with proper cascade (hard/soft per child Id):', costToDelete);
     }
   };
 
@@ -488,16 +476,22 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
   const handleDeleteMajorItem = (index: number) => {
     const itemToDelete = majorItems[index];
     if (itemToDelete) {
-      if (itemToDelete.Id === 0) {
-        // Hard delete for new items not yet saved to database
+      // Step 1: Cascade to MajorItemLocations — hard-delete Id===0, soft-delete Id>0
+      const processedLocations = (itemToDelete.MajorItemLocations || [])
+        .filter(loc => loc.Id !== 0)
+        .map(loc => ({ ...loc, IsDeleted: true }));
+
+      // Step 2: Decide MajorItem fate
+      if (itemToDelete.Id === 0 && processedLocations.length === 0) {
+        // Fully unsaved — hard delete: remove from array
         setMajorItems(prev => prev.filter((_, i) => i !== index));
-        console.log('Hard deleted (removed) new major item:', itemToDelete);
       } else {
-        // Soft delete for existing database items
-        setMajorItems(prev => prev.map((item, i) => 
-          i === index ? { ...item, IsDeleted: true } : item
+        // Either item or some locations exist in DB — soft delete to preserve for backend
+        setMajorItems(prev => prev.map((item, i) =>
+          i === index
+            ? { ...item, IsDeleted: true, MajorItemLocations: processedLocations }
+            : item
         ));
-        console.log('Soft deleted (IsDeleted=true) existing major item:', itemToDelete);
       }
     }
   };

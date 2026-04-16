@@ -25,13 +25,6 @@ const ModifyProject: React.FC = () => {
     const selectedCategoryId = location.state?.categoryId || null;
     const selectedRevisionGroupId = location.state?.revisionGroupId || 0;
 
-    // console.log('ModificationDetails - Navigation state:', location.state);
-    // console.log('ModificationDetails - Category:', categoryDesc);
-    // console.log('ModificationDetails - Reason:', reasonDesc);
-    // console.log('ModificationDetails - Reason ID:', selectedReasonId);
-    // console.log('ModificationDetails - Category ID:', selectedCategoryId);
-    // console.log('ModificationDetails - Revision Group ID:', selectedRevisionGroupId);
-
     // Cleanup error redirect timeout on unmount
     useEffect(() => {
         return () => {

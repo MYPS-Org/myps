@@ -5,6 +5,7 @@ import { PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon, CheckIcon, XMarkI
 import type { ComponentTypeEnum } from '../../../Project/Model.d';
 import { useCodeTableContext } from '../../CodeTableContext';
 import { updateCodeTable } from '../../Service';
+import { useToast } from '../../../../components/toaster/ToasterContext';
 import ConfirmDialog from '../../dialogs/ConfirmDialog';
 import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
 
@@ -22,7 +23,8 @@ const CostTypeTable: React.FC = () => {
   const [editId, setEditId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<FormState>(EMPTY_FORM);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
-  const { data: codeTableData, loading } = useCodeTableContext();
+  const { data: codeTableData, loading, refetch } = useCodeTableContext();
+  const { showToast } = useToast();
   const confirm = useConfirmDialog();
 
   const data: ComponentTypeEnum[] = codeTableData?.ProjectComponents ?? [];
@@ -50,7 +52,13 @@ const CostTypeTable: React.FC = () => {
         { label: 'Export PCMA', value: addForm.ExportToPCMA ? 'Yes' : 'No' },
       ],
       onConfirm: async () => {
-        await updateCodeTable(CODE, 0, JSON.stringify(addForm));
+        try {
+          await updateCodeTable(CODE, 0, JSON.stringify(addForm));
+          showToast({ type: 'success', message: 'Cost type added successfully.' });
+          await refetch();
+        } catch {
+          showToast({ type: 'error', message: 'Failed to add cost type.' });
+        }
         confirm.close();
         setAddForm(null);
       },
@@ -67,7 +75,13 @@ const CostTypeTable: React.FC = () => {
         { label: 'Export PCMA', value: editForm.ExportToPCMA ? 'Yes' : 'No' },
       ],
       onConfirm: async () => {
-        await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm }));
+        try {
+          await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm }));
+          showToast({ type: 'success', message: 'Cost type updated successfully.' });
+          await refetch();
+        } catch {
+          showToast({ type: 'error', message: 'Failed to update cost type.' });
+        }
         confirm.close();
         cancelEdit();
       },
@@ -75,7 +89,13 @@ const CostTypeTable: React.FC = () => {
   };
 
   const confirmDelete = async (id: number) => {
-    await updateCodeTable(CODE, 2, JSON.stringify({ Id: id }));
+    try {
+      await updateCodeTable(CODE, 2, JSON.stringify({ Id: id }));
+      showToast({ type: 'success', message: 'Cost type deleted.' });
+      await refetch();
+    } catch {
+      showToast({ type: 'error', message: 'Failed to delete cost type.' });
+    }
     setDeleteConfirmId(null);
   };
 

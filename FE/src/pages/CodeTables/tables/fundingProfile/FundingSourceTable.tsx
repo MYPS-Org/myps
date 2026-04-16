@@ -5,6 +5,7 @@ import { PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon, CheckIcon, XMarkI
 import type { SourceEnum } from '../../../Project/Model.d';
 import { useCodeTableContext } from '../../CodeTableContext';
 import { updateCodeTable } from '../../Service';
+import { useToast } from '../../../../components/toaster/ToasterContext';
 import ConfirmDialog from '../../dialogs/ConfirmDialog';
 import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
 
@@ -24,7 +25,8 @@ const FundingSourceTable: React.FC = () => {
   const [editId, setEditId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<FormState>(EMPTY_FORM);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
-  const { data: codeTableData, loading } = useCodeTableContext();
+  const { data: codeTableData, loading, refetch } = useCodeTableContext();
+  const { showToast } = useToast();
   const confirm = useConfirmDialog();
 
   const data: SourceEnum[] = codeTableData?.FundingSources ?? [];
@@ -54,7 +56,13 @@ const FundingSourceTable: React.FC = () => {
         { label: 'Nature',       value: addForm.Nature },
       ],
       onConfirm: async () => {
-        await updateCodeTable(CODE, 0, JSON.stringify(addForm));
+        try {
+          await updateCodeTable(CODE, 0, JSON.stringify(addForm));
+          showToast({ type: 'success', message: 'Funding source added successfully.' });
+          await refetch();
+        } catch {
+          showToast({ type: 'error', message: 'Failed to add funding source.' });
+        }
         confirm.close();
         setAddForm(null);
       },
@@ -71,7 +79,13 @@ const FundingSourceTable: React.FC = () => {
         { label: 'Nature',       value: editForm.Nature },
       ],
       onConfirm: async () => {
-        await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm }));
+        try {
+          await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm }));
+          showToast({ type: 'success', message: 'Funding source updated successfully.' });
+          await refetch();
+        } catch {
+          showToast({ type: 'error', message: 'Failed to update funding source.' });
+        }
         confirm.close();
         cancelEdit();
       },
@@ -79,7 +93,13 @@ const FundingSourceTable: React.FC = () => {
   };
 
   const confirmDelete = async (id: number) => {
-    await updateCodeTable(CODE, 2, JSON.stringify({ Id: id }));
+    try {
+      await updateCodeTable(CODE, 2, JSON.stringify({ Id: id }));
+      showToast({ type: 'success', message: 'Funding source deleted.' });
+      await refetch();
+    } catch {
+      showToast({ type: 'error', message: 'Failed to delete funding source.' });
+    }
     setDeleteConfirmId(null);
   };
 

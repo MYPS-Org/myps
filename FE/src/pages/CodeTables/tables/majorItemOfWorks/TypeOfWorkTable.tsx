@@ -11,6 +11,7 @@ import { Button } from '../../../../components/tailwindui/button';
 import { PlusIcon, MagnifyingGlassIcon, PencilIcon, TrashIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useCodeTableContext } from '../../CodeTableContext';
 import { updateCodeTable } from '../../Service';
+import { useToast } from '../../../../components/toaster/ToasterContext';
 import ConfirmDialog from '../../dialogs/ConfirmDialog';
 import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
 
@@ -56,7 +57,8 @@ const TypeOfWorkTable: React.FC = () => {
   const [editForm, setEditForm] = useState<FormState>(EMPTY_FORM);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const itemsPerPage = 15;
-  const { data: codeTableData, loading } = useCodeTableContext();
+  const { data: codeTableData, loading, refetch } = useCodeTableContext();
+  const { showToast } = useToast();
   const confirm = useConfirmDialog();
 
   // Flatten ScopeOfWorks into one row per infra-type entry, using real ScopeOfWorkEnum.Id
@@ -131,14 +133,20 @@ const TypeOfWorkTable: React.FC = () => {
         { label: 'Max Amount',    value: addForm.maxAmount || '—' },
       ],
       onConfirm: async () => {
-        await updateCodeTable(CODE, 0, JSON.stringify({
-          InfraType: [addForm.infraType],
-          WorkCategory: addForm.workCategory,
-          Description: addForm.description,
-          Measure: addForm.measure,
-          MinAmount: addForm.minAmount !== '' ? Number(addForm.minAmount) : null,
-          MaxAmount: addForm.maxAmount !== '' ? Number(addForm.maxAmount) : null,
-        }));
+        try {
+          await updateCodeTable(CODE, 0, JSON.stringify({
+            InfraType: [addForm.infraType],
+            WorkCategory: addForm.workCategory,
+            Description: addForm.description,
+            Measure: addForm.measure,
+            MinAmount: addForm.minAmount !== '' ? Number(addForm.minAmount) : null,
+            MaxAmount: addForm.maxAmount !== '' ? Number(addForm.maxAmount) : null,
+          }));
+          showToast({ type: 'success', message: 'Type of work added successfully.' });
+          await refetch();
+        } catch {
+          showToast({ type: 'error', message: 'Failed to add type of work.' });
+        }
         confirm.close();
         setAddForm(null);
       },
@@ -158,15 +166,21 @@ const TypeOfWorkTable: React.FC = () => {
         { label: 'Max Amount',    value: editForm.maxAmount || '—' },
       ],
       onConfirm: async () => {
-        await updateCodeTable(CODE, 1, JSON.stringify({
-          Id: item.id,
-          InfraType: [editForm.infraType],
-          WorkCategory: editForm.workCategory,
-          Description: editForm.description,
-          Measure: editForm.measure,
-          MinAmount: editForm.minAmount !== '' ? Number(editForm.minAmount) : null,
-          MaxAmount: editForm.maxAmount !== '' ? Number(editForm.maxAmount) : null,
-        }));
+        try {
+          await updateCodeTable(CODE, 1, JSON.stringify({
+            Id: item.id,
+            InfraType: [editForm.infraType],
+            WorkCategory: editForm.workCategory,
+            Description: editForm.description,
+            Measure: editForm.measure,
+            MinAmount: editForm.minAmount !== '' ? Number(editForm.minAmount) : null,
+            MaxAmount: editForm.maxAmount !== '' ? Number(editForm.maxAmount) : null,
+          }));
+          showToast({ type: 'success', message: 'Type of work updated successfully.' });
+          await refetch();
+        } catch {
+          showToast({ type: 'error', message: 'Failed to update type of work.' });
+        }
         confirm.close();
         cancelEdit();
       },
@@ -174,7 +188,13 @@ const TypeOfWorkTable: React.FC = () => {
   };
 
   const confirmDelete = async (id: number) => {
-    await updateCodeTable(CODE, 2, JSON.stringify({ Id: id }));
+    try {
+      await updateCodeTable(CODE, 2, JSON.stringify({ Id: id }));
+      showToast({ type: 'success', message: 'Type of work deleted.' });
+      await refetch();
+    } catch {
+      showToast({ type: 'error', message: 'Failed to delete type of work.' });
+    }
     setDeleteConfirmId(null);
   };
 

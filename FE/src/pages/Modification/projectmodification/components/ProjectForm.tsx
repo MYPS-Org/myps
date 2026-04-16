@@ -868,7 +868,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           onClick={() => setIsMapOpen(!isMapOpen)}
         >
           <h3 className="text-lg font-semibold leading-7 text-gray-900">
-            Project Location
+            Project Location Map
           </h3>
           {isMapOpen ? (
             <ChevronDownIcon className="h-5 w-5 text-gray-500" />

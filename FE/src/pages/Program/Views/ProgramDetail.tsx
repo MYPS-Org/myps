@@ -1007,7 +1007,7 @@ setIsAddExistingProjectDialogOpen(true);
                     {project.IsPublishable ? 'Yes' : 'No'}
                   </TableCell>
                   <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 truncate max-w-20">
-                    {project.IsPublishable ? 'Yes' : 'No'}
+                    {project.IsPublished ? 'Yes' : 'No'}
                   </TableCell>
                   {/* { programEnums?.IsActive && programEnums?.Details?.StageId === 10 && programEnums?.Details?.IsPublished && (
                   <TableCell className='px-6 py-4 whitespace-nowrap text-sm font-medium text-center'>
