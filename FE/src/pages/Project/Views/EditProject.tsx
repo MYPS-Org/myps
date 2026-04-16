@@ -16,6 +16,8 @@ const EditProject: React.FC = () => {
     const handleRefresh = () => setRefreshKey(prev => prev + 1);
 
     useEffect(() => {
+        setIsLoading(true); // Reset so ProjectForm fully unmounts and remounts with fresh state
+        setInitialData(undefined);
         // Load project data based on ID
         const loadProjectData = async () => {
             try {
@@ -48,12 +50,8 @@ const EditProject: React.FC = () => {
         }
     };
 
-    if (isLoading) {
-        return (
-            <div className="flex justify-center items-center h-64">
-                <div className="text-lg text-gray-600">Loading project data...</div>
-            </div>
-        );
+    if (isLoading || !initialData) {
+        return null;
     }
 
     return (
