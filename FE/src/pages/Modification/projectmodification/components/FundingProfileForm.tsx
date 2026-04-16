@@ -4,7 +4,8 @@ import type { FieldRules } from "../../Model";
 import { Button } from "../../../../components/tailwindui/button";
 import { PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from "../../../../components/tailwindui/table";
-import { getDisabledClass, handleCurrencyBlur, handleCurrencyChange, handleCurrencyFocus, handleNumberFocus } from "../../../../utils/GlobalFunctions";
+import { getDisabledClass, handleCurrencyBlur, handleCurrencyChange, handleCurrencyFocus, handleNumberFocus, formatDropdownOptions } from "../../../../utils/GlobalFunctions";
+import SearchableDropdown from "../../../../components/ui/SearchableDropdown";
 
 interface FundingProfileFormProps {
   initialData?: ProjectFormPayload;
@@ -266,40 +267,31 @@ const FundingProfileForm: React.FC<FundingProfileFormProps> = ({
               return (
             <TableRow key={profile.Id === 0 ? `new-${index}` : profile.Id}>
                 <TableCell className="w-1/3">
-                  <select
-                    name="source"
-                    value={profile.Source}
-                    onChange={(e) => onEdit(index, { ...profile, Source: String(e.target.value) })}
-                    className={`${getDisabledClass(!isSourceEditable)} w-full px-2 py-1 border border-gray-300 rounded truncate`}
+                  <SearchableDropdown
+                    options={formatDropdownOptions(initialData?.Dropdowns?.Sources || [], 'Organization', 'Name', 'Id')}
+                    value={profile.Source || ''}
+                    onChange={(value) => onEdit(index, { ...profile, Source: String(value), Agreement: '' })}
+                    placeholder="Select Source"
                     disabled={!isSourceEditable}
-                    // style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
-                  >
-                    <option value="">Select Source</option>
-                    {initialData?.Dropdowns?.Sources?.map((source) => (
-                      <option key={source.Id} value={source.Organization}>
-                        {source.Name} 
-                      </option>
-                    ))}
-                  </select>
+                    allowClear={true}
+                    searchPlaceholder="Search sources..."
+                  />
                 </TableCell>
                 <TableCell className="w-1/3">
-                  <select
-                    name="agreement"
-                    value={profile.Agreement}
-                    onChange={(e) => onEdit(index, { ...profile, Agreement: String(e.target.value) })}
-                    className={`${getDisabledClass(!isAgreementEditable)} w-full px-2 py-1 border border-gray-300 rounded truncate`}
-                    // style={{ textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
-                    disabled={!profile.Source || !isAgreementEditable} // Disable if no source selected
-                  >
-                    <option value="">Select Agreement</option>
-                    {initialData?.Dropdowns?.Agreements
-                      ?.filter((agreement) => agreement.SourceOrg === profile.Source) // Filter by selected source
-                      .map((agreement) => (
-                        <option key={agreement.Id} value={agreement.Code}>
-                          {agreement.Name}
-                        </option>
-                      ))}
-                  </select>
+                  <SearchableDropdown
+                    options={formatDropdownOptions(
+                      initialData?.Dropdowns?.Agreements?.filter((a) => a.SourceOrg === profile.Source) || [],
+                      'Code',
+                      'Name',
+                      'Id'
+                    )}
+                    value={profile.Agreement || ''}
+                    onChange={(value) => onEdit(index, { ...profile, Agreement: String(value) })}
+                    placeholder="Select Agreement"
+                    disabled={!profile.Source || !isAgreementEditable}
+                    allowClear={true}
+                    searchPlaceholder="Search agreements..."
+                  />
                 </TableCell>
                 <TableCell className="w-1/6">
                   <input 

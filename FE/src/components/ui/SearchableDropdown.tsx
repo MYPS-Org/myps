@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import ReactDOM from 'react-dom';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
 
 interface Option {
@@ -32,7 +33,9 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const portalRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Derive filtered options without setState (avoids infinite re-render loop)
@@ -46,7 +49,11 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (
+        triggerRef.current && !triggerRef.current.contains(target) &&
+        portalRef.current && !portalRef.current.contains(target)
+      ) {
         setIsOpen(false);
         setSearchTerm('');
       }
@@ -56,18 +63,43 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Focus search input when dropdown opens
+  // Recalculate position and close on scroll/resize
   useEffect(() => {
-    if (isOpen && inputRef.current) {
-      inputRef.current.focus();
-    }
+    if (!isOpen) return;
+
+    const updatePos = () => {
+      if (triggerRef.current) {
+        const rect = triggerRef.current.getBoundingClientRect();
+        setDropdownPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+      }
+    };
+    const close = (e: Event) => {
+      // Don't close when scrolling inside the portal dropdown itself
+      if (portalRef.current && e.target instanceof Node && portalRef.current.contains(e.target)) return;
+      setIsOpen(false);
+      setSearchTerm('');
+    };
+
+    updatePos();
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
   }, [isOpen]);
 
   const selectedOption = options.find(option => option.value == value);
 
   const handleToggle = () => {
     if (!disabled) {
-      setIsOpen(!isOpen);
+      setIsOpen(prev => {
+        if (!prev && triggerRef.current) {
+          const rect = triggerRef.current.getBoundingClientRect();
+          setDropdownPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+        }
+        return !prev;
+      });
       setSearchTerm('');
     }
   };
@@ -94,7 +126,7 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
   `.trim();
 
   return (
-    <div className="relative w-full" ref={dropdownRef}>
+    <div className="relative w-full" ref={triggerRef}>
       <div
         className={baseClasses}
         onClick={handleToggle}
@@ -122,8 +154,12 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
         </div>
       </div>
 
-      {isOpen && !disabled && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
+      {isOpen && !disabled && ReactDOM.createPortal(
+        <div
+          ref={portalRef}
+          style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width, zIndex: 9999 }}
+          className="bg-white border border-gray-300 rounded-md shadow-lg"
+        >
           {/* Search Input */}
           <div className="p-2 border-b border-gray-200">
             <input
@@ -133,6 +169,7 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder={searchPlaceholder}
               className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              autoFocus
             />
           </div>
 
@@ -157,7 +194,8 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
               ))
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
