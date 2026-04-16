@@ -1551,7 +1551,7 @@ namespace WebAPI.Controllers.Projects
                 #endregion
                 #endregion
                 #region Update Major Item of Works
-                var MajorItemOfWorks = await _db.tProjectMajorWorkItem.Where(x => x.ProjectId == Project.ProjectId && x.StageName == Program.StageName && !x.IsDeleted).ToListAsync();
+                var MajorItemOfWorks = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Program.StageName && !x.IsDeleted).ToListAsync();
                 if (MajorItemOfWorks.Count > 0)
                 {
                     var currentMajorItemIds = new HashSet<int>(MajorItemOfWorks.Select(x => x.Id));
@@ -1663,8 +1663,8 @@ namespace WebAPI.Controllers.Projects
                             }
                         }
                         #region Update Locations for Updated Major Items
-                        var CurrentLocations = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => UpdatedWorkItemIds.Contains(x.ParentId) && !x.IsDeleted && !LocationsToBeDeleted.Contains(x.Id)).ToListAsync();
-                        var CurrentLocationIds = CurrentLocations.Select(x => x.Id).ToHashSet();
+                        var CurrentLocations = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => UpdatedWorkItemIds.Contains(x.ParentId) && !x.IsDeleted && x.StageName == Program.StageName).ToListAsync();
+                        HashSet<int> CurrentLocationIds = CurrentLocations.Select(x => x.Id).ToHashSet();
                         var UpdateLocations = UpdatedWorkLocations.Where(x => CurrentLocationIds.Contains(x.Id)).ToList();
                         if (UpdateLocations.Count > 0)
                         {
@@ -1918,6 +1918,13 @@ namespace WebAPI.Controllers.Projects
                                     {
                                         ExistingLoc.UpdatedBy = _Session.UserId;
                                         ExistingLoc.UpdatedDate = CurrentDate;
+
+                                        // Detach any conflicting tracked instance
+                                        var trackedEntry = _db.ChangeTracker.Entries<ProjectMajorWorkLocations>()
+                                            .FirstOrDefault(e => e.Entity.Id == ExistingLoc.Id);
+                                        if (trackedEntry != null)
+                                            trackedEntry.State = EntityState.Detached;
+
                                         _db.tProjectMajorWorkLocations.Update(ExistingLoc);
                                     }
                                 }
