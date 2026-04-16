@@ -687,9 +687,9 @@ namespace WebAPI.Controllers.Projects
                     .Select((item, index) => new { Item = item, Index = index })
                     .GroupBy(x => new
                     {
-                        DetailedScope = (x.Item.DetailedScope ?? string.Empty).Trim().ToUpperInvariant(),
-                        StartStation = (x.Item.StartStationLimit ?? string.Empty).Trim().ToUpperInvariant(),
-                        EndStation = (x.Item.EndStationLimit ?? string.Empty).Trim().ToUpperInvariant()
+                        DetailedScope = (x.Item.DetailedScope!).Trim().ToUpperInvariant(),
+                        StartStation = (x.Item.StartStationLimit!).Trim().ToUpperInvariant(),
+                        EndStation = (x.Item.EndStationLimit!).Trim().ToUpperInvariant()
                     })
                     .Where(g => g.Count() > 1)
                     .Select(g => new
