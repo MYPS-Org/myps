@@ -95,12 +95,17 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
 
       return { isValid: true, message: '' };
     } else if (isLengthBasedMeasure(actualTargetUnit)) {
-      // For non-Roads with length-based measure: validate length value
-      if (location.Length === null || location.Length === undefined || location.Length < 0) {
+      // For non-Roads with length-based measure: length is optional
+      // Only validate if a value has actually been entered
+      if (location.Length === null || location.Length === undefined || location.Length === 0) {
+        return { isValid: true, message: '' };
+      }
+
+      if (location.Length < 0) {
         return { isValid: false, message: 'Length must be greater than or equal to 0.' };
       }
 
-      // Validate against min/max amounts
+      // Validate against min/max amounts only if value is present
       if (minAmount !== undefined && location.Length < minAmount) {
         return { isValid: false, message: `Length must be greater than or equal to ${minAmount}.` };
       }

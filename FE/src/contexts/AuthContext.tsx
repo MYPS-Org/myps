@@ -112,6 +112,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                     user: null,
                     ViewAccess: []
                 });
+                if (window.location.pathname !== '/login') {
+                    window.location.href = '/login';
+                }
             }
         }
     };

@@ -11,6 +11,9 @@ const EditProject: React.FC = () => {
     const id = useMemo(() => project?.split(':'), [project]);
     const [initialData, setInitialData] = useState<ProjectFormPayload | undefined>(undefined);
     const [isLoading, setIsLoading] = useState(true);
+    const [refreshKey, setRefreshKey] = useState(0);
+
+    const handleRefresh = () => setRefreshKey(prev => prev + 1);
 
     useEffect(() => {
         // Load project data based on ID
@@ -30,7 +33,7 @@ const EditProject: React.FC = () => {
         };
 
         loadProjectData();
-    }, [id]);
+    }, [id, refreshKey]);
 
     const fetchProjectDetails = async (projectId: string, stageName: string) => {
         try {
@@ -57,6 +60,7 @@ const EditProject: React.FC = () => {
         <ProjectForm
             initialData={initialData}
             mode="edit"
+            onRefresh={handleRefresh}
         />
     );
 };
