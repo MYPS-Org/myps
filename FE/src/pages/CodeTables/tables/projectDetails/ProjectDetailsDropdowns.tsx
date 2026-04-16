@@ -12,8 +12,7 @@ interface TabDef {
   id: string;
   label: string;
   dataKey: keyof CodeTableData;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Component: React.ComponentType<{ data?: any[]; loading?: boolean }>;
+  Component: React.ComponentType;
 }
 
 const TABS: TabDef[] = [
@@ -29,8 +28,6 @@ const ProjectDetailsDropdowns: React.FC = () => {
   const { data: codeTableData, loading, error, refetch } = useCodeTableContext();
 
   const activeTab  = TABS.find(t => t.id === activeId) ?? TABS[0];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const activeData = codeTableData ? ((codeTableData[activeTab.dataKey] as any[]) ?? []) : undefined;
 
   const countOf = (key: keyof CodeTableData): number =>
     codeTableData ? ((codeTableData[key] as unknown[])?.length ?? 0) : 0;
@@ -83,7 +80,7 @@ const ProjectDetailsDropdowns: React.FC = () => {
 
       {/* Active table component */}
       <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <activeTab.Component data={activeData} loading={loading} />
+        <activeTab.Component />
       </div>
     </div>
   );

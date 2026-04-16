@@ -471,7 +471,7 @@ namespace WebAPI.Controllers.Revision
                 var MajorItemOfWork = await _db.tProjectMajorWorkItem.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkItem({Project.ProjectId}) fp WHERE fp.StageName = {Project.StageName}").AsNoTracking().ToListAsync();
                 //var MajorItemOfWork = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && !x.IsDeleted).ToListAsync();
                 HashSet<string> ItemParents = MajorItemOfWork.Select(x => x.ReferenceId).ToHashSet();
-                var MajorWorkLocation = await _db.tProjectMajorWorkLocations.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkLocations({Project.ProjectId})").AsNoTracking().Where(x => ItemParents.Contains(x.ParentId) && !x.IsDeleted).ToListAsync();
+                var MajorWorkLocation = await _db.tProjectMajorWorkLocations.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkLocations({Project.ProjectId}) fp WHERE fp.StageName = {Project.StageName}").AsNoTracking().Where(x => ItemParents.Contains(x.ParentId) && !x.IsDeleted).ToListAsync();
 
 
                 var Notes = await _db.tProjectNotes.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
@@ -710,6 +710,7 @@ namespace WebAPI.Controllers.Revision
                 #region Major Work Location
 
                 var duplicates = dto.MajorItemLocations
+                    .Where(x => !x.IsDeleted && !string.IsNullOrEmpty(x.StartStationLimit) && !string.IsNullOrEmpty(x.EndStationLimit))
                     .Select((item, index) => new { Item = item, Index = index })
                     .GroupBy(x => new
                     {
@@ -1669,7 +1670,7 @@ namespace WebAPI.Controllers.Revision
                             {
                                 var entities = await _db.tProjectComponentCost.FromSqlInterpolated($@"
                                     SELECT *
-                                    FROM fPendingProjectComponentsCost({SelectedProjectRevision.TransactionId}) fp
+                                    FROM fPendingProjectComponentCost({SelectedProjectRevision.TransactionId}) fp
                                     WHERE fp.IsDeleted = 0").ToListAsync();
                                 var status = _db.vProjectComponentCostStatus.Where(x => entities.Select(y => y.ComponentId).Contains(x.ComponentId) && x.ProjectId == SelectedProjectRevision.ProjectId);
 

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React, { useState } from 'react';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '../../../../components/tailwindui/table';
@@ -10,15 +10,10 @@ import type { ThrustEnum } from '../../../Project/Model.d';
 import ConfirmDialog from '../../dialogs/ConfirmDialog';
 import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
 import { updateCodeTable } from '../../Service';
+import { useCodeTableContext } from '../../CodeTableContext';
+import { useToast } from '../../../../components/toaster/ToasterContext';
 
 const CODE = 'ProjectThrust';
-
-const SAMPLE_DATA: ThrustEnum[] = [
-  { Id: 1, PAPKey: 1035, ProgramName: 'Buildings and Other Structures', SubProgramName: 'School Buildings', ActivityName: '', SequenceNumber: 1, ValidFromDate: 2016, ValidToDate: 2017, InfrastructureType: 'School Buildings', ThrustDescription: 'Construction of school buildings under various programs' },
-  { Id: 2, PAPKey: 1037, ProgramName: 'Construction and Maintenance of Bridges along National Roads', SubProgramName: 'Construction of New Permanent Bridges', ActivityName: '', SequenceNumber: 2, ValidFromDate: 2016, ValidToDate: 2017, InfrastructureType: 'Bridges', ThrustDescription: 'New permanent bridge construction along national roads' },
-  { Id: 3, PAPKey: 1059, ProgramName: 'DA Farm to Market Roads', SubProgramName: 'Farm to Market Roads', ActivityName: '', SequenceNumber: 3, ValidFromDate: 2016, ValidToDate: 0, InfrastructureType: 'Roads', ThrustDescription: 'DA-funded farm to market road projects' },
-  { Id: 4, PAPKey: 1093, ProgramName: 'General Infrastructure Program', SubProgramName: 'Roads', ActivityName: '', SequenceNumber: 4, ValidFromDate: 2022, ValidToDate: 0, InfrastructureType: 'Roads', ThrustDescription: 'General infrastructure program for roads' },
-];
 
 interface FormState {
   PAPKey: number; ProgramName: string; SubProgramName: string;
@@ -33,10 +28,9 @@ const EMPTY_FORM: FormState = {
   ValidFromDate: new Date().getFullYear(), ValidToDate: 0,
 };
 
-interface Props { data?: ThrustEnum[]; loading?: boolean; }
-
-const ThrustTable: React.FC<Props> = ({ data, loading = false }) => {
-  const [rows, setRows]                = useState<ThrustEnum[]>([]);
+const ThrustTable: React.FC = () => {
+  const { data: codeTableData, loading, refetch } = useCodeTableContext();
+  const { showToast } = useToast();
   const [editId, setEditId]            = useState<number | null>(null);
   const [editForm, setEditForm]        = useState<FormState>(EMPTY_FORM);
   const [addForm, setAddForm]          = useState<FormState | null>(null);
@@ -44,9 +38,7 @@ const ThrustTable: React.FC<Props> = ({ data, loading = false }) => {
   const [search, setSearch]            = useState('');
   const confirm                        = useConfirmDialog();
 
-  useEffect(() => {
-    if (!loading) setRows(data !== undefined ? data : SAMPLE_DATA);
-  }, [data, loading]);
+  const rows: ThrustEnum[] = (codeTableData?.ProjectThrusts ?? []) as ThrustEnum[];
 
   const filtered = rows.filter(r =>
     r.ProgramName.toLowerCase().includes(search.toLowerCase()) ||
@@ -67,25 +59,34 @@ const ThrustTable: React.FC<Props> = ({ data, loading = false }) => {
   };
   const cancelEdit = () => setEditId(null);
   const saveEdit = async () => {
-    await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm, InfrastructureType: editForm.InfrastructureType || undefined }));
-    setRows(prev => prev.map(r => r.Id === editId
-      ? { ...r, ...editForm, InfrastructureType: editForm.InfrastructureType || undefined }
-      : r
-    ));
+    try {
+      await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm, InfrastructureType: editForm.InfrastructureType || undefined }));
+      showToast({ type: 'success', message: 'Thrust updated successfully.' });
+      await refetch();
+    } catch {
+      showToast({ type: 'error', message: 'Failed to update thrust.' });
+    }
     cancelEdit();
   };
   const saveAdd = async () => {
     if (!addForm) return;
-    await updateCodeTable(CODE, 0, JSON.stringify({ ...addForm, InfrastructureType: addForm.InfrastructureType || undefined }));
-    setRows(prev => [{
-      Id: Date.now(),
-      ...addForm, InfrastructureType: addForm.InfrastructureType || undefined,
-    }, ...prev]);
+    try {
+      await updateCodeTable(CODE, 0, JSON.stringify({ ...addForm, InfrastructureType: addForm.InfrastructureType || undefined }));
+      showToast({ type: 'success', message: 'Thrust added successfully.' });
+      await refetch();
+    } catch {
+      showToast({ type: 'error', message: 'Failed to add thrust.' });
+    }
     setAddForm(null);
   };
   const confirmDelete = async (id: number) => {
-    await updateCodeTable(CODE, 2, JSON.stringify({ Id: id }));
-    setRows(prev => prev.filter(r => r.Id !== id));
+    try {
+      await updateCodeTable(CODE, 2, JSON.stringify({ Id: id }));
+      showToast({ type: 'success', message: 'Thrust deleted.' });
+      await refetch();
+    } catch {
+      showToast({ type: 'error', message: 'Failed to delete thrust.' });
+    }
     setDeleteConfirmId(null);
   };
 

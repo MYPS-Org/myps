@@ -422,6 +422,32 @@ Props: `value`, `onChange(n: number)`, `thrusts: ThrustEnum[]`, `infraTypeFilter
 
 ## Changelog
 
+### Session 7 — Refetch-After-CRUD for All Tables (Backend ID Sync)
+
+**Problem:** After Add operations, tables were inserting rows with `Id: Date.now()` (a fake client-side ID). This caused Edit and Delete to fail because the backend never assigned that ID. The display was also out of sync with the actual backend state.
+
+**Fix:** Every table now calls `await refetch()` after any successful Add / Edit / Delete instead of manipulating local state. Data always reflects what the backend actually committed, including backend-assigned IDs.
+
+**Prop-based tables converted to context-based** (previously received `data` / `loading` as props from `ProjectDetailsDropdowns`; now read from `useCodeTableContext()` directly):
+- `CategoryTable` — removed `Props` interface, `useEffect`, `rows` state, all `setRows(...)` calls; replaced with context + `refetch`; removed `SAMPLE_DATA` usage
+- `ThrustTable` — same pattern; removed `SAMPLE_DATA` constant  
+- `AgencyTable` — same pattern; added `useToast`
+- `OriginTable` — same pattern; removed `SAMPLE_DATA` constant; added `useToast`
+
+**`ProjectDetailsDropdowns.tsx`** — updated `TabDef.Component` type from `React.ComponentType<{ data?: any[]; loading?: boolean }>` to `React.ComponentType`; removed `activeData` variable; child now rendered as `<activeTab.Component />` (no props).
+
+**Context-based tables — `refetch` + `useToast` + `try/catch` added:**
+- `CostTypeTable` — added `useToast`, `refetch`; all three CRUD handlers now have `try/catch` + toast + `await refetch()`
+- `FundingAgreementTable` — added `refetch` to context destructuring; all three CRUD handlers now call `await refetch()`
+- `FundingSourceTable` — added `useToast`, `refetch`; all three CRUD handlers now have `try/catch` + toast + `await refetch()`
+- `WorkCategoryTable` — added `useToast`, `refetch`; all three CRUD handlers now have `try/catch` + toast + `await refetch()`
+- `TypeOfWorkTable` — added `useToast`, `refetch`; all three CRUD handlers now have `try/catch` + toast + `await refetch()`
+- `InfraTypeTable` — added `useToast`, `refetch`; all three CRUD handlers now have `try/catch` + toast + `await refetch()`
+
+**Already correct (no change needed):** RegionTable, ProvinceTable, DEOTable, CityTable, LegislativeDistrictTable, ProgramStageTable, ProgramTypeTable, ProgramStatusTable, RevisionCategoryTable, RevisionHeaderTable, RevisionDocumentTable, RevisionStatusTable, ModificationReasonTable, RevisionFieldPermissionTable.
+
+---
+
 ### Session 6 — Toast Notifications, CategoryId Fix, CRUD Upgrade for Revision Tables
 
 **`CategoryTable`** — two fixes:
