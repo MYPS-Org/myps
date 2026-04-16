@@ -117,7 +117,7 @@ const DeleteComponentDialog: React.FC<DeleteComponentDialogProps> = ({
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Total Cost:</span>
-                    <span className="font-medium text-red-600">₱{formatCurrency(selectedComponent.Total || 0)}</span>
+                    <span className="font-medium text-red-600">₱{formatCurrency(selectedComponent.Amount || 0)}</span>
                   </div>
                   {selectedComponent.Description && (
                     <div className="pt-2 border-t">

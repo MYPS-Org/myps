@@ -227,7 +227,7 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
                 required
               >
                 <option value="">Select Component</option>
-                {availableComponentCosts.filter(cost => !cost.IsDeleted).map((cost) => (
+                {availableComponentCosts.map((cost) => (
                   <option key={cost.Id} value={cost.ComponentId}>
                     {cost.ComponentId}
                   </option>

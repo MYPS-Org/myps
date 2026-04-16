@@ -208,13 +208,13 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
                 disabled={mode === 'edit'} // Disable component selection in edit mode
               >
                 <option value="">Select Component</option>
-                {availableComponentCosts.filter(cost => !cost.IsDeleted).map((cost) => (
+                {availableComponentCosts.map((cost) => (
                   <option key={cost.Id} value={cost.ComponentId}>
                     {cost.ComponentId}
                   </option>
                 ))}
               </select>
-              {mode === 'add' && availableComponentCosts.filter(cost => !cost.IsDeleted).length === 0 && (
+              {mode === 'add' && availableComponentCosts.length === 0 && (
                 <p className="text-sm text-gray-500 mt-1">
                   All components have been selected. Please add more components first.
                 </p>
@@ -289,7 +289,7 @@ const AddMajorItemDialog: React.FC<AddMajorItemDialogProps> = ({
               <Button 
                 type="submit" 
                 color="orange"
-                disabled={mode === 'add' && availableComponentCosts.filter(cost => !cost.IsDeleted).length === 0}
+                disabled={mode === 'add' && availableComponentCosts.length === 0}
               >
                 {mode === 'add' ? 'Add Item' : 'Update Item'}
               </Button>

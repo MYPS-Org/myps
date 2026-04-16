@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { useAtom } from "jotai";
+import { useAtom, useSetAtom } from "jotai";
 
 import type {
     MajorItemOfWorksWithDropdown,
@@ -12,9 +12,9 @@ import {
 } from "../atoms/majorItemOfWorks.atom"
 
 export const useMajorItemOfWorks = () => {
-    const [, setItems] = useAtom(MajorItemOfWorksAtom);
-    const [currentLocations, setLocations] = useAtom(MajorItemLocationsAtom);
-    const [, setScopeOfWorks] = useAtom(ScopeOfWorkEnumAtom);
+    const setItems = useSetAtom(MajorItemOfWorksAtom);
+    const setLocations = useSetAtom(MajorItemLocationsAtom);
+    const setScopeOfWorks = useSetAtom(ScopeOfWorkEnumAtom);
     
     // UI Ready
     const [majorItems] = useAtom(MajorItemOfWorksWithDropdownAtom);
@@ -95,28 +95,23 @@ export const useMajorItemOfWorks = () => {
         setItems(prev => {
         const itemToDelete = prev[index];
         if (!itemToDelete) return prev;
-
+        
         const refId = itemToDelete.ReferenceId;
         if (!refId) return prev;
 
-        // Check if any DB-persisted locations exist for this item
-        const hasDbLocations = currentLocations.some(l => l.ParentId === refId && l.Id > 0);
-
-        // Process locations: hard-delete Id===0, soft-delete Id>0
-        setLocations(locs =>
-          locs
-            .filter(l => !(l.ParentId === refId && l.Id === 0))
-            .map(l => l.ParentId === refId ? { ...l, IsDeleted: true } : l)
-        );
-
-        if (itemToDelete.Id === 0 && !hasDbLocations) {
-          // Fully unsaved — hard delete the item
+        if (itemToDelete.Id === 0) {
+          // New item - hard delete (remove from array and its locations)
+          setLocations(locs => locs.filter(l => l.ParentId !== refId));
           return prev.filter((_, i) => i !== index);
+        } else {
+          // Existing item - soft delete (mark as deleted and mark its locations as deleted)
+          setLocations(locs => locs.map(l => 
+            l.ParentId === refId ? { ...l, IsDeleted: true } : l
+          ));
+          return prev.map((item, i) => 
+            i === index ? { ...item, IsDeleted: true } : item
+          );
         }
-        // Soft delete — item is in DB, or has DB children that need explicit delete signal
-        return prev.map((item, i) =>
-          i === index ? { ...item, IsDeleted: true } : item
-        );
         });
     };
 

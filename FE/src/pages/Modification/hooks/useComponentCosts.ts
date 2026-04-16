@@ -8,16 +8,10 @@ import {
   componentCostsAtom,
   componentCostPerYearAtom
 } from '../atoms/componentCosts.atom';
-import {
-  MajorItemOfWorksAtom,
-  MajorItemLocationsAtom
-} from '../atoms/majorItemOfWorks.atom';
 
 export function useComponentCosts() {
   const [costs, setCosts] = useAtom(componentCostsAtom);
   const [costPerYear, setCostPerYear] = useAtom(componentCostPerYearAtom);
-  const [currentMajorItems, setMajorItemsAtom] = useAtom(MajorItemOfWorksAtom);
-  const [currentLocations, setLocationsAtom] = useAtom(MajorItemLocationsAtom);
 
   // Delete-dialog state (local to the component using this hook)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -80,71 +74,33 @@ export function useComponentCosts() {
     if (!selectedForDelete || deleteIndex === null || isDeleting) return;
     try {
       setIsDeleting(true);
-
+      
+      // Check if item has a database ID (considering undefined, null, or 0 as "no ID")
       const hasDbId = selectedForDelete.Id && selectedForDelete.Id > 0;
-      const costId = selectedForDelete.CostId;
-      const componentId = selectedForDelete.ComponentId;
-
-      // Step 1: Delete ComponentCost itself — hard if Id===0, soft if Id>0
+      
+      console.log('Deleting component:', {
+        componentId: selectedForDelete.ComponentId,
+        id: selectedForDelete.Id,
+        hasDbId,
+        deleteIndex
+      });
+      
       if (!hasDbId) {
+        // New item (not saved to database) - hard delete (remove from array)
+        console.log('Hard delete - removing from array');
         setCosts(prev => prev.filter((_, i) => i !== deleteIndex));
       } else {
-        setCosts(prev => prev.map((cost, i) =>
+        // Existing item (from database) - soft delete (set IsDeleted = true, keep in payload)
+        console.log('Soft delete - marking IsDeleted = true');
+        setCosts(prev => prev.map((cost, i) => 
           i === deleteIndex ? { ...cost, IsDeleted: true } : cost
         ));
       }
-
-      // Step 2: Cascade to ComponentCostPerYear — hard-delete Id===0, soft-delete Id>0
-      setCostPerYear(prev =>
-        prev
-          .filter(c => !(c.ComponentCostId === costId && c.Id === 0))
-          .map(c =>
-            c.ComponentCostId === costId
-              ? { ...c, IsDeleted: true }
-              : c
-          )
-      );
-
-      // Step 3: Cascade to MajorItems and their Locations
-      const relatedRefIds = new Set(
-        currentMajorItems
-          .filter(item => item.ComponentId === componentId && !item.IsDeleted)
-          .map(item => item.ReferenceId)
-          .filter(Boolean)
-      );
-
-      // Step 3a: Locations — hard-delete Id===0, soft-delete Id>0
-      setLocationsAtom(prev =>
-        prev
-          .filter(loc => !(relatedRefIds.has(loc.ParentId) && loc.Id === 0))
-          .map(loc =>
-            relatedRefIds.has(loc.ParentId)
-              ? { ...loc, IsDeleted: true }
-              : loc
-          )
-      );
-
-      // Step 3b: MajorItems — respect each item's own Id
-      setMajorItemsAtom(prev => {
-        const updated = prev.map(item => {
-          if (item.ComponentId !== componentId || item.IsDeleted) return item;
-          if (item.Id === 0) {
-            // Hard-delete only if no DB-persisted locations exist for this item
-            const hasDbLocations = currentLocations.some(
-              loc => loc.ParentId === item.ReferenceId && loc.Id > 0
-            );
-            if (!hasDbLocations) return null;
-          }
-          return { ...item, IsDeleted: true };
-        });
-        return updated.filter(item => item !== null) as typeof prev;
-      });
-
     } finally {
       setIsDeleting(false);
       closeDelete();
     }
-  }, [selectedForDelete, deleteIndex, isDeleting, setCosts, setCostPerYear, currentMajorItems, currentLocations, setMajorItemsAtom, setLocationsAtom, closeDelete]);
+  }, [selectedForDelete, deleteIndex, isDeleting, setCosts, closeDelete]);
 
   return {
     // read

@@ -251,7 +251,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
             componentCosts.map((cost, index) => {
               if (cost.IsDeleted) return null;
               return (
-              <TableRow key={cost.CostId || `cost-${index}`}>
+              <TableRow key={cost.Id || cost.ComponentId || index}>
                 <TableCell className="font-medium">{cost.ComponentId}</TableCell>
                 <TableCell>{cost.ComponentType}</TableCell>
                 <TableCell>
