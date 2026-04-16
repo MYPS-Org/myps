@@ -5,12 +5,14 @@ import { Input } from '../../components/tailwindui/input';
 import { Text } from '../../components/tailwindui/text';
 import Logo from '../../assets/img/logo.png';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/16/solid';
+import { useNavigate } from 'react-router-dom';
 
 const LoginForm: React.FC = () => {
   const [credentials, setCredentials] = useState<LoginRequest>({
 	UserName: '',
 	Password: ''
   });
+  const navigate = useNavigate();
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -27,7 +29,8 @@ const LoginForm: React.FC = () => {
 	  await authService.login(credentials);
 	  await validateSession();
 	} catch (err: any) {
-	  setError(err.message || 'Login failed. Please try again.');
+	  navigate('/login');
+	//   setError(err.message || 'Login failed. Please try again.');
 	} finally {
 	  setIsLoading(false);
 	}
