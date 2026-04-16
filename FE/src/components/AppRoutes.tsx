@@ -38,7 +38,7 @@ export default function AppRoutes() {
 
       {/* Redirect unknown routes based on access */}
       <Route path="/" element={<Navigate to="/login" replace />} />
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      {/* <Route path="*" element={<Navigate to="/login" replace />} /> */}
     </Routes>
   );
 }
