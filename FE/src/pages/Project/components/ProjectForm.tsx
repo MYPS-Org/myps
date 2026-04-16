@@ -908,6 +908,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           message: 'Project updated successfully.'
       });
 
+      if (initialData?.ProjectDetails?.ProjectId && initialData?.ProgramDetails?.StageName) {
+        navigate(`/projects/project-details/${initialData.ProjectDetails.ProjectId}:${initialData.ProgramDetails.StageName}`);
+      }
+
     } catch (error) {
       showToast({
           type: 'error',
@@ -915,12 +919,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       });
     } finally {
       setUpdateAllProject(false);
-      
-      // Refresh the project by re-navigating to the same page
-      if (initialData?.ProjectDetails?.ProjectId && initialData?.ProgramDetails?.StageName) {
-        navigate(`/projects/project-details/${initialData.ProjectDetails.ProjectId}:${initialData.ProgramDetails.StageName}`);
-        await loadMapData();
-      }
     }
   };
 

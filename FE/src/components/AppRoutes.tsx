@@ -7,7 +7,7 @@ import Layout from '../pages/Layouts/Layout';
 import { usePermittedRoutes } from '../hooks/usePermittedRoutes';
 
 export default function AppRoutes() {
-  const permittedRoutes = usePermittedRoutes(); // ✅ safe here — inside AuthProvider
+  const permittedRoutes = usePermittedRoutes();
 
   return (
     <Routes>
@@ -37,7 +37,8 @@ export default function AppRoutes() {
       />
 
       {/* Redirect unknown routes based on access */}
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
 }
