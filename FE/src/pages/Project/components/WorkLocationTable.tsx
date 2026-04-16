@@ -352,22 +352,22 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
     onEdit(index, updatedWorkLocation);
   };
 
-  const getInfraLength = (infraId: string) => {
-    if (!infraId) return '';
+  // const getInfraLength = (infraId: string) => {
+  //   if (!infraId) return '';
     
-    // Check in infraData if available
-    if (infraData) {
-      // Check in RoadSections
-      const roadSection = infraData.RoadSections?.find(road => road.RoadSectionId === infraId);
-      if (roadSection) return roadSection.RoadLength?.toString() || '';
+  //   // Check in infraData if available
+  //   if (infraData) {
+  //     // Check in RoadSections
+  //     const roadSection = infraData.RoadSections?.find(road => road.RoadSectionId === infraId);
+  //     if (roadSection) return roadSection.RoadLength?.toString() || '';
       
-      // Check in Bridges
-      const bridge = infraData.Bridges?.find(bridge => bridge.BridgeId === infraId);
-      if (bridge) return bridge.Length?.toString() || '';
-    }
+  //     // Check in Bridges
+  //     const bridge = infraData.Bridges?.find(bridge => bridge.BridgeId === infraId);
+  //     if (bridge) return bridge.Length?.toString() || '';
+  //   }
     
-    return '';
-  };
+  //   return '';
+  // };
 
   // Calculate total physical target for all work locations
   // const getTotalPhysicalTarget = (): number => {
@@ -490,7 +490,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
         return (
           <div key={fieldName} className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
-              Detailed Scope
+              Detailed Scope of work
             </label>
             <textarea
               value={location.DetailedScope}
@@ -609,7 +609,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
                 End Station
               </label>
               {isRoadType() && (
-                <span className="text-xs text-gray-400">e.g. K0058 -865</span>
+                <span className="text-xs text-gray-400">e.g. K0058 +865</span>
               )}
             </div>
             <div className="flex items-center space-x-2">
