@@ -58,7 +58,7 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
       const payload = {
         ...formData, 
         Name: formData.AddedName 
-          ? `${formData.Name} - ${formData.AddedName}` 
+          ? `${formData.Name} ${formData.AddedName}` 
           : formData.Name 
       }
       const response = await addProgram(payload);
