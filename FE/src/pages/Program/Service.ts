@@ -228,3 +228,15 @@ export const fetchAIPReportDropdownData = async (): Promise<AIPReportDropdowns> 
         throw ErrorResponse;
     }
 };
+
+export const exportProjects = async (ProgramId: string, StageName: string) => {
+    try {
+        const response = await httpClient.post('/Reporting/RequestRawProjects', { ProgramId, StageName }, {
+            preloaderMessage: 'Exporting projects...'
+        });
+        return response;
+    } catch (ErrorResponse) {
+        console.error('Error exporting projects:', ErrorResponse);
+        throw ErrorResponse; 
+    }
+}
