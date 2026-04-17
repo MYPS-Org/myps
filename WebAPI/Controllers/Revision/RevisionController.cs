@@ -702,9 +702,15 @@ namespace WebAPI.Controllers.Revision
                 var ExistingComponentCosts = _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == dto.ProjectDetails.ProjectId && x.StageName == dto.ProjectDetails.StageName && x.IsDeleted == false).ToList();
                 var NewComponentIds = dto.ComponentCosts.Where(x => x.Id == 0).Select(x => x.ComponentId).ToList();
                 var DuplicateExistingComponentId = ExistingComponentCosts.Where(x => NewComponentIds.Contains(x.ComponentId)).Select(x => x.ComponentId).ToList();
-                if (DuplicateExistingComponentId.Any())
+
+                var CheckIsDeletedComponent = dto.ComponentCosts.Where(x => x.Id != 0 && x.IsDeleted == true).ToList();
+                var HasNoDeletedComponent = DuplicateExistingComponentId
+                    .Where(componentId => !CheckIsDeletedComponent
+                        .Any(x => x.ComponentId == componentId))
+                    .ToList();
+                if (HasNoDeletedComponent.Any())
                 {
-                    return new BadRequestObjectResult(new { Message = $"Component Cost contains component IDs that already exist in the system: {string.Join(", ", DuplicateExistingComponentId)}. Please check and try again.", Title = "Duplicate Existing Component IDs" });
+                    return new BadRequestObjectResult(new { Message = $"Component Cost contains component IDs that already exist in the system: {string.Join(", ", HasNoDeletedComponent)}. Please check and try again.", Title = "Duplicate Existing Component IDs" });
                 }
                 #endregion
                 #region Major Work Item
@@ -716,7 +722,13 @@ namespace WebAPI.Controllers.Revision
                 var ExistingMajorItemComponentIds = _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == dto.ProjectDetails.ProjectId && x.StageName == dto.ProjectDetails.StageName && x.IsDeleted == false).Select(x => x.ComponentId).ToList();
                 var NewMajorItemComponentIds = dto.MajorItemOfWorks.Where(x => x.Id == 0).Select(x => x.ComponentId).ToList();
                 var DuplicateExistingMajorItemComponentIds = ExistingMajorItemComponentIds.Where(x => NewMajorItemComponentIds.Contains(x)).ToList();
-                if (DuplicateExistingMajorItemComponentIds.Any())
+
+                var CheckIsDeletedMajorItem = dto.MajorItemOfWorks.Where(x => x.Id != 0 && x.IsDeleted == true).ToList();
+                var HasNoDeletedMajorItem = DuplicateExistingMajorItemComponentIds
+                    .Where(componentId => !CheckIsDeletedMajorItem
+                        .Any(x => x.ComponentId == componentId))
+                    .ToList();
+                if (HasNoDeletedMajorItem.Any())
                 {
                     return new BadRequestObjectResult(new { Message = $"Major Work Item contains component IDs that already exist in the system: {string.Join(", ", DuplicateExistingMajorItemComponentIds)}. Please check and try again.", Title = "Duplicate Existing Major Work Item Component IDs" });
                 }
