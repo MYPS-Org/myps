@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 
 import type { ProgramDetailsEnums, AIPReportParams } from '../Model.d'; // Adjust the import path as necessary
 import { Button } from '../../../components/tailwindui/button';
-import { editProgram, fetchProgramById, publishToPCMA, downloadAIPReport, batchAllowPublishing, batchDeleteProjects, batchRestrictPublishing } from '../Service';
+import { editProgram, fetchProgramById, publishToPCMA, downloadAIPReport, batchAllowPublishing, batchDeleteProjects, batchRestrictPublishing, exportProjects } from '../Service';
 import { importProjects } from '../Service'; // TODO: uncomment when wiring up API call
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
 import { ChevronDownIcon, Cog6ToothIcon, TagIcon } from '@heroicons/react/24/outline';
@@ -19,6 +19,7 @@ import ImportProjectsDialog from '../dialogs/ImportProjectsDialog';
 import type { ImportedProject } from '../../Project/Model.d';
 import { transformImportedProjects } from '../utils/transformImportedProjects';
 import CheckboxList from '../../../components/ui/CheckboxList';
+import ExportConfirmDialog from '../dialogs/ExportConfirmDialog';
 // import { formatCurrency } from '../../../utils/GlobalFunctions';
 // import { Badge } from '../../../components/tailwindui/badge';
 
@@ -111,6 +112,7 @@ const ProgramDetail: React.FC = () => {
   const [batchAction, setBatchAction] = useState<'tag' | 'delete' | 'unpublish' | 'publish'>('tag');
   const [isAddExistingProjectDialogOpen, setIsAddExistingProjectDialogOpen] = useState(false);
   const [isImportProjectsDialogOpen, setIsImportProjectsDialogOpen] = useState(false);
+  const [isExportConfirmDialogOpen, setIsExportConfirmDialogOpen] = useState(false);
   
   // Group data security by OrgType
   // const groupedDataSecurity = useMemo(() => {
@@ -527,9 +529,27 @@ setIsAddExistingProjectDialogOpen(true);
   };
 
   const handleExportProjects = () => {
-    // TODO: Implement export projects functionality
-    console.log('Export Projects clicked');
+    setIsExportConfirmDialogOpen(true);
     setIsActionDropdownOpen(false);
+  };
+
+  const handleConfirmExportProjects = async () => {
+    try {
+      setIsLoading(true);
+      await exportProjects(programEnums?.Details.ProgramId ?? '', programEnums?.Details.StageName ?? '');
+      showToast({
+        type: 'success',
+        message: 'Projects exported successfully.',
+      });
+    } catch (error) {
+      console.error('Error exporting projects:', error);
+      showToast({
+        type: 'error',
+        message: 'Failed to export projects. Please try again.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleViewAIP = () => {
@@ -1098,6 +1118,18 @@ setIsAddExistingProjectDialogOpen(true);
           programId={programEnums?.Details.ProgramId}
           programName={programEnums?.Details.Name}
           stageName={programEnums?.Details.StageName}
+        />
+      )}
+
+      {/* Export Confirm Dialog */}
+      {isExportConfirmDialogOpen && (
+        <ExportConfirmDialog
+          isOpen={isExportConfirmDialogOpen}
+          onClose={() => setIsExportConfirmDialogOpen(false)}
+          onConfirm={handleConfirmExportProjects}
+          programName={programEnums?.Details.Name ?? ''}
+          programId={programEnums?.Details.ProgramId ?? ''}
+          stageName={programEnums?.Details.StageName ?? ''}
         />
       )}
     </div>
