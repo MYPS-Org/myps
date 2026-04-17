@@ -586,94 +586,84 @@ namespace WebAPI.Controllers.Revision
                     //ws.Cells[ws.Dimension.Address].AutoFitColumns();
                 }
 
-                // Component sheet (grouped with Cost Per Year)
+                // Component Cost Per Year sheet (flat)
                 if (componentCosts.Count > 0)
                 {
-                    var ws = package.Workbook.Worksheets.Add("Component");
+                    var ws = package.Workbook.Worksheets.Add("Component Cost Per Year");
                     var costPerYearLookup = componentCostPerYear
                         .GroupBy(cy => cy.ComponentCostId)
                         .ToDictionary(g => g.Key, g => g.ToList());
 
-                    int row = 2;
                     ws.Cells["A1"].Value = "Project ID";
                     ws.Cells["B1"].Value = "Description";
                     ws.Cells["C1"].Value = "Component Project ID";
                     ws.Cells["D1"].Value = "Component Type";
                     ws.Cells["E1"].Value = "Component ID";
                     ws.Cells["F1"].Value = "Total";
-                    ws.Cells["G1"].Value = "Created By";
-                    ws.Cells["H1"].Value = "Created Date";
-                    ws.Cells["I1"].Value = "UpdatedBy";
-                    ws.Cells["J1"].Value = "UpdatedDate";
+                    ws.Cells["G1"].Value = "Year";
+                    ws.Cells["H1"].Value = "Amount";
+                    ws.Cells["I1"].Value = "Start Date";
+                    ws.Cells["J1"].Value = "End Date";
+                    ws.Cells["K1"].Value = "Created By";
+                    ws.Cells["L1"].Value = "Created Date";
+                    ws.Cells["M1"].Value = "Updated By";
+                    ws.Cells["N1"].Value = "Updated Date";
 
-                    using (var headerRange = ws.Cells["A1:J1"])
+                    using (var headerRange = ws.Cells["A1:N1"])
                     {
                         headerRange.Style.Fill.PatternType = ExcelFillStyle.Solid;
                         headerRange.Style.Fill.BackgroundColor.SetColor(Color.FromArgb(63, 159, 255));
                     }
+
+                    int row = 2;
                     foreach (var cost in componentCosts)
                     {
-                        // Parent row — ComponentCost
-                        ws.Cells[row, 1].Value = cost.ProjectId;
-                        ws.Cells[row, 2].Value = cost.Description;
-                        ws.Cells[row, 3].Value = cost.CostId;
-                        ws.Cells[row, 4].Value = cost.ComponentType;
-                        ws.Cells[row, 5].Value = cost.ComponentId;
-                        ws.Cells[row, 6].Value = cost.Total;
-                        ws.Cells[row, 7].Value = cost.CreatedBy;
-                        ws.Cells[row, 8].Value = cost.CreatedDate;
-                        ws.Cells[row, 8].Style.Numberformat.Format = "mmm-dd-yyyy hh:ss AM/PM";
-                        ws.Cells[row, 9].Value = cost.UpdatedBy;
-                        ws.Cells[row, 10].Value = cost.UpdatedDate;
-                        ws.Cells[row, 10].Style.Numberformat.Format = "mmm-dd-yyyy hh:ss AM/PM";
-                        row++;
-
-                        // Child rows — CostPerYear grouped under parent
                         if (costPerYearLookup.TryGetValue(cost.CostId, out var yearRows))
                         {
-                            int startRow = row;
-                            ws.Cells[row, 5].Value = "Year";
-                            ws.Cells[row, 6].Value = "Amount";
-                            ws.Cells[row, 7].Value = "Start Date";
-                            ws.Cells[row, 8].Value = "End Date";
-                            ws.Cells[row, 9].Value = "Created By";
-                            ws.Cells[row, 10].Value = "Created Date";
-                            ws.Cells[row, 11].Value = "UpdatedBy";
-                            ws.Cells[row, 12].Value = "UpdatedDate";
-
-                            using (var headerRange = ws.Cells[row, 5, row, 12])
-                            {
-                                headerRange.Style.Fill.PatternType = ExcelFillStyle.Solid;
-                                headerRange.Style.Fill.BackgroundColor.SetColor(Color.FromArgb(175, 215, 255));
-                            }
-                            row++;
                             foreach (var yr in yearRows)
                             {
-                                ws.Cells[row, 5].Value = yr.Year;
-                                ws.Cells[row, 6].Value = yr.Amount;
-                                ws.Cells[row, 7].Value = yr.StartDate;
-                                ws.Cells[row, 7].Style.Numberformat.Format = "mmm-dd-yyyy hh:ss AM/PM";
-                                ws.Cells[row, 8].Value = yr.EndDate;
-                                ws.Cells[row, 8].Style.Numberformat.Format = "mmm-dd-yyyy hh:ss AM/PM";
-                                ws.Cells[row, 9].Value = yr.CreatedBy;
-                                ws.Cells[row, 10].Value = yr.CreatedDate;
+                                ws.Cells[row, 1].Value = cost.ProjectId;
+                                ws.Cells[row, 2].Value = cost.Description;
+                                ws.Cells[row, 3].Value = cost.CostId;
+                                ws.Cells[row, 4].Value = cost.ComponentType;
+                                ws.Cells[row, 5].Value = cost.ComponentId;
+                                ws.Cells[row, 6].Value = cost.Total;
+                                ws.Cells[row, 7].Value = yr.Year;
+                                ws.Cells[row, 8].Value = yr.Amount;
+                                ws.Cells[row, 9].Value = yr.StartDate;
+                                ws.Cells[row, 9].Style.Numberformat.Format = "mmm-dd-yyyy hh:ss AM/PM";
+                                ws.Cells[row, 10].Value = yr.EndDate;
                                 ws.Cells[row, 10].Style.Numberformat.Format = "mmm-dd-yyyy hh:ss AM/PM";
-                                ws.Cells[row, 11].Value = yr.UpdatedBy;
-                                ws.Cells[row, 12].Value = yr.UpdatedDate;
+                                ws.Cells[row, 11].Value = yr.CreatedBy;
+                                ws.Cells[row, 12].Value = yr.CreatedDate;
                                 ws.Cells[row, 12].Style.Numberformat.Format = "mmm-dd-yyyy hh:ss AM/PM";
+                                ws.Cells[row, 13].Value = yr.UpdatedBy;
+                                ws.Cells[row, 14].Value = yr.UpdatedDate;
+                                ws.Cells[row, 14].Style.Numberformat.Format = "mmm-dd-yyyy hh:ss AM/PM";
                                 row++;
                             }
-                            int endRow = row - 1;
-                            for (int r = startRow; r <= endRow; r++)
-                            {
-                                ws.Row(r).OutlineLevel = 1;
-                            }
+                        }
+                        else
+                        {
+                            ws.Cells[row, 1].Value = cost.ProjectId;
+                            ws.Cells[row, 2].Value = cost.Description;
+                            ws.Cells[row, 3].Value = cost.CostId;
+                            ws.Cells[row, 4].Value = cost.ComponentType;
+                            ws.Cells[row, 5].Value = cost.ComponentId;
+                            ws.Cells[row, 6].Value = cost.Total;
+                            ws.Cells[row, 11].Value = cost.CreatedBy;
+                            ws.Cells[row, 12].Value = cost.CreatedDate;
+                            ws.Cells[row, 12].Style.Numberformat.Format = "mmm-dd-yyyy hh:ss AM/PM";
+                            ws.Cells[row, 13].Value = cost.UpdatedBy;
+                            ws.Cells[row, 14].Value = cost.UpdatedDate;
+                            ws.Cells[row, 14].Style.Numberformat.Format = "mmm-dd-yyyy hh:ss AM/PM";
+                            row++;
                         }
                     }
                     if (ws.Dimension != null) ws.Cells[ws.Dimension.Address].AutoFitColumns();
                 }
 
-                // Major Work Item sheet (grouped with Work Locations)
+                // Major Work Item Per Location sheet (flat)
                 if (majorWorkItems.Count > 0)
                 {
                     var ws = package.Workbook.Worksheets.Add("Major Work Item");
@@ -681,98 +671,86 @@ namespace WebAPI.Controllers.Revision
                         .GroupBy(l => l.ParentId)
                         .ToDictionary(g => g.Key, g => g.ToList());
 
-                    int row = 2;
                     ws.Cells["A1"].Value = "Project ID";
                     ws.Cells["B1"].Value = "Component Project ID";
                     ws.Cells["C1"].Value = "Component ID";
                     ws.Cells["D1"].Value = "Year of Work";
                     ws.Cells["E1"].Value = "Work Type";
                     ws.Cells["F1"].Value = "Infra Type";
-                    ws.Cells["G1"].Value = "Created By";
-                    ws.Cells["H1"].Value = "Created Date";
-                    ws.Cells["I1"].Value = "Updated By";
-                    ws.Cells["J1"].Value = "Updated Date";
+                    ws.Cells["G1"].Value = "Infra ID";
+                    ws.Cells["H1"].Value = "Detailed Scope";
+                    ws.Cells["I1"].Value = "Target Unit";
+                    ws.Cells["J1"].Value = "Start X";
+                    ws.Cells["K1"].Value = "Start Y";
+                    ws.Cells["L1"].Value = "End X";
+                    ws.Cells["M1"].Value = "End Y";
+                    ws.Cells["N1"].Value = "Physical Target";
+                    ws.Cells["O1"].Value = "Start Station Limit";
+                    ws.Cells["P1"].Value = "End Station Limit";
+                    ws.Cells["Q1"].Value = "End Chainage";
+                    ws.Cells["R1"].Value = "Start Chainage";
+                    ws.Cells["S1"].Value = "Length";
+                    ws.Cells["T1"].Value = "Created By";
+                    ws.Cells["U1"].Value = "Created Date";
+                    ws.Cells["V1"].Value = "Updated By";
+                    ws.Cells["W1"].Value = "Updated Date";
 
-                    using (var headerRange = ws.Cells["A1:J1"])
+                    using (var headerRange = ws.Cells["A1:W1"])
                     {
                         headerRange.Style.Fill.PatternType = ExcelFillStyle.Solid;
                         headerRange.Style.Fill.BackgroundColor.SetColor(Color.FromArgb(63, 159, 255));
                     }
 
+                    int row = 2;
                     foreach (var wi in majorWorkItems)
                     {
-                        // Parent row — MajorWorkItem
-                        ws.Cells[row, 1].Value = wi.ProjectId;
-                        ws.Cells[row, 2].Value = wi.ReferenceId;
-                        ws.Cells[row, 3].Value = wi.ComponentId;
-                        ws.Cells[row, 4].Value = wi.YearOfWork;
-                        ws.Cells[row, 5].Value = wi.WorkTypeId;
-                        ws.Cells[row, 6].Value = wi.InfraType;;
-                        ws.Cells[row, 7].Value = wi.CreatedBy;
-                        ws.Cells[row, 8].Value = wi.CreatedDate;
-                        ws.Cells[row, 8].Style.Numberformat.Format = "mmm-dd-yyyy hh:ss AM/PM";
-                        ws.Cells[row, 9].Value = wi.UpdatedBy;
-                        ws.Cells[row, 10].Value = wi.UpdatedDate;
-                        ws.Cells[row, 10].Style.Numberformat.Format = "mmm-dd-yyyy hh:ss AM/PM";
-                        row++;
-
-                        // Child rows — Locations grouped under parent
                         if (locationLookup.TryGetValue(wi.ReferenceId, out var locRows))
                         {
-                            int startRow = row;
-                            ws.Cells[row, 6].Value = "Infra ID";
-                            ws.Cells[row, 7].Value = "Detailed Scope";
-                            ws.Cells[row, 8].Value = "Target Unit";
-                            ws.Cells[row, 9].Value = "Start X";
-                            ws.Cells[row, 10].Value = "Start Y";
-                            ws.Cells[row, 11].Value = "End X";
-                            ws.Cells[row, 12].Value = "End Y";
-                            ws.Cells[row, 13].Value = "Physical Target";
-                            ws.Cells[row, 14].Value = "Start Station Limit";
-                            ws.Cells[row, 15].Value = "End Station Limit";
-                            ws.Cells[row, 16].Value = "End Chainage";
-                            ws.Cells[row, 17].Value = "Start Chainage";
-                            ws.Cells[row, 18].Value = "Length";
-                            ws.Cells[row, 19].Value = "Created By";
-                            ws.Cells[row, 20].Value = "Created Date";
-                            ws.Cells[row, 21].Value = "Updated By";
-                            ws.Cells[row, 22].Value = "Updated Date";
-
-                            using (var childHeaderRange = ws.Cells[row, 5, row, 24])
-                            {
-                                childHeaderRange.Style.Fill.PatternType = ExcelFillStyle.Solid;
-                                childHeaderRange.Style.Fill.BackgroundColor.SetColor(Color.FromArgb(175, 215, 255));
-                            }
-                            row++;
-
                             foreach (var loc in locRows)
                             {
-                                ws.Cells[row, 6].Value = loc.InfraId;
-                                ws.Cells[row, 7].Value = loc.DetailedScope;
-                                ws.Cells[row, 8].Value = loc.TargetUnit;
-                                ws.Cells[row, 9].Value = loc.StartX;
-                                ws.Cells[row, 10].Value = loc.StartY;
-                                ws.Cells[row, 11].Value = loc.EndX;
-                                ws.Cells[row, 12].Value = loc.EndY;
-                                ws.Cells[row, 13].Value = loc.PhysicalTarget;
-                                ws.Cells[row, 14].Value = loc.StartStationLimit;
-                                ws.Cells[row, 15].Value = loc.EndStationLimit;
-                                ws.Cells[row, 16].Value = loc.EndChainage;
-                                ws.Cells[row, 17].Value = loc.StartChainage;
-                                ws.Cells[row, 18].Value = loc.Length;
-                                ws.Cells[row, 19].Value = loc.CreatedBy;
-                                ws.Cells[row, 20].Value = loc.CreatedDate;
-                                ws.Cells[row, 20].Style.Numberformat.Format = "mmm-dd-yyyy hh:ss AM/PM";
-                                ws.Cells[row, 21].Value = loc.UpdatedBy;
-                                ws.Cells[row, 22].Value = loc.UpdatedDate;
-                                ws.Cells[row, 22].Style.Numberformat.Format = "mmm-dd-yyyy hh:ss AM/PM";
+                                ws.Cells[row, 1].Value = wi.ProjectId;
+                                ws.Cells[row, 2].Value = wi.ReferenceId;
+                                ws.Cells[row, 3].Value = wi.ComponentId;
+                                ws.Cells[row, 4].Value = wi.YearOfWork;
+                                ws.Cells[row, 5].Value = wi.WorkTypeId;
+                                ws.Cells[row, 6].Value = wi.InfraType;
+                                ws.Cells[row, 7].Value = loc.InfraId;
+                                ws.Cells[row, 8].Value = loc.DetailedScope;
+                                ws.Cells[row, 9].Value = loc.TargetUnit;
+                                ws.Cells[row, 10].Value = loc.StartX;
+                                ws.Cells[row, 11].Value = loc.StartY;
+                                ws.Cells[row, 12].Value = loc.EndX;
+                                ws.Cells[row, 13].Value = loc.EndY;
+                                ws.Cells[row, 14].Value = loc.PhysicalTarget;
+                                ws.Cells[row, 15].Value = loc.StartStationLimit;
+                                ws.Cells[row, 16].Value = loc.EndStationLimit;
+                                ws.Cells[row, 17].Value = loc.EndChainage;
+                                ws.Cells[row, 18].Value = loc.StartChainage;
+                                ws.Cells[row, 19].Value = loc.Length;
+                                ws.Cells[row, 20].Value = loc.CreatedBy;
+                                ws.Cells[row, 21].Value = loc.CreatedDate;
+                                ws.Cells[row, 21].Style.Numberformat.Format = "mmm-dd-yyyy hh:ss AM/PM";
+                                ws.Cells[row, 22].Value = loc.UpdatedBy;
+                                ws.Cells[row, 23].Value = loc.UpdatedDate;
+                                ws.Cells[row, 23].Style.Numberformat.Format = "mmm-dd-yyyy hh:ss AM/PM";
                                 row++;
                             }
-                            int endRow = row - 1;
-                            for (int r = startRow; r <= endRow; r++)
-                            {
-                                ws.Row(r).OutlineLevel = 1;
-                            }
+                        }
+                        else
+                        {
+                            ws.Cells[row, 1].Value = wi.ProjectId;
+                            ws.Cells[row, 2].Value = wi.ReferenceId;
+                            ws.Cells[row, 3].Value = wi.ComponentId;
+                            ws.Cells[row, 4].Value = wi.YearOfWork;
+                            ws.Cells[row, 5].Value = wi.WorkTypeId;
+                            ws.Cells[row, 6].Value = wi.InfraType;
+                            ws.Cells[row, 20].Value = wi.CreatedBy;
+                            ws.Cells[row, 21].Value = wi.CreatedDate;
+                            ws.Cells[row, 21].Style.Numberformat.Format = "mmm-dd-yyyy hh:ss AM/PM";
+                            ws.Cells[row, 22].Value = wi.UpdatedBy;
+                            ws.Cells[row, 23].Value = wi.UpdatedDate;
+                            ws.Cells[row, 23].Style.Numberformat.Format = "mmm-dd-yyyy hh:ss AM/PM";
+                            row++;
                         }
                     }
                     if (ws.Dimension != null)

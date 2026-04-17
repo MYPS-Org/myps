@@ -672,6 +672,13 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = $"Component Cost contains duplicate component IDs: {string.Join(", ", DuplicateComponentId)}. Please check and try again.", Title = "Duplicate Component IDs" });
                 }
+                var ExistingComponentCosts = _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == dto.ProjectDetails.ProjectId && x.StageName == dto.ProjectDetails.StageName && x.IsDeleted == false).ToList();
+                var NewComponentIds = dto.ComponentCosts.Where(x => x.Id == 0).Select(x => x.ComponentId).ToList();
+                var DuplicateExistingComponentId = ExistingComponentCosts.Where(x => NewComponentIds.Contains(x.ComponentId)).Select(x => x.ComponentId).ToList();
+                if (DuplicateExistingComponentId.Any())
+                {
+                    return new BadRequestObjectResult(new { Message = $"Component Cost contains component IDs that already exist in the system: {string.Join(", ", DuplicateExistingComponentId)}. Please check and try again.", Title = "Duplicate Existing Component IDs" });
+                }
                 #endregion
                 #region Major Work Item
                 var DuplicateMajorItemComponentId = dto.MajorItemOfWorks.Where(x => x.Id == 0).GroupBy(x => x.ComponentId).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
@@ -679,17 +686,24 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = $"Major Work Item contains duplicate component IDs: {string.Join(", ", DuplicateMajorItemComponentId)}. Please check and try again.", Title = "Duplicate Major Work Item Component IDs" });
                 }
+                var ExistingMajorItemComponentIds = _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == dto.ProjectDetails.ProjectId && x.StageName == dto.ProjectDetails.StageName && x.IsDeleted == false).Select(x => x.ComponentId).ToList();
+                var NewMajorItemComponentIds = dto.MajorItemOfWorks.Where(x => x.Id == 0).Select(x => x.ComponentId).ToList();
+                var DuplicateExistingMajorItemComponentIds = ExistingMajorItemComponentIds.Where(x => NewMajorItemComponentIds.Contains(x)).ToList();
+                if (DuplicateExistingMajorItemComponentIds.Any())
+                {
+                    return new BadRequestObjectResult(new { Message = $"Major Work Item contains component IDs that already exist in the system: {string.Join(", ", DuplicateExistingMajorItemComponentIds)}. Please check and try again.", Title = "Duplicate Existing Major Work Item Component IDs" });
+                }
                 #endregion
                 #region Major Work Location
 
                 var duplicates = dto.MajorItemLocations
-                    .Where(x => !x.IsDeleted && !string.IsNullOrEmpty(x.StartStationLimit) && !string.IsNullOrEmpty(x.EndStationLimit))
+                    .Where(x => !x.IsDeleted && !string.IsNullOrEmpty(x.StartStationLimit) && !string.IsNullOrEmpty(x.EndStationLimit) && x.Id == 0)
                     .Select((item, index) => new { Item = item, Index = index })
                     .GroupBy(x => new
                     {
-                        DetailedScope = (x.Item.DetailedScope ?? string.Empty).Trim().ToUpperInvariant(),
-                        StartStation = (x.Item.StartStationLimit ?? string.Empty).Trim().ToUpperInvariant(),
-                        EndStation = (x.Item.EndStationLimit ?? string.Empty).Trim().ToUpperInvariant()
+                        DetailedScope = (x.Item.DetailedScope!).Trim().ToUpperInvariant(),
+                        StartStation = (x.Item.StartStationLimit!).Trim().ToUpperInvariant(),
+                        EndStation = (x.Item.EndStationLimit!).Trim().ToUpperInvariant()
                     })
                     .Where(g => g.Count() > 1)
                     .Select(g => new
@@ -1551,7 +1565,7 @@ namespace WebAPI.Controllers.Projects
                 #endregion
                 #endregion
                 #region Update Major Item of Works
-                var MajorItemOfWorks = await _db.tProjectMajorWorkItem.Where(x => x.ProjectId == Project.ProjectId).ToListAsync();
+                var MajorItemOfWorks = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Program.StageName && !x.IsDeleted).ToListAsync();
                 if (MajorItemOfWorks.Count > 0)
                 {
                     var currentMajorItemIds = new HashSet<int>(MajorItemOfWorks.Select(x => x.Id));
@@ -1663,8 +1677,8 @@ namespace WebAPI.Controllers.Projects
                             }
                         }
                         #region Update Locations for Updated Major Items
-                        var CurrentLocations = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => UpdatedWorkItemIds.Contains(x.ParentId) && !x.IsDeleted && !LocationsToBeDeleted.Contains(x.Id)).ToListAsync();
-                        var CurrentLocationIds = CurrentLocations.Select(x => x.Id).ToHashSet();
+                        var CurrentLocations = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => UpdatedWorkItemIds.Contains(x.ParentId) && !x.IsDeleted && x.StageName == Program.StageName).ToListAsync();
+                        HashSet<int> CurrentLocationIds = CurrentLocations.Select(x => x.Id).ToHashSet();
                         var UpdateLocations = UpdatedWorkLocations.Where(x => CurrentLocationIds.Contains(x.Id)).ToList();
                         if (UpdateLocations.Count > 0)
                         {
@@ -1918,6 +1932,13 @@ namespace WebAPI.Controllers.Projects
                                     {
                                         ExistingLoc.UpdatedBy = _Session.UserId;
                                         ExistingLoc.UpdatedDate = CurrentDate;
+
+                                        // Detach any conflicting tracked instance
+                                        var trackedEntry = _db.ChangeTracker.Entries<ProjectMajorWorkLocations>()
+                                            .FirstOrDefault(e => e.Entity.Id == ExistingLoc.Id);
+                                        if (trackedEntry != null)
+                                            trackedEntry.State = EntityState.Detached;
+
                                         _db.tProjectMajorWorkLocations.Update(ExistingLoc);
                                     }
                                 }
