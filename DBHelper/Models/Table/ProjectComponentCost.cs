@@ -30,6 +30,10 @@ namespace DBHelper.Models.Table
         [Required]
         [MaxLength(10)]
         public string StageName { get; set; } = string.Empty;
+        public int? ConstructionStatusCode { get; set; }
+        public string? ConstructionStatusName { get; set; }
+        public bool? PackedStatusCode { get; set; }
+        public string? PackedStatusName { get; set; }
         [Required]
         [MaxLength(100)]
         public string CreatedBy { get; set; } = string.Empty;

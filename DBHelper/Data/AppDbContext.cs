@@ -108,9 +108,7 @@ namespace DBHelper.Data
         public DbSet<Models.Views.ProjectsInGroup> vProjectsInGroup { get; set; }
         public DbSet<Models.Views.AdminOperatingUnit> vAdminOperatingUnit { get; set; }
         public DbSet<Models.Views.AdminImplementingOffice> vAdminImplementingOffice { get; set; }
-        public DbSet<Models.Views.GetProjectCategoryVersions> vGetProjectCategoryVersions { get; set; }
         public DbSet<Models.Views.RevisionRules> vRevisionRules { get; set; }
-        public DbSet<Models.Views.ProjectComponentStatus> vProjectComponentStatus { get; set; }
         public DbSet<Models.Views.RevisionLists> vRevisionLists { get; set; }
         public DbSet<Models.Views.ProjectComponentCostStatus> vProjectComponentCostStatus { get; set; }
         public DbSet<Models.Views.ProjectPerStages> vProjectPerStages { get; set; }
@@ -123,8 +121,6 @@ namespace DBHelper.Data
         {
             modelBuilder.Entity<AdminOperatingUnit>().HasNoKey().ToView("vAdminOperatingUnit");
             modelBuilder.Entity<AdminImplementingOffice>().HasNoKey().ToView("vAdminImplementingOffice");
-            modelBuilder.Entity<GetProjectCategoryVersions>().HasNoKey().ToView("vGetProjectCategoryVersions");
-            modelBuilder.Entity<ProjectComponentStatus>().HasNoKey().ToView("vProjectComponentStatus");
             base.OnModelCreating(modelBuilder);
         }
     }
