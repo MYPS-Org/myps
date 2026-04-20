@@ -77,6 +77,13 @@ namespace WebAPI.Controllers.Revision
         {
             try
             {
+                var ProgramDetails = _db.vProgramDetails
+                .AsNoTracking()
+                .Where(x => x.ProgramId == dto.ProgramId && x.StageName == dto.StageName);
+
+                if (_Session.ApplyFilter)
+                    ProgramDetails = ProgramDetails.Where(x => x.DataSecurityGroup.Contains(_Session.RegCode));
+                var Regions = _db.tOptionAdminAreaRegion.
                 var param = new Dictionary<string, object> {
                     { "@ProgramId", dto.ProgramId }
                 };
