@@ -153,7 +153,7 @@ namespace WebAPI.Controllers.Revision
                 string ProjectRevisionStatus = (RevisionDetails.RegionStatus == EnumRevisionStatus.ForCorrection) ? RevisionDetails.RegionStatusName : RevisionDetails.COStatusName;
 
                 #region Validate PCMA Status
-                var ProjectComponentsStatus = await _db.vProjectComponentStatus.AsNoTracking().Where(x => x.ProjectId == ProjectId).ToListAsync();
+                var ProjectComponentsStatus = await _db.vProjectComponentCostStatus.AsNoTracking().Where(x => x.ProjectId == ProjectId && x.StageName == Project.StageName).ToListAsync();
                 if (ProjectComponentsStatus == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found in PCMA", Title = "Project Not Found" });
@@ -363,10 +363,14 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found or not in GAA-R stage!", Title = "Invalid Project" });
                 }
-                var ProjectComponentsStatus = await _db.vProjectComponentStatus.AsNoTracking().Where(x => x.ProjectId == dto.ProjectId).ToListAsync();
+                var ComponentCost = await _db.vProjectComponentCostStatus.AsNoTracking().Where(x => x.ProjectId == dto.ProjectId).ToListAsync();
+                if(ComponentCost.Count == 0)
+                {
+                    return new BadRequestObjectResult(new { Message = "Project not found in PCMA", Title = "Project Not Found" });
+                }
                 if (dto.RevisionHeader == 9 || dto.RevisionHeader == 16 || dto.RevisionReason == 47)
                 {
-                    var hasTerminated = ProjectComponentsStatus.FirstOrDefault(x => x.ConstructionStatusName == "Terminated");
+                    var hasTerminated = ComponentCost.FirstOrDefault(x => x.ConstructionStatusName == "Terminated");
                     if(hasTerminated == null)
                     {
                         return new BadRequestObjectResult(new { Message = "Project has no terminated components", Title = "No Terminated Components" });
@@ -380,38 +384,38 @@ namespace WebAPI.Controllers.Revision
                     return new BadRequestObjectResult(new { Message = $"There is a pending {HasPendingModification.RevisionName} request for this project. Please wait for the current request to be processed before submitting a new one.", Title = "Pending Modification Request" });
                 }
                 #region Validate PCMA Status
-                if(ProjectComponentsStatus == null)
+                if(ComponentCost == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found in PCMA", Title = "Project Not Found" });
                 }
                 #region Project Construction Status Validation
                 string ConStatus = "On-Going";
-                var HasOnGoing = ProjectComponentsStatus.FirstOrDefault(x => x.ConstructionStatusName == ConStatus);
+                var HasOnGoing = ComponentCost.FirstOrDefault(x => x.ConstructionStatusName == ConStatus);
                 if(HasOnGoing == null)
                 {
                     #region Has Completed
                     string[] CompletedCondition = { "Terminated", "Not Yet Started" };
-                    var HasCompleted = ProjectComponentsStatus.Where(x => x.ConstructionStatusName == "Completed");
+                    var HasCompleted = ComponentCost.Where(x => x.ConstructionStatusName == "Completed");
                     HasOnGoing = HasCompleted.FirstOrDefault(x => CompletedCondition.Contains(x.ConstructionStatusName));
                     if (HasOnGoing == null) ConStatus = "Completed";
                     #endregion
 
                     #region Has Not Yet Started
                     string[] NYSCondition = { "Completed", "Terminated" };
-                    var HasNYS = ProjectComponentsStatus.Where(x => x.ConstructionStatusName == "Not Yet Started");
+                    var HasNYS = ComponentCost.Where(x => x.ConstructionStatusName == "Not Yet Started");
                     HasOnGoing = HasNYS.FirstOrDefault(x => NYSCondition.Contains(x.ConstructionStatusName));
                     if (HasOnGoing == null) ConStatus = "Not Yet Started";
                     #endregion
 
                     #region Terminated
-                    var ProjectTerminated = ProjectComponentsStatus.Where(x => x.ConstructionStatusName != "Terminated" && string.IsNullOrEmpty(x.ConstructionStatusName));
+                    var ProjectTerminated = ComponentCost.Where(x => x.ConstructionStatusName != "Terminated" && string.IsNullOrEmpty(x.ConstructionStatusName));
                     if (ProjectTerminated != null) ConStatus = "Terminated";
                     #endregion
                 }
                 #endregion
                 #region Project Packaged Status Validation
                 string PackedStatus =
-                    (ProjectComponentsStatus.FirstOrDefault(x => x.PackedStatusName == "Not Packaged") != null) ?
+                    (ComponentCost.FirstOrDefault(x => x.PackedStatusName == "Not Packaged") != null) ?
                     "Not Packaged" :
                     "Packaged";
                 #endregion
@@ -464,7 +468,6 @@ namespace WebAPI.Controllers.Revision
                 //var ComponentCost = await _db.tProjectComponentCost.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && !x.IsDeleted).ToListAsync();
 
                 
-                var ComponentCost = await _db.vProjectComponentCostStatus.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
                 //var ComponentCost = await _db.tProjectComponentCost.FromSqlInterpolated($"SELECT * FROM fProjectComponentCost({Project.ProjectId}) fp WHERE fp.StageName = {Project.StageName}").AsNoTracking().ToListAsync();
                 var ComponentCostYear = await _db.tProjectComponentCostPerYear.FromSqlInterpolated($"SELECT * FROM fProjectComponentCostPerYear({Project.ProjectId}) fp WHERE fp.StageName = {Project.StageName}").AsNoTracking().ToListAsync();
 
@@ -519,7 +522,6 @@ namespace WebAPI.Controllers.Revision
                     },
 
                     Rules = SelectedRules,
-                    ComponentsStatus = ProjectComponentsStatus,
 
                     IsActive = (CurrentProgramVersion.StageName == Project.StageName) ? true : false,
                     ProgramDetails = Program,
