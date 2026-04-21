@@ -288,9 +288,8 @@ const RevisionForm: React.FC<RevisionFormProps> = ({
                     </div>
 
                     {/* Detailed Field Rules */}
-                    {fieldRules ? (
+                    {/* {fieldRules ? (
                         <div className="space-y-4">
-                            {/* Project Details Rules */}
                             {fieldRules.ProjectDetailsRules && (
                                 <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
                                     <h5 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
@@ -331,8 +330,6 @@ const RevisionForm: React.FC<RevisionFormProps> = ({
                                     </div>
                                 </div>
                             )}
-
-                            {/* Component Cost Rules */}
                             {fieldRules.ComponentCostRules && (
                                 <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
                                     <h5 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
@@ -393,8 +390,6 @@ const RevisionForm: React.FC<RevisionFormProps> = ({
                                     </div>
                                 </div>
                             )}
-
-                            {/* Component Cost Year Rules */}
                             {fieldRules.ComponentCostYearRules && (
                                 <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
                                     <h5 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
@@ -455,8 +450,6 @@ const RevisionForm: React.FC<RevisionFormProps> = ({
                                     </div>
                                 </div>
                             )}
-
-                            {/* Major Item of Work Rules */}
                             {fieldRules.MajorItemOfWorkRules && (
                                 <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
                                     <h5 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
@@ -517,8 +510,6 @@ const RevisionForm: React.FC<RevisionFormProps> = ({
                                     </div>
                                 </div>
                             )}
-
-                            {/* Major Item Location Rules */}
                             {fieldRules.MajorItemLocationRules && (
                                 <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
                                     <h5 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
@@ -580,8 +571,6 @@ const RevisionForm: React.FC<RevisionFormProps> = ({
                                     </div>
                                 </div>
                             )}
-
-                            {/* Funding Profile Rules */}
                             {fieldRules.FundingProfileRules && (
                                 <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
                                     <h5 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
@@ -652,7 +641,7 @@ const RevisionForm: React.FC<RevisionFormProps> = ({
                                 No field rules available. All fields may be restricted.
                             </p>
                         </div>
-                    )}
+                    )} */}
                 </div>
             </div>
         </div>
