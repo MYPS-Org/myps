@@ -43,18 +43,44 @@ namespace WebAPI.Controllers.Revision
                     .ToListAsync();
                 var regions = await _db.tOptionAdminAreaRegion
                     .AsNoTracking()
+                    .Where(x => x.ParticipantId == _Session.RegCode || !_Session.ApplyFilter)
                     .ToListAsync();
-                var operatingUnits = await _db.vAdminOperatingUnit
+                if (regions == null)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Title = "Region Not Found",
+                        Message = "No region found for the current user's session. Please contact the administrator."
+                    });
+                }
+
+                var RegionIds = regions.Select(r => r.GdbId).ToList();
+                var province = await _db.tOptionAdminAreaProvince
                     .AsNoTracking()
+                    .Where(x => RegionIds.Contains(x.RegionParticipantId) || !_Session.ApplyFilter)
                     .ToListAsync();
-                var deos = await _db.tOptionAdminAreaDistrictEngineeringOffice
-                    .AsNoTracking()
-                    .ToListAsync();
-                var implementingOffices = await _db.vAdminImplementingOffice
-                    .AsNoTracking()
-                    .ToListAsync();
+
+                var ProvinceIds = province.Select(p => p.GdbId).ToList();
                 var legislativeDistricts = await _db.tOptionAdminAreaCongressionalDistrict
                     .AsNoTracking()
+                    .Where(x => ProvinceIds.Contains(x.ProvinceGdbId) || !_Session.ApplyFilter)
+                    .ToListAsync();
+
+                var deos = await _db.tOptionAdminAreaDistrictEngineeringOffice
+                    .AsNoTracking()
+                    .Where(x => RegionIds.Contains(x.RegionParticipantId) || !_Session.ApplyFilter)
+                    .ToListAsync();
+
+                var deoIds = deos.Select(d => d.GdbId).ToList();
+                var implementingOffices = await _db.vAdminImplementingOffice
+                    .AsNoTracking()
+                    .Where(x => (deoIds.Contains(x.ParticipantId) || x.OrgType == "UPMO") || !_Session.ApplyFilter)
+                    .ToListAsync();
+
+                var ioIds = implementingOffices.Select(io => io.ParticipantId).ToList();
+                var operatingUnits = await _db.vAdminOperatingUnit
+                    .AsNoTracking()
+                    .Where(x => ioIds.Contains(x.ParticipantId) || !_Session.ApplyFilter)
                     .ToListAsync();
                 return new OkObjectResult(new
                 {
@@ -83,7 +109,8 @@ namespace WebAPI.Controllers.Revision
 
                 if (_Session.ApplyFilter)
                     ProgramDetails = ProgramDetails.Where(x => x.DataSecurityGroup.Contains(_Session.RegCode));
-                var Regions = _db.tOptionAdminAreaRegion.
+                var Region = await _db.tOptionAdminAreaRegion.FirstOrDefaultAsync(x => _Session.RegCode == x.ParticipantId);
+                dto.RegionName = dto.RegionName ?? Region?.Name;
                 var param = new Dictionary<string, object> {
                     { "@ProgramId", dto.ProgramId }
                 };
