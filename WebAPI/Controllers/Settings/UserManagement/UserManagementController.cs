@@ -242,6 +242,24 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     }
 
                     _db.tPermissionControllers.UpdateRange(AllController);
+
+                    //Update any controllers that are currently not linked to any module (ModuleName is NULL) but are marked Linked = true in the payload, to link to this module.a
+                    if (AllController.Count < 1 && controllerNames.Count > 0)
+                    {
+                        var NoModulController = await _db.tPermissionControllers
+                            .AsNoTracking()
+                            .Where(x => string.IsNullOrEmpty(x.ModuleName))
+                            .ToListAsync();
+                        if(NoModulController.Count > 0)
+                        {
+                            foreach(var ctrl in NoModulController)
+                            {
+                                bool IsLinked = (controllerNames.FirstOrDefault(x => x == ctrl.ControllerName) != null) ? true : false;
+                                ctrl.ModuleName = IsLinked ? getModule.ModuleName : null;
+                            }
+                            _db.tPermissionControllers.UpdateRange(NoModulController);
+                        }
+                    }
                 }
 
                 // ── Reconcile View linkages ───────────────────────────────────────────
@@ -268,6 +286,23 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     }
 
                     _db.tPermissionViews.UpdateRange(AllViews);
+                    //Update any views that are currently not linked to any module (ModuleName is NULL) but are marked Linked = true in the payload, to link to this module.
+                    if (AllViews.Count < 1 && routeNames.Count > 0)
+                    {
+                        var NoModulViews = await _db.tPermissionViews
+                            .AsNoTracking()
+                            .Where(x => string.IsNullOrEmpty(x.ModuleName))
+                            .ToListAsync();
+                        if(NoModulViews.Count > 0)
+                        {
+                            foreach(var view in NoModulViews)
+                            {
+                                bool IsLinked = (routeNames.FirstOrDefault(x => x == view.RouteName) != null) ? true : false;
+                                view.ModuleName = IsLinked ? getModule.ModuleName : null;
+                            }
+                            _db.tPermissionViews.UpdateRange(NoModulViews);
+                        }
+                    }
                 }
 
                 await _db.SaveChangesAsync();
