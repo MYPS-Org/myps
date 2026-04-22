@@ -231,10 +231,13 @@ export const fetchAIPReportDropdownData = async (): Promise<AIPReportDropdowns> 
 
 export const exportProjects = async (ProgramId: string, StageName: string) => {
     try {
-        const response = await httpClient.post('/Reporting/RequestRawProjects', { ProgramId, StageName }, {
-            preloaderMessage: 'Exporting projects...'
+        const response = await httpClient.post<Blob>('/Reporting/RequestRawProjects', { ProgramId, StageName }, {
+            preloaderMessage: 'Exporting projects...',
+            responseType: 'blob'
         });
-        return response;
+        const blob = response.Data as Blob;
+        const filename = `${ProgramId}_${StageName}_Projects.xlsx`;
+        return { blob, filename };
     } catch (ErrorResponse) {
         console.error('Error exporting projects:', ErrorResponse);
         throw ErrorResponse; 
