@@ -222,21 +222,26 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     var Controllers = JsonConvert.DeserializeObject<List<AppModuleControllerModel>>(dto.Controllers);
                     var controllerNames = Controllers.Where(x => x.Linked).Select(c => c.ControllerName).ToList();
 
-                    var dbControllers = await _db.tPermissionControllers
-                        .Where(x => controllerNames.Contains(x.ControllerName))
+                    //var dbControllers = await _db.tPermissionControllers
+                    //    .AsNoTracking()
+                    //    .Where(x => controllerNames.Contains(x.ControllerName))
+                    //    .ToListAsync();
+
+                    var AllController = await _db.tPermissionControllers
+                        .AsNoTracking()
+                        .Where(x => x.ModuleName == dto.ModuleName)
                         .ToListAsync();
 
-                    foreach (var ctrl in dbControllers)
+                    foreach (var ctrl in AllController)
                     {
-                        var payload = Controllers
-                            .First(c => c.ControllerName == ctrl.ControllerName);
+                        bool IsLinked = (controllerNames.FirstOrDefault(x => x == ctrl.ControllerName) != null) ? true : false;
 
                         // Linked = true  → assign to this module
                         // Linked = false → remove from this module (set NULL)
-                        ctrl.ModuleName = payload.Linked ? getModule.ModuleName : null;
+                        ctrl.ModuleName = IsLinked ? getModule.ModuleName : null;
                     }
 
-                    _db.tPermissionControllers.UpdateRange(dbControllers);
+                    _db.tPermissionControllers.UpdateRange(AllController);
                 }
 
                 // ── Reconcile View linkages ───────────────────────────────────────────
@@ -245,21 +250,24 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     var Views = JsonConvert.DeserializeObject<List<AppModuleViewModel>>(dto.Views);
                     var routeNames = Views.Where(x => x.Linked).Select(v => v.RouteName).ToList();
 
-                    var dbViews = await _db.tPermissionViews
-                        .Where(x => routeNames.Contains(x.RouteName))
+                    //var dbViews = await _db.tPermissionViews
+                    //    .Where(x => routeNames.Contains(x.RouteName))
+                    //    .ToListAsync();
+                    var AllViews = await _db.tPermissionViews
+                        .AsNoTracking()
+                        .Where(x => x.ModuleName == dto.ModuleName)
                         .ToListAsync();
 
-                    foreach (var view in dbViews)
+                    foreach (var view in AllViews)
                     {
-                        var payload = Views
-                            .First(v => v.RouteName == view.RouteName);
+                        bool IsLinked = (routeNames.FirstOrDefault(x => x == view.RouteName) != null) ? true : false;
 
                         // Linked = true  → assign to this module
                         // Linked = false → remove from this module (set NULL)
-                        view.ModuleName = payload.Linked ? getModule.ModuleName : null;
+                        view.ModuleName = IsLinked ? getModule.ModuleName : null;
                     }
 
-                    _db.tPermissionViews.UpdateRange(dbViews);
+                    _db.tPermissionViews.UpdateRange(AllViews);
                 }
 
                 await _db.SaveChangesAsync();
@@ -1100,7 +1108,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
 
                 return Ok(new
                 {
-                    Message = $"Sync complete! Controllers added: {newControllers.Count}, Actions added: {newActions.Count}",
+                    Message = $"Sync complete! Controllers added: {string.Join(", ", newControllers.Select(x => x.ControllerName))}, Actions added: {string.Join(", ", newActions.Select(x => x.ActionName))}",
                     Title = "Sync Complete",
                     Controllers = allControllers,
                     Actions = allActions
@@ -1489,7 +1497,12 @@ namespace WebAPI.Controllers.Settings.UserManagement
                         .Where(x => dto.PermissionActionIds.Contains(x.Id))
                         .Select(x => x.Id)
                         .ToListAsync();
+                    var existingActions= await _db.tPermissionActions
+                        .Where(x => x.ControllerName == "ProjectController")
+                        .ToListAsync();
 
+
+                    
                     var invalidActionIds = dto.PermissionActionIds
                         .Except(existingActionIds)
                         .ToList();
@@ -1536,8 +1549,8 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 if (getGroupRoles != null)
                 {
                     // Update existing GroupRoles
-                    getGroupRoles.ActionIds = dto.PermissionActionIds;
-                    getGroupRoles.ViewIds = dto.PermissionViewIds;
+                    getGroupRoles.ActionIds = dto.PermissionActionIds.OrderBy(x => x).ToArray();
+                    getGroupRoles.ViewIds = dto.PermissionViewIds.OrderBy(x => x).ToArray();
                     _db.tGroupRoles.Update(getGroupRoles);
                 }
                 else
@@ -1546,8 +1559,8 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     var newGroupRoles = new GroupRoles
                     {
                         GroupId = dto.Id,
-                        ActionIds = dto.PermissionActionIds,
-                        ViewIds = dto.PermissionViewIds,
+                        ActionIds = dto.PermissionActionIds.OrderBy(x => x).ToArray(),
+                        ViewIds = dto.PermissionViewIds.OrderBy(x => x).ToArray(),
                     };
                     await _db.tGroupRoles.AddAsync(newGroupRoles);
                 }
