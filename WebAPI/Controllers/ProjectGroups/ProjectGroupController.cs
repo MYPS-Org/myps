@@ -218,7 +218,7 @@ namespace WebAPI.Controllers.ProjectGroup
                         Message = "This project is already assigned to a group. Please remove it from the current group before reassigning."
                     });
                 }
-                var CheckProject = await _db.vProjects.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId);
+                var CheckProject = await _db.vProjectLatestStage.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId);
                 if (CheckProject == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Not Found" });
