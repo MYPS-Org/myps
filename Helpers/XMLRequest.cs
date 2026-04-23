@@ -44,7 +44,7 @@ namespace Helpers
                 return _customBodyProvider();
             }
             
-            return $@"<pis_get_employee xmlns=""https://www.dpwh.gov.ph/"">
+            return $@"<pis_get_employee xmlns=""http://tempuri.org/"">
                                 <employee_id>{_employeeId}</employee_id>
                             </pis_get_employee>";
         }

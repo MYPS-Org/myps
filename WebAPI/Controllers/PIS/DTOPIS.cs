@@ -11,4 +11,10 @@ namespace DBHelper.Models.Dtos
     {
         public string EmployeeId { get; set; } = string.Empty;
     }
+
+    public class AuthenticateUserDTO
+    {
+        public string EmployeeId { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+    }
 }
