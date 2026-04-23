@@ -50,7 +50,7 @@ if (!builder.Environment.IsProduction())
         options.AddPolicy("AllowReactApp", builder =>
         {
             builder
-            .WithOrigins("http://localhost:8080", "http://192.168.50.201:8080", "http://myps.eptisa-dev.com")
+            //.WithOrigins("http://localhost:8080", "http://192.168.50.201:8080", "http://myps.eptisa-dev.com")
             .AllowCredentials()
             .AllowAnyMethod()
             .AllowAnyHeader();

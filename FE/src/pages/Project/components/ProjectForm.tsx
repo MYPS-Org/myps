@@ -51,9 +51,10 @@ interface ProjectFormProps {
   mode?: 'add' | 'edit';
   initialProgramId?: string;
   initialStageName?: string;
+  onRefresh?: () => void;
 }
 
-const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', initialProgramId, initialStageName }) => {
+const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', initialProgramId, initialStageName, onRefresh }) => {
 
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -908,6 +909,12 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           message: 'Project updated successfully.'
       });
 
+      if (onRefresh) {
+        onRefresh();
+      } else if (initialData?.ProjectDetails?.ProjectId && initialData?.ProgramDetails?.StageName) {
+        navigate(`/projects/project-details/${initialData.ProjectDetails.ProjectId}:${initialData.ProgramDetails.StageName}`);
+      }
+
     } catch (error) {
       showToast({
           type: 'error',
@@ -915,12 +922,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       });
     } finally {
       setUpdateAllProject(false);
-      
-      // Refresh the project by re-navigating to the same page
-      if (initialData?.ProjectDetails?.ProjectId && initialData?.ProgramDetails?.StageName) {
-        navigate(`/projects/project-details/${initialData.ProjectDetails.ProjectId}:${initialData.ProgramDetails.StageName}`);
-        await loadMapData();
-      }
     }
   };
 

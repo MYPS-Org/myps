@@ -35,83 +35,54 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         // Check for URL parameter bypass
         // subukan mo to http://localhost:8080/dashboard?bypass=true
-        const urlParams = new URLSearchParams(window.location.search);
-        const bypassAuth = urlParams.get('bypass') === 'true';
-
-        if (bypassAuth) {
-            console.log('🚫 Auth bypass via URL parameter');
-            setAuthState({
-                isAuthenticated: true,
-                isLoading: false,
-                user: { id: 'dev', name: 'Dev User', UserGroup: 'admin' },
-                ViewAccess: []
-            });
-            return;
-        }
-
-        // Bypass authentication in development
-        if (import.meta.env.VITE_BYPASS_AUTH === 'true') {
-            console.log('🚫 Auth bypass enabled - skipping authentication');
-            setAuthState({
-                isAuthenticated: true,
-                isLoading: false,
-                user: {
-                    id: 'dev-user',
-                    name: 'Development User',
-                    UserGroup: 'admin'
-                },
-                ViewAccess: []
-            });
-            return;
-        }
-        else{
-        
-            try {
-                const response = await authService.validateSession();
-                // console.log('rine => ', response);
-                if (response.Data.Data.Authenticated) {
-                    localStorage.setItem('currentPath', window.location.pathname);
-                    console.log('✅ Valid session found', response);
-                    setAuthState({
-                        isAuthenticated: true,
-                        isLoading: false,
-                        user: { ...response.Data.Data.User,
-                            // UserGroup: response.Data.Data.User.UserGroup
-                         },
-                        ViewAccess: response.Data.Data.ViewAccess || []
-                    });
-                    if(window.location.pathname === '/login') {
-                        const storedPath = localStorage.getItem('currentPath');
-                        // Avoid infinite loop by not redirecting back to login
-                        const path = (storedPath && storedPath !== '/login') 
-                            ? storedPath 
-                            : (import.meta.env.VITE_DEFAULT_ROUTE || '/dashboard');
-                        localStorage.removeItem('currentPath'); // Clean up after use
-                        window.location.href = path;
-                    }
-                } else {
-                    console.log('❌ No valid session found', response);
-                    setAuthState({
-                        isAuthenticated: false,
-                        isLoading: false,
-                        user: null,
-                        ViewAccess: []
-                    });
-                    localStorage.setItem('currentPath', window.location.pathname);
-                    if (window.location.pathname !== '/login') {
-                        // Redirect to login if not authenticated
-                        window.location.href = '/login';
-                    }
-	                // window.location.href = window.location.pathname || import.meta.env.VITE_DEFAULT_ROUTE || '/dashboard';
+        try {
+            const response = await authService.validateSession();
+            // console.log('rine => ', response);
+            if (response.Data.Data.Authenticated) {
+                localStorage.setItem('currentPath', window.location.pathname);
+                console.log('✅ Valid session found', response);
+                setAuthState({
+                    isAuthenticated: true,
+                    isLoading: false,
+                    user: { ...response.Data.Data.User,
+                        // UserGroup: response.Data.Data.User.UserGroup
+                        },
+                    ViewAccess: response.Data.Data.ViewAccess || []
+                });
+                if(window.location.pathname === '/login') {
+                    const storedPath = localStorage.getItem('currentPath');
+                    // Avoid infinite loop by not redirecting back to login
+                    const path = (storedPath && storedPath !== '/login') 
+                        ? storedPath 
+                        : (import.meta.env.VITE_DEFAULT_ROUTE || '/dashboard');
+                    localStorage.removeItem('currentPath'); // Clean up after use
+                    window.location.href = path;
                 }
-            } catch (error) {
-                console.error('❌ Session validation failed:', error);
+            } else {
+                console.log('❌ No valid session found', response);
                 setAuthState({
                     isAuthenticated: false,
                     isLoading: false,
                     user: null,
                     ViewAccess: []
                 });
+                localStorage.setItem('currentPath', window.location.pathname);
+                if (window.location.pathname !== '/login') {
+                    // Redirect to login if not authenticated
+                    window.location.href = '/login';
+                }
+                // window.location.href = window.location.pathname || import.meta.env.VITE_DEFAULT_ROUTE || '/dashboard';
+            }
+        } catch (error) {
+            console.error('❌ Session validation failed:', error);
+            setAuthState({
+                isAuthenticated: false,
+                isLoading: false,
+                user: null,
+                ViewAccess: []
+            });
+            if (window.location.pathname !== '/login') {
+                window.location.href = '/login';
             }
         }
     };

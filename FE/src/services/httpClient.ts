@@ -27,6 +27,8 @@ class HttpClient {
     private client: AxiosInstance;
     private preloaderCallbacks: ((state: PreloaderState) => void)[] = [];
     private toastCallback: ((options: { type: 'success' | 'error' | 'info' | 'warning'; message: string }) => void) | null = null;
+    private activeRequests = 0;
+    private hideTimeout: ReturnType<typeof setTimeout> | null = null;
 
     constructor() {
         this.client = axios.create({
@@ -46,6 +48,12 @@ class HttpClient {
         this.client.interceptors.request.use(
             (config: InternalAxiosRequestConfig) => {
                 const customConfig = config as InternalAxiosRequestConfig & { preloaderMessage?: string };
+                // Cancel any pending hide so new request's loading state isn't cleared
+                if (this.hideTimeout) {
+                    clearTimeout(this.hideTimeout);
+                    this.hideTimeout = null;
+                }
+                this.activeRequests++;
                 this.updatePreloader({
                     loading: true,
                     progress: 0,
@@ -56,7 +64,10 @@ class HttpClient {
                 return config;
             },
             (error: any) => {
-                this.updatePreloader({ loading: false, progress: 0, message: '' });
+                this.activeRequests = Math.max(0, this.activeRequests - 1);
+                if (this.activeRequests === 0) {
+                    this.updatePreloader({ loading: false, progress: 0, message: '' });
+                }
                 return Promise.reject(error);
             }
         );
@@ -64,22 +75,31 @@ class HttpClient {
         // Response interceptor
         this.client.interceptors.response.use(
             (response: AxiosResponse) => {
-                this.updatePreloader({
-                    loading: false,
-                    progress: 100,
-                    message: 'Request completed'
-                });
+                this.activeRequests = Math.max(0, this.activeRequests - 1);
 
-                // Hide preloader after a short delay
-                setTimeout(() => {
-                    this.updatePreloader({ loading: false, progress: 0, message: '' });
-                }, 500);
+                if (this.activeRequests === 0) {
+                    this.updatePreloader({
+                        loading: false,
+                        progress: 100,
+                        message: 'Request completed'
+                    });
+                    // Hide preloader after a short delay only when no more requests are inflight
+                    this.hideTimeout = setTimeout(() => {
+                        this.hideTimeout = null;
+                        if (this.activeRequests === 0) {
+                            this.updatePreloader({ loading: false, progress: 0, message: '' });
+                        }
+                    }, 500);
+                }
 
                 // console.log('✅ HTTP Response:', response.status, response.config.url);
                 return response;
             },
             async (error: any) => {
-                this.updatePreloader({ loading: false, progress: 0, message: '' });
+                this.activeRequests = Math.max(0, this.activeRequests - 1);
+                if (this.activeRequests === 0) {
+                    this.updatePreloader({ loading: false, progress: 0, message: '' });
+                }
 
                 console.error('❌ HTTP Error:', error.response?.status, error.config?.url, error.message);
 

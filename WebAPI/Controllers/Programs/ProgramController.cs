@@ -678,8 +678,10 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Program Stage '{dto.Stage}' is not valid!", Title = "Invalid Stage" });
                 }
+
+                var projectIdsJson = System.Text.Json.JsonSerializer.Serialize(_Session.RegCode);
                 var checkProjects = await _db.fProjectsPerStage
-                .FromSqlInterpolated($"SELECT * FROM fProjectsInProgram({dto.ProgramId}) fp WHERE fp.StageId = {checkStage.StageId}")
+                .FromSqlInterpolated($"SELECT * FROM fProjectsInProgram({dto.ProgramId}) fp WHERE fp.StageId = {checkStage.StageId} AND fp.ProjectId IN (SELECT [value] FROM OPENJSON({projectIdsJson})")
                 .AsNoTracking()
                 .ToListAsync();
                 if (checkProjects.Count > 0)
