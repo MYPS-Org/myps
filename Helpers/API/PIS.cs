@@ -18,7 +18,7 @@ namespace Helpers.API
 
         protected override string GetSoapBody()
         {
-            return $@"<pis_get_employee xmlns=""https://www.dpwh.gov.ph/"">
+            return $@"<pis_get_employee xmlns=""http://tempuri.org/"">
                         <employee_id>{_employeeId}</employee_id>
                     </pis_get_employee>";
         }
@@ -61,9 +61,9 @@ namespace Helpers.API
     }
     public class AuthenticatePIS : XMLRequest<EmployeeResponse>
     {
-        public AuthenticatePIS(string employeeId, string password) : base(() => $@"<ad_validate_login xmlns=""https://www.dpwh.gov.ph/"">
-                            <Username>{employeeId}</Username>
-                            <Password>{password}</Password>
+        public AuthenticatePIS(string employeeId, string password) : base(() => $@"<ad_validate_login xmlns=""http://tempuri.org/"">
+                            <username>{employeeId}</username>
+                            <password>{password}</password>
                         </ad_validate_login>")
         {
         }
@@ -78,7 +78,7 @@ namespace Helpers.API
 
             var result = doc.Descendants(XName.Get("ad_validate_loginResult", ns)).FirstOrDefault();
             if (result == null) return null;
-
+            File.WriteAllText("ad_validate_loginResult.txt", result.ToString());
             return new EmployeeResponse
             {
                 NetworkId = result.Element(XName.Get("network_id", ns))?.Value,
