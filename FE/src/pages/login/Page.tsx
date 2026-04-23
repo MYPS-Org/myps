@@ -6,6 +6,7 @@ import { Text } from '../../components/tailwindui/text';
 import Logo from '../../assets/img/logo.png';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/16/solid';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '../../components/toaster/ToasterContext';
 
 const LoginForm: React.FC = () => {
   const [credentials, setCredentials] = useState<LoginRequest>({
@@ -18,6 +19,7 @@ const LoginForm: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
 //   const [rememberMe, setRememberMe] = useState(false);
   const { validateSession } = useAuth();
+  const { showToast } = useToast();
 //   const Navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -29,8 +31,9 @@ const LoginForm: React.FC = () => {
 	  await authService.login(credentials);
 	  await validateSession();
 	} catch (err: any) {
-	  navigate('/login');
-	//   setError(err.message || 'Login failed. Please try again.');
+	  const message = err.Message || err.message || 'Login failed. Please try again.';
+	  showToast({ type: 'error', message });
+	  setError(message);
 	} finally {
 	  setIsLoading(false);
 	}
@@ -106,14 +109,6 @@ const LoginForm: React.FC = () => {
 						<span className="text-gray-700">Remember me</span>
 					</label> */}
 					</div>
-					{error && (
-					<div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
-						<svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-						</svg>
-						{error}
-					</div>
-					)}
 					
 					<button className='!bg-[#f0750f] !w-full !h-[50px] !rounded-md !text-white hover:!bg-[#4726ae]/80 !cursor-pointer'>Sign In</button>
 				</form>
