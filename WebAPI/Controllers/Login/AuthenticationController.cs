@@ -68,16 +68,16 @@ namespace WebAPI.Controllers.Auth
                 //var request = new AuthenticatePIS(dto.UserName, dto.Password);
                 //var employee = await APIRequest.XML(request);
                 //return Ok(new { Message = "Login successful", Data = new { Authenticated = true, User = verifyAccount, Employee = employee } });
-                //LdapConnection ldap_conn = new LdapConnection();
-                //await ldap_conn.ConnectAsync($"{Appsetting.LDAP.Host}", Appsetting.LDAP.Port);
-                //await ldap_conn.BindAsync(Appsetting.LDAP.DN.Replace("[[USERNAME]]", dto.UserName), dto.Password);
-                //Console.WriteLine("LDAP Bind Successfull!");
-                //if (ldap_conn.Bound)
-                //{
-                //    ldap_conn.Disconnect();
+                LdapConnection ldap_conn = new LdapConnection();
+                await ldap_conn.ConnectAsync($"{Appsetting.LDAP.Host}", Appsetting.LDAP.Port);
+                await ldap_conn.BindAsync(Appsetting.LDAP.DN.Replace("[[USERNAME]]", dto.UserName), dto.Password);
+                Console.WriteLine("LDAP Bind Successfull!");
+                if (ldap_conn.Bound)
+                {
+                    ldap_conn.Disconnect();
 
 
-                var claims = new List<Claim>
+                    var claims = new List<Claim>
                     {
                         new Claim(ClaimTypes.NameIdentifier, verifyAccount.UserId),
                         new Claim("Name", verifyAccount.Name),
@@ -85,23 +85,23 @@ namespace WebAPI.Controllers.Auth
                         new Claim("HostName", hostName)
                     };
 
-                var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-                var authProperties = new AuthenticationProperties
-                {
-                    IsPersistent = true
-                };
+                    var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+                    var authProperties = new AuthenticationProperties
+                    {
+                        IsPersistent = true
+                    };
 
-                await HttpContext.SignInAsync(
-                    CookieAuthenticationDefaults.AuthenticationScheme,
-                    new ClaimsPrincipal(claimsIdentity),
-                    authProperties
-                );
-                LoginLog.IsValid = true;
-                //}
-                //else
-                //{
-                //    LoginLog.ValidationMessage = "Invalid credentials";
-                //}
+                    await HttpContext.SignInAsync(
+                        CookieAuthenticationDefaults.AuthenticationScheme,
+                        new ClaimsPrincipal(claimsIdentity),
+                        authProperties
+                    );
+                    LoginLog.IsValid = true;
+                }
+                else
+                {
+                    LoginLog.ValidationMessage = "Invalid credentials";
+                }
                 _db.tLoginHistory.Add(LoginLog);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
