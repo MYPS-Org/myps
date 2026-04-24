@@ -55,6 +55,7 @@ namespace WebAPI.Controllers.Revision
                 }
 
                 var RegionIds = regions.Select(r => r.GdbId).ToList();
+                var RegionParticipantIds = regions.Select(x => x.ParticipantId).ToList();
                 var province = await _db.tOptionAdminAreaProvince
                     .AsNoTracking()
                     .Where(x => RegionIds.Contains(x.RegionParticipantId) || !_Session.ApplyFilter)
@@ -68,13 +69,13 @@ namespace WebAPI.Controllers.Revision
 
                 var deos = await _db.tOptionAdminAreaDistrictEngineeringOffice
                     .AsNoTracking()
-                    .Where(x => RegionIds.Contains(x.RegionParticipantId) || !_Session.ApplyFilter)
+                    .Where(x => RegionParticipantIds.Contains(x.RegionParticipantId) || !_Session.ApplyFilter)
                     .ToListAsync();
 
-                var deoIds = deos.Select(d => d.GdbId).ToList();
+                var DEOParticipantIds = deos.Select(d => d.ParticipantId).ToList();
                 var implementingOffices = await _db.vAdminImplementingOffice
                     .AsNoTracking()
-                    .Where(x => (deoIds.Contains(x.ParticipantId) || x.OrgType == "UPMO") || !_Session.ApplyFilter)
+                    .Where(x => (DEOParticipantIds.Contains(x.ParticipantId) || x.OrgType == "UPMO") || !_Session.ApplyFilter)
                     .ToListAsync();
 
                 var ioIds = implementingOffices.Select(io => io.ParticipantId).ToList();

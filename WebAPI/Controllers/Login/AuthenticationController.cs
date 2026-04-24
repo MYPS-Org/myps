@@ -68,13 +68,13 @@ namespace WebAPI.Controllers.Auth
                 //var request = new AuthenticatePIS(dto.UserName, dto.Password);
                 //var employee = await APIRequest.XML(request);
                 //return Ok(new { Message = "Login successful", Data = new { Authenticated = true, User = verifyAccount, Employee = employee } });
-                LdapConnection ldap_conn = new LdapConnection();
-                await ldap_conn.ConnectAsync($"{Appsetting.LDAP.Host}", Appsetting.LDAP.Port);
-                await ldap_conn.BindAsync(Appsetting.LDAP.DN.Replace("[[USERNAME]]", dto.UserName), dto.Password);
-                Console.WriteLine("LDAP Bind Successfull!");
-                if (ldap_conn.Bound)
-                {
-                    ldap_conn.Disconnect();
+                //LdapConnection ldap_conn = new LdapConnection();
+                //await ldap_conn.ConnectAsync($"{Appsetting.LDAP.Host}", Appsetting.LDAP.Port);
+                //await ldap_conn.BindAsync(Appsetting.LDAP.DN.Replace("[[USERNAME]]", dto.UserName), dto.Password);
+                //Console.WriteLine("LDAP Bind Successfull!");
+                //if (ldap_conn.Bound)
+                //{
+                //    ldap_conn.Disconnect();
 
 
                     var claims = new List<Claim>
@@ -97,14 +97,14 @@ namespace WebAPI.Controllers.Auth
                         authProperties
                     );
                     LoginLog.IsValid = true;
-                }
-                else
-                {
-                    LoginLog.ValidationMessage = "Invalid credentials";
-                }
-                _db.tLoginHistory.Add(LoginLog);
-                await _db.SaveChangesAsync();
-                await transaction.CommitAsync();
+                //}
+                //else
+                //{
+                //    LoginLog.ValidationMessage = "Invalid credentials";
+                //}
+                //_db.tLoginHistory.Add(LoginLog);
+                //await _db.SaveChangesAsync();
+                //await transaction.CommitAsync();
                 return LoginLog.IsValid ? Ok(new { Message = "Login successful", Data = new { Authenticated = true, User = verifyAccount } }) : UnauthorizedUser();
             }
             catch (LdapException error)
