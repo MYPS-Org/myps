@@ -258,6 +258,7 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({
   const { showToast } = useToast();
   const [groupName, setGroupName] = useState('');
   const [description, setDescription] = useState('');
+  const [applyFilter, setApplyFilter] = useState(false);
   const [actionIds, setActionIds] = useState<number[]>([]);
   const [viewIds, setViewIds] = useState<number[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -268,6 +269,7 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({
     if (isOpen && group) {
       setGroupName(group.GroupName || '');
       setDescription(group.Description || '');
+      setApplyFilter(group.ApplyFilter ?? false);
       // Derive pre-selected IDs from ModulePermissions where IsGranted === true
       const mods = group.ModulePermissions || [];
       const grantedActionIds = mods.flatMap(m =>
@@ -316,6 +318,7 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({
         Id: group.Id,
         GroupName: groupName.trim(),
         Description: description.trim() || undefined,
+        ApplyFilter: applyFilter,
         PermissionActionIds: actionIds,
         PermissionViewIds: viewIds,
       };
@@ -375,6 +378,20 @@ const UpdateGroupDialog: React.FC<UpdateGroupDialogProps> = ({
                   autoComplete="off"
                 />
               </div>
+            </div>
+
+            {/* Apply Filter */}
+            <div className="flex items-center gap-3">
+              <input
+                id="applyFilter"
+                type="checkbox"
+                checked={applyFilter}
+                onChange={e => setApplyFilter(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <label htmlFor="applyFilter" className="text-sm font-medium text-gray-700 select-none cursor-pointer">
+                Apply Filter
+              </label>
             </div>
 
             {/* Selection summary */}
