@@ -15,6 +15,7 @@ const AddGroupDialog: React.FC<AddGroupDialogProps> = ({ isOpen, onClose, onSubm
   const { showToast } = useToast();
   const [groupName, setGroupName] = useState('');
   const [description, setDescription] = useState('');
+  const [applyFilter, setApplyFilter] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -27,7 +28,7 @@ const AddGroupDialog: React.FC<AddGroupDialogProps> = ({ isOpen, onClose, onSubm
     setIsSubmitting(true);
     setError('');
     try {
-      await addUserGroup({ GroupName: groupName.trim(), Description: description.trim() || undefined, PermissionIds: [] });
+      await addUserGroup({ GroupName: groupName.trim(), Description: description.trim() || undefined, ApplyFilter: applyFilter, PermissionIds: [] });
       showToast({ message: `Group '${groupName.trim()}' created successfully.`, type: 'success' });
       onSubmit({ GroupName: groupName.trim(), Description: description.trim() });
       handleClose();
@@ -42,6 +43,7 @@ const AddGroupDialog: React.FC<AddGroupDialogProps> = ({ isOpen, onClose, onSubm
   const handleClose = () => {
     setGroupName('');
     setDescription('');
+    setApplyFilter(false);
     setError('');
     onClose();
   };
@@ -82,6 +84,19 @@ const AddGroupDialog: React.FC<AddGroupDialogProps> = ({ isOpen, onClose, onSubm
                 rows={3}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500 resize-none"
               />
+            </div>
+
+            <div className="flex items-center gap-3">
+              <input
+                id="applyFilter"
+                type="checkbox"
+                checked={applyFilter}
+                onChange={(e) => setApplyFilter(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <label htmlFor="applyFilter" className="text-sm font-medium text-gray-700 select-none cursor-pointer">
+                Apply Filter
+              </label>
             </div>
 
             <p className="text-xs text-gray-400">

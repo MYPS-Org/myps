@@ -96,12 +96,14 @@ export interface AddUserGroups {
 	GroupName?: string;
     PermissionIds: number[]; // Dialog works with array of IDs
 	Description?: string;
+	ApplyFilter?: boolean;
 }
 
 export interface UpdateUserGroupPayload {
 	Id: number;
 	GroupName: string;
 	Description?: string;
+	ApplyFilter: boolean;
 	PermissionActionIds: number[];
 	PermissionViewIds: number[];
 }
@@ -138,6 +140,7 @@ export interface ModulePermission {
 export interface vUserGroups{
     Id: number;
     GroupName: string;
+    ApplyFilter: boolean;
     NumberOfUsers: number;
     Description?: string;
     CreatedBy: string;
