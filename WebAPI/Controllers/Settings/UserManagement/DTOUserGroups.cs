@@ -15,8 +15,11 @@ namespace WebAPI.Controllers.Settings.UserManagement
     }
     public class AddUserGroupDTO
     {
+        [Required]
         public string? GroupName { get; set; }
         public string? Description { get; set; }
+        [Required]
+        public bool ApplyFilter { get; set; } = true;
     }
     public class UpdateUserGroupDTO {
 
@@ -25,6 +28,8 @@ namespace WebAPI.Controllers.Settings.UserManagement
         [Required]
         public string GroupName { get; set; } = string.Empty;
         public string? Description { get; set; }
+        [Required]
+        public bool ApplyFilter { get; set; } = true;
         public int[] PermissionActionIds { get; set; } = [];
         public int[] PermissionViewIds { get; set; } = [];
     }

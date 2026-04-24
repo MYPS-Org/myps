@@ -1458,6 +1458,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 {
                     GroupName = dto.GroupName.Trim(),
                     Description = dto.Description?.Trim(),
+                    ApplyFilter = dto.ApplyFilter,
                     CreatedBy = _Session.UserId,
                     CreatedDate = CurrentDate,
                 };
@@ -1577,6 +1578,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 // 6. Update Group details
                 getGroup.GroupName = dto.GroupName.Trim();
                 getGroup.Description = dto.Description?.Trim();
+                getGroup.ApplyFilter = dto.ApplyFilter;
                 _db.tGroups.Update(getGroup);
 
                 // 7. Update GroupRoles — get existing GroupRoles for this Group
