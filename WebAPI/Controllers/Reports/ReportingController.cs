@@ -108,9 +108,11 @@ namespace WebAPI.Controllers.Revision
                 .Where(x => x.ProgramId == dto.ProgramId && x.StageName == dto.StageName);
 
                 if (_Session.ApplyFilter)
+                {
                     ProgramDetails = ProgramDetails.Where(x => x.DataSecurityGroup.Contains(_Session.RegCode));
-                var Region = await _db.tOptionAdminAreaRegion.FirstOrDefaultAsync(x => _Session.RegCode == x.ParticipantId);
-                dto.RegionName = dto.RegionName ?? Region?.Name;
+                    var Region = await _db.tOptionAdminAreaRegion.FirstOrDefaultAsync(x => _Session.RegCode == x.ParticipantId);
+                    dto.RegionName = dto.RegionName ?? Region?.Name;
+                }
                 var param = new Dictionary<string, object> {
                     { "@ProgramId", dto.ProgramId }
                 };
@@ -171,9 +173,20 @@ namespace WebAPI.Controllers.Revision
         {
             try
             {
+                var ProgramDetails = _db.vProgramDetails
+                .AsNoTracking()
+                .Where(x => x.ProgramId == dto.ProgramId && x.StageName == dto.StageName);
+
+                if (_Session.ApplyFilter)
+                {
+                    ProgramDetails = ProgramDetails.Where(x => x.DataSecurityGroup.Contains(_Session.RegCode));
+                    var Region = await _db.tOptionAdminAreaRegion.FirstOrDefaultAsync(x => _Session.RegCode == x.ParticipantId);
+                    dto.RegionName = dto.RegionName ?? Region?.Name;
+                }
                 var param = new Dictionary<string, object> {
                     { "@ProgramId", dto.ProgramId }
                 };
+
                 if (!string.IsNullOrEmpty(dto.StageName)) { param.Add("@StageName", dto.StageName); }
                 if (!string.IsNullOrEmpty(dto.CategoryName)) { param.Add("@CategoryName", dto.CategoryName); }
                 if (!string.IsNullOrEmpty(dto.RegionName)) { param.Add("@RegionName", dto.RegionName); }
@@ -237,6 +250,7 @@ namespace WebAPI.Controllers.Revision
             {
                 var regions = await _db.tOptionAdminAreaRegion
                     .AsNoTracking()
+                    .Where(x => x.ParticipantId == _Session.RegCode || !_Session.ApplyFilter)
                     .ToListAsync();
                 return new OkObjectResult(new
                 {
@@ -254,6 +268,16 @@ namespace WebAPI.Controllers.Revision
         {
             try
             {
+                var ProgramDetails = _db.vPrograms
+                .AsNoTracking()
+                .Where(x => x.ProgramId == dto.ProgramId);
+
+                if (_Session.ApplyFilter)
+                {
+                    ProgramDetails = ProgramDetails.Where(x => x.DataSecurityGroup.Contains(_Session.RegCode));
+                    var Region = await _db.tOptionAdminAreaRegion.FirstOrDefaultAsync(x => _Session.RegCode == x.ParticipantId);
+                    dto.RegionName = dto.RegionName ?? Region?.Name;
+                }
                 var param = new Dictionary<string, object> {
                     { "@ProgramId", dto.ProgramId }
                 };
@@ -291,6 +315,16 @@ namespace WebAPI.Controllers.Revision
         {
             try
             {
+                var ProgramDetails = _db.vPrograms
+                .AsNoTracking()
+                .Where(x => x.ProgramId == dto.ProgramId);
+
+                if (_Session.ApplyFilter)
+                {
+                    ProgramDetails = ProgramDetails.Where(x => x.DataSecurityGroup.Contains(_Session.RegCode));
+                    var Region = await _db.tOptionAdminAreaRegion.FirstOrDefaultAsync(x => _Session.RegCode == x.ParticipantId);
+                    dto.RegionName = dto.RegionName ?? Region?.Name;
+                }
                 var param = new Dictionary<string, object> {
                     { "@ProgramId", dto.ProgramId }
                 };
@@ -327,6 +361,16 @@ namespace WebAPI.Controllers.Revision
         {
             try
             {
+                var ProgramDetails = _db.vPrograms
+                .AsNoTracking()
+                .Where(x => x.ProgramId == dto.ProgramId);
+
+                if (_Session.ApplyFilter)
+                {
+                    ProgramDetails = ProgramDetails.Where(x => x.DataSecurityGroup.Contains(_Session.RegCode));
+                    var Region = await _db.tOptionAdminAreaRegion.FirstOrDefaultAsync(x => _Session.RegCode == x.ParticipantId);
+                    dto.RegionName = dto.RegionName ?? Region?.Name;
+                }
                 var param = new Dictionary<string, object> {
                     { "@ProgramId", dto.ProgramId }
                 };
@@ -366,6 +410,7 @@ namespace WebAPI.Controllers.Revision
             {
                 var regions = await _db.tOptionAdminAreaRegion
                     .AsNoTracking()
+                    .Where(x => x.ParticipantId == _Session.RegCode || !_Session.ApplyFilter)
                     .ToListAsync();
                 return new OkObjectResult(new
                 {
@@ -383,6 +428,16 @@ namespace WebAPI.Controllers.Revision
         {
             try
             {
+                var ProgramDetails = _db.vPrograms
+                .AsNoTracking()
+                .Where(x => x.ProgramId == dto.ProgramId);
+
+                if (_Session.ApplyFilter)
+                {
+                    ProgramDetails = ProgramDetails.Where(x => x.DataSecurityGroup.Contains(_Session.RegCode));
+                    var Region = await _db.tOptionAdminAreaRegion.FirstOrDefaultAsync(x => _Session.RegCode == x.ParticipantId);
+                    dto.RegionName = dto.RegionName ?? Region?.Name;
+                }
                 var param = new Dictionary<string, object> {
                     { "@ProgramId", dto.ProgramId }
                 };
