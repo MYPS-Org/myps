@@ -4,6 +4,7 @@ using DBHelper.Models.API;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Table;
 using DBHelper.Models.Views;
+using Eaf.Json;
 using Helpers;
 using Helpers.API;
 using Microsoft.AspNetCore.Authorization;
@@ -679,9 +680,8 @@ namespace WebAPI.Controllers.Programs
                     return new BadRequestObjectResult(new { Message = $"Program Stage '{dto.Stage}' is not valid!", Title = "Invalid Stage" });
                 }
 
-                var projectIdsJson = System.Text.Json.JsonSerializer.Serialize(_Session.RegCode);
                 var checkProjects = await _db.fProjectsPerStage
-                .FromSqlInterpolated($"SELECT * FROM fProjectsInProgram({dto.ProgramId}) fp WHERE fp.StageId = {checkStage.StageId} AND fp.ProjectId IN (SELECT [value] FROM OPENJSON({projectIdsJson})")
+                .FromSqlInterpolated($"SELECT * FROM fProjectsInProgram({dto.ProgramId}) fp WHERE fp.StageId = {checkStage.StageId}")
                 .AsNoTracking()
                 .ToListAsync();
                 if (checkProjects.Count > 0)
