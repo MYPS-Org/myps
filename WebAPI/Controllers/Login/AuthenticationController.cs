@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using Novell.Directory.Ldap;
@@ -65,51 +66,59 @@ namespace WebAPI.Controllers.Auth
 
                 if (verifyAccount == null) { LoginLog.ValidationMessage = "Account not active"; return UnauthorizedUser(); }
 
-                var request = new AuthenticatePIS(dto.UserName, dto.Password);
-                var employee = await APIRequest.XML(request);
-                //LdapConnection ldap_conn = new LdapConnection();
-                //await ldap_conn.ConnectAsync($"{Appsetting.LDAP.Host}", Appsetting.LDAP.Port);
-                //await ldap_conn.BindAsync(Appsetting.LDAP.DN.Replace("[[USERNAME]]", dto.UserName), dto.Password);
-                //Console.WriteLine("LDAP Bind Successfull!");
-                //if (ldap_conn.Bound)
-                //{
-                //    ldap_conn.Disconnect();
+                //var request = new AuthenticatePIS(dto.UserName, dto.Password);
+                //var employee = await APIRequest.XML(request);
+                //return Ok(new { Message = "Login successful", Data = new { Authenticated = true, User = verifyAccount, Employee = employee } });
+                string env = Appsetting.Environment.ToLower();
+                LdapConnection ldap_conn = new LdapConnection();
+                await ldap_conn.ConnectAsync($"{Appsetting.LDAP.Host}", Appsetting.LDAP.Port);
+                await ldap_conn.BindAsync(Appsetting.LDAP.DN.Replace("[[USERNAME]]", dto.UserName), dto.Password);
+                Console.WriteLine("LDAP Bind Successfull!");
+                if (ldap_conn.Bound)
+                {
+                    ldap_conn.Disconnect();
 
 
-                //    var claims = new List<Claim>
-                //    {
-                //        new Claim(ClaimTypes.NameIdentifier, verifyAccount.UserId),
-                //        new Claim("Name", verifyAccount.Name),
-                //        new Claim("UserGroup", JsonConvert.SerializeObject(verifyAccount.UserGroupNames)),
-                //        new Claim("HostName", hostName)
-                //    };
+                    var claims = new List<Claim>
+                    {
+                        new Claim(ClaimTypes.NameIdentifier, verifyAccount.UserId),
+                        new Claim("Name", verifyAccount.Name),
+                        new Claim("UserGroup", JsonConvert.SerializeObject(verifyAccount.UserGroupNames)),
+                        new Claim("HostName", hostName)
+                    };
 
-                //    var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-                //    var authProperties = new AuthenticationProperties
-                //    {
-                //        IsPersistent = true
-                //    };
+                    var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+                    var authProperties = new AuthenticationProperties
+                    {
+                        IsPersistent = true
+                    };
 
-                //    await HttpContext.SignInAsync(
-                //        CookieAuthenticationDefaults.AuthenticationScheme,
-                //        new ClaimsPrincipal(claimsIdentity),
-                //        authProperties
-                //    );
-                //    LoginLog.IsValid = true;
-                //}
-                //else
-                //{
-                //    LoginLog.ValidationMessage = "Invalid credentials";
-                //}
-                //_db.tLoginHistory.Add(LoginLog);
-                //await _db.SaveChangesAsync();
-                //await transaction.CommitAsync();
+                    await HttpContext.SignInAsync(
+                        CookieAuthenticationDefaults.AuthenticationScheme,
+                        new ClaimsPrincipal(claimsIdentity),
+                        authProperties
+                    );
+                    LoginLog.IsValid = true;
+                }
+                else
+                {
+                    LoginLog.ValidationMessage = "Invalid credentials";
+                }
+                _db.tLoginHistory.Add(LoginLog);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
                 return LoginLog.IsValid ? Ok(new { Message = "Login successful", Data = new { Authenticated = true, User = verifyAccount } }) : UnauthorizedUser();
             }
             catch (LdapException error)
             {
                 Console.WriteLine($"LDAP Error: {error.Message}");
-                return UnauthorizedUser();
+                var responseObj = new
+                {
+                    Message = "LDAP Connection Error: " + error.ToString(),
+                    Data = new { Authenticated = false, User = new { } },
+                    Redirect = "/login"
+                };
+                return Unauthorized(responseObj);
             }
             catch (Exception ex)
             {

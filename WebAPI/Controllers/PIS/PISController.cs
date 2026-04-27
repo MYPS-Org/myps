@@ -134,28 +134,28 @@ namespace WebAPI.Controllers.MockUps
                 }
                 var request = new AuthenticatePIS(dto.EmployeeId, dto.Password);
                 var employee = await APIRequest.XML(request);
-                if (employee == null || string.IsNullOrEmpty(employee.NetworkId))
-                {
-                    return new BadRequestObjectResult(
-                        new
-                        {
-                            Message = $"Authentication failed for employee: '{dto.EmployeeId}'",
-                            Title = "Authentication Failed"
-                        }
-                    );
-                }
-                string UserId = $"{employee.PersonFamilyName?.Replace(" ", "")}{employee.PersonForename?[0]}{employee.PersonMiddleInitial1?[0]}".ToLower();
-                DBHelper.Models.Table.Users newuser = new DBHelper.Models.Table.Users()
-                {
-                    EmployeeId = checifExists.EmployeeId,
-                    UserId = UserId,
-                    Name = $"{employee.PersonForename} {employee.PersonMiddleInitial1}. {employee.PersonFamilyName}",
-                    Email = "",
-                    RegCode = employee.CentralOrRegionId!,
-                    PlantillaOffice = employee.PlantillaOfficeId,
-                    IsActive = false
-                };
-                return Ok(newuser);
+                //if (employee == null || string.IsNullOrEmpty(employee.NetworkId))
+                //{
+                //    return new BadRequestObjectResult(
+                //        new
+                //        {
+                //            Message = $"Authentication failed for employee: '{dto.EmployeeId}'",
+                //            Title = "Authentication Failed"
+                //        }
+                //    );
+                //}
+                //string UserId = $"{employee.PersonFamilyName?.Replace(" ", "")}{employee.PersonForename?[0]}{employee.PersonMiddleInitial1?[0]}".ToLower();
+                //DBHelper.Models.Table.Users newuser = new DBHelper.Models.Table.Users()
+                //{
+                //    EmployeeId = checifExists.EmployeeId,
+                //    UserId = UserId,
+                //    Name = $"{employee.PersonForename} {employee.PersonMiddleInitial1}. {employee.PersonFamilyName}",
+                //    Email = "",
+                //    RegCode = employee.CentralOrRegionId!,
+                //    PlantillaOffice = employee.PlantillaOfficeId,
+                //    IsActive = false
+                //};
+                return Ok(employee);
             }
             catch (Exception ex)
             {

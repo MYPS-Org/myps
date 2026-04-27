@@ -70,6 +70,7 @@ const ProjectGroup: React.FC = () => {
     const [ProjectGroupFilters, setProjectGroupFilters] = useState<ProjectGroupPagination>({
             filters: {
                 Name: '',
+                UserGroupName: '',
             },
             sortField: '',
             sortDirection: 1,
@@ -127,9 +128,8 @@ const ProjectGroup: React.FC = () => {
         const updatedFilters = {
             ...ProjectGroupFilters,
             filters: {
-                ...ProjectGroupFilters.filters,
                 Name: filterData.Name || '',
-                ProjectId: filterData.ProjectId || ''
+                UserGroupName: filterData.UserGroupName || '',
             },
             page: 1 // Reset to first page when filtering
         };
@@ -143,6 +143,7 @@ const ProjectGroup: React.FC = () => {
             ...ProjectGroupFilters,
             filters: {
                 Name: '',
+                UserGroupName: '',
             },
             page: 1
         };
@@ -153,10 +154,9 @@ const ProjectGroup: React.FC = () => {
 
     const Paginate = async (page: number) => {
         try {
-            const response = await fetchProjectGroup({
-                ...ProjectGroupFilters,
-                page: page
-            });
+            const updatedFilters = { ...ProjectGroupFilters, page };
+            setProjectGroupFilters(updatedFilters);
+            const response = await fetchProjectGroup(updatedFilters);
             setProjectGroupData(response.Data);
         } catch (error) {
             console.error('Error fetching Project Groups:', error);
@@ -173,7 +173,7 @@ const ProjectGroup: React.FC = () => {
                             <h3 className="text-lg font-medium text-gray-900">Project Groups</h3>
                             <div className="flex items-center space-x-3">
                                 <div className="flex items-center space-x-2">
-                                    {ProjectGroupFilters.filters?.Name && (
+                                    {(ProjectGroupFilters.filters?.Name || ProjectGroupFilters.filters?.UserGroupName) && (
                                         <Button 
                                             color="red" 
                                             className="shadow-md text-xs px-3 py-1.5" 
@@ -185,7 +185,7 @@ const ProjectGroup: React.FC = () => {
                                     )}
                                     <Button 
                                         color="white" 
-                                        className={`shadow-md text-xs px-3 py-1.5 ${ProjectGroupFilters.filters?.Name ? 'ring-2 ring-orange-500 bg-orange-50' : ''}`}
+                                        className={`shadow-md text-xs px-3 py-1.5 ${ProjectGroupFilters.filters?.Name || ProjectGroupFilters.filters?.UserGroupName ? 'ring-2 ring-orange-500 bg-orange-50' : ''}`}
                                         onClick={() => setIsFilterProjectGroupDialogOpen(true)}
                                         disabled={isLoading}
                                     >
@@ -193,7 +193,8 @@ const ProjectGroup: React.FC = () => {
                                         Filter
                                         {(() => {
                                             const activeFilters = [
-                                                ProjectGroupFilters.filters?.Name
+                                                ProjectGroupFilters.filters?.Name,
+                                                ProjectGroupFilters.filters?.UserGroupName,
                                             ].filter(Boolean).length;
                                             
                                             return activeFilters > 0 && (

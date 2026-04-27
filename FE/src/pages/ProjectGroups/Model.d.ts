@@ -11,14 +11,13 @@ export interface ProjectGroups {
 }
 
 export interface ProjectGroupFilter {
-	ProjectId?: string;
 	Name?: string;
+	UserGroupName?: string;
+	ProjectId?: string;
 }
 
 export interface ProjectGroupPagination extends PaginationParams {
-    filters?: {
-        Name?: string;
-    };
+    filters?: ProjectGroupFilter;
     sortField?: string;
     sortDirection?: 0 | 1;
 }

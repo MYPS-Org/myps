@@ -20,8 +20,8 @@ const FilterProjectGroupDialog: React.FC<FilterProjectGroupDialogProps> = ({
   initialData 
 }) => {
   const [formData, setFormData] = useState({
-    ProjectId: initialData?.ProjectId || '',
     Name: initialData?.Name || '',
+    UserGroupName: initialData?.UserGroupName || '',
   });
 
   // Reset form data when dialog opens or initialData changes
@@ -29,7 +29,7 @@ const FilterProjectGroupDialog: React.FC<FilterProjectGroupDialogProps> = ({
     if (isOpen) {
       setFormData({
         Name: initialData?.Name || '',
-        ProjectId: initialData?.ProjectId || '',
+        UserGroupName: initialData?.UserGroupName || '',
       });
     }
   }, [isOpen, initialData]);
@@ -43,7 +43,7 @@ const FilterProjectGroupDialog: React.FC<FilterProjectGroupDialogProps> = ({
   const handleClear = () => {
     setFormData({
       Name: '',
-      ProjectId: '',
+      UserGroupName: '',
     });
     if (onClear) {
       onClear();
@@ -51,19 +51,7 @@ const FilterProjectGroupDialog: React.FC<FilterProjectGroupDialogProps> = ({
   };
 
   const handleChange = (field: string, value: string) => {
-    if (field === 'IsActive') {
-      let boolValue: boolean | undefined;
-      if (value === 'active') {
-        boolValue = true;
-      } else if (value === 'inactive') {
-        boolValue = false;
-      } else {
-        boolValue = undefined;
-      }
-      setFormData(prev => ({ ...prev, [field]: boolValue }));
-    } else {
-      setFormData(prev => ({ ...prev, [field]: value }));
-    }
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   return (
@@ -76,7 +64,7 @@ const FilterProjectGroupDialog: React.FC<FilterProjectGroupDialogProps> = ({
         <DialogPanel className="w-full max-w-lg bg-white rounded-lg shadow-xl">
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <DialogTitle className="text-lg font-semibold text-gray-900">
-              Filter Users
+              Filter Project Groups
             </DialogTitle>
             <button
               onClick={onClose}
@@ -88,7 +76,7 @@ const FilterProjectGroupDialog: React.FC<FilterProjectGroupDialogProps> = ({
 
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
             <div className="text-sm text-gray-600 mb-4">
-              Filter users by name. Leave field empty to show all results.
+              Filter project groups by the fields below. Leave fields empty to show all results.
             </div>
             
             <div className="space-y-4">
@@ -100,7 +88,7 @@ const FilterProjectGroupDialog: React.FC<FilterProjectGroupDialogProps> = ({
                   type="text"
                   value={formData.Name || ''}
                   onChange={(e) => handleChange('Name', e.target.value)}
-                  placeholder="Search by user name..."
+                  placeholder="Search by group name..."
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
                 />
               </div>
@@ -110,17 +98,16 @@ const FilterProjectGroupDialog: React.FC<FilterProjectGroupDialogProps> = ({
                 </label>
                 <input
                   type="text"
-                  value={formData.ProjectId || ''}
-                  onChange={(e) => handleChange('ProjectId', e.target.value)}
-                  placeholder="Search by project ID..."
+                  value={formData.UserGroupName || ''}
+                  onChange={(e) => handleChange('UserGroupName', e.target.value)}
+                  placeholder="Search by user group name..."
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
                 />
               </div>
             </div>
 
             <div className="flex justify-between pt-4 border-t border-gray-200">
-              <Button type="button" onClick={handleClear} color="zinc" disabled={
-                !formData.Name && !formData.ProjectId}>
+              <Button type="button" onClick={handleClear} color="zinc" disabled={!formData.Name && !formData.UserGroupName}>
                 Clear Filter
               </Button>
               <div className="flex space-x-3">

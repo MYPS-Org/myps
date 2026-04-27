@@ -132,7 +132,18 @@ class HttpClient {
                 // Handle other errors
                 if (error.response?.data?.Message) {
                     // console.log('API Error Message:', error);
-                    throw new Error(error.response.data.Message);
+                    if (this.toastCallback) {
+                        this.toastCallback({
+                            type: 'error',
+                            message: error.response.data.Message
+                        });
+                    }
+                    const errorResponse: ErrorResponse = {
+                        Message: error.response.data.Message,
+                        Title: error.response.data.Title,
+                        Status: error.response.status
+                    };
+                    throw errorResponse;
                 }
 
                 throw error;
