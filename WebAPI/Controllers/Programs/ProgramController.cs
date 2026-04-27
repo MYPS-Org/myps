@@ -311,7 +311,7 @@ namespace WebAPI.Controllers.Programs
                 }
                     //var ProjectLists = await _db.vProjects.AsNoTracking().Where(x => x.ProgramId == dto.ProgramId && x.StageName == dto.StageName).ToListAsync();
                     var ProjectLists = await _db.fProjectsPerStage
-                .FromSqlInterpolated($"SELECT * FROM fProjectsInProgram({program.ProgramId}) fp WHERE fp.StageName = {dto.StageName}").AsNoTracking()
+                .FromSqlInterpolated($"SELECT * FROM fProjectsInProgram({program.ProgramId}) fp WHERE fp.StageName = {dto.StageName} AND ({!_Session.ApplyFilter} OR fp.Region = {_Session.RegCode})").AsNoTracking()
                     .OrderByDescending(x => x.Id)
                     .Skip(0 * 15)
                     .Take(15)

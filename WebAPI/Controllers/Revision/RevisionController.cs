@@ -356,7 +356,7 @@ namespace WebAPI.Controllers.Revision
             try
             {
                 var Project = await _db.vProjectDetails
-                .FromSqlInterpolated($"SELECT * FROM fProjectDetails({dto.ProjectId}) fp WHERE fp.StageName = 'GAA-R' AND fp.ProjectId = {dto.ProjectId}")
+                .FromSqlInterpolated($"SELECT * FROM fProjectDetails({dto.ProjectId}) fp WHERE fp.StageName = 'GAA-R' AND fp.ProjectId = {dto.ProjectId} AND ({!_Session.ApplyFilter} OR fp.Region = {_Session.RegCode})")
                 .AsNoTracking()
                 .FirstOrDefaultAsync();
                 if(Project == null)
