@@ -1,6 +1,5 @@
-using System.Net.Http;
-using System.Threading.Tasks;
 using DBHelper.Models.Extra;
+using System.Net.Http.Headers;
 using System.Xml.Linq;
 
 namespace Helpers.API
@@ -8,26 +7,23 @@ namespace Helpers.API
     public class GetUserInfoPIS : XMLRequest<EmployeeResponse>
     {
         private readonly string _employeeId;
-        
-        public GetUserInfoPIS(string employeeId) : base((string)null) 
+
+        public GetUserInfoPIS(string employeeId)
         {
             _employeeId = employeeId;
         }
 
+        protected override string SoapAction => "\"https://www.dpwh.gov.ph/pis_get_employee\"";
         internal override string RequestUri => Appsetting.PIS.Host;
 
         protected override string GetSoapBody()
-        {
-            return $@"<pis_get_employee xmlns=""http://tempuri.org/"">
+            => $@"<pis_get_employee xmlns=""https://www.dpwh.gov.ph/"">
                         <employee_id>{_employeeId}</employee_id>
                     </pis_get_employee>";
-        }
 
         internal override async Task<EmployeeResponse> ReadResponseContent(HttpContent responseContent)
         {
             var xml = await responseContent.ReadAsStringAsync();
-
-            // Simple XML parsing (adjust as needed for your real SOAP response)
             var doc = XDocument.Parse(xml);
             var ns = "https://www.dpwh.gov.ph/";
 
@@ -59,16 +55,25 @@ namespace Helpers.API
             };
         }
     }
+
     public class AuthenticatePIS : XMLRequest<string>
     {
-        public AuthenticatePIS(string employeeId, string password) : base(() => $@"<ad_validate_login xmlns=""http://tempuri.org/"">
-                            <username>{employeeId}</username>
-                            <password>{password}</password>
-                        </ad_validate_login>")
+        private readonly string _employeeId;
+        private readonly string _password;
+
+        public AuthenticatePIS(string employeeId, string password)
         {
+            _employeeId = employeeId;
+            _password = password;
         }
 
         internal override string RequestUri => Appsetting.PIS.Host;
+
+        protected override string GetSoapBody()
+            => $@"<ad_validate_login xmlns=""http://tempuri.org/"">
+                        <username>{_employeeId}</username>
+                        <password>{_password}</password>
+                    </ad_validate_login>";
 
         internal override async Task<string> ReadResponseContent(HttpContent responseContent)
         {
@@ -77,9 +82,9 @@ namespace Helpers.API
             var ns = "https://www.dpwh.gov.ph/";
 
             var result = doc.Descendants(XName.Get("ad_validate_loginResult", ns)).FirstOrDefault();
-            return doc.ToString();
-            File.WriteAllText(Path.Combine(Directory.GetCurrentDirectory(), "ad_validate_loginResult.txt"), result!.ToString());
             if (result == null) return null;
+
+            return result.ToString();
         }
     }
 }

@@ -19,14 +19,14 @@ namespace WebAPI.Controllers.MockUps
     public class PISController : CoreController
     {
         public PISController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
-
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> SearchUser([FromBody] SearchUserDTO dto)
         {
             try
             {
                 var checifExists = await _db.tUsers.FirstOrDefaultAsync(x => x.EmployeeId == dto.EmployeeId);
-                if (checifExists != null)
+                if (checifExists == null)
                 {
                     return new BadRequestObjectResult(
                         new
@@ -68,7 +68,7 @@ namespace WebAPI.Controllers.MockUps
                 return ExceptionHandler(ex);
             }
         }
-        
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> GetUserInfo([FromBody] SearchUserDTO dto)
         {
@@ -115,7 +115,7 @@ namespace WebAPI.Controllers.MockUps
                 return ExceptionHandler(ex);
             }
         }
-        
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> AuthenticateAcccount([FromBody] AuthenticateUserDTO dto)
         {

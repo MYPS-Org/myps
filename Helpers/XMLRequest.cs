@@ -1,80 +1,73 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Net.Http.Headers;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace Helpers
 {
     public abstract class XMLRequest<T>
     {
-        private readonly string _employeeId;
-        private readonly Func<string> _customBodyProvider;
-        
-        /// <summary>
-        /// Constructor for employee-based requests (backward compatibility)
-        /// </summary>
-        /// <param name="employeeId">The employee ID</param>
-        public XMLRequest(string employeeId)
-        {
-            _employeeId = employeeId;
-            _customBodyProvider = null;
-        }
-        
-        /// <summary>
-        /// Constructor for custom SOAP body requests
-        /// </summary>
-        /// <param name="customBodyProvider">Function that returns the custom SOAP body content</param>
-        protected XMLRequest(Func<string> customBodyProvider)
-        {
-            _customBodyProvider = customBodyProvider ?? throw new ArgumentNullException(nameof(customBodyProvider));
-            _employeeId = null;
-        }
-        
+        /// <summary>The endpoint URI for this SOAP request.</summary>
         internal abstract string RequestUri { get; }
-        
+
         /// <summary>
-        /// Override this method to provide custom SOAP body content.
-        /// Default implementation returns employee-based body.
+        /// The value of the <c>SOAPAction</c> HTTP header. Override to specify a custom action.
+        /// Defaults to an empty string.
         /// </summary>
-        protected virtual string GetSoapBody()
-        {
-            if (_customBodyProvider != null)
-            {
-                return _customBodyProvider();
-            }
-            
-            return $@"<pis_get_employee xmlns=""http://tempuri.org/"">
-                                <employee_id>{_employeeId}</employee_id>
-                            </pis_get_employee>";
-        }
-        
+        protected virtual string SoapAction => string.Empty;
+
+        /// <summary>
+        /// Returns the inner content of the <c>&lt;soap:Body&gt;</c> element.
+        /// Must be overridden by every concrete request class.
+        /// </summary>
+        protected abstract string GetSoapBody();
+
+        /// <summary>
+        /// Returns the inner content of the <c>&lt;soap:Header&gt;</c> element.
+        /// Return <see langword="null"/> or an empty string to omit the header block entirely.
+        /// Override to provide a custom SOAP header or to remove the default credentials header.
+        /// </summary>
+        protected virtual string GetSoapHeader()
+            => $@"<UserDetails xmlns=""https://www.dpwh.gov.ph/"">
+                        <userName>{Appsetting.PIS.userName}</userName>
+                        <password>{Appsetting.PIS.password}</password>
+                    </UserDetails>";
+
+        /// <summary>
+        /// Override to add or modify HTTP request headers beyond <c>SOAPAction</c>.
+        /// </summary>
+        /// <param name="headers">The <see cref="HttpRequestHeaders"/> of the outgoing request.</param>
+        protected virtual void ConfigureHttpHeaders(HttpRequestHeaders headers) { }
+
         internal HttpRequestMessage ToHttpRequest()
         {
-            var httpRequest = new HttpRequestMessage
+            var soapHeader = GetSoapHeader();
+            var headerBlock = string.IsNullOrWhiteSpace(soapHeader)
+                ? string.Empty
+                : $"<soap:Header>{soapHeader}</soap:Header>";
+
+            var envelope = $@"<?xml version=""1.0"" encoding=""utf-8""?>
+<soap:Envelope
+    xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance""
+    xmlns:xsd=""http://www.w3.org/2001/XMLSchema""
+    xmlns:soap=""http://schemas.xmlsoap.org/soap/envelope/"">
+    {headerBlock}
+    <soap:Body>
+        {GetSoapBody()}
+    </soap:Body>
+</soap:Envelope>";
+
+            var request = new HttpRequestMessage
             {
                 RequestUri = new Uri(RequestUri),
                 Method = HttpMethod.Post,
-                Content = new StringContent(
-                    $@"<soap:Envelope
-                        xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance""
-                        xmlns:xsd=""http://www.w3.org/2001/XMLSchema""
-                        xmlns:soap=""http://schemas.xmlsoap.org/soap/envelope/"">
-                        <soap:Header>
-                            <userName>{Appsetting.PIS.userName}</userName>
-                            <password>{Appsetting.PIS.password}</password>
-                        </soap:Header>
-                        <soap:Body>
-                            {GetSoapBody()}
-                        </soap:Body>
-                    </soap:Envelope>",
-                    Encoding.UTF8,
-                    "application/xml")
+                Content = new StringContent(envelope, Encoding.UTF8, "text/xml")
             };
-            httpRequest.Headers.Add("SOAPAction", "");
-            return httpRequest;
+
+            request.Headers.Add("SOAPAction", SoapAction);
+            ConfigureHttpHeaders(request.Headers);
+
+            return request;
         }
-        
+
         internal abstract Task<T> ReadResponseContent(HttpContent responseContent);
     }
 }

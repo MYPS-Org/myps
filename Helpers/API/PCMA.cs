@@ -10,8 +10,8 @@ namespace Helpers.API
     public class PCMA : XMLRequest<PCMAResponse>
     {
         private readonly PublishPCMA _pcmaData;
-        
-        public PCMA(PublishPCMA pcmaData) : base((string)null) 
+
+        public PCMA(PublishPCMA pcmaData)
         {
             _pcmaData = pcmaData;
         }
@@ -38,7 +38,7 @@ namespace Helpers.API
                 var ns = "http://tempuri.org/";
 
                 var result = doc.Descendants(XName.Get("PublishPCMAResult", ns)).FirstOrDefault();
-                
+
                 if (result == null)
                 {
                     return new PCMAResponse
