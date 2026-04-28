@@ -19,14 +19,13 @@ namespace WebAPI.Controllers.MockUps
     public class PISController : CoreController
     {
         public PISController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> SearchUser([FromBody] SearchUserDTO dto)
         {
             try
             {
                 var checifExists = await _db.tUsers.FirstOrDefaultAsync(x => x.EmployeeId == dto.EmployeeId);
-                if (checifExists == null)
+                if (checifExists != null)
                 {
                     return new BadRequestObjectResult(
                         new
@@ -68,7 +67,6 @@ namespace WebAPI.Controllers.MockUps
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> GetUserInfo([FromBody] SearchUserDTO dto)
         {
@@ -115,52 +113,52 @@ namespace WebAPI.Controllers.MockUps
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
-        [HttpPost]
-        public async Task<IActionResult> AuthenticateAcccount([FromBody] AuthenticateUserDTO dto)
-        {
-            try
-            {
-                var checifExists = await _db.tUsers.FirstOrDefaultAsync(x => x.EmployeeId == dto.EmployeeId);
-                if (checifExists == null)
-                {
-                    return new BadRequestObjectResult(
-                        new
-                        {
-                            Message = $"Employee: '{dto.EmployeeId}' does not exist",
-                            Title = "User Not Found"
-                        }
-                    );
-                }
-                var request = new AuthenticatePIS(dto.EmployeeId, dto.Password);
-                var employee = await APIRequest.XML(request);
-                //if (employee == null || string.IsNullOrEmpty(employee.NetworkId))
-                //{
-                //    return new BadRequestObjectResult(
-                //        new
-                //        {
-                //            Message = $"Authentication failed for employee: '{dto.EmployeeId}'",
-                //            Title = "Authentication Failed"
-                //        }
-                //    );
-                //}
-                //string UserId = $"{employee.PersonFamilyName?.Replace(" ", "")}{employee.PersonForename?[0]}{employee.PersonMiddleInitial1?[0]}".ToLower();
-                //DBHelper.Models.Table.Users newuser = new DBHelper.Models.Table.Users()
-                //{
-                //    EmployeeId = checifExists.EmployeeId,
-                //    UserId = UserId,
-                //    Name = $"{employee.PersonForename} {employee.PersonMiddleInitial1}. {employee.PersonFamilyName}",
-                //    Email = "",
-                //    RegCode = employee.CentralOrRegionId!,
-                //    PlantillaOffice = employee.PlantillaOfficeId,
-                //    IsActive = false
-                //};
-                return Ok(employee);
-            }
-            catch (Exception ex)
-            {
-                return ExceptionHandler(ex);
-            }
-        }
+        //[AllowAnonymous]
+        //[HttpPost]
+        //public async Task<IActionResult> AuthenticateAcccount([FromBody] AuthenticateUserDTO dto)
+        //{
+        //    try
+        //    {
+        //        var checifExists = await _db.tUsers.FirstOrDefaultAsync(x => x.EmployeeId == dto.EmployeeId);
+        //        if (checifExists != null)
+        //        {
+        //            return new BadRequestObjectResult(
+        //                new
+        //                {
+        //                    Message = $"Employee: '{dto.EmployeeId}' does not exist",
+        //                    Title = "User Not Found"
+        //                }
+        //            );
+        //        }
+        //        var request = new AuthenticatePIS(dto.EmployeeId, dto.Password);
+        //        var employee = await APIRequest.XML(request);
+        //        //if (employee == null || string.IsNullOrEmpty(employee.NetworkId))
+        //        //{
+        //        //    return new BadRequestObjectResult(
+        //        //        new
+        //        //        {
+        //        //            Message = $"Authentication failed for employee: '{dto.EmployeeId}'",
+        //        //            Title = "Authentication Failed"
+        //        //        }
+        //        //    );
+        //        //}
+        //        //string UserId = $"{employee.PersonFamilyName?.Replace(" ", "")}{employee.PersonForename?[0]}{employee.PersonMiddleInitial1?[0]}".ToLower();
+        //        //DBHelper.Models.Table.Users newuser = new DBHelper.Models.Table.Users()
+        //        //{
+        //        //    EmployeeId = checifExists.EmployeeId,
+        //        //    UserId = UserId,
+        //        //    Name = $"{employee.PersonForename} {employee.PersonMiddleInitial1}. {employee.PersonFamilyName}",
+        //        //    Email = "",
+        //        //    RegCode = employee.CentralOrRegionId!,
+        //        //    PlantillaOffice = employee.PlantillaOfficeId,
+        //        //    IsActive = false
+        //        //};
+        //        return Ok(employee);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return ExceptionHandler(ex);
+        //    }
+        //}
     }
 }

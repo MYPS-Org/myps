@@ -1,4 +1,6 @@
 using DBHelper.Models.Extra;
+using Microsoft.EntityFrameworkCore;
+using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Xml.Linq;
 
@@ -67,12 +69,14 @@ namespace Helpers.API
             _password = password;
         }
 
-        internal override string RequestUri => Appsetting.PIS.Host;
+        protected override string SoapAction => "\"https://www.dpwh.gov.ph/ad_validate_login\"";
+        internal override string RequestUri => "http://int-web06:26697/webservice.asmx";//Appsetting.PIS.Host;
 
+        protected override string GetSoapHeader() => string.Empty;
         protected override string GetSoapBody()
-            => $@"<ad_validate_login xmlns=""http://tempuri.org/"">
-                        <username>{_employeeId}</username>
-                        <password>{_password}</password>
+            => $@"<ad_validate_login xmlns=""https://www.dpwh.gov.ph/"">
+                        <networkid>{_employeeId}</networkid>
+                        <pw>{_password}</pw>
                     </ad_validate_login>";
 
         internal override async Task<string> ReadResponseContent(HttpContent responseContent)

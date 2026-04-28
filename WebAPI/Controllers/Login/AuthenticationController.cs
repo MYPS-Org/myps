@@ -66,19 +66,10 @@ namespace WebAPI.Controllers.Auth
 
                 if (verifyAccount == null) { LoginLog.ValidationMessage = "Account not active"; return UnauthorizedUser(); }
 
-                //var request = new AuthenticatePIS(dto.UserName, dto.Password);
-                //var employee = await APIRequest.XML(request);
-                //return Ok(new { Message = "Login successful", Data = new { Authenticated = true, User = verifyAccount, Employee = employee } });
-                string env = Appsetting.Environment.ToLower();
-                LdapConnection ldap_conn = new LdapConnection();
-                await ldap_conn.ConnectAsync($"{Appsetting.LDAP.Host}", Appsetting.LDAP.Port);
-                await ldap_conn.BindAsync(Appsetting.LDAP.DN.Replace("[[USERNAME]]", dto.UserName), dto.Password);
-                Console.WriteLine("LDAP Bind Successfull!");
-                if (ldap_conn.Bound)
+                var request = new AuthenticatePIS(dto.UserName, dto.Password);
+                var employee = await APIRequest.XML(request);
+                if(employee.Contains("Valid Login"))
                 {
-                    ldap_conn.Disconnect();
-
-
                     var claims = new List<Claim>
                     {
                         new Claim(ClaimTypes.NameIdentifier, verifyAccount.UserId),
@@ -102,8 +93,42 @@ namespace WebAPI.Controllers.Auth
                 }
                 else
                 {
-                    LoginLog.ValidationMessage = "Invalid credentials";
+                    LoginLog.ValidationMessage = employee;
                 }
+                //LdapConnection ldap_conn = new LdapConnection();
+                //await ldap_conn.ConnectAsync($"{Appsetting.LDAP.Host}", Appsetting.LDAP.Port);
+                //await ldap_conn.BindAsync(Appsetting.LDAP.DN.Replace("[[USERNAME]]", verifyAccount.EmployeeId), dto.Password);
+                //Console.WriteLine("LDAP Bind Successfull!");
+                //if (ldap_conn.Bound)
+                //{
+                //    ldap_conn.Disconnect();
+
+
+                //    var claims = new List<Claim>
+                //    {
+                //        new Claim(ClaimTypes.NameIdentifier, verifyAccount.UserId),
+                //        new Claim("Name", verifyAccount.Name),
+                //        new Claim("UserGroup", JsonConvert.SerializeObject(verifyAccount.UserGroupNames)),
+                //        new Claim("HostName", hostName)
+                //    };
+
+                //    var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+                //    var authProperties = new AuthenticationProperties
+                //    {
+                //        IsPersistent = true
+                //    };
+
+                //    await HttpContext.SignInAsync(
+                //        CookieAuthenticationDefaults.AuthenticationScheme,
+                //        new ClaimsPrincipal(claimsIdentity),
+                //        authProperties
+                //    );
+                //    LoginLog.IsValid = true;
+                //}
+                //else
+                //{
+                //    LoginLog.ValidationMessage = "Invalid credentials";
+                //}
                 _db.tLoginHistory.Add(LoginLog);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
@@ -111,10 +136,10 @@ namespace WebAPI.Controllers.Auth
             }
             catch (LdapException error)
             {
-                Console.WriteLine($"LDAP Error: {error.Message}");
+                Console.WriteLine($"Login Error: {error.Message}");
                 var responseObj = new
                 {
-                    Message = "LDAP Connection Error: " + error.ToString(),
+                    Message = "Login Error: " + error.Message,
                     Data = new { Authenticated = false, User = new { } },
                     Redirect = "/login"
                 };

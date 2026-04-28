@@ -40,7 +40,7 @@ namespace Helpers
         internal HttpRequestMessage ToHttpRequest()
         {
             var soapHeader = GetSoapHeader();
-            var headerBlock = string.IsNullOrWhiteSpace(soapHeader)
+            var headerBlock = string.IsNullOrEmpty(soapHeader)
                 ? string.Empty
                 : $"<soap:Header>{soapHeader}</soap:Header>";
 
