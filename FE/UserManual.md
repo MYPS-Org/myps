@@ -21,7 +21,7 @@
 
 ## 1. Introduction
 
-**MYPS** (Multi-Year Programming System) is the central platform for managing infrastructure programs and projects across the road network. It covers the full lifecycle — from initial program proposals through budget approvals, project planning, revision tracking, and final publication to partner systems such as PCMA.
+**MYPS** (Multi-Year Planning and Scheduling) is the central platform for managing infrastructure programs and projects across the road network. It covers the full lifecycle — from initial program proposals through budget approvals, project planning, revision tracking, and final publication to partner systems such as PCMA.
 
 The system is organized around the following main modules:
 
