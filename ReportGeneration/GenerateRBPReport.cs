@@ -5,8 +5,22 @@ using RBPData = DBHelper.Models.Procedures.GenerateRBP;
 
 namespace ReportGeneration
 {
+    /// <summary>
+    /// Generates the <b>RBP Summary</b> (Regional Budget Proposal) PDF report (A4 Landscape).
+    /// <para>This is the <b>only</b> report that uses the full DPWH logo header (<c>BuildDPWHHeader</c>).</para>
+    /// <para>
+    /// Pivot table structure — rows grouped as: Region → Tier → DEO → Legislative District.
+    /// Columns: DEO/LD label · OO-1 (count + P'000) · OO-2 · CSSP · LP · TOTAL.
+    /// </para>
+    /// <para>Data source: <c>pGenerateRBP</c>.</para>
+    /// </summary>
     public class GenerateRBP
     {
+        /// <summary>
+        /// Entry point — builds and returns the RBP Summary PDF as a byte array.
+        /// </summary>
+        /// <param name="data">Flat row list from <c>pGenerateRBP</c>.</param>
+        /// <returns>PDF byte array suitable for an <c>application/pdf</c> file-download response.</returns>
         public static byte[] GenerateReport(List<RBPData> data)
         {
             int FooterFs = 7;
@@ -47,6 +61,10 @@ namespace ReportGeneration
         }
 
         // ── TABLE HEADER ──────────────────────────────────────────────────
+        /// <summary>
+        /// Renders the 2-row, 11-column table header: label · OO-1 (col span 2) · OO-2 · CSSP · LP · TOTAL,
+        /// with "No. of Proj." and "Amount (P'000)" sub-headers in row 2.
+        /// </summary>
         static void BuildTableHeader(IContainer container)
         {
             container.Table(table =>
@@ -79,14 +97,14 @@ namespace ReportGeneration
             table.Cell()
                  .ColumnSpan(colSpan)
                  .RowSpan(rowSpan)
-                 .Border(0.3f).BorderColor(Colors.Grey.Lighten1)
-                 .Background(Colors.Grey.Lighten4)
+                 .BorderBottom(0.5f).BorderColor(Colors.Black)
                  .AlignCenter().AlignMiddle()
                  .Padding(3)
                  .Text(text).Bold().FontSize(6.5f);
         }
 
         // ── TABLE CONTENT ─────────────────────────────────────────────────
+        /// <summary>Builds the pivot table body. Grouping: Region → Tier (Roman numeral) → DEO → Legislative District.</summary>
         static void BuildTableContent(
             IContainer container,
             List<RBPData> data)
@@ -135,6 +153,10 @@ namespace ReportGeneration
         }
 
         // ── ROW RENDERING ─────────────────────────────────────────────────
+        /// <summary>
+        /// Renders one labeled data row with aggregated counts and amounts for all 5 budget categories.
+        /// Values are summed across all <paramref name="rows"/> before rendering.
+        /// </summary>
         static void WriteDataRow(
             TableDescriptor table,
             string label,
@@ -177,6 +199,7 @@ namespace ReportGeneration
             WriteAmountCell(table, totAmt, fontSize, bold);
         }
 
+        /// <summary>Renders a right-aligned project count cell. Shows "-" for zero when <paramref name="dashForZero"/> is true.</summary>
         static void WriteCountCell(
             TableDescriptor table,
             int value,
@@ -197,6 +220,7 @@ namespace ReportGeneration
                  });
         }
 
+        /// <summary>Renders a right-aligned amount cell formatted as P'000 (divided by 1000, 2 decimal places).</summary>
         static void WriteAmountCell(
             TableDescriptor table,
             double value,
@@ -249,6 +273,7 @@ namespace ReportGeneration
         }
 
         // ── HELPERS ───────────────────────────────────────────────────────
+        /// <summary>Defines 11 relative columns: label · OO1 count/amt · OO2 count/amt · CSSP count/amt · LP count/amt · Total count/amt.</summary>
         static void DefineColumns(TableDescriptor table)
         {
             table.ColumnsDefinition(cols =>
@@ -267,9 +292,11 @@ namespace ReportGeneration
             });
         }
 
+        /// <summary>Formats a double value as thousands (divides by 1000, N2), or empty string for zero.</summary>
         static string FormatAmtP(double v) =>
             v == 0 ? "" : (v / 1000).ToString("N2");
 
+        /// <summary>Converts an integer tier number (1-5) to a Roman numeral string for display.</summary>
         static string ToRoman(int tier) => tier switch
         {
             1 => "I",

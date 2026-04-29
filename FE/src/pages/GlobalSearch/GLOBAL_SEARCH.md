@@ -1,4 +1,4 @@
-# Global Search — Implementation Log
+﻿# Global Search — Implementation Log
 
 > **Purpose:** This file tracks every decision, change, and TODO for the Global Search feature.  
 > Update this file whenever you add a search field, change the UI, or touch the backend.
@@ -14,11 +14,15 @@ The search is driven by the backend for category options, with the controller en
 | File | Role |
 |------|------|
 | `WebAPI/Controllers/GlobalSearch/GlobalSearchController.cs` | `GetSearchCategory` endpoint returning `CategoryOption[]`; `Search` endpoint; whitelist of allowed tables/columns |
-| `FE/src/pages/GlobalSearch/Model.d.ts` | TypeScript interfaces — `CategoryOption` (`Id`, `CategoryName`), `GlobalSearchResponse` |
+| `FE/src/pages/GlobalSearch/Model.d.ts` | TypeScript interfaces — `CategoryOption` (`Id`, `CategoryName`), `GlobalSearchResponse` (`Data`, `Title`) |
 | `FE/src/pages/GlobalSearch/Service.ts` | `fetchCategory()` — loads `CategoryOption[]` from backend; `globalSearch(Category, SearchFor)` — executes search |
+| `FE/src/pages/GlobalSearch/config.ts` | `SEARCH_FIELD_CONFIG` — flat field config array; **not used by the dialog** (kept as reference for whitelisting guide) |
+| `FE/src/pages/GlobalSearch/GlobalSearchDialog.tsx` | The dialog UI — dropdown from `CategoryOption[]`; result columns dynamic; `CATEGORY_NAV` map resolves View links |
 
 **Why backend-driven categories?**  
-The "Search By" dropdown is populated by calling `GetSearchCategory` when the dialog opens, returning `CategoryOption[]` from the server. This means categories can be managed server-side without frontend deploys. Result columns are derived dynamically from the API response data. Navigation links are resolved client-side via the `CATEGORY_NAV` map in `GlobalSearchDialog.tsx`.
+The "Search By" dropdown is populated by calling `GetSearchCategory` when the dialog opens, returning `{ CategoryList: CategoryOption[] }` from the server. This means categories can be managed server-side without frontend deploys. Result columns are derived dynamically from the API response data. Navigation links are resolved client-side via the `CATEGORY_NAV` map in `GlobalSearchDialog.tsx`.
+
+> **`config.ts` status:** `SEARCH_FIELD_CONFIG` in `config.ts` is **not imported or used** by `GlobalSearchDialog.tsx`. The dialog is fully backend-driven. The config is retained as a developer reference for which `tableKey` + `columnField` values correspond to each category, and as a guide for adding backend whitelist entries.
 
 ---
 
@@ -27,7 +31,7 @@ The "Search By" dropdown is populated by calling `GetSearchCategory` when the di
 ```
 Click 🔍 in navbar
   → GlobalSearchDialog opens (modal overlay)
-    → fetchCategory() called → "Search By" dropdown populated from backend CategoryOption[]
+    → fetchCategory() called → res.Data.CategoryList populated → "Search By" dropdown filled
       → Select a category (e.g. "Project ID", "UACS", "Bridge")
         → Enter search value
           → Click Search
@@ -35,8 +39,9 @@ Click 🔍 in navbar
               → Click View → navigates to the detail page & dialog closes (for navigable categories)
 ```
 
-> The dropdown is populated via `fetchCategory()` on dialog open — categories come from the backend, not a hardcoded config.  
-> Navigation URLs are resolved by `CATEGORY_NAV` in `GlobalSearchDialog.tsx` using `ProjectId:StageName` for project categories.
+> The dropdown is populated via `fetchCategory()` on dialog open — categories come from `res.Data.CategoryList`, not a hardcoded config.  
+> Navigation URLs are resolved by `CATEGORY_NAV` in `GlobalSearchDialog.tsx` using `ProjectId:StageName` for project categories.  
+> On dialog close, all state (categories, selected category, search value, results) is reset.
 
 ---
 
@@ -49,16 +54,16 @@ Click 🔍 in navbar
 
 | Method | Route | Body | Returns |
 |--------|-------|------|---------|
-| POST | `/api/GlobalSearch/GetSearchCategory` | *(empty)* | `CategoryOption[]` (`Id`, `CategoryName`) |
-| POST | `/api/GlobalSearch/Search` | `{ Category, SearchFor }` | `{ Total, Data[] }` |
+| POST | `/GlobalSearch/GetSearchCategory` | *(empty)* | `{ CategoryList: CategoryOption[] }` |
+| POST | `/GlobalSearch/Search` | `{ Category, SearchFor }` | `GlobalSearchResponse: { Data: Record[], Title: string }` |
 
-> `GetTables` and `GetColumns` endpoints are no longer called by the frontend. They may remain on the backend or be removed.
+> `GetTables` and `GetColumns` endpoints are no longer called by the frontend (`getSearchColumns` in Service.ts is legacy). They may remain on the backend or be removed.
 
 ### Security
 - **SQL Injection prevention:** `TableKey` and `ColumnField` from the request are *never* interpolated directly into SQL.  
   Both are validated against `AllowedTableSqlNames` and `AllowedColumns` dictionaries before use.
 - The search `Value` is always passed as a Dapper `@Value` parameter — fully parameterized.
-- Results capped at **TOP 50** per query.
+- Results capped at **TOP 50** per query. When exactly 50 results are returned, the UI shows an amber hint: "capped at 50 — refine your search".
 
 ---
 
@@ -68,9 +73,10 @@ Click 🔍 in navbar
 
 | File | Purpose |
 |------|---------|
-| `FE/src/pages/GlobalSearch/Model.d.ts` | TypeScript interfaces — `CategoryOption`, `GlobalSearchResponse` |
-| `FE/src/pages/GlobalSearch/Service.ts` | `fetchCategory()` — loads categories; `globalSearch(Category, SearchFor)` — executes search |
-| `FE/src/components/GlobalSearch/GlobalSearchDialog.tsx` | The dialog UI — dropdown from `CategoryOption[]`; result columns dynamic; `CATEGORY_NAV` map resolves View links |
+| `FE/src/pages/GlobalSearch/Model.d.ts` | TypeScript interfaces — `CategoryOption`, `GlobalSearchResponse`; also contains legacy `SearchableTable` / `SearchableColumn` (unused) |
+| `FE/src/pages/GlobalSearch/Service.ts` | `fetchCategory()` — loads categories; `globalSearch(Category, SearchFor)` — executes search; also contains legacy `getSearchColumns` (unused) |
+| `FE/src/pages/GlobalSearch/config.ts` | `SEARCH_FIELD_CONFIG` — reference only; not imported by the dialog |
+| `FE/src/pages/GlobalSearch/GlobalSearchDialog.tsx` | The dialog UI — dropdown from `CategoryOption[]`; result columns dynamic; `CATEGORY_NAV` map resolves View links |
 
 ### Files Modified
 
@@ -80,12 +86,14 @@ Click 🔍 in navbar
 
 ### `SearchFieldConfig` interface (`config.ts`)
 
+> This interface and its `SEARCH_FIELD_CONFIG` array are **reference-only** — not imported by the dialog. Useful as a backend whitelist guide.
+
 ```ts
 interface SearchFieldConfig {
   key: string;           // unique internal key
-  label: string;         // shown in "Search By" dropdown
-  tableKey: string;      // backend: which view/table to query
-  columnField: string;   // backend: which column to search against
+  label: string;         // shown in "Search By" dropdown (matches CategoryName from backend)
+  tableKey: string;      // backend: which view/table to query (must be whitelisted)
+  columnField: string;   // backend: which column to search against (must be whitelisted)
   placeholder?: string;  // hint shown in the value input
   resultColumns: { field: string; label: string }[];
   getLink: ((row: Record<string, unknown>) => string | null) | null;
@@ -96,41 +104,85 @@ interface SearchFieldConfig {
 
 ## Navigation Config (`CATEGORY_NAV`)
 
-Defined in `GlobalSearchDialog.tsx`. Maps `CategoryName` → a function that builds a URL from a result row. Categories not listed here show no View button.
+Defined in `GlobalSearchDialog.tsx`. Maps `CategoryName` → a function that builds a URL from a result row. Categories not listed here (or where the nav function returns `null`) show no View button.
 
 | Category Name | URL Pattern |
 |---------------|-------------|
-| Project ID | `/projects/project-details/{ProjectId}:{StageName}` |
-| Alternate ID | `/projects/project-details/{ProjectId}:{StageName}` |
-| Description | `/projects/project-details/{ProjectId}:{StageName}` |
-| UACS | `/projects/project-details/{ProjectId}:{StageName}` |
-| Program Name | `/programs/programdetails/{ProgramId}` |
-| Roads | *(no link — pending)* |
-| Road Sections | *(no link — pending)* |
-| Bridge | *(no link — pending)* |
+| `Project ID` | `/projects/project-details/{ProjectId}:{StageName}` |
+| `Alternate ID` | `/projects/project-details/{ProjectId}:{StageName}` |
+| `Description` | `/projects/project-details/{ProjectId}:{StageName}` |
+| `UACS` | `/projects/project-details/{ProjectId}:{StageName}` |
+| `Program Name` | `/programs/programdetails/{ProgramId}` |
+| `Roads` | *(not in CATEGORY_NAV — no View button)* |
+| `Road Section` | *(not in CATEGORY_NAV — no View button)* |
+| `Bridge` | *(not in CATEGORY_NAV — no View button)* |
+
+> If both `ProjectId` and `StageName` are present the URL is `/projects/project-details/{ProjectId}:{StageName}`. Navigation is performed via React Router `useNavigate`; the dialog closes immediately on navigate.
 
 To add navigation for a new category, add an entry to `CATEGORY_NAV` in `GlobalSearchDialog.tsx`.
 
 ---
 
-## Searchable Fields (current)
+## Searchable Fields (current — from `config.ts` reference)
 
-| Key | Label | Backend Table | Column | Navigate to |
-|-----|-------|--------------|--------|-------------|
-| `projectId` | Project ID | `vProjects` | `ProjectId` | `/projects/project-details/:id` |
-| `alternateId` | Alternate ID | `vProjects` | `AlternateId` | `/projects/project-details/:id` |
-| `description` | Description | `vProjects` | `Description` | `/projects/project-details/:id` |
-| `uacs` | UACS | `vProjects` | `UACS` | `/projects/project-details/:id` |
-| `programName` | Program Name | `vPrograms` | `Name` | `/programs/programdetails/:id` |
+| Key | Label | `tableKey` (config) | `columnField` | Navigate to |
+|-----|-------|---------------------|---------------|-------------|
+| `projectId` | Project ID | `Projects` | `ProjectId` | `/projects/project-details/:ProjectId::StageName` |
+| `alternateId` | Alternate ID | `Projects` | `AlternateId` | `/projects/project-details/:ProjectId::StageName` |
+| `description` | Description | `Projects` | `Description` | `/projects/project-details/:ProjectId::StageName` |
+| `uacs` | UACS | `Projects` | `UACS` | `/projects/project-details/:ProjectId::StageName` |
+| `programName` | Program Name | `Programs` | `Name` | `/programs/programdetails/:ProgramId` |
 | `roads` | Roads | `vRoads` | `RoadName` | *(no link — pending)* |
 | `roadSection` | Road Section | `vRoadSections` | `RoadSectionId` | *(no link — pending)* |
 | `bridge` | Bridge | `vBridges` | `BridgeName` | *(no link — pending)* |
 
-> `vRoads`, `vRoadSections`, and `vBridges` need to be whitelisted in `GlobalSearchController.cs` when the backend views are ready.
+> `vRoads`, `vRoadSections`, and `vBridges` need to be whitelisted in `GlobalSearchController.cs` when the backend views are ready.  
+> Note: `tableKey` values for project and program entries use no `v` prefix (`'Projects'`, `'Programs'`), unlike the infrastructure entries which do use it (`'vRoads'`, `'vRoadSections'`, `'vBridges'`).
+
+---
+
+## Result Columns per Category (from `config.ts` reference)
+
+Since the dialog derives columns dynamically from the API response, these reflect what the backend returns:
+
+| Category | Expected columns |
+|----------|-----------------|
+| Project ID | `ProjectId`, `Description`, `ProgramName`, `StageName`, `Region` |
+| Alternate ID | `ProjectId`, `AlternateId`, `Description`, `StageName`, `Region` |
+| Description | `ProjectId`, `Description`, `ProgramName`, `StageName`, `Region` |
+| UACS | `ProjectId`, `UACS`, `Description`, `StageName`, `Region` |
+| Program Name | `ProgramId`, `Name`, `StageName`, `YearStart`, `Status` |
+| Roads | `RoadId`, `RoadName`, `Region`, `Length` |
+| Road Section | `RoadSectionId`, `RoadName`, `Region`, `RoadLength` |
+| Bridge | `BridgeId`, `BridgeName`, `Region`, `Length` |
+
+---
+
+## Service Functions (`Service.ts`)
+
+| Function | Endpoint | Status | Notes |
+|----------|----------|--------|-------|
+| `fetchCategory()` | `POST /GlobalSearch/GetSearchCategory` | **Active** | Response shape: `res.Data.CategoryList: CategoryOption[]` |
+| `globalSearch(Category, SearchFor)` | `POST /GlobalSearch/Search` | **Active** | Returns `GlobalSearchResponse: { Data, Title }` |
+| `getSearchColumns(tableKey)` | `POST /GlobalSearch/GetColumns` | **Legacy / unused** | Not called by dialog; may be removed |
+
+---
+
+## TypeScript Interfaces (`Model.d.ts`)
+
+| Interface | Status | Notes |
+|-----------|--------|-------|
+| `CategoryOption` | **Active** | `{ Id: number; CategoryName: string }` — populated via `fetchCategory()` |
+| `GlobalSearchResponse` | **Active** | `{ Data: Record<string, unknown>[]; Title: string }` — result of a search |
+| `GlobalSearchRequest` | **Reference** | `{ Category: string; SearchFor: string }` — shape sent to Search endpoint |
+| `SearchableTable` | **Legacy / unused** | Leftover from earlier table-dropdown approach |
+| `SearchableColumn` | **Legacy / unused** | Used only by the legacy `getSearchColumns` function |
 
 ---
 
 ## How to Add a New Searchable Field
+
+Adding a new searchable field only requires a backend change. The frontend dialog automatically adapts.
 
 ### Step 1 — Backend (`GlobalSearchController.cs`)
 
@@ -149,28 +201,35 @@ Ensure the table and column are whitelisted:
        }
    },
    ```
+3. Add a new `CategoryOption` row to the `GetSearchCategory` result set (e.g. insert into the source table/view).
 
-### Step 2 — Frontend (`config.ts`)
+### Step 2 — Navigation (optional)
 
-Add a new entry to `SEARCH_FIELD_CONFIG`:
+If the new category should navigate to a detail page, add an entry to `CATEGORY_NAV` in `GlobalSearchDialog.tsx`:
+```ts
+'My Category Name': (row) =>
+  row['MyPrimaryKey'] ? `/my-page/${row['MyPrimaryKey']}` : null,
+```
+
+### Step 3 — Update `config.ts` reference (optional)
+
+Add a corresponding entry to `SEARCH_FIELD_CONFIG` in `config.ts` as a reference record for the whitelisting documentation:
 ```ts
 {
   key: 'myField',
-  label: 'My Field Label',
+  label: 'My Category Name',
   tableKey: 'vMyNewView',
   columnField: 'ColumnName',
   placeholder: 'e.g. some example value',
   resultColumns: [
-    { field: 'PrimaryKey', label: 'ID' },
-    { field: 'ColumnName', label: 'Display Label' },
+    { field: 'MyPrimaryKey', label: 'ID' },
+    { field: 'ColumnName',   label: 'Display Label' },
   ],
-  getLink: (row) => row['PrimaryKey']
-    ? `/my-page/${row['PrimaryKey']}`
-    : null,
+  getLink: (row) => row['MyPrimaryKey'] ? `/my-page/${row['MyPrimaryKey']}` : null,
 },
 ```
 
-That's all. No other files need to change.
+> `config.ts` is not read by the dialog — this step is documentation only.
 
 ---
 
@@ -178,10 +237,11 @@ That's all. No other files need to change.
 
 | Item | Notes |
 |------|-------|
-| Results capped at 50 | By design. Add pagination if needed. |
+| Results capped at 50 | By design. UI shows amber hint when limit is hit. Add pagination if needed. |
 | No multi-field search | Current design: one field at a time. |
 | No date-range search | Values are always `LIKE %value%`. Date filtering would need a new control. |
-| Roads / Road Section / Bridge | Backend views not yet whitelisted — links return `null` for now. |
+| Roads / Road Section / Bridge | Backend views not yet whitelisted — View buttons not shown. |
+| `getSearchColumns` / `SearchableTable` / `SearchableColumn` | Legacy code — safe to remove if the GetColumns endpoint is also removed from the backend. |
 
 ---
 
@@ -191,5 +251,5 @@ That's all. No other files need to change.
 |------|--------|--------|
 | 2026-03-16 | Copilot | Initial implementation: backend controller, frontend config/service/dialog, navbar wired up |
 | 2026-03-21 | Copilot | Revamped UI — replaced Table + Column dropdowns with single "Search By" dropdown; switched from `SEARCH_TABLE_CONFIG` to flat `SEARCH_FIELD_CONFIG`; removed `getSearchColumns` API call; added fields: Project ID, Alternate ID, Description, UACS, Program Name, Roads, Road Section, Bridge |
-| 2026-03-24 | Copilot | Switched dropdown from hardcoded `SEARCH_FIELD_CONFIG` to backend-driven `CategoryOption[]` via `fetchCategory()`; result columns now derived dynamically from API response; updated `Service.ts` type annotation to `CategoryOption[]`; removed config-driven `resultColumns` and `getLink` |
-| 2026-03-24 | Copilot | Added `CATEGORY_NAV` map in `GlobalSearchDialog.tsx`; project categories (Project ID, Alternate ID, Description, UACS) navigate to `/projects/project-details/{ProjectId}:{StageName}`; Program Name navigates to `/programs/programdetails/{ProgramId}`; View button shown per row only when link resolves |
+| 2026-03-24 | Copilot | Switched dropdown from hardcoded `SEARCH_FIELD_CONFIG` to backend-driven `CategoryOption[]` via `fetchCategory()`; result columns now derived dynamically from API response (`res.Data.CategoryList`); updated `Service.ts`; `config.ts` retained as reference only |
+| 2026-03-24 | Copilot | Added `CATEGORY_NAV` map in `GlobalSearchDialog.tsx`; project categories navigate to `/projects/project-details/{ProjectId}:{StageName}`; Program Name navigates to `/programs/programdetails/{ProgramId}`; View button shown per row only when link resolves; dialog resets all state on close |

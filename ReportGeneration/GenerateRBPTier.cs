@@ -5,12 +5,25 @@ using RBPData = DBHelper.Models.Procedures.GenerateRBP;
 
 namespace ReportGeneration
 {
+    /// <summary>
+    /// Generates the <b>RBP by Tier</b> (Regional Budget Proposal) PDF report (A4 Landscape).
+    /// <para>
+    /// Same pivot column structure as <see cref="GenerateRBP"/> but rows are grouped by:
+    /// Region → Tier (bold, top-bordered) → DEO → Legislative District.
+    /// All summary rows are bold with top borders to visually separate tiers.
+    /// </para>
+    /// <para>Data source: <c>pGenerateRBP</c>.</para>
+    /// </summary>
     public class GenerateRBPTier
     {
+        /// <summary>
+        /// Entry point — builds and returns the RBP Tier PDF as a byte array.
+        /// </summary>
+        /// <param name="data">Flat row list from <c>pGenerateRBP</c>.</param>
+        /// <returns>PDF byte array suitable for an <c>application/pdf</c> file-download response.</returns>
         public static byte[] GenerateReport(List<RBPData> data)
         {
             int FooterFs = 7;
-            var logo = GeneratePDF.GetLogo();
             return GeneratePDF.GenerateReport(page =>
             {
                 page.Size(PageSizes.A4.Landscape());
@@ -24,9 +37,13 @@ namespace ReportGeneration
                 page.Header()
                     .Column(col =>
                     {
-                        GeneratePDF.BuildDPWHHeader(col, logo,
-                            "SUMMARY OF FY 2026 BUDGET PROPOSAL",
-                            regionName: regionName);
+                        col.Item().AlignCenter()
+                           .Text("SUMMARY OF FY 2026 BUDGET PROPOSAL")
+                           .FontFamily(GeneratePDF.FontFamily).FontSize(10).Bold();
+                        if (!string.IsNullOrEmpty(regionName))
+                            col.Item().AlignCenter()
+                               .Text(regionName)
+                               .FontFamily(GeneratePDF.FontFamily).FontSize(9).Bold();
 
                         col.Item().PaddingTop(8)
                            .Element(BuildTableHeader);
@@ -79,14 +96,14 @@ namespace ReportGeneration
             table.Cell()
                  .ColumnSpan(colSpan)
                  .RowSpan(rowSpan)
-                 .Border(0.3f).BorderColor(Colors.Grey.Lighten1)
-                 .Background(Colors.Grey.Lighten4)
+                 .BorderBottom(0.5f).BorderColor(Colors.Black)
                  .AlignCenter().AlignMiddle()
                  .Padding(3)
                  .Text(text).Bold().FontSize(6.5f);
         }
 
         // ── TABLE CONTENT ─────────────────────────────────────────────────
+        /// <summary>Builds the tier pivot table body. Grouping: Region → Tier (Roman numeral, bold) → DEO → Legislative District.</summary>
         static void BuildTableContent(
             IContainer container,
             List<RBPData> data)
@@ -135,6 +152,10 @@ namespace ReportGeneration
         }
 
         // ── ROW RENDERING ─────────────────────────────────────────────────
+        /// <summary>
+        /// Renders one labeled data row with aggregated counts and amounts for all budget categories.
+        /// Optionally draws a top border (used to separate Tier sections).
+        /// </summary>
         static void WriteDataRow(
             TableDescriptor table,
             string label,
@@ -157,8 +178,8 @@ namespace ReportGeneration
 
             // Col 0 — Label
             table.Cell()
-                 .BorderTop(topBorder ? 0.5f : 0)
-                 .BorderColor(Colors.Grey.Medium)
+                 .BorderTop(topBorder ? 0.3f : 0)
+                 .BorderColor(Colors.Black)
                  .PaddingVertical(2)
                  .PaddingLeft(indent + 2f)
                  .Text(t =>
@@ -187,8 +208,8 @@ namespace ReportGeneration
             bool topBorder = false)
         {
             table.Cell()
-                 .BorderTop(topBorder ? 0.5f : 0)
-                 .BorderColor(Colors.Grey.Medium)
+                 .BorderTop(topBorder ? 0.3f : 0)
+                 .BorderColor(Colors.Black)
                  .AlignRight().PaddingRight(2).PaddingVertical(2)
                  .Text(t =>
                  {
@@ -206,8 +227,8 @@ namespace ReportGeneration
             bool topBorder = false)
         {
             table.Cell()
-                 .BorderTop(topBorder ? 0.5f : 0)
-                 .BorderColor(Colors.Grey.Medium)
+                 .BorderTop(topBorder ? 0.3f : 0)
+                 .BorderColor(Colors.Black)
                  .AlignRight().PaddingRight(2).PaddingVertical(2)
                  .Text(t =>
                  {
@@ -253,6 +274,7 @@ namespace ReportGeneration
         }
 
         // ── HELPERS ───────────────────────────────────────────────────────
+        /// <summary>Defines 11 relative columns: label · OO1 count/amt · OO2 count/amt · CSSP count/amt · LP count/amt · Total count/amt.</summary>
         static void DefineColumns(TableDescriptor table)
         {
             table.ColumnsDefinition(cols =>
@@ -271,9 +293,11 @@ namespace ReportGeneration
             });
         }
 
+        /// <summary>Formats a double as thousands (divides by 1000, N2), or empty string for zero.</summary>
         static string FormatAmtP(double v) =>
             v == 0 ? "" : (v / 1000).ToString("N2");
 
+        /// <summary>Converts a tier integer (1-5) to a Roman numeral string for display.</summary>
         static string ToRoman(int tier) => tier switch
         {
             1 => "I",
