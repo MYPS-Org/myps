@@ -70,7 +70,7 @@ namespace Helpers.API
         }
 
         protected override string SoapAction => "\"https://www.dpwh.gov.ph/ad_validate_login\"";
-        internal override string RequestUri => "http://int-web06:26697/webservice.asmx";//Appsetting.PIS.Host;
+        internal override string RequestUri => Appsetting.PIS.Login;//Appsetting.PIS.Host;
 
         protected override string GetSoapHeader() => string.Empty;
         protected override string GetSoapBody()
@@ -84,7 +84,7 @@ namespace Helpers.API
             var xml = await responseContent.ReadAsStringAsync();
             var doc = XDocument.Parse(xml);
             var ns = "https://www.dpwh.gov.ph/";
-
+            string aa = doc.ToString();
             var result = doc.Descendants(XName.Get("ad_validate_loginResult", ns)).FirstOrDefault();
             if (result == null) return null;
 
