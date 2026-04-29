@@ -5,13 +5,27 @@ using RDIPData = DBHelper.Models.Procedures.GenerateRDIP;
 
 namespace ReportGeneration
 {
+    /// <summary>
+    /// Generates the <b>Regional Development Investment Plan (RDIP)</b> PDF report (A4 Landscape).
+    /// <para>
+    /// Table structure: Program/Sub-Program/Projects · Spatial Coverage (Province, District)
+    /// · Implementation Period (Start/End Year) · Investment Cost (Total + 6 yearly columns + Later Years) · Remarks.
+    /// Year columns are dynamically derived from the minimum <c>StartYear</c> in the data.
+    /// </para>
+    /// <para>Grouping: Category → Program → Sub-Program (optional) → Activity (optional) → Project.</para>
+    /// <para>Data source: <c>pGenerateRDIP</c>.</para>
+    /// </summary>
     public class GenerateRDIP
     {
+        /// <summary>
+        /// Entry point — builds and returns the RDIP PDF as a byte array.
+        /// </summary>
+        /// <param name="data">Flat row list from <c>pGenerateRDIP</c>.</param>
+        /// <returns>PDF byte array suitable for an <c>application/pdf</c> file-download response.</returns>
         public static byte[] GenerateReport(List<RDIPData> data)
         {
             int FooterFs = 7;
             int LowestYear = data.Min(r => r.StartYear);
-            var logo = GeneratePDF.GetLogo();
             return GeneratePDF.GenerateReport(page =>
             {
                 page.Size(PageSizes.A4.Landscape());
@@ -25,9 +39,12 @@ namespace ReportGeneration
                 page.Header()
                     .Column(col =>
                     {
-                        GeneratePDF.BuildDPWHHeader(col, logo,
-                            "Regional Development Investment Plan (RDIP)",
-                            regionName: regionName);
+                        col.Item().AlignCenter()
+                           .Text("Regional Development Investment Plan (RDIP)")
+                           .FontFamily(GeneratePDF.FontFamily).FontSize(10).Bold();
+                        col.Item().AlignCenter()
+                           .Text(regionName)
+                           .FontFamily(GeneratePDF.FontFamily).FontSize(9).Bold();
 
                         col.Item().PaddingTop(2)
                            .Text("PDF Chapter: Chapter 19 - Accelerating Infrastructure Development")
@@ -55,6 +72,10 @@ namespace ReportGeneration
         }
 
         // ── TABLE HEADER (3 rows) ────────────────────────────────────────
+        /// <summary>
+        /// Renders the 3-row, 14-column frozen table header.
+        /// Year columns in row 3 are labeled dynamically starting from <paramref name="LowestYear"/>.
+        /// </summary>
         static void BuildTableHeader(IContainer container, int LowestYear)
         {
             container.Table(table =>
@@ -102,14 +123,18 @@ namespace ReportGeneration
             table.Cell()
                  .ColumnSpan(colSpan)
                  .RowSpan(rowSpan)
-                 .Border(0.3f).BorderColor(Colors.Grey.Lighten1)
-                 .Background(Colors.Grey.Lighten4)
+                 .BorderBottom(0.5f).BorderColor(Colors.Black)
                  .AlignCenter().AlignMiddle()
                  .Padding(3)
                  .Text(text).Bold().FontSize(5.5f);
         }
 
         // ── TABLE CONTENT ─────────────────────────────────────────────────
+        /// <summary>
+        /// Builds the RDIP table body.
+        /// Grouping: Category → Program → Sub-Program (skipped when empty) → Activity (skipped when empty) → Project.
+        /// Each grouping level shows aggregated yearly amounts.
+        /// </summary>
         static void BuildTableContent(
             IContainer container,
             List<RDIPData> data)
@@ -171,6 +196,10 @@ namespace ReportGeneration
         }
 
         // ── ROW RENDERING ─────────────────────────────────────────────────
+        /// <summary>
+        /// Renders a Category / Program / Sub-Program / Activity summary row with aggregated yearly totals.
+        /// Spatial and implementation columns (1-4) are left blank for summary rows.
+        /// </summary>
         static void WriteSummaryRow(
             TableDescriptor table,
             string label,
@@ -215,6 +244,9 @@ namespace ReportGeneration
             EmptyCell(table);
         }
 
+        /// <summary>
+        /// Renders a single project row with all spatial, implementation, and yearly amount columns populated.
+        /// </summary>
         static void WriteProjectRow(
             TableDescriptor table,
             int seq,
@@ -242,14 +274,12 @@ namespace ReportGeneration
 
             // Col 3 — Start Year
             table.Cell()
-                 .Border(0.5f).BorderColor(Colors.Grey.Lighten1)
                  .AlignCenter().AlignMiddle()
                  .Padding(2)
                  .Text(proj.StartYear.ToString()).FontSize(fs);
 
             // Col 4 — End Year
             table.Cell()
-                 .Border(0.5f).BorderColor(Colors.Grey.Lighten1)
                  .AlignCenter().AlignMiddle()
                  .Padding(2)
                  .Text(proj.EndYear.ToString()).FontSize(fs);
@@ -275,7 +305,6 @@ namespace ReportGeneration
             float paddingLeft = 2f)
         {
             table.Cell()
-                 .Border(0.5f).BorderColor(Colors.Grey.Lighten1)
                  .PaddingVertical(2)
                  .PaddingLeft(paddingLeft)
                  .PaddingRight(2)
@@ -284,9 +313,7 @@ namespace ReportGeneration
 
         static void EmptyCell(TableDescriptor table)
         {
-            table.Cell()
-                 .Border(0.5f).BorderColor(Colors.Grey.Lighten1)
-                 .Text("");
+            table.Cell().Text("");
         }
 
         static void AmountCell(
@@ -296,7 +323,6 @@ namespace ReportGeneration
             bool bold)
         {
             table.Cell()
-                 .Border(0.5f).BorderColor(Colors.Grey.Lighten1)
                  .AlignRight().PaddingRight(2).PaddingVertical(2)
                  .Text(t =>
                  {
@@ -343,6 +369,7 @@ namespace ReportGeneration
         }
 
         // ── HELPERS ───────────────────────────────────────────────────────
+        /// <summary>Defines the 14 relative table columns for the RDIP layout.</summary>
         static void DefineColumns(TableDescriptor table)
         {
             table.ColumnsDefinition(cols =>

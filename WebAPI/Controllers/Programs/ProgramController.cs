@@ -309,9 +309,9 @@ namespace WebAPI.Controllers.Programs
                         Title = "Program Not Found"
                     });
                 }
-                    //var ProjectLists = await _db.vProjects.AsNoTracking().Where(x => x.ProgramId == dto.ProgramId && x.StageName == dto.StageName).ToListAsync();
-                    var ProjectLists = await _db.fProjectsPerStage
-                .FromSqlInterpolated($"SELECT * FROM fProjectsInProgram({program.ProgramId}) fp WHERE fp.StageName = {dto.StageName} AND ({!_Session.ApplyFilter} OR fp.Region = {_Session.RegCode})").AsNoTracking()
+                var regionCode = _Session.ApplyFilter ? _Session.RegCode : null;
+                var ProjectLists = await _db.fProjectsPerStage
+                .FromSqlInterpolated($"SELECT * FROM fProjectsInProgram({program.ProgramId}) fp WHERE fp.StageName = {dto.StageName} AND ({regionCode} IS NULL OR fp.Region = {regionCode})").AsNoTracking()
                     .OrderByDescending(x => x.Id)
                     .Skip(0 * 15)
                     .Take(15)

@@ -486,16 +486,15 @@ namespace WebAPI.Controllers.Projects
         {
             try
             {
-                //var Project = await _db.tProjectRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dto.)
+                var regionCode = _Session.ApplyFilter ? _Session.RegCode : null;
                 var Project = await _db.vProjectDetails
                 .FromSqlInterpolated($@"
                     SELECT * FROM fProjectDetails({dto.ProjectId}) fp 
                     WHERE fp.StageName = {dto.StageName} 
                     AND fp.ProjectId = {dto.ProjectId}
-                    AND ({!_Session.ApplyFilter} OR fp.Region = {_Session.RegCode})")
+                    AND ({regionCode} IS NULL OR fp.Region = {regionCode})")
                 .AsNoTracking()
                 .FirstOrDefaultAsync();
-                //var Project = await _db.vProjectDetails.AsNoTracking().Where(x => x.ReferenceId == dto.ProjectId).OrderByDescending(x => x.RevisionNumber).FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId);
                 if (Project == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
@@ -685,13 +684,13 @@ namespace WebAPI.Controllers.Projects
                 bool hasUpdated = false;
                 DateTime CurrentDate = Functions.CurrentDate();;
                 List<TransactionLog> transactionLogs = new List<TransactionLog>();
-
+                var regionCode = _Session.ApplyFilter ? _Session.RegCode : null;
                 var Project = await _db.vProjectDetails
                 .FromSqlInterpolated($@"
                     SELECT * FROM fProjectDetails({dto.ProjectDetails.ProjectId}) fp 
                     WHERE fp.StageName = {dto.ProjectDetails.StageName} 
                     AND fp.ProjectId = {dto.ProjectDetails.ProjectId}
-                    AND ({!_Session.ApplyFilter} OR fp.Region = {_Session.RegCode})")
+                    AND ({regionCode} IS NULL OR fp.Region = {regionCode})")
                 .AsNoTracking()
                 .FirstOrDefaultAsync();
                 if (Project == null)
@@ -2349,15 +2348,15 @@ namespace WebAPI.Controllers.Projects
             var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                var regionCode = _Session.ApplyFilter ? _Session.RegCode : null;
                 var Project = await _db.vProjectDetails
                 .FromSqlInterpolated($@"
                     SELECT * FROM fProjectDetails({dto.ProjectId}) fp 
                     WHERE fp.StageName = {dto.StageName} 
                     AND fp.ProjectId = {dto.ProjectId}
-                    AND ({!_Session.ApplyFilter} OR fp.Region = {_Session.RegCode})")
+                    AND ({regionCode} IS NULL OR fp.Region = {regionCode})")
                 .AsNoTracking()
                 .FirstOrDefaultAsync();
-                //var Project = await _db.vProjectDetails.FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId);
                 if(Project == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
@@ -2403,12 +2402,13 @@ namespace WebAPI.Controllers.Projects
             var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                var regionCode = _Session.ApplyFilter ? _Session.RegCode : null;
                 var Project = await _db.vProjectDetails
                 .FromSqlInterpolated($@"
                     SELECT * FROM fProjectDetails({dto.ProjectId}) fp 
                     WHERE fp.StageName = {dto.StageName} 
                     AND fp.ProjectId = {dto.ProjectId}
-                    AND ({!_Session.ApplyFilter} OR fp.Region = {_Session.RegCode})")
+                    AND ({regionCode} IS NULL OR fp.Region = {regionCode})")
                 .AsNoTracking()
                 .FirstOrDefaultAsync();
                 if (Project == null)
@@ -2457,15 +2457,15 @@ namespace WebAPI.Controllers.Projects
             var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                var regionCode = _Session.ApplyFilter ? _Session.RegCode : null;
                 var Project = await _db.vProjectDetails
                 .FromSqlInterpolated($@"
                     SELECT * FROM fProjectDetails({dto.ProjectId}) fp 
                     WHERE fp.StageName = {dto.StageName} 
                     AND fp.ProjectId = {dto.ProjectId}
-                    AND ({!_Session.ApplyFilter} OR fp.Region = {_Session.RegCode})")
+                    AND ({regionCode} IS NULL OR fp.Region = {regionCode})")
                 .AsNoTracking()
                 .FirstOrDefaultAsync();
-                //var Project = await _db.vProjectDetails.FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId);
                 if(Project == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
@@ -2520,12 +2520,13 @@ namespace WebAPI.Controllers.Projects
             var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                var regionCode = _Session.ApplyFilter ? _Session.RegCode : null;
                 var Project = await _db.vProjectDetails
                 .FromSqlInterpolated($@"
                     SELECT * FROM fProjectDetails({dto.ProjectId}) fp 
                     WHERE fp.StageName = {dto.StageName} 
                     AND fp.ProjectId = {dto.ProjectId}
-                    AND ({!_Session.ApplyFilter} OR fp.Region = {_Session.RegCode})")
+                    AND ({regionCode} IS NULL OR fp.Region = {regionCode})")
                 .AsNoTracking()
                 .FirstOrDefaultAsync();
                 if (Project == null)

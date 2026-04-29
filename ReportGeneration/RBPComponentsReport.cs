@@ -5,12 +5,24 @@ using RBPCData = DBHelper.Models.Procedures.GenerateRBPComponents;
 
 namespace ReportGeneration
 {
+    /// <summary>
+    /// Generates the <b>RBP Components</b> (Regional Budget Proposal — component detail) PDF report (A4 Landscape).
+    /// <para>
+    /// 9-column layout. Grouping hierarchy:
+    /// Region (bold) → Tier → DEO → Legislative District → Category → Thrust → Project → Component (2 rows per component).
+    /// </para>
+    /// <para>Data source: <c>pGenerateRBPComponents</c>.</para>
+    /// </summary>
     public class RBPComponents
     {
+        /// <summary>
+        /// Entry point — builds and returns the RBP Components PDF as a byte array.
+        /// </summary>
+        /// <param name="data">Flat row list from <c>pGenerateRBPComponents</c>.</param>
+        /// <returns>PDF byte array suitable for an <c>application/pdf</c> file-download response.</returns>
         public static byte[] GenerateReport(List<RBPCData> data)
         {
             int FooterFs = 7;
-            var logo = GeneratePDF.GetLogo();
             return GeneratePDF.GenerateReport(page =>
             {
                 page.Size(PageSizes.A4.Landscape());
@@ -22,9 +34,12 @@ namespace ReportGeneration
                 page.Header()
                     .Column(col =>
                     {
-                        GeneratePDF.BuildDPWHHeader(col, logo,
-                            "FY   2026   REGIONAL BUDGET PROPOSAL",
-                            subtitle: "(ONGOING, NEW AND EXPANDED PROGRAMS, ACTIVITIES AND PROJECTS)");
+                        col.Item().AlignCenter()
+                           .Text("FY   2026   REGIONAL BUDGET PROPOSAL")
+                           .FontFamily(GeneratePDF.FontFamily).FontSize(10).Bold();
+                        col.Item().AlignCenter()
+                           .Text("(ONGOING, NEW AND EXPANDED PROGRAMS, ACTIVITIES AND PROJECTS)")
+                           .FontFamily(GeneratePDF.FontFamily).FontSize(8);
 
                         col.Item().PaddingTop(8)
                            .Element(BuildTableHeader);
@@ -66,14 +81,18 @@ namespace ReportGeneration
         static void HeaderCell(TableDescriptor table, string text)
         {
             table.Cell()
-                 .Border(0.3f).BorderColor(Colors.Grey.Lighten1)
-                 .Background(Colors.Grey.Lighten4)
+                 .BorderBottom(0.5f).BorderColor(Colors.Black)
                  .AlignCenter().AlignMiddle()
                  .Padding(3)
                  .Text(text).Bold().FontSize(6);
         }
 
         // ── TABLE CONTENT ─────────────────────────────────────────────────
+        /// <summary>
+        /// Builds the component-detail table body.
+        /// Grouping: Region → Tier → DEO → Legislative District → Category → Thrust → Project → Component.
+        /// Each component renders two rows: a summary line and a detail line.
+        /// </summary>
         static void BuildTableContent(
             IContainer container,
             List<RBPCData> data)

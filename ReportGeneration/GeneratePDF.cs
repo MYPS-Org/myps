@@ -26,6 +26,13 @@ namespace ReportGeneration
             return _logoCached;
         }
 
+        /// <summary>
+        /// Sets the QuestPDF community license and creates a single-page PDF document
+        /// using the provided page configuration action.
+        /// All report classes delegate PDF creation to this method.
+        /// </summary>
+        /// <param name="configurePage">Action that configures the page (size, margins, header, content, footer).</param>
+        /// <returns>PDF byte array suitable for an <c>application/pdf</c> file-download response.</returns>
         public static byte[] GenerateReport(Action<PageDescriptor> configurePage)
         {
             QuestPDF.Settings.License = LicenseType.Community;
