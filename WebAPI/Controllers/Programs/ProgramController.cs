@@ -4,6 +4,7 @@ using DBHelper.Models.API;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Table;
 using DBHelper.Models.Views;
+using Eaf.Json;
 using Helpers;
 using Helpers.API;
 using Microsoft.AspNetCore.Authorization;
@@ -308,9 +309,9 @@ namespace WebAPI.Controllers.Programs
                         Title = "Program Not Found"
                     });
                 }
-                    //var ProjectLists = await _db.vProjects.AsNoTracking().Where(x => x.ProgramId == dto.ProgramId && x.StageName == dto.StageName).ToListAsync();
-                    var ProjectLists = await _db.fProjectsPerStage
-                .FromSqlInterpolated($"SELECT * FROM fProjectsInProgram({program.ProgramId}) fp WHERE fp.StageName = {dto.StageName}").AsNoTracking()
+                var regionCode = _Session.ApplyFilter ? _Session.RegCode : null;
+                var ProjectLists = await _db.fProjectsPerStage
+                .FromSqlInterpolated($"SELECT * FROM fProjectsInProgram({program.ProgramId}) fp WHERE fp.StageName = {dto.StageName} AND ({regionCode} IS NULL OR fp.Region = {regionCode})").AsNoTracking()
                     .OrderByDescending(x => x.Id)
                     .Skip(0 * 15)
                     .Take(15)
@@ -679,9 +680,8 @@ namespace WebAPI.Controllers.Programs
                     return new BadRequestObjectResult(new { Message = $"Program Stage '{dto.Stage}' is not valid!", Title = "Invalid Stage" });
                 }
 
-                var projectIdsJson = System.Text.Json.JsonSerializer.Serialize(_Session.RegCode);
                 var checkProjects = await _db.fProjectsPerStage
-                .FromSqlInterpolated($"SELECT * FROM fProjectsInProgram({dto.ProgramId}) fp WHERE fp.StageId = {checkStage.StageId} AND fp.ProjectId IN (SELECT [value] FROM OPENJSON({projectIdsJson})")
+                .FromSqlInterpolated($"SELECT * FROM fProjectsInProgram({dto.ProgramId}) fp WHERE fp.StageId = {checkStage.StageId}")
                 .AsNoTracking()
                 .ToListAsync();
                 if (checkProjects.Count > 0)

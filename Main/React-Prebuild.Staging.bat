@@ -8,8 +8,8 @@ if %errorlevel% neq 0 (
     exit /b %errorlevel%
 )
 
-echo Installing dependencies...
-call npm install
+::echo Installing dependencies...
+::call npm install
 if %errorlevel% neq 0 (
     echo ERROR: npm install failed.
     exit /b %errorlevel%

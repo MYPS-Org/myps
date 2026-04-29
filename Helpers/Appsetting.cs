@@ -12,6 +12,7 @@ namespace Helpers
     }
     public class PISConfig
     {
+        public string Login { get; set; } = string.Empty;
         public string Host { get; set; } = string.Empty;
         public string userName { get; set; } = string.Empty;
         public string password { get; set; } = string.Empty;

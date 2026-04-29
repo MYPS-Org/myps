@@ -5,16 +5,38 @@ using DBHelper.Models.Procedures;
 
 namespace ReportGeneration
 {
+    /// <summary>
+    /// Generates the <b>Annual Infrastructure Program (AIP)</b> PDF report (A4 Portrait).
+    /// <para>
+    /// Table body grouping hierarchy:
+    /// Region (bold) → DEO (underline, indent 8) → Legislative District (underline, indent 8)
+    /// → Category/OO (bold, indent 18) → Thrust (underline, indent 26)
+    /// → Project (seq bold, ProjectId normal, indent 20/24) → Component (indent 30).
+    /// </para>
+    /// <para>Data sources: <c>pGenerateAIP01</c>, <c>pGenerateAIPComponents</c>.</para>
+    /// </summary>
     public class AIP
     {
+        /// <summary>
+        /// Entry point — builds and returns the AIP PDF as a byte array.
+        /// </summary>
+        /// <param name="projects">Flat project list from <c>pGenerateAIP01</c>.</param>
+        /// <param name="components">Component rows from <c>pGenerateAIPComponents</c>.</param>
+        /// <param name="year">Fiscal year shown in the page title (e.g. 2026). Pass 0 to omit.</param>
+        /// <param name="stageName">Full stage label shown below the title
+        ///   (e.g. "General Appropriations Act"). Pass empty string to use the default label.</param>
+        /// <returns>PDF byte array suitable for an <c>application/pdf</c> file-download response.</returns>
         public static byte[] GenerateReport(
             List<GenerateAIP01> projects,
-            List<GenerateAIPComponents> components
+            List<GenerateAIPComponents> components,
+            int year = 0,
+            string stageName = ""
         )
         {
             int DefaultFs = 8;
             int FooterFs = 7;
-            var logo = GeneratePDF.GetLogo();
+            string fiscalYear = year > 0 ? $"FY {year} " : "";
+            string stageLabel = !string.IsNullOrEmpty(stageName) ? $"Based on {stageName}" : "Based on General Appropriations Act";
             return GeneratePDF.GenerateReport(page =>
             {
                 page.Size(PageSizes.A4);
@@ -26,9 +48,12 @@ namespace ReportGeneration
                 page.Header()
                     .Column(col =>
                     {
-                        GeneratePDF.BuildDPWHHeader(col, logo,
-                            "FY 2025 ANNUAL INFRASTRUCTURE PROGRAM",
-                            subtitle: "Based on General Appropriations Act");
+                        col.Item().AlignCenter()
+                           .Text($"{fiscalYear}ANNUAL INFRASTRUCTURE PROGRAM")
+                           .FontFamily(GeneratePDF.FontFamily).FontSize(10).Bold();
+                        col.Item().AlignCenter()
+                           .Text(stageLabel)
+                           .FontFamily(GeneratePDF.FontFamily).FontSize(8);
 
                         col.Item()
                            .PaddingTop(8)
@@ -44,6 +69,11 @@ namespace ReportGeneration
             });
         }
         // ── COLUMN HEADERS ────────────────────────────────────────────────
+        /// <summary>
+        /// Renders the 8-column, 2-row frozen table header.
+        /// Row 1: UACS/ID · Description · Type of Work · Target Unit · Physical Target (span 2) · Amount · OU/IO.
+        /// Row 2 (under Physical Target): # · Unit.
+        /// </summary>
         static void BuildTableHeader(IContainer container)
         {
             container.Table(table =>
@@ -74,14 +104,17 @@ namespace ReportGeneration
             table.Cell()
                  .ColumnSpan(colSpan)
                  .RowSpan(rowSpan)
-                 .Border(0.3f).BorderColor(Colors.Grey.Lighten1)
-                 .Background(Colors.Grey.Lighten4)
+                 .BorderBottom(0.5f).BorderColor(Colors.Black)
                  .AlignCenter().AlignMiddle()
                  .Padding(4)
                  .Text(text).Bold().FontSize(7);
         }
 
         // ── TABLE CONTENT ─────────────────────────────────────────────────
+        /// <summary>
+        /// Builds the full grouped project table.
+        /// Grouping order: Region → DEO → Legislative District → Category (OO) → Thrust → Project → Component.
+        /// </summary>
         static void BuildTableContent(
             IContainer container,
             List<GenerateAIP01> projects,
@@ -106,40 +139,40 @@ namespace ReportGeneration
                         (decimal)regionTotal,
                         fontSize: 8, bold: true, topBorder: true);
 
-                    // District grouping
-                    foreach (var distGrp in regionGrp
-                        .GroupBy(p => p.LegislativeDistrict)
+                    // DEO grouping
+                    foreach (var deoGrp in regionGrp
+                        .GroupBy(p => p.DEO)
                         .OrderBy(g => g.Key))
                     {
-                        var distComponents = GetComponents(distGrp, components);
-                        var distTotal = distComponents.Sum(c => c.TotalComponentCost);
+                        var deoComponents = GetComponents(deoGrp, components);
+                        var deoTotal = deoComponents.Sum(c => c.TotalComponentCost);
 
-                        // ── District row ──────────────────────────────────
+                        // ── DEO / Office row ──────────────────────────────
                         SummaryRow(table,
-                            distGrp.Key,
-                            distGrp.Count(),
-                            (decimal)distTotal,
+                            deoGrp.Key,
+                            deoGrp.Count(),
+                            (decimal)deoTotal,
                             fontSize: 8, bold: false,
-                            underline: true, indent: 6);
+                            underline: true, indent: 8);
 
-                        // DEO grouping
-                        foreach (var deoGrp in distGrp
-                            .GroupBy(p => p.DEO)
+                        // District grouping
+                        foreach (var distGrp in deoGrp
+                            .GroupBy(p => p.LegislativeDistrict)
                             .OrderBy(g => g.Key))
                         {
-                            var deoComponents = GetComponents(deoGrp, components);
-                            var deoTotal = deoComponents.Sum(c => c.TotalComponentCost);
+                            var distComponents = GetComponents(distGrp, components);
+                            var distTotal = distComponents.Sum(c => c.TotalComponentCost);
 
-                            // ── DEO / Office row ──────────────────────────
+                            // ── District row ──────────────────────────────
                             SummaryRow(table,
-                                deoGrp.Key,
-                                deoGrp.Count(),
-                                (decimal)deoTotal,
+                                distGrp.Key,
+                                distGrp.Count(),
+                                (decimal)distTotal,
                                 fontSize: 8, bold: false,
-                                underline: true, indent: 6);
+                                underline: true, indent: 8);
 
                             // Category (OO) grouping
-                            foreach (var ooGrp in deoGrp
+                            foreach (var ooGrp in distGrp
                                 .GroupBy(p => p.Category ?? "")
                                 .OrderBy(g => g.Key))
                             {
@@ -152,7 +185,7 @@ namespace ReportGeneration
                                     ooGrp.Count(),
                                     (decimal)ooTotal,
                                     fontSize: 8, bold: true,
-                                    indent: 12);
+                                    indent: 18);
 
                                 // Thrust grouping
                                 int seq = 0;
@@ -206,6 +239,10 @@ namespace ReportGeneration
 
         // ── ROW BUILDERS ──────────────────────────────────────────────────
 
+        /// <summary>
+        /// Renders a full-width summary row (Region / DEO / District / Category level).
+        /// Cols 0-3 = label; Col 4 = project count; Col 5 = "projects"; Col 6 = total amount; Col 7 = blank.
+        /// </summary>
         static void SummaryRow(
             TableDescriptor table,
             string label,
@@ -219,8 +256,8 @@ namespace ReportGeneration
         {
             // Cols 0-3 — label
             table.Cell().ColumnSpan(4)
-                 .BorderTop(topBorder ? 0.5f : 0)
-                 .BorderColor(Colors.Grey.Medium)
+                 .BorderTop(topBorder ? 0.3f : 0)
+                 .BorderColor(Colors.Black)
                  .PaddingVertical(3)
                  .PaddingLeft(indent + 2f)
                  .Text(t =>
@@ -261,10 +298,14 @@ namespace ReportGeneration
             table.Cell().Text("");
         }
 
+        /// <summary>
+        /// Renders a Thrust label row (indented 26 pt, underlined).
+        /// Cols 0-3 = label; Cols 4-5 = blank; Col 6 = subtotal; Col 7 = blank.
+        /// </summary>
         static void CategoryRow(TableDescriptor table, string label, decimal total)
         {
             table.Cell().ColumnSpan(4)
-                 .PaddingTop(4).PaddingBottom(2).PaddingLeft(18)
+                 .PaddingTop(4).PaddingBottom(2).PaddingLeft(26)
                  .Text(t => t.Span(label + "\n").FontSize(7.5f).Underline());
 
             table.Cell().Text("");   // count blank
@@ -277,6 +318,13 @@ namespace ReportGeneration
             table.Cell().Text("");
         }
 
+        /// <summary>
+        /// Renders <b>two table rows</b> for a project entry.
+        /// <list type="bullet">
+        ///   <item>Row 1 — Col 0: seq number (bold) + ProjectId (normal); Cols 1-3: UACS; Cols 4-5: blank; Col 6: total amount; Col 7: blank.</item>
+        ///   <item>Row 2 — Cols 0-3: description (bold, indented 24 pt); Cols 4-7: blank.</item>
+        /// </list>
+        /// </summary>
         static void ProjectHeaderRow(
             TableDescriptor table,
             int seq,
@@ -286,16 +334,16 @@ namespace ReportGeneration
             // ── Row 1: seq + ProjectId | UACS | total ─────────
             // Col 0 — seq + ProjectId
             table.Cell()
-                 .PaddingLeft(4).PaddingVertical(2)
+                 .PaddingLeft(20).PaddingVertical(5)
                  .Text(t =>
                  {
                      t.Span($"{seq}.  ").FontSize(7.5f).Bold();
-                      t.Span(project.ProjectId).FontSize(7.5f);
+                     t.Span(project.ProjectId).FontSize(7.5f);
                  });
 
             // Col 1-3 — UACS (spans 3 cols, same row as ProjectId)
             table.Cell().ColumnSpan(3)
-                 .PaddingHorizontal(2).PaddingVertical(2)
+                 .PaddingHorizontal(4).PaddingVertical(5)
                  .Text(project.UACS ?? "").FontSize(7);
 
             // Col 4 blank
@@ -315,8 +363,8 @@ namespace ReportGeneration
             // ── Row 2: Description ────────────────────────────
             // Col 0-3 — description (spans 4 cols, indented below)
             table.Cell().ColumnSpan(4)
-                 .PaddingLeft(6).PaddingBottom(2)
-                 .Text("\n" + project.Description + "\n").FontSize(7);
+                 .PaddingLeft(24).PaddingBottom(2)
+                 .Text(t => t.Span("\n" + project.Description + "\n").FontSize(7).Bold());
 
             // Col 4 blank
             table.Cell().Text("");
@@ -331,6 +379,11 @@ namespace ReportGeneration
             table.Cell().Text("");
         }
 
+        /// <summary>
+        /// Renders a single component row (indented 30 pt).
+        /// Columns: Component ID · Description · Type of Work · Target Unit · Target Qty · blank · Amount · OU/IO.
+        /// Pass <paramref name="overrideTypeOfWork"/> = <c>"ROW Acquisition"</c> for ROW components.
+        /// </summary>
         static void ComponentRow(
             TableDescriptor table,
             GenerateAIPComponents comp,
@@ -339,7 +392,7 @@ namespace ReportGeneration
         {
             // Col 0 — Component ID
             table.Cell()
-                 .PaddingLeft(10).PaddingVertical(2)
+                 .PaddingLeft(30).PaddingVertical(2)
                  .Text(comp.ProjectComponentId).FontSize(7);
 
             // Col 1 — Description
@@ -379,6 +432,10 @@ namespace ReportGeneration
                  .Text(project.OperatingUnit + "/" + project.ImplementingOffice).FontSize(7);
         }
 
+        /// <summary>
+        /// Renders an EAO (Engineering and Administrative Overhead) component row.
+        /// Only Component ID, amount, and implementing office are shown; all other columns are blank.
+        /// </summary>
         static void EaoRow(
             TableDescriptor table,
             GenerateAIPComponents comp,
@@ -386,7 +443,7 @@ namespace ReportGeneration
         {
             // Col 0 — EAO component ID
             table.Cell()
-                 .PaddingLeft(10).PaddingVertical(2)
+                 .PaddingLeft(30).PaddingVertical(2)
                  .Text(comp.ProjectComponentId).FontSize(7);
 
             // Cols 1-4 blank
@@ -408,6 +465,7 @@ namespace ReportGeneration
 
         // ── SHARED HELPERS ─────────────────────────────────────────────────
 
+        /// <summary>Defines the 8 relative table columns: UACS/ID · Description · Type of Work · Target Unit · Physical # · Physical Unit · Amount · OU/IO.</summary>
         static void DefineColumns(TableDescriptor table)
         {
             table.ColumnsDefinition(cols =>
@@ -423,7 +481,7 @@ namespace ReportGeneration
             });
         }
 
-        // Link all components belonging to a group of projects
+        /// <summary>Returns all components whose <c>ProjectComponentId</c> starts with any ProjectId in the group.</summary>
         static List<GenerateAIPComponents> GetComponents(
             IEnumerable<GenerateAIP01> projectGroup,
             List<GenerateAIPComponents> allComponents)
@@ -435,10 +493,11 @@ namespace ReportGeneration
                 .ToList();
         }
 
+        /// <summary>Formats an amount as comma-separated integer (N0), or an empty string when zero.</summary>
         static string FormatAmt(decimal v) =>
             v == 0 ? "" : v.ToString("N0");
 
-        // "Asset Preservation - Preventive Maintenance - Tertiary Roads"
+        /// <summary>Returns the project's <c>Thrust</c> as the group label used by the Thrust/Category row.</summary>
         static string BuildCategoryLabel(GenerateAIP01 p) => p.Thrust ?? "";
     }
 }

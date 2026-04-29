@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using Novell.Directory.Ldap;
@@ -65,19 +66,11 @@ namespace WebAPI.Controllers.Auth
 
                 if (verifyAccount == null) { LoginLog.ValidationMessage = "Account not active"; return UnauthorizedUser(); }
 
-                //var request = new AuthenticatePIS(dto.UserName, dto.Password);
-                //var employee = await APIRequest.XML(request);
-                //return Ok(new { Message = "Login successful", Data = new { Authenticated = true, User = verifyAccount, Employee = employee } });
-                //LdapConnection ldap_conn = new LdapConnection();
-                //await ldap_conn.ConnectAsync($"{Appsetting.LDAP.Host}", Appsetting.LDAP.Port);
-                //await ldap_conn.BindAsync(Appsetting.LDAP.DN.Replace("[[USERNAME]]", dto.UserName), dto.Password);
-                //Console.WriteLine("LDAP Bind Successfull!");
-                //if (ldap_conn.Bound)
-                //{
-                //    ldap_conn.Disconnect();
-
-
-                var claims = new List<Claim>
+                var request = new AuthenticatePIS(dto.UserName, dto.Password);
+                var employee = await APIRequest.XML(request);
+                if(employee.Contains("Valid Login"))
+                {
+                    var claims = new List<Claim>
                     {
                         new Claim(ClaimTypes.NameIdentifier, verifyAccount.UserId),
                         new Claim("Name", verifyAccount.Name),
@@ -85,18 +78,52 @@ namespace WebAPI.Controllers.Auth
                         new Claim("HostName", hostName)
                     };
 
-                var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-                var authProperties = new AuthenticationProperties
-                {
-                    IsPersistent = true
-                };
+                    var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+                    var authProperties = new AuthenticationProperties
+                    {
+                        IsPersistent = true
+                    };
 
-                await HttpContext.SignInAsync(
-                    CookieAuthenticationDefaults.AuthenticationScheme,
-                    new ClaimsPrincipal(claimsIdentity),
-                    authProperties
-                );
-                LoginLog.IsValid = true;
+                    await HttpContext.SignInAsync(
+                        CookieAuthenticationDefaults.AuthenticationScheme,
+                        new ClaimsPrincipal(claimsIdentity),
+                        authProperties
+                    );
+                    LoginLog.IsValid = true;
+                }
+                else
+                {
+                    LoginLog.ValidationMessage = employee;
+                }
+                //LdapConnection ldap_conn = new LdapConnection();
+                //await ldap_conn.ConnectAsync($"{Appsetting.LDAP.Host}", Appsetting.LDAP.Port);
+                //await ldap_conn.BindAsync(Appsetting.LDAP.DN.Replace("[[USERNAME]]", verifyAccount.EmployeeId), dto.Password);
+                //Console.WriteLine("LDAP Bind Successfull!");
+                //if (ldap_conn.Bound)
+                //{
+                //    ldap_conn.Disconnect();
+
+
+                //    var claims = new List<Claim>
+                //    {
+                //        new Claim(ClaimTypes.NameIdentifier, verifyAccount.UserId),
+                //        new Claim("Name", verifyAccount.Name),
+                //        new Claim("UserGroup", JsonConvert.SerializeObject(verifyAccount.UserGroupNames)),
+                //        new Claim("HostName", hostName)
+                //    };
+
+                //    var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+                //    var authProperties = new AuthenticationProperties
+                //    {
+                //        IsPersistent = true
+                //    };
+
+                //    await HttpContext.SignInAsync(
+                //        CookieAuthenticationDefaults.AuthenticationScheme,
+                //        new ClaimsPrincipal(claimsIdentity),
+                //        authProperties
+                //    );
+                //    LoginLog.IsValid = true;
                 //}
                 //else
                 //{
@@ -109,8 +136,14 @@ namespace WebAPI.Controllers.Auth
             }
             catch (LdapException error)
             {
-                Console.WriteLine($"LDAP Error: {error.Message}");
-                return UnauthorizedUser();
+                Console.WriteLine($"Login Error: {error.Message}");
+                var responseObj = new
+                {
+                    Message = "Login Error: " + error.Message,
+                    Data = new { Authenticated = false, User = new { } },
+                    Redirect = "/login"
+                };
+                return Unauthorized(responseObj);
             }
             catch (Exception ex)
             {

@@ -5,15 +5,28 @@ using DBHelper.Models.Procedures;
 
 namespace ReportGeneration
 {
+    /// <summary>
+    /// Generates the <b>AIP Simplified</b> PDF report (A4 Portrait, 4-column layout).
+    /// <para>
+    /// A condensed view of the AIP: each project shows UACS, description, amount, and OU/IO.
+    /// Grouping: Region → Legislative District → DEO → Category (OO) → Thrust → Project.
+    /// </para>
+    /// <para>Data sources: <c>pGenerateAIP01</c>, <c>pGenerateAIPComponents</c>.</para>
+    /// </summary>
     public class AIP02
     {
+        /// <summary>
+        /// Entry point — builds and returns the AIP02 PDF as a byte array.
+        /// </summary>
+        /// <param name="projects">Flat project list from <c>pGenerateAIP01</c>.</param>
+        /// <param name="components">Component rows from <c>pGenerateAIPComponents</c> (used for totals only).</param>
+        /// <returns>PDF byte array suitable for an <c>application/pdf</c> file-download response.</returns>
         public static byte[] GenerateReport(
             List<GenerateAIP01> projects,
             List<GenerateAIPComponents> components)
         {
             int DefaultFs = 8;
             int FooterFs = 7;
-            var logo = GeneratePDF.GetLogo();
             return GeneratePDF.GenerateReport(page =>
             {
                 page.Size(PageSizes.A4);
@@ -25,9 +38,12 @@ namespace ReportGeneration
                 page.Header()
                     .Column(col =>
                     {
-                        GeneratePDF.BuildDPWHHeader(col, logo,
-                            "FY 2025 ANNUAL INFRASTRUCTURE PROGRAM",
-                            subtitle: "Based on General Appropriations Act");
+                        col.Item().AlignCenter()
+                           .Text("FY 2025 ANNUAL INFRASTRUCTURE PROGRAM")
+                           .FontFamily(GeneratePDF.FontFamily).FontSize(10).Bold();
+                        col.Item().AlignCenter()
+                           .Text("Based on General Appropriations Act")
+                           .FontFamily(GeneratePDF.FontFamily).FontSize(8);
 
                         col.Item()
                            .PaddingTop(8)
@@ -60,14 +76,17 @@ namespace ReportGeneration
         static void HeaderCell(TableDescriptor table, string text)
         {
             table.Cell()
-                 .Border(0.3f).BorderColor(Colors.Grey.Lighten1)
-                 .Background(Colors.Grey.Lighten4)
+                 .BorderBottom(0.5f).BorderColor(Colors.Black)
                  .AlignCenter().AlignMiddle()
                  .Padding(4)
                  .Text(text).Bold().FontSize(7);
         }
 
         // ── TABLE CONTENT ─────────────────────────────────────────────────
+        /// <summary>
+        /// Builds the simplified project table.
+        /// Grouping order: Region → Legislative District → DEO → Category (OO) → Thrust → Project.
+        /// </summary>
         static void BuildTableContent(
             IContainer container,
             List<GenerateAIP01> projects,
@@ -164,6 +183,10 @@ namespace ReportGeneration
 
         // ── ROW BUILDERS ──────────────────────────────────────────────────
 
+        /// <summary>
+        /// Renders a summary row (Region / District / DEO / Category level).
+        /// Col 0 = label; Col 1 = count + "projects"; Col 2 = total; Col 3 = blank.
+        /// </summary>
         static void SummaryRow(
             TableDescriptor table,
             string label,
@@ -177,8 +200,8 @@ namespace ReportGeneration
         {
             // Col 0 — label
             table.Cell()
-                 .BorderTop(topBorder ? 0.5f : 0)
-                 .BorderColor(Colors.Grey.Medium)
+                 .BorderTop(topBorder ? 0.3f : 0)
+                 .BorderColor(Colors.Black)
                  .PaddingVertical(3)
                  .PaddingLeft(indent + 2f)
                  .Text(t =>
@@ -211,6 +234,7 @@ namespace ReportGeneration
             table.Cell().Text("");
         }
 
+        /// <summary>Renders a Thrust label row spanning cols 0-1, with total in col 2.</summary>
         static void ThrustRow(TableDescriptor table, string label, decimal total)
         {
             // Col 0-1 — label (spans 2 cols)
@@ -227,6 +251,11 @@ namespace ReportGeneration
             table.Cell().Text("");
         }
 
+        /// <summary>
+        /// Renders <b>two table rows</b> for a project in the simplified AIP layout.
+        /// Row 1: seq (bold) + ProjectId · UACS · total · OU/IO.
+        /// Row 2: description spanning cols 0-1.
+        /// </summary>
         static void ProjectRow(
             TableDescriptor table,
             int seq,
@@ -273,6 +302,7 @@ namespace ReportGeneration
 
         // ── SHARED HELPERS ─────────────────────────────────────────────────
 
+        /// <summary>Defines the 4 relative columns: UACS/Sub Program · Description · Amount · OU/IO.</summary>
         static void DefineColumns(TableDescriptor table)
         {
             table.ColumnsDefinition(cols =>
@@ -284,6 +314,7 @@ namespace ReportGeneration
             });
         }
 
+        /// <summary>Sums <c>TotalComponentCost</c> across all components whose ID starts with any project in the group.</summary>
         static decimal GetTotal(
             IEnumerable<GenerateAIP01> projectGroup,
             List<GenerateAIPComponents> allComponents)
@@ -295,6 +326,7 @@ namespace ReportGeneration
                 .Sum(c => c.TotalComponentCost);
         }
 
+        /// <summary>Formats an amount as comma-separated integer (N0), or an empty string when zero.</summary>
         static string FormatAmt(decimal v) =>
             v == 0 ? "" : v.ToString("N0");
     }

@@ -31,6 +31,17 @@ namespace WebAPI.Controllers.Revision
     public class ReportingController : CoreController
     {
         public ReportingController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
+
+        private static string GetStageFullName(string? stageName) => stageName?.ToUpperInvariant() switch
+        {
+            "BP"                          => "Budget Proposal",
+            "NEP" or "NEP-E"              => "National Expenditure Program",
+            "HGAB" or "HGAB-I"           => "House General Appropriations Bill",
+            "GAA" or "GAA-R"             => "General Appropriations Act",
+            "TF" or "TF-R"               => "Trust Fund",
+            _                             => stageName ?? ""
+        };
+
         #region AIP 
         
         [HttpPost]
@@ -40,10 +51,12 @@ namespace WebAPI.Controllers.Revision
             {
                 var categories = await _db.tOptionProjectCategory
                     .AsNoTracking()
+                    .OrderBy(x => x.CategoryName)
                     .ToListAsync();
                 var regions = await _db.tOptionAdminAreaRegion
                     .AsNoTracking()
                     .Where(x => x.ParticipantId == _Session.RegCode || !_Session.ApplyFilter)
+                    .OrderBy(x => x.Name)
                     .ToListAsync();
                 if (regions == null)
                 {
@@ -55,6 +68,7 @@ namespace WebAPI.Controllers.Revision
                 }
 
                 var RegionIds = regions.Select(r => r.GdbId).ToList();
+                var RegionParticipantIds = regions.Select(x => x.ParticipantId).ToList();
                 var province = await _db.tOptionAdminAreaProvince
                     .AsNoTracking()
                     .Where(x => RegionIds.Contains(x.RegionParticipantId) || !_Session.ApplyFilter)
@@ -64,23 +78,27 @@ namespace WebAPI.Controllers.Revision
                 var legislativeDistricts = await _db.tOptionAdminAreaCongressionalDistrict
                     .AsNoTracking()
                     .Where(x => ProvinceIds.Contains(x.ProvinceGdbId) || !_Session.ApplyFilter)
+                    .OrderBy(x => x.Name)
                     .ToListAsync();
 
                 var deos = await _db.tOptionAdminAreaDistrictEngineeringOffice
                     .AsNoTracking()
-                    .Where(x => RegionIds.Contains(x.RegionParticipantId) || !_Session.ApplyFilter)
+                    .Where(x => RegionParticipantIds.Contains(x.RegionParticipantId) || !_Session.ApplyFilter)
+                    .OrderBy(x => x.Name)
                     .ToListAsync();
 
-                var deoIds = deos.Select(d => d.GdbId).ToList();
+                var DEOParticipantIds = deos.Select(d => d.ParticipantId).ToList();
                 var implementingOffices = await _db.vAdminImplementingOffice
                     .AsNoTracking()
-                    .Where(x => (deoIds.Contains(x.ParticipantId) || x.OrgType == "UPMO") || !_Session.ApplyFilter)
+                    .Where(x => (DEOParticipantIds.Contains(x.ParticipantId) || x.OrgType == "UPMO") || !_Session.ApplyFilter)
+                    .OrderBy(x => x.Name)
                     .ToListAsync();
 
                 var ioIds = implementingOffices.Select(io => io.ParticipantId).ToList();
                 var operatingUnits = await _db.vAdminOperatingUnit
                     .AsNoTracking()
                     .Where(x => ioIds.Contains(x.ParticipantId) || !_Session.ApplyFilter)
+                    .OrderBy(x => x.Name)
                     .ToListAsync();
                 return new OkObjectResult(new
                 {
@@ -103,22 +121,23 @@ namespace WebAPI.Controllers.Revision
         {
             try
             {
-                var ProgramDetails = _db.vProgramDetails
+                var programDetailsQuery = _db.vProgramDetails
                 .AsNoTracking()
                 .Where(x => x.ProgramId == dto.ProgramId && x.StageName == dto.StageName);
 
                 if (_Session.ApplyFilter)
                 {
-                    ProgramDetails = ProgramDetails.Where(x => x.DataSecurityGroup.Contains(_Session.RegCode));
+                    programDetailsQuery = programDetailsQuery.Where(x => x.DataSecurityGroup.Contains(_Session.RegCode));
                     var Region = await _db.tOptionAdminAreaRegion.FirstOrDefaultAsync(x => _Session.RegCode == x.ParticipantId);
-                    dto.RegionName = dto.RegionName ?? Region?.Name;
-                }
-                var param = new Dictionary<string, object> {
-                    { "@ProgramId", dto.ProgramId }
-                };
-                if (!string.IsNullOrEmpty(dto.StageName)) { param.Add("@StageName", dto.StageName); }
-                if (!string.IsNullOrEmpty(dto.CategoryName)) { param.Add("@CategoryName", dto.CategoryName); }
-                if (!string.IsNullOrEmpty(dto.RegionName)) { param.Add("@RegionName", dto.RegionName); }
+                         dto.RegionName = dto.RegionName ?? Region?.Name;
+                    }
+                    var ProgramDetails = await programDetailsQuery.FirstOrDefaultAsync();
+                    var param = new Dictionary<string, object> {
+                        { "@ProgramId", dto.ProgramId }
+                    };
+                    if (!string.IsNullOrEmpty(dto.StageName)) { param.Add("@StageName", dto.StageName); }
+                    if (!string.IsNullOrEmpty(dto.CategoryName)) { param.Add("@CategoryName", dto.CategoryName); }
+                    if (!string.IsNullOrEmpty(dto.RegionName)) { param.Add("@RegionName", dto.RegionName); }
                 if (!string.IsNullOrEmpty(dto.OperatingUnitName)) { param.Add("@OperatingUnitName", dto.OperatingUnitName); }
                 if (!string.IsNullOrEmpty(dto.DistrictEngineeringOffice)) { param.Add("@DistrictEngineeringOffice", dto.DistrictEngineeringOffice); }
                 if (!string.IsNullOrEmpty(dto.ImplementingOfficeName)) { param.Add("@ImplementingOfficeName", dto.ImplementingOfficeName); }
@@ -157,7 +176,9 @@ namespace WebAPI.Controllers.Revision
                     @LegislativeDistrictName = 'Region I'--Optional;
                  */
 
-                var bytes = AIP.GenerateReport(aip, aipcomponents);
+                var bytes = AIP.GenerateReport(aip, aipcomponents,
+                    year: ProgramDetails?.YearStart ?? 0,
+                    stageName: GetStageFullName(ProgramDetails?.StageName));
 
                 var fileName = $"AIP_Report.pdf";
                 return File(bytes, "application/pdf", fileName);

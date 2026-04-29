@@ -179,13 +179,65 @@ namespace WebAPI.Controllers.Projects
                 var Category = await _db.tOptionProjectCategory.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.CategoryName).ToListAsync();
                 var Thrust = await _db.tProjectThrustLists.AsNoTracking().OrderBy(x => x.ThrustDescription).ToListAsync();
                 var Origin = await _db.tOptionProjectOrigin.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-                var Province = await _db.tOptionAdminAreaProvince.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-                var City = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-                var LD = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-                var IO = await _db.vAdminImplementingOffice.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-                var OperatingUnit = await _db.vAdminOperatingUnit.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-                var DEO = await _db.tOptionAdminAreaDistrictEngineeringOffice.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-                var Region = await _db.tOptionAdminAreaRegion.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+
+
+
+                var Region = await _db.tOptionAdminAreaRegion
+                    .AsNoTracking()
+                    .Where(x => x.ParticipantId == _Session.RegCode || !_Session.ApplyFilter)
+                    .ToListAsync();
+                if (Region == null)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Title = "Region Not Found",
+                        Message = "No region found for the current user's session. Please contact the administrator."
+                    });
+                }
+
+                var RegionIds = Region.Select(r => r.GdbId).ToList();
+                var RegionParticipantIds = Region.Select(x => x.ParticipantId).ToList();
+                var Province = await _db.tOptionAdminAreaProvince
+                    .AsNoTracking()
+                    .Where(x => RegionIds.Contains(x.RegionParticipantId) || !_Session.ApplyFilter)
+                    .ToListAsync();
+
+                var ProvinceIds = Province.Select(p => p.GdbId).ToList();
+
+                var City = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().Where(x => ProvinceIds.Contains(x.ProvinceGdbId)).OrderBy(x => x.Name).ToListAsync();
+
+                var LD = await _db.tOptionAdminAreaCongressionalDistrict
+                    .AsNoTracking()
+                    .Where(x => ProvinceIds.Contains(x.ProvinceGdbId) || !_Session.ApplyFilter)
+                    .ToListAsync();
+
+                var DEO = await _db.tOptionAdminAreaDistrictEngineeringOffice
+                    .AsNoTracking()
+                    .Where(x => RegionParticipantIds.Contains(x.RegionParticipantId) || !_Session.ApplyFilter)
+                    .ToListAsync();
+
+                var DEOParticipantIds = DEO.Select(d => d.ParticipantId).ToList();
+                var IO = await _db.vAdminImplementingOffice
+                    .AsNoTracking()
+                    .Where(x => (DEOParticipantIds.Contains(x.ParticipantId) || x.OrgType == "UPMO") || !_Session.ApplyFilter)
+                    .ToListAsync();
+
+                var ioIds = IO.Select(io => io.ParticipantId).ToList();
+                var OperatingUnit = await _db.vAdminOperatingUnit
+                    .AsNoTracking()
+                    .Where(x => ioIds.Contains(x.ParticipantId) || !_Session.ApplyFilter)
+                    .ToListAsync();
+
+
+                //var Province = await _db.tOptionAdminAreaProvince.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                //var City = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                //var LD = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                //var IO = await _db.vAdminImplementingOffice.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                //var OperatingUnit = await _db.vAdminOperatingUnit.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                //var DEO = await _db.tOptionAdminAreaDistrictEngineeringOffice.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                //var Region = await _db.tOptionAdminAreaRegion.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+
+
                 var Feasib = await _db.tOptionProjectFeasibilityStudy.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var Agency = await _db.tOptionProjectAgency.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var ImplementationMode = await _db.tOptionProjectImplementationMode.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
@@ -434,13 +486,16 @@ namespace WebAPI.Controllers.Projects
         {
             try
             {
-                //var Project = await _db.tProjectRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dto.)
+                var regionCode = _Session.ApplyFilter ? _Session.RegCode : null;
                 var Project = await _db.vProjectDetails
-                .FromSqlInterpolated($"SELECT * FROM fProjectDetails({dto.ProjectId}) fp WHERE fp.StageName = {dto.StageName} AND fp.ProjectId = {dto.ProjectId}")
+                .FromSqlInterpolated($@"
+                    SELECT * FROM fProjectDetails({dto.ProjectId}) fp 
+                    WHERE fp.StageName = {dto.StageName} 
+                    AND fp.ProjectId = {dto.ProjectId}
+                    AND ({regionCode} IS NULL OR fp.Region = {regionCode})")
                 .AsNoTracking()
                 .FirstOrDefaultAsync();
-                //var Project = await _db.vProjectDetails.AsNoTracking().Where(x => x.ReferenceId == dto.ProjectId).OrderByDescending(x => x.RevisionNumber).FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId);
-                if(Project == null)
+                if (Project == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
                 }
@@ -479,13 +534,63 @@ namespace WebAPI.Controllers.Projects
                 var Category = await _db.tOptionProjectCategory.AsNoTracking().Where(x => (x.ValidUntil >= CurrentYear || x.ValidUntil == 0) || x.CategoryId == Project.Category).OrderBy(x => x.CategoryName).ToListAsync();
                 var Thrust = await _db.tProjectThrustLists.AsNoTracking().OrderBy(x => x.ThrustDescription).ToListAsync();
                 var Origin = await _db.tOptionProjectOrigin.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-                var Province = await _db.tOptionAdminAreaProvince.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-                var City = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-                var LD = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-                var IO = await _db.vAdminImplementingOffice.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-                var OperatingUnit = await _db.vAdminOperatingUnit.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-                var DEO = await _db.tOptionAdminAreaDistrictEngineeringOffice.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
-                var Region = await _db.tOptionAdminAreaRegion.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+
+
+                var Region = await _db.tOptionAdminAreaRegion
+                    .AsNoTracking()
+                    .Where(x => x.ParticipantId == _Session.RegCode || !_Session.ApplyFilter)
+                    .ToListAsync();
+                if (Region == null)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Title = "Region Not Found",
+                        Message = "No region found for the current user's session. Please contact the administrator."
+                    });
+                }
+                var RegionIds = Region.Select(r => r.GdbId).ToList();
+                var RegionParticipantIds = Region.Select(x => x.ParticipantId).ToList();
+                var Province = await _db.tOptionAdminAreaProvince
+                    .AsNoTracking()
+                    .Where(x => RegionIds.Contains(x.RegionParticipantId) || !_Session.ApplyFilter)
+                    .ToListAsync();
+
+                var ProvinceIds = Province.Select(p => p.GdbId).ToList();
+
+                var City = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().Where(x => ProvinceIds.Contains(x.ProvinceGdbId)).OrderBy(x => x.Name).ToListAsync();
+
+                var LD = await _db.tOptionAdminAreaCongressionalDistrict
+                    .AsNoTracking()
+                    .Where(x => ProvinceIds.Contains(x.ProvinceGdbId) || !_Session.ApplyFilter)
+                    .ToListAsync();
+
+                var DEO = await _db.tOptionAdminAreaDistrictEngineeringOffice
+                    .AsNoTracking()
+                    .Where(x => RegionParticipantIds.Contains(x.RegionParticipantId) || !_Session.ApplyFilter)
+                    .ToListAsync();
+
+                var DEOParticipantIds = DEO.Select(d => d.ParticipantId).ToList();
+                var IO = await _db.vAdminImplementingOffice
+                    .AsNoTracking()
+                    .Where(x => (DEOParticipantIds.Contains(x.ParticipantId) || x.OrgType == "UPMO") || !_Session.ApplyFilter)
+                    .ToListAsync();
+
+                var ioIds = IO.Select(io => io.ParticipantId).ToList();
+                var OperatingUnit = await _db.vAdminOperatingUnit
+                    .AsNoTracking()
+                    .Where(x => ioIds.Contains(x.ParticipantId) || !_Session.ApplyFilter)
+                    .ToListAsync();
+
+
+                //var Province = await _db.tOptionAdminAreaProvince.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                //var City = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                //var LD = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                //var IO = await _db.vAdminImplementingOffice.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                //var OperatingUnit = await _db.vAdminOperatingUnit.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                //var DEO = await _db.tOptionAdminAreaDistrictEngineeringOffice.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+                //var Region = await _db.tOptionAdminAreaRegion.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+
+
                 var Feasib = await _db.tOptionProjectFeasibilityStudy.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var Agency = await _db.tOptionProjectAgency.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
                 var ImplementationMode = await _db.tOptionProjectImplementationMode.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
@@ -579,7 +684,19 @@ namespace WebAPI.Controllers.Projects
                 bool hasUpdated = false;
                 DateTime CurrentDate = Functions.CurrentDate();;
                 List<TransactionLog> transactionLogs = new List<TransactionLog>();
-
+                var regionCode = _Session.ApplyFilter ? _Session.RegCode : null;
+                var Project = await _db.vProjectDetails
+                .FromSqlInterpolated($@"
+                    SELECT * FROM fProjectDetails({dto.ProjectDetails.ProjectId}) fp 
+                    WHERE fp.StageName = {dto.ProjectDetails.StageName} 
+                    AND fp.ProjectId = {dto.ProjectDetails.ProjectId}
+                    AND ({regionCode} IS NULL OR fp.Region = {regionCode})")
+                .AsNoTracking()
+                .FirstOrDefaultAsync();
+                if (Project == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
+                }
                 var CurrentProgramVersion = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProjectDetails.ProgramId);
                 if(CurrentProgramVersion == null)
                 {
@@ -611,19 +728,6 @@ namespace WebAPI.Controllers.Projects
                     {
                         return Ok(new { Message = $"Description: {dto.ProjectDetails.Description} already exist in {ValidateProgram.ProjectId}! Do you still want to proceed?", Title = "Description Exists", Type = "Prompt" });
                     }
-                }
-                var Project = await _db.vProjectDetails
-                .FromSqlInterpolated($"SELECT * FROM fProjectDetails({dto.ProjectDetails.ProjectId}) fp WHERE fp.ProjectId = {dto.ProjectDetails.ProjectId} AND fp.StageName = {dto.ProjectDetails.StageName}")
-                .AsNoTracking()
-                .FirstOrDefaultAsync();
-                //var Project = await _db.vProjectDetails.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectDetails.ProjectId);
-                if (Project == null)
-                {
-                    return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
-                }
-                if(_Session.ApplyFilter && Project.Region != _Session.RegCode)
-                {
-                    return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
                 }
                 var Program = await _db.vProgramDetails.AsNoTracking().OrderByDescending(x => x.RevisionNumber).FirstOrDefaultAsync(x => x.ProgramId == Project.ProgramId && x.StageName == dto.ProjectDetails.StageName);
                 if (Program == null)
@@ -2244,11 +2348,15 @@ namespace WebAPI.Controllers.Projects
             var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                var regionCode = _Session.ApplyFilter ? _Session.RegCode : null;
                 var Project = await _db.vProjectDetails
-                .FromSqlInterpolated($"SELECT * FROM fProjectDetails({dto.ProjectId}) fp WHERE fp.ProjectId = {dto.ProjectId}")
+                .FromSqlInterpolated($@"
+                    SELECT * FROM fProjectDetails({dto.ProjectId}) fp 
+                    WHERE fp.StageName = {dto.StageName} 
+                    AND fp.ProjectId = {dto.ProjectId}
+                    AND ({regionCode} IS NULL OR fp.Region = {regionCode})")
                 .AsNoTracking()
                 .FirstOrDefaultAsync();
-                //var Project = await _db.vProjectDetails.FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId);
                 if(Project == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
@@ -2294,8 +2402,13 @@ namespace WebAPI.Controllers.Projects
             var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                var regionCode = _Session.ApplyFilter ? _Session.RegCode : null;
                 var Project = await _db.vProjectDetails
-                .FromSqlInterpolated($"SELECT * FROM fProjectDetails({dto.ProjectId}) fp WHERE fp.ProjectId = {dto.ProjectId} AND fp.StageName = {dto.StageName}")
+                .FromSqlInterpolated($@"
+                    SELECT * FROM fProjectDetails({dto.ProjectId}) fp 
+                    WHERE fp.StageName = {dto.StageName} 
+                    AND fp.ProjectId = {dto.ProjectId}
+                    AND ({regionCode} IS NULL OR fp.Region = {regionCode})")
                 .AsNoTracking()
                 .FirstOrDefaultAsync();
                 if (Project == null)
@@ -2344,11 +2457,15 @@ namespace WebAPI.Controllers.Projects
             var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                var regionCode = _Session.ApplyFilter ? _Session.RegCode : null;
                 var Project = await _db.vProjectDetails
-                .FromSqlInterpolated($"SELECT * FROM fProjectDetails({dto.ProjectId}) fp WHERE fp.ProjectId = {dto.ProjectId} AND fp.StageName = {dto.StageName}")
+                .FromSqlInterpolated($@"
+                    SELECT * FROM fProjectDetails({dto.ProjectId}) fp 
+                    WHERE fp.StageName = {dto.StageName} 
+                    AND fp.ProjectId = {dto.ProjectId}
+                    AND ({regionCode} IS NULL OR fp.Region = {regionCode})")
                 .AsNoTracking()
                 .FirstOrDefaultAsync();
-                //var Project = await _db.vProjectDetails.FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId);
                 if(Project == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
@@ -2403,8 +2520,13 @@ namespace WebAPI.Controllers.Projects
             var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
+                var regionCode = _Session.ApplyFilter ? _Session.RegCode : null;
                 var Project = await _db.vProjectDetails
-                .FromSqlInterpolated($"SELECT * FROM fProjectDetails({dto.ProjectId}) fp WHERE fp.ProjectId = {dto.ProjectId} AND fp.StageName = {dto.StageName}")
+                .FromSqlInterpolated($@"
+                    SELECT * FROM fProjectDetails({dto.ProjectId}) fp 
+                    WHERE fp.StageName = {dto.StageName} 
+                    AND fp.ProjectId = {dto.ProjectId}
+                    AND ({regionCode} IS NULL OR fp.Region = {regionCode})")
                 .AsNoTracking()
                 .FirstOrDefaultAsync();
                 if (Project == null)
