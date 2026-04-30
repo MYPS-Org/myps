@@ -53,7 +53,7 @@ const ProjectionAnalysisTab: React.FC<ProjectionAnalysisTabProps> = ({
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200">
       <div className="px-6 py-4 border-b">
-        <h2 className="text-lg font-semibold text-gray-900">Multi-Year Programming</h2>
+        <h2 className="text-lg font-semibold text-gray-900">Multi-Year Planning Scheduling</h2>
         <p className="text-sm text-gray-600 mt-1">
           Compare your multi-year project estimates with actual annual budget allocations from linked projects
         </p>
