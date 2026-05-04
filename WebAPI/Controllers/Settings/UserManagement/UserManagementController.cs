@@ -244,7 +244,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                     _db.tPermissionControllers.UpdateRange(AllController);
 
                     //Update any controllers that are currently not linked to any module (ModuleName is NULL) but are marked Linked = true in the payload, to link to this module.a
-                    if (AllController.Count < 1 && controllerNames.Count > 0)
+                    if (AllController.Count != controllerNames.Count)
                     {
                         var NoModulController = await _db.tPermissionControllers
                             .AsNoTracking()
@@ -287,7 +287,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
 
                     _db.tPermissionViews.UpdateRange(AllViews);
                     //Update any views that are currently not linked to any module (ModuleName is NULL) but are marked Linked = true in the payload, to link to this module.
-                    if (AllViews.Count < 1 && routeNames.Count > 0)
+                    if (AllViews.Count != routeNames.Count)
                     {
                         var NoModulViews = await _db.tPermissionViews
                             .AsNoTracking()
