@@ -30,7 +30,7 @@ namespace WebAPI.Controllers.Importing
     [Route("api/[controller]/[action]")]
     public class ImportingController : CoreController
     {
-        public ImportingController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
+        public ImportingController(MYPSDbContext db, IProducer<Null, string> producer, PCMADbContext pcma) : base(db, producer, pcma) { }
         
         [HttpPost]
         public async Task<IActionResult> ImportProject([FromBody] ImportProjectDTO dto)

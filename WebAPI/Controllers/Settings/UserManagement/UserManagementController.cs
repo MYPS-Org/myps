@@ -19,7 +19,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
     [Route("api/[controller]/[action]")]
     public class UserManagementController : CoreController
     {
-        public UserManagementController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
+        public UserManagementController(MYPSDbContext db, IProducer<Null, string> producer, PCMADbContext pcma) : base(db, producer, pcma) { }
         #region MODULE TAB
         // ── ShowAppModules ────────────────────────────────────────────────────────────
         // Fetches vAppModules (raw), deserializes the JSON Controllers/Views columns,

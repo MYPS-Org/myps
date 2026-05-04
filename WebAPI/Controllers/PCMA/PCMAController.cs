@@ -15,7 +15,7 @@ namespace WebAPI.Controllers.MockUps
     [Route("api/[controller]/[action]")]
     public class PCMAController : CoreController
     {
-        public PCMAController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
+        public PCMAController(MYPSDbContext db, IProducer<Null, string> producer, PCMADbContext pcma) : base(db, producer, pcma) { }
         [HttpPost]
         public async Task<IActionResult> PublishProgram([FromBody] PublishProgramDTO dto)
         {
@@ -35,7 +35,7 @@ namespace WebAPI.Controllers.MockUps
                 var pcmaData = new PublishPCMA
                 {
                     ProgramId = dto.ProgramId,
-                    MYPSUserName = _Session.UserId
+                    MYPSUserName = _Session.Name
                 };
                 var request = new PCMA(pcmaData);
                 var employee = await APIRequest.XML(request);
@@ -51,7 +51,7 @@ namespace WebAPI.Controllers.MockUps
                 }
                 var param = new Dictionary<string, object> { { "@ProgramId", dto.ProgramId } };
                 int check = Sql.NormalQuery<int>(
-                    Appsetting.ConnectionString,
+                    Appsetting.DbConnections.MYPSDb,
                     "EXEC pPublishProgram @ProgramId = @ProgramId", param
                 ).FirstOrDefault();
                 return Ok(new

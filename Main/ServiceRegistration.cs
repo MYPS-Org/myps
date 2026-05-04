@@ -17,8 +17,14 @@ namespace Main
         #region Builder
         public static IServiceCollection PrepareDatabaseConnection(this IServiceCollection Services)
         {
-            Services.AddDbContext<AppDbContext>(options => {
-                options.UseSqlServer(Appsetting.ConnectionString);
+            Services.AddDbContext<MYPSDbContext>(options => {
+                options.UseSqlServer(Appsetting.DbConnections.MYPSDb);
+                options.EnableSensitiveDataLogging();
+                options.EnableDetailedErrors();
+                options.LogTo(Console.WriteLine, LogLevel.Information);
+            });
+            Services.AddDbContext<PCMADbContext>(options => {
+                options.UseSqlServer(Appsetting.DbConnections.PCMADb);
                 options.EnableSensitiveDataLogging();
                 options.EnableDetailedErrors();
                 options.LogTo(Console.WriteLine, LogLevel.Information);
@@ -84,7 +90,7 @@ namespace Main
             using (var serviceProvider = services.BuildServiceProvider())
             using (var scope = serviceProvider.CreateScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var db = scope.ServiceProvider.GetRequiredService<MYPSDbContext>();
                 var roles = await db.tGroups.Select(r => r.GroupName).ToListAsync();
                 if (roles != null)
                 {

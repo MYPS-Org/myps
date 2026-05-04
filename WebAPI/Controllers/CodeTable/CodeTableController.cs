@@ -27,7 +27,7 @@ namespace WebAPI.Controllers.CodeTable
     [Route("api/[controller]/[action]")]
     public class CodeTableController : CoreController
     {
-        public CodeTableController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
+        public CodeTableController(MYPSDbContext db, IProducer<Null, string> producer, PCMADbContext pcma) : base(db, producer, pcma) { }
         
         [HttpPost]
         public async Task<IActionResult> GetAllCodeTables()

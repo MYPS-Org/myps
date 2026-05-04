@@ -3,9 +3,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DBHelper.Data
 {
-    public class AppDbContext : DbContext
+    public class MYPSDbContext : DbContext
     {
-        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) {
+        public MYPSDbContext(DbContextOptions<MYPSDbContext> options) : base(options) {
             this.Database.SetCommandTimeout(TimeSpan.FromMinutes(30));
         }
         #region Tables

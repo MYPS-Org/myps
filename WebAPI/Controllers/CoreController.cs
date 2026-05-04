@@ -25,13 +25,15 @@ namespace WebAPI.Controllers
     [PermissionFilter]
     public abstract class CoreController : Controller
     {
-        public AppDbContext _db;
+        public MYPSDbContext _db;
+        public PCMADbContext _pcma;
         public DBHelper.Models.Views.Users _Session = new DBHelper.Models.Views.Users();
         private readonly IProducer<Null, string> _producer;
-        public CoreController(AppDbContext db, IProducer<Null, string> producer)
+        public CoreController(MYPSDbContext db, IProducer<Null, string> producer, PCMADbContext pcma)
         {
             _db = db;
             _producer = producer;
+            _pcma = pcma;
         }
         public override void OnActionExecuting(ActionExecutingContext context)
         {
