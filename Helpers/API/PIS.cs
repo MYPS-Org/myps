@@ -18,6 +18,11 @@ namespace Helpers.API
         protected override string SoapAction => "\"https://www.dpwh.gov.ph/pis_get_employee\"";
         internal override string RequestUri => Appsetting.PIS.Host;
 
+        protected override string GetSoapHeader()
+        => $@"<UserDetails xmlns=""https://www.dpwh.gov.ph/"">
+                        <userName>{Appsetting.PIS.userName}</userName>
+                        <password>{Appsetting.PIS.password}</password>
+                    </UserDetails>";
         protected override string GetSoapBody()
             => $@"<pis_get_employee xmlns=""https://www.dpwh.gov.ph/"">
                         <employee_id>{_employeeId}</employee_id>

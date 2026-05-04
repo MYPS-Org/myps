@@ -23,7 +23,7 @@ namespace WebAPI.Controllers.Auth
     [Route("api/[controller]/[action]")]
     public class AuthController : CoreController
     {
-        public AuthController(AppDbContext db, IProducer<Null, string> producer) : base (db, producer) { }
+        public AuthController(MYPSDbContext db, IProducer<Null, string> producer, PCMADbContext pcma) : base (db, producer, pcma) { }
         [AllowAnonymous]
         [HttpGet]
         public async Task<IActionResult> GetEnvironment()

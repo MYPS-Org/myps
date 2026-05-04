@@ -25,12 +25,8 @@ namespace Helpers
         /// Return <see langword="null"/> or an empty string to omit the header block entirely.
         /// Override to provide a custom SOAP header or to remove the default credentials header.
         /// </summary>
-        protected virtual string GetSoapHeader()
-            => $@"<UserDetails xmlns=""https://www.dpwh.gov.ph/"">
-                        <userName>{Appsetting.PIS.userName}</userName>
-                        <password>{Appsetting.PIS.password}</password>
-                    </UserDetails>";
-
+        protected abstract string GetSoapHeader();
+        
         /// <summary>
         /// Override to add or modify HTTP request headers beyond <c>SOAPAction</c>.
         /// </summary>

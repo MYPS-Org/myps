@@ -18,7 +18,21 @@ namespace WebAPI.Controllers.MockUps
     [Route("api/[controller]/[action]")]
     public class PISController : CoreController
     {
-        public PISController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
+        public PISController(MYPSDbContext db, IProducer<Null, string> producer, PCMADbContext pcma) : base(db, producer, pcma) { }
+        [AllowAnonymous]
+        [HttpPost]
+        public async Task<IActionResult> test()
+        {
+            try
+            {
+                var aa = _pcma.QueryFromFile<PCMAProjectComponentStatus>("PCMA").ToList();
+                return Ok(new { Tee = aa });
+            }
+            catch(Exception e)
+            {
+                return ExceptionHandler(e);
+            }
+        }
         [HttpPost]
         public async Task<IActionResult> SearchUser([FromBody] SearchUserDTO dto)
         {

@@ -14,7 +14,7 @@ namespace WebAPI.Controllers.ProjectGroup
     [Route("api/[controller]/[action]")]
     public class ProjectGroupController : CoreController
     {
-        public ProjectGroupController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
+        public ProjectGroupController(MYPSDbContext db, IProducer<Null, string> producer, PCMADbContext pcma) : base(db, producer, pcma) { }
         #region Project Lists
         
         [HttpPost]
