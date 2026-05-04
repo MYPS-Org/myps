@@ -30,7 +30,7 @@ namespace WebAPI.Controllers.Revision
     [Route("api/[controller]/[action]")]
     public class ReportingController : CoreController
     {
-        public ReportingController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
+        public ReportingController(MYPSDbContext db, IProducer<Null, string> producer, PCMADbContext pcma) : base(db, producer, pcma) { }
 
         private static string GetStageFullName(string? stageName) => stageName?.ToUpperInvariant() switch
         {
@@ -144,7 +144,7 @@ namespace WebAPI.Controllers.Revision
                 if (!string.IsNullOrEmpty(dto.LegislativeDistrictName)) { param.Add("@LegislativeDistrictName", dto.LegislativeDistrictName); }
                 string aipSql = "EXEC pGenerateAIP01 " + string.Join(", ", param.Keys.Select(k => $"{k} = {k}"));
                 List<GenerateAIP01> aip = Sql.NormalQuery<GenerateAIP01>(
-                    Appsetting.ConnectionString,
+                    Appsetting.DbConnections.MYPSDb,
                     aipSql, param
                 );
                 if (aip.Count < 1)
@@ -159,7 +159,7 @@ namespace WebAPI.Controllers.Revision
                     { "@StageName", aip.FirstOrDefault()?.StageName }
                 };
                 List<GenerateAIPComponents> aipcomponents = Sql.NormalQuery<GenerateAIPComponents>(
-                    Appsetting.ConnectionString,
+                    Appsetting.DbConnections.MYPSDb,
                     "EXEC pGenerateAIPComponents " +
                     "@ProgramId = @ProgramId, " +
                     "@StageName = @StageName", param
@@ -217,7 +217,7 @@ namespace WebAPI.Controllers.Revision
                 if (!string.IsNullOrEmpty(dto.LegislativeDistrictName)) { param.Add("@LegislativeDistrictName", dto.LegislativeDistrictName); }
                 string aipSql = "EXEC pGenerateAIP01 " + string.Join(", ", param.Keys.Select(k => $"{k} = {k}"));
                 List<GenerateAIP01> aip = Sql.NormalQuery<GenerateAIP01>(
-                    Appsetting.ConnectionString,
+                    Appsetting.DbConnections.MYPSDb,
                     aipSql, param
                 );
                 if (aip.Count < 1)
@@ -233,7 +233,7 @@ namespace WebAPI.Controllers.Revision
                     { "@StageName", aip.FirstOrDefault()?.StageName }
                 };
                 List<GenerateAIPComponents> aipcomponents = Sql.NormalQuery<GenerateAIPComponents>(
-                    Appsetting.ConnectionString,
+                    Appsetting.DbConnections.MYPSDb,
                     "EXEC pGenerateAIPComponents " +
                     "@ProgramId = @ProgramId, " +
                     "@StageName = @StageName", param
@@ -305,7 +305,7 @@ namespace WebAPI.Controllers.Revision
                 if (!string.IsNullOrEmpty(dto.RegionName)) { param.Add("@RegionName", dto.RegionName); }
                 string aipSql = "EXEC pGenerateRBP " + string.Join(", ", param.Keys.Select(k => $"{k} = {k}"));
                 List<DBHelper.Models.Procedures.GenerateRBPComponents> RBP = Sql.NormalQuery<DBHelper.Models.Procedures.GenerateRBPComponents>(
-                    Appsetting.ConnectionString,
+                    Appsetting.DbConnections.MYPSDb,
                     aipSql, param
                 );
                 if (RBP.Count == 0)
@@ -352,7 +352,7 @@ namespace WebAPI.Controllers.Revision
                 if (!string.IsNullOrEmpty(dto.RegionName)) { param.Add("@RegionName", dto.RegionName); }
                 string aipSql = "EXEC pGenerateRBP " + string.Join(", ", param.Keys.Select(k => $"{k} = {k}"));
                 List<DBHelper.Models.Procedures.GenerateRBP> RBP = Sql.NormalQuery<DBHelper.Models.Procedures.GenerateRBP>(
-                    Appsetting.ConnectionString,
+                    Appsetting.DbConnections.MYPSDb,
                     aipSql, param
                 );
                 if (RBP.Count == 0) {
@@ -398,7 +398,7 @@ namespace WebAPI.Controllers.Revision
                 if (!string.IsNullOrEmpty(dto.RegionName)) { param.Add("@RegionName", dto.RegionName); }
                 string aipSql = "EXEC pGenerateRBP " + string.Join(", ", param.Keys.Select(k => $"{k} = {k}"));
                 List<DBHelper.Models.Procedures.GenerateRBP> RBP = Sql.NormalQuery<DBHelper.Models.Procedures.GenerateRBP>(
-                    Appsetting.ConnectionString,
+                    Appsetting.DbConnections.MYPSDb,
                     aipSql, param
                 );
                 if(RBP.Count == 0)
@@ -465,7 +465,7 @@ namespace WebAPI.Controllers.Revision
                 if (!string.IsNullOrEmpty(dto.RegionName)) { param.Add("@RegionName", dto.RegionName); }
                 string aipSql = "EXEC pGenerateRDIP " + string.Join(", ", param.Keys.Select(k => $"{k} = {k}"));
                 List<DBHelper.Models.Procedures.GenerateRDIP> RDIP = Sql.NormalQuery<DBHelper.Models.Procedures.GenerateRDIP>(
-                    Appsetting.ConnectionString,
+                    Appsetting.DbConnections.MYPSDb,
                     aipSql, param
                 );
                 if(RDIP.Count == 0)
@@ -516,7 +516,7 @@ namespace WebAPI.Controllers.Revision
                 if (!string.IsNullOrEmpty(dto.StageName)) { param.Add("@StageName", dto.StageName); }
                 string aipSql = "EXEC pExportRawProjects " + string.Join(", ", param.Keys.Select(k => $"{k} = {k}"));
                 List<ExportRawProjects> rawProjects = Sql.NormalQuery<ExportRawProjects>(
-                    Appsetting.ConnectionString,
+                    Appsetting.DbConnections.MYPSDb,
                     aipSql, param
                 );
                 var projectIds = rawProjects.Select(p => p.ProjectId).ToList();
@@ -547,7 +547,7 @@ namespace WebAPI.Controllers.Revision
                 };
                 string WorkItemSql = "EXEC pExportRawProjectsMajorItems " + string.Join(", ", WorkItemParams.Keys.Select(k => $"{k} = {k}"));
                 List<ProjectMajorWorkItem> majorWorkItems = Sql.NormalQuery<ProjectMajorWorkItem>(
-                    Appsetting.ConnectionString,
+                    Appsetting.DbConnections.MYPSDb,
                     WorkItemSql, WorkItemParams
                 );
                 

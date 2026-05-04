@@ -42,7 +42,7 @@ namespace WebAPI.Controllers
             if (!hasAllowAnonymous)
             {
                 var _db = context.HttpContext.RequestServices
-                    .GetService<AppDbContext>();
+                    .GetService<MYPSDbContext>();
 
                 if (_db == null)
                 {

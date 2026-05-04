@@ -20,7 +20,7 @@ namespace WebAPI.Controllers.Programs
     [Route("api/[controller]/[action]")]
     public class FutureInfraController : CoreController
     {
-        public FutureInfraController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
+        public FutureInfraController(MYPSDbContext db, IProducer<Null, string> producer, PCMADbContext pcma) : base(db, producer, pcma) { }
         
         [HttpPost]
         public async Task<IActionResult> GetInfraInfo()

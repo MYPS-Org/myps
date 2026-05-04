@@ -18,14 +18,18 @@ namespace Helpers.API
 
         internal override string RequestUri => Appsetting.PCMA.Host;
 
+        protected override string GetSoapHeader()
+            => $@"<ValidationSoapHeader xmlns=""http://tempuri.org/"">
+                        <userName>{Appsetting.PCMA.userName}</userName>
+                        <password>{Appsetting.PCMA.password}</password>
+                    </ValidationSoapHeader>";
         protected override string GetSoapBody()
-        {
-            return $@"<copyMYPSData xmlns=""http://tempuri.org/"">
+            => $@"<copyMYPSData xmlns=""http://tempuri.org/"">
+                        <Transaction_Type>1</Transaction_Type>
                         <Program_ID>{_pcmaData.ProgramId}</Program_ID>
                         <Project_ID>string</Project_ID>
                         <Projects>{_pcmaData.MYPSUserName}</Projects>
                     </copyMYPSData>";
-        }
 
         internal override async Task<PCMAResponse> ReadResponseContent(HttpContent responseContent)
         {

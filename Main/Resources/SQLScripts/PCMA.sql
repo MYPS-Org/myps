@@ -1,0 +1,22 @@
+SELECT TOP 10
+	ProgramName AS ProgramName,
+	myps_project_id_FK AS ProjectId,
+	project_component_id AS ProjectComponentId,
+	estimated_project_component_cost AS PlannedProjectComponentCostTotal,
+	project_component_cost AS RevisedProjectComponentCost,
+	proj_comp_construction_status_code AS ConstructionStatusCode,
+	proj_comp_construction_status_desc AS ConstructionStatusName,
+	reason_if_NYS_code AS NotYetStartedCode,
+	reason_if_NYS_desc AS NotYetStartedName,
+	is_packaged AS isPackaged,
+	permanent_payitems AS PermanentPayItems,
+	permanent_monthly_targets AS PermanentMonthlyTargets,
+	TypeofWorkCode AS TypeofWorkCode,
+	PlannedPhysicalTarget AS PlannedPhysicalTarget,
+	RevisedPhysicalTarget AS RevisedPhysicalTarget,
+	ActualOutput AS ActualOutput,
+	FinalOutput AS FinalOutput,
+	PhysicalCompletionDate AS PhysicalCompletionDate,
+	ImplementationModeID AS ImplementationModeCode,
+	ImplementationModeDesc AS ImplementationModeName
+FROM [Mock_PCMA].[dbo].[PCMA_vw_ProjectComponentConstructionStatus_Revision]

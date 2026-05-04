@@ -55,9 +55,13 @@ namespace Helpers
         public static string Password { get; set; } = string.Empty;
         public static string PathEmailTemplate { get; set; } = string.Empty;
     }
+    public class DatabaseConnections
+    {
+        public string MYPSDb { get; set; } = string.Empty;
+        public string PCMADb { get; set; } = string.Empty;
+    }
     public static class Appsetting
     {
-        public static string ConnectionString { get; set; } = string.Empty;
         public static string Environment { get; set; } = "Development";
         public static string MachineName { get; set; } = System.Environment.MachineName;
         public static string AppName { get; } = "MYPS";
@@ -69,10 +73,10 @@ namespace Helpers
         public static ResourcesFolder Resources { get; set; } = new ResourcesFolder();
         public static KafkaConfig KafkaConfigs { get; set; } = new KafkaConfig();
         public static SMTPClass SMTP { get; set; } = new SMTPClass();
+        public static DatabaseConnections DbConnections { get; set; } = new DatabaseConnections();
         public static void PrepareAppsettings(IConfiguration config)
         {
-            /* PREPARE DATABASE CONNECTIONS */
-            ConnectionString = config.GetConnectionString("DbConnection")!;
+            DbConnections = config.GetSection("ConnectionStrings").Get<DatabaseConnections>()!;
             LDAP = config.GetSection("LDAP").Get<LDAPConfig>()!;
             PIS = config.GetSection("PIS").Get<PISConfig>()!;
             PCMA = config.GetSection("MYPSToPCMA").Get<MYPSToPCMA>()!;

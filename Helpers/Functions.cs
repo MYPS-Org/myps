@@ -56,7 +56,7 @@ namespace Helpers
         private static string GetSqlFromFile(string sqlFilePath)
         {
             var fullPath = Path.Combine(
-                Appsetting.Resources.Main, "Sql", sqlFilePath + ".sql");
+                Appsetting.Resources.SQLScripts, sqlFilePath + ".sql");
 
             return _sqlCache.GetOrAdd(fullPath, path =>
             {
@@ -78,7 +78,7 @@ namespace Helpers
         {
             return ReferenceId + "-" + ("tCountComponentCost").GenerateCode() + "-" + StageName;
         }
-        public static string GenerateProjectID(this AppDbContext _db, DBHelper.Models.Views.ProgramDetails ProgramDetails, DBHelper.Models.Table.OptionProjectCategory Category, string IslandCode)
+        public static string GenerateProjectID(this MYPSDbContext _db, DBHelper.Models.Views.ProgramDetails ProgramDetails, DBHelper.Models.Table.OptionProjectCategory Category, string IslandCode)
         {
             string FirstSegment = ProgramDetails.StageName.GenerateProjec1stSegment();
             string SecondSegment = ProgramDetails.YearStart.GenerateProjec2ndSegment();
@@ -106,7 +106,7 @@ namespace Helpers
             };
 
             string ThirdSegment = Sql.NormalQuery<string>(
-                Appsetting.ConnectionString,
+                Appsetting.DbConnections.MYPSDb,
                 "EXEC pGenerateThirdSegment @ProjectSuffix, @CategoryId, @YearStart, @IslandCode",
                 param
             ).FirstOrDefault() ?? string.Empty;
@@ -133,7 +133,7 @@ namespace Helpers
             var uidList = new List<string>();
             var param = new Dictionary<string, object> { { "@Table", TableName } };
             return Sql.NormalQuery<string>(
-                Appsetting.ConnectionString,
+                Appsetting.DbConnections.MYPSDb,
                 "EXEC pGenerateUID @Table = @Table", param
             ).FirstOrDefault() ?? string.Empty;
         }

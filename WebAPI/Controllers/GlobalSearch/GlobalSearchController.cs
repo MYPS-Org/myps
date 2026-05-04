@@ -16,7 +16,7 @@ namespace WebAPI.Controllers.GlobalSearch
     [Route("api/[controller]/[action]")]
     public class GlobalSearchController : CoreController
     {
-        public GlobalSearchController(AppDbContext db, IProducer<Null, string> producer) : base(db, producer) { }
+        public GlobalSearchController(MYPSDbContext db, IProducer<Null, string> producer, PCMADbContext pcma) : base(db, producer, pcma) { }
         
         [HttpPost]
         public async Task<IActionResult> GetSearchCategory()

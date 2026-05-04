@@ -92,7 +92,7 @@ namespace WebAPI.Controllers.Importing
         //}
         #endregion
         #region Program Validation
-        public static IsValidProgramIdResponse IsValidProgramId(this AppDbContext _db, string ProgramID, string StageName)
+        public static IsValidProgramIdResponse IsValidProgramId(this MYPSDbContext _db, string ProgramID, string StageName)
         {
             var CheckProgram = _db.vPrograms.AsNoTracking().FirstOrDefault(x => x.ProgramId == ProgramID);
             if (CheckProgram == null)
@@ -119,7 +119,7 @@ namespace WebAPI.Controllers.Importing
             public DBHelper.Models.Table.ProjectStages ProjectStage { get; set; } = new DBHelper.Models.Table.ProjectStages();
             public ImportProjectReference ImportReference { get; set; } = new ImportProjectReference();
         }
-        public static GenerateProjecttResponse GenerateProject(this AppDbContext _db, DBHelper.Models.Views.ProgramDetails ProgramDetails, ImportProjectDetails details, List<ImportProjectReference> Saved)
+        public static GenerateProjecttResponse GenerateProject(this MYPSDbContext _db, DBHelper.Models.Views.ProgramDetails ProgramDetails, ImportProjectDetails details, List<ImportProjectReference> Saved)
         {
             var ImportRef = new ImportProjectReference();
             #region Validation
@@ -288,7 +288,7 @@ namespace WebAPI.Controllers.Importing
         {
             public DBHelper.Models.Table.ProjectFundingProfile FundingProfile { get; set; } = new DBHelper.Models.Table.ProjectFundingProfile();
         }
-        public static GenerateFundingProfileResponse GenerateFundingProfile(this AppDbContext _db, ImportFundingProfile Funding, ImportProjectReference ProjectRef)
+        public static GenerateFundingProfileResponse GenerateFundingProfile(this MYPSDbContext _db, ImportFundingProfile Funding, ImportProjectReference ProjectRef)
         {
             var NewProject = ProjectRef.NewProjectId;
             var Agreement = _db.tOptionFundingAgreement.AsNoTracking().FirstOrDefault(x => x.Name == Funding.Agreement);
@@ -320,7 +320,7 @@ namespace WebAPI.Controllers.Importing
         {
             public DBHelper.Models.Table.ProjectComponentCost ComponentCost { get; set; } = new DBHelper.Models.Table.ProjectComponentCost();
         }
-        public static GenerateComponentCostResponse GenerateComponentCost(this AppDbContext _db, ImportComponentCost ComponentCost, ImportProjectReference ProjectRef)
+        public static GenerateComponentCostResponse GenerateComponentCost(this MYPSDbContext _db, ImportComponentCost ComponentCost, ImportProjectReference ProjectRef)
         {
             var Component = _db.tOptionProjectComponent.AsNoTracking().FirstOrDefault(x => x.ComponentName == ComponentCost.ComponentType);
             if (Component == null) {
@@ -348,7 +348,7 @@ namespace WebAPI.Controllers.Importing
         {
             public DBHelper.Models.Table.ProjectComponentCostPerYear ComponentCostPerYear { get; set; } = new DBHelper.Models.Table.ProjectComponentCostPerYear();
         }
-        public static GenerateComponentCostPerYearResponse GenerateComponentCostPerYear(this AppDbContext _db, ImportComponentCostPerYear ComponentCostPerYear)
+        public static GenerateComponentCostPerYearResponse GenerateComponentCostPerYear(this MYPSDbContext _db, ImportComponentCostPerYear ComponentCostPerYear)
         {
             var ComponentCostPerYearProfile = new DBHelper.Models.Table.ProjectComponentCostPerYear
             {
@@ -366,7 +366,7 @@ namespace WebAPI.Controllers.Importing
         {
             public DBHelper.Models.Table.ProjectMajorWorkItem MajorWorkItem { get; set; } = new DBHelper.Models.Table.ProjectMajorWorkItem();
         }
-        public static GenerateMajorWorkItemResponse GenerateMajorWorkItem(this AppDbContext _db, ImportMajorItemOfWork MajorWorkItem, ImportProjectReference ProjectRef)
+        public static GenerateMajorWorkItemResponse GenerateMajorWorkItem(this MYPSDbContext _db, ImportMajorItemOfWork MajorWorkItem, ImportProjectReference ProjectRef)
         {
             var InfraType = _db.tOptionInfraType.AsNoTracking().FirstOrDefault(x => x.InfraName == MajorWorkItem.InfraType);
             if (InfraType == null)
@@ -399,7 +399,7 @@ namespace WebAPI.Controllers.Importing
         {
             public DBHelper.Models.Table.ProjectMajorWorkLocations MajorWorkLocation { get; set; } = new DBHelper.Models.Table.ProjectMajorWorkLocations();
         }
-        public static GenerateMajorWorkLocationResponse GenerateMajorWorkLocation(this AppDbContext _db, ImportMajorItemLocation MajorWorkLocation)
+        public static GenerateMajorWorkLocationResponse GenerateMajorWorkLocation(this MYPSDbContext _db, ImportMajorItemLocation MajorWorkLocation)
         {
             var MajorWorkLocationProfile = new DBHelper.Models.Table.ProjectMajorWorkLocations
             {
