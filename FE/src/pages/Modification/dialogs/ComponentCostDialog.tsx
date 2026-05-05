@@ -9,6 +9,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import { useAtomValue } from 'jotai';
 import { componentCostsAtom } from '../atoms/componentCosts.atom';
+import { MajorItemLocationsAtom } from '../atoms/majorItemLocations.atom';
 import '../../../utils/GlobalFunctions';
 import { autoFillComponentDescription } from '../../Project/Service';
 
@@ -97,6 +98,9 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
       setIsAutoFilling(false);
     }
   };
+
+  const majorItemLocations = useAtomValue(MajorItemLocationsAtom);
+  const hasMajorLocations = majorItemLocations.some(l => !l.IsDeleted);
 
   // Get all component costs from Jotai atom (seeded from API)
   const allComponentCosts = useAtomValue(componentCostsAtom);
@@ -581,16 +585,18 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                         <label className="block text-sm font-medium text-gray-700">
                             Description <span className="text-xs text-gray-500">{isFieldEditable('Description') ? '✓ Editable' : '✗ Not Editable'}</span>
                         </label>
-                        <button
-                            type="button"
-                            onClick={handleAutoFillDescription}
-                            disabled={isAutoFilling || !formData.ComponentId || !isFieldEditable('Description')}
-                            className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 disabled:opacity-40 disabled:cursor-not-allowed"
-                            title="Auto-fill description from GIS"
-                        >
-                            <SparklesIcon className="w-3.5 h-3.5" />
-                            {isAutoFilling ? 'Filling...' : 'Auto-fill'}
-                        </button>
+                        {hasMajorLocations && (
+                          <button
+                              type="button"
+                              onClick={handleAutoFillDescription}
+                              disabled={isAutoFilling || !formData.ComponentId || !isFieldEditable('Description')}
+                              className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                              title="Auto-fill description from GIS"
+                          >
+                              <SparklesIcon className="w-3.5 h-3.5" />
+                              {isAutoFilling ? 'Filling...' : 'Auto-fill'}
+                          </button>
+                        )}
                     </div>
                     <textarea
                     value={formData.Description}

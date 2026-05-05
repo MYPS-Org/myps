@@ -22,8 +22,9 @@ interface ComponentCostDialogProps {
   componentCosts: ComponentCost[];
   ProjectId: string;
   maxAmountCost?: number;
-  disabled?: boolean; // New prop to control disabled state
+  disabled?: boolean;
   programDetails: ProgramList;
+  hasMajorLocations?: boolean;
 }
 
 const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
@@ -38,7 +39,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   ProjectId,
   maxAmountCost,
   disabled = false,
-  programDetails
+  programDetails,
+  hasMajorLocations = false
 }) => {
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -470,16 +472,18 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                         <label className="block text-sm font-medium text-gray-700">
                             Description
                         </label>
-                        <button
-                            type="button"
-                            onClick={handleAutoFillDescription}
-                            disabled={isAutoFilling || !formData.ComponentId}
-                            className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 disabled:opacity-40 disabled:cursor-not-allowed"
-                            title="Auto-fill description from GIS"
-                        >
-                            <SparklesIcon className="w-3.5 h-3.5" />
-                            {isAutoFilling ? 'Filling...' : 'Auto-fill'}
-                        </button>
+                        {hasMajorLocations && (
+                          <button
+                              type="button"
+                              onClick={handleAutoFillDescription}
+                              disabled={isAutoFilling || !formData.ComponentId}
+                              className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                              title="Auto-fill description from GIS"
+                          >
+                              <SparklesIcon className="w-3.5 h-3.5" />
+                              {isAutoFilling ? 'Filling...' : 'Auto-fill'}
+                          </button>
+                        )}
                     </div>
                     <textarea
                     value={formData.Description}

@@ -325,6 +325,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
           maxAmountCost={maxAmountCost}
           disabled={disabled}
           programDetails={initialData?.ProgramDetails}
+          hasMajorLocations={(initialData?.MajorItemLocations ?? []).some((l: any) => !l.IsDeleted)}
         />
 
         {/* Delete Dialog */}

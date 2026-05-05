@@ -28,7 +28,7 @@ const CATEGORY_NAV: Record<string, (row: Record<string, unknown>) => string | nu
       ? `/projects/project-details/${row['ProjectId']}:${row['StageName']}`
       : null,
   'Program Name': (row) =>
-    row['ProgramId'] ? `/programs/programdetails/${row['ProgramId']}` : null,
+    row['ProgramId'] && row['StageName'] ? `/programs/programdetails/${row['ProgramId']}:${row['StageName']}` : null,
 };
 
 interface GlobalSearchDialogProps {
