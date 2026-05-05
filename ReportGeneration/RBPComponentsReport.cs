@@ -20,9 +20,12 @@ namespace ReportGeneration
         /// </summary>
         /// <param name="data">Flat row list from <c>pGenerateRBPComponents</c>.</param>
         /// <returns>PDF byte array suitable for an <c>application/pdf</c> file-download response.</returns>
-        public static byte[] GenerateReport(List<RBPCData> data)
+        public static byte[] GenerateReport(List<RBPCData> data, int year = 0, string stageName = "")
         {
             int FooterFs = 7;
+            string fiscalYear = year > 0 ? $"FY {year}  " : "";
+            string title = $"{fiscalYear}REGIONAL BUDGET PROPOSAL";
+            if (!string.IsNullOrEmpty(stageName)) title += $" — {stageName}";
             return GeneratePDF.GenerateReport(page =>
             {
                 page.Size(PageSizes.A4.Landscape());
@@ -35,7 +38,7 @@ namespace ReportGeneration
                     .Column(col =>
                     {
                         col.Item().AlignCenter()
-                           .Text("FY   2026   REGIONAL BUDGET PROPOSAL")
+                           .Text(title)
                            .FontFamily(GeneratePDF.FontFamily).FontSize(10).Bold();
                         col.Item().AlignCenter()
                            .Text("(ONGOING, NEW AND EXPANDED PROGRAMS, ACTIVITIES AND PROJECTS)")

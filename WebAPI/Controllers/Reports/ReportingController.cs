@@ -250,7 +250,10 @@ namespace WebAPI.Controllers.Revision
                     @LegislativeDistrictName = 'Region I'--Optional;
                  */
 
-                var bytes = AIP02.GenerateReport(aip, aipcomponents);
+                var ProgramData = await ProgramDetails.FirstOrDefaultAsync();
+                var bytes = AIP02.GenerateReport(aip, aipcomponents,
+                    year: ProgramData?.YearStart ?? 0,
+                    stageName: GetStageFullName(ProgramData?.StageName));
 
                 var fileName = $"AIP_Report02.pdf";
                 return File(bytes, "application/pdf", fileName);
@@ -316,7 +319,10 @@ namespace WebAPI.Controllers.Revision
                         Message = "No RBP Components data found for the given parameters."
                     });
                 }
-                var bytes = RBPComponents.GenerateReport(RBP);
+                var ProgramData = await ProgramDetails.FirstOrDefaultAsync();
+                var bytes = RBPComponents.GenerateReport(RBP,
+                    year: ProgramData?.YearStart ?? 0,
+                    stageName: GetStageFullName(ProgramData?.StageName));
 
                 var fileName = $"RBPComponents_Report.pdf";
                 System.IO.File.WriteAllBytes(fileName, bytes);
@@ -362,7 +368,10 @@ namespace WebAPI.Controllers.Revision
                         Message = "No RBP data found for the given parameters."
                     });
                 }
-                var bytes = ReportGeneration.GenerateRBP.GenerateReport(RBP);
+                var ProgramData = await ProgramDetails.FirstOrDefaultAsync();
+                var bytes = ReportGeneration.GenerateRBP.GenerateReport(RBP,
+                    year: ProgramData?.YearStart ?? 0,
+                    stageName: GetStageFullName(ProgramData?.StageName));
 
                 var fileName = $"RBP_Report.pdf";
                 System.IO.File.WriteAllBytes(fileName, bytes);
@@ -409,7 +418,10 @@ namespace WebAPI.Controllers.Revision
                         Message = "No RBP data found for the given parameters."
                     });
                 }
-                var bytes = GenerateRBPTier.GenerateReport(RBP);
+                var ProgramData = await ProgramDetails.FirstOrDefaultAsync();
+                var bytes = GenerateRBPTier.GenerateReport(RBP,
+                    year: ProgramData?.YearStart ?? 0,
+                    stageName: GetStageFullName(ProgramData?.StageName));
 
                 var fileName = $"RBPTier_Report.pdf";
                 System.IO.File.WriteAllBytes(fileName, bytes);
@@ -476,7 +488,10 @@ namespace WebAPI.Controllers.Revision
                         Message = "No RDIP data found for the given parameters."
                     });
                 }
-                var bytes = ReportGeneration.GenerateRDIP.GenerateReport(RDIP);
+                var ProgramData = await ProgramDetails.FirstOrDefaultAsync();
+                var bytes = ReportGeneration.GenerateRDIP.GenerateReport(RDIP,
+                    year: ProgramData?.YearStart ?? 0,
+                    stageName: GetStageFullName(ProgramData?.StageName));
 
                 var fileName = $"RDIP_Report.pdf";
                 System.IO.File.WriteAllBytes(fileName, bytes);
@@ -564,7 +579,7 @@ namespace WebAPI.Controllers.Revision
 
                 // Project sheet
                 {
-                    var ws = package.Workbook.Worksheets.Add("Project");
+                    var ws = package.Workbook.Worksheets.Add("Project Details");
                     ws.Cells["A1"].Value = "ProgramId";
                     ws.Cells["B1"].Value = "ReferenceId";
                     ws.Cells["C1"].Value = "ProjectId";
@@ -659,7 +674,6 @@ namespace WebAPI.Controllers.Revision
                 }
 
                 // Funding Profile sheet
-                if (fundingProfiles.Count > 0)
                 {
                     var ws = package.Workbook.Worksheets.Add("Funding Profile");
                     ws.Cells["A1"].Value = "ProjectId";
@@ -693,13 +707,11 @@ namespace WebAPI.Controllers.Revision
                         ws.Cells[i + 2, 9].Value = item.UpdatedDate;
                         ws.Cells[i + 2, 9].Style.Numberformat.Format = "mmm-dd-yyyy hh:ss AM/PM";
                     }
-                    //ws.Cells[ws.Dimension.Address].AutoFitColumns();
                 }
 
-                // Component Cost Per Year sheet (flat)
-                if (componentCosts.Count > 0)
+                // Component Costs sheet (flat: one row per ComponentCost × CostPerYear)
                 {
-                    var ws = package.Workbook.Worksheets.Add("Component Cost Per Year");
+                    var ws = package.Workbook.Worksheets.Add("Component Costs");
                     var costPerYearLookup = componentCostPerYear
                         .GroupBy(cy => cy.ComponentCostId)
                         .ToDictionary(g => g.Key, g => g.ToList());
@@ -773,10 +785,9 @@ namespace WebAPI.Controllers.Revision
                     if (ws.Dimension != null) ws.Cells[ws.Dimension.Address].AutoFitColumns();
                 }
 
-                // Major Work Item Per Location sheet (flat)
-                if (majorWorkItems.Count > 0)
+                // Major Work Items sheet (flat: one row per WorkItem × Location)
                 {
-                    var ws = package.Workbook.Worksheets.Add("Major Work Item");
+                    var ws = package.Workbook.Worksheets.Add("Major Work Items");
                     var locationLookup = majorWorkLocations
                         .GroupBy(l => l.ParentId)
                         .ToDictionary(g => g.Key, g => g.ToList());
