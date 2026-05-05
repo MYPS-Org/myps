@@ -82,7 +82,6 @@ const FutureRoadSectionDialog: React.FC<FutureRoadSectionDialogProps> = ({ onClo
       }
     } catch (error) {
       console.error("Error saving road section:", error);
-      alert("Failed to save road section. Please try again.");
     }
   };
 

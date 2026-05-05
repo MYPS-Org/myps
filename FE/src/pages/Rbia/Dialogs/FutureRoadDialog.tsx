@@ -76,7 +76,6 @@ const FutureRoadDialog: React.FC<FutureRoadDialogProps> = ({ onClose }) => {
       }
     } catch (error) {
       console.error("Error saving road:", error);
-      alert("Failed to save road. Please try again.");
     }
   };
 
