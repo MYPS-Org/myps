@@ -100,9 +100,9 @@ const ProvinceTable: React.FC = () => {
     });
   };
 
-  const confirmDelete = async (id: number) => {
+  const confirmDelete = async (payload: AdminAreaProvince) => {
     try {
-      await updateCodeTable(CODE, 2, JSON.stringify({ Id: id }));
+      await updateCodeTable(CODE, 2, JSON.stringify(payload));
       showToast({ type: 'success', message: 'Province deleted.' });
       await refetch();
     } catch {
@@ -220,7 +220,7 @@ const ProvinceTable: React.FC = () => {
                         <TableCell>
                           <div className="flex gap-1">
                             <Button color="zinc" className="p-1.5" onClick={() => startEdit(item)}><PencilIcon className="h-3.5 w-3.5" /></Button>
-                            <Button color="red" className="p-1.5" onClick={() => confirmDelete(item.Id)}><TrashIcon className="h-3.5 w-3.5" /></Button>
+                            <Button color="red" className="p-1.5" onClick={() => confirmDelete(item)}><TrashIcon className="h-3.5 w-3.5" /></Button>
                           </div>
                         </TableCell>
                       </>

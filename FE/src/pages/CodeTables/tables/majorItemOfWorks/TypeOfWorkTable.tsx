@@ -187,9 +187,9 @@ const TypeOfWorkTable: React.FC = () => {
     });
   };
 
-  const confirmDelete = async (id: number) => {
+  const confirmDelete = async (payload: TypeOfWork) => {
     try {
-      await updateCodeTable(CODE, 2, JSON.stringify({ Id: id }));
+      await updateCodeTable(CODE, 2, JSON.stringify(payload));
       showToast({ type: 'success', message: 'Type of work deleted.' });
       await refetch();
     } catch {
@@ -348,7 +348,7 @@ const TypeOfWorkTable: React.FC = () => {
                             {deleteConfirmId === item.id ? (
                               <div className="flex items-center gap-1">
                                 <span className="text-xs text-red-600">Delete?</span>
-                                <Button color="red" className="px-2 py-1 text-xs" onClick={() => confirmDelete(item.id)}>Yes</Button>
+                                <Button color="red" className="px-2 py-1 text-xs" onClick={() => confirmDelete(item)}>Yes</Button>
                                 <Button color="zinc" className="px-2 py-1 text-xs" onClick={() => setDeleteConfirmId(null)}>No</Button>
                               </div>
                             ) : (
