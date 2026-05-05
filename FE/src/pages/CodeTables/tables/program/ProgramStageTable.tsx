@@ -81,9 +81,9 @@ const ProgramStageTable: React.FC = () => {
     });
   };
 
-  const confirmDelete = async (id: number) => {
+  const confirmDelete = async (payload: ProgramEnums) => {
     try {
-      await updateCodeTable(CODE, 2, JSON.stringify({ Id: id }));
+      await updateCodeTable(CODE, 2, JSON.stringify(payload));
       showToast({ type: 'success', message: 'Program stage deleted.' });
       await refetch();
     } catch {
@@ -221,7 +221,7 @@ const ProgramStageTable: React.FC = () => {
                           {deleteConfirmId === item.Id ? (
                             <div className="flex items-center gap-1 text-sm">
                               <span className="text-red-600 font-medium">Delete?</span>
-                              <Button color="red" className="p-1" onClick={() => confirmDelete(item.Id)}>
+                              <Button color="red" className="p-1" onClick={() => confirmDelete(item)}>
                                 <CheckIcon className="h-3 w-3" />
                               </Button>
                               <Button color="zinc" className="p-1" onClick={() => setDeleteConfirmId(null)}>

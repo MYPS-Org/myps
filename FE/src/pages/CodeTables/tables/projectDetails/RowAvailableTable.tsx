@@ -56,9 +56,9 @@ const RowAvailableTable: React.FC<Props> = ({ data, loading = false }) => {
     setRows(prev => [{ Id: Date.now(), NameId: nextId, Name: addForm.Name, Description: addForm.Description }, ...prev]);
     setAddForm(null);
   };
-  const confirmDelete = async (id: number) => {
-    await updateCodeTable(CODE, 2, JSON.stringify({ Id: id }));
-    setRows(prev => prev.filter(r => r.Id !== id));
+  const confirmDelete = async (payload: TableEnum) => {
+    await updateCodeTable(CODE, 2, JSON.stringify(payload));
+    setRows(prev => prev.filter(r => r.Id !== payload.Id));
     setDeleteConfirmId(null);
   };
 
@@ -167,7 +167,7 @@ const RowAvailableTable: React.FC<Props> = ({ data, loading = false }) => {
                           {deleteConfirmId === item.Id ? (
                             <div className="flex items-center gap-1">
                               <span className="text-xs text-red-600">Delete?</span>
-                              <Button color="red" className="px-2 py-1 text-xs" onClick={() => confirmDelete(item.Id)}>Yes</Button>
+                              <Button color="red" className="px-2 py-1 text-xs" onClick={() => confirmDelete(item)}>Yes</Button>
                               <Button color="zinc" className="px-2 py-1 text-xs" onClick={() => setDeleteConfirmId(null)}>No</Button>
                             </div>
                           ) : (

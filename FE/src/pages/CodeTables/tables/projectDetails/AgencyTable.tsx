@@ -61,9 +61,9 @@ const AgencyTable: React.FC = () => {
     }
     setAddForm(null);
   };
-  const confirmDelete = async (id: number) => {
+  const confirmDelete = async (payload: AgencyEnum) => {
     try {
-      await updateCodeTable(CODE, 2, JSON.stringify({ Id: id }));
+      await updateCodeTable(CODE, 2, JSON.stringify(payload));
       showToast({ type: 'success', message: 'Agency deleted.' });
       await refetch();
     } catch {
@@ -230,7 +230,7 @@ const AgencyTable: React.FC = () => {
                           {deleteConfirmId === item.Id ? (
                             <div className="flex items-center gap-1">
                               <span className="text-xs text-red-600">Delete?</span>
-                              <Button color="red" className="px-2 py-1 text-xs" onClick={() => confirmDelete(item.Id)}>Yes</Button>
+                              <Button color="red" className="px-2 py-1 text-xs" onClick={() => confirmDelete(item)}>Yes</Button>
                               <Button color="zinc" className="px-2 py-1 text-xs" onClick={() => setDeleteConfirmId(null)}>No</Button>
                             </div>
                           ) : (
