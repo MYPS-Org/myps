@@ -23,10 +23,14 @@ namespace ReportGeneration
         /// <returns>PDF byte array suitable for an <c>application/pdf</c> file-download response.</returns>
         public static byte[] GenerateReport(
             List<GenerateAIP01> projects,
-            List<GenerateAIPComponents> components)
+            List<GenerateAIPComponents> components,
+            int year = 0,
+            string stageName = "")
         {
             int DefaultFs = 8;
             int FooterFs = 7;
+            string fiscalYear = year > 0 ? $"FY {year} " : "";
+            string stageLabel = !string.IsNullOrEmpty(stageName) ? $"Based on {stageName}" : "Based on General Appropriations Act";
             return GeneratePDF.GenerateReport(page =>
             {
                 page.Size(PageSizes.A4);
@@ -39,10 +43,10 @@ namespace ReportGeneration
                     .Column(col =>
                     {
                         col.Item().AlignCenter()
-                           .Text("FY 2025 ANNUAL INFRASTRUCTURE PROGRAM")
+                           .Text($"{fiscalYear}ANNUAL INFRASTRUCTURE PROGRAM")
                            .FontFamily(GeneratePDF.FontFamily).FontSize(10).Bold();
                         col.Item().AlignCenter()
-                           .Text("Based on General Appropriations Act")
+                           .Text(stageLabel)
                            .FontFamily(GeneratePDF.FontFamily).FontSize(8);
 
                         col.Item()
@@ -101,7 +105,7 @@ namespace ReportGeneration
                     .GroupBy(p => p.Region)
                     .OrderBy(g => g.Key))
                 {
-                    var regionTotal = GetTotal(regionGrp, components);
+                    var regionTotal = (decimal)GetComponents(regionGrp, components).Sum(c => c.TotalComponentCost);
 
                     SummaryRow(table,
                         regionGrp.Key,
@@ -114,7 +118,7 @@ namespace ReportGeneration
                         .GroupBy(p => p.LegislativeDistrict)
                         .OrderBy(g => g.Key))
                     {
-                        var distTotal = GetTotal(distGrp, components);
+                        var distTotal = (decimal)GetComponents(distGrp, components).Sum(c => c.TotalComponentCost);
 
                         SummaryRow(table,
                             distGrp.Key,
@@ -128,7 +132,7 @@ namespace ReportGeneration
                             .GroupBy(p => p.DEO)
                             .OrderBy(g => g.Key))
                         {
-                            var deoTotal = GetTotal(deoGrp, components);
+                            var deoTotal = (decimal)GetComponents(deoGrp, components).Sum(c => c.TotalComponentCost);
 
                             SummaryRow(table,
                                 deoGrp.Key,
@@ -142,7 +146,7 @@ namespace ReportGeneration
                                 .GroupBy(p => p.Category ?? "")
                                 .OrderBy(g => g.Key))
                             {
-                                var ooTotal = GetTotal(ooGrp, components);
+                                var ooTotal = (decimal)GetComponents(ooGrp, components).Sum(c => c.TotalComponentCost);
 
                                 SummaryRow(table,
                                     ooGrp.Key,
@@ -154,10 +158,10 @@ namespace ReportGeneration
                                 // Thrust grouping
                                 int seq = 0;
                                 foreach (var catGrp in ooGrp
-                                    .GroupBy(p => p.Thrust ?? "")
+                                    .GroupBy(p => BuildCategoryLabel(p))
                                     .OrderBy(g => g.Key))
                                 {
-                                    var catTotal = GetTotal(catGrp, components);
+                                    var catTotal = (decimal)GetComponents(catGrp, components).Sum(c => c.TotalComponentCost);
 
                                     ThrustRow(table, catGrp.Key, catTotal);
 
@@ -166,12 +170,12 @@ namespace ReportGeneration
                                     {
                                         seq++;
 
-                                        var projTotal = components
+                                        var projTotal = (decimal)components
                                             .Where(c => c.ProjectComponentId
                                                 ?.StartsWith(project.ProjectId) == true)
                                             .Sum(c => c.TotalComponentCost);
 
-                                        ProjectRow(table, seq, project, (decimal)projTotal);
+                                        ProjectRow(table, seq, project, projTotal);
                                     }
                                 }
                             }
@@ -314,17 +318,20 @@ namespace ReportGeneration
             });
         }
 
-        /// <summary>Sums <c>TotalComponentCost</c> across all components whose ID starts with any project in the group.</summary>
-        static decimal GetTotal(
+        /// <summary>Returns all components whose <c>ProjectComponentId</c> starts with any ProjectId in the group.</summary>
+        static List<GenerateAIPComponents> GetComponents(
             IEnumerable<GenerateAIP01> projectGroup,
             List<GenerateAIPComponents> allComponents)
         {
             var ids = projectGroup.Select(p => p.ProjectId).ToHashSet();
-            return (decimal)allComponents
+            return allComponents
                 .Where(c => ids.Any(id =>
                     c.ProjectComponentId?.StartsWith(id) == true))
-                .Sum(c => c.TotalComponentCost);
+                .ToList();
         }
+
+        /// <summary>Returns the project's <c>Thrust</c> as the group label used by the Thrust/Category row.</summary>
+        static string BuildCategoryLabel(GenerateAIP01 p) => p.Thrust ?? "";
 
         /// <summary>Formats an amount as comma-separated integer (N0), or an empty string when zero.</summary>
         static string FormatAmt(decimal v) =>

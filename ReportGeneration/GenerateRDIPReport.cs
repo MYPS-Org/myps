@@ -22,10 +22,13 @@ namespace ReportGeneration
         /// </summary>
         /// <param name="data">Flat row list from <c>pGenerateRDIP</c>.</param>
         /// <returns>PDF byte array suitable for an <c>application/pdf</c> file-download response.</returns>
-        public static byte[] GenerateReport(List<RDIPData> data)
+        public static byte[] GenerateReport(List<RDIPData> data, int year = 0, string stageName = "")
         {
             int FooterFs = 7;
             int LowestYear = data.Min(r => r.StartYear);
+            string fiscalYear = year > 0 ? $" FY {year}" : "";
+            string title = $"Regional Development Investment Plan (RDIP){fiscalYear}";
+            if (!string.IsNullOrEmpty(stageName)) title += $" — {stageName}";
             return GeneratePDF.GenerateReport(page =>
             {
                 page.Size(PageSizes.A4.Landscape());
@@ -40,7 +43,7 @@ namespace ReportGeneration
                     .Column(col =>
                     {
                         col.Item().AlignCenter()
-                           .Text("Regional Development Investment Plan (RDIP)")
+                           .Text(title)
                            .FontFamily(GeneratePDF.FontFamily).FontSize(10).Bold();
                         col.Item().AlignCenter()
                            .Text(regionName)
