@@ -90,8 +90,7 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
       }
       handleClose();
     } catch (error) {
-      console.error("Error saving bridge:", error);
-      alert("Failed to save bridge. Please try again.");
+      console.error("Error saving bridge:", error)
     }
   };
 
