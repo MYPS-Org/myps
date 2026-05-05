@@ -17,7 +17,7 @@ namespace Helpers.API
         }
 
         internal override string RequestUri => Appsetting.PCMA.Host;
-
+        protected override string SoapAction => "\"http://tempuri.org/copyMYPSData\"";
         protected override string GetSoapHeader()
             => $@"<ValidationSoapHeader xmlns=""http://tempuri.org/"">
                         <userName>{Appsetting.PCMA.userName}</userName>
