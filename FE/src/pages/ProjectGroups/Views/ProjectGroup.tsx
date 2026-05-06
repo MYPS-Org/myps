@@ -237,7 +237,9 @@ const ProjectGroup: React.FC = () => {
                         </TableCell>
                         <TableCell>
                             {/* {getStatusBadge(group.Name || '')} */}
-                            {group.Description || 'N/A'}
+                            <span className="block max-w-xs truncate" title={group.Description || ''}>
+                                {group.Description || 'N/A'}
+                            </span>
                         </TableCell>
                         <TableCell>
                             {group.NumberOfProjects || 0}

@@ -256,7 +256,7 @@ const ProjectGroupDetails: React.FC = () => {
                     </svg>
                 </div>
                 <p className="text-sm">Map View</p>
-                <p className="text-xs text-gray-400">Interactive map would be loaded here</p>
+                <p className="text-xs text-gray-400">This section is for Future Map Integration </p>
                 </div>
             </div>
             </div>
