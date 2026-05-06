@@ -30,10 +30,10 @@ const TestAllowedFields: React.FC = () => {
         Region: '',
         Agency: 1,
         ImplementationMode: 1,
-        EmergencyMode: false,
+        EmergencyMode: 0,
         Feasibility: 1,
-        DetailedDesign: false,
-        RowAvailable: false,
+        DetailedDesign: 0,
+        RowAvailable: 0,
         Tier: 1,
     });
 
