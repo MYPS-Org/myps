@@ -300,6 +300,7 @@ const ComponentCostForm: React.FC<ComponentCostFormProps> = ({
         componentTypes={initialData?.Dropdowns?.ComponentTypes}
         componentCosts={componentCosts}
         ProjectId={initialData?.ProjectDetails?.ProjectId}
+        ReferenceId={initialData?.ProjectDetails?.ReferenceId}
         maxAmountCost={maxAmountCost}
         categoryDesc={category}
         reasonDesc={reason}

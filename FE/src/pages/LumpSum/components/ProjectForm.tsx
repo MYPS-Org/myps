@@ -94,11 +94,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     ProgramId: '',
     StageName: '',
     Name: '',
-    GroupName: '',
     RegionCode: '',
-    Status: '',
-    Type: '',
-    Cost: 0,
     YearStart: 0,
     YearEnd: 0,
     CreatedBy: '',
@@ -192,8 +188,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         try {
           // alert('loading map data' + initialData?.ProjectDetails?.ProjectId + ' ' + initialData?.ProgramDetails?.ProgramId);
           const response = await fetchProjectGeoJSON(
-            initialData.ProjectDetails.ProjectId,
-            initialData.ProgramDetails.ProgramId
+            initialData.ProjectDetails.ReferenceId || '',
+            initialData.ProgramDetails.ProgramId,
+            user?.UserId || '',
+            initialData.ProgramDetails.StageName
             // 'P00906380VS',
             // 'P_CO-PS-635_01302025_100232'
           );
@@ -254,7 +252,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         TargetUnitId: item.TargetUnitId || 0,
         TargetUnit: item.TargetUnit || '',
         MajorItemLocations: itemWorkLocations, // Combine WorkLocations from separate array
-        DropdownData: initialData?.Dropdowns?.ScopeOfWorks?.filter(scope => scope.InfraType === item.InfraType) || []
+        DropdownData: initialData?.Dropdowns?.ScopeOfWorks?.filter(scope => scope.InfraType.includes(item.InfraType)) || []
       };
     });
   });
@@ -286,22 +284,11 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
   const [Dropdowns] = useState<Dropdowns>(
     initialData?.Dropdowns || {
-    Categories: [],
-    Thrusts: [],
-    Origins: [],
-    Cities: [],
     ComponentTypes: [],
-    LDs: [],
-    OperatingUnits: [],
-    IOs: [],
-    DEOs: [],
-    Agencies: [],
-    Feasibility: [],
-    ImplementationModes: [],
-    EmergencyModes: [],
     Agreements: [],
     Sources: [],
     ScopeOfWorks: [],
+    InfraTypes: [],
     SupportingDocs: [],
     Revisions: { Headers: [], Reasons: [], Categories: [] }
   });
@@ -661,7 +648,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
 
     // Check component cost validation
     if (maxAmountCost && maxAmountCost > 0) {
-      const totalComponentCost = componentCosts.reduce((sum, cost) => cost.IsDeleted ? sum : sum + (cost.Amount || 0), 0);
+      const totalComponentCost = componentCosts.reduce((sum, cost) => cost.IsDeleted ? sum : sum + (cost.Total || 0), 0);
       
       if (totalComponentCost !== maxAmountCost) {
         if (totalComponentCost < maxAmountCost) {
@@ -805,20 +792,20 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         },
         ComponentCosts: componentCosts.map(cost => ({
           Id: cost.Id,
-          ProjectId: cost.ProjectId ,
+          ProjectId: cost.ProjectId,
+          CostId: cost.CostId,
           StageName: initialData?.ProgramDetails?.StageName,
           ComponentType: cost.ComponentType,
           ComponentId: cost.ComponentId,
           Description: cost.Description,
-          Amount: cost.Amount,
-          StartDate: cost.StartDate,
-          EndDate: cost.EndDate,
+          Total: cost.Total,
           CreatedBy: cost.CreatedBy,
           CreatedDate: cost.CreatedDate,
           UpdatedBy: '',
           UpdatedDate: new Date().toISOString(),
           IsDeleted: cost.IsDeleted || false
         })),
+        ComponentCostPerYear: [],
         MajorItemOfWorks: majorItemsForPayload,
         MajorItemLocations: workLocationsForPayload,
         // ProjectNotes: notes, // Include ProjectNotes as it's in the expected payload
