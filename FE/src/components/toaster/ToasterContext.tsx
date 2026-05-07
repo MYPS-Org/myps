@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from "react";
 import { Toaster } from "./toaster";
 
 type ToastType = "success" | "error" | "info" | "warning";
@@ -15,6 +15,8 @@ interface ToastContextProps {
 
 const ToastContext = createContext<ToastContextProps | undefined>(undefined);
 
+const TOAST_DURATION = 5000;
+
 export const useToast = () => {
   const context = useContext(ToastContext);
   if (!context) {
@@ -25,19 +27,35 @@ export const useToast = () => {
 
 export const ToasterProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [toasts, setToasts] = useState<Toast[]>([]);
-
-  const showToast = useCallback((toast: Omit<Toast, "id">) => {
-    const id = Date.now();
-    setToasts((prev) => [...prev, { ...toast, id }]);
-
-    // auto-remove after 5s
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 10000);
-  }, []);
+  const timerRefs = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+  const idCounter = useRef(0);
 
   const removeToast = useCallback((id: number) => {
+    const timer = timerRefs.current.get(id);
+    if (timer !== undefined) {
+      clearTimeout(timer);
+      timerRefs.current.delete(id);
+    }
     setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  const showToast = useCallback((toast: Omit<Toast, "id">) => {
+    const id = ++idCounter.current;
+    setToasts((prev) => [...prev, { ...toast, id }]);
+
+    const timer = setTimeout(() => {
+      timerRefs.current.delete(id);
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, TOAST_DURATION);
+
+    timerRefs.current.set(id, timer);
+  }, []);
+
+  // Clear all pending timers on unmount
+  useEffect(() => {
+    return () => {
+      timerRefs.current.forEach((timer) => clearTimeout(timer));
+    };
   }, []);
 
   return (
