@@ -4,7 +4,7 @@ import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { MagnifyingGlassIcon } from '@heroicons/react/16/solid';
 import { addUser, fetchUserData, fetchUserGroups } from '../service';
-import type { UserGroups } from '../Model.d';
+import type { vUserGroups } from '../Model.d';
 import { useToast } from '../../../components/toaster/ToasterContext';
 
 interface AddUserDialogProps {
@@ -28,7 +28,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
 
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingGroups, setIsLoadingGroups] = useState(false);
-  const [availableGroups, setAvailableGroups] = useState<UserGroups[]>([]);
+  const [availableGroups, setAvailableGroups] = useState<vUserGroups[]>([]);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [error, setError] = useState('');
 

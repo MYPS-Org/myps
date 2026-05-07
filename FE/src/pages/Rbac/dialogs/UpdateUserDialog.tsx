@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import type { Users, UserGroups } from '../Model.d';
+import type { Users, vUserGroups } from '../Model.d';
 import { fetchUserGroups, editUser } from '../service';
 import { useToast } from '../../../components/toaster/ToasterContext';
 
@@ -15,7 +15,7 @@ interface UpdateUserDialogProps {
 
 const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, onSubmit, user }) => {
   const { showToast } = useToast();
-  const [availableGroups, setAvailableGroups] = useState<UserGroups[]>([]);
+  const [availableGroups, setAvailableGroups] = useState<vUserGroups[]>([]);
   const [isLoadingGroups, setIsLoadingGroups] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -158,7 +158,8 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
                   value={formData.employeeId}
                   onChange={(e) => handleChange('employeeId', e.target.value)}
                   placeholder="Enter employee ID"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-700"
+                  disabled
                   required
                 />
               </div>
@@ -173,7 +174,7 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
                   placeholder="Enter user ID"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                   required
-                  // disabled
+                  disabled
                 />
               </div>
             </div>
@@ -188,6 +189,7 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
                 onChange={(e) => handleChange('name', e.target.value)}
                 placeholder="Enter name"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                disabled
                 required
               />
             </div>
@@ -202,6 +204,8 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
                 onChange={(e) => handleChange('email', e.target.value)}
                 placeholder="Enter email"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                required
+                disabled
               />
             </div>
 
@@ -215,6 +219,8 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
                 onChange={(e) => handleChange('plantillaOffice', e.target.value)}
                 placeholder="Enter department"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                disabled
+                required
               />
             </div>
             <div>
