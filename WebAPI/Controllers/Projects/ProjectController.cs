@@ -27,8 +27,22 @@ namespace WebAPI.Controllers.Projects
     public class ProjectController : CoreController
     {
         public ProjectController(MYPSDbContext db, IProducer<Null, string> producer, PCMADbContext pcma) : base(db, producer, pcma) { }
+
+        [HttpPost]
+        public async Task<IActionResult> GetExceptionReport()
+        {
+            try
+            {
+
+                return Ok(new {}); 
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
         #region Project Lists
-        
+
         [HttpPost]
         public async Task<IActionResult> ShowProjects([FromBody] ShowProjectDTO dto)
         {
