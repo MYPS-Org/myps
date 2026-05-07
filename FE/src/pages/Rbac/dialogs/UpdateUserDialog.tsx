@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon } from '@heroicons/react/16/solid';
 import type { Users, vUserGroups } from '../Model.d';
-import { fetchUserGroups, editUser } from '../service';
+import { fetchUserGroups, editUser, fetchUserData } from '../service';
 import { useToast } from '../../../components/toaster/ToasterContext';
 
 interface UpdateUserDialogProps {
@@ -17,6 +18,8 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
   const { showToast } = useToast();
   const [availableGroups, setAvailableGroups] = useState<vUserGroups[]>([]);
   const [isLoadingGroups, setIsLoadingGroups] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
   
   const [formData, setFormData] = useState({
     id: user.Id || 0,
@@ -51,6 +54,30 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
       fetchAvailableGroups();
     }
   }, [isOpen]);
+
+  const handleSearch = async (value: string) => {
+    setIsLoading(true);
+    setError('');
+    try {
+      const userData = await fetchUserData({ EmployeeId: value });
+      if (userData) {
+        setFormData(prev => ({
+          ...prev,
+          name: userData.Data.Name || '',
+          userId: userData.Data.UserId || '',
+          email: userData.Data.Email || '',
+          regCode: userData.Data.RegCode || '',
+          plantillaOffice: userData.Data.PlantillaOffice || '',
+        }));
+      } else {
+        setError('Employee ID not found');
+      }
+    } catch (err: any) {
+      setError(err.Message || 'Failed to fetch user data');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const fetchAvailableGroups = async () => {
     try {
@@ -108,6 +135,7 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
         plantillaOffice: '',
         isActive: 'active',
       });
+      setError('');
       onClose();
     } catch (error) {
       console.error('Error updating user:', error);
@@ -148,20 +176,36 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
           </div>
 
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                <p className="text-sm text-red-600">{error}</p>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Employee Id
                 </label>
-                <input
-                  type="text"
-                  value={formData.employeeId}
-                  onChange={(e) => handleChange('employeeId', e.target.value)}
-                  placeholder="Enter employee ID"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-700"
-                  disabled
-                  required
-                />
+                <div className="flex items-center overflow-hidden border border-gray-300 rounded-md shadow-sm">
+                  <input
+                    type="text"
+                    value={formData.employeeId}
+                    onChange={(e) => handleChange('employeeId', e.target.value)}
+                    className="w-full px-3 py-2"
+                    placeholder="Enter employee ID"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleSearch(formData.employeeId)}
+                    className="px-3 py-2.5 bg-gray-500 text-gray-400 hover:text-gray-700 focus:outline-none"
+                  >
+                    <MagnifyingGlassIcon className="text-center w-5 h-5 text-gray-400" />
+                  </button>
+                </div>
+                {isLoading && (
+                  <p className="text-sm text-blue-600 mt-1">Loading user data...</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
