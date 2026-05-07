@@ -363,7 +363,7 @@ namespace WebAPI.Controllers.Programs
                     EnumProgramStage.GAA,
                     EnumProgramStage.GAAR,
                 };
-                var ProgramHasProject = await _db.tProjectStages.AsNoTracking().FirstOrDefaultAsync(x => (x.ProgramId == dto.ProgramId && StagesToCheck.Contains(x.StageId)|| (x.ProgramId == dto.ProgramId));
+                var ProgramHasProject = await _db.tProjectStages.AsNoTracking().FirstOrDefaultAsync(x => (x.ProgramId == dto.ProgramId && StagesToCheck.Contains(x.StageId)) || (x.ProgramId == dto.ProgramId));
                 if (ProgramHasProject != null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Program {dto.ProgramId} cannot be deleted because it has projects associated with it.", Title = "Delete Not Allowed" });
