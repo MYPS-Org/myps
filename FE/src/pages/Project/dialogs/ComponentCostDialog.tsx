@@ -21,6 +21,7 @@ interface ComponentCostDialogProps {
   componentTypes: ComponentTypeEnum[];
   componentCosts: ComponentCost[];
   ProjectId: string;
+  ReferenceId?: string;
   maxAmountCost?: number;
   disabled?: boolean;
   programDetails: ProgramList;
@@ -37,6 +38,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   componentTypes,
   componentCosts,
   ProjectId,
+  ReferenceId,
   maxAmountCost,
   disabled = false,
   programDetails,
@@ -74,7 +76,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     try {
       const response = await autoFillComponentDescription(
         user?.UserId || '',
-        formData.ProjectId || ProjectId,
+        ReferenceId || '',
         formData.ComponentId,
         programDetails.ProgramId,
         programDetails.StageName

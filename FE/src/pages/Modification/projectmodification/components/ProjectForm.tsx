@@ -205,7 +205,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
     if (mode === 'edit' && initialData?.ProjectDetails?.ProjectId && initialData?.ProgramDetails?.ProgramId) {
       try {
         const response = await fetchProjectGeoJSON(
-          initialData.ProjectDetails.ProjectId,
+          initialData.ProjectDetails.ReferenceId || '',
           initialData.ProgramDetails.ProgramId,
           user?.UserId || '',
           initialData.ProgramDetails.StageName

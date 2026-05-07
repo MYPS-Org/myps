@@ -180,7 +180,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       try {
         // alert('loading map data' + initialData?.ProjectDetails?.ProjectId + ' ' + initialData?.ProgramDetails?.ProgramId);
         const response = await fetchProjectGeoJSON(
-          initialData.ProjectDetails.ProjectId,
+          initialData.ProjectDetails.ReferenceId || '',
           initialData.ProgramDetails.ProgramId,
           user?.UserId || '',
           initialData.ProgramDetails.StageName
