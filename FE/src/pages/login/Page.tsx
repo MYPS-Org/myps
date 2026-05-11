@@ -17,6 +17,7 @@ const LoginForm: React.FC = () => {
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 //   const [rememberMe, setRememberMe] = useState(false);
   const { validateSession } = useAuth();
   const { showToast } = useToast();
@@ -24,6 +25,8 @@ const LoginForm: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
 	e.preventDefault();
+	setSubmitted(true);
+	if (!credentials.UserName || !credentials.Password) return;
 	setError('');
 	setIsLoading(true);
 
@@ -66,30 +69,29 @@ const LoginForm: React.FC = () => {
 						type="text"
 						value={credentials.UserName}
 						onChange={handleInputChange('UserName')}
-						required
 						autoComplete="username"
 						disabled={isLoading}
-						className="w-full !text-black border border-gray-200 rounded-lg px-4 py-3 focus:ring-2 focus:ring-violet-500"
+						className={`w-full !text-black rounded-lg px-4 py-3 focus:ring-2 focus:ring-violet-500 ${submitted && !credentials.UserName ? 'border-2 border-red-500 ring-2 ring-red-300' : 'border border-gray-200'}`}
 						placeholder="exaple@email.com"
 					/>
+					{submitted && !credentials.UserName && <p className="mt-1 text-xs text-red-500">Username is required</p>}
 					</div>
 					<div className="relative">
 						<Input
 						id="password"
-						type={showPassword ? 'text' : 'password'} // Toggle input type
+						type={showPassword ? 'text' : 'password'}
 						value={credentials.Password}
 						onChange={handleInputChange('Password')}
-						required
 						autoComplete="current-password"
 						disabled={isLoading}
-						className="w-full text-black border border-gray-200 rounded-lg px-4 py-3 focus:ring-2 focus:ring-violet-500"
+						className={`w-full text-black rounded-lg px-4 py-3 focus:ring-2 focus:ring-violet-500 ${submitted && !credentials.Password ? 'border-2 border-red-500 ring-2 ring-red-300' : 'border border-gray-200'}`}
 						placeholder="••••••••••••"
 						/>
 						<button
 						type="button"
 						onClick={togglePasswordVisibility}
 						className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700"
-						tabIndex={-1} // Prevent focus when tabbing through form
+						tabIndex={-1}
 						>
 						{showPassword ? (
 							<EyeSlashIcon className="w-5 h-5" />
@@ -97,6 +99,7 @@ const LoginForm: React.FC = () => {
 							<EyeIcon className="w-5 h-5" />
 						)}
 						</button>
+						{submitted && !credentials.Password && <p className="mt-1 text-xs text-red-500">Password is required</p>}
 					</div>
 					<div className="flex flex-col items-center justify-between text-sm">
 					{/* <label className="flex items-center gap-2">

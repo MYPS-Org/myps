@@ -185,7 +185,7 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({ isOpen, onClose
           </form>
 
           {/* Results */}
-          <div className="flex-1 overflow-auto px-6 py-4">
+          <div className="flex-1 overflow-hidden px-6 py-4 flex flex-col min-h-0">
             {result === null && !isSearching && (
               <div className="flex flex-col items-center justify-center h-40 text-zinc-400 gap-2">
                 <MagnifyingGlassIcon className="w-10 h-10 opacity-30" />
@@ -204,8 +204,8 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({ isOpen, onClose
             )}
 
             {result !== null && result.Data.length > 0 && (
-              <>
-                <div className="flex items-center justify-between mb-3">
+              <div className="flex flex-col flex-1 min-h-0">
+                <div className="flex items-center justify-between mb-3 shrink-0">
                   <p className="text-xs text-zinc-500">
                     {result.Title}
                     {result.Data.length === 50 && (
@@ -214,9 +214,9 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({ isOpen, onClose
                   </p>
                 </div>
 
-                <div className="overflow-x-auto rounded-lg border border-zinc-200">
+                <div className="overflow-auto rounded-lg border border-zinc-200 flex-1 min-h-0">
                   <table className="min-w-full divide-y divide-zinc-200 text-sm">
-                    <thead className="bg-zinc-50">
+                    <thead className="bg-zinc-50 sticky top-0 z-10">
                       <tr>
                         {dynamicColumns.map((col) => (
                           <th
@@ -269,7 +269,7 @@ const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({ isOpen, onClose
                     </tbody>
                   </table>
                 </div>
-              </>
+              </div>
             )}
           </div>
         </DialogPanel>
