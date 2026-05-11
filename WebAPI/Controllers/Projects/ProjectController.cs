@@ -863,11 +863,6 @@ namespace WebAPI.Controllers.Projects
                         Duplicates = duplicates
                     });
                 }
-                var DuplicateMajorWorkLocationParentId = dto.MajorItemLocations.Where(x => x.Id == 0).GroupBy(x => x.ParentId).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
-                if (DuplicateMajorWorkLocationParentId.Any())
-                {
-                    return new BadRequestObjectResult(new { Message = $"Major Work Location contains duplicate Parent IDs: {string.Join(", ", DuplicateMajorWorkLocationParentId)}. Please check and try again.", Title = "Duplicate Major Work Location Parent IDs" });
-                }
                 #endregion
                 #endregion
 
