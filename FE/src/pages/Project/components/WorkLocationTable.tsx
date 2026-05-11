@@ -526,7 +526,12 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
           </div>
         );
 
-      case 'PhysicalTarget':
+      case 'PhysicalTarget': {
+        const ptValue = location.PhysicalTarget;
+        const ptOutOfRange =
+          ptValue !== null && ptValue !== undefined &&
+          ((minAmount !== undefined && ptValue < minAmount) ||
+           (maxAmount !== undefined && ptValue > maxAmount));
         return (
           <div key={fieldName} className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
@@ -534,32 +539,32 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
             </label>
             <input
               type="number"
-              value={location.PhysicalTarget !== null && location.PhysicalTarget !== undefined ? location.PhysicalTarget : ''}
+              value={ptValue !== null && ptValue !== undefined ? ptValue : ''}
               onChange={(e) => {
-                const value = Number(e.target.value);
-                // Validate against min/max bounds
-                if (maxAmount !== undefined && value > maxAmount) {
-                  return; // Don't update if exceeds max
-                }
-                if (minAmount !== undefined && value < minAmount) {
-                  return; // Don't update if below min
-                }
-                handleFieldChange(index, 'PhysicalTarget', value);
+                const rawValue = e.target.value;
+                handleFieldChange(index, 'PhysicalTarget', rawValue === '' ? null : Number(rawValue));
               }}
               onFocus={handleNumberFocus}
-              max={maxAmount}
-              min={minAmount}
-              className={`w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-orange-500 ${getDisabledClass(disabled)}`}
+              className={`w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-orange-500 ${ptOutOfRange ? 'border-red-500 bg-red-50' : 'border-gray-300'} ${getDisabledClass(disabled)}`}
               placeholder="Enter target amount..."
               disabled={disabled}
             />
-            {(maxAmount || minAmount) && (
+            {ptOutOfRange && (
+              <div className="text-xs text-red-600 flex items-start gap-1">
+                <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+                <span>Value must be between {minAmount ?? 0} and {maxAmount ?? '∞'}</span>
+              </div>
+            )}
+            {(maxAmount !== undefined || minAmount !== undefined) && (
               <div className="text-xs text-gray-500">
-                Range: {minAmount || 0} - {maxAmount || '∞'}
+                Range: {minAmount ?? 0} - {maxAmount ?? '∞'}
               </div>
             )}
           </div>
         );
+      }
 
       case 'StartStationLimit': {
         const startLoading = stationLimitLoading[`${index}-start`];
@@ -652,7 +657,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
                 type="number"
                 value={location.EndChainage ?? ''}
                 onFocus={handleNumberFocus}
-                onChange={(e) => handleFieldChange(index, 'EndChainage', Number(e.target.value))}
+                onChange={(e) => handleFieldChange(index, 'EndChainage', e.target.value === '' ? null : Number(e.target.value))}
                 className={`flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-orange-500 text-right ${getDisabledClass(disabled)}`}
                 placeholder="To..."
                 disabled={disabled}
@@ -688,7 +693,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
                 type="number"
                 value={location.StartChainage ?? ''}
                 onFocus={handleNumberFocus}
-                onChange={(e) => handleFieldChange(index, 'StartChainage', Number(e.target.value))}
+                onChange={(e) => handleFieldChange(index, 'StartChainage', e.target.value === '' ? null : Number(e.target.value))}
                 className={`flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-orange-500 text-right ${getDisabledClass(disabled)}`}
                 placeholder="From..."
                 disabled={disabled}
@@ -856,7 +861,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
           return (
             <div key={fieldName} className="space-y-2">
               <label className="block text-sm font-medium text-gray-900">
-                Length (km) <span className="text-red-500">*</span>
+                Length (m) <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <input
