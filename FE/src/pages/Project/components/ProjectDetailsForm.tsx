@@ -528,7 +528,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     <div className="grid grid-cols-2 gap-5">
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.ImplementingOffice ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>Implementing Office:</label>
+                                <label className={`w-1/3 ${errors.ImplementingOffice ? 'text-red-500' : 'text-gray-600'}`}>{!isLumpSum && <span className='text-red-500 text-lg'>*</span>}Implementing Office:</label>
                                 <div className="w-2/3">
                                     <SearchableDropdown
                                         options={formatDropdownOptions(
@@ -557,7 +557,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                         value={projectDetails?.OperatingUnit || ''}
                                         onChange={(value) => handleInputChange('OperatingUnit', value === '' ? undefined : value.toString())}
                                         placeholder="Select Operating Unit"
-                                        disabled={disabled || !projectDetails?.ImplementingOffice}
+                                        disabled={disabled || (!isLumpSum && !projectDetails?.ImplementingOffice)}
                                         error={!!errors.OperatingUnit}
                                         allowClear={true}
                                         searchPlaceholder="Search operating units..."

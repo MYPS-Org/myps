@@ -50,7 +50,7 @@ export const projectDetailsRules: ValidationRule<ProjectDetails>[] = [
     {
         field: "OperatingUnit",
         message: "Operating Unit is required.",
-        validate: (value, data) => data?.IslandCode === 'LS' || !!value
+        validate: (value) => !!value
     },
     {
         field: "ImplementingOffice",
@@ -65,7 +65,7 @@ export const projectDetailsRules: ValidationRule<ProjectDetails>[] = [
     {
         field: "Region",
         message: "Region is required.",
-        validate: (value) => !!value
+        validate: (value, data) => data?.IslandCode === 'LS' || !!value
     },
     {
         field: "Agency",
