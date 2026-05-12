@@ -40,6 +40,30 @@ const AgencyTable: React.FC = () => {
     setDeleteConfirmId(null);
   };
   const cancelEdit = () => setEditId(null);
+
+  const requestToggleActive = (item: AgencyEnum) => {
+    const currentActive = item.IsActive !== false;
+    const nextActive = !currentActive;
+    confirm.request({
+      mode: 'edit',
+      tableName: 'Agency',
+      fields: [
+        { label: 'Action', value: nextActive ? 'Activate' : 'Deactivate' },
+        { label: 'Name', value: item.Name },
+      ],
+      onConfirm: async () => {
+        try {
+          await updateCodeTable(CODE, 1, JSON.stringify({ Id: item.Id, NameId: item.NameId, Name: item.Name, Description: item.Description || null, IsActive: nextActive }));
+          showToast({ type: 'success', message: `Agency ${nextActive ? 'activated' : 'deactivated'}.` });
+          await refetch();
+        } catch {
+          showToast({ type: 'error', message: 'Failed to update active status.' });
+        }
+        confirm.close();
+      },
+    });
+  };
+
   const saveEdit = async () => {
     try {
       await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, NameId: editForm.NameId, Name: editForm.Name, Description: editForm.Description || null }));
@@ -136,13 +160,14 @@ const AgencyTable: React.FC = () => {
               <TableHeader className="w-24">NameId</TableHeader>
               <TableHeader>Agency Name</TableHeader>
               <TableHeader>Description</TableHeader>
+              <TableHeader className="w-24 text-center">Active</TableHeader>
               <TableHeader className="w-32">Actions</TableHeader>
             </TableRow>
           </TableHead>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-10">
+                <TableCell colSpan={6} className="text-center py-10">
                   <div className="flex items-center justify-center gap-2 text-gray-400">
                     <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -174,6 +199,7 @@ const AgencyTable: React.FC = () => {
                         onChange={e => setAddForm(f => f ? { ...f, Description: e.target.value } : f)}
                         placeholder="Description (optional)" rows={3} className={inputClass('add')} />
                     </TableCell>
+                    <TableCell />
                     <TableCell>
                       <div className="flex gap-1">
                         <Button color="indigo" className="p-1.5" onClick={requestAdd} disabled={!addForm.NameId || !addForm.Name.trim()}><CheckIcon className="h-3.5 w-3.5" /></Button>
@@ -184,7 +210,7 @@ const AgencyTable: React.FC = () => {
                 )}
                 {filtered.length === 0 && !addForm ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-10 text-gray-400">No records found.</TableCell>
+                    <TableCell colSpan={6} className="text-center py-10 text-gray-400">No records found.</TableCell>
                   </TableRow>
                 ) : filtered.map(item => (
                   <TableRow key={item.Id} className={editId === item.Id ? 'bg-amber-50 border-l-4 border-amber-400' : undefined}>
@@ -209,6 +235,16 @@ const AgencyTable: React.FC = () => {
                             placeholder="Description (optional)"
                             rows={3} className={inputClass('edit')} />
                         </TableCell>
+                        <TableCell className="text-center">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-md border ${
+                            item.IsActive !== false
+                              ? 'bg-green-50 text-green-700 border-green-200'
+                              : 'bg-gray-100 text-gray-500 border-gray-300'
+                          }`}>
+                            <span className={`h-1.5 w-1.5 rounded-full ${item.IsActive !== false ? 'bg-green-500' : 'bg-gray-400'}`} />
+                            {item.IsActive !== false ? 'Active' : 'Inactive'}
+                          </span>
+                        </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
                             <Button color="amber" className="p-1.5" onClick={requestEdit} disabled={!editForm.NameId || !editForm.Name.trim()}><CheckIcon className="h-3.5 w-3.5" /></Button>
@@ -226,6 +262,20 @@ const AgencyTable: React.FC = () => {
                         </TableCell>
                         <TableCell className="text-sm text-gray-900 max-w-[180px] truncate" title={item.Name}>{item.Name}</TableCell>
                         <TableCell className="text-sm text-gray-500 max-w-xs truncate" title={item.Description ?? ''}>{item.Description ?? '—'}</TableCell>
+                        <TableCell className="text-center">
+                          <button
+                            onClick={() => requestToggleActive(item)}
+                            title={item.IsActive !== false ? 'Click to deactivate' : 'Click to activate'}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md border cursor-pointer transition-colors shadow-sm ${
+                              item.IsActive !== false
+                                ? 'bg-green-100 text-green-800 border-green-300 hover:bg-red-50 hover:text-red-600 hover:border-red-300'
+                                : 'bg-gray-100 text-gray-600 border-gray-300 hover:bg-green-50 hover:text-green-700 hover:border-green-300'
+                            }`}
+                          >
+                            <span className={`h-1.5 w-1.5 rounded-full ${item.IsActive !== false ? 'bg-green-500' : 'bg-gray-400'}`} />
+                            {item.IsActive !== false ? 'Active' : 'Inactive'}
+                          </button>
+                        </TableCell>
                         <TableCell>
                           {deleteConfirmId === item.Id ? (
                             <div className="flex items-center gap-1">

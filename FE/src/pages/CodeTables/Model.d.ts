@@ -8,6 +8,7 @@ export interface ModificationCategoryReason {
     ReasonId: number;
     CategoryId: number[];
     IsDeleted: boolean;
+    IsActive?: boolean;
 }
 
 export interface RevisionFieldPermission {
@@ -123,6 +124,7 @@ export interface ProgramEnums {
     NameId: number;
     Name: string;
     Description: string;
+    IsActive?: boolean;
 }
 
 export interface AdminAreaRegion {
@@ -131,6 +133,7 @@ export interface AdminAreaRegion {
     Name: string;
     ParticipantId: string;
     IslandCode: string;
+    IsActive?: boolean;
 }
 
 export interface AdminAreaProvince {
@@ -140,6 +143,7 @@ export interface AdminAreaProvince {
     Code?: string;
     RegionParticipantId: string;
     RegionName: string;
+    IsActive?: boolean;
 }
 
 export interface AdminAreaCity {
@@ -149,6 +153,7 @@ export interface AdminAreaCity {
     Code?: string;
     ProvinceGdbId: string;
     ProvinceName: string;
+    IsActive?: boolean;
 }
 
 export interface AdminAreaDistrict {
@@ -158,6 +163,7 @@ export interface AdminAreaDistrict {
     Code?: string;
     ProvinceGdbId: string;
     ProvinceName: string;
+    IsActive?: boolean;
 }
 
 export interface AdminAreaDEO {
@@ -169,6 +175,7 @@ export interface AdminAreaDEO {
     ProvinceName?: string;
     RegionParticipantId: string;
     RegionName: string;
+    IsActive?: boolean;
 }
 
 export interface AdminAreaData {

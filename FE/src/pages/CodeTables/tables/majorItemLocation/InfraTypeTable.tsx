@@ -40,6 +40,29 @@ const InfraTypeTable: React.FC = () => {
   };
   const cancelEdit = () => setEditId(null);
 
+  const requestToggleActive = (item: InfraTypeEnum) => {
+    const currentActive = item.IsActive !== false;
+    const nextActive = !currentActive;
+    confirm.request({
+      mode: 'edit',
+      tableName: 'Infrastructure Type',
+      fields: [
+        { label: 'Action', value: nextActive ? 'Activate' : 'Deactivate' },
+        { label: 'Name', value: item.InfraName },
+      ],
+      onConfirm: async () => {
+        try {
+          await updateCodeTable(CODE, 1, JSON.stringify({ Id: item.Id, InfraId: item.InfraId, InfraCode: item.InfraCode, InfraName: item.InfraName, IsActive: nextActive }));
+          showToast({ type: 'success', message: `Infrastructure type ${nextActive ? 'activated' : 'deactivated'}.` });
+          await refetch();
+        } catch {
+          showToast({ type: 'error', message: 'Failed to update active status.' });
+        }
+        confirm.close();
+      },
+    });
+  };
+
   const requestAdd = () => {
     if (!addForm) return;
     confirm.request({
@@ -130,13 +153,14 @@ const InfraTypeTable: React.FC = () => {
               <TableHeader className="w-20">Infra ID</TableHeader>
               <TableHeader className="w-24">Code</TableHeader>
               <TableHeader>Name</TableHeader>
+              <TableHeader className="w-24 text-center">Active</TableHeader>
               <TableHeader className="w-32">Actions</TableHeader>
             </TableRow>
           </TableHead>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-10">
+                <TableCell colSpan={6} className="text-center py-10">
                   <div className="flex items-center justify-center gap-2 text-gray-400">
                     <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -153,6 +177,7 @@ const InfraTypeTable: React.FC = () => {
                     <TableCell><input autoFocus type="number" value={addForm.InfraId || ''} onChange={e => setAddForm(f => f ? { ...f, InfraId: +e.target.value } : f)} placeholder="Infra ID" className={inp('add')} /></TableCell>
                     <TableCell><textarea value={addForm.InfraCode} onChange={e => setAddForm(f => f ? { ...f, InfraCode: e.target.value } : f)} placeholder="Code..." rows={1} className={inp('add')} /></TableCell>
                     <TableCell><textarea value={addForm.InfraName} onChange={e => setAddForm(f => f ? { ...f, InfraName: e.target.value } : f)} placeholder="Name..." rows={2} className={inp('add')} /></TableCell>
+                    <TableCell />
                     <TableCell>
                       <div className="flex gap-1">
                         <Button color="indigo" className="p-1.5" onClick={requestAdd} disabled={!addForm.InfraCode.trim() || !addForm.InfraName.trim()}><CheckIcon className="h-3.5 w-3.5" /></Button>
@@ -162,7 +187,7 @@ const InfraTypeTable: React.FC = () => {
                   </TableRow>
                 )}
                 {filtered.length === 0 && !addForm ? (
-                  <TableRow><TableCell colSpan={5} className="text-center py-10 text-gray-500">No records found.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="text-center py-10 text-gray-500">No records found.</TableCell></TableRow>
                 ) : filtered.map(item => (
                   <TableRow key={item.Id} className={editId === item.Id ? 'bg-amber-50 border-l-4 border-amber-400' : undefined}>
                     <TableCell className="font-mono text-xs text-gray-500">{item.Id}</TableCell>
@@ -171,6 +196,16 @@ const InfraTypeTable: React.FC = () => {
                         <TableCell><input autoFocus type="number" value={editForm.InfraId || ''} onChange={e => setEditForm(f => ({ ...f, InfraId: +e.target.value }))} className={inp('edit')} /></TableCell>
                         <TableCell><textarea value={editForm.InfraCode} onChange={e => setEditForm(f => ({ ...f, InfraCode: e.target.value }))} rows={1} className={inp('edit')} /></TableCell>
                         <TableCell><textarea value={editForm.InfraName} onChange={e => setEditForm(f => ({ ...f, InfraName: e.target.value }))} rows={2} className={inp('edit')} /></TableCell>
+                        <TableCell className="text-center">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-md border ${
+                            item.IsActive !== false
+                              ? 'bg-green-50 text-green-700 border-green-200'
+                              : 'bg-gray-100 text-gray-500 border-gray-300'
+                          }`}>
+                            <span className={`h-1.5 w-1.5 rounded-full ${item.IsActive !== false ? 'bg-green-500' : 'bg-gray-400'}`} />
+                            {item.IsActive !== false ? 'Active' : 'Inactive'}
+                          </span>
+                        </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
                             <Button color="amber" className="p-1.5" onClick={requestEdit} disabled={!editForm.InfraCode.trim() || !editForm.InfraName.trim()}><CheckIcon className="h-3.5 w-3.5" /></Button>
@@ -185,6 +220,20 @@ const InfraTypeTable: React.FC = () => {
                           <span className="font-mono text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded font-bold">{item.InfraCode}</span>
                         </TableCell>
                         <TableCell className="font-medium text-gray-900 max-w-xs truncate" title={item.InfraName}>{item.InfraName}</TableCell>
+                        <TableCell className="text-center">
+                          <button
+                            onClick={() => requestToggleActive(item)}
+                            title={item.IsActive !== false ? 'Click to deactivate' : 'Click to activate'}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md border cursor-pointer transition-colors shadow-sm ${
+                              item.IsActive !== false
+                                ? 'bg-green-100 text-green-800 border-green-300 hover:bg-red-50 hover:text-red-600 hover:border-red-300'
+                                : 'bg-gray-100 text-gray-600 border-gray-300 hover:bg-green-50 hover:text-green-700 hover:border-green-300'
+                            }`}
+                          >
+                            <span className={`h-1.5 w-1.5 rounded-full ${item.IsActive !== false ? 'bg-green-500' : 'bg-gray-400'}`} />
+                            {item.IsActive !== false ? 'Active' : 'Inactive'}
+                          </button>
+                        </TableCell>
                         <TableCell>
                           {deleteConfirmId === item.Id ? (
                             <div className="flex items-center gap-1">

@@ -58,6 +58,30 @@ const ThrustTable: React.FC = () => {
     setDeleteConfirmId(null);
   };
   const cancelEdit = () => setEditId(null);
+
+  const requestToggleActive = (item: ThrustEnum) => {
+    const currentActive = item.IsActive !== false;
+    const nextActive = !currentActive;
+    confirm.request({
+      mode: 'edit',
+      tableName: 'Thrust / PAP',
+      fields: [
+        { label: 'Action', value: nextActive ? 'Activate' : 'Deactivate' },
+        { label: 'PAP Key', value: String(item.PAPKey) },
+      ],
+      onConfirm: async () => {
+        try {
+          await updateCodeTable(CODE, 1, JSON.stringify({ Id: item.Id, PAPKey: item.PAPKey, ProgramName: item.ProgramName, SubProgramName: item.SubProgramName, ActivityName: item.ActivityName, SequenceNumber: item.SequenceNumber, ThrustDescription: item.ThrustDescription, InfrastructureType: item.InfrastructureType || undefined, ValidFromDate: item.ValidFromDate, ValidToDate: item.ValidToDate, IsActive: nextActive }));
+          showToast({ type: 'success', message: `Thrust ${nextActive ? 'activated' : 'deactivated'}.` });
+          await refetch();
+        } catch {
+          showToast({ type: 'error', message: 'Failed to update active status.' });
+        }
+        confirm.close();
+      },
+    });
+  };
+
   const saveEdit = async () => {
     try {
       await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm, InfrastructureType: editForm.InfrastructureType || undefined }));
@@ -163,12 +187,13 @@ const ThrustTable: React.FC = () => {
               <TableHeader>Infra Type</TableHeader>
               <TableHeader className="w-20 text-center">Valid From</TableHeader>
               <TableHeader className="w-20 text-center">Valid To</TableHeader>
+              <TableHeader className="w-24 text-center">Active</TableHeader>
               <TableHeader className="w-32">Actions</TableHeader>
             </TableRow>
           </TableHead>
           <TableBody>
             {loading ? (
-              <TableRow><TableCell colSpan={10} className="text-center py-10">
+              <TableRow><TableCell colSpan={11} className="text-center py-10">
                 <div className="flex items-center justify-center gap-2 text-gray-400">
                   <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -189,6 +214,7 @@ const ThrustTable: React.FC = () => {
                     <TableCell><textarea value={addForm.InfrastructureType} onChange={e => setAddForm(f => f ? { ...f, InfrastructureType: e.target.value } : f)} placeholder="Infra type..." rows={2} className={inp('add')} /></TableCell>
                     <TableCell><input type="number" value={addForm.ValidFromDate} onChange={e => setAddForm(f => f ? { ...f, ValidFromDate: +e.target.value } : f)} placeholder="Year" className={inp('add', 'w-16')} /></TableCell>
                     <TableCell><input type="number" value={addForm.ValidToDate} onChange={e => setAddForm(f => f ? { ...f, ValidToDate: +e.target.value } : f)} placeholder="0=now" className={inp('add', 'w-16')} /></TableCell>
+                    <TableCell />
                     <TableCell>
                       <div className="flex gap-1">
                         <Button color="indigo" className="p-1.5" onClick={requestAdd}><CheckIcon className="h-3.5 w-3.5" /></Button>
@@ -198,7 +224,7 @@ const ThrustTable: React.FC = () => {
                   </TableRow>
                 )}
                 {filtered.length === 0 && !addForm ? (
-                  <TableRow><TableCell colSpan={10} className="text-center py-10 text-gray-400">No records found.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={11} className="text-center py-10 text-gray-400">No records found.</TableCell></TableRow>
                 ) : filtered.map(item => (
                   <TableRow key={item.Id} className={editId === item.Id ? 'bg-amber-50 border-l-4 border-amber-400' : undefined}>
                     {editId === item.Id ? (
@@ -212,6 +238,16 @@ const ThrustTable: React.FC = () => {
                         <TableCell><textarea value={editForm.InfrastructureType} onChange={e => setEditForm(f => ({ ...f, InfrastructureType: e.target.value }))} placeholder="Infra type..." rows={2} className={inp('edit')} /></TableCell>
                         <TableCell><input type="number" value={editForm.ValidFromDate} onChange={e => setEditForm(f => ({ ...f, ValidFromDate: +e.target.value }))} className={inp('edit', 'w-16')} /></TableCell>
                         <TableCell><input type="number" value={editForm.ValidToDate} onChange={e => setEditForm(f => ({ ...f, ValidToDate: +e.target.value }))} placeholder="0=now" className={inp('edit', 'w-16')} /></TableCell>
+                        <TableCell className="text-center">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-md border ${
+                            item.IsActive !== false
+                              ? 'bg-green-50 text-green-700 border-green-200'
+                              : 'bg-gray-100 text-gray-500 border-gray-300'
+                          }`}>
+                            <span className={`h-1.5 w-1.5 rounded-full ${item.IsActive !== false ? 'bg-green-500' : 'bg-gray-400'}`} />
+                            {item.IsActive !== false ? 'Active' : 'Inactive'}
+                          </span>
+                        </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
                             <Button color="amber" className="p-1.5" onClick={requestEdit}><CheckIcon className="h-3.5 w-3.5" /></Button>
@@ -230,6 +266,20 @@ const ThrustTable: React.FC = () => {
                         <TableCell className="text-sm text-gray-600 max-w-[120px] truncate" title={item.InfrastructureType ?? ''}>{item.InfrastructureType ?? '—'}</TableCell>
                         <TableCell className="text-center text-sm text-gray-600">{item.ValidFromDate}</TableCell>
                         <TableCell className="text-center text-sm text-gray-600">{item.ValidToDate === 0 ? 'Present' : item.ValidToDate}</TableCell>
+                        <TableCell className="text-center">
+                          <button
+                            onClick={() => requestToggleActive(item)}
+                            title={item.IsActive !== false ? 'Click to deactivate' : 'Click to activate'}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md border cursor-pointer transition-colors shadow-sm ${
+                              item.IsActive !== false
+                                ? 'bg-green-100 text-green-800 border-green-300 hover:bg-red-50 hover:text-red-600 hover:border-red-300'
+                                : 'bg-gray-100 text-gray-600 border-gray-300 hover:bg-green-50 hover:text-green-700 hover:border-green-300'
+                            }`}
+                          >
+                            <span className={`h-1.5 w-1.5 rounded-full ${item.IsActive !== false ? 'bg-green-500' : 'bg-gray-400'}`} />
+                            {item.IsActive !== false ? 'Active' : 'Inactive'}
+                          </button>
+                        </TableCell>
                         <TableCell>
                           {deleteConfirmId === item.Id ? (
                             <div className="flex items-center gap-1">
