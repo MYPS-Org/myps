@@ -12,6 +12,7 @@ namespace DBHelper.Models.Table
     {
         [Key]
         public int Id { get; set; }
+        public bool IsActive { get; set; } = false;
         [Required]
         public int RevisionGroupId { get; set; }
         public int? CategoryId { get; set; }
