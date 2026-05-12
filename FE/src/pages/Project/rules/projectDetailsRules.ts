@@ -35,32 +35,32 @@ export const projectDetailsRules: ValidationRule<ProjectDetails>[] = [
     {
         field: "Province",
         message: "Province is required.",
-        validate: (value) => !!value
+        validate: (value, data) => data?.IslandCode === 'LS' || !!value
     },
     {
         field: "City",
         message: "City is required.",
-        validate: (value) => !!value
+        validate: (value, data) => data?.IslandCode === 'LS' || !!value
     },
     {
         field: "LegislativeDistrict",
         message: "Legislative District is required.",
-        validate: (value) => !!value
+        validate: (value, data) => data?.IslandCode === 'LS' || !!value
     },
     {
         field: "OperatingUnit",
         message: "Operating Unit is required.",
-        validate: (value) => !!value
+        validate: (value, data) => data?.IslandCode === 'LS' || !!value
     },
     {
         field: "ImplementingOffice",
         message: "Implementing Office is required.",
-        validate: (value) => !!value
+        validate: (value, data) => data?.IslandCode === 'LS' || !!value
     },
     {
         field: "DEO",
         message: "DEO is required.",
-        validate: (value) => !!value
+        validate: (value, data) => data?.IslandCode === 'LS' || !!value
     },
     {
         field: "Region",
