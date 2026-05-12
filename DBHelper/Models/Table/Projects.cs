@@ -18,6 +18,8 @@ namespace DBHelper.Models.Table
         [Required]
         [MaxLength(200)]
         public string ReferenceId { get; set; } = string.Empty;
+        [MaxLength(200)]
+        public string? OriginProjectId { get; set; }
         [Required]
         [MaxLength(50)]
         public string CreatedBy { get; set; } = string.Empty;
