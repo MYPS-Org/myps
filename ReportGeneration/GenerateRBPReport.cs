@@ -21,10 +21,13 @@ namespace ReportGeneration
         /// </summary>
         /// <param name="data">Flat row list from <c>pGenerateRBP</c>.</param>
         /// <returns>PDF byte array suitable for an <c>application/pdf</c> file-download response.</returns>
-        public static byte[] GenerateReport(List<RBPData> data)
+        public static byte[] GenerateReport(List<RBPData> data, int year = 0, string stageName = "")
         {
             int FooterFs = 7;
             var logo = GeneratePDF.GetLogo();
+            string fiscalYear = year > 0 ? $"FY {year} " : "";
+            string title = $"SUMMARY OF {fiscalYear}REGIONAL BUDGET PROPOSAL";
+            if (!string.IsNullOrEmpty(stageName)) title += $" — {stageName}";
             return GeneratePDF.GenerateReport(page =>
             {
                 page.Size(PageSizes.A4.Landscape());
@@ -39,7 +42,7 @@ namespace ReportGeneration
                     .Column(col =>
                     {
                         GeneratePDF.BuildDPWHHeader(col, logo,
-                            "SUMMARY OF FY 2026 REGIONAL BUDGET PROPOSAL",
+                            title,
                             regionName: regionName);
 
                         col.Item().PaddingTop(8)

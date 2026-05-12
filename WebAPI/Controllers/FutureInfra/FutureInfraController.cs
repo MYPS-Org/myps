@@ -170,10 +170,39 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Road ID {dto.RoadId} already exist in the system. Please use other Road ID", Title = "Invalid Road ID" });
                 }
-                var checkRoadName = await _db.tFutureRoads.AsNoTracking().FirstOrDefaultAsync(x => x.Id != dto.Id && x.Name == dto.Name);
+                var checkRoadName = await _db.tFutureRoads.AsNoTracking().FirstOrDefaultAsync(x => x.Id != dto.Id);
                 if (checkRoadName != null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Road name {dto.Name} already exist in the system. Please use other name", Title = "Invalid Road Name" });
+                }
+                var CheckIfUsedInRoadSection = await _db.tFutureRoadSections.AsNoTracking().Where(x => x.RoadId == checkRoad.RoadId).ToListAsync();
+                if (CheckIfUsedInRoadSection.Any())
+                {
+                    HashSet<string> RoadSectionIds = CheckIfUsedInRoadSection.Select(x => x.RoadSectionId).ToHashSet<string>();
+                    var CheckIfUsedInProject = await _db.tProjectMajorWorkLocations.AsNoTracking().FirstOrDefaultAsync(x => RoadSectionIds.Contains(x.InfraId));
+                    if (CheckIfUsedInProject != null)
+                    {
+                        return new BadRequestObjectResult(new
+                        {
+                            Message = "The selected road is currently in use and cannot be edited.",
+                            Title = "Road In Use"
+                        });
+                    }
+                    var CheckIfUsedInBridge = await _db.tFutureBridge.AsNoTracking().Where(x => RoadSectionIds.Contains(x.RoadSectionId)).ToListAsync();
+                    if (CheckIfUsedInBridge.Any())
+                    {
+                        HashSet<string> BridgeIds = CheckIfUsedInBridge.Select(x => x.BridgeId).ToHashSet<string>();
+                        var CheckIfUsedInProjectBridge = await _db.tProjectMajorWorkLocations.AsNoTracking().FirstOrDefaultAsync(x => BridgeIds.Contains(x.InfraId));
+                        if (CheckIfUsedInProjectBridge != null)
+                        {
+                            return new BadRequestObjectResult(new
+                            {
+                                Message = "The selected road is currently in use and cannot be edited.",
+                                Title = "Road In Use"
+                            });
+                        }
+                    }
+
                 }
                 var checkClassification = await _db.tFutureRoadsClassification.AsNoTracking().FirstOrDefaultAsync(x => x.ClassificationId == dto.Classification);
                 if(checkClassification == null)
@@ -534,10 +563,19 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Road does not exists in the System", Title = "Invalid Road" });
                 }
-                var checkRoadSectionId = await _db.tFutureRoadSections.AsNoTracking().FirstOrDefaultAsync(x => x.Id != dto.Id && x.RoadSectionId == dto.RoadSectionId);
+                var checkRoadSectionId = await _db.tFutureRoadSections.AsNoTracking().FirstOrDefaultAsync(x => x.Id != dto.Id);
                 if (checkRoadSectionId != null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Road Section ID {dto.RoadSectionId} already exist in the system. Please use other Road ID", Title = "Invalid Road Section ID" });
+                }
+                var CheckIfUsedinProject = await _db.tProjectMajorWorkLocations.AsNoTracking().FirstOrDefaultAsync(x => x.InfraId == checkRoad.RoadSectionId);
+                if (CheckIfUsedinProject != null)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = "The selected road section is currently in use and cannot be edited.",
+                        Title = "Road Section In Use"
+                    });
                 }
                 var checkRoadId = await _db.tFutureRoads.AsNoTracking().FirstOrDefaultAsync(x => x.RoadId == dto.RoadId);
                 if (checkRoadId == null)
@@ -889,10 +927,19 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Road Section ID {dto.RoadSectionId} does not exist in the system. Please use other Road ID", Title = "Invalid Road Section ID" });
                 }
-                var checkBridgeId = await _db.tFutureBridge.AsNoTracking().FirstOrDefaultAsync(x => x.Id != dto.Id && x.BridgeId == dto.BridgeId);
+                var checkBridgeId = await _db.tFutureBridge.AsNoTracking().FirstOrDefaultAsync(x => x.Id != dto.Id);
                 if (checkBridgeId == null)
                 {
                     return new BadRequestObjectResult(new { Message = $"Bridge ID {dto.BridgeId} does not exist in the system.", Title = "Invalid Bridge ID" });
+                }
+                var CheckIfUsedinProject = await _db.tProjectMajorWorkLocations.AsNoTracking().FirstOrDefaultAsync(x => x.InfraId == checkBridge.BridgeId);
+                if(CheckIfUsedinProject != null)
+                {
+                    return new BadRequestObjectResult(new
+                    {
+                        Message = "The selected bridge is currently in use and cannot be edited.",
+                        Title = "Bridge In Use"
+                    });
                 }
                 var checkName = await _db.tFutureBridge.AsNoTracking().FirstOrDefaultAsync(x => x.Id != dto.Id && x.Name == dto.Name);
                 if (checkName != null)

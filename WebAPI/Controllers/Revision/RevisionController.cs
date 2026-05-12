@@ -365,6 +365,7 @@ namespace WebAPI.Controllers.Revision
                     return new BadRequestObjectResult(new { Message = "Project not found or not in GAA-R stage!", Title = "Invalid Project" });
                 }
                 var ComponentCost = await _db.vProjectComponentCostStatus.AsNoTracking().Where(x => x.ProjectId == dto.ProjectId).ToListAsync();
+                string json = JsonConvert.SerializeObject(ComponentCost);
                 if(ComponentCost.Count == 0)
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found in PCMA", Title = "Project Not Found" });
