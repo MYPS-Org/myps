@@ -1221,56 +1221,55 @@ namespace WebAPI.Controllers.Programs
                 }
                 char[] delimiters = { ';', ',', '.', '&', ' ', '\n' };
                 var projectIds = dto.ProjectIds
-                .Split(delimiters, StringSplitOptions.RemoveEmptyEntries)
-                .Select(x => x.Trim())
-                .ToArray();
+                    .Split(delimiters, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(x => x.Trim())
+                    .ToArray();
 
-                var projectIdsJson = System.Text.Json.JsonSerializer.Serialize(projectIds);
+                // Resolve the revision IDs that belong to this program across all of its stages
+                // via tProjectStages, so we can restore projects regardless of which stage they were deleted on.
+                var stageRevisionIds = await _db.tProjectStages
+                    .AsNoTracking()
+                    .Where(x => x.ProgramId == dto.ProgramId)
+                    .Select(x => x.RevisionId)
+                    .ToListAsync();
 
-                var checkProjects = await _db.fProjectsPerStage
-                .FromSqlInterpolated($@"
-                    SELECT *
-                    FROM dbo.fProjectsInProgram({dto.ProgramId}) fp
-                    WHERE fp.StageName = {checkProgram.StageName}
-                      AND fp.ProjectId IN (SELECT [value] FROM OPENJSON({projectIdsJson}))
-                ")
-                .AsNoTracking()
-                .ToListAsync();
-                var existingSet = new HashSet<string>(
-                    checkProjects.Select(a => a.ProjectId),
+                // Find deleted revisions whose ProjectId matches the supplied list
+                var projectsToRestore = await _db.tProjectRevisions
+                    .Where(x => stageRevisionIds.Contains(x.Id)
+                             && x.IsDeleted
+                             && projectIds.Contains(x.ProjectId))
+                    .ToListAsync();
+
+                var restoredSet = new HashSet<string>(
+                    projectsToRestore.Select(x => x.ProjectId),
                     StringComparer.OrdinalIgnoreCase
                 );
-                var MissingProjectIds = projectIds
-                    .Where(x => !existingSet.Contains(x))
+                var missingProjectIds = projectIds
+                    .Where(x => !restoredSet.Contains(x))
                     .ToArray();
-                if (existingSet.Count() > 0)
+
+                if (projectsToRestore.Count > 0)
                 {
-                    HashSet<int> RevisionIds = checkProjects.Select(p => p.Id!).ToHashSet();
-                    var projectsToUpdate = await _db.tProjectRevisions
-                        .Where(ps => RevisionIds.Contains(ps.Id))
-                        .ToListAsync();
-                    foreach (var projectStage in projectsToUpdate)
+                    foreach (var revision in projectsToRestore)
                     {
-                        projectStage.IsDeleted = true;
+                        revision.IsDeleted = false;
                     }
-                    _db.tProjectRevisions.UpdateRange(projectsToUpdate);
+                    _db.tProjectRevisions.UpdateRange(projectsToRestore);
                     await _db.SaveChangesAsync();
                     await transaction.CommitAsync();
 
                     return Ok(new
                     {
-                        Message = $"The selected projects have been excluded from automatic publication to PCMA.\n\nList of missing Projects:{string.Join("\n", MissingProjectIds)}",
-                        Title = "Restrict Publishing Successful"
+                        Message = $"The selected projects have been successfully restored to their original stage.\n\nList of projects not found or already active:{string.Join("\n", missingProjectIds)}",
+                        Title = "Restore Projects Successful"
                     });
                 }
-                var notExisting = projectIds
-                    .Where(x => !existingSet.Contains(x))
-                    .ToArray();
 
+                await transaction.CommitAsync();
                 return Ok(new
                 {
-                    Message = "The selected projects have been excluded from automatic publication to PCMA.",
-                    Title = "Restrict Publishing Successful"
+                    Message = "No deleted projects were found matching the provided IDs. They may already be active or do not belong to this program.",
+                    Title = "No Projects Restored"
                 });
             }
             catch (Exception ex)
