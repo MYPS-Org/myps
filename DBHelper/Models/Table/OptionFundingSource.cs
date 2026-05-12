@@ -14,6 +14,7 @@ namespace DBHelper.Models.Table
     {
         [Required]
         public int Id { get; set; }
+        public bool IsActive { get; set; } = false;
         [Required]
         [MaxLength(100)]
         public string Organization { get; set; } = string.Empty;
