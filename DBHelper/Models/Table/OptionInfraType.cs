@@ -7,6 +7,7 @@ namespace DBHelper.Models.Table
     {
         [Key]
         public int Id { get; set; }
+        public bool IsActive { get; set; } = false;
         [Required]
         public int InfraId { get; set; }
         [Required]

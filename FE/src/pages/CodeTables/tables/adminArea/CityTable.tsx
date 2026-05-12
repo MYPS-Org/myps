@@ -27,6 +27,7 @@ const CityTable: React.FC = () => {
   const [editForm, setEditForm]       = useState<FormState>(EMPTY_FORM);
   const confirm                       = useConfirmDialog();
 
+
   const rows: AdminAreaCity[]          = data?.Cities ?? [];
   const provinces: AdminAreaProvince[] = data?.Provinces ?? [];
 
@@ -52,6 +53,29 @@ const CityTable: React.FC = () => {
     setEditForm({ GdbId: r.GdbId, Name: r.Name, Code: r.Code ?? '', ProvinceGdbId: r.ProvinceGdbId, ProvinceName: r.ProvinceName });
   };
   const cancelEdit = () => setEditId(null);
+
+  const requestToggleActive = (item: AdminAreaCity) => {
+    const currentActive = item.IsActive !== false;
+    const nextActive = !currentActive;
+    confirm.request({
+      mode: 'edit',
+      tableName: 'City/Municipality',
+      fields: [
+        { label: 'Action', value: nextActive ? 'Activate' : 'Deactivate' },
+        { label: 'Name', value: item.Name },
+      ],
+      onConfirm: async () => {
+        try {
+          await updateCodeTable(CODE, 1, JSON.stringify({ Id: item.Id, GdbId: item.GdbId, Name: item.Name, Code: item.Code ?? '', ProvinceGdbId: item.ProvinceGdbId, ProvinceName: item.ProvinceName, IsActive: nextActive }));
+          showToast({ type: 'success', message: `City/Municipality ${nextActive ? 'activated' : 'deactivated'}.` });
+          await refetch();
+        } catch {
+          showToast({ type: 'error', message: 'Failed to update active status.' });
+        }
+        confirm.close();
+      },
+    });
+  };
 
   const requestAdd = () => {
     if (!addForm) return;
@@ -155,12 +179,13 @@ const CityTable: React.FC = () => {
               <TableHeader>Name</TableHeader>
               <TableHeader className="w-24">Code</TableHeader>
               <TableHeader className="w-48">Province</TableHeader>
+              <TableHeader className="w-24 text-center">Active</TableHeader>
               <TableHeader className="w-28">Actions</TableHeader>
             </TableRow>
           </TableHead>
           <TableBody>
             {loading ? (
-              <TableRow><TableCell colSpan={6} className="text-center py-10 text-gray-400">Loading...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center py-10 text-gray-400">Loading...</TableCell></TableRow>
             ) : (
               <>
                 {addForm !== null && (
@@ -177,6 +202,7 @@ const CityTable: React.FC = () => {
                         {provinces.map(p => <option key={p.Id} value={p.GdbId}>{p.Name}</option>)}
                       </select>
                     </TableCell>
+                    <TableCell />
                     <TableCell>
                       <div className="flex gap-1">
                         <Button color="indigo" className="p-1.5" onClick={requestAdd}
@@ -189,7 +215,7 @@ const CityTable: React.FC = () => {
                   </TableRow>
                 )}
                 {pageData.length === 0 && !addForm ? (
-                  <TableRow><TableCell colSpan={6} className="text-center py-10 text-gray-400">No records found.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={7} className="text-center py-10 text-gray-400">No records found.</TableCell></TableRow>
                 ) : pageData.map(item => (
                   <TableRow key={item.Id} className={editId === item.Id ? 'bg-amber-50 border-l-4 border-amber-400' : undefined}>
                     {editId === item.Id ? (
@@ -205,6 +231,16 @@ const CityTable: React.FC = () => {
                             <option value="">— Select Province —</option>
                             {provinces.map(p => <option key={p.Id} value={p.GdbId}>{p.Name}</option>)}
                           </select>
+                        </TableCell>
+                        <TableCell className="text-center">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-md border ${
+                              item.IsActive !== false
+                                ? 'bg-green-50 text-green-700 border-green-200'
+                                : 'bg-gray-100 text-gray-500 border-gray-300'
+                            }`}>
+                              <span className={`h-1.5 w-1.5 rounded-full ${item.IsActive !== false ? 'bg-green-500' : 'bg-gray-400'}`} />
+                              {item.IsActive !== false ? 'Active' : 'Inactive'}
+                          </span>
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
@@ -222,6 +258,20 @@ const CityTable: React.FC = () => {
                         <TableCell>
                           <span className="text-xs font-medium text-gray-700">{item.ProvinceName}</span>
                           <span className="ml-1 font-mono text-xs text-gray-400">({item.ProvinceGdbId})</span>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <button
+                            onClick={() => requestToggleActive(item)}
+                            title={item.IsActive !== false ? 'Click to deactivate' : 'Click to activate'}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md border cursor-pointer transition-colors shadow-sm ${
+                              item.IsActive !== false
+                                ? 'bg-green-100 text-green-800 border-green-300 hover:bg-red-50 hover:text-red-600 hover:border-red-300'
+                                : 'bg-gray-100 text-gray-600 border-gray-300 hover:bg-green-50 hover:text-green-700 hover:border-green-300'
+                            }`}
+                          >
+                            <span className={`h-1.5 w-1.5 rounded-full ${item.IsActive !== false ? 'bg-green-500' : 'bg-gray-400'}`} />
+                            {item.IsActive !== false ? 'Active' : 'Inactive'}
+                          </button>
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">

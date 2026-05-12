@@ -42,6 +42,30 @@ const CategoryTable: React.FC = () => {
     setDeleteConfirmId(null);
   };
   const cancelEdit = () => setEditId(null);
+
+  const requestToggleActive = (item: CategoryEnum) => {
+    const currentActive = item.IsActive !== false;
+    const nextActive = !currentActive;
+    confirm.request({
+      mode: 'edit',
+      tableName: 'Project Category',
+      fields: [
+        { label: 'Action', value: nextActive ? 'Activate' : 'Deactivate' },
+        { label: 'Category', value: item.CategoryName ?? '' },
+      ],
+      onConfirm: async () => {
+        try {
+          await updateCodeTable(CODE, 1, JSON.stringify({ Id: item.Id, CategoryName: item.CategoryName, Minimum: item.Minimum, Maximum: item.Maximum, ValidUntil: item.ValidUntil, IsActive: nextActive }));
+          showToast({ type: 'success', message: `Category ${nextActive ? 'activated' : 'deactivated'}.` });
+          await refetch();
+        } catch {
+          showToast({ type: 'error', message: 'Failed to update active status.' });
+        }
+        confirm.close();
+      },
+    });
+  };
+
   const saveEdit = async () => {
     try {
       await updateCodeTable(CODE, 1, JSON.stringify({ Id: editId, ...editForm }));
@@ -136,12 +160,13 @@ const CategoryTable: React.FC = () => {
               <TableHeader>Min Amount</TableHeader>
               <TableHeader>Max Amount</TableHeader>
               <TableHeader className="w-24">Valid Until</TableHeader>
+              <TableHeader className="w-24 text-center">Active</TableHeader>
               <TableHeader className="w-32">Actions</TableHeader>
             </TableRow>
           </TableHead>
           <TableBody>
             {loading ? (
-              <TableRow><TableCell colSpan={7} className="text-center py-10">
+              <TableRow><TableCell colSpan={8} className="text-center py-10">
                 <div className="flex items-center justify-center gap-2 text-gray-400">
                   <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -159,6 +184,7 @@ const CategoryTable: React.FC = () => {
                     <TableCell><input type="number" value={addForm.Minimum} onChange={e => setAddForm(f => f ? { ...f, Minimum: +e.target.value } : f)} className={numInp('add')} /></TableCell>
                     <TableCell><input type="number" value={addForm.Maximum} onChange={e => setAddForm(f => f ? { ...f, Maximum: +e.target.value } : f)} className={numInp('add')} /></TableCell>
                     <TableCell><input type="number" value={addForm.ValidUntil} onChange={e => setAddForm(f => f ? { ...f, ValidUntil: +e.target.value } : f)} className={numInp('add')} /></TableCell>
+                    <TableCell />
                     <TableCell>
                       <div className="flex gap-1">
                         <Button color="indigo" className="p-1.5" onClick={requestAdd}><CheckIcon className="h-3.5 w-3.5" /></Button>
@@ -168,7 +194,7 @@ const CategoryTable: React.FC = () => {
                   </TableRow>
                 )}
                 {filtered.length === 0 && !addForm ? (
-                  <TableRow><TableCell colSpan={7} className="text-center py-10 text-gray-400">No records found.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={8} className="text-center py-10 text-gray-400">No records found.</TableCell></TableRow>
                 ) : filtered.map(item => (
                   <TableRow key={item.Id} className={editId === item.Id ? 'bg-amber-50 border-l-4 border-amber-400' : undefined}>
                     <TableCell><span className="font-mono text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">{item.Id}</span></TableCell>
@@ -179,6 +205,16 @@ const CategoryTable: React.FC = () => {
                         <TableCell><input type="number" value={editForm.Minimum} onChange={e => setEditForm(f => ({ ...f, Minimum: +e.target.value }))} className={numInp('edit')} /></TableCell>
                         <TableCell><input type="number" value={editForm.Maximum} onChange={e => setEditForm(f => ({ ...f, Maximum: +e.target.value }))} className={numInp('edit')} /></TableCell>
                         <TableCell><input type="number" value={editForm.ValidUntil} onChange={e => setEditForm(f => ({ ...f, ValidUntil: +e.target.value }))} className={numInp('edit')} /></TableCell>
+                        <TableCell className="text-center">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-md border ${
+                            item.IsActive !== false
+                              ? 'bg-green-50 text-green-700 border-green-200'
+                              : 'bg-gray-100 text-gray-500 border-gray-300'
+                          }`}>
+                            <span className={`h-1.5 w-1.5 rounded-full ${item.IsActive !== false ? 'bg-green-500' : 'bg-gray-400'}`} />
+                            {item.IsActive !== false ? 'Active' : 'Inactive'}
+                          </span>
+                        </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
                             <Button color="amber" className="p-1.5" onClick={requestEdit}><CheckIcon className="h-3.5 w-3.5" /></Button>
@@ -193,6 +229,20 @@ const CategoryTable: React.FC = () => {
                         <TableCell className="text-sm text-gray-600">{item.Minimum.toLocaleString()}</TableCell>
                         <TableCell className="text-sm text-gray-600">{item.Maximum.toLocaleString()}</TableCell>
                         <TableCell className="text-sm text-gray-600">{item.ValidUntil}</TableCell>
+                        <TableCell className="text-center">
+                          <button
+                            onClick={() => requestToggleActive(item)}
+                            title={item.IsActive !== false ? 'Click to deactivate' : 'Click to activate'}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md border cursor-pointer transition-colors shadow-sm ${
+                              item.IsActive !== false
+                                ? 'bg-green-100 text-green-800 border-green-300 hover:bg-red-50 hover:text-red-600 hover:border-red-300'
+                                : 'bg-gray-100 text-gray-600 border-gray-300 hover:bg-green-50 hover:text-green-700 hover:border-green-300'
+                            }`}
+                          >
+                            <span className={`h-1.5 w-1.5 rounded-full ${item.IsActive !== false ? 'bg-green-500' : 'bg-gray-400'}`} />
+                            {item.IsActive !== false ? 'Active' : 'Inactive'}
+                          </button>
+                        </TableCell>
                         <TableCell>
                           {deleteConfirmId === item.Id ? (
                             <div className="flex items-center gap-1">

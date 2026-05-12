@@ -34,5 +34,6 @@ namespace DBHelper.Models.Table
         [Required]
         [MaxLength(400)]
         public string ThrustDescription { get; set; } = string.Empty;
+        public bool IsActive { get; set; } = false;
     }
 }

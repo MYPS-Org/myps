@@ -22,5 +22,6 @@ namespace DBHelper.Models.Table
         public int Maximum { get; set; }
         [Required]
         public int ValidUntil { get; set; }
+        public bool IsActive { get; set; } = false;
     }
 }

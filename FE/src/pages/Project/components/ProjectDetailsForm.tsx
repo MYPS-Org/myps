@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import type { ProjectDetails, ProjectEnums } from "../Model.d";
 import type { ProgramList } from "../../Program/Model.d";
 import type { FormValidationError } from "../../../utils/FormValidation";
 import { getDisabledClass, formatDropdownOptions } from '../../../utils/GlobalFunctions';
 import SearchableDropdown from '../../../components/ui/SearchableDropdown';
+import { useLocationFilters } from '../filteringLocations';
 
 interface ProjectDetailsFormProps {
     projectDetails: ProjectDetails;
@@ -24,122 +25,16 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
     errors = {},
     disabled = false,
 }) => {
-    const [ filteredCities, setFilteredCities ] = useState<ProjectEnums['Cities']>([]);
-    const [ filteredLegislativeDistricts, setFilteredLegislativeDistricts ] = useState<ProjectEnums['LDs']>([]);
-    const [ filteredDEOs, setFilteredDEOs ] = useState<ProjectEnums['DEOs']>([]);
-    const [ filteredIOs, setFilteredIOs ] = useState<ProjectEnums['IOs']>([]);
-    const [ filteredOUs, setFilteredOUs ] = useState<ProjectEnums['OperatingUnits']>([]);
+    const isLumpSum = projectDetails?.IslandCode === 'LS';
 
-    // Initialize filtered data when projectEnums change
-    useEffect(() => {
-        if (projectEnums) {
-            updateFilteredData();
-        }
-    }, [projectEnums, projectDetails?.Province, projectDetails?.City, projectDetails?.LegislativeDistrict, projectDetails?.DEO, projectDetails?.ImplementingOffice]);
-
-    const updateFilteredData = () => {
-        if (!projectEnums) return;
-
-        let availableCities = projectEnums.Cities || [];
-        let availableLDs = projectEnums.LDs || [];
-        let availableDEOs = projectEnums.DEOs || [];
-        let availableIOs = projectEnums.IOs || [];
-        let availableOUs = projectEnums.OperatingUnits || [];
-
-        // If province is selected, filter cities and LDs by province
-        if (projectDetails?.Province) {
-            // Use Id for filtering since you're storing Id values
-            const ProvinceGdbId = projectDetails.Province;
-            availableCities = projectEnums.Cities?.filter(
-                (city) => city.ProvinceGdbId === ProvinceGdbId
-            ) || [];
-            availableLDs = projectEnums.LDs?.filter(
-                (ld) => ld.ProvinceGdbId === ProvinceGdbId
-            ) || [];
-            availableDEOs = projectEnums.DEOs?.filter(
-                (deo) => deo.ProvinceGdbId === ProvinceGdbId
-            ) || [];
-
-            console.log('Filtered Cities and LDs by Province:', projectDetails.Province, availableCities, availableLDs, availableDEOs);
-        }
-        // If city is selected but no province, filter LDs by city's province
-        else if (projectDetails?.City) {
-            const selectedCity = projectEnums.Cities?.find((city) => city.GdbId === projectDetails.City);
-            if (selectedCity) {
-                availableLDs = projectEnums.LDs?.filter(
-                    (ld) => ld.ProvinceGdbId === selectedCity.ProvinceGdbId
-                ) || [];
-            }
-            console.log('Filtered City:', projectDetails.City);
-            console.log('Filtered LDs:', availableLDs);
-        }
-        // If LD is selected but no province/city, filter cities by LD's province
-        else if (projectDetails?.LegislativeDistrict) {
-            const selectedLD = projectEnums.LDs?.find((ld) => ld.GdbId === projectDetails.LegislativeDistrict);
-            console.log('Selected LD for City filtering:', selectedLD);
-            if (selectedLD) {
-                availableCities = projectEnums.Cities?.filter(
-                    (city) => city.ProvinceGdbId === selectedLD.ProvinceGdbId
-                ) || [];
-            }
-            console.log('Filtered Cities by LD:', projectDetails.LegislativeDistrict, availableCities);
-            console.log('Selected province:', selectedLD?.ProvinceGdbId);
-        }
-        else if (projectDetails?.DEO) {
-            const selectedDEO = projectEnums.DEOs?.find((deo) => deo.ParticipantId === projectDetails.DEO?.toString());
-            if (selectedDEO) {
-                availableCities = projectEnums.Cities?.filter(
-                    (city) => city.ProvinceGdbId === selectedDEO.ProvinceGdbId
-                ) || [];
-            }
-        }
-
-        setFilteredCities(availableCities);
-        setFilteredLegislativeDistricts(availableLDs);
-        setFilteredDEOs(availableDEOs);
-
-        // Filter IOs based on DEO's RegionParticipantId or OrgType === 'UPMO'
-        if (projectDetails?.DEO) {
-            const selectedDEO = projectEnums.DEOs?.find((deo) => deo.ParticipantId === projectDetails.DEO?.toString());
-            if (selectedDEO) {
-                availableIOs = projectEnums.IOs?.filter(
-                    (io) => (io.RegionParticipantId === selectedDEO.RegionParticipantId && io.OrgType === 'R') || io.OrgType === 'UPMO' ||  io.ParticipantId === selectedDEO.ParticipantId
-                ) || [];
-            }
-        } else {
-            // If no DEO selected, show only UPMO offices
-            availableIOs = projectEnums.IOs?.filter((io) => io.OrgType === 'UPMO') || [];
-        }
-
-        setFilteredIOs(availableIOs);
-
-        // Filter OU based on selected IO and DEO
-        if(projectDetails?.ImplementingOffice) {
-            const selectedIO = projectEnums.IOs?.find((io) => io.ParticipantId === projectDetails.ImplementingOffice);
-            const selectedDEO = projectEnums.DEOs?.find((deo) => deo.ParticipantId === projectDetails.DEO?.toString());
-            console.log('Selected IO for OU filtering:', selectedIO);
-            console.log('Selected DEO for OU filtering:', selectedDEO);
-            
-            if (selectedIO) {
-                // Show only 3 options:
-                // 1. CO (Central Office)
-                // 2. OU matching DEO's ParticipantId
-                // 3. IF UPMO match the DEO participant ID
-                availableOUs = projectEnums.OperatingUnits?.filter(
-                    (ou) => 
-                        ou.OrgType === 'CO' ||
-                        selectedDEO?.RegionParticipantId === ou.ParticipantId ||
-                        selectedIO.ParticipantId === ou.ParticipantId ||
-                        (selectedIO.OrgType === 'UPMO' ? selectedDEO?.ParticipantId === ou.ParticipantId : false) // If UPMO is selected, show OU matching its ParticipantId
-                ) || [];
-                console.log('Filtered OUs:', availableOUs);
-            }
-        } else {
-            // If no IO selected, show all OUs
-            availableOUs = projectEnums.OperatingUnits || [];
-        }
-        setFilteredOUs(availableOUs);
-    };
+    const {
+        cities: filteredCities,
+        legislativeDistricts: filteredLegislativeDistricts,
+        deos: filteredDEOs,
+        ios: filteredIOs,
+        ous: filteredOUs,
+        regions: filteredRegions,
+    } = useLocationFilters(projectEnums, projectDetails, isLumpSum);
 
     const handleInputChange = (field: keyof ProjectDetails, value: any) => {
         console.log('ProjectDetailsForm - handleInputChange:', field, value, typeof value);
@@ -289,6 +184,15 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
         
         const newValue = projectDetails?.IslandCode === boxValue ? null : boxValue;
         handleInputChange('IslandCode', newValue);
+
+        // When switching to Lump Sum, clear geographic fields that are no longer required
+        if (newValue === 'LS') {
+            onChange('Province', undefined);
+            onChange('City', undefined);
+            onChange('LegislativeDistrict', undefined);
+            onChange('DEO', undefined);
+            onChange('Region', undefined);
+        }
     };
 
     const regionWideData = [
@@ -522,7 +426,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     <div className="grid grid-cols-3 gap-5">
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.Province ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>Province:</label>
+                                <label className={`w-1/3 ${errors.Province ? 'text-red-500' : 'text-gray-600'}`}>{!isLumpSum && <span className='text-red-500 text-lg'>*</span>}Province:</label>
                                 <div className="w-2/3">
                                     <SearchableDropdown
                                         options={formatDropdownOptions(projectEnums?.Provinces || [], 'GdbId', 'Name', 'Id')}
@@ -540,7 +444,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.City ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>City/Municipality:</label>
+                                <label className={`w-1/3 ${errors.City ? 'text-red-500' : 'text-gray-600'}`}>{!isLumpSum && <span className='text-red-500 text-lg'>*</span>}City/Municipality:</label>
                                 <div className="w-2/3">
                                     <SearchableDropdown
                                         options={formatDropdownOptions(filteredCities || [], 'GdbId', 'Name', 'Id')}
@@ -558,7 +462,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.LegislativeDistrict ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>Legislative District:</label>
+                                <label className={`w-1/3 ${errors.LegislativeDistrict ? 'text-red-500' : 'text-gray-600'}`}>{!isLumpSum && <span className='text-red-500 text-lg'>*</span>}Legislative District:</label>
                                 <div className="w-2/3">
                                     <SearchableDropdown
                                        options={formatDropdownOptions(filteredLegislativeDistricts || [], 'GdbId', 'Name', 'Id')}
@@ -586,7 +490,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
 
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.DEO ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>District Engineering Office:</label>
+                                <label className={`w-1/3 ${errors.DEO ? 'text-red-500' : 'text-gray-600'}`}>{!isLumpSum && <span className='text-red-500 text-lg'>*</span>}District Engineering Office:</label>
                                 <div className='w-2/3'>
                                     <SearchableDropdown
                                         options={formatDropdownOptions(filteredDEOs || [], 'ParticipantId', 'Name')}
@@ -607,12 +511,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                 <label className={`w-1/3 ${errors.Region ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>Region:</label>
                                 <div className='w-2/3'>
                                     <SearchableDropdown
-                                        options={formatDropdownOptions(
-                                            projectEnums?.DEOs?.filter(x => x.ParticipantId === projectDetails?.DEO) || [],
-                                            'RegionParticipantId',
-                                            'RegionName',
-                                            'Id'
-                                        )}
+                                        options={formatDropdownOptions(filteredRegions, 'ParticipantId', 'Name')}
                                         value={projectDetails?.Region}
                                         onChange={(value) => handleInputChange('Region', value === '' ? undefined : value.toString())}
                                         placeholder="Select Regional Office"
@@ -629,7 +528,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                     <div className="grid grid-cols-2 gap-5">
                         <div className='w-full flex flex-col text-left gap-2'>
                             <div className="flex flex-row gap-5 items-center">
-                                <label className={`w-1/3 ${errors.ImplementingOffice ? 'text-red-500' : 'text-gray-600'}`}><span className='text-red-500 text-lg'>*</span>Implementing Office:</label>
+                                <label className={`w-1/3 ${errors.ImplementingOffice ? 'text-red-500' : 'text-gray-600'}`}>{!isLumpSum && <span className='text-red-500 text-lg'>*</span>}Implementing Office:</label>
                                 <div className="w-2/3">
                                     <SearchableDropdown
                                         options={formatDropdownOptions(
@@ -658,7 +557,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                         value={projectDetails?.OperatingUnit || ''}
                                         onChange={(value) => handleInputChange('OperatingUnit', value === '' ? undefined : value.toString())}
                                         placeholder="Select Operating Unit"
-                                        disabled={disabled || !projectDetails?.ImplementingOffice}
+                                        disabled={disabled || (!isLumpSum && !projectDetails?.ImplementingOffice)}
                                         error={!!errors.OperatingUnit}
                                         allowClear={true}
                                         searchPlaceholder="Search operating units..."
