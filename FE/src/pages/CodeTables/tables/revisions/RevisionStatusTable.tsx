@@ -8,10 +8,8 @@ import { useToast } from '../../../../components/toaster/ToasterContext';
 
 const CODE = 'RevisionStatus';
 
-const inp = (v: 'edit') =>
-  `w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 resize-none ${
-    v === 'edit' ? 'border-amber-300 focus:ring-amber-500' : 'border-indigo-300 focus:ring-indigo-500'
-  }`;
+const inp = () =>
+  'w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 resize-none border-amber-300 focus:ring-amber-500';
 
 const RevisionStatusTable: React.FC = () => {
   const { data: codeTableData, loading, refetch } = useCodeTableContext();
@@ -111,7 +109,7 @@ const RevisionStatusTable: React.FC = () => {
                       <TableCell><span className="font-mono text-xs text-gray-400">{item['Id']}</span></TableCell>
                       {editableColumns.map(col => (
                         <TableCell key={col}>
-                          <input value={editRow[col] ?? ''} onChange={e => setEditRow(r => ({ ...r, [col]: e.target.value }))} className={inp('edit')} />
+                          <input value={editRow[col] ?? ''} onChange={e => setEditRow(r => ({ ...r, [col]: e.target.value }))} className={inp()} />
                         </TableCell>
                       ))}
                       <TableCell>
