@@ -154,7 +154,7 @@ export const deleteFutureBridge = async (bridgeId: string) => {
 
 export const importNationalRoads = async (userName: string) => {
     try {
-        const apiUrl = `${import.meta.env.VITE_API_GIS_URL}/api_v2.0/inventory/import_national_roads?username=${encodeURIComponent(userName)}`;
+        const apiUrl = `/gis/api_v2.0/inventory/import_national_roads?username=${encodeURIComponent(userName)}`;
         const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
@@ -171,7 +171,7 @@ export const importNationalRoads = async (userName: string) => {
 
 export const importRoadSections = async (userName: string) => {
     try {        
-        const apiUrl = `${import.meta.env.VITE_API_GIS_URL}/api_v2.0/inventory/import_national_road_sections?username=${encodeURIComponent(userName)}`;
+        const apiUrl = `/gis/api_v2.0/inventory/import_national_road_sections?username=${encodeURIComponent(userName)}`;
         const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
@@ -188,7 +188,7 @@ export const importRoadSections = async (userName: string) => {
 
 export const importBridges = async (userName: string) => {
     try {        
-        const apiUrl = `${import.meta.env.VITE_API_GIS_URL}/api_v2.0/inventory/import_national_bridges?username=${encodeURIComponent(userName)}`;
+        const apiUrl = `/gis/api_v2.0/inventory/import_national_bridges?username=${encodeURIComponent(userName)}`;
         const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
@@ -206,7 +206,7 @@ export const importBridges = async (userName: string) => {
 
 export const importImplementingOffices = async (userName: string) => {
     try {        
-        const apiUrl = `${import.meta.env.VITE_API_GIS_URL}/api_v2.0/admin_areas/aa_import_org_offices/?username=${encodeURIComponent(userName)}`;
+        const apiUrl = `/gis/api_v2.0/admin_areas/aa_import_org_offices/?username=${encodeURIComponent(userName)}`;
         const response = await fetch(apiUrl, {
             method: 'POST',
             headers: {

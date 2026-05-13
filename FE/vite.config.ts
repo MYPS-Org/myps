@@ -30,6 +30,11 @@ export default defineConfig(({ mode }) => {
           target: env.VITE_API_BASE_URL,
           changeOrigin: true,
           secure: false,
+        },
+        '/gis': {
+          target: env.VITE_API_GIS_URL,
+          changeOrigin: true,
+          secure: false,
         }
       }
     },
