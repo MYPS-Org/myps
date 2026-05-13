@@ -198,10 +198,10 @@ export const fetchProjectStagesByProjectId = async (projectId: string) => {
 // #endregion
 
 // #region GeoJSON Data
-export const fetchProjectGeoJSON = async (projectId: string, programId: string, username: string, stageName: string) => {
+export const fetchProjectGeoJSON = async (referenceId: string, programId: string, username: string, stageName: string) => {
     try {
         const params = new URLSearchParams({
-            project_id: projectId,
+            project_id: referenceId,
             program_id: programId,
             username,
             program_stage_name: stageName,
@@ -303,9 +303,9 @@ export const lrpToChainageConverter = async (sectionId: string, lrp: string) => 
     }
 };
 
-export const autoFillComponentDescription = async (username: string, project_id: string, project_component_id : string, program_id: string, program_stage_name: string) => {
+export const autoFillComponentDescription = async (username: string, reference_id: string, project_component_id : string, program_id: string, program_stage_name: string) => {
     try {
-        const apiUrl = `${import.meta.env.VITE_API_GIS_URL}/api_v1.0/infra/describe_project_component?username=${encodeURIComponent(username)}&project_id=${encodeURIComponent(project_id)}&project_component_id=${encodeURIComponent(project_component_id)}&program_id=${encodeURIComponent(program_id)}&program_stage_name=${encodeURIComponent(program_stage_name)}`;
+        const apiUrl = `${import.meta.env.VITE_API_GIS_URL}/api_v1.0/infra/describe_project_component?username=${encodeURIComponent(username)}&reference_id=${encodeURIComponent(reference_id)}&project_component_id=${encodeURIComponent(project_component_id)}&program_id=${encodeURIComponent(program_id)}&program_stage_name=${encodeURIComponent(program_stage_name)}`;
 
         const response = await fetch(apiUrl, {
             method: 'GET',

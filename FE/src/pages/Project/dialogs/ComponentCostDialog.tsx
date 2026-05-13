@@ -21,6 +21,7 @@ interface ComponentCostDialogProps {
   componentTypes: ComponentTypeEnum[];
   componentCosts: ComponentCost[];
   ProjectId: string;
+  ReferenceId?: string;
   maxAmountCost?: number;
   disabled?: boolean;
   programDetails: ProgramList;
@@ -37,6 +38,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
   componentTypes,
   componentCosts,
   ProjectId,
+  ReferenceId,
   maxAmountCost,
   disabled = false,
   programDetails,
@@ -74,7 +76,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
     try {
       const response = await autoFillComponentDescription(
         user?.UserId || '',
-        formData.ProjectId || ProjectId,
+        ReferenceId || '',
         formData.ComponentId,
         programDetails.ProgramId,
         programDetails.StageName
@@ -301,6 +303,19 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         });
         return;
       }
+      // Validate date range
+      const startStr = cost.StartDate.split('T')[0];
+      const endStr   = cost.EndDate.split('T')[0];
+      const yearMin  = `${cost.Year}-01-01`;
+      const yearMax  = `${cost.Year}-12-31`;
+      if (startStr < yearMin || startStr > yearMax || (endStr && startStr > endStr)) {
+        showToast({ type: 'error', message: `Start Date for entry ${i + 1} is out of range.` });
+        return;
+      }
+      if (endStr < yearMin || endStr > yearMax || (startStr && endStr < startStr)) {
+        showToast({ type: 'error', message: `End Date for entry ${i + 1} is out of range.` });
+        return;
+      }
     }
 
     if(formData.Total <= 0) {
@@ -514,6 +529,23 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                         <div className="space-y-3 max-h-60 overflow-y-auto border border-gray-200 rounded-md p-3">
                             {componentCostPerYear.map((cost, index) => {
                                 if (cost.IsDeleted) return null;
+
+                                const startDateStr = cost.StartDate ? cost.StartDate.split('T')[0] : '';
+                                const endDateStr   = cost.EndDate   ? cost.EndDate.split('T')[0]   : '';
+                                const yearMin = cost.Year ? `${cost.Year}-01-01` : '';
+                                const yearMax = cost.Year ? `${cost.Year}-12-31` : '';
+
+                                const isStartDateInvalid = startDateStr !== '' && (
+                                    (yearMin && startDateStr < yearMin) ||
+                                    (yearMax && startDateStr > yearMax) ||
+                                    (endDateStr && startDateStr > endDateStr)
+                                );
+                                const isEndDateInvalid = endDateStr !== '' && (
+                                    (yearMin && endDateStr < yearMin) ||
+                                    (yearMax && endDateStr > yearMax) ||
+                                    (startDateStr && endDateStr < startDateStr)
+                                );
+
                                 return (
                                     <div key={index} className="grid grid-cols-[120px_1fr_1fr_1fr_auto] gap-3 items-end p-3 bg-gray-50 rounded border">
                                         <div>
@@ -561,32 +593,40 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                                            <label className={`block text-xs font-medium mb-1 ${isStartDateInvalid ? 'text-red-600' : 'text-gray-700'}`}>
                                                 Start Date
+                                                {isStartDateInvalid && <span className="ml-1 text-red-500">(out of range)</span>}
                                             </label>
                                             <input
                                                 type="date"
-                                                value={cost.StartDate ? cost.StartDate.split('T')[0] : ''}
+                                                value={startDateStr}
                                                 onChange={(e) => handleEditPerYearCost(index, 'StartDate', e.target.value || null)}
-                                                onKeyDown={(e) => e.preventDefault()}
-                                                min={cost.Year ? `${cost.Year}-01-01` : undefined}
-                                                max={cost.EndDate ? cost.EndDate.split('T')[0] : (cost.Year ? `${cost.Year}-12-31` : undefined)}
-                                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                min={yearMin || undefined}
+                                                max={endDateStr || yearMax || undefined}
+                                                className={`w-full px-2 py-1 border rounded text-sm focus:outline-none focus:ring-1 ${
+                                                    isStartDateInvalid
+                                                        ? 'border-red-500 focus:ring-red-500 bg-red-50 text-red-900'
+                                                        : 'border-gray-300 focus:ring-blue-500'
+                                                }`}
                                                 required
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                                            <label className={`block text-xs font-medium mb-1 ${isEndDateInvalid ? 'text-red-600' : 'text-gray-700'}`}>
                                                 End Date
+                                                {isEndDateInvalid && <span className="ml-1 text-red-500">(out of range)</span>}
                                             </label>
                                             <input
                                                 type="date"
-                                                value={cost.EndDate ? cost.EndDate.split('T')[0] : ''}
+                                                value={endDateStr}
                                                 onChange={(e) => handleEditPerYearCost(index, 'EndDate', e.target.value || null)}
-                                                onKeyDown={(e) => e.preventDefault()}
-                                                min={cost.StartDate ? cost.StartDate.split('T')[0] : (cost.Year ? `${cost.Year}-01-01` : undefined)}
-                                                max={cost.Year ? `${cost.Year}-12-31` : undefined}
-                                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                min={startDateStr || yearMin || undefined}
+                                                max={yearMax || undefined}
+                                                className={`w-full px-2 py-1 border rounded text-sm focus:outline-none focus:ring-1 ${
+                                                    isEndDateInvalid
+                                                        ? 'border-red-500 focus:ring-red-500 bg-red-50 text-red-900'
+                                                        : 'border-gray-300 focus:ring-blue-500'
+                                                }`}
                                                 required
                                             />
                                         </div>

@@ -63,6 +63,7 @@ export interface ProjectDetails {
 	ProgramName: string;
 	ProjectId?: string;
 	StageName?: string;
+	ReferenceId?: string;
 	AlternateId?: string;
 	ExternalId?: string;
 	MYId?: string;
@@ -157,6 +158,7 @@ export interface ScopeOfWorkEnum {
 	Measure: number;
 	MaxAmount: number;
 	MinAmount: number;
+	IsActive?: boolean;
 }
 
 export interface InfraTypeEnum {
@@ -164,6 +166,7 @@ export interface InfraTypeEnum {
 	InfraId: number;
 	InfraCode: string;
 	InfraName: string;
+	IsActive?: boolean;
 }
 
 export interface RoadSections {
@@ -371,6 +374,7 @@ export interface ComponentTypeEnum {
 	ComponentName?: string;
 	ExportToPCMA: boolean;
 	IsDeleted: boolean;
+	IsActive?: boolean;
 }
 export interface CategoryEnum {
 	Id: number;
@@ -379,6 +383,7 @@ export interface CategoryEnum {
 	Minimum: number;
 	Maximum: number;
 	ValidUntil: number;
+	IsActive?: boolean;
 }
 export interface ThrustEnum {
 	Id: number;
@@ -391,12 +396,14 @@ export interface ThrustEnum {
 	ValidToDate: number;
 	InfrastructureType?: string;
 	ThrustDescription: string;
+	IsActive?: boolean;
 }
 export interface TableEnum {
 	Id: number;
 	NameId: number;
 	Name: string;
 	Description?: string;
+	IsActive?: boolean;
 }
 export interface RODEOEnum {
 	Id: number;
@@ -413,6 +420,7 @@ export interface AgencyEnum {
 	NameId: number;
 	Name: string;
 	Description: null | string;
+	IsActive?: boolean;
 }
 export interface EmergencyModeEnum {
 	Id: number;
@@ -430,6 +438,7 @@ export interface AgreementEnum {
 	CreatedDate: string;
 	UpdatedBy?: string;
 	UpdatedDate?: string;
+	IsActive?: boolean;
 }
 export interface SourceEnum {
 	Id: number;
@@ -440,6 +449,7 @@ export interface SourceEnum {
 	CreatedDate: string;
 	UpdatedBy?: string;
 	UpdatedDate?: string;
+	IsActive?: boolean;
 }
 //#endregion
 

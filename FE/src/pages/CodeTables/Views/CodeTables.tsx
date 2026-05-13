@@ -1,6 +1,4 @@
-﻿"use client";
-
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import ProjectDetailsDropdowns from '../tables/projectDetails/ProjectDetailsDropdowns';
 import CostTypeTable from '../tables/componentCost/CostTypeTable';
 import WorkCategoryTable from '../tables/majorItemOfWorks/WorkCategoryTable';

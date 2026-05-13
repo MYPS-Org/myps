@@ -35,17 +35,17 @@ export const projectDetailsRules: ValidationRule<ProjectDetails>[] = [
     {
         field: "Province",
         message: "Province is required.",
-        validate: (value) => !!value
+        validate: (value, data) => data?.IslandCode === 'LS' || !!value
     },
     {
         field: "City",
         message: "City is required.",
-        validate: (value) => !!value
+        validate: (value, data) => data?.IslandCode === 'LS' || !!value
     },
     {
         field: "LegislativeDistrict",
         message: "Legislative District is required.",
-        validate: (value) => !!value
+        validate: (value, data) => data?.IslandCode === 'LS' || !!value
     },
     {
         field: "OperatingUnit",
@@ -55,17 +55,17 @@ export const projectDetailsRules: ValidationRule<ProjectDetails>[] = [
     {
         field: "ImplementingOffice",
         message: "Implementing Office is required.",
-        validate: (value) => !!value
+        validate: (value, data) => data?.IslandCode === 'LS' || !!value
     },
     {
         field: "DEO",
         message: "DEO is required.",
-        validate: (value) => !!value
+        validate: (value, data) => data?.IslandCode === 'LS' || !!value
     },
     {
         field: "Region",
         message: "Region is required.",
-        validate: (value) => !!value
+        validate: (value, data) => data?.IslandCode === 'LS' || !!value
     },
     {
         field: "Agency",
