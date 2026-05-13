@@ -10,6 +10,7 @@ interface FilterUserDialogProps {
   onSubmit: (filterData: UserFilter) => void;
   onClear?: () => void;
   initialData?: UserFilter;
+  userGroupOptions?: { Id: number; GroupName: string }[];
 }
 
 const FilterUserDialog: React.FC<FilterUserDialogProps> = ({ 
@@ -17,11 +18,12 @@ const FilterUserDialog: React.FC<FilterUserDialogProps> = ({
   onClose, 
   onSubmit, 
   onClear,
-  initialData 
+  initialData,
+  userGroupOptions = [],
 }) => {
   const [formData, setFormData] = useState({
     Name: initialData?.Name || '',
-    UserGroup: initialData?.UserGroup || '',
+    UserGroup: initialData?.UserGroup || undefined as string | undefined,
     IsActive: undefined as boolean | undefined
   });
 
@@ -30,7 +32,7 @@ const FilterUserDialog: React.FC<FilterUserDialogProps> = ({
     if (isOpen) {
       setFormData({
         Name: initialData?.Name || '',
-        UserGroup: initialData?.UserGroup || '',
+        UserGroup: initialData?.UserGroup || undefined,
         IsActive: initialData?.IsActive !== undefined ? initialData.IsActive : undefined
       });
     }
@@ -45,7 +47,7 @@ const FilterUserDialog: React.FC<FilterUserDialogProps> = ({
   const handleClear = () => {
     setFormData({
       Name: '',
-      UserGroup: '',
+      UserGroup: undefined,
       IsActive: undefined
     });
     if (onClear) {
@@ -64,6 +66,8 @@ const FilterUserDialog: React.FC<FilterUserDialogProps> = ({
         boolValue = undefined;
       }
       setFormData(prev => ({ ...prev, [field]: boolValue }));
+    } else if (field === 'UserGroup') {
+      setFormData(prev => ({ ...prev, UserGroup: value === '' ? undefined : value }));
     } else {
       setFormData(prev => ({ ...prev, [field]: value }));
     }
@@ -111,13 +115,16 @@ const FilterUserDialog: React.FC<FilterUserDialogProps> = ({
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   User Group
                 </label>
-                <input
-                  type="text"
+                <select
                   value={formData.UserGroup || ''}
                   onChange={(e) => handleChange('UserGroup', e.target.value)}
-                  placeholder="Search by user group..."
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
-                />
+                >
+                  <option value="">All Groups</option>
+                  {userGroupOptions.map(g => (
+                    <option key={g.Id} value={g.GroupName}>{g.GroupName}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">

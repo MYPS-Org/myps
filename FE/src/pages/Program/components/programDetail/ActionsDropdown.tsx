@@ -33,8 +33,17 @@ const ActionsDropdown: React.FC<ActionsDropdownProps> = ({
   const [isAIPDialogOpen, setIsAIPDialogOpen] = useState(false);
 
   const handleDownloadTemplate = () => {
-    // TODO: Implement download template functionality
-    console.log('Download Template clicked');
+    const templateUrl = '/api/Resources/Templates/ImportProjectTemplate.xlsm';
+    const link = document.createElement('a');
+    link.href = templateUrl;
+    link.download = 'ImportProjectTemplate.xlsm';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast({
+      type: 'success',
+      message: 'Template download initiated.',
+    });
     setIsOpen(false);
   };
 

@@ -50,6 +50,7 @@ const Rbac: React.FC = () => {
 		UserGroupFilter, setUserGroupFilter,
 		isLoadingModules,
 		userGroupDropdowns,
+		userGroupList,
 		tabNumbers,
 		sortDirection,
 		handleClear,
@@ -180,8 +181,7 @@ const Rbac: React.FC = () => {
 						const newGroupWithId: vUserGroups = {
 							Id: (UserGroupsData.lists?.length || 0) + 1,
 							GroupName: newGroup.GroupName,
-							Description: newGroup.Description,
-							ModulePermissions: [],
+							Description: newGroup.Description,						ApplyFilter: false,							ModulePermissions: [],
 							NumberOfUsers: 0,
 							CreatedBy: '',
 							CreatedDate: new Date().toISOString(),
@@ -249,8 +249,7 @@ const Rbac: React.FC = () => {
 							const updatedGroupData: vUserGroups = {
 								Id: updatedGroup.id,
 								GroupName: updatedGroup.groupName,
-								Description: updatedGroup.description,
-								ModulePermissions: existing?.ModulePermissions || [],
+								Description: updatedGroup.description,							ApplyFilter: existing?.ApplyFilter ?? false,								ModulePermissions: existing?.ModulePermissions || [],
 								NumberOfUsers: existing?.NumberOfUsers || 0,
 								CreatedBy: existing?.CreatedBy || '',
 								CreatedDate: existing?.CreatedDate || new Date().toISOString(),
@@ -282,8 +281,7 @@ const Rbac: React.FC = () => {
 			{isFilterUserDialogOpen && (
 				<FilterUserDialog
 					isOpen={isFilterUserDialogOpen}
-					onClose={() => setIsFilterUserDialogOpen(false)}
-					onSubmit={async (filterData) => {
+					onClose={() => setIsFilterUserDialogOpen(false)}				userGroupOptions={userGroupList}					onSubmit={async (filterData) => {
 						console.log('User filter data received:', filterData);
 						const newFilter: UserPagination = { ...UserFilter, filters: filterData, page: 1 };
 						setUserFilter(newFilter);

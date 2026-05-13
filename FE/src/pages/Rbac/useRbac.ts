@@ -75,13 +75,15 @@ export function useRbac() {
 		users: 0, modules: 0, userGroups: 0,
 	});
 	const [sortDirection, setSortDirection] = useState<0 | 1 | null>(null);
+	const [userGroupList, setUserGroupList] = useState<{ Id: number; GroupName: string }[]>([]);
 
 	useEffect(() => {
 		const fetchData = async () => {
 			try {
-				const [initialData, dropdownsRes] = await Promise.all([
+				const [initialData, dropdownsRes, groupsRes] = await Promise.all([
 					fetchInitialData(),
 					fetchUserGroupDropdowns(),
+					fetchUserGroups({ page: 1, limit: 1000, sortField: 'GroupName', sortDirection: 0, filters: { GroupName: '', PermissionNames: '' } }),
 				]);
 				setTabNumbers({
 					users: initialData.Data.NumberOfUsers || 0,
@@ -106,6 +108,9 @@ export function useRbac() {
 						});
 						setPermissionViewsLookup(lookup);
 					}
+				}
+				if (groupsRes.Data?.lists) {
+					setUserGroupList(groupsRes.Data.lists.map(g => ({ Id: g.Id, GroupName: g.GroupName })));
 				}
 				console.log('Initial data fetched:', initialData);
 			} catch (error: any) {
@@ -341,6 +346,7 @@ export function useRbac() {
 		// Lookup
 		permissionViewsLookup,
 		userGroupDropdowns,
+		userGroupList,
 		tabNumbers,
 		sortDirection,
 		// Handlers
