@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../../components/tailwindui/table';
 import { Button } from '../../../../components/tailwindui/button';
 import { PencilIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
@@ -9,9 +9,11 @@ import { useToast } from '../../../../components/toaster/ToasterContext';
 import ConfirmDialog from '../../dialogs/ConfirmDialog';
 import { useConfirmDialog } from '../../dialogs/useConfirmDialog';
 
-const CODE = 'ModificationReason';
+const CODE = 'RevisionReasons';
 
 interface EditForm { Reason: string; RevisionGroupId: number; ReasonId: number; IsDeleted: boolean; }
+interface AddForm { Reason: string; RevisionGroupId: number; IsDeleted: boolean; }
+const EMPTY_ADD_FORM: AddForm = { Reason: '', RevisionGroupId: 0, IsDeleted: false };
 
 const ModificationReasonTable: React.FC = () => {
   const { data: codeTableData, loading: isLoading, refetch } = useCodeTableContext();
@@ -25,8 +27,14 @@ const ModificationReasonTable: React.FC = () => {
   const [editId, setEditId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<EditForm>({ Reason: '', RevisionGroupId: 0, ReasonId: 0, IsDeleted: false });
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [addForm, setAddForm] = useState<AddForm | null>(null);
   const confirm = useConfirmDialog();
   const itemsPerPage = 15;
+
+  const revisionHeaders = useMemo(
+    () => (codeTableData?.RevisionHeaders ?? []) as { Id: number; RevisionName: string; RevisionGroupId: number }[],
+    [codeTableData]
+  );
 
   useEffect(() => {
     const reasons = (codeTableData?.Reasons ?? []) as ModificationCategoryReason[];
@@ -72,6 +80,29 @@ const ModificationReasonTable: React.FC = () => {
       setSortDirection(0);
     }
   }, [sortColumn]);
+
+  const requestAdd = () => {
+    if (!addForm) return;
+    confirm.request({
+      mode: 'add',
+      tableName: 'Revision Reason',
+      fields: [
+        { label: 'Group', value: revisionHeaders.find(h => h.RevisionGroupId === addForm.RevisionGroupId)?.RevisionName ?? String(addForm.RevisionGroupId) },
+        { label: 'Reason', value: addForm.Reason },
+      ],
+      onConfirm: async () => {
+        try {
+          await updateCodeTable(CODE, 0, JSON.stringify(addForm));
+          showToast({ type: 'success', message: 'Revision reason added.' });
+          await refetch();
+        } catch {
+          showToast({ type: 'error', message: 'Failed to add revision reason.' });
+        }
+        confirm.close();
+        setAddForm(null);
+      },
+    });
+  };
 
   const startEdit = (item: ModificationCategoryReason) => {
     setEditId(item.Id);
@@ -137,8 +168,10 @@ const ModificationReasonTable: React.FC = () => {
     });
   };
 
-  const inp = (extra = 'w-full') =>
-    `${extra} px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 resize-none border-amber-300 focus:ring-amber-500`;
+  const inp = (mode: 'add' | 'edit' = 'edit', extra = 'w-full') =>
+    `${extra} px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 resize-none ${
+      mode === 'add' ? 'border-indigo-300 focus:ring-indigo-500' : 'border-amber-300 focus:ring-amber-500'
+    }`;
 
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
   const pageData = filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -175,7 +208,8 @@ const ModificationReasonTable: React.FC = () => {
               className="pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent w-52"
             />
           </div>
-          <Button color="indigo" className="flex items-center gap-1 text-sm">
+          <Button color="indigo" className="flex items-center gap-1 text-sm"
+            onClick={() => setAddForm(EMPTY_ADD_FORM)} disabled={!!addForm}>
             <PlusIcon className="h-4 w-4" /> Add Reason
           </Button>
         </div>
@@ -195,7 +229,46 @@ const ModificationReasonTable: React.FC = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {pageData.length === 0 ? (
+            {addForm !== null && (
+              <TableRow className="bg-indigo-50 border-l-4 border-indigo-400">
+                <TableCell><span className="font-mono text-xs text-gray-400 px-2">auto</span></TableCell>
+                <TableCell>
+                  <select
+                    autoFocus
+                    value={addForm.RevisionGroupId || ''}
+                    onChange={e => setAddForm(f => f && ({ ...f, RevisionGroupId: +e.target.value }))}
+                    className={inp('add')}
+                  >
+                    <option value="">— Select Header —</option>
+                    {revisionHeaders.map(h => (
+                      <option key={h.Id} value={h.RevisionGroupId}>{h.RevisionName}</option>
+                    ))}
+                  </select>
+                </TableCell>
+                <TableCell><span className="font-mono text-xs text-gray-400 px-2">auto</span></TableCell>
+                <TableCell>
+                  <textarea
+                    value={addForm.Reason}
+                    onChange={e => setAddForm(f => f && ({ ...f, Reason: e.target.value }))}
+                    rows={2}
+                    placeholder="Reason text *"
+                    className={inp('add')}
+                  />
+                </TableCell>
+                <TableCell />
+                <TableCell />
+                <TableCell>
+                  <div className="flex gap-1">
+                    <Button color="indigo" className="p-1.5" onClick={requestAdd}
+                      disabled={!addForm.Reason.trim() || !addForm.RevisionGroupId}>
+                      <CheckIcon className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button color="zinc" className="p-1.5" onClick={() => setAddForm(null)}><XMarkIcon className="h-3.5 w-3.5" /></Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            )}
+            {pageData.length === 0 && !addForm ? (
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-10 text-gray-500">No records found.</TableCell>
               </TableRow>
@@ -205,8 +278,20 @@ const ModificationReasonTable: React.FC = () => {
                   <TableCell className="font-mono text-xs text-gray-500">{item.Id}</TableCell>
                   {editId === item.Id ? (
                     <>
-                      <TableCell><input autoFocus type="number" value={editForm.RevisionGroupId} onChange={e => setEditForm(f => ({ ...f, RevisionGroupId: +e.target.value }))} className={inp('w-20')} /></TableCell>
-                      <TableCell><input type="number" value={editForm.ReasonId} onChange={e => setEditForm(f => ({ ...f, ReasonId: +e.target.value }))} className={inp('w-20')} /></TableCell>
+                      <TableCell>
+                        <select
+                          autoFocus
+                          value={editForm.RevisionGroupId}
+                          onChange={e => setEditForm(f => ({ ...f, RevisionGroupId: +e.target.value }))}
+                          className={inp('edit', 'w-full')}
+                        >
+                          <option value="">— Select Header —</option>
+                          {revisionHeaders.map(h => (
+                            <option key={h.Id} value={h.RevisionGroupId}>{h.RevisionName}</option>
+                          ))}
+                        </select>
+                      </TableCell>
+                      <TableCell><span className="font-mono text-xs text-gray-500 px-2">{editForm.ReasonId}</span></TableCell>
                       <TableCell><textarea value={editForm.Reason} onChange={e => setEditForm(f => ({ ...f, Reason: e.target.value }))} rows={3} className={inp()} /></TableCell>
                       <TableCell>
                         <select value={editForm.IsDeleted ? '1' : '0'} onChange={e => setEditForm(f => ({ ...f, IsDeleted: e.target.value === '1' }))} className={inp()}>
