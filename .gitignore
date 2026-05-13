@@ -16,6 +16,7 @@
 # Mono auto generated files
 mono_crash.*
 FE/node_modules
+FE/.env.development
 Main/wwwroot/
 # Build results
 [Dd]ebug/
