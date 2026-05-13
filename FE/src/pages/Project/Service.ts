@@ -206,7 +206,7 @@ export const fetchProjectGeoJSON = async (referenceId: string, programId: string
             username,
             program_stage_name: stageName,
         });
-        const apiUrl = `/gis/api_v1.0/project/features_v4?${params.toString()}`;
+        const apiUrl = `${import.meta.env.VITE_API_GIS_URL}/api_v1.0/project/features_v4?${params.toString()}`;
 
         const response = await fetch(apiUrl, {
             method: 'GET',
@@ -239,7 +239,7 @@ export const chainageToLrpConverter = async (sectionId: string, chainage: number
             road_section_id: sectionId,
             chainage: chainage.toString(),
         });
-        const apiUrl = `/gis/api_v1.0/infra/chainage_to_lrp?${params.toString()}`;
+        const apiUrl = `${import.meta.env.VITE_API_GIS_URL}/api_v1.0/infra/chainage_to_lrp?${params.toString()}`;
 
         const response = await fetch(apiUrl, {
             method: 'GET',
@@ -279,7 +279,7 @@ export const importProject = async (payload: ImportProjectDTO) => {
 
 export const lrpToChainageConverter = async (sectionId: string, lrp: string) => {
     try {
-        const apiUrl = `/gis/api_v1.0/infra/lrp_to_chainage?road_section_id=${encodeURIComponent(sectionId)}&lrp_string=${encodeURIComponent(lrp)}`;
+        const apiUrl = `${import.meta.env.VITE_API_GIS_URL}/api_v1.0/infra/lrp_to_chainage?road_section_id=${encodeURIComponent(sectionId)}&lrp_string=${encodeURIComponent(lrp)}`;
 
         const response = await fetch(apiUrl, {
             method: 'GET',
@@ -305,7 +305,7 @@ export const lrpToChainageConverter = async (sectionId: string, lrp: string) => 
 
 export const autoFillComponentDescription = async (username: string, reference_id: string, project_component_id : string, program_id: string, program_stage_name: string) => {
     try {
-        const apiUrl = `/gis/api_v1.0/infra/describe_project_component?username=${encodeURIComponent(username)}&reference_id=${encodeURIComponent(reference_id)}&project_component_id=${encodeURIComponent(project_component_id)}&program_id=${encodeURIComponent(program_id)}&program_stage_name=${encodeURIComponent(program_stage_name)}`;
+        const apiUrl = `${import.meta.env.VITE_API_GIS_URL}/api_v1.0/infra/describe_project_component?username=${encodeURIComponent(username)}&reference_id=${encodeURIComponent(reference_id)}&project_component_id=${encodeURIComponent(project_component_id)}&program_id=${encodeURIComponent(program_id)}&program_stage_name=${encodeURIComponent(program_stage_name)}`;
 
         const response = await fetch(apiUrl, {
             method: 'GET',
