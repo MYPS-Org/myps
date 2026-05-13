@@ -1,8 +1,7 @@
 ﻿import React, { useState } from 'react';
 import ProjectDetailsDropdowns from '../tables/projectDetails/ProjectDetailsDropdowns';
 import CostTypeTable from '../tables/componentCost/CostTypeTable';
-import WorkCategoryTable from '../tables/majorItemOfWorks/WorkCategoryTable';
-import TypeOfWorkTable from '../tables/majorItemOfWorks/TypeOfWorkTable';
+import ScopeOfWorkTable from '../tables/majorItemOfWorks/ScopeOfWorkTable';
 import InfraTypeTable from '../tables/majorItemLocation/InfraTypeTable';
 import FundingAgreementTable from '../tables/fundingProfile/FundingAgreementTable';
 import FundingSourceTable from '../tables/fundingProfile/FundingSourceTable';
@@ -68,8 +67,7 @@ const GROUPS: GroupTab[] = [
     label: 'Major Item',
     icon: WrenchScrewdriverIcon,
     tables: [
-      { id: 'work-category', label: 'Work Category',        component: WorkCategoryTable },
-      { id: 'type-of-work',  label: 'Type of Work',         component: TypeOfWorkTable },
+      { id: 'scope-of-work', label: 'Scope of Work',        component: ScopeOfWorkTable },
       { id: 'infra-type',    label: 'Infrastructure Types',  component: InfraTypeTable },
     ],
   },
