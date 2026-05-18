@@ -276,23 +276,23 @@ const FutureBridgeDialog: React.FC<FutureBridgeDialogProps> = ({ onClose, roadSe
               </p>
             </div>
 
-            {/* Carriage Way */}
+            {/* Carriage Way Width */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Weight of Carriage Ways (Kg) <span className="text-red-500">*</span>
+                Carriageway Width (m) <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
-                step="1"
+                step="0.01"
                 min="0"
                 value={formData.CarriageWay || ''}
                 onChange={(e) => handleChange('CarriageWay', e.target.value ? Number(e.target.value) : undefined)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
                 required
-                placeholder="Enter weight capacity of carriage ways"
+                placeholder="Enter carriageway width in meters"
               />
               <p className="text-xs text-gray-500 mt-1">
-                Total weight capacity of the bridge's carriage ways in kilograms
+                Width of the carriageway in meters
               </p>
             </div>
 
