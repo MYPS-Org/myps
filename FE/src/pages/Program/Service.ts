@@ -205,6 +205,18 @@ export const batchRestrictPublishing = async (data: { ProgramId: string; Project
     }
 }
 
+export const batchRestoreProjects = async (data: { ProgramId: string; ProjectIds: string }) => {
+    try {
+        const request = await httpClient.post('/Program/BatchAddExistingProject', data, {
+            preloaderMessage: 'Restoring projects...'
+        });
+        return request;
+    } catch (ErrorResponse) {
+        console.error('Error restoring projects:', ErrorResponse);
+        throw ErrorResponse;
+    }
+}
+
 export const importProjects = async (payload: ImportProjectDTO) => {
     try {
         const response = await httpClient.post(`/Importing/ImportProject/`, payload, {

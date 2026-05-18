@@ -3,7 +3,7 @@ import { ExclamationTriangleIcon, InformationCircleIcon } from "@heroicons/react
 import { Button } from "../../../components/tailwindui/button";
 import { useState } from "react";
 
-type BatchAction = 'tag' | 'delete' | 'unpublish' | 'publish';
+type BatchAction = 'tag' | 'delete' | 'unpublish' | 'publish' | 'restore';
 
 interface ConfirmDialogBatchProps {
   isOpen: boolean;
@@ -65,6 +65,19 @@ const ConfirmDialogBatch: React.FC<ConfirmDialogBatchProps> = ({
           iconBg: 'bg-green-100',
           buttonText: 'Yes, Mark as Ready',
           buttonColor: 'green' as const,
+          requireConfirmation: false,
+          confirmationWord: '',
+        };
+      case 'restore':
+        return {
+          title: 'Confirm Batch Restore',
+          message: 'You are about to restore the following deleted projects back to this program.',
+          warningLevel: 'info' as const,
+          icon: InformationCircleIcon,
+          iconColor: 'text-indigo-600',
+          iconBg: 'bg-indigo-100',
+          buttonText: 'Yes, Restore Projects',
+          buttonColor: 'indigo' as const,
           requireConfirmation: false,
           confirmationWord: '',
         };

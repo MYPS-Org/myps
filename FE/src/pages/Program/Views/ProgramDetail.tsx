@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 
 import type { ProgramDetailsEnums } from '../Model.d'; // Adjust the import path as necessary
 import { Button } from '../../../components/tailwindui/button';
-import { editProgram, fetchProgramById, publishToPCMA } from '../Service';
+import { editProgram, fetchProgramById, publishToPCMA, batchRestoreProjects } from '../Service';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import NextStageDialog from '../dialogs/NextStageDialog';
@@ -13,6 +13,7 @@ import PublishProgramDialog from '../dialogs/PublishProgramDialog';
 import ActionsDropdown from '../components/programDetail/ActionsDropdown';
 import BatchActionsDropdown from '../components/programDetail/BatchActionsDropdown';
 import AddExistingProjectDialog from '../dialogs/AddExistingProjectDialog';
+import BatchRestoreDialog from '../dialogs/BatchRestoreDialog';
 import CheckboxList from '../../../components/ui/CheckboxList';
 // import { formatCurrency } from '../../../utils/GlobalFunctions';
 // import { Badge } from '../../../components/tailwindui/badge';
@@ -100,6 +101,7 @@ const ProgramDetail: React.FC = () => {
   const [isNextStageDialogOpen, setIsNextStageDialogOpen] = useState(false);
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
   const [isAddExistingProjectDialogOpen, setIsAddExistingProjectDialogOpen] = useState(false);
+  const [isBatchRestoreDialogOpen, setIsBatchRestoreDialogOpen] = useState(false);
   
   // Group data security by OrgType
   // const groupedDataSecurity = useMemo(() => {
@@ -167,7 +169,27 @@ const ProgramDetail: React.FC = () => {
   };
 
   const handleAddExistingProject = () => {
-setIsAddExistingProjectDialogOpen(true);
+    setIsBatchRestoreDialogOpen(true);
+  };
+
+  const handleBatchRestoreSubmit = async (programId: string, projectIds: string) => {
+    try {
+      setIsLoading(true);
+      await batchRestoreProjects({ ProgramId: programId, ProjectIds: projectIds });
+      showToast({
+        type: 'success',
+        message: 'Projects restored successfully.',
+      });
+      await fetchProgramDetail(programEnums?.Details.ProgramId, programEnums?.Details.StageName);
+    } catch (error) {
+      console.error('Error restoring projects:', error);
+      showToast({
+        type: 'error',
+        message: 'Failed to restore projects. Please try again.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleAddExistingProjectSubmit = async (projectIds: string[]) => {
@@ -780,6 +802,17 @@ setIsAddExistingProjectDialogOpen(true);
           isOpen={isAddExistingProjectDialogOpen}
           onClose={() => setIsAddExistingProjectDialogOpen(false)}
           onSubmit={handleAddExistingProjectSubmit}
+          programId={programEnums?.Details.ProgramId}
+          programName={programEnums?.Details.Name}
+        />
+      )}
+
+      {/* Batch Restore Dialog */}
+      {isBatchRestoreDialogOpen && (
+        <BatchRestoreDialog
+          isOpen={isBatchRestoreDialogOpen}
+          onClose={() => setIsBatchRestoreDialogOpen(false)}
+          onSubmit={handleBatchRestoreSubmit}
           programId={programEnums?.Details.ProgramId}
           programName={programEnums?.Details.Name}
         />
