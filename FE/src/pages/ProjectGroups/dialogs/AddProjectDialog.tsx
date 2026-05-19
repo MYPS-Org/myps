@@ -62,11 +62,11 @@ const AddProjectDialog: React.FC<AddProjectDialogProps> = ({
   };
 
   // Handle search on Enter key
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleSearch();
-    }
-  };
+  // const handleKeyPress = (e: React.KeyboardEvent) => {
+  //   if (e.key === 'Enter') {
+  //     handleSearch();
+  //   }
+  // };
 
   // Add project to selected list
   const handleAddProject = (project: ProjectList) => {
