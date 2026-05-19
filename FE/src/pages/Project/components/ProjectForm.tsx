@@ -186,7 +186,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
           initialData.ProgramDetails.StageName
         );
         if (response.Data) {
-          setGeoJsonData(response.Data);
+          setGeoJsonData(response.Data as GeoJSON.FeatureCollection);
         }
       } catch (error) {
         console.error('Error loading map data:', error);

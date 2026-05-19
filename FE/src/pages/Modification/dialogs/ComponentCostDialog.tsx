@@ -442,7 +442,9 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
             ComponentCostId: formData.CostId,
             CreatedBy: cost.CreatedBy || user?.UserId || '',
             UpdatedBy: user?.UserId || '',
-            UpdatedDate: new Date().toISOString()
+            UpdatedDate: new Date().toISOString(),
+            StartDate: cost.StartDate || null,
+            EndDate: cost.EndDate || null,
           }));
 
         // Send ComponentCost and ComponentCostPerYear data to parent
