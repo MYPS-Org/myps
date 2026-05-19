@@ -69,21 +69,26 @@ namespace ReportGeneration
         /// <summary>Renders the 4-column header row using Row layout (no Table).</summary>
         static void BuildTableHeader(IContainer container)
         {
-            container.BorderBottom(0.5f).BorderColor(Colors.Black).Row(row =>
+            container.Column(col =>
             {
-                HdrCell(row, W0, "UACS / Sub Program");
-                HdrCell(row, W1, "Project Description");
-                HdrCell(row, W2, "Amount\n(PHP)");
-                HdrCell(row, W3, "Operating Unit /\nImplementing Office");
+                col.Item().Row(row =>
+                {
+                    HdrCell(row, W0, "UACS / Sub Program");
+                    HdrCell(row, W1, "Project Description");
+                    HdrCell(row, W2, "Amount\n(PHP)");
+                    HdrCell(row, W3, "Operating Unit /\nImplementing Office");
+                });
+                // Underline separator
+                col.Item().LineHorizontal(0.5f).LineColor(Colors.Black);
             });
         }
 
-        /// <summary>Renders a single header cell with centered bold text (no per-cell border).</summary>
+        /// <summary>Renders a single header cell with left-aligned bold text (no per-cell border).</summary>
         static void HdrCell(RowDescriptor row, float weight, string text)
         {
             row.RelativeItem(weight)
-               .AlignCenter().AlignMiddle()
-               .Padding(4)
+               .AlignLeft().AlignTop()
+               .Padding(2)
                .Text(text).Bold().FontSize(7);
         }
 
@@ -103,25 +108,25 @@ namespace ReportGeneration
                 {
                     var regionTotal = (decimal)GetComponents(regionGrp, components).Sum(c => c.TotalComponentCost);
                     SummaryRow(col, regionGrp.Key, regionGrp.Count(), regionTotal,
-                        fontSize: 8, bold: true, topBorder: true);
+                        fontSize: 8, bold: true, boldData: true, topBorder: true);
 
                     foreach (var distGrp in regionGrp.GroupBy(p => p.LegislativeDistrict).OrderBy(g => g.Key))
                     {
                         var distTotal = (decimal)GetComponents(distGrp, components).Sum(c => c.TotalComponentCost);
                         SummaryRow(col, distGrp.Key, distGrp.Count(), distTotal,
-                            fontSize: 8, underline: true, indent: 6);
+                            fontSize: 8, underline: true, indent: 6, arialUnderline: true);
 
                         foreach (var deoGrp in distGrp.GroupBy(p => p.DEO).OrderBy(g => g.Key))
                         {
                             var deoTotal = (decimal)GetComponents(deoGrp, components).Sum(c => c.TotalComponentCost);
                             SummaryRow(col, deoGrp.Key, deoGrp.Count(), deoTotal,
-                                fontSize: 8, underline: true, indent: 6);
+                                fontSize: 8, underline: true, indent: 6, arialUnderline: true);
 
                             foreach (var ooGrp in deoGrp.GroupBy(p => p.Category ?? "").OrderBy(g => g.Key))
                             {
                                 var ooTotal = (decimal)GetComponents(ooGrp, components).Sum(c => c.TotalComponentCost);
                                 SummaryRow(col, ooGrp.Key, ooGrp.Count(), ooTotal,
-                                    fontSize: 8, bold: true, indent: 12);
+                                    fontSize: 8, bold: true, boldData: false, indent: 12);
 
                                 int seq = 0;
                                 foreach (var catGrp in ooGrp.GroupBy(p => BuildCategoryLabel(p)).OrderBy(g => g.Key))
@@ -155,28 +160,30 @@ namespace ReportGeneration
             decimal total,
             float fontSize = 8,
             bool bold = false,
+            bool boldData = false,
             bool underline = false,
+            bool arialUnderline = false,
             bool topBorder = false,
             int indent = 0)
         {
             col.Item()
                .Row(row =>
             {
-                row.RelativeItem(W0)
+                row.RelativeItem(W0 + W1)
                    .PaddingVertical(3).PaddingLeft(indent + 2f)
                    .Text(t =>
                    {
                        var s = t.Span(label).FontSize(fontSize);
                        if (bold) s.Bold();
-                       if (underline) s.Underline();
+                       if (underline) { s.Underline(); if (arialUnderline) s.FontFamily("Arial"); }
                    });
 
-                row.RelativeItem(W1)
-                   .PaddingLeft(2).PaddingVertical(3).AlignRight().PaddingRight(2)
+                row.RelativeItem(W2)
+                   .AlignRight().PaddingRight(2).PaddingVertical(3)
                    .Text(t =>
                    {
-                       var s = t.Span($"{count}     projects").FontSize(fontSize);
-                       if (bold) s.Bold();
+                       var s = t.Span($"{count}  projects").FontSize(fontSize);
+                       if (boldData) s.Bold();
                    });
 
                 row.RelativeItem(W2)
@@ -184,7 +191,7 @@ namespace ReportGeneration
                    .Text(t =>
                    {
                        var s = t.Span(FormatAmt(total)).FontSize(fontSize);
-                       if (bold) s.Bold();
+                       if (boldData) s.Bold();
                    });
 
                 row.RelativeItem(W3)
@@ -198,8 +205,8 @@ namespace ReportGeneration
             col.Item().Row(row =>
             {
                 row.RelativeItem(W0 + W1)
-                   .PaddingTop(4).PaddingBottom(2).PaddingLeft(18)
-                   .Text(t => t.Span(label + "\n").FontSize(7.5f).Underline());
+                   .PaddingTop(8).PaddingBottom(2).PaddingLeft(18)
+                   .Text(t => t.Span(label + "\n").FontSize(7.5f).Bold().Underline().FontFamily("Arial"));
 
                 row.RelativeItem(W2)
                    .AlignRight().PaddingRight(2).PaddingVertical(2)
@@ -224,7 +231,7 @@ namespace ReportGeneration
             col.Item().Row(row =>
             {
                 row.RelativeItem(W0)
-                   .PaddingLeft(4).PaddingVertical(2)
+                   .PaddingLeft(4).PaddingTop(4).PaddingBottom(1)
                    .Text(t =>
                    {
                        t.Span($"{seq}.  ").FontSize(7.5f).Bold();
@@ -232,15 +239,15 @@ namespace ReportGeneration
                    });
 
                 row.RelativeItem(W1)
-                   .PaddingHorizontal(2).PaddingVertical(2)
+                   .PaddingHorizontal(2).PaddingTop(4).PaddingBottom(1)
                    .Text(project.UACS ?? "").FontSize(7);
 
                 row.RelativeItem(W2)
-                   .AlignRight().PaddingRight(2).PaddingVertical(2)
+                   .AlignRight().PaddingRight(2).PaddingTop(4).PaddingBottom(1)
                    .Text(FormatAmt(total)).FontSize(7.5f);
 
                 row.RelativeItem(W3)
-                   .PaddingHorizontal(2).PaddingVertical(2)
+                   .PaddingHorizontal(2).PaddingTop(4).PaddingBottom(1)
                    .Text(project.OperatingUnit + "/" + project.ImplementingOffice).FontSize(7);
             });
 
@@ -248,8 +255,8 @@ namespace ReportGeneration
             col.Item().Row(row =>
             {
                 row.RelativeItem(W0 + W1)
-                   .PaddingLeft(6).PaddingBottom(2)
-                   .Text("\n" + project.Description + "\n").FontSize(7);
+                   .PaddingLeft(6).PaddingTop(1).PaddingBottom(3)
+                   .Text(t => t.Span(project.Description + "\n").FontSize(7).Bold());
 
                 row.RelativeItem(W2).Text("");
                 row.RelativeItem(W3).Text("");

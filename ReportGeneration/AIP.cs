@@ -19,7 +19,7 @@ namespace ReportGeneration
     public class AIP
     {
         // Relative column weights for the 8-column AIP layout
-        const float W0 = 12, W1 = 18, W2 = 10, W3 = 6, W4 = 5, W5 = 5, W6 = 9, W7 = 12;
+        const float W0 = 14, W1 = 20, W2 = 12, W3 = 5, W4 = 5, W5 = 5, W6 = 11, W7 = 13;
 
         /// <summary>
         /// Entry point -- builds and returns the AIP PDF as a byte array.
@@ -76,7 +76,7 @@ namespace ReportGeneration
         /// </summary>
         static void BuildTableHeader(IContainer container)
         {
-            container.BorderBottom(0.5f).BorderColor(Colors.Black).Column(col =>
+            container.Column(col =>
             {
                 // Row 1
                 col.Item().Row(row =>
@@ -89,23 +89,18 @@ namespace ReportGeneration
                     HdrCell(row, W6,          "Amount\n(PHP)");
                     HdrCell(row, W7,          "Operating Unit /\nImplementing Office");
                 });
-                // Row 2 -- sub-labels under Physical Target only
-                col.Item().Row(row =>
-                {
-                    row.RelativeItem(W0 + W1 + W2 + W3).Text("");
-                    HdrCell(row, W4, "#");
-                    HdrCell(row, W5, "Unit");
-                    row.RelativeItem(W6 + W7).Text("");
-                });
+
+                // Underline separator
+                col.Item().LineHorizontal(0.5f).LineColor(Colors.Black);
             });
         }
 
-        /// <summary>Renders a single header cell with centered bold text (no per-cell border).</summary>
+        /// <summary>Renders a single header cell with left-aligned bold text (no per-cell border).</summary>
         static void HdrCell(RowDescriptor row, float weight, string text)
         {
             row.RelativeItem(weight)
-               .AlignCenter().AlignMiddle()
-               .Padding(4)
+               .AlignLeft().AlignTop()
+               .Padding(2)
                .Text(text).Bold().FontSize(7);
         }
 
@@ -125,7 +120,7 @@ namespace ReportGeneration
                 {
                     var regionTotal = (decimal)GetComponents(regionGrp, components).Sum(c => c.TotalComponentCost);
                     SummaryRow(col, regionGrp.Key, regionGrp.Count(), regionTotal,
-                        fontSize: 8, bold: true, topBorder: true);
+                        fontSize: 8, bold: true, boldData: true, topBorder: true);
 
                     foreach (var deoGrp in regionGrp.GroupBy(p => p.DEO).OrderBy(g => g.Key))
                     {
@@ -143,7 +138,7 @@ namespace ReportGeneration
                             {
                                 var ooTotal = (decimal)GetComponents(ooGrp, components).Sum(c => c.TotalComponentCost);
                                 SummaryRow(col, ooGrp.Key, ooGrp.Count(), ooTotal,
-                                    fontSize: 8, bold: true, indent: 18);
+                                    fontSize: 8, bold: true, boldData: false, indent: 18);
 
                                 int seq = 0;
                                 foreach (var catGrp in ooGrp.GroupBy(p => BuildCategoryLabel(p)).OrderBy(g => g.Key))
@@ -190,7 +185,9 @@ namespace ReportGeneration
             int count,
             decimal total,
             float fontSize = 8,
+            float dataFontSize = 8,
             bool bold = false,
+            bool boldData = false,
             bool underline = false,
             bool topBorder = false,
             int indent = 0)
@@ -204,31 +201,31 @@ namespace ReportGeneration
                    {
                        var s = t.Span(label).FontSize(fontSize);
                        if (bold) s.Bold();
-                       if (underline) s.Underline();
+                       if (underline) { s.Underline(); s.FontFamily("Arial"); }
                    });
 
                 row.RelativeItem(W4)
                    .AlignRight().PaddingRight(2).PaddingVertical(3)
                    .Text(t =>
                    {
-                       var s = t.Span(count.ToString()).FontSize(fontSize);
-                       if (bold) s.Bold();
+                       var s = t.Span(count.ToString()).FontSize(dataFontSize);
+                       if (boldData) s.Bold();
                    });
 
                 row.RelativeItem(W5)
                    .PaddingLeft(2).PaddingVertical(3)
                    .Text(t =>
                    {
-                       var s = t.Span("projects").FontSize(fontSize);
-                       if (bold) s.Bold();
+                       var s = t.Span("projects").FontSize(dataFontSize);
+                       if (boldData) s.Bold();
                    });
 
                 row.RelativeItem(W6)
                    .AlignRight().PaddingRight(2).PaddingVertical(3)
                    .Text(t =>
                    {
-                       var s = t.Span(FormatAmt(total)).FontSize(fontSize);
-                       if (bold) s.Bold();
+                       var s = t.Span(FormatAmt(total)).FontSize(dataFontSize);
+                       if (boldData) s.Bold();
                    });
 
                 row.RelativeItem(W7)
@@ -242,8 +239,8 @@ namespace ReportGeneration
             col.Item().Row(row =>
             {
                 row.RelativeItem(W0 + W1 + W2 + W3)
-                   .PaddingTop(4).PaddingBottom(2).PaddingLeft(26)
-                   .Text(t => t.Span(label + "\n").FontSize(7.5f).Underline());
+                   .PaddingTop(8).PaddingBottom(2).PaddingLeft(26)
+                   .Text(t => t.Span(label + "\n").FontSize(7.5f).Bold().Underline().FontFamily("Arial"));
 
                 row.RelativeItem(W4).Text("");
                 row.RelativeItem(W5).Text("");
@@ -271,7 +268,7 @@ namespace ReportGeneration
             col.Item().Row(row =>
             {
                 row.RelativeItem(W0)
-                   .PaddingLeft(20).PaddingVertical(5)
+                   .PaddingLeft(20).PaddingTop(4).PaddingBottom(1)
                    .Text(t =>
                    {
                        t.Span($"{seq}.  ").FontSize(7.5f).Bold();
@@ -279,14 +276,14 @@ namespace ReportGeneration
                    });
 
                 row.RelativeItem(W1 + W2 + W3)
-                   .PaddingHorizontal(4).PaddingVertical(5)
+                   .PaddingHorizontal(4).PaddingTop(4).PaddingBottom(1)
                    .Text(project.UACS ?? "").FontSize(7);
 
                 row.RelativeItem(W4).Text("");
                 row.RelativeItem(W5).Text("");
 
                 row.RelativeItem(W6)
-                   .AlignRight().PaddingRight(2).PaddingVertical(2)
+                   .AlignRight().PaddingRight(2).PaddingTop(4).PaddingBottom(1)
                    .Text(FormatAmt(total)).FontSize(7.5f);
 
                 row.RelativeItem(W7).Text("");
@@ -296,8 +293,8 @@ namespace ReportGeneration
             col.Item().Row(row =>
             {
                 row.RelativeItem(W0 + W1 + W2 + W3)
-                   .PaddingLeft(24).PaddingBottom(2)
-                   .Text(t => t.Span("\n" + project.Description + "\n").FontSize(7).Bold());
+                   .PaddingLeft(24).PaddingTop(1).PaddingBottom(3)
+                   .Text(t => t.Span(project.Description + "\n").FontSize(7).Bold());
 
                 row.RelativeItem(W4).Text("");
                 row.RelativeItem(W5).Text("");
