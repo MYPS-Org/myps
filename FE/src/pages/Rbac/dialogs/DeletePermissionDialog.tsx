@@ -46,7 +46,7 @@ const DeletePermissionDialog: React.FC<DeletePermissionDialogProps> = ({ isOpen,
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Are you sure you want to delete the permission for {permission.ModuleFunction}?
+                Are you sure you want to delete the permission for {permission.ActionName}?
               </label>
             </div>
 
