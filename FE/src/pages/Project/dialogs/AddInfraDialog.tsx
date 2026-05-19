@@ -11,7 +11,7 @@ import { isRoadInfraType, isBridgeInfraType } from '../../../utils/infraIdGenera
 interface AddInfraDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onAdd: (infraId: string, infraName: string, infraType: string) => void;
+  onAdd: (infraId: string, infraName: string, infraType: string, length?: number) => void;
   initialData?: InfraData;
   mode?: 'add' | 'edit';
   infraType?: string;
@@ -167,15 +167,15 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedInfra) {
-      onAdd(selectedInfra.id, selectedInfra.name, selectedInfra.type);
+      onAdd(selectedInfra.id, selectedInfra.name, selectedInfra.type, selectedInfra.length);
       handleClose();
     } else {
       alert('Please select an infrastructure item');
     }
   };
 
-  const handleInfraSelect = (id: string, name: string, type: string) => {
-    setSelectedInfra({ id, name, type });
+  const handleInfraSelect = (id: string, name: string, type: string, length?: number) => {
+    setSelectedInfra({ id, name, type, length });
   };
 
   const tabs = [
@@ -239,7 +239,7 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
                     name="infraSelection"
                     value={road.RoadSectionId}
                     checked={selectedInfra?.id === road.RoadSectionId}
-                    onChange={() => handleInfraSelect(road.RoadSectionId, `${road.DEO} - ${road.RoadId}`, 'Roads')}
+                    onChange={() => handleInfraSelect(road.RoadSectionId, `${road.DEO} - ${road.RoadId}`, 'Roads', road.RoadLength)}
                     className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300"
                   />
                 </TableCell>
@@ -295,7 +295,7 @@ const AddInfraDialog: React.FC<AddInfraDialogProps> = ({
                     name="infraSelection"
                     value={bridge.BridgeId}
                     checked={selectedInfra?.id === bridge.BridgeId}
-                    onChange={() => handleInfraSelect(bridge.BridgeId, bridge.Name, 'Bridges')}
+                    onChange={() => handleInfraSelect(bridge.BridgeId, bridge.Name, 'Bridges', bridge.Length)}
                     className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300"
                   />
                 </TableCell>

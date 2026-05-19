@@ -13,8 +13,8 @@ interface ViewPermissionDialogProps {
 
 const ViewPermissionDialog: React.FC<ViewPermissionDialogProps> = ({ isOpen, onClose, permission }) => {
   const [formData] = useState({
-    Module: permission.Module || '',
-    ModuleFunction: permission.ModuleFunction || '',
+    ControllerName: permission.ControllerName || '',
+    ActionName: permission.ActionName || '',
     ModuleFunctionDescription: permission.ModuleFunctionDescription || '',
   });
 
@@ -48,7 +48,7 @@ const ViewPermissionDialog: React.FC<ViewPermissionDialogProps> = ({ isOpen, onC
               </label>
               <input
                 type="text"
-                value={formData.Module}
+                value={formData.ControllerName}
                 readOnly
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50"
               />
@@ -60,7 +60,7 @@ const ViewPermissionDialog: React.FC<ViewPermissionDialogProps> = ({ isOpen, onC
               </label>
               <input
                 type="text"
-                value={formData.ModuleFunction}
+                value={formData.ActionName}
                 readOnly
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-50"
               />
