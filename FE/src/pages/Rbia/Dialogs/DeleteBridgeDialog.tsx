@@ -109,8 +109,8 @@ const DeleteBridgeDialog: React.FC<DeleteBridgeDialogProps> = ({ isOpen, onClose
                   <span className="text-sm font-medium text-gray-900 dark:text-white">{bridge.Length} m</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Carriage Ways:</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">{bridge.CarriageWay}</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Carriageway Width:</span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">{bridge.CarriageWay} m</span>
                 </div>
               </div>
             </div>

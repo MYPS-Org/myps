@@ -219,7 +219,7 @@ const FutureBridgeList: React.FC = () => {
                 sortDirection={getSortDirection("CarriageWay")}
                 onSort={handleSortWithDirection("CarriageWay")}
               >
-                Carriage Way
+                Carriageway Width (m)
               </TableHeader>
               <TableHeader justify="center">Actions</TableHeader>
             </TableRow>
@@ -257,12 +257,9 @@ const FutureBridgeList: React.FC = () => {
                     {bridge.Length} m
                   </TableCell>
                   <TableCell className="text-center text-row px-6 py-4 whitespace-nowrap">
-                    <Badge
-                      color="blue"
-                      className="text-xs"
-                    >
-                      {bridge.CarriageWay} Way
-                    </Badge>
+                    <span className="text-gray-900">
+                      {bridge.CarriageWay} m
+                    </span>
                   </TableCell>
                   <TableCell className="text-row px-6 py-4 whitespace-nowrap">
                     <div className="flex justify-center space-x-2">

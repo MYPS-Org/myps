@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { httpClient, type PreloaderState } from '../services/httpClient';
+import { httpClient, gisClient, type PreloaderState } from '../services/httpClient';
 
 const Preloader: React.FC = () => {
   const [preloaderState, setPreloaderState] = useState<PreloaderState>({
@@ -15,9 +15,11 @@ const Preloader: React.FC = () => {
     };
 
     httpClient.addPreloaderCallback(handlePreloaderChange);
+    gisClient.addPreloaderCallback(handlePreloaderChange);
 
     return () => {
       httpClient.removePreloaderCallback(handlePreloaderChange);
+      gisClient.removePreloaderCallback(handlePreloaderChange);
     };
   }, []);
 

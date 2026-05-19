@@ -1,4 +1,4 @@
-import { httpClient } from '../../services/httpClient';
+import { httpClient, gisClient } from '../../services/httpClient';
 import type { RODEOEnum } from '../Project/Model';
 
 import type { FutureRoads, FutureRoadSections, FutureBridge, FutureRoadsClassification, BridgePagination, RoadSectionPagination, RoadPagination, RoadFilter, RoadSectionFilter, BridgeFilter } from './Model.d';
@@ -154,14 +154,11 @@ export const deleteFutureBridge = async (bridgeId: string) => {
 
 export const importNationalRoads = async (userName: string) => {
     try {
-        const apiUrl = `${import.meta.env.VITE_API_GIS_URL}/api_v2.0/inventory/import_national_roads?username=${encodeURIComponent(userName)}`;
-        const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'ngrok-skip-browser-warning': 'true',
-            },
-        });
+        const response = await gisClient.post(
+            `/api_v2.0/inventory/import_national_roads?username=${encodeURIComponent(userName)}`,
+            undefined,
+            { preloaderMessage: 'Importing national roads...' }
+        );
         return response;
     } catch (error) {
         console.error('Error importing national roads:', error);
@@ -170,15 +167,12 @@ export const importNationalRoads = async (userName: string) => {
 }
 
 export const importRoadSections = async (userName: string) => {
-    try {        
-        const apiUrl = `${import.meta.env.VITE_API_GIS_URL}/api_v2.0/inventory/import_national_road_sections?username=${encodeURIComponent(userName)}`;
-        const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'ngrok-skip-browser-warning': 'true',
-            },
-        });
+    try {
+        const response = await gisClient.post(
+            `/api_v2.0/inventory/import_national_road_sections?username=${encodeURIComponent(userName)}`,
+            undefined,
+            { preloaderMessage: 'Importing road sections...' }
+        );
         return response;
     } catch (error) {
         console.error('Error importing national road sections:', error);
@@ -187,15 +181,12 @@ export const importRoadSections = async (userName: string) => {
 }
 
 export const importBridges = async (userName: string) => {
-    try {        
-        const apiUrl = `${import.meta.env.VITE_API_GIS_URL}/api_v2.0/inventory/import_national_bridges?username=${encodeURIComponent(userName)}`;
-        const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'ngrok-skip-browser-warning': 'true',
-            },
-        });
+    try {
+        const response = await gisClient.post(
+            `/api_v2.0/inventory/import_national_bridges?username=${encodeURIComponent(userName)}`,
+            undefined,
+            { preloaderMessage: 'Importing bridges...' }
+        );
         return response;
     } catch (error) {
         console.error('Error importing national bridges:', error);
@@ -205,15 +196,12 @@ export const importBridges = async (userName: string) => {
 
 
 export const importImplementingOffices = async (userName: string) => {
-    try {        
-        const apiUrl = `${import.meta.env.VITE_API_GIS_URL}/api_v2.0/admin_areas/aa_import_org_offices/?username=${encodeURIComponent(userName)}`;
-        const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'ngrok-skip-browser-warning': 'true',
-            },
-        });
+    try {
+        const response = await gisClient.post(
+            `/api_v2.0/admin_areas/aa_import_org_offices/?username=${encodeURIComponent(userName)}`,
+            undefined,
+            { preloaderMessage: 'Importing implementing offices...' }
+        );
         return response;
     } catch (error) {
         console.error('Error importing implementing offices:', error);
