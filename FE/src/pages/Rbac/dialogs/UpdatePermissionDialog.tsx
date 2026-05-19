@@ -15,8 +15,8 @@ interface UpdatePermissionDialogProps {
 const UpdatePermissionDialog: React.FC<UpdatePermissionDialogProps> = ({ isOpen, onClose, onSubmit, permission }) => {
   const [formData, setFormData] = useState({
     Id: permission.Id,
-    Module: permission.Module || '',
-    ModuleFunction: permission.ModuleFunction || '',
+    ControllerName: permission.ControllerName || '',
+    ActionName: permission.ActionName || '',
     ModuleFunctionDescription: permission.ModuleFunctionDescription || '',
   });
 
@@ -26,8 +26,8 @@ const UpdatePermissionDialog: React.FC<UpdatePermissionDialogProps> = ({ isOpen,
     if (isOpen) {
       setFormData({
         Id: permission.Id,
-        Module: permission.Module || '',
-        ModuleFunction: permission.ModuleFunction || '',
+        ControllerName: permission.ControllerName || '',
+        ActionName: permission.ActionName || '',
         ModuleFunctionDescription: permission.ModuleFunctionDescription || '',
       });
     }
@@ -88,8 +88,8 @@ const UpdatePermissionDialog: React.FC<UpdatePermissionDialogProps> = ({ isOpen,
               </label>
               <input
                 type="text"
-                value={formData.Module}
-                onChange={(e) => handleChange('Module', e.target.value)}
+                value={formData.ControllerName}
+                onChange={(e) => handleChange('ControllerName', e.target.value)}
                 placeholder="e.g., UserManagementController"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                 required
@@ -102,8 +102,8 @@ const UpdatePermissionDialog: React.FC<UpdatePermissionDialogProps> = ({ isOpen,
               </label>
               <input
                 type="text"
-                value={formData.ModuleFunction}
-                onChange={(e) => handleChange('ModuleFunction', e.target.value)}
+                value={formData.ActionName}
+                onChange={(e) => handleChange('ActionName', e.target.value)}
                 placeholder="e.g., manage_users"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                 required

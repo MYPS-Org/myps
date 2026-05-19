@@ -164,7 +164,8 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
     setStationLimitLoading(prev => ({ ...prev, [key]: true }));
     try {
       const response = await chainageToLrpConverter(location.InfraId, chainage);
-      const before = response.Data?.before;
+      const lrpData = response.Data as { before?: { station_limit?: string } } | undefined;
+      const before = lrpData?.before;
       if (before) {
         const stationLimit = before.station_limit
         handleFieldChange(index, type === 'start' ? 'StartStationLimit' : 'EndStationLimit', stationLimit);
@@ -185,7 +186,8 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
     setChainageLoading(prev => ({ ...prev, [key]: true }));
     try {
       const response = await lrpToChainageConverter(location.InfraId, lrp);
-      const chainage: number = response.Data?.chainage;
+      const chainageData = response.Data as { chainage?: number } | undefined;
+      const chainage = chainageData?.chainage;
       if (chainage !== undefined && chainage !== null) {
         handleFieldChange(index, type === 'start' ? 'StartChainage' : 'EndChainage', chainage);
       }
@@ -295,8 +297,9 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
     handleCloseDeleteDialog();
   };
 
-  const handleInfraSelect = (infraId: string, _infraName: string, _infraType: string) => {
+  const handleInfraSelect = (infraId: string, _infraName: string, _infraType: string, length?: number) => {
     infraId = infraId.replace(/\s/g, '');
+    const lengthValue = length ?? null;
     if (isAddingNew) {
       // Create new work location
       const newWorkLocation: MajorItemLocations = {
@@ -307,7 +310,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
         DetailedScope: '',
         TargetUnitId: workTypeId,
         TargetUnit: actualTargetUnit,
-        Length: null,
+        Length: lengthValue,
         EndChainage: 0,
         StartChainage: 0,
         StartX: 0,
@@ -326,6 +329,8 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
       const updatedWorkLocation = {
         ...currentLocation,
         InfraId: infraId,
+        // Only auto-populate length if current length is empty or 0
+        Length: (!currentLocation.Length || currentLocation.Length === 0) ? lengthValue : currentLocation.Length,
       };
       onEdit(editingIndex, updatedWorkLocation);
     }

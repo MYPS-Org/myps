@@ -9,7 +9,8 @@
     "build:dev": "vite build --mode development",
     "build:staging": "vite build --mode staging",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "tsc -b"
   },
   "dependencies": {
     "@deck.gl/core": "^9.2.2",

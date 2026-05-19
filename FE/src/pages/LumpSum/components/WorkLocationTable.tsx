@@ -3,7 +3,6 @@ import { Button } from '../../../components/tailwindui/button';
 import { PlusIcon, TrashIcon, PencilIcon, DocumentDuplicateIcon } from '@heroicons/react/24/outline';
 import AddInfraDialog from '../../Project/dialogs/AddInfraDialog';
 import DeleteWorkLocationDialog from '../../Project/dialogs/deleteDialogs/DeleteWorkLocationDialog';
-import { mockInfraData } from '../../Project/dialogs/mockInfraData';
 import { generateInfraId, shouldAutoGenerateInfraId, getInfraTypePrefix } from '../../../utils/infraIdGenerator';
 import type { MajorItemLocations, InfraData, ScopeOfWorkEnum, MajorItemOfWork } from '../../Project/Model.d';
 import type { ProgramList } from '../../Program/Model';
@@ -219,10 +218,8 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
     handleCloseDeleteDialog();
   };
 
-  const handleInfraSelect = (infraId: string, _infraName: string, _infraType: string) => {
-    // Get length from the selected infrastructure
-    const infraLength = getInfraLength(infraId);
-    const lengthValue = infraLength ? Number(infraLength) : null;
+  const handleInfraSelect = (infraId: string, _infraName: string, _infraType: string, length?: number) => {
+    const lengthValue = length ?? null;
 
     if (isAddingNew) {
       // Create new work location
@@ -281,28 +278,7 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
     onEdit(index, updatedWorkLocation);
   };
 
-  const getInfraLength = (infraId: string) => {
-    if (!infraId) return '';
-    
-    // Use mock data for now (same as AddInfraDialog)
-    const data = mockInfraData;
-    
-    // Check in RoadSections
-    const roadSection = data.RoadSections?.find(road => road.RoadSectionId === infraId);
-    if (roadSection) return roadSection.RoadLength?.toString() || '';
-    
-    // Check in Bridges
-    const bridge = data.Bridges?.find(bridge => bridge.BridgeId === infraId);
-    if (bridge) return bridge.Length?.toString() || '';
-    
-    // Check in FCS (might not have length properties)
-    const fcs = data.FCS?.find(f => f.FCSId === infraId);
-    if (fcs) return ''; // FCS typically don't have length
-    
-    // Check in OtherInfra (might not have length properties)  
-    const other = data.OtherInfra?.find(o => o.InfraId === infraId);
-    if (other) return ''; // Other infra might not have standardized length
-    
+  const getInfraLength = (_infraId: string) => {
     return '';
   };
 
