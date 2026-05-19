@@ -36,6 +36,7 @@ namespace ReportGeneration
         public static byte[] GenerateReport(Action<PageDescriptor> configurePage)
         {
             QuestPDF.Settings.License = LicenseType.Community;
+            QuestPDF.Settings.EnableDebugging = false;
 
             var document = Document.Create(container =>
             {

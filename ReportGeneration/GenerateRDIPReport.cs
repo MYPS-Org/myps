@@ -1,4 +1,4 @@
-using QuestPDF.Fluent;
+﻿using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using RDIPData = DBHelper.Models.Procedures.GenerateRDIP;
@@ -8,19 +8,25 @@ namespace ReportGeneration
     /// <summary>
     /// Generates the <b>Regional Development Investment Plan (RDIP)</b> PDF report (A4 Landscape).
     /// <para>
-    /// Table structure: Program/Sub-Program/Projects · Spatial Coverage (Province, District)
-    /// · Implementation Period (Start/End Year) · Investment Cost (Total + 6 yearly columns + Later Years) · Remarks.
-    /// Year columns are dynamically derived from the minimum <c>StartYear</c> in the data.
+    /// Uses Row/Column layout (no Table) to avoid PDF cell-border artifacts in Adobe.
+    /// Grouping: Category -> Program -> Sub-Program -> Activity -> Project.
+    /// Year columns are dynamically derived from the minimum StartYear in the data.
     /// </para>
-    /// <para>Grouping: Category → Program → Sub-Program (optional) → Activity (optional) → Project.</para>
     /// <para>Data source: <c>pGenerateRDIP</c>.</para>
     /// </summary>
     public class GenerateRDIP
     {
+        // 14 relative column weights
+        const float W0=22, W1=7, W2=8, W3=3.5f, W4=3.5f;
+        const float W5=8,  W6=7, W7=7, W8=7,    W9=7;
+        const float W10=7, W11=7, W12=6, W13=4;
+
         /// <summary>
-        /// Entry point — builds and returns the RDIP PDF as a byte array.
+        /// Entry point -- builds and returns the RDIP PDF as a byte array.
         /// </summary>
         /// <param name="data">Flat row list from <c>pGenerateRDIP</c>.</param>
+        /// <param name="year">Fiscal year shown in the title. Pass 0 to omit.</param>
+        /// <param name="stageName">Full stage label appended to the title.</param>
         /// <returns>PDF byte array suitable for an <c>application/pdf</c> file-download response.</returns>
         public static byte[] GenerateReport(List<RDIPData> data, int year = 0, string stageName = "")
         {
@@ -28,7 +34,7 @@ namespace ReportGeneration
             int LowestYear = data.Min(r => r.StartYear);
             string fiscalYear = year > 0 ? $" FY {year}" : "";
             string title = $"Regional Development Investment Plan (RDIP){fiscalYear}";
-            if (!string.IsNullOrEmpty(stageName)) title += $" — {stageName}";
+            if (!string.IsNullOrEmpty(stageName)) title += $" -- {stageName}";
             return GeneratePDF.GenerateReport(page =>
             {
                 page.Size(PageSizes.A4.Landscape());
@@ -36,9 +42,9 @@ namespace ReportGeneration
                 page.DefaultTextStyle(x =>
                     x.FontSize(6).FontFamily(GeneratePDF.FontFamily).FontColor(Colors.Black));
 
-                // ── HEADER ───────────────────────────────────────────
                 var regionName = data.FirstOrDefault()?.Region ?? "Region I";
 
+                // -- HEADER
                 page.Header()
                     .Column(col =>
                     {
@@ -48,19 +54,16 @@ namespace ReportGeneration
                         col.Item().AlignCenter()
                            .Text(regionName)
                            .FontFamily(GeneratePDF.FontFamily).FontSize(9).Bold();
-
                         col.Item().PaddingTop(2)
                            .Text("PDF Chapter: Chapter 19 - Accelerating Infrastructure Development")
                            .FontFamily(GeneratePDF.FontFamily).FontSize(7);
                         col.Item()
                            .Text("Agency: Department of Public Works and Highways")
                            .FontFamily(GeneratePDF.FontFamily).FontSize(7);
-
-                        col.Item().PaddingTop(6)
-                           .Element(c => BuildTableHeader(c, LowestYear));
+                        col.Item().PaddingTop(6).Element(c => BuildTableHeader(c, LowestYear));
                     });
 
-                // ── CONTENT ──────────────────────────────────────────
+                // -- CONTENT
                 page.Content()
                     .Column(col =>
                     {
@@ -69,127 +72,103 @@ namespace ReportGeneration
                             .PaddingTop(10).Element(BuildSignatureBlock);
                     });
 
-                // ── FOOTER ───────────────────────────────────────────
+                // -- FOOTER
                 GeneratePDF.BuildFooter(page, FooterFs);
             });
         }
 
-        // ── TABLE HEADER (3 rows) ────────────────────────────────────────
+        // -- TABLE HEADER (3 rows)
         /// <summary>
-        /// Renders the 3-row, 14-column frozen table header.
+        /// Renders the 3-row header using Column+Row layout.
         /// Year columns in row 3 are labeled dynamically starting from <paramref name="LowestYear"/>.
         /// </summary>
         static void BuildTableHeader(IContainer container, int LowestYear)
         {
-            container.Table(table =>
+            container.Column(col =>
             {
-                DefineColumns(table);
-
                 // Row 1
-                HeaderCell(table, "Program/Sub-Program/Projects", rowSpan: 3);
-                HeaderCell(table, "Spatial Coverage", colSpan: 2);
-                HeaderCell(table, "Implementation Period", colSpan: 2);
-                HeaderCell(table, "Investment Cost", colSpan: 8);
-                HeaderCell(table, "Remarks", rowSpan: 3);
-
+                col.Item().Row(row =>
+                {
+                    HdrCell(row, W0, "Program/Sub-Program/Projects");
+                    HdrCell(row, W1 + W2, "Spatial Coverage");
+                    HdrCell(row, W3 + W4, "Implementation Period");
+                    HdrCell(row, W5 + W6 + W7 + W8 + W9 + W10 + W11 + W12, "Investment Cost");
+                    HdrCell(row, W13, "Remarks");
+                });
                 // Row 2
-                HeaderCell(table, "Province/\nMunicipality", rowSpan: 2);
-                HeaderCell(table, "Congressional\nDistrict", rowSpan: 2);
-                HeaderCell(table, "Start of\nProject\nImplemen-\ntation", rowSpan: 2);
-                HeaderCell(table, "Year of\nProject\nImplemen-\ntation", rowSpan: 2);
-                HeaderCell(table, "TOTAL Cost", rowSpan: 2);
-                HeaderCell(table, "FirstYear");
-                HeaderCell(table, "SecondYear");
-                HeaderCell(table, "ThirdYear");
-                HeaderCell(table, "FourthYear");
-                HeaderCell(table, "FifthYear");
-                HeaderCell(table, "SixthYear");
-                HeaderCell(table, "Later\nYears");
-
-                // Row 3 — column numbers
-                HeaderCell(table, "(" + (LowestYear).ToString() + ")");
-                HeaderCell(table, "(" + (LowestYear + 1).ToString() + ")");
-                HeaderCell(table, "(" + (LowestYear + 2).ToString() + ")");
-                HeaderCell(table, "(" + (LowestYear + 3).ToString() + ")");
-                HeaderCell(table, "(" + (LowestYear + 4).ToString() + ")");
-                HeaderCell(table, "(" + (LowestYear + 5).ToString() + ")");
-                HeaderCell(table, "(" + (LowestYear + 6).ToString() + "...)");
+                col.Item().Row(row =>
+                {
+                    row.RelativeItem(W0).Text("");
+                    HdrCell(row, W1, "Province/\nMunicipality");
+                    HdrCell(row, W2, "Congressional\nDistrict");
+                    HdrCell(row, W3, "Start of\nProject\nImplemen-\ntation");
+                    HdrCell(row, W4, "Year of\nProject\nImplemen-\ntation");
+                    HdrCell(row, W5, "TOTAL Cost");
+                    HdrCell(row, W6, "FirstYear");
+                    HdrCell(row, W7, "SecondYear");
+                    HdrCell(row, W8, "ThirdYear");
+                    HdrCell(row, W9, "FourthYear");
+                    HdrCell(row, W10, "FifthYear");
+                    HdrCell(row, W11, "SixthYear");
+                    HdrCell(row, W12, "Later\nYears");
+                    row.RelativeItem(W13).Text("");
+                });
+                // Row 3 -- year numbers
+                col.Item().Row(row =>
+                {
+                    row.RelativeItem(W0 + W1 + W2 + W3 + W4 + W5).Text("");
+                    HdrCell(row, W6,  $"({LowestYear})");
+                    HdrCell(row, W7,  $"({LowestYear + 1})");
+                    HdrCell(row, W8,  $"({LowestYear + 2})");
+                    HdrCell(row, W9,  $"({LowestYear + 3})");
+                    HdrCell(row, W10, $"({LowestYear + 4})");
+                    HdrCell(row, W11, $"({LowestYear + 5})");
+                    HdrCell(row, W12, $"({LowestYear + 6}...)");
+                    row.RelativeItem(W13).Text("");
+                });
             });
         }
 
-        static void HeaderCell(
-            TableDescriptor table,
-            string text,
-            uint colSpan = 1,
-            uint rowSpan = 1)
+        static void HdrCell(RowDescriptor row, float weight, string text)
         {
-            table.Cell()
-                 .ColumnSpan(colSpan)
-                 .RowSpan(rowSpan)
-                 .BorderBottom(0.5f).BorderColor(Colors.Black)
-                 .AlignCenter().AlignMiddle()
-                 .Padding(3)
-                 .Text(text).Bold().FontSize(5.5f);
+            row.RelativeItem(weight)
+               .AlignCenter().AlignMiddle()
+               .Padding(3)
+               .Text(text).Bold().FontSize(5.5f);
         }
 
-        // ── TABLE CONTENT ─────────────────────────────────────────────────
+        // -- TABLE CONTENT
         /// <summary>
-        /// Builds the RDIP table body.
-        /// Grouping: Category → Program → Sub-Program (skipped when empty) → Activity (skipped when empty) → Project.
-        /// Each grouping level shows aggregated yearly amounts.
+        /// Builds the RDIP content as a Column of Rows.
+        /// Grouping: Category -> Program -> Sub-Program -> Activity -> Project.
         /// </summary>
-        static void BuildTableContent(
-            IContainer container,
-            List<RDIPData> data)
+        static void BuildTableContent(IContainer container, List<RDIPData> data)
         {
-            container.Table(table =>
+            container.Column(col =>
             {
-                DefineColumns(table);
-
-                foreach (var catGrp in data
-                    .GroupBy(r => r.CategoryName)
-                    .OrderBy(g => g.Key))
+                foreach (var catGrp in data.GroupBy(r => r.CategoryName).OrderBy(g => g.Key))
                 {
-                    // ── Category row ──────────────────────────────────
-                    WriteSummaryRow(table, catGrp.Key, catGrp,
-                        fontSize: 7, bold: true);
+                    WriteSummaryRow(col, catGrp.Key, catGrp, fontSize: 7, bold: true);
 
-                    foreach (var progGrp in catGrp
-                        .GroupBy(r => r.ThrustProgramName)
-                        .OrderBy(g => g.Key))
+                    foreach (var progGrp in catGrp.GroupBy(r => r.ThrustProgramName).OrderBy(g => g.Key))
                     {
-                        // ── Program row ───────────────────────────────
-                        WriteSummaryRow(table, progGrp.Key, progGrp,
-                            indent: 6, fontSize: 6.5f);
+                        WriteSummaryRow(col, progGrp.Key, progGrp, indent: 6, fontSize: 6.5f);
 
-                        foreach (var subGrp in progGrp
-                            .GroupBy(r => r.ThrustSubProgramName ?? "")
-                            .OrderBy(g => g.Key))
+                        foreach (var subGrp in progGrp.GroupBy(r => r.ThrustSubProgramName ?? "").OrderBy(g => g.Key))
                         {
                             if (!string.IsNullOrEmpty(subGrp.Key))
-                            {
-                                // ── SubProgram row ────────────────────
-                                WriteSummaryRow(table, subGrp.Key, subGrp,
-                                    indent: 12, fontSize: 6.5f);
-                            }
+                                WriteSummaryRow(col, subGrp.Key, subGrp, indent: 12, fontSize: 6.5f);
 
-                            foreach (var actGrp in subGrp
-                                .GroupBy(r => r.ThrustActivityName ?? "")
-                                .OrderBy(g => g.Key))
+                            foreach (var actGrp in subGrp.GroupBy(r => r.ThrustActivityName ?? "").OrderBy(g => g.Key))
                             {
                                 if (!string.IsNullOrEmpty(actGrp.Key))
-                                {
-                                    // ── Activity row ──────────────────
-                                    WriteSummaryRow(table, actGrp.Key, actGrp,
-                                        indent: 18, fontSize: 6);
-                                }
+                                    WriteSummaryRow(col, actGrp.Key, actGrp, indent: 18, fontSize: 6);
 
-                                // ── Project rows ──────────────────────
                                 int seq = 0;
                                 foreach (var proj in actGrp.OrderBy(p => p.ProjectId))
                                 {
                                     seq++;
-                                    WriteProjectRow(table, seq, proj);
+                                    WriteProjectRow(col, seq, proj);
                                 }
                             }
                         }
@@ -198,13 +177,11 @@ namespace ReportGeneration
             });
         }
 
-        // ── ROW RENDERING ─────────────────────────────────────────────────
-        /// <summary>
-        /// Renders a Category / Program / Sub-Program / Activity summary row with aggregated yearly totals.
-        /// Spatial and implementation columns (1-4) are left blank for summary rows.
-        /// </summary>
+        // -- ROW RENDERING
+
+        /// <summary>Category / Program / Sub-Program / Activity summary row with aggregated yearly totals.</summary>
         static void WriteSummaryRow(
-            TableDescriptor table,
+            ColumnDescriptor col,
             string label,
             IEnumerable<RDIPData> rows,
             int indent = 0,
@@ -220,177 +197,105 @@ namespace ReportGeneration
             var sixthYear  = rows.Sum(r => r.SixthYear);
             var laterYears = rows.Sum(r => r.LaterYears);
 
-            // Col 0 — Label
-            DataCell(table, t =>
+            col.Item().Row(row =>
             {
-                var s = t.Span(label).FontSize(fontSize);
-                if (bold) s.Bold();
-            }, paddingLeft: indent + 2f);
+                row.RelativeItem(W0).PaddingVertical(2).PaddingLeft(indent + 2f).PaddingRight(2)
+                   .Text(t => { var s = t.Span(label).FontSize(fontSize); if (bold) s.Bold(); });
 
-            // Cols 1-4 — empty spatial / implementation
-            EmptyCell(table);
-            EmptyCell(table);
-            EmptyCell(table);
-            EmptyCell(table);
+                // Spatial / implementation columns empty for summary rows
+                row.RelativeItem(W1).Text("");
+                row.RelativeItem(W2).Text("");
+                row.RelativeItem(W3).Text("");
+                row.RelativeItem(W4).Text("");
 
-            // Cols 5-12 — amounts
-            AmountCell(table, totalCost, fontSize, bold);
-            AmountCell(table, firstYear, fontSize, bold);
-            AmountCell(table, secondYear, fontSize, bold);
-            AmountCell(table, thirdYear, fontSize, bold);
-            AmountCell(table, fourthYear, fontSize, bold);
-            AmountCell(table, fifthYear, fontSize, bold);
-            AmountCell(table, sixthYear, fontSize, bold);
-            AmountCell(table, laterYears, fontSize, bold);
+                AmountCell(row, W5, totalCost, fontSize, bold);
+                AmountCell(row, W6, firstYear, fontSize, bold);
+                AmountCell(row, W7, secondYear, fontSize, bold);
+                AmountCell(row, W8, thirdYear, fontSize, bold);
+                AmountCell(row, W9, fourthYear, fontSize, bold);
+                AmountCell(row, W10, fifthYear, fontSize, bold);
+                AmountCell(row, W11, sixthYear, fontSize, bold);
+                AmountCell(row, W12, laterYears, fontSize, bold);
 
-            // Col 13 — Remarks
-            EmptyCell(table);
+                row.RelativeItem(W13).Text("");
+            });
         }
 
-        /// <summary>
-        /// Renders a single project row with all spatial, implementation, and yearly amount columns populated.
-        /// </summary>
-        static void WriteProjectRow(
-            TableDescriptor table,
-            int seq,
-            RDIPData proj)
+        /// <summary>Project row with all spatial, implementation, and yearly amount columns populated.</summary>
+        static void WriteProjectRow(ColumnDescriptor col, int seq, RDIPData proj)
         {
             float fs = 6;
-
-            // Col 0 — seq. Description
-            DataCell(table, t =>
+            col.Item().Row(row =>
             {
-                t.Span($"{seq}. {proj.ProjectDescription}").FontSize(fs);
-            }, paddingLeft: 24f);
+                row.RelativeItem(W0).PaddingVertical(2).PaddingLeft(24).PaddingRight(2)
+                   .Text($"{seq}. {proj.ProjectDescription}").FontSize(fs);
 
-            // Col 1 — Province / Municipality
-            DataCell(table, t =>
-            {
-                t.Span($"{proj.CityMunicipality}\n({proj.Province})").FontSize(fs);
+                row.RelativeItem(W1).AlignCenter().AlignMiddle().Padding(2)
+                   .Text($"{proj.CityMunicipality}\n({proj.Province})").FontSize(fs);
+
+                row.RelativeItem(W2).AlignCenter().AlignMiddle().Padding(2)
+                   .Text(proj.CongressionalDistrict).FontSize(fs);
+
+                row.RelativeItem(W3).AlignCenter().AlignMiddle().Padding(2)
+                   .Text(proj.StartYear.ToString()).FontSize(fs);
+
+                row.RelativeItem(W4).AlignCenter().AlignMiddle().Padding(2)
+                   .Text(proj.EndYear.ToString()).FontSize(fs);
+
+                AmountCell(row, W5, proj.TotalCost, fs, false);
+                AmountCell(row, W6, proj.FirstYear, fs, false);
+                AmountCell(row, W7, proj.SecondYear, fs, false);
+                AmountCell(row, W8, proj.ThirdYear, fs, false);
+                AmountCell(row, W9, proj.FourthYear, fs, false);
+                AmountCell(row, W10, proj.FifthYear, fs, false);
+                AmountCell(row, W11, proj.SixthYear, fs, false);
+                AmountCell(row, W12, proj.LaterYears, fs, false);
+
+                row.RelativeItem(W13).Text("");
             });
-
-            // Col 2 — Congressional District
-            DataCell(table, t =>
-            {
-                t.Span(proj.CongressionalDistrict).FontSize(fs);
-            });
-
-            // Col 3 — Start Year
-            table.Cell()
-                 .AlignCenter().AlignMiddle()
-                 .Padding(2)
-                 .Text(proj.StartYear.ToString()).FontSize(fs);
-
-            // Col 4 — End Year
-            table.Cell()
-                 .AlignCenter().AlignMiddle()
-                 .Padding(2)
-                 .Text(proj.EndYear.ToString()).FontSize(fs);
-
-            // Cols 5-12 — amounts
-            AmountCell(table, proj.TotalCost, fs, false);
-            AmountCell(table, proj.FirstYear, fs, false);
-            AmountCell(table, proj.SecondYear, fs, false);
-            AmountCell(table, proj.ThirdYear, fs, false);
-            AmountCell(table, proj.FourthYear, fs, false);
-            AmountCell(table, proj.FifthYear, fs, false);
-            AmountCell(table, proj.SixthYear, fs, false);
-            AmountCell(table, proj.LaterYears, fs, false);
-
-            // Col 13 — Remarks (empty)
-            EmptyCell(table);
         }
 
-        // ── CELL HELPERS ──────────────────────────────────────────────────
-        static void DataCell(
-            TableDescriptor table,
-            Action<TextDescriptor> textAction,
-            float paddingLeft = 2f)
+        static void AmountCell(RowDescriptor row, float weight, double value, float fontSize, bool bold)
         {
-            table.Cell()
-                 .PaddingVertical(2)
-                 .PaddingLeft(paddingLeft)
-                 .PaddingRight(2)
-                 .Text(textAction);
+            row.RelativeItem(weight)
+               .AlignRight().PaddingRight(2).PaddingVertical(2)
+               .Text(t =>
+               {
+                   var display = value == 0 ? "" : value.ToString("N0");
+                   var s = t.Span(display).FontSize(fontSize);
+                   if (bold) s.Bold();
+               });
         }
 
-        static void EmptyCell(TableDescriptor table)
-        {
-            table.Cell().Text("");
-        }
-
-        static void AmountCell(
-            TableDescriptor table,
-            double value,
-            float fontSize,
-            bool bold)
-        {
-            table.Cell()
-                 .AlignRight().PaddingRight(2).PaddingVertical(2)
-                 .Text(t =>
-                 {
-                     var display = value == 0 ? "" : value.ToString("N0");
-                     var s = t.Span(display).FontSize(fontSize);
-                     if (bold) s.Bold();
-                 });
-        }
-
-        // ── SIGNATURE BLOCK ───────────────────────────────────────────────
+        // -- SIGNATURE BLOCK
         static void BuildSignatureBlock(IContainer container)
         {
-            container
-                .Padding(10)
-                .Row(row =>
-                {
-                    row.RelativeItem().Column(col =>
-                    {
-                        col.Item().Text("Prepared By:").Bold().FontSize(7);
-                        col.Item().PaddingTop(30).PaddingHorizontal(10)
-                            .LineHorizontal(0.5f).LineColor(Colors.Black);
-                        col.Item().PaddingTop(4).AlignCenter()
-                            .Text("Planning Engineer").FontSize(7).Italic();
-                    });
-
-                    row.RelativeItem().Column(col =>
-                    {
-                        col.Item().Text("Reviewed By:").Bold().FontSize(7);
-                        col.Item().PaddingTop(30).PaddingHorizontal(10)
-                            .LineHorizontal(0.5f).LineColor(Colors.Black);
-                        col.Item().PaddingTop(4).AlignCenter()
-                            .Text("Planning and Design Division Chief").FontSize(7).Italic();
-                    });
-
-                    row.RelativeItem().Column(col =>
-                    {
-                        col.Item().Text("Approved By:").Bold().FontSize(7);
-                        col.Item().PaddingTop(30).PaddingHorizontal(10)
-                            .LineHorizontal(0.5f).LineColor(Colors.Black);
-                        col.Item().PaddingTop(4).AlignCenter()
-                            .Text("Regional Director").FontSize(7).Italic();
-                    });
-                });
-        }
-
-        // ── HELPERS ───────────────────────────────────────────────────────
-        /// <summary>Defines the 14 relative table columns for the RDIP layout.</summary>
-        static void DefineColumns(TableDescriptor table)
-        {
-            table.ColumnsDefinition(cols =>
+            container.Padding(10).Row(row =>
             {
-                cols.RelativeColumn(22);   // 0  Program/Sub-Program/Projects
-                cols.RelativeColumn(7);    // 1  Province/Municipality
-                cols.RelativeColumn(8);    // 2  Congressional District
-                cols.RelativeColumn(3.5f); // 3  Start Year
-                cols.RelativeColumn(3.5f); // 4  End Year
-                cols.RelativeColumn(8);    // 5  TOTAL Cost
-                cols.RelativeColumn(7);    // 6  FirstYear
-                cols.RelativeColumn(7);    // 7  SecondYear
-                cols.RelativeColumn(7);    // 8  ThirdYear
-                cols.RelativeColumn(7);    // 9  FourthYear
-                cols.RelativeColumn(7);    // 10 FifthYear
-                cols.RelativeColumn(7);    // 11 SixthYear
-                cols.RelativeColumn(6);    // 12 Later Years
-                cols.RelativeColumn(4);    // 13 Remarks
+                row.RelativeItem().Column(col =>
+                {
+                    col.Item().Text("Prepared By:").Bold().FontSize(7);
+                    col.Item().PaddingTop(30).PaddingHorizontal(10)
+                        .LineHorizontal(0.5f).LineColor(Colors.Black);
+                    col.Item().PaddingTop(4).AlignCenter()
+                        .Text("Planning Engineer").FontSize(7).Italic();
+                });
+                row.RelativeItem().Column(col =>
+                {
+                    col.Item().Text("Reviewed By:").Bold().FontSize(7);
+                    col.Item().PaddingTop(30).PaddingHorizontal(10)
+                        .LineHorizontal(0.5f).LineColor(Colors.Black);
+                    col.Item().PaddingTop(4).AlignCenter()
+                        .Text("Planning and Design Division Chief").FontSize(7).Italic();
+                });
+                row.RelativeItem().Column(col =>
+                {
+                    col.Item().Text("Approved By:").Bold().FontSize(7);
+                    col.Item().PaddingTop(30).PaddingHorizontal(10)
+                        .LineHorizontal(0.5f).LineColor(Colors.Black);
+                    col.Item().PaddingTop(4).AlignCenter()
+                        .Text("Regional Director").FontSize(7).Italic();
+                });
             });
         }
     }
