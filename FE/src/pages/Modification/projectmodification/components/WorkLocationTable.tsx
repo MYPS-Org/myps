@@ -317,10 +317,9 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
     }
   };
 
-  const handleInfraSelect = (infraId: string, _infraName: string, _infraType: string) => {
+  const handleInfraSelect = (infraId: string, _infraName: string, _infraType: string, length?: number) => {
     // Get length from the selected infrastructure
-    const infraLength = getInfraLength(infraId);
-    const lengthValue = infraLength ? Number(infraLength) : null;
+    const lengthValue = length ?? null;
 
     if (isAddingNew) {
       // Create new work location
