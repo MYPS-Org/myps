@@ -69,7 +69,7 @@ namespace ReportGeneration
         /// <summary>Renders the 4-column header row using Row layout (no Table).</summary>
         static void BuildTableHeader(IContainer container)
         {
-            container.Row(row =>
+            container.BorderBottom(0.5f).BorderColor(Colors.Black).Row(row =>
             {
                 HdrCell(row, W0, "UACS / Sub Program");
                 HdrCell(row, W1, "Project Description");

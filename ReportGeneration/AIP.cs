@@ -76,7 +76,7 @@ namespace ReportGeneration
         /// </summary>
         static void BuildTableHeader(IContainer container)
         {
-            container.Column(col =>
+            container.BorderBottom(0.5f).BorderColor(Colors.Black).Column(col =>
             {
                 // Row 1
                 col.Item().Row(row =>
