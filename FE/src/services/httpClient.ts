@@ -23,6 +23,11 @@ export interface ErrorResponse {
 export interface RequestConfig extends AxiosRequestConfig {
     preloaderMessage?: string;
 }
+export interface HttpClientConfig {
+    baseURL: string;
+    defaultHeaders?: Record<string, string>;
+    withCredentials?: boolean;
+}
 class HttpClient {
     private client: AxiosInstance;
     private preloaderCallbacks: ((state: PreloaderState) => void)[] = [];
@@ -30,13 +35,14 @@ class HttpClient {
     private activeRequests = 0;
     private hideTimeout: ReturnType<typeof setTimeout> | null = null;
 
-    constructor() {
+    constructor(config: HttpClientConfig) {
         this.client = axios.create({
-            baseURL: `/api`,
+            baseURL: config.baseURL,
             timeout: 0, // No timeout
-            withCredentials: true,
+            withCredentials: config.withCredentials ?? false,
             headers: {
                 'Content-Type': 'application/json',
+                ...config.defaultHeaders,
             },
         });
 
@@ -177,6 +183,23 @@ class HttpClient {
             Status: response.status,
         };
     }
+
+    async get<T>(url: string, params?: Record<string, string>, config?: RequestConfig): Promise<ApiResponse<T>> {
+        const response: AxiosResponse<T> = await this.client.get(url, { params, ...config });
+        return {
+            Data: response.data,
+            Status: response.status,
+        };
+    }
 }
 
-export const httpClient = new HttpClient();
+export const httpClient = new HttpClient({
+    baseURL: '/api',
+    withCredentials: true,
+});
+
+export const gisClient = new HttpClient({
+    baseURL: import.meta.env.VITE_API_GIS_URL as string,
+    defaultHeaders: { 'ngrok-skip-browser-warning': 'true' },
+    withCredentials: false,
+});

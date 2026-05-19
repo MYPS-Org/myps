@@ -1,4 +1,4 @@
-import { httpClient, type ApiResponse } from "../../services/httpClient";
+import { httpClient, gisClient, type ApiResponse } from "../../services/httpClient";
 import type { ProgramList } from "../Program/Model";
 import type { ProjectLists, ComponentCost, ProjectDetails, MajorItemOfWork, MajorItemLocations, FundingProfile, ProjectNote, ProjectEnums, ProjectFormPayload, ProjectPagination, AddNotes, InfraData, ProjectSupportingDocs, ProjectRevisionList, ComponentCostPerYear, ImportProjectDTO } from "./Model.d";
 
@@ -200,33 +200,17 @@ export const fetchProjectStagesByProjectId = async (projectId: string) => {
 // #region GeoJSON Data
 export const fetchProjectGeoJSON = async (referenceId: string, programId: string, username: string, stageName: string) => {
     try {
-        const params = new URLSearchParams({
-            project_id: referenceId,
-            program_id: programId,
-            username,
-            program_stage_name: stageName,
-        });
-        const apiUrl = `${import.meta.env.VITE_API_GIS_URL}/api_v1.0/project/features_v4?${params.toString()}`;
-
-        const response = await fetch(apiUrl, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'ngrok-skip-browser-warning': 'true',
+        const response = await gisClient.get(
+            `/api_v1.0/project/features_v4`,
+            {
+                project_id: referenceId,
+                program_id: programId,
+                username,
+                program_stage_name: stageName,
             },
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        return {
-            Data: data,
-            Status: response.status,
-            Message: 'Success'
-        };
+            { preloaderMessage: 'Loading map data...' }
+        );
+        return response;
     } catch (error) {
         console.error('Error fetching GeoJSON data:', error);
         throw error;
@@ -235,28 +219,15 @@ export const fetchProjectGeoJSON = async (referenceId: string, programId: string
 
 export const chainageToLrpConverter = async (sectionId: string, chainage: number) => {
     try {
-        const params = new URLSearchParams({
-            road_section_id: sectionId,
-            chainage: chainage.toString(),
-        });
-        const apiUrl = `${import.meta.env.VITE_API_GIS_URL}/api_v1.0/infra/chainage_to_lrp?${params.toString()}`;
-
-        const response = await fetch(apiUrl, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'ngrok-skip-browser-warning': 'true',
+        const response = await gisClient.get(
+            `/api_v1.0/infra/chainage_to_lrp`,
+            {
+                road_section_id: sectionId,
+                chainage: chainage.toString(),
             },
-        });
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        return {
-            Data: data,
-            Status: response.status,
-            Message: 'Success'
-        };
+            { preloaderMessage: 'Converting chainage...' }
+        );
+        return response;
     } catch (error) {
         console.error('Error converting chainage to LRP:', error);
         throw error;
@@ -279,50 +250,35 @@ export const importProject = async (payload: ImportProjectDTO) => {
 
 export const lrpToChainageConverter = async (sectionId: string, lrp: string) => {
     try {
-        const apiUrl = `${import.meta.env.VITE_API_GIS_URL}/api_v1.0/infra/lrp_to_chainage?road_section_id=${encodeURIComponent(sectionId)}&lrp_string=${encodeURIComponent(lrp)}`;
-
-        const response = await fetch(apiUrl, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'ngrok-skip-browser-warning': 'true',
+        const response = await gisClient.get(
+            `/api_v1.0/infra/lrp_to_chainage`,
+            {
+                road_section_id: sectionId,
+                lrp_string: lrp,
             },
-        });
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        return {
-            Data: data,
-            Status: response.status,
-            Message: 'Success'
-        };
+            { preloaderMessage: 'Converting LRP...' }
+        );
+        return response;
     } catch (error) {
         console.error('Error converting LRP to chainage:', error);
         throw error;
     }
 };
 
-export const autoFillComponentDescription = async (username: string, reference_id: string, project_component_id : string, program_id: string, program_stage_name: string) => {
+export const autoFillComponentDescription = async (username: string, reference_id: string, project_component_id: string, program_id: string, program_stage_name: string) => {
     try {
-        const apiUrl = `${import.meta.env.VITE_API_GIS_URL}/api_v1.0/infra/describe_project_component?username=${encodeURIComponent(username)}&reference_id=${encodeURIComponent(reference_id)}&project_component_id=${encodeURIComponent(project_component_id)}&program_id=${encodeURIComponent(program_id)}&program_stage_name=${encodeURIComponent(program_stage_name)}`;
-
-        const response = await fetch(apiUrl, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'ngrok-skip-browser-warning': 'true',
+        const response = await gisClient.get(
+            `/api_v1.0/infra/describe_project_component`,
+            {
+                username,
+                reference_id,
+                project_component_id,
+                program_id,
+                program_stage_name,
             },
-        });
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        return {
-            Data: data,
-            Status: response.status,
-            Message: 'Success'
-        };
+            { preloaderMessage: 'Loading component description...' }
+        );
+        return response;
     } catch (error) {
         console.error('Error autofilling component description:', error);
         throw error;
