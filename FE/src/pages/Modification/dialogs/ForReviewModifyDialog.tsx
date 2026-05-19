@@ -62,7 +62,7 @@ const ForReviewModifyDialog: React.FC<ForReviewModifyDialogProps> = ({
             if (onSuccess) {
                 onSuccess();
             } else {
-                navigate('/modification/list');
+                navigate('/revision');
             }
         } catch (error) {
             console.error('Error submitting for review:', error);

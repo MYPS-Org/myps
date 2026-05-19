@@ -87,7 +87,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
         programDetails?.ProgramId || '',
         programDetails?.StageName || ''
       );
-      const description = response?.Data?.component_description ?? response?.Data?.description ?? response?.Data?.Description ?? '';
+      const data = response?.Data as Record<string, string> | undefined;
+      const description = data?.component_description ?? data?.description ?? data?.Description ?? '';
       if (description) {
         handleChange('Description', description);
         showToast({ type: 'success', message: 'Description auto-filled successfully.' });
