@@ -726,6 +726,11 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
         comp.ConstructionStatusName
           ?.toLowerCase()
           .trim() === 'terminated'
+      ) ||
+      initialData?.ComponentCosts?.some(comp =>
+        comp.ConstructionStatusName
+          ?.toLowerCase()
+          .trim() === 'terminated'
       ) || false;
 
     if (!hasTerminatedComponent) {
