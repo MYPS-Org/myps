@@ -12,6 +12,7 @@ namespace DBHelper.Models.Table
     {
         [Key]
         public int Id { get; set; }
+        public bool IsActive { get; set; } = false;
         [Required]
         [MaxLength(200)]
         public string RevisionName { get; set; } = string.Empty;

@@ -190,6 +190,69 @@ namespace WebAPI.Controllers.Revision
         }
         
         [HttpPost]
+        public async Task<IActionResult> RequestReportAIPOfficial([FromBody] RequestReportAIPDTO dto)
+        {
+            try
+            {
+                var programDetailsQuery = _db.vProgramDetails
+                    .AsNoTracking()
+                    .Where(x => x.ProgramId == dto.ProgramId && x.StageName == dto.StageName);
+
+                if (_Session.ApplyFilter)
+                {
+                    programDetailsQuery = programDetailsQuery.Where(x => x.DataSecurityGroup.Contains(_Session.RegCode));
+                    var Region = await _db.tOptionAdminAreaRegion.FirstOrDefaultAsync(x => _Session.RegCode == x.ParticipantId);
+                    dto.RegionName = dto.RegionName ?? Region?.Name;
+                }
+                var ProgramDetails = await programDetailsQuery.FirstOrDefaultAsync();
+                var param = new Dictionary<string, object> {
+                    { "@ProgramId", dto.ProgramId }
+                };
+                if (!string.IsNullOrEmpty(dto.StageName)) { param.Add("@StageName", dto.StageName); }
+                if (!string.IsNullOrEmpty(dto.CategoryName)) { param.Add("@CategoryName", dto.CategoryName); }
+                if (!string.IsNullOrEmpty(dto.RegionName)) { param.Add("@RegionName", dto.RegionName); }
+                if (!string.IsNullOrEmpty(dto.OperatingUnitName)) { param.Add("@OperatingUnitName", dto.OperatingUnitName); }
+                if (!string.IsNullOrEmpty(dto.DistrictEngineeringOffice)) { param.Add("@DistrictEngineeringOffice", dto.DistrictEngineeringOffice); }
+                if (!string.IsNullOrEmpty(dto.ImplementingOfficeName)) { param.Add("@ImplementingOfficeName", dto.ImplementingOfficeName); }
+                if (!string.IsNullOrEmpty(dto.LegislativeDistrictName)) { param.Add("@LegislativeDistrictName", dto.LegislativeDistrictName); }
+
+                string aipSql = "EXEC pGenerateAIP01 " + string.Join(", ", param.Keys.Select(k => $"{k} = {k}"));
+                List<GenerateAIP01> aip = Sql.NormalQuery<GenerateAIP01>(
+                    Appsetting.DbConnections.MYPSDb,
+                    aipSql, param
+                );
+                if (aip.Count < 1)
+                {
+                    return new BadRequestObjectResult(new {
+                        Title = "No Data Found",
+                        Message = "No AIP data found for the given parameters."
+                    });
+                }
+                var param2 = new Dictionary<string, object> {
+                    { "@ProgramId", dto.ProgramId },
+                    { "@StageName", aip.FirstOrDefault()?.StageName }
+                };
+                List<GenerateAIPComponents> aipcomponents = Sql.NormalQuery<GenerateAIPComponents>(
+                    Appsetting.DbConnections.MYPSDb,
+                    "EXEC pGenerateAIPComponents " +
+                    "@ProgramId = @ProgramId, " +
+                    "@StageName = @StageName", param2
+                );
+
+                var bytes = AIPOfficial.GenerateReport(aip, aipcomponents,
+                    year: ProgramDetails?.YearStart ?? 0,
+                    stageName: GetStageFullName(ProgramDetails?.StageName));
+
+                var fileName = $"AIPOfficial_Report.pdf";
+                return File(bytes, "application/pdf", fileName);
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
+
+        [HttpPost]
         public async Task<IActionResult> RequestReportAIP02([FromBody] RequestReportAIPDTO dto)
         {
             try
@@ -336,7 +399,7 @@ namespace WebAPI.Controllers.Revision
         #endregion
 
         #region RBP
-        
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> RequestReportRBP(RequestReportRBPDTO dto)
         {

@@ -17,6 +17,10 @@
 mono_crash.*
 FE/node_modules
 FE/.env.development
+
+# MCP memory store (local only, do not commit)
+memory.json
+*.mcp-memory.json
 Main/wwwroot/
 # Build results
 [Dd]ebug/

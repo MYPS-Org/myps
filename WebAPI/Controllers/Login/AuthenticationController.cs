@@ -25,12 +25,6 @@ namespace WebAPI.Controllers.Auth
     {
         public AuthController(MYPSDbContext db, IProducer<Null, string> producer, PCMADbContext pcma) : base (db, producer, pcma) { }
         [AllowAnonymous]
-        [HttpGet]
-        public async Task<IActionResult> GetEnvironment()
-        {
-            return Ok(new { Environment = Appsetting.Environment });
-        }
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> Login([FromBody] LoginDto dto)
         {

@@ -8,23 +8,26 @@ namespace ReportGeneration
     /// <summary>
     /// Generates the <b>Annual Infrastructure Program (AIP)</b> PDF report (A4 Portrait).
     /// <para>
-    /// Table body grouping hierarchy:
-    /// Region (bold) → DEO (underline, indent 8) → Legislative District (underline, indent 8)
-    /// → Category/OO (bold, indent 18) → Thrust (underline, indent 26)
-    /// → Project (seq bold, ProjectId normal, indent 20/24) → Component (indent 30).
+    /// Uses Row/Column layout (no Table) to avoid PDF cell-border artifacts in Adobe.
+    /// Body grouping hierarchy:
+    /// Region (bold) -> DEO (underline, indent 8) -> Legislative District (underline, indent 8)
+    /// -> Category/OO (bold, indent 18) -> Thrust (underline, indent 26)
+    /// -> Project (seq bold, ProjectId normal, indent 20/24) -> Component (indent 30).
     /// </para>
     /// <para>Data sources: <c>pGenerateAIP01</c>, <c>pGenerateAIPComponents</c>.</para>
     /// </summary>
     public class AIP
     {
+        // Relative column weights for the 8-column AIP layout
+        const float W0 = 14, W1 = 20, W2 = 12, W3 = 5, W4 = 5, W5 = 5, W6 = 11, W7 = 13;
+
         /// <summary>
-        /// Entry point — builds and returns the AIP PDF as a byte array.
+        /// Entry point -- builds and returns the AIP PDF as a byte array.
         /// </summary>
         /// <param name="projects">Flat project list from <c>pGenerateAIP01</c>.</param>
         /// <param name="components">Component rows from <c>pGenerateAIPComponents</c>.</param>
         /// <param name="year">Fiscal year shown in the page title (e.g. 2026). Pass 0 to omit.</param>
-        /// <param name="stageName">Full stage label shown below the title
-        ///   (e.g. "General Appropriations Act"). Pass empty string to use the default label.</param>
+        /// <param name="stageName">Full stage label shown below the title.</param>
         /// <returns>PDF byte array suitable for an <c>application/pdf</c> file-download response.</returns>
         public static byte[] GenerateReport(
             List<GenerateAIP01> projects,
@@ -44,7 +47,7 @@ namespace ReportGeneration
                 page.DefaultTextStyle(x =>
                     x.FontSize(DefaultFs).FontFamily(GeneratePDF.FontFamily).FontColor(Colors.Black));
 
-                // ── HEADER ───────────────────────────────────────────
+                // -- HEADER
                 page.Header()
                     .Column(col =>
                     {
@@ -54,179 +57,113 @@ namespace ReportGeneration
                         col.Item().AlignCenter()
                            .Text(stageLabel)
                            .FontFamily(GeneratePDF.FontFamily).FontSize(8);
-
-                        col.Item()
-                           .PaddingTop(8)
-                           .Element(BuildTableHeader);
+                        col.Item().PaddingTop(8).Element(BuildTableHeader);
                     });
 
-                // ── CONTENT ──────────────────────────────────────────
-                page.Content()
-                    .Element(c => BuildTableContent(c, projects, components));
+                // -- CONTENT
+                page.Content().Element(c => BuildTableContent(c, projects, components));
 
-                // ── FOOTER ───────────────────────────────────────────
+                // -- FOOTER
                 GeneratePDF.BuildFooter(page, FooterFs);
             });
         }
-        // ── COLUMN HEADERS ────────────────────────────────────────────────
+
+        // -- COLUMN HEADERS
         /// <summary>
-        /// Renders the 8-column, 2-row frozen table header.
-        /// Row 1: UACS/ID · Description · Type of Work · Target Unit · Physical Target (span 2) · Amount · OU/IO.
-        /// Row 2 (under Physical Target): # · Unit.
+        /// Renders the 8-column header row using Row layout (no Table).
+        /// Row 1: UACS/ID, Description, Type of Work, Target Unit, Physical Target (#/Unit combined), Amount, OU/IO.
+        /// Row 2: sub-labels for the Physical Target columns.
         /// </summary>
         static void BuildTableHeader(IContainer container)
         {
-            container.Table(table =>
+            container.Column(col =>
             {
-                DefineColumns(table);
-
                 // Row 1
-                HeaderCell(table, "UACS / Sub Program\nProject Component ID", rowSpan: 2);
-                HeaderCell(table, "Project Component Description", rowSpan: 2);
-                HeaderCell(table, "Type of Work", rowSpan: 2);
-                HeaderCell(table, "Target\nUnit", rowSpan: 2);
-                HeaderCell(table, "Physical Target", colSpan: 2);
-                HeaderCell(table, "Amount\n(PHP)", rowSpan: 2);
-                HeaderCell(table, "Operating Unit /\nImplementing Office", rowSpan: 2);
+                col.Item().Row(row =>
+                {
+                    HdrCell(row, W0,          "UACS / Sub Program\nProject Component ID");
+                    HdrCell(row, W1,          "Project Component Description");
+                    HdrCell(row, W2,          "Type of Work");
+                    HdrCell(row, W3,          "Target\nUnit");
+                    HdrCell(row, W4 + W5,     "Physical Target");
+                    HdrCell(row, W6,          "Amount\n(PHP)");
+                    HdrCell(row, W7,          "Operating Unit /\nImplementing Office");
+                });
 
-                // Row 2 — under Physical Target
-                HeaderCell(table, "#");
-                HeaderCell(table, "Unit");
+                // Underline separator
+                col.Item().LineHorizontal(0.5f).LineColor(Colors.Black);
             });
         }
 
-        static void HeaderCell(
-            TableDescriptor table,
-            string text,
-            uint colSpan = 1,
-            uint rowSpan = 1)
+        /// <summary>Renders a single header cell with left-aligned bold text (no per-cell border).</summary>
+        static void HdrCell(RowDescriptor row, float weight, string text)
         {
-            table.Cell()
-                 .ColumnSpan(colSpan)
-                 .RowSpan(rowSpan)
-                 .BorderBottom(0.5f).BorderColor(Colors.Black)
-                 .AlignCenter().AlignMiddle()
-                 .Padding(4)
-                 .Text(text).Bold().FontSize(7);
+            row.RelativeItem(weight)
+               .AlignLeft().AlignTop()
+               .Padding(2)
+               .Text(text).Bold().FontSize(7);
         }
 
-        // ── TABLE CONTENT ─────────────────────────────────────────────────
+        // -- TABLE CONTENT
         /// <summary>
-        /// Builds the full grouped project table.
-        /// Grouping order: Region → DEO → Legislative District → Category (OO) → Thrust → Project → Component.
+        /// Builds the full grouped project content as a Column of Rows.
+        /// Grouping order: Region -> DEO -> Legislative District -> Category (OO) -> Thrust -> Project -> Component.
         /// </summary>
         static void BuildTableContent(
             IContainer container,
             List<GenerateAIP01> projects,
             List<GenerateAIPComponents> components)
         {
-            container.Table(table =>
+            container.Column(col =>
             {
-                DefineColumns(table);
-
-                // Region grouping
-                foreach (var regionGrp in projects
-                    .GroupBy(p => p.Region)
-                    .OrderBy(g => g.Key))
+                foreach (var regionGrp in projects.GroupBy(p => p.Region).OrderBy(g => g.Key))
                 {
-                    var regionComponents = GetComponents(regionGrp, components);
-                    var regionTotal = regionComponents.Sum(c => c.TotalComponentCost);
+                    var regionTotal = (decimal)GetComponents(regionGrp, components).Sum(c => c.TotalComponentCost);
+                    SummaryRow(col, regionGrp.Key, regionGrp.Count(), regionTotal,
+                        fontSize: 8, bold: true, boldData: true, topBorder: true);
 
-                    // ── Region row ────────────────────────────────────────
-                    SummaryRow(table,
-                        regionGrp.Key,
-                        regionGrp.Count(),
-                        (decimal)regionTotal,
-                        fontSize: 8, bold: true, topBorder: true);
-
-                    // DEO grouping
-                    foreach (var deoGrp in regionGrp
-                        .GroupBy(p => p.DEO)
-                        .OrderBy(g => g.Key))
+                    foreach (var deoGrp in regionGrp.GroupBy(p => p.DEO).OrderBy(g => g.Key))
                     {
-                        var deoComponents = GetComponents(deoGrp, components);
-                        var deoTotal = deoComponents.Sum(c => c.TotalComponentCost);
+                        var deoTotal = (decimal)GetComponents(deoGrp, components).Sum(c => c.TotalComponentCost);
+                        SummaryRow(col, deoGrp.Key, deoGrp.Count(), deoTotal,
+                            fontSize: 8, underline: true, indent: 8);
 
-                        // ── DEO / Office row ──────────────────────────────
-                        SummaryRow(table,
-                            deoGrp.Key,
-                            deoGrp.Count(),
-                            (decimal)deoTotal,
-                            fontSize: 8, bold: false,
-                            underline: true, indent: 8);
-
-                        // District grouping
-                        foreach (var distGrp in deoGrp
-                            .GroupBy(p => p.LegislativeDistrict)
-                            .OrderBy(g => g.Key))
+                        foreach (var distGrp in deoGrp.GroupBy(p => p.LegislativeDistrict).OrderBy(g => g.Key))
                         {
-                            var distComponents = GetComponents(distGrp, components);
-                            var distTotal = distComponents.Sum(c => c.TotalComponentCost);
+                            var distTotal = (decimal)GetComponents(distGrp, components).Sum(c => c.TotalComponentCost);
+                            SummaryRow(col, distGrp.Key, distGrp.Count(), distTotal,
+                                fontSize: 8, underline: true, indent: 8);
 
-                            // ── District row ──────────────────────────────
-                            SummaryRow(table,
-                                distGrp.Key,
-                                distGrp.Count(),
-                                (decimal)distTotal,
-                                fontSize: 8, bold: false,
-                                underline: true, indent: 8);
-
-                            // Category (OO) grouping
-                            foreach (var ooGrp in distGrp
-                                .GroupBy(p => p.Category ?? "")
-                                .OrderBy(g => g.Key))
+                            foreach (var ooGrp in distGrp.GroupBy(p => p.Category ?? "").OrderBy(g => g.Key))
                             {
-                                var ooComponents = GetComponents(ooGrp, components);
-                                var ooTotal = ooComponents.Sum(c => c.TotalComponentCost);
+                                var ooTotal = (decimal)GetComponents(ooGrp, components).Sum(c => c.TotalComponentCost);
+                                SummaryRow(col, ooGrp.Key, ooGrp.Count(), ooTotal,
+                                    fontSize: 8, bold: true, boldData: false, indent: 18);
 
-                                // ── Category (OO) row ─────────────────────
-                                SummaryRow(table,
-                                    ooGrp.Key,
-                                    ooGrp.Count(),
-                                    (decimal)ooTotal,
-                                    fontSize: 8, bold: true,
-                                    indent: 18);
-
-                                // Thrust grouping
                                 int seq = 0;
-                                foreach (var catGrp in ooGrp
-                                    .GroupBy(p => BuildCategoryLabel(p))
-                                    .OrderBy(g => g.Key))
+                                foreach (var catGrp in ooGrp.GroupBy(p => BuildCategoryLabel(p)).OrderBy(g => g.Key))
                                 {
-                                    var catComponents = GetComponents(catGrp, components);
-                                    var catTotal = catComponents.Sum(c => c.TotalComponentCost);
+                                    var catTotal = (decimal)GetComponents(catGrp, components).Sum(c => c.TotalComponentCost);
+                                    CategoryRow(col, catGrp.Key, catTotal);
 
-                                    // ── Thrust header ─────────────────────
-                                    CategoryRow(table, catGrp.Key, (decimal)catTotal);
-
-                                    // Project rows
                                     foreach (var project in catGrp.OrderBy(p => p.Id))
                                     {
                                         seq++;
-
-                                        // Get this project's components
                                         var projComponents = components
-                                            .Where(c => c.ProjectComponentId
-                                                ?.StartsWith(project.ProjectId) == true)
-                                            .OrderBy(c => c.Id)
-                                            .ToList();
+                                            .Where(c => c.ProjectComponentId?.StartsWith(project.ProjectId) == true)
+                                            .OrderBy(c => c.Id).ToList();
+                                        var projTotal = (decimal)projComponents.Sum(c => c.TotalComponentCost);
 
-                                        var projTotal = projComponents
-                                            .Sum(c => c.TotalComponentCost);
+                                        ProjectHeaderRow(col, seq, project, projTotal);
 
-                                        // ── Project header row ────────────
-                                        ProjectHeaderRow(table, seq, project, (decimal)projTotal);
-
-                                        // ── Component rows ────────────────
                                         foreach (var comp in projComponents)
                                         {
                                             if (comp.ProjectComponentId?.EndsWith("-EAO") == true)
-                                                EaoRow(table, comp, project.ImplementingOffice);
+                                                EaoRow(col, comp, project.ImplementingOffice);
                                             else if (comp.ProjectComponentId?.EndsWith("-ROW") == true)
-                                                ComponentRow(table, comp, project,
-                                                    overrideTypeOfWork: "ROW Acquisition");
+                                                ComponentRow(col, comp, project, overrideTypeOfWork: "ROW Acquisition");
                                             else
-                                                ComponentRow(table, comp, project);
+                                                ComponentRow(col, comp, project);
                                         }
                                     }
                                 }
@@ -237,267 +174,212 @@ namespace ReportGeneration
             });
         }
 
-        // ── ROW BUILDERS ──────────────────────────────────────────────────
+        // -- ROW BUILDERS
 
         /// <summary>
         /// Renders a full-width summary row (Region / DEO / District / Category level).
-        /// Cols 0-3 = label; Col 4 = project count; Col 5 = "projects"; Col 6 = total amount; Col 7 = blank.
         /// </summary>
         static void SummaryRow(
-            TableDescriptor table,
+            ColumnDescriptor col,
             string label,
             int count,
             decimal total,
             float fontSize = 8,
+            float dataFontSize = 8,
             bool bold = false,
+            bool boldData = false,
             bool underline = false,
             bool topBorder = false,
             int indent = 0)
         {
-            // Cols 0-3 — label
-            table.Cell().ColumnSpan(4)
-                 .BorderTop(topBorder ? 0.3f : 0)
-                 .BorderColor(Colors.Black)
-                 .PaddingVertical(3)
-                 .PaddingLeft(indent + 2f)
-                 .Text(t =>
-                 {
-                     var span = t.Span(label).FontSize(fontSize);
-                     if (bold) span.Bold();
-                     if (underline) span.Underline();
-                 });
+            col.Item()
+               .Row(row =>
+            {
+                row.RelativeItem(W0 + W1 + W2 + W3)
+                   .PaddingVertical(3).PaddingLeft(indent + 2f)
+                   .Text(t =>
+                   {
+                       var s = t.Span(label).FontSize(fontSize);
+                       if (bold) s.Bold();
+                       if (underline) { s.Underline(); s.FontFamily("Arial"); }
+                   });
 
-            // Col 4 — count
-            table.Cell()
-                 .AlignRight().PaddingRight(2).PaddingVertical(3)
-                 .Text(t =>
-                 {
-                     var s = t.Span(count.ToString()).FontSize(fontSize);
-                     if (bold) s.Bold();
-                 });
+                row.RelativeItem(W4)
+                   .AlignRight().PaddingRight(2).PaddingVertical(3)
+                   .Text(t =>
+                   {
+                       var s = t.Span(count.ToString()).FontSize(dataFontSize);
+                       if (boldData) s.Bold();
+                   });
 
-            // Col 5 — "projects"
-            table.Cell()
-                 .PaddingLeft(2).PaddingVertical(3)
-                 .Text(t =>
-                 {
-                     var s = t.Span("projects").FontSize(fontSize);
-                     if (bold) s.Bold();
-                 });
+                row.RelativeItem(W5)
+                   .PaddingLeft(2).PaddingVertical(3)
+                   .Text(t =>
+                   {
+                       var s = t.Span("projects").FontSize(dataFontSize);
+                       if (boldData) s.Bold();
+                   });
 
-            // Col 6 — total amount
-            table.Cell()
-                 .AlignRight().PaddingRight(2).PaddingVertical(3)
-                 .Text(t =>
-                 {
-                     var s = t.Span(FormatAmt(total)).FontSize(fontSize);
-                     if (bold) s.Bold();
-                 });
+                row.RelativeItem(W6)
+                   .AlignRight().PaddingRight(2).PaddingVertical(3)
+                   .Text(t =>
+                   {
+                       var s = t.Span(FormatAmt(total)).FontSize(dataFontSize);
+                       if (boldData) s.Bold();
+                   });
 
-            // Col 7 — blank
-            table.Cell().Text("");
+                row.RelativeItem(W7)
+                   .Text("");
+            });
         }
 
-        /// <summary>
-        /// Renders a Thrust label row (indented 26 pt, underlined).
-        /// Cols 0-3 = label; Cols 4-5 = blank; Col 6 = subtotal; Col 7 = blank.
-        /// </summary>
-        static void CategoryRow(TableDescriptor table, string label, decimal total)
+        /// <summary>Renders a Thrust label row (indented 26 pt, underlined).</summary>
+        static void CategoryRow(ColumnDescriptor col, string label, decimal total)
         {
-            table.Cell().ColumnSpan(4)
-                 .PaddingTop(4).PaddingBottom(2).PaddingLeft(26)
-                 .Text(t => t.Span(label + "\n").FontSize(7.5f).Underline());
+            col.Item().Row(row =>
+            {
+                row.RelativeItem(W0 + W1 + W2 + W3)
+                   .PaddingTop(8).PaddingBottom(2).PaddingLeft(26)
+                   .Text(t => t.Span(label + "\n").FontSize(7.5f).Bold().Underline().FontFamily("Arial"));
 
-            table.Cell().Text("");   // count blank
-            table.Cell().Text("");   // unit blank
+                row.RelativeItem(W4).Text("");
+                row.RelativeItem(W5).Text("");
 
-            table.Cell()
-                 .AlignRight().PaddingRight(2).PaddingVertical(2)
-                 .Text(t => t.Span(FormatAmt(total)).FontSize(7.5f));
+                row.RelativeItem(W6)
+                   .AlignRight().PaddingRight(2).PaddingVertical(2)
+                   .Text(t => t.Span(FormatAmt(total)).FontSize(7.5f));
 
-            table.Cell().Text("");
+                row.RelativeItem(W7).Text("");
+            });
         }
 
         /// <summary>
-        /// Renders <b>two table rows</b> for a project entry.
-        /// <list type="bullet">
-        ///   <item>Row 1 — Col 0: seq number (bold) + ProjectId (normal); Cols 1-3: UACS; Cols 4-5: blank; Col 6: total amount; Col 7: blank.</item>
-        ///   <item>Row 2 — Cols 0-3: description (bold, indented 24 pt); Cols 4-7: blank.</item>
-        /// </list>
+        /// Renders two rows for a project entry.
+        /// Row 1: seq + ProjectId, UACS, total amount.
+        /// Row 2: description (bold, indented).
         /// </summary>
         static void ProjectHeaderRow(
-            TableDescriptor table,
+            ColumnDescriptor col,
             int seq,
             GenerateAIP01 project,
             decimal total)
         {
-            // ── Row 1: seq + ProjectId | UACS | total ─────────
-            // Col 0 — seq + ProjectId
-            table.Cell()
-                 .PaddingLeft(20).PaddingVertical(5)
-                 .Text(t =>
-                 {
-                     t.Span($"{seq}.  ").FontSize(7.5f).Bold();
-                     t.Span(project.ProjectId).FontSize(7.5f);
-                 });
+            // Row 1: seq + ProjectId | UACS | total
+            col.Item().Row(row =>
+            {
+                row.RelativeItem(W0)
+                   .PaddingLeft(20).PaddingTop(4).PaddingBottom(1)
+                   .Text(t =>
+                   {
+                       t.Span($"{seq}.  ").FontSize(7.5f).Bold();
+                       t.Span(project.ProjectId).FontSize(7.5f);
+                   });
 
-            // Col 1-3 — UACS (spans 3 cols, same row as ProjectId)
-            table.Cell().ColumnSpan(3)
-                 .PaddingHorizontal(4).PaddingVertical(5)
-                 .Text(project.UACS ?? "").FontSize(7);
+                row.RelativeItem(W1 + W2 + W3)
+                   .PaddingHorizontal(4).PaddingTop(4).PaddingBottom(1)
+                   .Text(project.UACS ?? "").FontSize(7);
 
-            // Col 4 blank
-            table.Cell().Text("");
+                row.RelativeItem(W4).Text("");
+                row.RelativeItem(W5).Text("");
 
-            // Col 5 blank
-            table.Cell().Text("");
+                row.RelativeItem(W6)
+                   .AlignRight().PaddingRight(2).PaddingTop(4).PaddingBottom(1)
+                   .Text(FormatAmt(total)).FontSize(7.5f);
 
-            // Col 6 — project total
-            table.Cell()
-                 .AlignRight().PaddingRight(2).PaddingVertical(2)
-                 .Text(FormatAmt(total)).FontSize(7.5f);
+                row.RelativeItem(W7).Text("");
+            });
 
-            // Col 7 blank
-            table.Cell().Text("");
+            // Row 2: description
+            col.Item().Row(row =>
+            {
+                row.RelativeItem(W0 + W1 + W2 + W3)
+                   .PaddingLeft(24).PaddingTop(1).PaddingBottom(3)
+                   .Text(t => t.Span(project.Description + "\n").FontSize(7).Bold());
 
-            // ── Row 2: Description ────────────────────────────
-            // Col 0-3 — description (spans 4 cols, indented below)
-            table.Cell().ColumnSpan(4)
-                 .PaddingLeft(24).PaddingBottom(2)
-                 .Text(t => t.Span("\n" + project.Description + "\n").FontSize(7).Bold());
-
-            // Col 4 blank
-            table.Cell().Text("");
-
-            // Col 5 blank
-            table.Cell().Text("");
-
-            // Col 6 blank
-            table.Cell().Text("");
-
-            // Col 7 blank
-            table.Cell().Text("");
+                row.RelativeItem(W4).Text("");
+                row.RelativeItem(W5).Text("");
+                row.RelativeItem(W6).Text("");
+                row.RelativeItem(W7).Text("");
+            });
         }
 
         /// <summary>
         /// Renders a single component row (indented 30 pt).
-        /// Columns: Component ID · Description · Type of Work · Target Unit · Target Qty · blank · Amount · OU/IO.
-        /// Pass <paramref name="overrideTypeOfWork"/> = <c>"ROW Acquisition"</c> for ROW components.
         /// </summary>
         static void ComponentRow(
-            TableDescriptor table,
+            ColumnDescriptor col,
             GenerateAIPComponents comp,
             GenerateAIP01 project,
             string? overrideTypeOfWork = null)
         {
-            // Col 0 — Component ID
-            table.Cell()
-                 .PaddingLeft(30).PaddingVertical(2)
-                 .Text(comp.ProjectComponentId).FontSize(7);
-
-            // Col 1 — Description
-            table.Cell()
-                 .PaddingHorizontal(2).PaddingVertical(2)
-                 .Text(comp.Description ?? "").FontSize(7);
-
-            // Col 2 — Type of Work (ScopeDescription)
-            table.Cell()
-                 .PaddingHorizontal(2).PaddingVertical(2)
-                 .Text(overrideTypeOfWork ?? comp.ScopeDescription ?? "").FontSize(7);
-
-            // Col 3 — Target Unit (ScopeMeasure)
-            table.Cell()
-                 .AlignCenter().PaddingVertical(2)
-                 .Text(comp.ScopeMeasure ?? "").FontSize(7);
-
-            // Col 4 — Target Quantity (TotalUnitCost)
-            table.Cell()
-                 .AlignRight().PaddingRight(2).PaddingVertical(2)
-                 .Text(comp.TotalUnitCost != null
-                     ? Convert.ToDouble(comp.TotalUnitCost).ToString("N3")
-                     : "")
-                 .FontSize(7);
-
-            // Col 5 blank
-            table.Cell().Text("");
-
-            // Col 6 — Amount (TotalComponentCost)
-            table.Cell()
-                 .AlignRight().PaddingRight(2).PaddingVertical(2)
-                 .Text(FormatAmt((decimal)comp.TotalComponentCost)).FontSize(7);
-
-            // Col 7 — Operating Unit / Implementing Office
-            table.Cell()
-                 .PaddingHorizontal(2).PaddingVertical(2)
-                 .Text(project.OperatingUnit + "/" + project.ImplementingOffice).FontSize(7);
-        }
-
-        /// <summary>
-        /// Renders an EAO (Engineering and Administrative Overhead) component row.
-        /// Only Component ID, amount, and implementing office are shown; all other columns are blank.
-        /// </summary>
-        static void EaoRow(
-            TableDescriptor table,
-            GenerateAIPComponents comp,
-            string? implementingOffice)
-        {
-            // Col 0 — EAO component ID
-            table.Cell()
-                 .PaddingLeft(30).PaddingVertical(2)
-                 .Text(comp.ProjectComponentId).FontSize(7);
-
-            // Cols 1-4 blank
-            table.Cell().ColumnSpan(4).Text("");
-
-            // Col 5 blank
-            table.Cell().Text("");
-
-            // Col 6 — EAO amount
-            table.Cell()
-                 .AlignRight().PaddingRight(2).PaddingVertical(2)
-                 .Text(FormatAmt((decimal)comp.TotalComponentCost)).FontSize(7);
-
-            // Col 7 — Operating Unit
-            table.Cell()
-                 .PaddingHorizontal(2).PaddingVertical(2)
-                 .Text(implementingOffice ?? "").FontSize(7);
-        }
-
-        // ── SHARED HELPERS ─────────────────────────────────────────────────
-
-        /// <summary>Defines the 8 relative table columns: UACS/ID · Description · Type of Work · Target Unit · Physical # · Physical Unit · Amount · OU/IO.</summary>
-        static void DefineColumns(TableDescriptor table)
-        {
-            table.ColumnsDefinition(cols =>
+            col.Item().Row(row =>
             {
-                cols.RelativeColumn(12);  // 0 UACS / Component ID
-                cols.RelativeColumn(18);  // 1 Description
-                cols.RelativeColumn(10);  // 2 Type of Work
-                cols.RelativeColumn(6);   // 3 Target Unit
-                cols.RelativeColumn(5);   // 4 Physical Target #
-                cols.RelativeColumn(5);   // 5 Physical Target unit
-                cols.RelativeColumn(9);   // 6 Amount (PHP)
-                cols.RelativeColumn(12);  // 7 Operating Unit
+                row.RelativeItem(W0).PaddingLeft(30).PaddingVertical(2)
+                   .Text(comp.ProjectComponentId).FontSize(7);
+
+                row.RelativeItem(W1).PaddingHorizontal(2).PaddingVertical(2)
+                   .Text(comp.Description ?? "").FontSize(7);
+
+                row.RelativeItem(W2).PaddingHorizontal(2).PaddingVertical(2)
+                   .Text(overrideTypeOfWork ?? comp.ScopeDescription ?? "").FontSize(7);
+
+                row.RelativeItem(W3).AlignCenter().PaddingVertical(2)
+                   .Text(comp.ScopeMeasure ?? "").FontSize(7);
+
+                row.RelativeItem(W4).AlignRight().PaddingRight(2).PaddingVertical(2)
+                   .Text(comp.TotalUnitCost != null
+                       ? Convert.ToDouble(comp.TotalUnitCost).ToString("N3")
+                       : "").FontSize(7);
+
+                row.RelativeItem(W5).Text("");
+
+                row.RelativeItem(W6).AlignRight().PaddingRight(2).PaddingVertical(2)
+                   .Text(FormatAmt((decimal)comp.TotalComponentCost)).FontSize(7);
+
+                row.RelativeItem(W7).PaddingHorizontal(2).PaddingVertical(2)
+                   .Text(project.OperatingUnit + "/" + project.ImplementingOffice).FontSize(7);
             });
         }
 
-        /// <summary>Returns all components whose <c>ProjectComponentId</c> starts with any ProjectId in the group.</summary>
+        /// <summary>Renders an EAO component row (Component ID, amount, implementing office only).</summary>
+        static void EaoRow(
+            ColumnDescriptor col,
+            GenerateAIPComponents comp,
+            string? implementingOffice)
+        {
+            col.Item().Row(row =>
+            {
+                row.RelativeItem(W0).PaddingLeft(30).PaddingVertical(2)
+                   .Text(comp.ProjectComponentId).FontSize(7);
+
+                row.RelativeItem(W1 + W2 + W3 + W4 + W5).Text("");
+
+                row.RelativeItem(W6).AlignRight().PaddingRight(2).PaddingVertical(2)
+                   .Text(FormatAmt((decimal)comp.TotalComponentCost)).FontSize(7);
+
+                row.RelativeItem(W7).PaddingHorizontal(2).PaddingVertical(2)
+                   .Text(implementingOffice ?? "").FontSize(7);
+            });
+        }
+
+        // -- SHARED HELPERS
+
+        /// <summary>Returns all components whose ProjectComponentId starts with any ProjectId in the group.</summary>
         static List<GenerateAIPComponents> GetComponents(
             IEnumerable<GenerateAIP01> projectGroup,
             List<GenerateAIPComponents> allComponents)
         {
             var ids = projectGroup.Select(p => p.ProjectId).ToHashSet();
             return allComponents
-                .Where(c => ids.Any(id =>
-                    c.ProjectComponentId?.StartsWith(id) == true))
+                .Where(c => ids.Any(id => c.ProjectComponentId?.StartsWith(id) == true))
                 .ToList();
         }
 
-        /// <summary>Formats an amount as comma-separated integer (N0), or an empty string when zero.</summary>
+        /// <summary>Formats an amount as comma-separated integer (N0), or empty string when zero.</summary>
         static string FormatAmt(decimal v) =>
             v == 0 ? "" : v.ToString("N0");
 
-        /// <summary>Returns the project's <c>Thrust</c> as the group label used by the Thrust/Category row.</summary>
+        /// <summary>Returns the project Thrust as the group label.</summary>
         static string BuildCategoryLabel(GenerateAIP01 p) => p.Thrust ?? "";
     }
 }

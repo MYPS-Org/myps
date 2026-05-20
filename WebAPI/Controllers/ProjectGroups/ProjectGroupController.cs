@@ -336,7 +336,7 @@ namespace WebAPI.Controllers.ProjectGroup
         }
         #endregion
         #region Project Group Details
-        
+
         [HttpPost]
         public async Task<IActionResult> ProjectGroupDetails([FromBody] ShowProjectGroupDetailsDTO dto)
         {
@@ -353,7 +353,7 @@ namespace WebAPI.Controllers.ProjectGroup
                 {
                     return new BadRequestObjectResult(new { Message = "Project Group not found!", Title = "Not Found" });
                 }
-                var ProjectDetails = await _db.tProjectsInGroup.AsNoTracking().Select(x => x.ProjectId).ToListAsync();
+                var ProjectDetails = await _db.tProjectsInGroup.AsNoTracking().Where(x => x.GroupId == dto.GroupId).Select(x => x.ProjectId).ToListAsync();
                 var ProjectList = await _db.vProjectLatestStage
                     .AsNoTracking()
                     .Where(x => ProjectDetails.Contains(x.ProjectId))

@@ -364,7 +364,7 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = "Project not found or not in GAA-R stage!", Title = "Invalid Project" });
                 }
-                var ComponentCost = await _db.vProjectComponentCostStatus.AsNoTracking().Where(x => x.ProjectId == dto.ProjectId).ToListAsync();
+                var ComponentCost = await _db.vProjectComponentCostStatus.AsNoTracking().Where(x => x.ProjectId == dto.ProjectId && x.StageName == Project.StageName && !x.IsDeleted).ToListAsync();
                 string json = JsonConvert.SerializeObject(ComponentCost);
                 if(ComponentCost.Count == 0)
                 {
@@ -471,9 +471,9 @@ namespace WebAPI.Controllers.Revision
 
                 
                 //var ComponentCost = await _db.tProjectComponentCost.FromSqlInterpolated($"SELECT * FROM fProjectComponentCost({Project.ProjectId}) fp WHERE fp.StageName = {Project.StageName}").AsNoTracking().ToListAsync();
-                var ComponentCostYear = await _db.tProjectComponentCostPerYear.FromSqlInterpolated($"SELECT * FROM fProjectComponentCostPerYear({Project.ProjectId}) fp WHERE fp.StageName = {Project.StageName}").AsNoTracking().ToListAsync();
+                var ComponentCostYear = await _db.tProjectComponentCostPerYear.FromSqlInterpolated($"SELECT * FROM fProjectComponentCostPerYear({Project.ProjectId}) fp WHERE fp.StageName = {Project.StageName}").AsNoTracking().Where(x => !x.IsDeleted).ToListAsync();
 
-                var MajorItemOfWork = await _db.tProjectMajorWorkItem.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkItem({Project.ProjectId}) fp WHERE fp.StageName = {Project.StageName}").AsNoTracking().ToListAsync();
+                var MajorItemOfWork = await _db.tProjectMajorWorkItem.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkItem({Project.ProjectId}) fp WHERE fp.StageName = {Project.StageName}").AsNoTracking().Where(x => !x.IsDeleted).ToListAsync();
                 //var MajorItemOfWork = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName && !x.IsDeleted).ToListAsync();
                 HashSet<string> ItemParents = MajorItemOfWork.Select(x => x.ReferenceId).ToHashSet();
                 var MajorWorkLocation = await _db.tProjectMajorWorkLocations.FromSqlInterpolated($"SELECT * FROM fProjectMajorWorkLocations({Project.ProjectId}) fp WHERE fp.StageName = {Project.StageName}").AsNoTracking().Where(x => ItemParents.Contains(x.ParentId) && !x.IsDeleted).ToListAsync();
@@ -775,11 +775,6 @@ namespace WebAPI.Controllers.Revision
                         Message = "Found duplicate MajorItemLocations by DetailedScope + StartStationLimit + EndStationLimit.",
                         Duplicates = duplicates
                     });
-                }
-                var DuplicateMajorWorkLocationParentId = dto.MajorItemLocations.Where(x => x.Id == 0).GroupBy(x => x.ParentId).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
-                if (DuplicateMajorWorkLocationParentId.Any())
-                {
-                    return new BadRequestObjectResult(new { Message = $"Major Work Location contains duplicate Parent IDs: {string.Join(", ", DuplicateMajorWorkLocationParentId)}. Please check and try again.", Title = "Duplicate Major Work Location Parent IDs" });
                 }
                 #endregion
 

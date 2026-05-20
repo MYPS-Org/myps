@@ -1,0 +1,9 @@
+{
+  "servers": {
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"],
+      "description": "Persistent knowledge graph memory across sessions. Stores entities, relations, and observations that survive conversation restarts."
+    }
+  }
+}

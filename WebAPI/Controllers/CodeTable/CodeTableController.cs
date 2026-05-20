@@ -287,6 +287,13 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = CheckUpdate.Description!;
                             CheckUpdate.Description = data.Description;
                         }
+                        if (CheckUpdate.IsActive != data.IsActive)
+                        {
+                            transactionLog.AffectedColumn = "IsActive";
+                            transactionLog.NewValue = data.IsActive ? "True" : "False";
+                            transactionLog.OldValue = CheckUpdate.IsActive ? "True" : "False";
+                            CheckUpdate.IsActive = data.IsActive;
+                        }
                         _db.tOptionProgramStage.Update(CheckUpdate);
                     }
                     else if (dto.TransactionType == CodeTransactionType.Delete)
@@ -363,6 +370,13 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = CheckUpdate.Description!;
                             CheckUpdate.Description = data.Description;
                         }
+                        if (CheckUpdate.IsActive != data.IsActive)
+                        {
+                            transactionLog.AffectedColumn = "IsActive";
+                            transactionLog.NewValue = data.IsActive ? "True" : "False";
+                            transactionLog.OldValue = CheckUpdate.IsActive ? "True" : "False";
+                            CheckUpdate.IsActive = data.IsActive;
+                        }
                         _db.tOptionProgramStatus.Update(CheckUpdate);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Delete)
@@ -438,6 +452,13 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.NewValue = data.Description!;
                             transactionLog.OldValue = CheckUpdate.Description!;
                             CheckUpdate.Description = data.Description;
+                        }
+                        if (CheckUpdate.IsActive != data.IsActive)
+                        {
+                            transactionLog.AffectedColumn = "IsActive";
+                            transactionLog.NewValue = data.IsActive ? "True" : "False";
+                            transactionLog.OldValue = CheckUpdate.IsActive ? "True" : "False";
+                            CheckUpdate.IsActive = data.IsActive;
                         }
                         _db.tOptionProgramType.Update(CheckUpdate);
                     }
@@ -528,6 +549,13 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.NewValue = $"{data.ValidUntil}";
                             transactionLog.OldValue = $"{CheckUpdate.ValidUntil}";
                             CheckUpdate.ValidUntil = data.ValidUntil;
+                        }
+                        if (CheckUpdate.IsActive != data.IsActive)
+                        {
+                            transactionLog.AffectedColumn = "IsActive";
+                            transactionLog.NewValue = data.IsActive ? "True" : "False";
+                            transactionLog.OldValue = CheckUpdate.IsActive ? "True" : "False";
+                            CheckUpdate.IsActive = data.IsActive;
                         }
                         _db.tOptionProjectCategory.Update(CheckUpdate);
                     }
@@ -654,6 +682,13 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = $"{CheckUpdate.ThrustDescription}";
                             CheckUpdate.ThrustDescription = data.ThrustDescription;
                         }
+                        if (CheckUpdate.IsActive != data.IsActive)
+                        {
+                            transactionLog.AffectedColumn = "IsActive";
+                            transactionLog.NewValue = data.IsActive ? "True" : "False";
+                            transactionLog.OldValue = CheckUpdate.IsActive ? "True" : "False";
+                            CheckUpdate.IsActive = data.IsActive;
+                        }
                         _db.tProjectThrustLists.Update(CheckUpdate);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Delete)
@@ -737,6 +772,13 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = CheckUpdate.Description!;
                             CheckUpdate.Description = data.Description;
                         }
+                        if (CheckUpdate.IsActive != data.IsActive)
+                        {
+                            transactionLog.AffectedColumn = "IsActive";
+                            transactionLog.NewValue = data.IsActive ? "True" : "False";
+                            transactionLog.OldValue = CheckUpdate.IsActive ? "True" : "False";
+                            CheckUpdate.IsActive = data.IsActive;
+                        }
                         _db.tOptionProjectAgency.Update(CheckUpdate);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Delete)
@@ -812,6 +854,13 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.NewValue = data.Description!;
                             transactionLog.OldValue = CheckUpdate.Description!;
                             CheckUpdate.Description = data.Description;
+                        }
+                        if (CheckUpdate.IsActive != data.IsActive)
+                        {
+                            transactionLog.AffectedColumn = "IsActive";
+                            transactionLog.NewValue = data.IsActive ? "True" : "False";
+                            transactionLog.OldValue = CheckUpdate.IsActive ? "True" : "False";
+                            CheckUpdate.IsActive = data.IsActive;
                         }
                         _db.tOptionProjectOrigin.Update(CheckUpdate);
                     }
@@ -921,6 +970,13 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = CheckUpdate.FinancingSourceSegmentCode!;
                             CheckUpdate.FinancingSourceSegmentCode = data.FinancingSourceSegmentCode;
                         }
+                        if (CheckUpdate.IsActive != data.IsActive)
+                        {
+                            transactionLog.AffectedColumn = "IsActive";
+                            transactionLog.NewValue = data.IsActive ? "True" : "False";
+                            transactionLog.OldValue = CheckUpdate.IsActive ? "True" : "False";
+                            CheckUpdate.IsActive = data.IsActive;
+                        }
                         CheckUpdate.UpdatedBy = data.UpdatedBy;
                         CheckUpdate.UpdatedDate = CurrentDate;
                         _db.tOptionFundingAgreement.Update(CheckUpdate);
@@ -1007,6 +1063,13 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.NewValue = $"{data.Name}";
                             transactionLog.OldValue = $"{CheckUpdate.Name}";
                             CheckUpdate.Name = data.Name;
+                        }
+                        if (CheckUpdate.IsActive != data.IsActive)
+                        {
+                            transactionLog.AffectedColumn = "IsActive";
+                            transactionLog.NewValue = data.IsActive ? "True" : "False";
+                            transactionLog.OldValue = CheckUpdate.IsActive ? "True" : "False";
+                            CheckUpdate.IsActive = data.IsActive;
                         }
                         CheckUpdate.UpdatedBy = data.UpdatedBy;
                         CheckUpdate.UpdatedDate = CurrentDate;
@@ -1136,6 +1199,13 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = $"{CheckUpdate.MinAmount}";
                             CheckUpdate.MinAmount = data.MinAmount;
                         }
+                        if(CheckUpdate.IsActive != data.IsActive)
+                        {
+                            transactionLog.AffectedColumn = "IsActive";
+                            transactionLog.NewValue = data.IsActive ? "True" : "False";
+                            transactionLog.OldValue = CheckUpdate.IsActive ? "True" : "False";
+                            CheckUpdate.IsActive = data.IsActive;
+                        }
                         _db.tOptionScopeOfWork.Update(CheckUpdate);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Delete)
@@ -1220,6 +1290,13 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.NewValue = data.InfraName!;
                             transactionLog.OldValue = CheckUpdate.InfraName!;
                             CheckUpdate.InfraName = data.InfraName;
+                        }
+                        if (CheckUpdate.IsActive != data.IsActive)
+                        {
+                            transactionLog.AffectedColumn = "IsActive";
+                            transactionLog.NewValue = data.IsActive ? "True" : "False";
+                            transactionLog.OldValue = CheckUpdate.IsActive ? "True" : "False";
+                            CheckUpdate.IsActive = data.IsActive;
                         }
                         _db.tOptionInfraType.Update(CheckUpdate);
                     }
@@ -1312,6 +1389,13 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = CheckUpdate.ExportToPCMA ? "True" : "False";
                             CheckUpdate.ExportToPCMA = data.ExportToPCMA;
                         }
+                        if (CheckUpdate.IsActive != data.IsActive)
+                        {
+                            transactionLog.AffectedColumn = "IsActive";
+                            transactionLog.NewValue = data.IsActive ? "True" : "False";
+                            transactionLog.OldValue = CheckUpdate.IsActive ? "True" : "False";
+                            CheckUpdate.IsActive = data.IsActive;
+                        }
                         _db.tOptionProjectComponent.Update(CheckUpdate);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Delete)
@@ -1381,6 +1465,13 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = CheckUpdate.RevisionName!;
                             CheckUpdate.RevisionName = data.RevisionName;
                         }
+                        if (CheckUpdate.IsActive != data.IsActive)
+                        {
+                            transactionLog.AffectedColumn = "IsActive";
+                            transactionLog.NewValue = data.IsActive ? "True" : "False";
+                            transactionLog.OldValue = CheckUpdate.IsActive ? "True" : "False";
+                            CheckUpdate.IsActive = data.IsActive;
+                        }
                         _db.tOptionRevisionHeader.Update(CheckUpdate);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Delete)
@@ -1449,6 +1540,13 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.NewValue = data.CategoryName!;
                             transactionLog.OldValue = CheckUpdate.CategoryName!;
                             CheckUpdate.CategoryName = data.CategoryName;
+                        }
+                        if (CheckUpdate.IsActive != data.IsActive)
+                        {
+                            transactionLog.AffectedColumn = "IsActive";
+                            transactionLog.NewValue = data.IsActive ? "True" : "False";
+                            transactionLog.OldValue = CheckUpdate.IsActive ? "True" : "False";
+                            CheckUpdate.IsActive = data.IsActive;
                         }
                         _db.tOptionRevisionCategory.Update(CheckUpdate);
                     }
@@ -1548,6 +1646,13 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = $"{CheckUpdate.CategoryId}";
                             CheckUpdate.CategoryId = data.CategoryId;
                         }
+                        if (CheckUpdate.IsActive != data.IsActive)
+                        {
+                            transactionLog.AffectedColumn = "IsActive";
+                            transactionLog.NewValue = data.IsActive ? "True" : "False";
+                            transactionLog.OldValue = CheckUpdate.IsActive ? "True" : "False";
+                            CheckUpdate.IsActive = data.IsActive;
+                        }
                         _db.tOptionRevisionReasons.Update(CheckUpdate);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Delete)
@@ -1644,6 +1749,13 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.NewValue = data.Field!;
                             transactionLog.OldValue = CheckUpdate.Field!;
                             CheckUpdate.Field = data.Field;
+                        }
+                        if (CheckUpdate.IsActive != data.IsActive)
+                        {
+                            transactionLog.AffectedColumn = "IsActive";
+                            transactionLog.NewValue = data.IsActive ? "True" : "False";
+                            transactionLog.OldValue = CheckUpdate.IsActive ? "True" : "False";
+                            CheckUpdate.IsActive = data.IsActive;
                         }
                         _db.tRevisionRules.Update(CheckUpdate);
                     }
@@ -1747,6 +1859,13 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = $"{CheckUpdate.CategoryId}";
                             CheckUpdate.CategoryId = data.CategoryId;
                         }
+                        if (CheckUpdate.IsActive != data.IsActive)
+                        {
+                            transactionLog.AffectedColumn = "IsActive";
+                            transactionLog.NewValue = data.IsActive ? "True" : "False";
+                            transactionLog.OldValue = CheckUpdate.IsActive ? "True" : "False";
+                            CheckUpdate.IsActive = data.IsActive;
+                        }
                         _db.tOptionRevisionDocuments.Update(CheckUpdate);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Delete)
@@ -1823,6 +1942,13 @@ namespace WebAPI.Controllers.CodeTable
                             transactionLog.OldValue = CheckUpdate.Description ?? string.Empty;
                             CheckUpdate.Description = data.Description;
                         }
+                        if (CheckUpdate.IsActive != data.IsActive)
+                        {
+                            transactionLog.AffectedColumn = "IsActive";
+                            transactionLog.NewValue = data.IsActive ? "True" : "False";
+                            transactionLog.OldValue = CheckUpdate.IsActive ? "True" : "False";
+                            CheckUpdate.IsActive = data.IsActive;
+                        }
                         _db.tOptionRevisionStatus.Update(CheckUpdate);
                     }
                     else if (CheckUpdate != null && dto.TransactionType == CodeTransactionType.Delete)
@@ -1848,11 +1974,41 @@ namespace WebAPI.Controllers.CodeTable
                     }
                     else if (dto.TransactionType == CodeTransactionType.Update && existing != null)
                     {
-                        transactionLog.OldValue = JsonConvert.SerializeObject(existing);
-                        existing.GdbId = data.GdbId; existing.Name = data.Name;
-                        existing.ParticipantId = data.ParticipantId; existing.IslandCode = data.IslandCode;
-                        transactionLog.NewValue = JsonConvert.SerializeObject(existing);
-                        transactionLog.AffectedColumn = "GdbId,ParticipantId,Name,IslandCode";
+                        if (existing.GdbId != data.GdbId)
+                        {
+                            transactionLog.AffectedColumn = "GdbId";
+                            transactionLog.NewValue = data.GdbId!;
+                            transactionLog.OldValue = existing.GdbId!;
+                            existing.GdbId = data.GdbId;
+                        }
+                        if(existing.Name != data.Name)
+                        {
+                            transactionLog.AffectedColumn = "Name";
+                            transactionLog.NewValue = data.Name!;
+                            transactionLog.OldValue = existing.Name!;
+                            existing.Name = data.Name;
+                        }
+                        if (existing.ParticipantId != data.ParticipantId)
+                        {
+                            transactionLog.AffectedColumn = "ParticipantId";
+                            transactionLog.NewValue = data.ParticipantId!;
+                            transactionLog.OldValue = existing.ParticipantId!;
+                            existing.ParticipantId = data.ParticipantId;
+                        }
+                        if (existing.IslandCode != data.IslandCode)
+                        {
+                            transactionLog.AffectedColumn = "IslandCode";
+                            transactionLog.NewValue = data.IslandCode!;
+                            transactionLog.OldValue = existing.IslandCode!;
+                            existing.IslandCode = data.IslandCode;
+                        }
+                        if (existing.IsActive != data.IsActive)
+                        {
+                            transactionLog.AffectedColumn = "IsActive";
+                            transactionLog.NewValue = data.IsActive ? "True" : "False";
+                            transactionLog.OldValue = existing.IsActive ? "True" : "False";
+                            existing.IsActive = data.IsActive;
+                        }
                         _db.tOptionAdminAreaRegion.Update(existing);
                     }
                     else if (dto.TransactionType == CodeTransactionType.Delete && existing != null)
@@ -1877,11 +2033,48 @@ namespace WebAPI.Controllers.CodeTable
                     }
                     else if (dto.TransactionType == CodeTransactionType.Update && existing != null)
                     {
-                        transactionLog.OldValue = JsonConvert.SerializeObject(existing);
-                        existing.GdbId = data.GdbId; existing.Name = data.Name; existing.Code = data.Code;
-                        existing.RegionParticipantId = data.RegionParticipantId; existing.RegionName = data.RegionName;
-                        transactionLog.NewValue = JsonConvert.SerializeObject(existing);
-                        transactionLog.AffectedColumn = "GdbId,Name,Code,RegionParticipantId,RegionName";
+                        if (existing.GdbId != data.GdbId)
+                        {
+                            transactionLog.AffectedColumn = "GdbId";
+                            transactionLog.NewValue = data.GdbId!;
+                            transactionLog.OldValue = existing.GdbId!;
+                            existing.GdbId = data.GdbId;
+                        }
+                        if (existing.Name != data.Name)
+                        {
+                            transactionLog.AffectedColumn = "Name";
+                            transactionLog.NewValue = data.Name!;
+                            transactionLog.OldValue = existing.Name!;
+                            existing.Name = data.Name;
+                        }
+                        if (existing.Code != data.Code)
+                        {
+                            transactionLog.AffectedColumn = "Code";
+                            transactionLog.NewValue = data.Code!;
+                            transactionLog.OldValue = existing.Code!;
+                            existing.Code = data.Code;
+                        }
+                        if (existing.RegionParticipantId != data.RegionParticipantId)
+                        {
+                            transactionLog.AffectedColumn = "RegionParticipantId";
+                            transactionLog.NewValue = data.RegionParticipantId!;
+                            transactionLog.OldValue = existing.RegionParticipantId!;
+                            existing.RegionParticipantId = data.RegionParticipantId;
+                        }
+                        if (existing.RegionName != data.RegionName)
+                        {
+                            transactionLog.AffectedColumn = "RegionName";
+                            transactionLog.NewValue = data.RegionName!;
+                            transactionLog.OldValue = existing.RegionName!;
+                            existing.RegionName = data.RegionName;
+                        }
+                        if (existing.IsActive != data.IsActive)
+                        {
+                            transactionLog.AffectedColumn = "IsActive";
+                            transactionLog.NewValue = data.IsActive ? "True" : "False";
+                            transactionLog.OldValue = existing.IsActive ? "True" : "False";
+                            existing.IsActive = data.IsActive;
+                        }
                         _db.tOptionAdminAreaProvince.Update(existing);
                     }
                     else if (dto.TransactionType == CodeTransactionType.Delete && existing != null)
@@ -1906,11 +2099,48 @@ namespace WebAPI.Controllers.CodeTable
                     }
                     else if (dto.TransactionType == CodeTransactionType.Update && existing != null)
                     {
-                        transactionLog.OldValue = JsonConvert.SerializeObject(existing);
-                        existing.GdbId = data.GdbId; existing.Name = data.Name; existing.Code = data.Code;
-                        existing.ProvinceGdbId = data.ProvinceGdbId; existing.ProvinceName = data.ProvinceName;
-                        transactionLog.NewValue = JsonConvert.SerializeObject(existing);
-                        transactionLog.AffectedColumn = "GdbId,Name,Code,ProvinceGdbId,ProvinceName";
+                        if (existing.GdbId != data.GdbId)
+                        {
+                            transactionLog.AffectedColumn = "GdbId";
+                            transactionLog.NewValue = data.GdbId!;
+                            transactionLog.OldValue = existing.GdbId!;
+                            existing.GdbId = data.GdbId;
+                        }
+                        if (existing.Name != data.Name)
+                        {
+                            transactionLog.AffectedColumn = "Name";
+                            transactionLog.NewValue = data.Name!;
+                            transactionLog.OldValue = existing.Name!;
+                            existing.Name = data.Name;
+                        }
+                        if (existing.Code != data.Code)
+                        {
+                            transactionLog.AffectedColumn = "Code";
+                            transactionLog.NewValue = data.Code!;
+                            transactionLog.OldValue = existing.Code!;
+                            existing.Code = data.Code;
+                        }
+                        if (existing.ProvinceGdbId != data.ProvinceGdbId)
+                        {
+                            transactionLog.AffectedColumn = "ProvinceGdbId";
+                            transactionLog.NewValue = data.ProvinceGdbId!;
+                            transactionLog.OldValue = existing.ProvinceGdbId!;
+                            existing.ProvinceGdbId = data.ProvinceGdbId;
+                        }
+                        if (existing.ProvinceName != data.ProvinceName)
+                        {
+                            transactionLog.AffectedColumn = "ProvinceName";
+                            transactionLog.NewValue = data.ProvinceName!;
+                            transactionLog.OldValue = existing.ProvinceName!;
+                            existing.ProvinceName = data.ProvinceName;
+                        }
+                        if (existing.IsActive != data.IsActive)
+                        {
+                            transactionLog.AffectedColumn = "IsActive";
+                            transactionLog.NewValue = data.IsActive ? "True" : "False";
+                            transactionLog.OldValue = existing.IsActive ? "True" : "False";
+                            existing.IsActive = data.IsActive;
+                        }
                         _db.tOptionAdminAreaCityMunicipality.Update(existing);
                     }
                     else if (dto.TransactionType == CodeTransactionType.Delete && existing != null)
@@ -1935,11 +2165,48 @@ namespace WebAPI.Controllers.CodeTable
                     }
                     else if (dto.TransactionType == CodeTransactionType.Update && existing != null)
                     {
-                        transactionLog.OldValue = JsonConvert.SerializeObject(existing);
-                        existing.GdbId = data.GdbId; existing.Name = data.Name; existing.Code = data.Code;
-                        existing.ProvinceGdbId = data.ProvinceGdbId; existing.ProvinceName = data.ProvinceName;
-                        transactionLog.NewValue = JsonConvert.SerializeObject(existing);
-                        transactionLog.AffectedColumn = "GdbId,Name,Code,ProvinceGdbId,ProvinceName";
+                        if (existing.GdbId != data.GdbId)
+                        {
+                            transactionLog.AffectedColumn = "GdbId";
+                            transactionLog.NewValue = data.GdbId!;
+                            transactionLog.OldValue = existing.GdbId!;
+                            existing.GdbId = data.GdbId;
+                        }
+                        if (existing.Name != data.Name)
+                        {
+                            transactionLog.AffectedColumn = "Name";
+                            transactionLog.NewValue = data.Name!;
+                            transactionLog.OldValue = existing.Name!;
+                            existing.Name = data.Name;
+                        }
+                        if (existing.Code != data.Code)
+                        {
+                            transactionLog.AffectedColumn = "Code";
+                            transactionLog.NewValue = data.Code!;
+                            transactionLog.OldValue = existing.Code!;
+                            existing.Code = data.Code;
+                        }
+                        if (existing.ProvinceGdbId != data.ProvinceGdbId)
+                        {
+                            transactionLog.AffectedColumn = "ProvinceGdbId";
+                            transactionLog.NewValue = data.ProvinceGdbId!;
+                            transactionLog.OldValue = existing.ProvinceGdbId!;
+                            existing.ProvinceGdbId = data.ProvinceGdbId;
+                        }
+                        if (existing.ProvinceName != data.ProvinceName)
+                        {
+                            transactionLog.AffectedColumn = "ProvinceName";
+                            transactionLog.NewValue = data.ProvinceName!;
+                            transactionLog.OldValue = existing.ProvinceName!;
+                            existing.ProvinceName = data.ProvinceName;
+                        }
+                        if (existing.IsActive != data.IsActive)
+                        {
+                            transactionLog.AffectedColumn = "IsActive";
+                            transactionLog.NewValue = data.IsActive ? "True" : "False";
+                            transactionLog.OldValue = existing.IsActive ? "True" : "False";
+                            existing.IsActive = data.IsActive;
+                        }
                         _db.tOptionAdminAreaCongressionalDistrict.Update(existing);
                     }
                     else if (dto.TransactionType == CodeTransactionType.Delete && existing != null)
@@ -1964,12 +2231,62 @@ namespace WebAPI.Controllers.CodeTable
                     }
                     else if (dto.TransactionType == CodeTransactionType.Update && existing != null)
                     {
-                        transactionLog.OldValue = JsonConvert.SerializeObject(existing);
-                        existing.GdbId = data.GdbId; existing.Name = data.Name; existing.ParticipantId = data.ParticipantId;
-                        existing.ProvinceGdbId = data.ProvinceGdbId; existing.ProvinceName = data.ProvinceName;
-                        existing.RegionParticipantId = data.RegionParticipantId; existing.RegionName = data.RegionName;
-                        transactionLog.NewValue = JsonConvert.SerializeObject(existing);
-                        transactionLog.AffectedColumn = "GdbId,ParticipantId,Name,ProvinceGdbId,ProvinceName,RegionParticipantId,RegionName";
+                        if (existing.GdbId != data.GdbId)
+                        {
+                            transactionLog.AffectedColumn = "GdbId";
+                            transactionLog.NewValue = data.GdbId!;
+                            transactionLog.OldValue = existing.GdbId!;
+                            existing.GdbId = data.GdbId;
+                        }
+                        if (existing.Name != data.Name)
+                        {
+                            transactionLog.AffectedColumn = "Name";
+                            transactionLog.NewValue = data.Name!;
+                            transactionLog.OldValue = existing.Name!;
+                            existing.Name = data.Name;
+                        }
+                        if (existing.ParticipantId != data.ParticipantId)
+                        {
+                            transactionLog.AffectedColumn = "ParticipantId";
+                            transactionLog.NewValue = data.ParticipantId!;
+                            transactionLog.OldValue = existing.ParticipantId!;
+                            existing.ParticipantId = data.ParticipantId;
+                        }
+                        if (existing.ProvinceGdbId != data.ProvinceGdbId)
+                        {
+                            transactionLog.AffectedColumn = "ProvinceGdbId";
+                            transactionLog.NewValue = data.ProvinceGdbId!;
+                            transactionLog.OldValue = existing.ProvinceGdbId!;
+                            existing.ProvinceGdbId = data.ProvinceGdbId;
+                        }
+                        if (existing.ProvinceName != data.ProvinceName)
+                        {
+                            transactionLog.AffectedColumn = "ProvinceName";
+                            transactionLog.NewValue = data.ProvinceName!;
+                            transactionLog.OldValue = existing.ProvinceName!;
+                            existing.ProvinceName = data.ProvinceName;
+                        }
+                        if (existing.RegionParticipantId != data.RegionParticipantId)
+                        {
+                            transactionLog.AffectedColumn = "RegionParticipantId";
+                            transactionLog.NewValue = data.RegionParticipantId!;
+                            transactionLog.OldValue = existing.RegionParticipantId!;
+                            existing.RegionParticipantId = data.RegionParticipantId;
+                        }
+                        if (existing.RegionName != data.RegionName)
+                        {
+                            transactionLog.AffectedColumn = "RegionName";
+                            transactionLog.NewValue = data.RegionName!;
+                            transactionLog.OldValue = existing.RegionName!;
+                            existing.RegionName = data.RegionName;
+                        }
+                        if (existing.IsActive != data.IsActive)
+                        {
+                            transactionLog.AffectedColumn = "IsActive";
+                            transactionLog.NewValue = data.IsActive ? "True" : "False";
+                            transactionLog.OldValue = existing.IsActive ? "True" : "False";
+                            existing.IsActive = data.IsActive;
+                        }
                         _db.tOptionAdminAreaDistrictEngineeringOffice.Update(existing);
                     }
                     else if (dto.TransactionType == CodeTransactionType.Delete && existing != null)

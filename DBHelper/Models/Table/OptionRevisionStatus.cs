@@ -12,6 +12,7 @@ namespace DBHelper.Models.Table
     {
         [Key]
         public int Id { get; set; }
+        public bool IsActive { get; set; } = false;
         [Required]
         public EnumRevisionStatus Enum { get; set; }
         [Required]
