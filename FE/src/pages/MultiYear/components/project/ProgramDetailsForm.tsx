@@ -45,7 +45,7 @@ const ProgramDetailsForm: React.FC<ProgramDetailsFormProps> = ({
         Name: '',
         GroupName: '',
         RegionCode: '',
-        Status: '',
+        Status: undefined,
         Type: '',
         Cost: 0,
         YearStart: 0,

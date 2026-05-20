@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
-import { Field, Label } from '../../../components/tailwindui/fieldset';
-import { Select } from '../../../components/tailwindui/select';
 import type { ProgramEnums, ProgramPagination } from '../Model.d';
 import type { TableEnum } from '../../Project/Model';
 import XMarkIcon from '@heroicons/react/24/outline/XMarkIcon';
