@@ -1,4 +1,4 @@
-﻿using QuestPDF.Fluent;
+using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using RBPData = DBHelper.Models.Procedures.GenerateRBP;
@@ -134,27 +134,29 @@ namespace ReportGeneration
         /// <summary>Builds the pivot table body. Grouping: Region -> Tier -> DEO -> Legislative District.</summary>
         static void BuildTableContent(IContainer container, List<RBPData> data)
         {
-            container.Column(col =>
+            // Single outer border wraps the entire data block to match the reference template
+            container.Border(0.5f).BorderColor(Colors.Black).Column(col =>
             {
                 foreach (var regionGrp in data.GroupBy(r => r.Region).OrderBy(g => g.Key))
                 {
                     WriteDataRow(col, regionGrp.Key, regionGrp,
-                        fontSize: 8, bold: true, dashForZero: true);
+                        fontSize: 9, bold: true, underline: true);
 
                     foreach (var tierGrp in regionGrp.GroupBy(r => r.Tier).OrderBy(g => g.Key))
                     {
                         WriteDataRow(col, $"Tier {ToRoman(tierGrp.Key)}", tierGrp,
-                            indent: 4, fontSize: 7.5f, bold: false, dashForZero: true);
+                            indent: 4, fontSize: 8f, bold: true, underline: true);
 
                         foreach (var deoGrp in tierGrp.GroupBy(r => r.DEO).OrderBy(g => g.Key))
                         {
+                            // DEO rows: bold + underline to match template emphasis
                             WriteDataRow(col, deoGrp.Key, deoGrp,
-                                indent: 10, fontSize: 7, bold: true, dashForZero: true);
+                                indent: 10, fontSize: 7, bold: true, underline: true);
 
                             foreach (var distGrp in deoGrp.GroupBy(r => r.LegislativeDistrict).OrderBy(g => g.Key))
                             {
                                 WriteDataRow(col, distGrp.Key, distGrp,
-                                    indent: 20, fontSize: 7, bold: false, dashForZero: true);
+                                    indent: 20, fontSize: 7);
                             }
                         }
                     }
@@ -163,7 +165,7 @@ namespace ReportGeneration
         }
 
         // -- ROW RENDERING
-        /// <summary>Renders one labeled bordered data row with aggregated counts and amounts for all 5 budget categories.</summary>
+        /// <summary>Renders one labeled data row with aggregated counts and amounts for all 5 budget categories.</summary>
         static void WriteDataRow(
             ColumnDescriptor col,
             string label,
@@ -171,7 +173,7 @@ namespace ReportGeneration
             int indent = 0,
             float fontSize = 7,
             bool bold = false,
-            bool dashForZero = false)
+            bool underline = false)
         {
             var oo1Proj  = rows.Sum(r => r.OO1_NoOfProj ?? 0);
             var oo1Amt   = rows.Sum(r => r.OO1_Amount);
@@ -186,50 +188,60 @@ namespace ReportGeneration
 
             col.Item().Row(row =>
             {
-                // Label cell: no borders in data rows to match reference style
+                // Label cell: right border separates it from the first numeric column
                 row.RelativeItem(WL)
+                   .BorderRight(0.5f).BorderColor(Colors.Black)
                    .PaddingVertical(3).PaddingLeft(indent + 2f)
                    .Text(t =>
                    {
                        var s = t.Span(label).FontSize(fontSize);
                        if (bold) s.Bold();
+                       if (underline) s.Underline();
                    });
 
-                DataCountCell(row, WC, oo1Proj,  fontSize, bold, dashForZero);
-                DataAmtCell(row,   WA, oo1Amt,   fontSize, bold);
-                DataCountCell(row, WC, oo2Proj,  fontSize, bold, dashForZero);
-                DataAmtCell(row,   WA, oo2Amt,   fontSize, bold);
-                DataCountCell(row, WC, csspProj, fontSize, bold, dashForZero);
-                DataAmtCell(row,   WA, csspAmt,  fontSize, bold);
-                DataCountCell(row, WC, lpProj,   fontSize, bold, dashForZero);
-                DataAmtCell(row,   WA, lpAmt,    fontSize, bold);
-                DataCountCell(row, WC, totProj,  fontSize, bold, dashForZero);
-                DataAmtCell(row,   WA, totAmt,   fontSize, bold);
+                DataCountCell(row, WC, oo1Proj,  fontSize, bold, underline);
+                DataAmtCell(row,   WA, oo1Amt,   fontSize, bold, underline);
+                DataCountCell(row, WC, oo2Proj,  fontSize, bold, underline);
+                DataAmtCell(row,   WA, oo2Amt,   fontSize, bold, underline);
+                DataCountCell(row, WC, csspProj, fontSize, bold, underline);
+                DataAmtCell(row,   WA, csspAmt,  fontSize, bold, underline);
+                DataCountCell(row, WC, lpProj,   fontSize, bold, underline);
+                DataAmtCell(row,   WA, lpAmt,    fontSize, bold, underline);
+                DataCountCell(row, WC, totProj,  fontSize, bold, underline);
+                DataAmtCell(row,   WA, totAmt,   fontSize, bold, underline);
             });
         }
 
+        /// <summary>Renders a right-aligned count cell with a left border column separator.</summary>
         static void DataCountCell(RowDescriptor row, float weight, int value,
-            float fontSize, bool bold, bool dashForZero)
+            float fontSize, bool bold, bool underline)
         {
-            var display = value == 0 ? (dashForZero ? "-" : "") : value.ToString();
+            var display = value == 0 ? "" : value.ToString();
+            // Left border creates visible vertical column separator matching the template grid
             row.RelativeItem(weight)
+               .BorderLeft(0.5f).BorderColor(Colors.Black)
                .AlignRight().PaddingRight(2).PaddingVertical(3)
                .Text(t =>
                {
                    var s = t.Span(display).FontSize(fontSize);
                    if (bold) s.Bold();
+                   if (underline) s.Underline();
                });
         }
 
+        /// <summary>Renders a right-aligned amount cell (P'000) with a left border column separator.</summary>
         static void DataAmtCell(RowDescriptor row, float weight, double value,
-            float fontSize, bool bold)
+            float fontSize, bool bold, bool underline = false)
         {
+            // Left border creates visible vertical column separator matching the template grid
             row.RelativeItem(weight)
+               .BorderLeft(0.5f).BorderColor(Colors.Black)
                .AlignRight().PaddingRight(2).PaddingVertical(3)
                .Text(t =>
                {
                    var s = t.Span(FormatAmtP(value)).FontSize(fontSize);
                    if (bold) s.Bold();
+                   if (underline) s.Underline();
                });
         }
 
