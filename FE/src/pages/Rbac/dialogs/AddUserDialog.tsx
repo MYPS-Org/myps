@@ -23,6 +23,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
     userGroups: [] as string[],
     regCode: '',
     plantillaOffice: '',
+    plantillaOfficeName: '',
     isActive: 'active',
   });
 
@@ -75,7 +76,8 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
           userId: userData.Data.UserId || '',
           email: userData.Data.Email || '',
           regCode: userData.Data.RegCode || '',
-          plantillaOffice: userData.Data.PlantillaOffice || ''
+          plantillaOffice: userData.Data.PlantillaOffice || '',
+          plantillaOfficeName: userData.Data.PlantillaOfficeName || ''
         }));
         setIsDataLoaded(true);
       } else {
@@ -115,6 +117,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
         Email: formData.email,
         RegCode: formData.regCode || '',
         PlantillaOffice: formData.plantillaOffice,
+        PlantillaOfficeName: formData.plantillaOfficeName,
         IsActive: formData.isActive === 'active',
         UserGroupIds: selectedGroupIds,
         UserGroupNames: selectedGroupNames,
@@ -149,6 +152,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
       userGroups: [],
       regCode: '',
       plantillaOffice: '',
+      plantillaOfficeName: '',
       isActive: 'active',
     });
     setIsDataLoaded(false);
@@ -292,8 +296,8 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
               </label>
               <input
                 type="text"
-                value={formData.plantillaOffice}
-                onChange={(e) => handleChange('plantillaOffice', e.target.value)}
+                value={formData.plantillaOfficeName}
+                onChange={(e) => handleChange('plantillaOfficeName', e.target.value)}
                 placeholder="Enter department"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-700"
                 disabled={true}

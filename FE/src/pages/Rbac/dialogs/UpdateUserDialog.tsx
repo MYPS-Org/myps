@@ -30,6 +30,7 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
     userGroupIds: user.UserGroupIds || [] as number[],
     regCode: user.RegCode || '',
     plantillaOffice: user.PlantillaOffice || '',
+    plantillaOfficeName: user.PlantillaOfficeName || '',
     isActive: user.IsActive ? 'active' : 'inactive',
   });
 
@@ -44,6 +45,7 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
       userGroupIds: user.UserGroupIds || [],
       regCode: user.RegCode || '',
       plantillaOffice: user.PlantillaOffice || '',
+      plantillaOfficeName: user.PlantillaOfficeName || '',
       isActive: user.IsActive ? 'active' : 'inactive',
     });
   }, [user]);
@@ -68,6 +70,7 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
           email: userData.Data.Email || '',
           regCode: userData.Data.RegCode || '',
           plantillaOffice: userData.Data.PlantillaOffice || '',
+          plantillaOfficeName: userData.Data.PlantillaOfficeName || '',
         }));
       } else {
         setError('Employee ID not found');
@@ -78,6 +81,8 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
       setIsLoading(false);
     }
   };
+
+
 
   const fetchAvailableGroups = async () => {
     try {
@@ -117,6 +122,7 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
       Email: formData.email,
       RegCode: formData.regCode,
       PlantillaOffice: formData.plantillaOffice,
+      PlantillaOfficeName: formData.plantillaOfficeName,
       IsActive: formData.isActive === 'active',
     };
     
@@ -133,6 +139,7 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
         userGroupIds: [],
         regCode: '',
         plantillaOffice: '',
+        plantillaOfficeName: '',
         isActive: 'active',
       });
       setError('');
