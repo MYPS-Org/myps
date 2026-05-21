@@ -8,7 +8,7 @@ import { fetchRevisionData } from '../Service';
 import { useAPIIntegration } from '../hooks/useFieldPermissions';
 import type { RevisionProjectPayload, FieldRules } from '../Model';
 
-const ModifyProject: React.FC = () => {
+const ModificationDetails: React.FC = () => {
     const { project } = useParams<{ project: string }>();
     const location = useLocation();
     const id = useMemo(() => project?.split(':'), [project]);
@@ -184,4 +184,4 @@ const ModifyProject: React.FC = () => {
     );
 };
 
-export default ModifyProject;
+export default ModificationDetails;

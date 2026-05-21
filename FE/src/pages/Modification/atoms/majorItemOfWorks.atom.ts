@@ -30,7 +30,7 @@ export const MajorItemOfWorksWithDropdownAtom = atom(get => {
             TargetUnitId: item.TargetUnitId || 0,
             TargetUnit: item.TargetUnit || '',
             MajorItemLocations: itemLocations,
-            DropdownData: scopeOfWorks?.filter(s => s.InfraType === item.InfraType) ?? []
+            DropdownData: scopeOfWorks?.filter(s => s.InfraType.includes(item.InfraType)) ?? []
 
         }
     })

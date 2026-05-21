@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/16/solid';
 import { Button } from '../../../components/tailwindui/button';

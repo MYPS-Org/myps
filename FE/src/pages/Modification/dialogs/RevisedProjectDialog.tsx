@@ -39,8 +39,8 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
     revisionCategory,
     revisionReason,
     reasonId,
-    categoryId,
-    revisionGroupId,
+    categoryId: _categoryId,
+    revisionGroupId: _revisionGroupId,
     projectStatus
 }) => {
     const navigate = useNavigate()

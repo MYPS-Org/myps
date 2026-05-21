@@ -45,13 +45,13 @@ export const processTerminatedComponents = (
   
   const updatedComponents = components.map(component => {
     if (!component.IsDeleted && isComponentTerminated(component)) {
-      const originalAmount = component.Amount || 0;
+      const originalAmount = component.Total || 0;
       totalTerminatedAmount += originalAmount;
       terminatedComponents.push(component);
       
       return {
         ...component,
-        Amount: 0
+        Total: 0
       };
     }
     return component;

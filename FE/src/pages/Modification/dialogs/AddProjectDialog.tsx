@@ -2,7 +2,7 @@ import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
 import { XMarkIcon } from "@heroicons/react/16/solid";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../../components/tailwindui/table";
 import { Button } from "../../../components/tailwindui/button";
-import { MagnifyingGlassIcon, PlusIcon } from "@heroicons/react/20/solid";
+import { MagnifyingGlassIcon } from "@heroicons/react/20/solid";
 import { useEffect, useState } from "react";
 import { getModificationProjects, type ModificationProject } from "../mockData/ProjectData";
 
@@ -14,13 +14,11 @@ interface AddProjectDialogProps {
 const AddProjectDialog: React.FC<AddProjectDialogProps> = ({ isOpen, onClose }) => {
 
     const [searchInput, setSearchInput] = useState("");
-    const [isLoading, setIsLoading] = useState(false);
-    const [ projects, setProjects ] = useState<ModificationProject[]>([]);
+    const [isLoading] = useState(false);
     const [ filteredProjects, setFilteredProjects ] = useState<ModificationProject[]>([]);
 
     useEffect(() => {
         const projectData = getModificationProjects();
-        setProjects(projectData);
         setFilteredProjects(projectData);
     }, []);
 
