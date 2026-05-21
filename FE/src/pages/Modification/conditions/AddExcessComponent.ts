@@ -12,12 +12,13 @@ const addExcessComponent = (
     const now = new Date().toISOString();
     return {
         Id: 0,
+        CostId: '',
         ProjectId: params.projectId,
         StageName: params.stageName,
         ComponentType: 'Excess',
         ComponentId: 'EXC',
         Description: params.description ?? 'Excess',
-        Amount: params.amount,
+        Total: params.amount,
         CreatedBy: params.createdBy ?? '-',
         CreatedDate: now,
         UpdatedBy: params.createdBy ?? '-',

@@ -21,7 +21,7 @@ const CopyMajorItemDialog: React.FC<CopyMajorItemDialogProps> = ({
   majorItemToCopy,
   componentCosts,
   existingMajorItems,
-  majorItemList,
+  majorItemList: _majorItemList,
 }) => {
   const [selectedComponentId, setSelectedComponentId] = useState('');
 
@@ -46,8 +46,6 @@ const CopyMajorItemDialog: React.FC<CopyMajorItemDialogProps> = ({
       if (excludedComponents.includes(componentId)) {
         return false;
       }
-      
-      const exemption = majorItemList?.find(m => m.IsDeleted ? true : false && m.ComponentId === cost.ComponentId);
       
       // Exclude components that already have major items
       const alreadyUsed = existingMajorItems.some(item => item.ComponentId === cost.ComponentId);
