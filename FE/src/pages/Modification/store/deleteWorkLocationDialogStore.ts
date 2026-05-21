@@ -19,7 +19,7 @@ export const canShowDeleteWorkLocationDialogAtom = atom((get) => {
 // Actions atoms
 export const openDeleteWorkLocationDialogAtom = atom(
   null,
-  (get, set, { workLocation, index }: { workLocation: MajorItemLocations; index: number }) => {
+  (_get, set, { workLocation, index }: { workLocation: MajorItemLocations; index: number }) => {
     set(selectedWorkLocationForDeleteAtom, workLocation);
     set(deleteWorkLocationIndexAtom, index);
     set(deleteWorkLocationDialogOpenAtom, true);
@@ -28,7 +28,7 @@ export const openDeleteWorkLocationDialogAtom = atom(
 
 export const closeDeleteWorkLocationDialogAtom = atom(
   null,
-  (get, set) => {
+  (_get, set) => {
     set(deleteWorkLocationDialogOpenAtom, false);
     set(selectedWorkLocationForDeleteAtom, null);
     set(deleteWorkLocationIndexAtom, null);
@@ -38,7 +38,7 @@ export const closeDeleteWorkLocationDialogAtom = atom(
 
 export const setDeletingWorkLocationStateAtom = atom(
   null,
-  (get, set, isDeleting: boolean) => {
+  (_get, set, isDeleting: boolean) => {
     set(deletingWorkLocationAtom, isDeleting);
   }
 );
