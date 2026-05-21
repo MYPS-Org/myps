@@ -20,9 +20,7 @@ namespace DBHelper.Models.Views
         public string RegCode { get; set; } = string.Empty;
         [Required]
         public string RegName { get; set; } = string.Empty;
-        [Required]
         public string? PlantillaOffice { get; set; }
-        [Required]
         public string? PlantillaOfficeName { get; set; }
         public bool IsActive { get; set; }
     }
