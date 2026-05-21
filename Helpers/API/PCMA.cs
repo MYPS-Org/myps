@@ -21,7 +21,7 @@ namespace Helpers.API
         protected override string GetSoapHeader()
             => $@"<ValidationSoapHeader xmlns=""http://tempuri.org/"">
                         <userName>{Appsetting.PCMA.userName}</userName>
-                        <password>{Appsetting.PCMA.password}</password>
+                        <passWord>{Appsetting.PCMA.password}</passWord>
                     </ValidationSoapHeader>";
         protected override string GetSoapBody()
             => $@"<copyMYPSData xmlns=""http://tempuri.org/"">
