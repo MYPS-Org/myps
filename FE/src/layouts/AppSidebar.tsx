@@ -27,15 +27,11 @@ ChevronDownIcon,
 import {
 Cog6ToothIcon,
 HomeIcon,
-QuestionMarkCircleIcon,
 FolderOpenIcon,
 BriefcaseIcon,
 ArrowPathIcon,
 RectangleGroupIcon,
-CalendarDaysIcon,
-DocumentChartBarIcon,
 TableCellsIcon,
-ShieldCheckIcon,
 UsersIcon,
 ServerStackIcon,
 UserIcon,
@@ -44,7 +40,6 @@ UserGroupIcon,
 import { authService } from '../pages/login/Service' // for getting the service logout
 import { useAuth } from '../contexts/AuthContext' // for getting data friom context
 import Logo from '../assets/img/logo.png' // Adjust the import path as necessary
-import { usePermittedRoutes } from '../hooks/usePermittedRoutes'
 import protectedRoutes from '../components/Routes'
 
 // If using React Router, you can import useLocation

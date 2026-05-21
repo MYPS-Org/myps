@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useSignalR } from '../hooks/useSignalR';
 
 interface Message {
@@ -8,7 +8,7 @@ interface Message {
 }
 
 export const Chat = () => {
-  const { isConnected, error, on, off, invoke } = useSignalR(`${import.meta.env.VITE_API_BASE_URL}:5001/chatHub`);
+  const { isConnected, error, on, off, invoke } = useSignalR();
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageText, setMessageText] = useState('');
   const [username] = useState('User' + Math.floor(Math.random() * 1000));

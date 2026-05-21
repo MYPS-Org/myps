@@ -12,16 +12,11 @@ import ProjectGroupDetails from '../pages/ProjectGroups/Views/ProjectGroupDetail
 import CodeTables from '../pages/CodeTables/Views/CodeTables';
 import Rbia from '../pages/Rbia/Views/Rbia';
 import ModificationList from '../pages/Modification/views/ModifcationList';
-import MultiYear from '../pages/MultiYear/views/MultiYear';
-import MultiYearDetails from '../pages/MultiYear/views/MultiYearDetails';
 import ModificationDetails from '../pages/Modification/views/ModificationDetails';
-import MYProjectDetails from '../pages/MultiYear/views/MYProjectDetails';
 import ViewRevision from '../pages/Modification/views/ViewRevision';
 import MultiYearReports from '../pages/Reports/MultiYearReports';
 import ProgramReports from '../pages/Reports/ProgramReports';
 import ProjectReports from '../pages/Reports/ProjectReports';
-import LumpSumList from '../pages/LumpSum/Views/LumpSumList';
-import LumpSumDetails from '../pages/LumpSum/Views/LumpSumDetails';
 // ✅ Extend RouteObject with a permission key
 export type AppRoute = RouteObject & {
   RouteName?: string; // matches keys returned by your session/API
@@ -54,12 +49,6 @@ const protectedRoutes: AppRoute[] = [
   { RouteName: 'ProjectGroupDetails', path: '/project-groups/:groupId', element: <ProjectGroupDetails /> },
   // #endregion Project Group Routes
 
-  // #region MultiYear Routes
-  { RouteName: 'MultiYearList', path: '/multiyear/programs', element: <MultiYear /> },
-  { RouteName: 'MultiYearDetails', path: '/multiyear/programs/:programId', element: <MultiYearDetails /> },
-  { RouteName: 'MYProjectDetails', path: '/multiyear/project-details/:project', element: <MYProjectDetails /> },
-  // #endregion MultiYear Routes
-
   // #region Reports Routes
   { RouteName: 'MultiYearReports', path: '/reports/multiyear', element: <MultiYearReports /> },
   { RouteName: 'ProgramReports', path: '/reports/programs', element: <ProgramReports /> },
@@ -70,10 +59,5 @@ const protectedRoutes: AppRoute[] = [
   { RouteName: 'Settings', path: '/settings', element: <Settings /> },
   { RouteName: 'CodeTables', path: '/code-tables', element: <CodeTables /> },
   // #endregion Settings Routes
-
-  // #region LumpSum Routes
-  { RouteName: 'LumpSumList', path: '/lumpsum', element: <LumpSumList /> },
-  { RouteName: 'LumpSumDetails', path: '/lumpsum/:projectId', element: <LumpSumDetails /> },
-  // #endregion LumpSum Routes
 ];
 export default protectedRoutes;
