@@ -5,7 +5,6 @@ import { Input } from '../../components/tailwindui/input';
 import { Text } from '../../components/tailwindui/text';
 import Logo from '../../assets/img/logo.png';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/16/solid';
-import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../components/toaster/ToasterContext';
 
 const LoginForm: React.FC = () => {
@@ -13,8 +12,6 @@ const LoginForm: React.FC = () => {
 	UserName: '',
 	Password: ''
   });
-  const navigate = useNavigate();
-  const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -27,7 +24,6 @@ const LoginForm: React.FC = () => {
 	e.preventDefault();
 	setSubmitted(true);
 	if (!credentials.UserName || !credentials.Password) return;
-	setError('');
 	setIsLoading(true);
 
 	try {
@@ -36,7 +32,6 @@ const LoginForm: React.FC = () => {
 	} catch (err: any) {
 	  const message = err.Message || err.message || 'Login failed. Please try again.';
 	  showToast({ type: 'error', message });
-	  setError(message);
 	} finally {
 	  setIsLoading(false);
 	}

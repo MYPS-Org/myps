@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useSignalR } from '../hooks/useSignalR';
 
 interface Notification {
@@ -9,7 +9,7 @@ interface Notification {
 }
 
 export const Notifications = () => {
-  const { isConnected, on, off, invoke } = useSignalR('https://localhost:5001/notificationHub');
+  const { isConnected, on, off, invoke } = useSignalR();
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   useEffect(() => {
