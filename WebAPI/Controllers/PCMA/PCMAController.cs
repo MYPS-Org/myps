@@ -57,6 +57,7 @@ namespace WebAPI.Controllers.MockUps
                 return Ok(new
                 {
                     Message = "Program publish successfully!",
+                    Response = employee.ResponseData.ToString(),
                     Title = "Publish Complete"
                 });
             }
