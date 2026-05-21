@@ -61,8 +61,8 @@ namespace WebAPI.Controllers.MockUps
                         }
                     );
                 }
-                var getRegCode = await _db.tImplementingOffice.FirstOrDefaultAsync(x => x.OrgId == employee.CentralOrRegionId);
-                var getPlantillaOffice = await _db.tImplementingOffice.FirstOrDefaultAsync(x => x.OrgId == employee.PlantillaOfficeId);
+                var getRegCode = await _db.vAdminImplementingOffice.FirstOrDefaultAsync(x => x.ParticipantId == employee.CentralOrRegionId);
+                var getPlantillaOffice = await _db.vAdminImplementingOffice.FirstOrDefaultAsync(x => x.ParticipantId == employee.PlantillaOfficeId);
                 string UserId = $"{employee.PersonFamilyName?.Replace(" ","")}{employee.PersonForename?[0]}{employee.PersonMiddleInitial1?[0]}".ToLower();
                 DBHelper.Models.Table.Users newuser = new DBHelper.Models.Table.Users()
                 {
@@ -70,8 +70,8 @@ namespace WebAPI.Controllers.MockUps
                     UserId = UserId,
                     Name = $"{employee.PersonForename} {employee.PersonMiddleInitial1}. {employee.PersonFamilyName}",
                     Email = "",
-                    RegCode = (getRegCode != null) ? getRegCode.OrgName : $"{employee.CentralOrRegionId} (Not Exists)",
-                    PlantillaOffice = (getPlantillaOffice != null) ? getPlantillaOffice.OrgName : $"{employee.PlantillaOfficeId} (Not Exists)",
+                    RegCode = (getRegCode != null) ? getRegCode.RegionParticipantId : $"{employee.CentralOrRegionId} (Not Exists)",
+                    PlantillaOffice = (getPlantillaOffice != null) ? getPlantillaOffice.ParticipantId : $"{employee.PlantillaOfficeId} (Not Exists)",
                     IsActive = false
                 };
                 return Ok(newuser);
