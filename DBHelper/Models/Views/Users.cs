@@ -21,7 +21,6 @@ namespace DBHelper.Models.Views
         [Required]
         public string RegName { get; set; } = string.Empty;
         public string? PlantillaOffice { get; set; }
-        [Required]
         public string? PlantillaOfficeName { get; set; }
         public bool IsActive { get; set; }
     }

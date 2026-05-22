@@ -160,6 +160,15 @@ export const deleteUserGroup = async (groupId: number) => {
 //#endregion
 
 //#region  PIS API functions
+export const getUserInfo = async (data: Users) => {
+    try {
+        const request = await httpClient.post<Users>('/PIS/GetUserInfo', data);
+        return request;
+    } catch (error: any) {
+        throw error;
+    }
+}
+
 export const fetchUserData = async (data: Pis) => {
     try {
         const request = await httpClient.post<Users>('/PIS/SearchUser', data);

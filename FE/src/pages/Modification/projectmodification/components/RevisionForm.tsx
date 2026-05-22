@@ -31,7 +31,7 @@ const RevisionForm: React.FC<RevisionFormProps> = ({
     category, 
     reason,
     projectDetails,
-    fieldRules,
+    fieldRules: _fieldRules,
     pcmaStatus,
     packageStatus,
     // currentCase,
@@ -39,30 +39,6 @@ const RevisionForm: React.FC<RevisionFormProps> = ({
     forCorrectionsDetails,
     statusName,
 }) => {
-    // Helper function to get editable fields from a rule group
-    const getEditableFields = (rules: Record<string, boolean> | undefined) => {
-        if (!rules) return [];
-        return Object.entries(rules)
-            .filter(([_, isEditable]) => isEditable === true)
-            .map(([fieldName, _]) => fieldName);
-    };
-
-    // Helper function to get non-editable fields from a rule group
-    const getNonEditableFields = (rules: Record<string, boolean> | undefined) => {
-        if (!rules) return [];
-        return Object.entries(rules)
-            .filter(([_, isEditable]) => isEditable === false)
-            .map(([fieldName, _]) => fieldName);
-    };
-
-    // Helper function to format field name for display
-    const formatFieldName = (fieldName: string) => {
-        // Convert camelCase to Title Case with spaces
-        return fieldName
-            .replace(/([A-Z])/g, ' $1')
-            .replace(/^./, (str) => str.toUpperCase())
-            .trim();
-    };
     
     return (
         <div className="p-6">

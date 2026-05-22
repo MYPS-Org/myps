@@ -377,7 +377,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
             showToast({ type: 'error', message: `Please enter a valid year for cost entry ${i + 1}.` });
             return;
           }
-          if (!cost.Amount || cost.Amount <= 0) {
+          if (cost.Amount == null || cost.Amount < 0) {
             showToast({ type: 'error', message: `Please enter a valid amount for cost entry ${i + 1}.` });
             return;
           }
@@ -391,8 +391,8 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
           }
         }
 
-        if(formData.Total <= 0) {
-          const confirmMessage = 'The total cost for this component is zero. Are you sure you want to save?';
+        if(formData.Total < 0) {
+          const confirmMessage = 'The total cost for this component is negative. Are you sure you want to save?';
           if (!window.confirm(confirmMessage)) {
             return;
           }
