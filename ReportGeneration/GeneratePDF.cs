@@ -1,4 +1,5 @@
-﻿using QuestPDF.Fluent;
+﻿using Helpers;
+using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 
@@ -20,7 +21,7 @@ namespace ReportGeneration
             {
                 if (_logoCached is not null) return _logoCached;
                 var path = Path.Combine(
-                    AppContext.BaseDirectory, "Resources", "Images", "ReportLogo.png");
+                    Appsetting.Resources.Images, "ReportLogo.png");
                 _logoCached = File.ReadAllBytes(path);
             }
             return _logoCached;

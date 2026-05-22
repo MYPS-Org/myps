@@ -13,12 +13,13 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DBHelper\DBHelper.csproj" />
+    <ProjectReference Include="..\Helpers\Helpers.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
+  <!--<ItemGroup>
     <None Include="..\Main\Resources\Images\ReportLogo.png" Link="Resources\Images\ReportLogo.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-  </ItemGroup>
+  </ItemGroup>-->
 
 </Project>
