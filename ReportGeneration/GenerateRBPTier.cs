@@ -28,9 +28,9 @@ namespace ReportGeneration
         public static byte[] GenerateReport(List<RBPData> data, int year = 0, string stageName = "")
         {
             int FooterFs = 7;
+            var logo = GeneratePDF.GetLogo();
             string fiscalYear = year > 0 ? $"FY {year} " : "";
             string title = $"SUMMARY OF {fiscalYear}BUDGET PROPOSAL";
-            if (!string.IsNullOrEmpty(stageName)) title += $" -- {stageName}";
             return GeneratePDF.GenerateReport(page =>
             {
                 page.Size(PageSizes.A4.Landscape());
@@ -44,14 +44,8 @@ namespace ReportGeneration
                 page.Header()
                     .Column(col =>
                     {
-                        col.Item().AlignCenter()
-                           .Text(title)
-                           .FontFamily(GeneratePDF.FontFamily).FontSize(10).Bold();
-                        if (!string.IsNullOrEmpty(regionName))
-                            col.Item().AlignCenter()
-                               .Text(regionName)
-                               .FontFamily(GeneratePDF.FontFamily).FontSize(9).Bold();
-                        col.Item().PaddingTop(8).Element(BuildTableHeader);
+                        GeneratePDF.BuildDPWHHeader(col, logo, title, regionName: regionName);
+                        col.Item().PaddingTop(35).Element(BuildTableHeader);
                     });
 
                 // -- CONTENT
@@ -59,8 +53,7 @@ namespace ReportGeneration
                     .Column(col =>
                     {
                         col.Item().Element(c => BuildTableContent(c, data));
-                        col.Item().Extend().AlignBottom()
-                            .PaddingTop(10).Element(BuildSignatureBlock);
+                        col.Item().PaddingTop(10).ShowEntire().Element(BuildSignatureBlock);
                     });
 
                 // -- FOOTER
@@ -71,63 +64,85 @@ namespace ReportGeneration
         // -- TABLE HEADER
         static void BuildTableHeader(IContainer container)
         {
-            container.BorderBottom(0.5f).BorderColor(Colors.Black).Column(col =>
+            var categories = new[] { "OO-1", "OO-2", "CSSP", "LP", "TOTAL" };
+            float rightWeight = (WC + WA) * categories.Length;
+
+            container.Border(0.5f).BorderColor(Colors.Black).Row(mainRow =>
             {
-                // Row 1 -- group labels
-                col.Item().Row(row =>
+                // Label cell -- spans both sub-rows (merged)
+                mainRow.RelativeItem(WL)
+                       .BorderRight(0.5f).BorderColor(Colors.Black)
+                       .AlignCenter().AlignMiddle().Padding(3)
+                       .Text("DISTRICT ENGINEERING OFFICE /\nLEGISLATIVE DISTRICT")
+                       .Bold().FontSize(6.5f);
+
+                // Right side: two stacked sub-rows
+                mainRow.RelativeItem(rightWeight).Column(rightCol =>
                 {
-                    HdrCell(row, WL, "DISTRICT ENGINEERING OFFICE /\nLEGISLATIVE DISTRICT");
-                    HdrCell(row, WC + WA, "OO-1");
-                    HdrCell(row, WC + WA, "OO-2");
-                    HdrCell(row, WC + WA, "CSSP");
-                    HdrCell(row, WC + WA, "LP");
-                    HdrCell(row, WC + WA, "TOTAL");
-                });
-                // Row 2 -- sub-labels
-                col.Item().Row(row =>
-                {
-                    row.RelativeItem(WL).Text("");
-                    for (int i = 0; i < 5; i++)
+                    // Sub-row 1: category group labels
+                    rightCol.Item().BorderBottom(0.5f).BorderColor(Colors.Black).Row(row =>
                     {
-                        HdrCell(row, WC, "No. of\nProj.");
-                        HdrCell(row, WA, "Amount\n(P'000)");
-                    }
+                        for (int i = 0; i < categories.Length; i++)
+                        {
+                            row.RelativeItem(WC + WA)
+                               .BorderLeft(0.5f).BorderColor(Colors.Black)
+                               .AlignCenter().AlignMiddle().Padding(3)
+                               .Text(categories[i]).Bold().FontSize(6.5f);
+                        }
+                    });
+
+                    // Sub-row 2: No. of Proj / Amount sub-labels
+                    rightCol.Item().Row(row =>
+                    {
+                        for (int i = 0; i < categories.Length; i++)
+                        {
+                            row.RelativeItem(WC)
+                               .BorderLeft(0.5f).BorderColor(Colors.Black)
+                               .AlignCenter().AlignMiddle().Padding(3)
+                               .Text("No. of\nProj.").Bold().FontSize(6.5f);
+                            row.RelativeItem(WA)
+                               .BorderLeft(0.5f).BorderColor(Colors.Black)
+                               .AlignCenter().AlignMiddle().Padding(3)
+                               .Text("Amount\n(P'000)").Bold().FontSize(6.5f);
+                        }
+                    });
                 });
             });
-        }
-
-        static void HdrCell(RowDescriptor row, float weight, string text)
-        {
-            row.RelativeItem(weight)
-               .AlignCenter().AlignMiddle()
-               .Padding(3)
-               .Text(text).Bold().FontSize(6.5f);
         }
 
         // -- TABLE CONTENT
         /// <summary>Builds the tier pivot body. Grouping: Region -> Tier (bold) -> DEO -> Legislative District.</summary>
         static void BuildTableContent(IContainer container, List<RBPData> data)
         {
-            container.Column(col =>
+            container.BorderLeft(0.5f).BorderRight(0.5f).BorderBottom(0.5f).BorderColor(Colors.Black).Column(col =>
             {
                 foreach (var regionGrp in data.GroupBy(r => r.Region).OrderBy(g => g.Key))
                 {
-                    WriteDataRow(col, regionGrp.Key, regionGrp, fontSize: 7, bold: true, topBorder: true);
+                    WriteDataRow(col, regionGrp.Key, regionGrp, fontSize: 7, labelFontSize: 9, bold: true, borderTop: true, borderBottom: true, underline: true);
 
-                    foreach (var tierGrp in regionGrp.GroupBy(r => r.Tier).OrderBy(g => g.Key))
+                    var tierGroups = regionGrp.GroupBy(r => r.Tier).OrderBy(g => g.Key).ToList();
+                    for (int ti = 0; ti < tierGroups.Count; ti++)
                     {
+                        var tierGrp = tierGroups[ti];
+
                         WriteDataRow(col, $"Tier {ToRoman(tierGrp.Key)}", tierGrp,
-                            fontSize: 7, bold: true, topBorder: true);
+                            fontSize: 7, labelFontSize: 9, bold: true,
+                            borderTop: true, borderBottom: true, underline: true);
 
                         foreach (var deoGrp in tierGrp.GroupBy(r => r.DEO).OrderBy(g => g.Key))
                         {
                             WriteDataRow(col, deoGrp.Key, deoGrp,
-                                indent: 4, fontSize: 7, bold: true, topBorder: true);
+                                indent: 4, fontSize: 7, bold: true, borderTop: true);
 
-                            foreach (var distGrp in deoGrp.GroupBy(r => r.LegislativeDistrict).OrderBy(g => g.Key))
+                            var distGroups = deoGrp.GroupBy(r => r.LegislativeDistrict).OrderBy(g => g.Key).ToList();
+                            for (int di = 0; di < distGroups.Count; di++)
                             {
-                                WriteDataRow(col, distGrp.Key, distGrp,
-                                    indent: 10, fontSize: 7);
+                                bool isLast = di == distGroups.Count - 1;
+                                string ldLabel = isLast
+                                    ? distGroups[di].Key + "\n"
+                                    : distGroups[di].Key;
+                                WriteDataRow(col, ldLabel, distGroups[di],
+                                    indent: 10, fontSize: 7, borderTop: true);
                             }
                         }
                     }
@@ -138,7 +153,6 @@ namespace ReportGeneration
         // -- ROW RENDERING
         /// <summary>
         /// Renders one labeled data row with aggregated counts and amounts.
-        /// Optionally draws a top border (used to separate Tier sections).
         /// </summary>
         static void WriteDataRow(
             ColumnDescriptor col,
@@ -146,8 +160,11 @@ namespace ReportGeneration
             IEnumerable<RBPData> rows,
             int indent = 0,
             float fontSize = 7,
+            float labelFontSize = 0,
             bool bold = false,
-            bool topBorder = false)
+            bool borderTop = false,
+            bool borderBottom = false,
+            bool underline = false)
         {
             var oo1Proj  = rows.Sum(r => r.OO1_NoOfProj ?? 0);
             var oo1Amt   = rows.Sum(r => r.OO1_Amount);
@@ -160,52 +177,63 @@ namespace ReportGeneration
             var totProj  = rows.Sum(r => r.Total_NoOfProj ?? 0);
             var totAmt   = rows.Sum(r => r.Total_Amount);
 
-            col.Item()
-               .Row(row =>
+            var rowItem = col.Item();
+            if (borderTop)    rowItem = rowItem.BorderTop(0.5f).BorderColor(Colors.Black);
+            if (borderBottom) rowItem = rowItem.BorderBottom(0.5f).BorderColor(Colors.Black);
+
+            rowItem.Background(Colors.White).Row(row =>
             {
                 // Label
                 row.RelativeItem(WL)
+                   .BorderRight(0.5f).BorderColor(Colors.Black)
+                   .Background(Colors.White)
                    .PaddingVertical(2).PaddingLeft(indent + 2f)
-                   .Text(t => { var s = t.Span(label).FontSize(fontSize); if (bold) s.Bold(); });
+                   .Text(t => { var s = t.Span(label).FontSize(labelFontSize > 0 ? labelFontSize : fontSize); if (bold) s.Bold(); if (underline) s.Underline(); });
 
-                CountCell(row, WC, oo1Proj, fontSize, bold);
-                AmtCell(row, WA, oo1Amt, fontSize, bold);
-                CountCell(row, WC, oo2Proj, fontSize, bold);
-                AmtCell(row, WA, oo2Amt, fontSize, bold);
-                CountCell(row, WC, csspProj, fontSize, bold);
-                AmtCell(row, WA, csspAmt, fontSize, bold);
-                CountCell(row, WC, lpProj, fontSize, bold);
-                AmtCell(row, WA, lpAmt, fontSize, bold);
-                CountCell(row, WC, totProj, fontSize, bold);
-                AmtCell(row, WA, totAmt, fontSize, bold);
+                CountCell(row, WC, oo1Proj, fontSize, bold, underline);
+                AmtCell(row, WA, oo1Amt, fontSize, bold, underline);
+                CountCell(row, WC, oo2Proj, fontSize, bold, underline);
+                AmtCell(row, WA, oo2Amt, fontSize, bold, underline);
+                CountCell(row, WC, csspProj, fontSize, bold, underline);
+                AmtCell(row, WA, csspAmt, fontSize, bold, underline);
+                CountCell(row, WC, lpProj, fontSize, bold, underline);
+                AmtCell(row, WA, lpAmt, fontSize, bold, underline);
+                CountCell(row, WC, totProj, fontSize, bold, underline);
+                AmtCell(row, WA, totAmt, fontSize, bold, underline);
             });
         }
 
         static void CountCell(RowDescriptor row, float weight, int value,
-            float fontSize, bool bold)
+            float fontSize, bool bold, bool underline = false)
         {
+            var display = value == 0 ? "" : value.ToString("N0");
             row.RelativeItem(weight)
+               .BorderLeft(0.5f).BorderColor(Colors.Black)
+               .Background(Colors.White)
                .AlignRight().PaddingRight(2).PaddingVertical(2)
                .Text(t =>
                {
-                   var s = t.Span(value == 0 ? "" : value.ToString()).FontSize(fontSize);
+                   var s = t.Span(display).FontSize(fontSize);
                    if (bold) s.Bold();
+                   if (underline) s.Underline();
                });
         }
 
         static void AmtCell(RowDescriptor row, float weight, double value,
-            float fontSize, bool bold)
+            float fontSize, bool bold, bool underline = false)
         {
+            var display = value == 0 ? "" : FormatAmtP(value);
             row.RelativeItem(weight)
+               .BorderLeft(0.5f).BorderColor(Colors.Black)
+               .Background(Colors.White)
                .AlignRight().PaddingRight(2).PaddingVertical(2)
                .Text(t =>
                {
-                   var s = t.Span(FormatAmtP(value)).FontSize(fontSize);
+                   var s = t.Span(display).FontSize(fontSize);
                    if (bold) s.Bold();
+                   if (underline) s.Underline();
                });
         }
-
-        // -- SIGNATURE BLOCK
         static void BuildSignatureBlock(IContainer container)
         {
             container.Padding(10).Row(row =>
@@ -213,26 +241,26 @@ namespace ReportGeneration
                 row.RelativeItem().Column(col =>
                 {
                     col.Item().Text("Prepared By:").Bold().FontSize(7);
-                    col.Item().PaddingTop(30).PaddingHorizontal(10)
+                    col.Item().PaddingTop(30).PaddingHorizontal(30)
                         .LineHorizontal(0.5f).LineColor(Colors.Black);
                     col.Item().PaddingTop(4).AlignCenter()
-                        .Text("Planning Engineer").FontSize(7).Italic();
+                        .Text("Planning Engineer").FontSize(7);
                 });
                 row.RelativeItem().Column(col =>
                 {
                     col.Item().Text("Reviewed By:").Bold().FontSize(7);
-                    col.Item().PaddingTop(30).PaddingHorizontal(10)
+                    col.Item().PaddingTop(30).PaddingHorizontal(30)
                         .LineHorizontal(0.5f).LineColor(Colors.Black);
                     col.Item().PaddingTop(4).AlignCenter()
-                        .Text("Planning and Design Division Chief").FontSize(7).Italic();
+                        .Text("Planning and Design Division Chief").FontSize(7);
                 });
                 row.RelativeItem().Column(col =>
                 {
                     col.Item().Text("Approved By:").Bold().FontSize(7);
-                    col.Item().PaddingTop(30).PaddingHorizontal(10)
+                    col.Item().PaddingTop(30).PaddingHorizontal(30)
                         .LineHorizontal(0.5f).LineColor(Colors.Black);
                     col.Item().PaddingTop(4).AlignCenter()
-                        .Text("Regional Director").FontSize(7).Italic();
+                        .Text("Regional Director").FontSize(7);
                 });
             });
         }

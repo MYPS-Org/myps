@@ -159,7 +159,8 @@ namespace ReportGeneration
                                         foreach (var comp in projComponents)
                                         {
                                             if (comp.ProjectComponentId?.EndsWith("-EAO") == true)
-                                                EaoRow(col, comp, project.ImplementingOffice);
+                                                //EaoRow(col, comp, project.ImplementingOffice);
+                                                ComponentRow(col, comp, project);
                                             else if (comp.ProjectComponentId?.EndsWith("-ROW") == true)
                                                 ComponentRow(col, comp, project, overrideTypeOfWork: "ROW Acquisition");
                                             else
@@ -264,9 +265,10 @@ namespace ReportGeneration
             GenerateAIP01 project,
             decimal total)
         {
-            // Row 1: seq + ProjectId | UACS | total
+            // Row 1: seq + ProjectId | UACS | amount
             col.Item().Row(row =>
             {
+                // W0: seq + ProjectId
                 row.RelativeItem(W0)
                    .PaddingLeft(20).PaddingTop(4).PaddingBottom(1)
                    .Text(t =>
@@ -275,8 +277,12 @@ namespace ReportGeneration
                        t.Span(project.ProjectId).FontSize(7.5f);
                    });
 
-                row.RelativeItem(W1 + W2 + W3)
-                   .PaddingHorizontal(4).PaddingTop(4).PaddingBottom(1)
+                // W1: blank (description moved to row 2)
+                row.RelativeItem(W1).Text("");
+
+                // W2+W3: UACS
+                row.RelativeItem(W2 + W3)
+                   .PaddingHorizontal(2).PaddingTop(4).PaddingBottom(1)
                    .Text(project.UACS ?? "").FontSize(7);
 
                 row.RelativeItem(W4).Text("");
@@ -289,17 +295,13 @@ namespace ReportGeneration
                 row.RelativeItem(W7).Text("");
             });
 
-            // Row 2: description
+            // Row 2: description spans up to Target Unit (W0+W1+W2+W3), same indent as ProjectId
             col.Item().Row(row =>
             {
                 row.RelativeItem(W0 + W1 + W2 + W3)
-                   .PaddingLeft(24).PaddingTop(1).PaddingBottom(3)
-                   .Text(t => t.Span(project.Description + "\n").FontSize(7).Bold());
-
-                row.RelativeItem(W4).Text("");
-                row.RelativeItem(W5).Text("");
-                row.RelativeItem(W6).Text("");
-                row.RelativeItem(W7).Text("");
+                   .PaddingLeft(20).PaddingBottom(3)
+                   .Text(t => t.Span(project.Description ?? "").FontSize(7).Bold());
+                row.RelativeItem(W4 + W5 + W6 + W7).Text("");
             });
         }
 

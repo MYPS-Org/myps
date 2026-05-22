@@ -15,8 +15,8 @@ namespace ReportGeneration
     /// </summary>
     public class RBPComponents
     {
-        // 9 relative column weights
-        const float W0=10, W1=20, W2=4, W3=6, W4=10, W5=5, W6=5, W7=5, W8=8;
+        // column weights: WA=DEO/LD, WB=Programs/Activities/Projects, W1=TypeOfWork, W2=ProjectLocation, W3=unused, W4=DetailsOfWork, W5=Length, W6=PhysTarget, W7=TargetUnit, W8=Cost
+        const float WA=6, WB=20, W1=6, W2=4, W3=6, W4=10, W5=5, W6=5, W7=5, W8=12;
 
         /// <summary>
         /// Entry point -- builds and returns the RBP Components PDF as a byte array.
@@ -28,26 +28,24 @@ namespace ReportGeneration
         public static byte[] GenerateReport(List<RBPCData> data, int year = 0, string stageName = "")
         {
             int FooterFs = 7;
+            var logo = GeneratePDF.GetLogo();
             string fiscalYear = year > 0 ? $"FY {year}  " : "";
-            string title = $"{fiscalYear}REGIONAL BUDGET PROPOSAL";
-            if (!string.IsNullOrEmpty(stageName)) title += $" -- {stageName}";
+            string title = $"{fiscalYear}BUDGET PROPOSAL";
+            string subtitle = "(ONGOING, NEW AND EXPANDED PROGRAMS, ACTIVITIES AND PROJECTS)";
             return GeneratePDF.GenerateReport(page =>
             {
-                page.Size(PageSizes.A4.Landscape());
+                page.Size(PageSizes.A4.Portrait());
                 page.Margin(25);
                 page.DefaultTextStyle(x =>
-                    x.FontSize(6).FontFamily(GeneratePDF.FontFamily).FontColor(Colors.Black));
+                    x.FontSize(7).FontFamily(GeneratePDF.FontFamily).FontColor(Colors.Black));
+
+                var regionName = data.FirstOrDefault()?.Region?.ToUpper() ?? "";
 
                 // -- HEADER
                 page.Header()
                     .Column(col =>
                     {
-                        col.Item().AlignCenter()
-                           .Text(title)
-                           .FontFamily(GeneratePDF.FontFamily).FontSize(10).Bold();
-                        col.Item().AlignCenter()
-                           .Text("(ONGOING, NEW AND EXPANDED PROGRAMS, ACTIVITIES AND PROJECTS)")
-                           .FontFamily(GeneratePDF.FontFamily).FontSize(8);
+                        GeneratePDF.BuildDPWHHeader(col, logo, title, subtitle: subtitle, regionName: regionName);
                         col.Item().PaddingTop(8).Element(BuildTableHeader);
                     });
 
@@ -68,26 +66,30 @@ namespace ReportGeneration
         // -- TABLE HEADER
         static void BuildTableHeader(IContainer container)
         {
-            container.BorderBottom(0.5f).BorderColor(Colors.Black).Row(row =>
+            container.Column(col =>
             {
-                HdrCell(row, W0, "DEO/LD");
-                HdrCell(row, W1, "Programs/Activities\n/ Projects");
-                HdrCell(row, W2, "Type of\nWork");
-                HdrCell(row, W3, "Project\nLocation");
-                HdrCell(row, W4, "Details of Work");
-                HdrCell(row, W5, "Length of\nWork (m)");
-                HdrCell(row, W6, "Physical\nTarget");
-                HdrCell(row, W7, "Target\nUnit");
-                HdrCell(row, W8, "Project Cost\n(P'000)");
+                col.Item().Row(row =>
+                {
+                    HdrCell(row, WA, "DEO/LD");
+                    HdrCell(row, WB, "Programs/Activities\n/ Projects");
+                    HdrCell(row, W1, "Type of\nWork");
+                    HdrCell(row, W2+W3, "Project\nLocation");
+                    HdrCell(row, W4, "Details of Work");
+                    HdrCell(row, W5, "Length of\nWork (m)");
+                    HdrCell(row, W6, "Physical\nTarget");
+                    HdrCell(row, W7, "Target\nUnit");
+                    HdrCell(row, W8, "Project Cost\n(P'000)");
+                });
+                col.Item().LineHorizontal(0.5f).LineColor(Colors.Black);
             });
         }
 
         static void HdrCell(RowDescriptor row, float weight, string text)
         {
             row.RelativeItem(weight)
-               .AlignCenter().AlignMiddle()
-               .Padding(3)
-               .Text(text).Bold().FontSize(6);
+               .AlignLeft().AlignTop()
+               .Padding(2)
+               .Text(text).Bold().FontSize(7);
         }
 
         // -- TABLE CONTENT
@@ -131,8 +133,12 @@ namespace ReportGeneration
                                             WriteProjectRow(col, seq, projGrp.Key, projCost);
 
                                             foreach (var comp in projGrp.OrderBy(c => c.ComponentId))
-                                                WriteComponentRow(col, comp);
+                                                                WriteComponentRow(col, comp);
+
+                                                            col.Item().PaddingTop(4).Text("");
                                         }
+
+                                        col.Item().PaddingTop(4).Text("");
                                     }
                                 }
                             }
@@ -152,69 +158,40 @@ namespace ReportGeneration
             int indent = 0,
             bool bold = false)
         {
-            float fs = 7;
+            // Region=10, Tier=9, DEO=8, LD=7.5; amounts always at 7.5
+            float labelFs = bold ? 10f : (indent <= 8 ? 9f : (indent <= 16 ? 8f : 7.5f));
+            float amtFs = 7.5f;
+            // No indents for DEO/LD -- all levels start at left
+            float leftPad = bold ? 2f : (indent <= 8 ? 6f : (indent <= 16 ? 4f : 10f));
+            bool emphasize = true; // all levels bold
             int projCount = rows.Select(r => r.ProjectDescription).Distinct().Count();
             double totalCost = rows.Sum(r => r.ComponentCost);
 
-            col.Item().Row(row =>
+            col.Item().PaddingTop(bold ? 8 : (indent <= 8 ? 4 : 0)).Row(row =>
             {
-                row.RelativeItem(W0).PaddingVertical(1).PaddingLeft(indent + 2f).PaddingRight(2)
-                   .Text(t => { var s = t.Span(label).FontSize(fs); if (bold) s.Bold(); });
+                row.RelativeItem(WA+WB).PaddingVertical(1).PaddingLeft(leftPad).PaddingRight(2)
+                   .Text(t => { var s = t.Span(label).FontSize(labelFs); if (emphasize) s.Bold(); });
 
-                // cols 1-4 empty
-                row.RelativeItem(W1).Text("");
-                row.RelativeItem(W2).Text("");
-                row.RelativeItem(W3).Text("");
-                row.RelativeItem(W4).Text("");
+                // middle columns merged: show "N projects" right-aligned
+                row.RelativeItem(W1+W2+W3+W4+W5+W6+W7).AlignRight().PaddingRight(4).PaddingVertical(1)
+                   .Text(t => { var s = t.Span($"{projCount:N0}  projects").FontSize(amtFs); if (emphasize) s.Bold(); });
 
-                // col 5: count
-                row.RelativeItem(W5).AlignRight().PaddingRight(2).PaddingVertical(1)
-                   .Text(t => { var s = t.Span(projCount.ToString()).FontSize(fs); if (bold) s.Bold(); });
-
-                // col 6: "projects"
-                row.RelativeItem(W6).PaddingLeft(2).PaddingVertical(1)
-                   .Text(t => { var s = t.Span("projects").FontSize(fs); if (bold) s.Bold(); });
-
-                // col 7 empty, col 8: total cost
-                row.RelativeItem(W7).Text("");
+                // cost
                 row.RelativeItem(W8).AlignRight().PaddingRight(2).PaddingVertical(1)
-                   .Text(t => { var s = t.Span(FormatP(totalCost)).FontSize(fs); if (bold) s.Bold(); });
+                   .Text(t => { var s = t.Span(FormatP(totalCost)).FontSize(amtFs); if (emphasize) s.Bold(); });
             });
         }
 
-        /// <summary>Category row -- label, cost in last column.</summary>
+        /// <summary>Category row -- in W0 column, indented under LD.</summary>
         static void WriteCategoryRow(ColumnDescriptor col, string label, IEnumerable<RBPCData> rows)
         {
-            float fs = 6.5f;
+            float fs = 7f;
             double totalCost = rows.Sum(r => r.ComponentCost);
             col.Item().Row(row =>
             {
-                row.RelativeItem(W0+W1+W2+W3+W4+W5+W6+W7)
-                   .PaddingVertical(1).PaddingLeft(34).PaddingRight(2)
-                   .Text(label).FontSize(fs);
-                row.RelativeItem(W8).AlignRight().PaddingRight(2).PaddingVertical(1)
-                   .Text(FormatP(totalCost)).FontSize(fs);
-            });
-        }
-
-        /// <summary>Thrust row -- label spans full width, no amounts.</summary>
-        static void WriteThrustRow(ColumnDescriptor col, string label)
-        {
-            float fs = 6;
-            col.Item().PaddingVertical(1).PaddingLeft(42).PaddingRight(2)
-               .Text(label).FontSize(fs);
-        }
-
-        /// <summary>Project row -- seq + description, cost.</summary>
-        static void WriteProjectRow(ColumnDescriptor col, int seq, string description, double cost)
-        {
-            float fs = 6;
-            col.Item().Row(row =>
-            {
-                row.RelativeItem(W0).PaddingVertical(1).PaddingLeft(18).PaddingRight(2)
-                   .Text($"{seq}.").FontSize(fs);
-                row.RelativeItem(W1).PaddingVertical(1).PaddingLeft(2).PaddingRight(2)
-                   .Text(description).FontSize(fs);
+                row.RelativeItem(WA+WB).PaddingVertical(1).PaddingLeft(18).PaddingRight(2)
+                   .Text(label).FontSize(fs).Bold();
+                row.RelativeItem(W1).Text("");
                 row.RelativeItem(W2).Text("");
                 row.RelativeItem(W3).Text("");
                 row.RelativeItem(W4).Text("");
@@ -222,51 +199,107 @@ namespace ReportGeneration
                 row.RelativeItem(W6).Text("");
                 row.RelativeItem(W7).Text("");
                 row.RelativeItem(W8).AlignRight().PaddingRight(2).PaddingVertical(1)
+                   .Text(FormatP(totalCost)).FontSize(fs).Bold();
+            });
+        }
+
+        /// <summary>Thrust row -- in W0 column, indented under Category.</summary>
+        static void WriteThrustRow(ColumnDescriptor col, string label)
+        {
+            float fs = 6.5f;
+            col.Item().Row(row =>
+            {
+                row.RelativeItem(WA+WB).PaddingVertical(1).PaddingLeft(24).PaddingRight(2)
+                   .Text(label).FontSize(fs).Bold();
+                row.RelativeItem(W1).Text("");
+                row.RelativeItem(W2).Text("");
+                row.RelativeItem(W3).Text("");
+                row.RelativeItem(W4).Text("");
+                row.RelativeItem(W5).Text("");
+                row.RelativeItem(W6).Text("");
+                row.RelativeItem(W7).Text("");
+                row.RelativeItem(W8).Text("");
+            });
+        }
+
+        /// <summary>Project row -- spans W0-W7 to keep description on one line, cost in W8.</summary>
+        static void WriteProjectRow(ColumnDescriptor col, int seq, string description, double cost)
+        {
+            float fs = 6f;
+            col.Item().Row(row =>
+            {
+                row.RelativeItem(WA).Text("");
+                row.RelativeItem(WB+W1+W2+W3+W4+W5+W6+W7)
+                   .PaddingVertical(1).PaddingLeft(2).PaddingRight(2)
+                   .Text(t =>
+                   {
+                       t.Span($"{seq}.  ").FontSize(fs).Bold();
+                       t.Span(description).FontSize(fs);
+                   });
+                row.RelativeItem(W8).AlignRight().PaddingRight(2).PaddingVertical(1)
                    .Text(FormatP(cost)).FontSize(fs);
             });
         }
 
-        /// <summary>Component -- 2 layout rows: summary line + detail line.</summary>
+        /// <summary>Component row -- ComponentId + ScopeDescription in W0 column, detail data in remaining columns.</summary>
         static void WriteComponentRow(ColumnDescriptor col, RBPCData comp)
         {
             float fs = 5.5f;
 
-            // Row 1: component summary
             col.Item().Row(row =>
             {
-                row.RelativeItem(W0).PaddingVertical(1).PaddingLeft(24).PaddingRight(2)
-                   .Text(comp.ComponentId).FontSize(fs);
-                row.RelativeItem(W1).PaddingVertical(1).PaddingLeft(2).PaddingRight(2)
-                   .Text(comp.ScopeDescription ?? "").FontSize(fs);
-                row.RelativeItem(W2).Text("");
-                row.RelativeItem(W3).Text("");
-                row.RelativeItem(W4).Text("");
-                row.RelativeItem(W5).AlignRight().PaddingRight(2).PaddingVertical(1)
-                   .Text(FormatDecimal(comp.LengthOfWork)).FontSize(fs);
-                row.RelativeItem(W6).AlignRight().PaddingRight(2).PaddingVertical(1)
-                   .Text(FormatDecimal(comp.PhysicalTarget)).FontSize(fs);
-                row.RelativeItem(W7).PaddingLeft(2).PaddingVertical(1)
-                   .Text(comp.TargetUnit ?? comp.ScopeMeasure ?? "").FontSize(fs);
-                row.RelativeItem(W8).AlignRight().PaddingRight(2).PaddingVertical(1)
-                   .Text(FormatP(comp.ComponentCost)).FontSize(fs);
-            });
+                // leave WA empty to align with project description
+                row.RelativeItem(WA).Text("");
 
-            // Row 2: scope detail
-            col.Item().Row(row =>
-            {
-                row.RelativeItem(W0).Text("");
+                // ComponentId + ScopeDescription aligned under project description
+                row.RelativeItem(WB).PaddingVertical(1).PaddingLeft(2).PaddingRight(2)
+                   .Text(t =>
+                   {
+                       t.Span(comp.ComponentId ?? "").FontSize(fs).Bold();
+                       if (!string.IsNullOrEmpty(comp.ScopeDescription))
+                           t.Span($"  {comp.ScopeDescription}").FontSize(fs);
+                   });
+
+                // Type of Work
                 row.RelativeItem(W1).Text("");
-                row.RelativeItem(W2).Text("");
-                row.RelativeItem(W3).Text("");
+
+                // Project Location
+                row.RelativeItem(W2+W3).Text("");
+
+                // Details of Work
                 row.RelativeItem(W4).PaddingVertical(1).PaddingLeft(2).PaddingRight(2)
                    .Text(comp.DetailsOfWork ?? "").FontSize(fs);
-                row.RelativeItem(W5).AlignRight().PaddingRight(2).PaddingVertical(1)
-                   .Text(FormatDecimal(comp.LengthOfWork)).FontSize(fs);
-                row.RelativeItem(W6).AlignRight().PaddingRight(2).PaddingVertical(1)
-                   .Text(FormatDecimal(comp.PhysicalTarget)).FontSize(fs);
+
+                // Length of Work
+                row.RelativeItem(W5).PaddingRight(3).Column(c =>
+                {
+                    c.Item().AlignRight().PaddingRight(2).PaddingVertical(1)
+                       .Text(FormatDecimal(comp.LengthOfWork)).FontSize(fs);
+                    if (comp.LengthOfWork is not null and not 0)
+                        c.Item().LineHorizontal(0.5f).LineColor(Colors.Black);
+                });
+
+                // Physical Target
+                row.RelativeItem(W6).PaddingRight(3).Column(c =>
+                {
+                    c.Item().AlignRight().PaddingRight(2).PaddingVertical(1)
+                       .Text(FormatDecimal(comp.PhysicalTarget)).FontSize(fs);
+                    if (comp.PhysicalTarget is not null and not 0)
+                        c.Item().LineHorizontal(0.5f).LineColor(Colors.Black);
+                });
+
+                // Target Unit
                 row.RelativeItem(W7).PaddingLeft(2).PaddingVertical(1)
-                   .Text(comp.ScopeMeasure ?? "").FontSize(fs);
-                row.RelativeItem(W8).Text("");
+                   .Text(comp.TargetUnit ?? comp.ScopeMeasure ?? "").FontSize(fs);
+
+                // Component Cost
+                row.RelativeItem(W8).Column(c =>
+                {
+                    c.Item().AlignRight().PaddingRight(2).PaddingVertical(1)
+                       .Text(FormatP(comp.ComponentCost)).FontSize(fs);
+                    if (comp.ComponentCost != 0)
+                        c.Item().LineHorizontal(0.5f).LineColor(Colors.Black);
+                });
             });
         }
 
@@ -281,7 +314,7 @@ namespace ReportGeneration
                     col.Item().PaddingTop(30).PaddingHorizontal(10)
                         .LineHorizontal(0.5f).LineColor(Colors.Black);
                     col.Item().PaddingTop(4).AlignCenter()
-                        .Text("Planning Engineer").FontSize(7).Italic();
+                        .Text("Planning Engineer").FontSize(7);
                 });
                 row.RelativeItem().Column(col =>
                 {
@@ -289,7 +322,7 @@ namespace ReportGeneration
                     col.Item().PaddingTop(30).PaddingHorizontal(10)
                         .LineHorizontal(0.5f).LineColor(Colors.Black);
                     col.Item().PaddingTop(4).AlignCenter()
-                        .Text("Planning and Design Division Chief").FontSize(7).Italic();
+                        .Text("Planning and Design Division Chief").FontSize(7);
                 });
                 row.RelativeItem().Column(col =>
                 {
@@ -297,7 +330,7 @@ namespace ReportGeneration
                     col.Item().PaddingTop(30).PaddingHorizontal(10)
                         .LineHorizontal(0.5f).LineColor(Colors.Black);
                     col.Item().PaddingTop(4).AlignCenter()
-                        .Text("Regional Director").FontSize(7).Italic();
+                        .Text("Regional Director").FontSize(7);
                 });
             });
         }

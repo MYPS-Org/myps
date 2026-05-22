@@ -161,7 +161,8 @@ namespace ReportGeneration
                                         foreach (var comp in projComponents)
                                         {
                                             if (comp.ProjectComponentId?.EndsWith("-EAO") == true)
-                                                EaoRow(col, comp, project.ImplementingOffice);
+                                                //EaoRow(col, comp, project.ImplementingOffice);
+                                                ComponentRow(col, comp, project);
                                             else if (comp.ProjectComponentId?.EndsWith("-ROW") == true)
                                                 ComponentRow(col, comp, project, overrideTypeOfWork: "ROW Acquisition");
                                             else

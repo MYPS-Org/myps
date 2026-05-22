@@ -251,12 +251,12 @@ namespace ReportGeneration
                    .Text(project.OperatingUnit + "/" + project.ImplementingOffice).FontSize(7);
             });
 
-            // Row 2: description
+            // Row 2: description -- same indent as ProjectId, limited to W0+W1 (up to Amount column)
             col.Item().Row(row =>
             {
                 row.RelativeItem(W0 + W1)
-                   .PaddingLeft(6).PaddingTop(1).PaddingBottom(3)
-                   .Text(t => t.Span(project.Description + "\n").FontSize(7).Bold());
+                   .PaddingLeft(4).PaddingTop(1).PaddingBottom(3)
+                   .Text(t => t.Span(project.Description ?? "").FontSize(7).Bold());
 
                 row.RelativeItem(W2).Text("");
                 row.RelativeItem(W3).Text("");
