@@ -45,8 +45,8 @@ export interface PermissionFilter {
 //#region Users Models
 export interface Users {
 	Id: number;
-	UserGroupIds: string;
-	UserGroupNames?: string;
+	UserGroupIds: number[];
+	UserGroupNames?: string[];
 	ApplyFilter?: boolean;
 	EmployeeId?: string;
 	UserId: string;
