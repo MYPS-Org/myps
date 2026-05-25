@@ -125,7 +125,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({
 							<TableCell>
 								<div className="flex flex-wrap gap-1">
 									{(() => {
-									const userGroups = user.UserGroupNames ? user.UserGroupNames.split(',').map(s => s.trim()).filter(Boolean) : [];
+									const userGroups = user.UserGroupNames || [];
 										const isExpanded = expandedUserGroups.has(user.Id);
 										const visibleGroups = isExpanded ? userGroups : userGroups.slice(0, 3);
 										return (
