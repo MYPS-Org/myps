@@ -119,8 +119,8 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
         PlantillaOffice: formData.plantillaOffice,
         PlantillaOfficeName: formData.plantillaOfficeName,
         IsActive: formData.isActive === 'active',
-        UserGroupIds: selectedGroupIds,
-        UserGroupNames: selectedGroupNames,
+        UserGroupIds: selectedGroupIds.join(','),
+        UserGroupNames: selectedGroupNames.join(','),
       };
       
       const response = await addUser(userData);

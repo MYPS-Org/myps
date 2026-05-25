@@ -27,7 +27,7 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
     name: user.Name || '',
     userId: user.UserId || '',
     email: user.Email || '',
-    userGroupIds: user.UserGroupIds || [] as number[],
+    userGroupIds: user.UserGroupIds ? user.UserGroupIds.split(',').map(Number).filter(Boolean) : [] as number[],
     regCode: user.RegCode || '',
     plantillaOffice: user.PlantillaOffice || '',
     plantillaOfficeName: user.PlantillaOfficeName || '',
@@ -42,7 +42,7 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
       name: user.Name || '',
       userId: user.UserId || '',
       email: user.Email || '',
-      userGroupIds: user.UserGroupIds || [],
+      userGroupIds: user.UserGroupIds ? user.UserGroupIds.split(',').map(Number).filter(Boolean) : [] as number[],
       regCode: user.RegCode || '',
       plantillaOffice: user.PlantillaOffice || '',
       plantillaOfficeName: user.PlantillaOfficeName || '',
@@ -114,8 +114,8 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
       .map(g => g.GroupName || '');
     const submissionData = {
       Id: user.Id,
-      UserGroupIds: formData.userGroupIds,
-      UserGroupNames: selectedGroupNames,
+      UserGroupIds: formData.userGroupIds.join(','),
+      UserGroupNames: selectedGroupNames.join(','),
       EmployeeId: formData.employeeId,
       UserId: formData.userId,
       Name: formData.name,

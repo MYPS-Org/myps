@@ -17,7 +17,7 @@ const VIewUserDialog: React.FC<VIewUserDialogProps> = ({ isOpen, onClose, /*onSu
     name: user.Name || '',
     userId: user.UserId || '',
     email: user.Email || '',
-    userGroup: user.UserGroupNames?.join(', ') || '',
+    userGroup: user.UserGroupNames || '',
     regCode: user.RegCode || '',
     plantillaOffice: user.PlantillaOffice || '',
     isActive: user.IsActive ? 'active' : 'inactive',
