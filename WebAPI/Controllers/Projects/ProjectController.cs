@@ -2098,6 +2098,7 @@ namespace WebAPI.Controllers.Projects
                             await _db.tProjectMajorWorkLocations.AddRangeAsync(NewLocationsForUpdatedItems.Select(item => new ProjectMajorWorkLocations
                             {
                                 ParentId = item.ParentId,
+                                StageName = item.StageName,
                                 InfraId = item.InfraId,
                                 DetailedScope = item.DetailedScope,
                                 TargetUnitId = item.TargetUnitId,
