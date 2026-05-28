@@ -48,7 +48,8 @@ namespace ReportGeneration
             return GeneratePDF.GenerateReport(page =>
             {
                 page.Size(PageSizes.A4);
-                page.Margin(25);
+                page.MarginVertical(25);
+                page.MarginHorizontal(15);
                 page.DefaultTextStyle(x =>
                     x.FontSize(DefaultFs).FontFamily(GeneratePDF.FontFamily).FontColor(Colors.Black));
 
@@ -92,7 +93,8 @@ namespace ReportGeneration
                     HdrCell(row, W7,          "Operating Unit /\nImplementing Office");
                 });
 
-                col.Item().LineHorizontal(0.5f).LineColor(Colors.Black);
+                // Underline separator (with extra space above to give header text breathing room)
+                col.Item().PaddingTop(4).PaddingBottom(4).LineHorizontal(0.5f).LineColor(Colors.Black);
             });
         }
 
@@ -243,7 +245,12 @@ namespace ReportGeneration
             {
                 row.RelativeItem(W0 + W1 + W2 + W3)
                    .PaddingTop(8).PaddingBottom(2).PaddingLeft(26)
-                   .Text(t => t.Span(label + "\n").FontSize(7.5f).Bold().Underline().FontFamily("Arial"));
+                   .Text(t => t.Span(label + "\n")
+                               .FontSize(7.5f)
+                               .Bold()
+                               .Underline()
+                               .FontFamily("Arial")
+                               .LineHeight(1.5f));
 
                 row.RelativeItem(W4).Text("");
                 row.RelativeItem(W5).Text("");

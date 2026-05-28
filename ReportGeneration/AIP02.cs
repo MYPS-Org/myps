@@ -40,7 +40,8 @@ namespace ReportGeneration
             return GeneratePDF.GenerateReport(page =>
             {
                 page.Size(PageSizes.A4);
-                page.Margin(25);
+                page.MarginVertical(25);
+                page.MarginHorizontal(15);
                 page.DefaultTextStyle(x =>
                     x.FontSize(DefaultFs).FontFamily(GeneratePDF.FontFamily).FontColor(Colors.Black));
 
@@ -78,8 +79,8 @@ namespace ReportGeneration
                     HdrCell(row, W2, "Amount\n(PHP)");
                     HdrCell(row, W3, "Operating Unit /\nImplementing Office");
                 });
-                // Underline separator
-                col.Item().LineHorizontal(0.5f).LineColor(Colors.Black);
+                // Underline separator (with extra space above to give header text breathing room)
+                col.Item().PaddingTop(4).PaddingBottom(4).LineHorizontal(0.5f).LineColor(Colors.Black);
             });
         }
 
@@ -206,7 +207,12 @@ namespace ReportGeneration
             {
                 row.RelativeItem(W0 + W1)
                    .PaddingTop(8).PaddingBottom(2).PaddingLeft(18)
-                   .Text(t => t.Span(label + "\n").FontSize(7.5f).Bold().Underline().FontFamily("Arial"));
+                   .Text(t => t.Span(label + "\n")
+                               .FontSize(7.5f)
+                               .Bold()
+                               .Underline()
+                               .FontFamily("Arial")
+                               .LineHeight(1.5f));
 
                 row.RelativeItem(W2)
                    .AlignRight().PaddingRight(2).PaddingVertical(2)
@@ -251,11 +257,13 @@ namespace ReportGeneration
                    .Text(project.OperatingUnit + "/" + project.ImplementingOffice).FontSize(7);
             });
 
-            // Row 2: description -- same indent as ProjectId, limited to W0+W1 (up to Amount column)
+            // Row 2: description limited to W0+W1 (up to Amount column).
+            // PaddingLeft(14) aligns the description with the ProjectId text in Row 1
+            // (Row 1 PaddingLeft(4) + ~10pt width of the "{seq}.  " bold prefix).
             col.Item().Row(row =>
             {
                 row.RelativeItem(W0 + W1)
-                   .PaddingLeft(4).PaddingTop(1).PaddingBottom(3)
+                   .PaddingLeft(14).PaddingTop(1).PaddingBottom(3)
                    .Text(t => t.Span(project.Description ?? "").FontSize(7).Bold());
 
                 row.RelativeItem(W2).Text("");
