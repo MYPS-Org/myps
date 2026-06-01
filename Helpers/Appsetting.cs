@@ -26,11 +26,15 @@ namespace Helpers
     public class ResourcesFolder
     {
         public string Main { get; set; } = string.Empty;
+        public string Internal { get; set; } = string.Empty;
+        public string UploadedFiles { get; set; } = string.Empty;
         public string Projects { get; set; } = string.Empty;
         public string ProjectNotes { get; set; } = string.Empty;
         public string SupportingDocs { get; set; } = string.Empty;
         public RevisionFolder Revision { get; set; } = new RevisionFolder();
+        public string Images { get; set; } = string.Empty;
         public string SQLScripts { get; set; } = string.Empty;
+        public string Template { get; set; } = string.Empty;
     }
     public class RevisionFolder
     {
@@ -81,13 +85,17 @@ namespace Helpers
             PIS = config.GetSection("PIS").Get<PISConfig>()!;
             PCMA = config.GetSection("MYPSToPCMA").Get<MYPSToPCMA>()!;
             Resources = config.GetSection("Resources").Get<ResourcesFolder>()!;
-            Resources.Projects = Path.Combine(Resources.Main, Resources.Projects);
+            Resources.Internal = Path.Combine(Resources.Main, Resources.Internal);
+            Resources.UploadedFiles = Path.Combine(Resources.Main, Resources.UploadedFiles);
+            Resources.Projects = Path.Combine(Resources.UploadedFiles, Resources.Projects);
             Resources.ProjectNotes = Path.Combine(Resources.Projects, Resources.ProjectNotes);
             Resources.SupportingDocs = Path.Combine(Resources.Projects, Resources.SupportingDocs);
-            Resources.Revision.RevisionsMain = Path.Combine(Resources.Main, Resources.Revision.RevisionsMain);
+            Resources.Revision.RevisionsMain = Path.Combine(Resources.UploadedFiles, Resources.Revision.RevisionsMain);
             Resources.Revision.CentralOffice = Path.Combine(Resources.Revision.RevisionsMain, Resources.Revision.CentralOffice);
             Resources.Revision.ImplementingOffice = Path.Combine(Resources.Revision.RevisionsMain, Resources.Revision.ImplementingOffice);
-            Resources.SQLScripts = Path.Combine(Resources.Main, Resources.SQLScripts);
+            Resources.Images = Path.Combine(Resources.Internal, Resources.Images);
+            Resources.SQLScripts = Path.Combine(Resources.Internal, Resources.SQLScripts);
+            Resources.Template = Path.Combine(Resources.Internal, Resources.Template);
             KafkaConfigs = config.GetSection("Kafka").Get<KafkaConfig>()!;
             SMTP = config.GetSection("SMTP").Get<SMTPClass>()!;
         }

@@ -43,7 +43,8 @@ namespace ReportGeneration
             return GeneratePDF.GenerateReport(page =>
             {
                 page.Size(PageSizes.A4);
-                page.Margin(25);
+                page.MarginVertical(25);
+                page.MarginHorizontal(15);
                 page.DefaultTextStyle(x =>
                     x.FontSize(DefaultFs).FontFamily(GeneratePDF.FontFamily).FontColor(Colors.Black));
 
@@ -86,22 +87,25 @@ namespace ReportGeneration
                     HdrCell(row, W2,          "Type of Work");
                     HdrCell(row, W3,          "Target\nUnit");
                     HdrCell(row, W4 + W5,     "Physical Target");
-                    HdrCell(row, W6,          "Amount\n(PHP)");
+                    HdrCell(row, W6,          "Amount\n(PHP)", alignRight: true);
                     HdrCell(row, W7,          "Operating Unit /\nImplementing Office");
                 });
 
-                // Underline separator
-                col.Item().LineHorizontal(0.5f).LineColor(Colors.Black);
+                // Underline separator (with extra space above to give header text breathing room)
+                col.Item().PaddingTop(4).PaddingBottom(4).LineHorizontal(0.5f).LineColor(Colors.Black);
             });
         }
 
-        /// <summary>Renders a single header cell with left-aligned bold text (no per-cell border).</summary>
-        static void HdrCell(RowDescriptor row, float weight, string text)
+        /// <summary>Renders a single header cell with bold text (no per-cell border).
+        /// Left-aligned by default; pass <paramref name="alignRight"/> = <c>true</c> for columns whose
+        /// body cells are right-aligned (e.g. Amount) so header and body line up.</summary>
+        static void HdrCell(RowDescriptor row, float weight, string text, bool alignRight = false)
         {
-            row.RelativeItem(weight)
-               .AlignLeft().AlignTop()
-               .Padding(2)
-               .Text(text).Bold().FontSize(7);
+            var cell = row.RelativeItem(weight).AlignTop();
+            cell = alignRight
+                ? cell.AlignRight().PaddingRight(2).PaddingVertical(2)
+                : cell.AlignLeft().Padding(2);
+            cell.Text(text).Bold().FontSize(7);
         }
 
         // -- TABLE CONTENT
@@ -151,7 +155,7 @@ namespace ReportGeneration
                                         seq++;
                                         var projComponents = components
                                             .Where(c => c.ProjectComponentId?.StartsWith(project.ProjectId) == true)
-                                            .OrderBy(c => c.Id).ToList();
+                                            .OrderBy(c => c.ComponentSortKey).ToList();
                                         var projTotal = (decimal)projComponents.Sum(c => c.TotalComponentCost);
 
                                         ProjectHeaderRow(col, seq, project, projTotal);
@@ -159,7 +163,8 @@ namespace ReportGeneration
                                         foreach (var comp in projComponents)
                                         {
                                             if (comp.ProjectComponentId?.EndsWith("-EAO") == true)
-                                                EaoRow(col, comp, project.ImplementingOffice);
+                                                //EaoRow(col, comp, project.ImplementingOffice);
+                                                ComponentRow(col, comp, project);
                                             else if (comp.ProjectComponentId?.EndsWith("-ROW") == true)
                                                 ComponentRow(col, comp, project, overrideTypeOfWork: "ROW Acquisition");
                                             else
@@ -204,19 +209,15 @@ namespace ReportGeneration
                        if (underline) { s.Underline(); s.FontFamily("Arial"); }
                    });
 
-                row.RelativeItem(W4)
+                // W4 + W5 merged: "{count} projects" rendered as a single right-aligned span so
+                // the word "projects" can never wrap to a second line (which used to happen on
+                // the bold Region row when W5 was too narrow for "projects" at 8pt bold).
+                // Underlined to visually pair with the underlined total in W6.
+                row.RelativeItem(W4 + W5)
                    .AlignRight().PaddingRight(2).PaddingVertical(3)
                    .Text(t =>
                    {
-                       var s = t.Span(count.ToString()).FontSize(dataFontSize);
-                       if (boldData) s.Bold();
-                   });
-
-                row.RelativeItem(W5)
-                   .PaddingLeft(2).PaddingVertical(3)
-                   .Text(t =>
-                   {
-                       var s = t.Span("projects").FontSize(dataFontSize);
+                       var s = t.Span($"{count} projects").FontSize(dataFontSize).Underline();
                        if (boldData) s.Bold();
                    });
 
@@ -224,7 +225,10 @@ namespace ReportGeneration
                    .AlignRight().PaddingRight(2).PaddingVertical(3)
                    .Text(t =>
                    {
-                       var s = t.Span(FormatAmt(total)).FontSize(dataFontSize);
+                       // Summary-row totals (Region / DEO / Legislative District / Category) are
+                       // underlined to visually mark them as section subtotals.
+                       // Thrust-level totals are rendered by CategoryRow elsewhere and stay plain.
+                       var s = t.Span(FormatAmt(total)).FontSize(dataFontSize).Underline();
                        if (boldData) s.Bold();
                    });
 
@@ -240,7 +244,12 @@ namespace ReportGeneration
             {
                 row.RelativeItem(W0 + W1 + W2 + W3)
                    .PaddingTop(8).PaddingBottom(2).PaddingLeft(26)
-                   .Text(t => t.Span(label + "\n").FontSize(7.5f).Bold().Underline().FontFamily("Arial"));
+                   .Text(t => t.Span(label + "\n")
+                               .FontSize(7.5f)
+                               .Bold()
+                               .Underline()
+                               .FontFamily("Arial")
+                               .LineHeight(1.5f));
 
                 row.RelativeItem(W4).Text("");
                 row.RelativeItem(W5).Text("");
@@ -264,9 +273,10 @@ namespace ReportGeneration
             GenerateAIP01 project,
             decimal total)
         {
-            // Row 1: seq + ProjectId | UACS | total
+            // Row 1: seq + ProjectId | UACS | amount
             col.Item().Row(row =>
             {
+                // W0: seq + ProjectId
                 row.RelativeItem(W0)
                    .PaddingLeft(20).PaddingTop(4).PaddingBottom(1)
                    .Text(t =>
@@ -275,31 +285,35 @@ namespace ReportGeneration
                        t.Span(project.ProjectId).FontSize(7.5f);
                    });
 
-                row.RelativeItem(W1 + W2 + W3)
-                   .PaddingHorizontal(4).PaddingTop(4).PaddingBottom(1)
+                // W1: blank (description moved to row 2)
+                row.RelativeItem(W1).Text("");
+
+                // W2+W3: UACS
+                row.RelativeItem(W2 + W3)
+                   .PaddingHorizontal(2).PaddingTop(4).PaddingBottom(1)
                    .Text(project.UACS ?? "").FontSize(7);
 
                 row.RelativeItem(W4).Text("");
                 row.RelativeItem(W5).Text("");
 
+                // Per-project total — underlined to match the underlined summary-row totals above.
                 row.RelativeItem(W6)
                    .AlignRight().PaddingRight(2).PaddingTop(4).PaddingBottom(1)
-                   .Text(FormatAmt(total)).FontSize(7.5f);
+                   .Text(t => t.Span(FormatAmt(total)).FontSize(7.5f).Underline());
 
                 row.RelativeItem(W7).Text("");
             });
 
-            // Row 2: description
+            // Row 2: description spans up to Target Unit (W0+W1+W2+W3).
+            // PaddingLeft(30) aligns the description with the ProjectId text in Row 1
+            // (Row 1 PaddingLeft(20) + ~10pt width of the "{seq}.  " bold prefix).
             col.Item().Row(row =>
             {
                 row.RelativeItem(W0 + W1 + W2 + W3)
-                   .PaddingLeft(24).PaddingTop(1).PaddingBottom(3)
-                   .Text(t => t.Span(project.Description + "\n").FontSize(7).Bold());
-
-                row.RelativeItem(W4).Text("");
-                row.RelativeItem(W5).Text("");
-                row.RelativeItem(W6).Text("");
-                row.RelativeItem(W7).Text("");
+                   .AlignLeft()
+                   .PaddingLeft(30).PaddingBottom(3)
+                   .Text(t => t.Span(project.Description ?? "").FontSize(7).Bold());
+                row.RelativeItem(W4 + W5 + W6 + W7).Text("");
             });
         }
 
@@ -317,7 +331,7 @@ namespace ReportGeneration
                 row.RelativeItem(W0).PaddingLeft(30).PaddingVertical(2)
                    .Text(comp.ProjectComponentId).FontSize(7);
 
-                row.RelativeItem(W1).PaddingHorizontal(2).PaddingVertical(2)
+                row.RelativeItem(W1).AlignLeft().PaddingHorizontal(2).PaddingVertical(2)
                    .Text(comp.Description ?? "").FontSize(7);
 
                 row.RelativeItem(W2).PaddingHorizontal(2).PaddingVertical(2)
@@ -337,7 +351,7 @@ namespace ReportGeneration
                    .Text(FormatAmt((decimal)comp.TotalComponentCost)).FontSize(7);
 
                 row.RelativeItem(W7).PaddingHorizontal(2).PaddingVertical(2)
-                   .Text(project.OperatingUnit + "/" + project.ImplementingOffice).FontSize(7);
+                   .Text(project.OperatingUnit + " / " + project.ImplementingOffice).FontSize(7);
             });
         }
 

@@ -115,12 +115,21 @@ namespace WebAPI.Controllers.Revision
                 return ExceptionHandler(ex);
             }
         }
-        
+
         [HttpPost]
         public async Task<IActionResult> RequestReportAIP([FromBody] RequestReportAIPDTO dto)
         {
             try
             {
+                //dto.ProgramId = "P_CO-PS-800_07152024_143901";
+                //dto.StageName = "GAA-R";
+                //dto.CategoryName = "OO1: Ensure Safe and Reliable National Road System";
+                //dto.RegionName = "Region I";
+                //dto.DistrictEngineeringOffice = "Ilocos Norte 1st District Engineering Office";
+                //dto.ImplementingOfficeName = "";
+                //dto.OperatingUnitName = "";
+                //dto.LegislativeDistrictName = "";
+
                 var programDetailsQuery = _db.vProgramDetails
                 .AsNoTracking()
                 .Where(x => x.ProgramId == dto.ProgramId && x.StageName == dto.StageName);
@@ -188,12 +197,20 @@ namespace WebAPI.Controllers.Revision
                 return ExceptionHandler(ex);
             }
         }
-        
+
         [HttpPost]
         public async Task<IActionResult> RequestReportAIPOfficial([FromBody] RequestReportAIPDTO dto)
         {
             try
             {
+                //dto.ProgramId = "P_CO-PS-800_07152024_143901";
+                //dto.StageName = "GAA-R";
+                //dto.CategoryName = "OO1: Ensure Safe and Reliable National Road System";
+                //dto.RegionName = "Region I";
+                //dto.DistrictEngineeringOffice = "Ilocos Norte 1st District Engineering Office";
+                //dto.ImplementingOfficeName = "";
+                //dto.OperatingUnitName = "";
+                //dto.LegislativeDistrictName = "";
                 var programDetailsQuery = _db.vProgramDetails
                     .AsNoTracking()
                     .Where(x => x.ProgramId == dto.ProgramId && x.StageName == dto.StageName);
@@ -257,6 +274,14 @@ namespace WebAPI.Controllers.Revision
         {
             try
             {
+                //dto.ProgramId = "P_CO-PS-800_07152024_143901";
+                //dto.StageName = "GAA-R";
+                //dto.CategoryName = "OO1: Ensure Safe and Reliable National Road System";
+                //dto.RegionName = "Region I";
+                //dto.DistrictEngineeringOffice = "Ilocos Norte 1st District Engineering Office";
+                //dto.ImplementingOfficeName = "";
+                //dto.OperatingUnitName = "";
+                //dto.LegislativeDistrictName = "";
                 var ProgramDetails = _db.vProgramDetails
                 .AsNoTracking()
                 .Where(x => x.ProgramId == dto.ProgramId && x.StageName == dto.StageName);
@@ -349,12 +374,14 @@ namespace WebAPI.Controllers.Revision
                 return ExceptionHandler(ex);
             }
         }
-        
+
         [HttpPost]
         public async Task<IActionResult> RequestReportRBPComponents([FromBody] RequestReportRBPComponentsDTO dto)
         {
             try
             {
+                //dto.ProgramId = "P_CO-PS-634_02172025_093955";
+                //dto.RegionName = "Region I";
                 var ProgramDetails = _db.vPrograms
                 .AsNoTracking()
                 .Where(x => x.ProgramId == dto.ProgramId);
@@ -369,7 +396,7 @@ namespace WebAPI.Controllers.Revision
                     { "@ProgramId", dto.ProgramId }
                 };
                 if (!string.IsNullOrEmpty(dto.RegionName)) { param.Add("@RegionName", dto.RegionName); }
-                string aipSql = "EXEC pGenerateRBP " + string.Join(", ", param.Keys.Select(k => $"{k} = {k}"));
+                string aipSql = "EXEC pGenerateRBPComponents " + string.Join(", ", param.Keys.Select(k => $"{k} = {k}"));
                 List<DBHelper.Models.Procedures.GenerateRBPComponents> RBP = Sql.NormalQuery<DBHelper.Models.Procedures.GenerateRBPComponents>(
                     Appsetting.DbConnections.MYPSDb,
                     aipSql, param
@@ -398,13 +425,15 @@ namespace WebAPI.Controllers.Revision
         }
         #endregion
 
-        #region RBP
-        [AllowAnonymous]
+        #region RBPTier
+
         [HttpPost]
-        public async Task<IActionResult> RequestReportRBP(RequestReportRBPDTO dto)
+        public async Task<IActionResult> RequestReportRBPTier(RequestReportRBPDTO dto)
         {
             try
             {
+                //dto.ProgramId = "P_CO-PS-634_02172025_093955";
+                //dto.RegionName = "Region I";
                 var ProgramDetails = _db.vPrograms
                 .AsNoTracking()
                 .Where(x => x.ProgramId == dto.ProgramId);
@@ -432,11 +461,11 @@ namespace WebAPI.Controllers.Revision
                     });
                 }
                 var ProgramData = await ProgramDetails.FirstOrDefaultAsync();
-                var bytes = ReportGeneration.GenerateRBP.GenerateReport(RBP,
+                var bytes = GenerateRBPTier.GenerateReport(RBP,
                     year: ProgramData?.YearStart ?? 0,
                     stageName: GetStageFullName(ProgramData?.StageName));
 
-                var fileName = $"RBP_Report.pdf";
+                var fileName = $"RBPTier_Report.pdf";
                 System.IO.File.WriteAllBytes(fileName, bytes);
                 return File(bytes, "application/pdf", fileName);
             }
@@ -447,13 +476,15 @@ namespace WebAPI.Controllers.Revision
         }
         #endregion
 
-        #region RBPTier
-        
+        #region RBP
+
         [HttpPost]
-        public async Task<IActionResult> RequestReportRBPTier(RequestReportRBPTierDTO dto)
+        public async Task<IActionResult> RequestReportRBP(RequestReportRBPTierDTO dto)
         {
             try
             {
+                //dto.ProgramId = "P_CO-PS-634_02172025_093955";
+                //dto.RegionName = "Region I";
                 var ProgramDetails = _db.vPrograms
                 .AsNoTracking()
                 .Where(x => x.ProgramId == dto.ProgramId);
@@ -482,11 +513,11 @@ namespace WebAPI.Controllers.Revision
                     });
                 }
                 var ProgramData = await ProgramDetails.FirstOrDefaultAsync();
-                var bytes = GenerateRBPTier.GenerateReport(RBP,
+                var bytes = ReportGeneration.GenerateRBP.GenerateReport(RBP,
                     year: ProgramData?.YearStart ?? 0,
                     stageName: GetStageFullName(ProgramData?.StageName));
 
-                var fileName = $"RBPTier_Report.pdf";
+                var fileName = $"RBP_Report.pdf";
                 System.IO.File.WriteAllBytes(fileName, bytes);
                 return File(bytes, "application/pdf", fileName);
             }
@@ -518,12 +549,14 @@ namespace WebAPI.Controllers.Revision
                 return ExceptionHandler(ex);
             }
         }
-        
+
         [HttpPost]
         public async Task<IActionResult> RequestReportRDIP([FromBody] RequestReportRDIPDTO dto)
         {
             try
             {
+                //dto.ProgramId = "P_CO-PS-546_12172019_135556";
+                //dto.RegionName = "Region I";
                 var ProgramDetails = _db.vPrograms
                 .AsNoTracking()
                 .Where(x => x.ProgramId == dto.ProgramId);
@@ -568,12 +601,14 @@ namespace WebAPI.Controllers.Revision
         #endregion
 
         #region Export Raw Projects
-        
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> RequestRawProjects([FromBody] RequestRawProjectsDTO dto)
         {
             try
             {
+                dto.ProgramId = "P_CO-PS-800_07152024_143901";
+                dto.StageName = "GAA-R";
                 var stages = await _db.tProjectStages
                     .AsNoTracking()
                     .Where(s => s.ProgramId == dto.ProgramId && s.StageName == dto.StageName)

@@ -16,10 +16,13 @@ namespace ReportGeneration
     /// </summary>
     public class GenerateRDIP
     {
-        // 14 relative column weights
-        const float W0=22, W1=7, W2=8, W3=3.5f, W4=3.5f;
+        // 14 relative column weights.
+        // W3/W4 widened from 3.5 to 5 so "Implementation Period" header fits at 7pt without
+        // mid-word breaks (body just shows 4-digit years, so extra width is harmless).
+        // W13 widened from 4 to 6 so "Remarks" header fits at 7pt (body cell is always empty).
+        const float W0=22, W1=7, W2=8, W3=5,    W4=5;
         const float W5=8,  W6=7, W7=7, W8=7,    W9=7;
-        const float W10=7, W11=7, W12=6, W13=4;
+        const float W10=7, W11=7, W12=6, W13=6;
 
         /// <summary>
         /// Entry point -- builds and returns the RDIP PDF as a byte array.
@@ -32,9 +35,12 @@ namespace ReportGeneration
         {
             int FooterFs = 7;
             int LowestYear = data.Min(r => r.StartYear);
-            string fiscalYear = year > 0 ? $" FY {year}" : "";
-            string title = $"Regional Development Investment Plan (RDIP){fiscalYear}";
-            if (!string.IsNullOrEmpty(stageName)) title += $" -- {stageName}";
+            var logo = GeneratePDF.GetLogo();
+            // Title FY range spans the six discrete year columns: LowestYear .. LowestYear + 5.
+            // For example, if LowestYear = 2017 the title shows "FY 2017-2022 REGIONAL ...".
+            string fiscalYear = year > 0 ? $"FY {LowestYear}-{LowestYear + 5} " : "";
+            string title = $"{fiscalYear}REGIONAL DEVELOPMENT INVESTMENT PLAN (RDIP)";
+            string subtitle = "Chapter 19 - Accelerating Infrastructure Development";
             return GeneratePDF.GenerateReport(page =>
             {
                 page.Size(PageSizes.A4.Landscape());
@@ -42,25 +48,14 @@ namespace ReportGeneration
                 page.DefaultTextStyle(x =>
                     x.FontSize(6).FontFamily(GeneratePDF.FontFamily).FontColor(Colors.Black));
 
-                var regionName = data.FirstOrDefault()?.Region ?? "Region I";
+                var regionName = data.FirstOrDefault()?.Region?.ToUpper() ?? "";
 
                 // -- HEADER
                 page.Header()
                     .Column(col =>
                     {
-                        col.Item().AlignCenter()
-                           .Text(title)
-                           .FontFamily(GeneratePDF.FontFamily).FontSize(10).Bold();
-                        col.Item().AlignCenter()
-                           .Text(regionName)
-                           .FontFamily(GeneratePDF.FontFamily).FontSize(9).Bold();
-                        col.Item().PaddingTop(2)
-                           .Text("PDF Chapter: Chapter 19 - Accelerating Infrastructure Development")
-                           .FontFamily(GeneratePDF.FontFamily).FontSize(7);
-                        col.Item()
-                           .Text("Agency: Department of Public Works and Highways")
-                           .FontFamily(GeneratePDF.FontFamily).FontSize(7);
-                        col.Item().PaddingTop(6).Element(c => BuildTableHeader(c, LowestYear));
+                        GeneratePDF.BuildDPWHHeader(col, logo, title, subtitle: subtitle, regionName: regionName);
+                        col.Item().PaddingTop(8).Element(c => BuildTableHeader(c, LowestYear));
                     });
 
                 // -- CONTENT
@@ -68,8 +63,7 @@ namespace ReportGeneration
                     .Column(col =>
                     {
                         col.Item().Element(c => BuildTableContent(c, data));
-                        col.Item().Extend().AlignBottom()
-                            .PaddingTop(10).Element(BuildSignatureBlock);
+                        col.Item().PaddingTop(10).Element(BuildSignatureBlock);
                     });
 
                 // -- FOOTER
@@ -79,62 +73,64 @@ namespace ReportGeneration
 
         // -- TABLE HEADER (3 rows)
         /// <summary>
-        /// Renders the 3-row header using Column+Row layout.
-        /// Year columns in row 3 are labeled dynamically starting from <paramref name="LowestYear"/>.
+        /// Renders the 2-row header.
+        /// The "Program/Sub-Program/Projects" (W0) and "Remarks" (W13) cells are vertically
+        /// merged so they span both header rows (centered vertically and horizontally).
+        /// The middle columns keep the original 2-row layout (group label on top, sub-label below).
+        /// Year columns in the second middle row are labeled dynamically from <paramref name="LowestYear"/>.
         /// </summary>
         static void BuildTableHeader(IContainer container, int LowestYear)
         {
-            container.BorderBottom(0.5f).BorderColor(Colors.Black).Column(col =>
+            container.Border(0.5f).BorderColor(Colors.Black).Row(row =>
             {
-                // Row 1
-                col.Item().Row(row =>
+                // Merged W0: "Program/Sub-Program/Projects" spans both header rows.
+                row.RelativeItem(W0)
+                   .BorderRight(0.5f).BorderColor(Colors.Black)
+                   .AlignCenter().AlignMiddle().Padding(2)
+                   .Text("Program/Sub-Program/Projects").Bold().FontSize(7);
+
+                // Middle: two-row header for the columns between W0 and W13.
+                row.RelativeItem(W1 + W2 + W3 + W4 + W5 + W6 + W7 + W8 + W9 + W10 + W11 + W12).Column(col =>
                 {
-                    HdrCell(row, W0, "Program/Sub-Program/Projects");
-                    HdrCell(row, W1 + W2, "Spatial Coverage");
-                    HdrCell(row, W3 + W4, "Implementation Period");
-                    HdrCell(row, W5 + W6 + W7 + W8 + W9 + W10 + W11 + W12, "Investment Cost");
-                    HdrCell(row, W13, "Remarks");
+                    // Row 1 — group labels
+                    col.Item().BorderBottom(0.5f).BorderColor(Colors.Black).Row(rr =>
+                    {
+                        HdrCell(rr, W1 + W2, "Spatial Coverage", borderRight: true);
+                        HdrCell(rr, W3 + W4, "Implementation\nPeriod", borderRight: true);
+                        HdrCell(rr, W5 + W6 + W7 + W8 + W9 + W10 + W11 + W12, "Investment Cost (P'000)", borderRight: false);
+                    });
+                    // Row 2 — sub-labels (year columns dynamic)
+                    col.Item().Row(rr =>
+                    {
+                        HdrCell(rr, W1, "Province/\nMunicipality", borderRight: true);
+                        HdrCell(rr, W2, "Congressional\nDistrict", borderRight: true);
+                        HdrCell(rr, W3, "Start\nYear", borderRight: true);
+                        HdrCell(rr, W4, "End\nYear", borderRight: true);
+                        HdrCell(rr, W5, "TOTAL\nCost", borderRight: true);
+                        HdrCell(rr, W6, $"1st Year\n({LowestYear})", borderRight: true);
+                        HdrCell(rr, W7, $"2nd Year\n({LowestYear + 1})", borderRight: true);
+                        HdrCell(rr, W8, $"3rd Year\n({LowestYear + 2})", borderRight: true);
+                        HdrCell(rr, W9, $"4th Year\n({LowestYear + 3})", borderRight: true);
+                        HdrCell(rr, W10, $"5th Year\n({LowestYear + 4})", borderRight: true);
+                        HdrCell(rr, W11, $"6th Year\n({LowestYear + 5})", borderRight: true);
+                        HdrCell(rr, W12, $"Later\nYears\n({LowestYear + 6}+)", borderRight: false);
+                    });
                 });
-                // Row 2
-                col.Item().Row(row =>
-                {
-                    row.RelativeItem(W0).Text("");
-                    HdrCell(row, W1, "Province/\nMunicipality");
-                    HdrCell(row, W2, "Congressional\nDistrict");
-                    HdrCell(row, W3, "Start of\nProject\nImplemen-\ntation");
-                    HdrCell(row, W4, "Year of\nProject\nImplemen-\ntation");
-                    HdrCell(row, W5, "TOTAL Cost");
-                    HdrCell(row, W6, "FirstYear");
-                    HdrCell(row, W7, "SecondYear");
-                    HdrCell(row, W8, "ThirdYear");
-                    HdrCell(row, W9, "FourthYear");
-                    HdrCell(row, W10, "FifthYear");
-                    HdrCell(row, W11, "SixthYear");
-                    HdrCell(row, W12, "Later\nYears");
-                    row.RelativeItem(W13).Text("");
-                });
-                // Row 3 -- year numbers
-                col.Item().Row(row =>
-                {
-                    row.RelativeItem(W0 + W1 + W2 + W3 + W4 + W5).Text("");
-                    HdrCell(row, W6,  $"({LowestYear})");
-                    HdrCell(row, W7,  $"({LowestYear + 1})");
-                    HdrCell(row, W8,  $"({LowestYear + 2})");
-                    HdrCell(row, W9,  $"({LowestYear + 3})");
-                    HdrCell(row, W10, $"({LowestYear + 4})");
-                    HdrCell(row, W11, $"({LowestYear + 5})");
-                    HdrCell(row, W12, $"({LowestYear + 6}...)");
-                    row.RelativeItem(W13).Text("");
-                });
+
+                // Merged W13: "Remarks" spans both header rows.
+                row.RelativeItem(W13)
+                   .BorderLeft(0.5f).BorderColor(Colors.Black)
+                   .AlignCenter().AlignMiddle().Padding(2)
+                   .Text("Remarks").Bold().FontSize(7);
             });
         }
 
-        static void HdrCell(RowDescriptor row, float weight, string text)
+        static void HdrCell(RowDescriptor row, float weight, string text, bool borderRight = false)
         {
-            row.RelativeItem(weight)
-               .AlignCenter().AlignMiddle()
-               .Padding(3)
-               .Text(text).Bold().FontSize(5.5f);
+            var cell = row.RelativeItem(weight);
+            if (borderRight) cell = cell.BorderRight(0.5f).BorderColor(Colors.Black);
+            cell.AlignCenter().AlignMiddle().Padding(2)
+               .Text(text).Bold().FontSize(7);
         }
 
         // -- TABLE CONTENT
@@ -144,7 +140,7 @@ namespace ReportGeneration
         /// </summary>
         static void BuildTableContent(IContainer container, List<RDIPData> data)
         {
-            container.Column(col =>
+            container.BorderLeft(0.5f).BorderRight(0.5f).BorderBottom(0.5f).BorderColor(Colors.Black).Column(col =>
             {
                 foreach (var catGrp in data.GroupBy(r => r.CategoryName).OrderBy(g => g.Key))
                 {
@@ -152,17 +148,17 @@ namespace ReportGeneration
 
                     foreach (var progGrp in catGrp.GroupBy(r => r.ThrustProgramName).OrderBy(g => g.Key))
                     {
-                        WriteSummaryRow(col, progGrp.Key, progGrp, indent: 6, fontSize: 6.5f);
+                        WriteSummaryRow(col, progGrp.Key, progGrp, indent: 6, fontSize: 6.5f, bold: true);
 
                         foreach (var subGrp in progGrp.GroupBy(r => r.ThrustSubProgramName ?? "").OrderBy(g => g.Key))
                         {
                             if (!string.IsNullOrEmpty(subGrp.Key))
-                                WriteSummaryRow(col, subGrp.Key, subGrp, indent: 12, fontSize: 6.5f);
+                                WriteSummaryRow(col, subGrp.Key, subGrp, indent: 12, fontSize: 6.5f, bold: true);
 
                             foreach (var actGrp in subGrp.GroupBy(r => r.ThrustActivityName ?? "").OrderBy(g => g.Key))
                             {
                                 if (!string.IsNullOrEmpty(actGrp.Key))
-                                    WriteSummaryRow(col, actGrp.Key, actGrp, indent: 18, fontSize: 6);
+                                    WriteSummaryRow(col, actGrp.Key, actGrp, indent: 18, fontSize: 6, bold: true);
 
                                 int seq = 0;
                                 foreach (var proj in actGrp.OrderBy(p => p.ProjectId))
@@ -197,25 +193,27 @@ namespace ReportGeneration
             var sixthYear  = rows.Sum(r => r.SixthYear);
             var laterYears = rows.Sum(r => r.LaterYears);
 
-            col.Item().Row(row =>
+            // Body row borders use 0.25pt (lighter than the 0.5pt header borders).
+            col.Item().BorderTop(0.25f).BorderColor(Colors.Black).Row(row =>
             {
-                row.RelativeItem(W0).PaddingVertical(2).PaddingLeft(indent + 2f).PaddingRight(2)
+                row.RelativeItem(W0)
+                   .BorderRight(0.25f).BorderColor(Colors.Black)
+                   .PaddingVertical(2).PaddingLeft(indent + 2f).PaddingRight(2)
                    .Text(t => { var s = t.Span(label).FontSize(fontSize); if (bold) s.Bold(); });
 
-                // Spatial / implementation columns empty for summary rows
-                row.RelativeItem(W1).Text("");
-                row.RelativeItem(W2).Text("");
-                row.RelativeItem(W3).Text("");
-                row.RelativeItem(W4).Text("");
+                row.RelativeItem(W1).BorderRight(0.25f).BorderColor(Colors.Black).Text("");
+                row.RelativeItem(W2).BorderRight(0.25f).BorderColor(Colors.Black).Text("");
+                row.RelativeItem(W3).BorderRight(0.25f).BorderColor(Colors.Black).Text("");
+                row.RelativeItem(W4).BorderRight(0.25f).BorderColor(Colors.Black).Text("");
 
-                AmountCell(row, W5, totalCost, fontSize, bold);
-                AmountCell(row, W6, firstYear, fontSize, bold);
-                AmountCell(row, W7, secondYear, fontSize, bold);
-                AmountCell(row, W8, thirdYear, fontSize, bold);
-                AmountCell(row, W9, fourthYear, fontSize, bold);
-                AmountCell(row, W10, fifthYear, fontSize, bold);
-                AmountCell(row, W11, sixthYear, fontSize, bold);
-                AmountCell(row, W12, laterYears, fontSize, bold);
+                AmountCell(row, W5,  totalCost,  fontSize, bold, borderRight: true);
+                AmountCell(row, W6,  firstYear,  fontSize, bold, borderRight: true);
+                AmountCell(row, W7,  secondYear, fontSize, bold, borderRight: true);
+                AmountCell(row, W8,  thirdYear,  fontSize, bold, borderRight: true);
+                AmountCell(row, W9,  fourthYear, fontSize, bold, borderRight: true);
+                AmountCell(row, W10, fifthYear,  fontSize, bold, borderRight: true);
+                AmountCell(row, W11, sixthYear,  fontSize, bold, borderRight: true);
+                AmountCell(row, W12, laterYears, fontSize, bold, borderRight: true);
 
                 row.RelativeItem(W13).Text("");
             });
@@ -225,40 +223,49 @@ namespace ReportGeneration
         static void WriteProjectRow(ColumnDescriptor col, int seq, RDIPData proj)
         {
             float fs = 6;
-            col.Item().Row(row =>
+            // Body row borders use 0.25pt (lighter than the 0.5pt header borders).
+            col.Item().BorderTop(0.25f).BorderColor(Colors.Black).Row(row =>
             {
-                row.RelativeItem(W0).PaddingVertical(2).PaddingLeft(24).PaddingRight(2)
+                row.RelativeItem(W0)
+                   .BorderRight(0.25f).BorderColor(Colors.Black)
+                   .PaddingVertical(2).PaddingLeft(24).PaddingRight(2)
                    .Text($"{seq}. {proj.ProjectDescription}").FontSize(fs);
 
-                row.RelativeItem(W1).AlignCenter().AlignMiddle().Padding(2)
+                row.RelativeItem(W1).BorderRight(0.25f).BorderColor(Colors.Black)
+                   .AlignCenter().AlignMiddle().Padding(2)
                    .Text($"{proj.CityMunicipality}\n({proj.Province})").FontSize(fs);
 
-                row.RelativeItem(W2).AlignCenter().AlignMiddle().Padding(2)
+                row.RelativeItem(W2).BorderRight(0.25f).BorderColor(Colors.Black)
+                   .AlignCenter().AlignMiddle().Padding(2)
                    .Text(proj.CongressionalDistrict).FontSize(fs);
 
-                row.RelativeItem(W3).AlignCenter().AlignMiddle().Padding(2)
+                row.RelativeItem(W3).BorderRight(0.25f).BorderColor(Colors.Black)
+                   .AlignCenter().AlignMiddle().Padding(2)
                    .Text(proj.StartYear.ToString()).FontSize(fs);
 
-                row.RelativeItem(W4).AlignCenter().AlignMiddle().Padding(2)
+                row.RelativeItem(W4).BorderRight(0.25f).BorderColor(Colors.Black)
+                   .AlignCenter().AlignMiddle().Padding(2)
                    .Text(proj.EndYear.ToString()).FontSize(fs);
 
-                AmountCell(row, W5, proj.TotalCost, fs, false);
-                AmountCell(row, W6, proj.FirstYear, fs, false);
-                AmountCell(row, W7, proj.SecondYear, fs, false);
-                AmountCell(row, W8, proj.ThirdYear, fs, false);
-                AmountCell(row, W9, proj.FourthYear, fs, false);
-                AmountCell(row, W10, proj.FifthYear, fs, false);
-                AmountCell(row, W11, proj.SixthYear, fs, false);
-                AmountCell(row, W12, proj.LaterYears, fs, false);
+                AmountCell(row, W5,  proj.TotalCost,  fs, false, borderRight: true);
+                AmountCell(row, W6,  proj.FirstYear,  fs, false, borderRight: true);
+                AmountCell(row, W7,  proj.SecondYear, fs, false, borderRight: true);
+                AmountCell(row, W8,  proj.ThirdYear,  fs, false, borderRight: true);
+                AmountCell(row, W9,  proj.FourthYear, fs, false, borderRight: true);
+                AmountCell(row, W10, proj.FifthYear,  fs, false, borderRight: true);
+                AmountCell(row, W11, proj.SixthYear,  fs, false, borderRight: true);
+                AmountCell(row, W12, proj.LaterYears, fs, false, borderRight: true);
 
                 row.RelativeItem(W13).Text("");
             });
         }
 
-        static void AmountCell(RowDescriptor row, float weight, double value, float fontSize, bool bold)
+        static void AmountCell(RowDescriptor row, float weight, double value, float fontSize, bool bold, bool borderRight = false)
         {
-            row.RelativeItem(weight)
-               .AlignRight().PaddingRight(2).PaddingVertical(2)
+            var cell = row.RelativeItem(weight);
+            // Body cell right border uses 0.25pt (lighter than the 0.5pt header borders).
+            if (borderRight) cell = cell.BorderRight(0.25f).BorderColor(Colors.Black);
+            cell.AlignRight().PaddingRight(2).PaddingVertical(2)
                .Text(t =>
                {
                    var display = value == 0 ? "" : value.ToString("N0");
@@ -275,26 +282,26 @@ namespace ReportGeneration
                 row.RelativeItem().Column(col =>
                 {
                     col.Item().Text("Prepared By:").Bold().FontSize(7);
-                    col.Item().PaddingTop(30).PaddingHorizontal(10)
+                    col.Item().PaddingTop(30).PaddingHorizontal(20)
                         .LineHorizontal(0.5f).LineColor(Colors.Black);
                     col.Item().PaddingTop(4).AlignCenter()
-                        .Text("Planning Engineer").FontSize(7).Italic();
+                        .Text("Planning Engineer").FontSize(7);
                 });
                 row.RelativeItem().Column(col =>
                 {
                     col.Item().Text("Reviewed By:").Bold().FontSize(7);
-                    col.Item().PaddingTop(30).PaddingHorizontal(10)
+                    col.Item().PaddingTop(30).PaddingHorizontal(20)
                         .LineHorizontal(0.5f).LineColor(Colors.Black);
                     col.Item().PaddingTop(4).AlignCenter()
-                        .Text("Planning and Design Division Chief").FontSize(7).Italic();
+                        .Text("Planning and Design Division Chief").FontSize(7);
                 });
                 row.RelativeItem().Column(col =>
                 {
                     col.Item().Text("Approved By:").Bold().FontSize(7);
-                    col.Item().PaddingTop(30).PaddingHorizontal(10)
+                    col.Item().PaddingTop(30).PaddingHorizontal(20)
                         .LineHorizontal(0.5f).LineColor(Colors.Black);
                     col.Item().PaddingTop(4).AlignCenter()
-                        .Text("Regional Director").FontSize(7).Italic();
+                        .Text("Regional Director").FontSize(7);
                 });
             });
         }

@@ -1,4 +1,5 @@
-﻿using DBHelper.Models.Views;
+﻿using DBHelper.Models.Functions;
+using DBHelper.Models.Views;
 using Microsoft.EntityFrameworkCore;
 
 namespace DBHelper.Data
@@ -102,7 +103,6 @@ namespace DBHelper.Data
         public DbSet<Models.Views.Programs> vPrograms { get; set; }
         public DbSet<Models.Views.ProgramDetails> vProgramDetails { get; set; }
         public DbSet<Models.Views.Projects> vProjects { get; set; }
-        public DbSet<Models.Views.ProjectDetails> vProjectDetails { get; set; }
         public DbSet<Models.Views.ProjectGroups> vProjectGroups { get; set; }
         public DbSet<Models.Views.ProjectsInGroup> vProjectsInGroup { get; set; }
         public DbSet<Models.Views.AdminOperatingUnit> vAdminOperatingUnit { get; set; }
@@ -115,6 +115,8 @@ namespace DBHelper.Data
         #endregion
         #region Functions
         public DbSet<Models.Functions.ProjectsPerStage> fProjectsPerStage { get; set; }
+        public DbSet<Models.Functions.ProjectDetails> fProjectDetails { get; set; }
+        public DbSet<Models.Functions.PendingProjectRevisions> fPendingProjectRevisions { get; set; }
         #endregion
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

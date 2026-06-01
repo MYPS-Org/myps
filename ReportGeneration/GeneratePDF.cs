@@ -1,4 +1,5 @@
-﻿using QuestPDF.Fluent;
+﻿using Helpers;
+using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 
@@ -20,7 +21,7 @@ namespace ReportGeneration
             {
                 if (_logoCached is not null) return _logoCached;
                 var path = Path.Combine(
-                    AppContext.BaseDirectory, "Resources", "Images", "ReportLogo.png");
+                    Appsetting.Resources.Images, "ReportLogo.png");
                 _logoCached = File.ReadAllBytes(path);
             }
             return _logoCached;
@@ -53,12 +54,12 @@ namespace ReportGeneration
             string? subtitle = null,
             string? regionName = null)
         {
-            col.Item().Row(row =>
+            col.Item().AlignCenter().Row(row =>
             {
-                row.AutoItem().Width(40).Height(40)
+                row.AutoItem().AlignMiddle().Width(55).Height(55)
                    .Image(logo);
 
-                row.RelativeItem().PaddingLeft(8).AlignMiddle().Column(inner =>
+                row.AutoItem().PaddingLeft(8).AlignMiddle().Column(inner =>
                 {
                     inner.Item().AlignCenter()
                          .Text("Republic of the Philippines")
@@ -70,19 +71,15 @@ namespace ReportGeneration
                         inner.Item().AlignCenter()
                              .Text(regionName)
                              .FontFamily(FontFamily).FontSize(9).Bold();
+                    inner.Item().PaddingTop(4).AlignCenter()
+                         .Text(title)
+                         .FontFamily(FontFamily).FontSize(10).Bold();
+                    if (subtitle is not null)
+                        inner.Item().AlignCenter()
+                             .Text(subtitle)
+                             .FontFamily(FontFamily).FontSize(8);
                 });
-
-                row.AutoItem().Width(40);
             });
-
-            col.Item().PaddingTop(6).AlignCenter()
-               .Text(title)
-               .FontFamily(FontFamily).FontSize(10).Bold();
-
-            if (subtitle is not null)
-                col.Item().AlignCenter()
-                   .Text(subtitle)
-                   .FontFamily(FontFamily).FontSize(8);
         }
 
         /// <summary>Standard footer with MYPS timestamp + page numbers.</summary>

@@ -40,10 +40,10 @@
     <Folder Include="Controllers\Dashboard\" />
   </ItemGroup>
 
-  <ItemGroup>
+  <!--<ItemGroup>
     <None Include="..\Main\Resources\Images\ReportLogo.png" Link="Resources\Images\ReportLogo.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-  </ItemGroup>
+  </ItemGroup>-->
 
 </Project>

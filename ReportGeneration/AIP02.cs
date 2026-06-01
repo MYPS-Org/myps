@@ -40,7 +40,8 @@ namespace ReportGeneration
             return GeneratePDF.GenerateReport(page =>
             {
                 page.Size(PageSizes.A4);
-                page.Margin(25);
+                page.MarginVertical(25);
+                page.MarginHorizontal(15);
                 page.DefaultTextStyle(x =>
                     x.FontSize(DefaultFs).FontFamily(GeneratePDF.FontFamily).FontColor(Colors.Black));
 
@@ -75,21 +76,24 @@ namespace ReportGeneration
                 {
                     HdrCell(row, W0, "UACS / Sub Program");
                     HdrCell(row, W1, "Project Description");
-                    HdrCell(row, W2, "Amount\n(PHP)");
+                    HdrCell(row, W2, "Amount\n(PHP)", alignRight: true);
                     HdrCell(row, W3, "Operating Unit /\nImplementing Office");
                 });
-                // Underline separator
-                col.Item().LineHorizontal(0.5f).LineColor(Colors.Black);
+                // Underline separator (with extra space above to give header text breathing room)
+                col.Item().PaddingTop(4).PaddingBottom(4).LineHorizontal(0.5f).LineColor(Colors.Black);
             });
         }
 
-        /// <summary>Renders a single header cell with left-aligned bold text (no per-cell border).</summary>
-        static void HdrCell(RowDescriptor row, float weight, string text)
+        /// <summary>Renders a single header cell with bold text (no per-cell border).
+        /// Left-aligned by default; pass <paramref name="alignRight"/> = <c>true</c> for columns whose
+        /// body cells are right-aligned (e.g. Amount) so header and body line up.</summary>
+        static void HdrCell(RowDescriptor row, float weight, string text, bool alignRight = false)
         {
-            row.RelativeItem(weight)
-               .AlignLeft().AlignTop()
-               .Padding(2)
-               .Text(text).Bold().FontSize(7);
+            var cell = row.RelativeItem(weight).AlignTop();
+            cell = alignRight
+                ? cell.AlignRight().PaddingRight(2).PaddingVertical(2)
+                : cell.AlignLeft().Padding(2);
+            cell.Text(text).Bold().FontSize(7);
         }
 
         // -- TABLE CONTENT
@@ -178,11 +182,13 @@ namespace ReportGeneration
                        if (underline) { s.Underline(); if (arialUnderline) s.FontFamily("Arial"); }
                    });
 
+                // Count + total both underlined to visually mark summary subtotals
+                // (matches AIP / AIPOfficial styling).
                 row.RelativeItem(W2)
                    .AlignRight().PaddingRight(2).PaddingVertical(3)
                    .Text(t =>
                    {
-                       var s = t.Span($"{count}  projects").FontSize(fontSize);
+                       var s = t.Span($"{count}  projects").FontSize(fontSize).Underline();
                        if (boldData) s.Bold();
                    });
 
@@ -190,7 +196,7 @@ namespace ReportGeneration
                    .AlignRight().PaddingRight(2).PaddingVertical(3)
                    .Text(t =>
                    {
-                       var s = t.Span(FormatAmt(total)).FontSize(fontSize);
+                       var s = t.Span(FormatAmt(total)).FontSize(fontSize).Underline();
                        if (boldData) s.Bold();
                    });
 
@@ -206,7 +212,12 @@ namespace ReportGeneration
             {
                 row.RelativeItem(W0 + W1)
                    .PaddingTop(8).PaddingBottom(2).PaddingLeft(18)
-                   .Text(t => t.Span(label + "\n").FontSize(7.5f).Bold().Underline().FontFamily("Arial"));
+                   .Text(t => t.Span(label + "\n")
+                               .FontSize(7.5f)
+                               .Bold()
+                               .Underline()
+                               .FontFamily("Arial")
+                               .LineHeight(1.5f));
 
                 row.RelativeItem(W2)
                    .AlignRight().PaddingRight(2).PaddingVertical(2)
@@ -242,21 +253,25 @@ namespace ReportGeneration
                    .PaddingHorizontal(2).PaddingTop(4).PaddingBottom(1)
                    .Text(project.UACS ?? "").FontSize(7);
 
+                // Per-project total — underlined to match summary-row totals above.
                 row.RelativeItem(W2)
                    .AlignRight().PaddingRight(2).PaddingTop(4).PaddingBottom(1)
-                   .Text(FormatAmt(total)).FontSize(7.5f);
+                   .Text(t => t.Span(FormatAmt(total)).FontSize(7.5f).Underline());
 
                 row.RelativeItem(W3)
                    .PaddingHorizontal(2).PaddingTop(4).PaddingBottom(1)
-                   .Text(project.OperatingUnit + "/" + project.ImplementingOffice).FontSize(7);
+                   .Text(project.OperatingUnit + " / " + project.ImplementingOffice).FontSize(7);
             });
 
-            // Row 2: description
+            // Row 2: description limited to W0+W1 (up to Amount column).
+            // PaddingLeft(14) aligns the description with the ProjectId text in Row 1
+            // (Row 1 PaddingLeft(4) + ~10pt width of the "{seq}.  " bold prefix).
             col.Item().Row(row =>
             {
                 row.RelativeItem(W0 + W1)
-                   .PaddingLeft(6).PaddingTop(1).PaddingBottom(3)
-                   .Text(t => t.Span(project.Description + "\n").FontSize(7).Bold());
+                   .AlignLeft()
+                   .PaddingLeft(14).PaddingTop(1).PaddingBottom(3)
+                   .Text(t => t.Span(project.Description ?? "").FontSize(7).Bold());
 
                 row.RelativeItem(W2).Text("");
                 row.RelativeItem(W3).Text("");

@@ -1,9 +1,9 @@
 ﻿using DBHelper.Models.Enums;
 using System.ComponentModel.DataAnnotations;
 
-namespace DBHelper.Models.Views
+namespace DBHelper.Models.Functions
 {
-    public class ProjectDetails
+    public class PendingProjectRevisions
     {
         [Key]
         public int Id { get; set; }
@@ -11,6 +11,7 @@ namespace DBHelper.Models.Views
         public EnumProgramStage StageId { get; set; }
         public string? StageName { get; set; }
         public string? ProgramId { get; set; }
+        public string? ProgramUniqueId { get; set; }
         public string? ReferenceId { get; set; }
         public string ProjectId { get; set; } = string.Empty;
         public string? AlternateId { get; set; }

@@ -64,6 +64,17 @@ namespace WebAPI.Controllers
                     AUC: jimeneznr
                  */
                 string userId = User.FindFirstValue(ClaimTypes.NameIdentifier);// ?? "jimeneznr";
+                string HostName = User.FindFirstValue("HostName")!;
+                if (Appsetting.Environment != "Development" && string.IsNullOrEmpty(HostName))
+                {
+                    var response = new
+                    {
+                        status = 401,
+                        Title = "Invalid hostname",
+                        Message = "Hostname not found in the ip, make sure your working pc is under the organization domain."
+                    };
+                    context.Result = new UnauthorizedObjectResult(response);
+                }
                 if (!hasAllowAnonymous || IsAuthenticated || !string.IsNullOrEmpty(userId))
                 {
                     var user = _db.vUsers.FirstOrDefault(x => x.UserId == userId && x.IsActive == true);
