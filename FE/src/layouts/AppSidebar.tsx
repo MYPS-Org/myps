@@ -37,32 +37,24 @@ ServerStackIcon,
 UserIcon,
 UserGroupIcon,
 } from '@heroicons/react/20/solid'
-import { authService } from '../pages/login/Service' // for getting the service logout
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext' // for getting data friom context
 import Logo from '../assets/img/logo.png' // Adjust the import path as necessary
 import protectedRoutes from '../components/Routes'
 
-// If using React Router, you can import useLocation
-// import { useLocation } from 'react-router-dom'
+export default function SideBar() {
+const { user, ViewAccess, logout } = useAuth();
+const navigate = useNavigate();
 
 const handleLogout = async () => {
 	try {
-		await authService.logout();
-		setTimeout(() => {
-			window.location.href = '/login';
-		}, 1000);
+		await logout();
+		navigate('/login', { replace: true });
 	} catch (error) {
 		console.error('Logout failed:', error);
 		alert('Logout failed. Please try again.');
 	}
 }
-
-export default function SideBar() {
-// If using React Router, uncomment this to get current path
-// const location = useLocation()
-// const currentPath = location.pathname
-
-const { user, ViewAccess } = useAuth();
 
 // For now, you can manually set which item should be current
 // Change this to your actual routing logic or pass it as a prop

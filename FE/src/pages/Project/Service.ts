@@ -43,7 +43,7 @@ export const searchProgram = async (programName: string) => {
 export const getProjectEnums = async () => {
     try {
         const response = await httpClient.post<ProjectEnums>(`/Project/InitAddProject`, null, {
-            preloaderMessage: 'Loading project data ...'
+            preloaderMessage: 'Loading project data...'
         });
         return response;
     } catch (ErrorResponse) {
