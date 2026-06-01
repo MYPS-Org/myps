@@ -2100,6 +2100,7 @@ namespace WebAPI.Controllers.Projects
                         {
                             await _db.tProjectMajorWorkLocations.AddRangeAsync(NewLocationsForUpdatedItems.Select(item => new ProjectMajorWorkLocations
                             {
+                                ProgramUniqueId = Program.ProgramUniqueId!,
                                 ParentId = item.ParentId,
                                 StageName = item.StageName,
                                 InfraId = item.InfraId,
@@ -2158,6 +2159,7 @@ namespace WebAPI.Controllers.Projects
                     }));
                     await _db.tProjectMajorWorkLocations.AddRangeAsync(NewWorkLocations.Select(item => new ProjectMajorWorkLocations
                     {
+                        ProgramUniqueId = Project.ProgramUniqueId,
                         StageName = Program.StageName,
                         ParentId = item.ParentId,
                         InfraId = item.InfraId,

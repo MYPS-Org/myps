@@ -115,20 +115,20 @@ namespace WebAPI.Controllers.Revision
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+
         [HttpPost]
         public async Task<IActionResult> RequestReportAIP([FromBody] RequestReportAIPDTO dto)
         {
             try
             {
-                dto.ProgramId = "P_CO-PS-800_07152024_143901";
-                dto.StageName = "GAA-R";
-                dto.CategoryName = "OO1: Ensure Safe and Reliable National Road System";
-                dto.RegionName = "Region I";
-                dto.DistrictEngineeringOffice = "Ilocos Norte 1st District Engineering Office";
-                dto.ImplementingOfficeName = "";
-                dto.OperatingUnitName = "";
-                dto.LegislativeDistrictName = "";
+                //dto.ProgramId = "P_CO-PS-800_07152024_143901";
+                //dto.StageName = "GAA-R";
+                //dto.CategoryName = "OO1: Ensure Safe and Reliable National Road System";
+                //dto.RegionName = "Region I";
+                //dto.DistrictEngineeringOffice = "Ilocos Norte 1st District Engineering Office";
+                //dto.ImplementingOfficeName = "";
+                //dto.OperatingUnitName = "";
+                //dto.LegislativeDistrictName = "";
 
                 var programDetailsQuery = _db.vProgramDetails
                 .AsNoTracking()
@@ -197,20 +197,20 @@ namespace WebAPI.Controllers.Revision
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+
         [HttpPost]
         public async Task<IActionResult> RequestReportAIPOfficial([FromBody] RequestReportAIPDTO dto)
         {
             try
             {
-                dto.ProgramId = "P_CO-PS-800_07152024_143901";
-                dto.StageName = "GAA-R";
-                dto.CategoryName = "OO1: Ensure Safe and Reliable National Road System";
-                dto.RegionName = "Region I";
-                dto.DistrictEngineeringOffice = "Ilocos Norte 1st District Engineering Office";
-                dto.ImplementingOfficeName = "";
-                dto.OperatingUnitName = "";
-                dto.LegislativeDistrictName = "";
+                //dto.ProgramId = "P_CO-PS-800_07152024_143901";
+                //dto.StageName = "GAA-R";
+                //dto.CategoryName = "OO1: Ensure Safe and Reliable National Road System";
+                //dto.RegionName = "Region I";
+                //dto.DistrictEngineeringOffice = "Ilocos Norte 1st District Engineering Office";
+                //dto.ImplementingOfficeName = "";
+                //dto.OperatingUnitName = "";
+                //dto.LegislativeDistrictName = "";
                 var programDetailsQuery = _db.vProgramDetails
                     .AsNoTracking()
                     .Where(x => x.ProgramId == dto.ProgramId && x.StageName == dto.StageName);
@@ -268,20 +268,20 @@ namespace WebAPI.Controllers.Revision
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+
         [HttpPost]
         public async Task<IActionResult> RequestReportAIP02([FromBody] RequestReportAIPDTO dto)
         {
             try
             {
-                dto.ProgramId = "P_CO-PS-800_07152024_143901";
-                dto.StageName = "GAA-R";
-                dto.CategoryName = "OO1: Ensure Safe and Reliable National Road System";
-                dto.RegionName = "Region I";
-                dto.DistrictEngineeringOffice = "Ilocos Norte 1st District Engineering Office";
-                dto.ImplementingOfficeName = "";
-                dto.OperatingUnitName = "";
-                dto.LegislativeDistrictName = "";
+                //dto.ProgramId = "P_CO-PS-800_07152024_143901";
+                //dto.StageName = "GAA-R";
+                //dto.CategoryName = "OO1: Ensure Safe and Reliable National Road System";
+                //dto.RegionName = "Region I";
+                //dto.DistrictEngineeringOffice = "Ilocos Norte 1st District Engineering Office";
+                //dto.ImplementingOfficeName = "";
+                //dto.OperatingUnitName = "";
+                //dto.LegislativeDistrictName = "";
                 var ProgramDetails = _db.vProgramDetails
                 .AsNoTracking()
                 .Where(x => x.ProgramId == dto.ProgramId && x.StageName == dto.StageName);
@@ -374,14 +374,14 @@ namespace WebAPI.Controllers.Revision
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+
         [HttpPost]
         public async Task<IActionResult> RequestReportRBPComponents([FromBody] RequestReportRBPComponentsDTO dto)
         {
             try
             {
-                dto.ProgramId = "P_CO-PS-634_02172025_093955";
-                dto.RegionName = "Region I";
+                //dto.ProgramId = "P_CO-PS-634_02172025_093955";
+                //dto.RegionName = "Region I";
                 var ProgramDetails = _db.vPrograms
                 .AsNoTracking()
                 .Where(x => x.ProgramId == dto.ProgramId);
@@ -426,14 +426,14 @@ namespace WebAPI.Controllers.Revision
         #endregion
 
         #region RBPTier
-        [AllowAnonymous]
+
         [HttpPost]
         public async Task<IActionResult> RequestReportRBPTier(RequestReportRBPDTO dto)
         {
             try
             {
-                dto.ProgramId = "P_CO-PS-634_02172025_093955";
-                dto.RegionName = "Region I";
+                //dto.ProgramId = "P_CO-PS-634_02172025_093955";
+                //dto.RegionName = "Region I";
                 var ProgramDetails = _db.vPrograms
                 .AsNoTracking()
                 .Where(x => x.ProgramId == dto.ProgramId);
@@ -477,14 +477,14 @@ namespace WebAPI.Controllers.Revision
         #endregion
 
         #region RBP
-        [AllowAnonymous]
+
         [HttpPost]
         public async Task<IActionResult> RequestReportRBP(RequestReportRBPTierDTO dto)
         {
             try
             {
-                dto.ProgramId = "P_CO-PS-634_02172025_093955";
-                dto.RegionName = "Region I";
+                //dto.ProgramId = "P_CO-PS-634_02172025_093955";
+                //dto.RegionName = "Region I";
                 var ProgramDetails = _db.vPrograms
                 .AsNoTracking()
                 .Where(x => x.ProgramId == dto.ProgramId);
@@ -549,14 +549,14 @@ namespace WebAPI.Controllers.Revision
                 return ExceptionHandler(ex);
             }
         }
-        [AllowAnonymous]
+
         [HttpPost]
         public async Task<IActionResult> RequestReportRDIP([FromBody] RequestReportRDIPDTO dto)
         {
             try
             {
-                dto.ProgramId = "P_CO-PS-546_12172019_135556";
-                dto.RegionName = "Region I";
+                //dto.ProgramId = "P_CO-PS-546_12172019_135556";
+                //dto.RegionName = "Region I";
                 var ProgramDetails = _db.vPrograms
                 .AsNoTracking()
                 .Where(x => x.ProgramId == dto.ProgramId);
@@ -601,12 +601,14 @@ namespace WebAPI.Controllers.Revision
         #endregion
 
         #region Export Raw Projects
-        
+        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> RequestRawProjects([FromBody] RequestRawProjectsDTO dto)
         {
             try
             {
+                dto.ProgramId = "P_CO-PS-800_07152024_143901";
+                dto.StageName = "GAA-R";
                 var stages = await _db.tProjectStages
                     .AsNoTracking()
                     .Where(s => s.ProgramId == dto.ProgramId && s.StageName == dto.StageName)

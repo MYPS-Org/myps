@@ -745,6 +745,7 @@ namespace WebAPI.Controllers.Programs
                             NewComponentPerYear.AddRange(ComponentsPerYear.Select(x => new ProjectComponentCostPerYear()
                             {
                                 ComponentCostId = $"{x.ComponentCostId}_{NewProgramUniqueId}",
+                                ProgramUniqueId = NewProgramUniqueId,
                                 Year = x.Year,
                                 Amount = x.Amount,
                                 StageName = checkStageType.Name,
@@ -779,6 +780,7 @@ namespace WebAPI.Controllers.Programs
                             NewMajorLocations.AddRange(MajorLocations.Select(x => new ProjectMajorWorkLocations()
                             {
                                 ParentId = $"{x.ParentId}_{NewProgramUniqueId}",
+                                ProgramUniqueId = NewProgramUniqueId,
                                 StageName = checkStageType.Name,
                                 InfraId = x.InfraId,
                                 DetailedScope = x.DetailedScope,
