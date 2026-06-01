@@ -3,7 +3,7 @@
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.1;
   font-weight: 400;
-  font-size: 13px; /* Base font size - smaller for 1920px at 100% zoom */
+  font-size: 1rem;
 
   /*color-scheme: light;*/
   /* color: #1f2937;

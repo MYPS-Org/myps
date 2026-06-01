@@ -89,6 +89,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     useEffect(() => {
         validateSession();
+
+        const handlePageShow = (event: PageTransitionEvent) => {
+            if (event.persisted) {
+                validateSession();
+            }
+        };
+        window.addEventListener('pageshow', handlePageShow);
+        return () => window.removeEventListener('pageshow', handlePageShow);
     }, []);
 
     const logout = async () => {
