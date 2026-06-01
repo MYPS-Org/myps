@@ -53,6 +53,8 @@ export const Input = forwardRef(function Input(
     >
       <Headless.Input
         ref={ref}
+        min={props.type === 'date' || props.type === 'datetime-local' ? '1990-01-01' : undefined}
+        max={props.type === 'date' || props.type === 'datetime-local' ? '2100-12-31' : undefined}
         {...props}
         className={clsx([
           // Date classes
