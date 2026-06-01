@@ -10,6 +10,9 @@ namespace DBHelper.Models.Table
         [MaxLength(200)]
         public string ProgramRevisionId { get; set; } = string.Empty;
         [Required]
+        [MaxLength(200)]
+        public string ProgramUniqueId { get; set; } = string.Empty;
+        [Required]
         [MaxLength(100)]
         public string TransactionId { get; set; } = string.Empty;
         [Required]

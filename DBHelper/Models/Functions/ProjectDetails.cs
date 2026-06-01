@@ -1,7 +1,7 @@
 ﻿using DBHelper.Models.Enums;
 using System.ComponentModel.DataAnnotations;
 
-namespace DBHelper.Models.Views
+namespace DBHelper.Models.Functions
 {
     public class ProjectDetails
     {

@@ -1,7 +1,7 @@
 ﻿using DBHelper.Models.Enums;
 using DBHelper.Models.Extra;
+using DBHelper.Models.Functions;
 using DBHelper.Models.Table;
-using DBHelper.Models.Views;
 using System.ComponentModel.DataAnnotations;
 
 namespace WebAPI.Controllers.Revision

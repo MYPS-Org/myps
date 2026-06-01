@@ -501,7 +501,7 @@ namespace WebAPI.Controllers.Projects
             try
             {
                 var regionCode = _Session.ApplyFilter ? _Session.RegCode : null;
-                var Project = await _db.vProjectDetails
+                var Project = await _db.fProjectDetails
                 .FromSqlInterpolated($@"
                     SELECT * FROM fProjectDetails({dto.ProjectId}) fp 
                     WHERE fp.StageName = {dto.StageName} 
@@ -699,7 +699,7 @@ namespace WebAPI.Controllers.Projects
                 DateTime CurrentDate = Functions.CurrentDate();;
                 List<TransactionLog> transactionLogs = new List<TransactionLog>();
                 var regionCode = _Session.ApplyFilter ? _Session.RegCode : null;
-                var Project = await _db.vProjectDetails
+                var Project = await _db.fProjectDetails
                 .FromSqlInterpolated($@"
                     SELECT * FROM fProjectDetails({dto.ProjectDetails.ProjectId}) fp 
                     WHERE fp.StageName = {dto.ProjectDetails.StageName} 
@@ -1464,6 +1464,7 @@ namespace WebAPI.Controllers.Projects
                     HasCostUpdate = true;
                     var NewCostToAdd = NewComponentCostData.Select((item, index) => new DBHelper.Models.Table.ProjectComponentCost
                     {
+                        ProgramUniqueId = Project.,
                         StageName = Project.StageName!,
                         CostId = item.CostId,
                         ProjectId = Project.ProjectId!,
@@ -2359,7 +2360,7 @@ namespace WebAPI.Controllers.Projects
             try
             {
                 var regionCode = _Session.ApplyFilter ? _Session.RegCode : null;
-                var Project = await _db.vProjectDetails
+                var Project = await _db.fProjectDetails
                 .FromSqlInterpolated($@"
                     SELECT * FROM fProjectDetails({dto.ProjectId}) fp 
                     WHERE fp.StageName = {dto.StageName} 
@@ -2413,7 +2414,7 @@ namespace WebAPI.Controllers.Projects
             try
             {
                 var regionCode = _Session.ApplyFilter ? _Session.RegCode : null;
-                var Project = await _db.vProjectDetails
+                var Project = await _db.fProjectDetails
                 .FromSqlInterpolated($@"
                     SELECT * FROM fProjectDetails({dto.ProjectId}) fp 
                     WHERE fp.StageName = {dto.StageName} 
@@ -2468,7 +2469,7 @@ namespace WebAPI.Controllers.Projects
             try
             {
                 var regionCode = _Session.ApplyFilter ? _Session.RegCode : null;
-                var Project = await _db.vProjectDetails
+                var Project = await _db.fProjectDetails
                 .FromSqlInterpolated($@"
                     SELECT * FROM fProjectDetails({dto.ProjectId}) fp 
                     WHERE fp.StageName = {dto.StageName} 
@@ -2531,7 +2532,7 @@ namespace WebAPI.Controllers.Projects
             try
             {
                 var regionCode = _Session.ApplyFilter ? _Session.RegCode : null;
-                var Project = await _db.vProjectDetails
+                var Project = await _db.fProjectDetails
                 .FromSqlInterpolated($@"
                     SELECT * FROM fProjectDetails({dto.ProjectId}) fp 
                     WHERE fp.StageName = {dto.StageName} 
