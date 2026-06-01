@@ -54,29 +54,31 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const fullName = formData.AddedName
+      ? `${formData.Name} ${formData.AddedName}`
+      : formData.Name;
+    if (fullName.length > 100) {
+      showToast({
+        type: 'error',
+        message: 'Sub Name cannot exceed 100 characters.',
+      });
+      return;
+    }
     try {
-      const payload = {
-        ...formData, 
-        Name: formData.AddedName 
-          ? `${formData.Name} ${formData.AddedName}` 
-          : formData.Name 
-      }
+      const payload = { ...formData, Name: fullName };
       const response = await addProgram(payload);
-      onSubmit(formData); // Call the onSubmit prop with the form data
+      onSubmit(formData);
       const StageName = Stage.find(stage => stage.NameId === formData.Stage)?.Name || '';
       if (response && response.Data && response.Data.Id) {
         showToast({
           type: 'success',
           message: 'Program added successfully!',
         });
-        navigate(`programdetails/${response.Data.Id}:${StageName}`); // Navigate to the program details page
+        navigate(`programdetails/${response.Data.Id}:${StageName}`);
       }
-      handleReset(); // Reset the form data
-    } catch (error) {
-      showToast({
-        type: 'error',
-        message: 'Failed to add program. Please try again.',
-      });
+      handleReset();
+    } catch {
+      // httpClient interceptor already shows the API error toast
     }
   };
 
@@ -197,6 +199,7 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
                     onChange={(e) => handleChange('AddedName', e.target.value)}
                     className='w-full px-3 py-2 border-y border-r rounded-r-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
                     placeholder="Add Sub Name"
+                    maxLength={100}
                   />
                 </div>
               </div>
