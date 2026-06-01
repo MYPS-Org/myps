@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogTitle, DialogPanel } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
+import { DateInput } from '../../../components/tailwindui/date-input';
 import type { ComponentCost, ComponentCostPerYear, ComponentTypeEnum } from '../Model';
 import { XMarkIcon, PlusIcon, TrashIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -600,8 +601,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                                                 Start Date
                                                 {isStartDateInvalid && <span className="ml-1 text-red-500">(out of range)</span>}
                                             </label>
-                                            <input
-                                                type="date"
+                                            <DateInput
                                                 value={startDateStr}
                                                 onChange={(e) => handleEditPerYearCost(index, 'StartDate', e.target.value || null)}
                                                 min={yearMin || undefined}
@@ -619,8 +619,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                                                 End Date
                                                 {isEndDateInvalid && <span className="ml-1 text-red-500">(out of range)</span>}
                                             </label>
-                                            <input
-                                                type="date"
+                                            <DateInput
                                                 value={endDateStr}
                                                 onChange={(e) => handleEditPerYearCost(index, 'EndDate', e.target.value || null)}
                                                 min={startDateStr || yearMin || undefined}

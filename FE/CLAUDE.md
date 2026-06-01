@@ -53,6 +53,29 @@ Use the **UI label** of the field in validation/error messages, not the DTO prop
 
 Always add `maxLength` on `<input>` elements to match the backend's `[MaxLength]` constraint so users cannot type past the limit.
 
+### Date input range
+
+All date inputs must be limited to **1990-01-01 – 2100-12-31**.
+
+**Never use a bare `<input type="date">`.** Use the purpose-built wrappers instead — they inject the limits automatically so you never have to write `min`/`max` by hand.
+
+| Situation | Component to use | File |
+|-----------|-----------------|------|
+| Plain form date field | `<DateInput>` | `src/components/tailwindui/date-input.tsx` |
+| Report/filter date field (Tailwind UI style) | `<Input type="date">` | `src/components/tailwindui/input.tsx` |
+
+Both components default `min` to `1990-01-01` and `max` to `2100-12-31` via `prop ?? default`. Pass explicit `min`/`max` props only when you need a **tighter** range — they will override the defaults.
+
+**Exception — year-locked date ranges (ComponentCostDialog pattern):**
+When a date must stay within a specific fiscal year, pass year-derived `min`/`max` and use `undefined` as the no-year fallback:
+```tsx
+<DateInput
+  min={year ? `${year}-01-01` : undefined}   // undefined → DateInput uses 1990-01-01
+  max={year ? `${year}-12-31` : undefined}   // undefined → DateInput uses 2100-12-31
+/>
+```
+Do **not** hardcode `'1990-01-01'`/`'2100-12-31'` in the caller — let the component handle the fallback.
+
 ## Directory structure
 
 ```

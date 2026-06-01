@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
+import { DateInput } from '../../../components/tailwindui/date-input';
 import { XMarkIcon, DocumentArrowUpIcon, DocumentIcon } from '@heroicons/react/24/outline';
 import type { ProjectDetails, ComponentCost, MajorItemOfWork, MajorItemLocations, FundingProfile, ComponentCostPerYear } from '../../Project/Model';
 import { submitModificationRequest, updateRevisionRequestStatus } from '../Service';
@@ -308,8 +309,7 @@ const ReviseProjectDialog: React.FC<ReviseProjectDialogProps> = ({
                             <label className='w-1/3 block text-sm font-medium text-gray-700'>
                                 *Date of Approval :
                             </label>
-                            <input 
-                                type="date" 
+                            <DateInput
                                 value={approvalDate}
                                 onChange={(e) => setApprovalDate(e.target.value)}
                                 required

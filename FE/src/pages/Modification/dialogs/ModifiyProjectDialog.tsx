@@ -2,6 +2,7 @@ import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/16/solid';
 import { Button } from '../../../components/tailwindui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/tailwindui/table';
+import { DateInput } from '../../../components/tailwindui/date-input';
 
 interface AdjustProjectDialogProps {
     isOpen: boolean;
@@ -143,8 +144,7 @@ const AdjustProjectDialog: React.FC<AdjustProjectDialogProps> = ({
                                 <label className='w-1/3 block text-sm font-medium text-gray-700'>
                                     Date of Approval :
                                 </label>
-                                <input 
-                                    type="date" 
+                                <DateInput
                                     defaultValue={project.date}
                                     className='w-2/3 border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500'
                                 />

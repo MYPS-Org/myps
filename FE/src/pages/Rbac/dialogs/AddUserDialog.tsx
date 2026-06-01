@@ -22,6 +22,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
     email: '',
     userGroups: [] as string[],
     regCode: '',
+    regName: '',
     plantillaOffice: '',
     plantillaOfficeName: '',
     isActive: 'active',
@@ -76,6 +77,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
           userId: userData.Data.UserId || '',
           email: userData.Data.Email || '',
           regCode: userData.Data.RegCode || '',
+          regName: userData.Data.RegName || '',
           plantillaOffice: userData.Data.PlantillaOffice || '',
           plantillaOfficeName: userData.Data.PlantillaOfficeName || ''
         }));
@@ -101,6 +103,11 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
         setError('Please enter a valid Employee ID first');
         return;
       }
+
+      if (!formData.regName) {
+        showToast({ type: 'error', message: 'Plantilla Office is required.' });
+        return;
+      }
       
       // Map form data to Users interface
       const selectedGroupNames = availableGroups
@@ -116,6 +123,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
         Name: formData.name,
         Email: formData.email,
         RegCode: formData.regCode || '',
+        RegName: formData.regName || '',
         PlantillaOffice: formData.plantillaOffice,
         PlantillaOfficeName: formData.plantillaOfficeName,
         IsActive: formData.isActive === 'active',
@@ -151,6 +159,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
       email: '',
       userGroups: [],
       regCode: '',
+      regName: '',
       plantillaOffice: '',
       plantillaOfficeName: '',
       isActive: 'active',
@@ -173,7 +182,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
   };
 
   return (
-    <Dialog open={isOpen} onClose={onClose} className="relative z-50">
+    <Dialog open={isOpen} onClose={() => { resetForm(); onClose(); }} className="relative z-50">
       {/* Backdrop */}
       <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
       
@@ -185,7 +194,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
               Add New User
             </DialogTitle>
             <button
-              onClick={onClose}
+              onClick={() => { resetForm(); onClose(); }}
               className="text-gray-400 hover:text-gray-600"
             >
               <XMarkIcon className="w-6 h-6" />
@@ -296,8 +305,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
               </label>
               <input
                 type="text"
-                value={formData.plantillaOfficeName}
-                onChange={(e) => handleChange('plantillaOfficeName', e.target.value)}
+                value={formData.regName}
                 placeholder="Enter department"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-700"
                 disabled={true}
