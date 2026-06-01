@@ -422,7 +422,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                             disabled={!editable}
                                             error={!!errors.Category}
                                             allowClear={true}
-                                            searchPlaceholder="Search categories..."
+                                            searchPlaceholder="Search category..."
                                         />
                                         )}
                                     </EditableField>
