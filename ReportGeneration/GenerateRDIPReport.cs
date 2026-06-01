@@ -36,7 +36,9 @@ namespace ReportGeneration
             int FooterFs = 7;
             int LowestYear = data.Min(r => r.StartYear);
             var logo = GeneratePDF.GetLogo();
-            string fiscalYear = year > 0 ? $"FY {year} " : "";
+            // Title FY range spans the six discrete year columns: LowestYear .. LowestYear + 5.
+            // For example, if LowestYear = 2017 the title shows "FY 2017-2022 REGIONAL ...".
+            string fiscalYear = year > 0 ? $"FY {LowestYear}-{LowestYear + 5} " : "";
             string title = $"{fiscalYear}REGIONAL DEVELOPMENT INVESTMENT PLAN (RDIP)";
             string subtitle = "Chapter 19 - Accelerating Infrastructure Development";
             return GeneratePDF.GenerateReport(page =>

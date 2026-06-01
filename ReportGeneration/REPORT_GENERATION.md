@@ -404,27 +404,70 @@ Region          (bold, top border)
 | **File**     | `ReportGeneration\GenerateRDIPReport.cs`                                    |
 | **Class**    | `ReportGeneration.GenerateRDIP`                                             |
 | **Method**   | `GenerateReport(List<GenerateRDIP>)`                                        |
-| **Page**     | A4 Landscape, margin 25                                                     |
+| **Page**     | A4 Landscape, `Margin(25)`                                                  |
 | **Header**   | Plain centered title + region + chapter/agency lines — no DPWH logo        |
-| **Title**    | `Regional Development Investment Plan (RDIP)`                               |
+| **Title**    | `FY {LowestYear}-{LowestYear+5} REGIONAL DEVELOPMENT INVESTMENT PLAN (RDIP)` — covers all six discrete year columns; "FY …" prefix omitted when `year = 0` |
 | **Footer**   | `BuildFooter`                                                               |
 
-**Table Columns (14 relative columns):**
+**Column weights (14 relative columns):**
 
-| Col   | Content                          |
-|-------|----------------------------------|
-| 0     | Program/Sub-Program/Projects     |
-| 1     | Province/Municipality            |
-| 2     | Congressional District           |
-| 3     | Start Year                       |
-| 4     | End Year                         |
-| 5     | TOTAL Cost                       |
-| 6-11  | Year columns (dynamic, 6 years)  |
-| 12    | Later Years                      |
-| 13    | Remarks                          |
+```csharp
+const float W0=22, W1=7, W2=8, W3=5,    W4=5;
+const float W5=8,  W6=7, W7=7, W8=7,    W9=7;
+const float W10=7, W11=7, W12=6, W13=6;
+```
 
-**Dynamic year columns:** Column labels are computed from `data.Min(r => r.StartYear)` as the base year.  
-Header row 3 shows `(LowestYear)`, `(LowestYear+1)`, …, `(LowestYear+5)`, `(LowestYear+6...)`.
+| Col   | Content                          | Weight |
+|-------|----------------------------------|--------|
+| 0     | Program / Sub-Program / Projects | 22     |
+| 1     | Province / Municipality          | 7      |
+| 2     | Congressional District           | 8      |
+| 3     | Start Year                       | 5 *(widened from 3.5 to fit 7pt "Implementation" header)* |
+| 4     | End Year                         | 5 *(widened from 3.5 for same reason)* |
+| 5     | TOTAL Cost                       | 8      |
+| 6-11  | Year columns (dynamic, 6 years)  | 7 ea.  |
+| 12    | Later Years                      | 6      |
+| 13    | Remarks                          | 6 *(widened from 4 to fit 7pt "Remarks" header)* |
+
+**Header layout — 2 rows with vertical-merged corners:**
+
+```
+┌─────────────────┬──────────────────────────────────────────────────────────┬─────────┐
+│                 │   Spatial Coverage  │ Impl. Period │ Investment Cost     │         │
+│   Program /     ├──────────┬──────────┼──────┬───────┼──────┬──────┬──...──┤ Remarks │
+│ Sub-Program /   │ Province │ Cong.    │ Start│ End   │TOTAL │1st Yr│ ...   │         │
+│   Projects      │/Municip. │ District │ Year │ Year  │ Cost │(2017)│ ...   │         │
+└─────────────────┴──────────┴──────────┴──────┴───────┴──────┴──────┴──...──┴─────────┘
+```
+
+Implemented as an outer `Row(W0_cell, middle_Column, W13_cell)`:
+- **W0** (`Program/Sub-Program/Projects`) and **W13** (`Remarks`) are single tall cells, `AlignCenter().AlignMiddle()`, spanning both header rows.
+- The **middle** column nests two `Row`s with a `BorderBottom(0.5f)` between them to draw the horizontal divider between the group labels (Spatial Coverage / Implementation Period / Investment Cost) and the sub-labels.
+
+**Border thickness:**
+
+| Where                                       | Thickness | Color |
+|---------------------------------------------|-----------|-------|
+| Table outline (header outer + body outer)   | `0.5f`    | Black |
+| Header row dividers + column dividers       | `0.5f`    | Black |
+| **Body row top borders** (between data rows)| `0.25f`   | Black |
+| **Body cell right borders** (column dividers in body) | `0.25f` | Black |
+| `AmountCell` right border (when `borderRight: true`)  | `0.25f` | Black |
+
+> Rationale: header borders stay strong (0.5pt) so the column structure reads cleanly; body grid is hairline (0.25pt) so it doesn't visually compete with the data.
+
+**Font sizes:**
+
+| Element                            | Size | Bold |
+|------------------------------------|------|------|
+| Header cells (all)                 | 7 pt | yes  |
+| Top-level summary (Category)       | 7 pt | yes  |
+| Mid-level summary (Program / Sub-Program) | 6.5 pt | yes |
+| Activity summary                   | 6 pt | yes  |
+| Project rows                       | 6 pt | no   |
+| Default text style                 | 6 pt | no   |
+
+**Dynamic year columns:** Year labels in the lower middle row are computed from `data.Min(r => r.StartYear)` as the base year. The six year columns show `(LowestYear)` … `(LowestYear+5)`; the Later Years column shows `(LowestYear+6+)`.
 
 **Grouping hierarchy:**
 
@@ -461,6 +504,7 @@ Category        (bold, font 7)
 | `GetAIPReportDropdowns`       | POST   | JSON (dropdowns)    | Categories, Regions, OUs, DEOs, IOs, LDs          |
 | `RequestReportAIP`            | POST   | `application/pdf`   | `AIP.GenerateReport` — passes `year` + `stageName` dynamically |
 | `RequestReportAIP02`          | POST   | `application/pdf`   | `AIP02.GenerateReport`                            |
+| `RequestReportAIPOfficial`    | POST   | `application/pdf`   | `AIPOfficial.GenerateReport` — passes `year` + `stageName` dynamically; no project description row |
 | `GetRBPReportDropdowns`       | POST   | JSON (dropdowns)    | Regions filtered by session                       |
 | `RequestReportRBPComponents`  | POST   | `application/pdf`   | `RBPComponents.GenerateReport`                    |
 | `RequestReportRBP`            | POST   | `application/pdf`   | `GenerateRBP.GenerateReport`                      |

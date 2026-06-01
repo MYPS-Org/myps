@@ -7,6 +7,7 @@ namespace DBHelper.Models.Procedures
         [Key]
         [Required]
         public int Id { get; set; }
+        public int ComponentSortKey { get; set; }
         public string? ProjectComponentId { get; set; }
         public string? Description { get; set; }
         public string? ScopeDescription { get; set; }
