@@ -1464,7 +1464,7 @@ namespace WebAPI.Controllers.Projects
                     HasCostUpdate = true;
                     var NewCostToAdd = NewComponentCostData.Select((item, index) => new DBHelper.Models.Table.ProjectComponentCost
                     {
-                        ProgramUniqueId = Project.,
+                        ProgramUniqueId = Project.ProgramUniqueId!,
                         StageName = Project.StageName!,
                         CostId = item.CostId,
                         ProjectId = Project.ProjectId!,
@@ -1479,6 +1479,7 @@ namespace WebAPI.Controllers.Projects
                     var CostReferenceId = NewCostToAdd.Select(x => x.CostId);
                     var NewComponentCostYear = dto.ComponentCostPerYear.Where(x => x.Id == 0 && CostReferenceId.Contains(x.ComponentCostId)).Select(x => new DBHelper.Models.Table.ProjectComponentCostPerYear
                     {
+                        ProgramUniqueId = Project.ProgramUniqueId!,
                         ComponentCostId = x.ComponentCostId!,
                         Amount = x.Amount,
                         Year = x.Year,
@@ -1677,6 +1678,7 @@ namespace WebAPI.Controllers.Projects
                 {
                     var NewCostYearToAdd = NewComponentCostYearData.Select(x => new DBHelper.Models.Table.ProjectComponentCostPerYear
                     {
+                        ProgramUniqueId = Project.ProgramUniqueId!,
                         ComponentCostId = x.ComponentCostId!,
                         Amount = x.Amount,
                         Year = x.Year,
@@ -2143,6 +2145,7 @@ namespace WebAPI.Controllers.Projects
                     }
                     await _db.tProjectMajorWorkItem.AddRangeAsync(newMajorItems.Select(item => new ProjectMajorWorkItem
                     {
+                        ProgramUniqueId = Project.ProgramUniqueId!,
                         StageName = Program.StageName,
                         ProjectId = Project.ProjectId!,
                         ReferenceId = item.ReferenceId,
@@ -2297,6 +2300,7 @@ namespace WebAPI.Controllers.Projects
                 {
                     var addFunding = dto.FundingProfile.Select(x => new ProjectFundingProfile
                     {
+                        ProgramUniqueId = Project.ProgramUniqueId!,
                         StageName = Project.StageName,
                         ProjectId = dto.ProjectDetails!.ProjectId!,
                         Source = x.Source,

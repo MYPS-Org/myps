@@ -11,6 +11,7 @@ namespace DBHelper.Models.Functions
         public EnumProgramStage StageId { get; set; }
         public string? StageName { get; set; }
         public string? ProgramId { get; set; }
+        public string? ProgramUniqueId { get; set; }
         public string? ReferenceId { get; set; }
         public string ProjectId { get; set; } = string.Empty;
         public string? AlternateId { get; set; }

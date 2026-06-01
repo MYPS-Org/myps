@@ -715,7 +715,10 @@ namespace WebAPI.Controllers.Programs
                     var FundingProfiles = await _db.tProjectFundingProfile.AsNoTracking().Where(x => projectIds.Contains(x.ProjectId) && x.StageName == checkStage.StageName).ToListAsync();
 
                     var SupportingDocuments = await _db.tProjectSupportingDocs.AsNoTracking().Where(x => projectIds.Contains(x.ProjectId) && x.StageName == checkStage.StageName).ToListAsync();
-
+                    string HostName = User.FindFirstValue("HostName")!;
+                    string Date = CurrentDate.ToString("MMddyyyy");
+                    string Time = CurrentDate.ToString("HHmmss");
+                    string NewProgramUniqueId = $"{HostName}_{Date}_{Time}";
                     List<ProjectRevisions> NewRevisions = new List<ProjectRevisions>();
                     if (ProjectRevisions.Count > 0)
                     {
@@ -728,7 +731,8 @@ namespace WebAPI.Controllers.Programs
                             NewComponent.AddRange(Components.Select(x => new DBHelper.Models.Table.ProjectComponentCost()
                             {
                                 ProjectId = x.ProjectId.Replace("BP", FirstSegment),
-                                CostId = x.CostId,
+                                ProgramUniqueId = NewProgramUniqueId,
+                                CostId = $"{x.CostId}_{NewProgramUniqueId}",
                                 ComponentType = x.ComponentType,
                                 ComponentId = x.ComponentId,
                                 Description = x.Description,
@@ -740,7 +744,7 @@ namespace WebAPI.Controllers.Programs
                             }));
                             NewComponentPerYear.AddRange(ComponentsPerYear.Select(x => new ProjectComponentCostPerYear()
                             {
-                                ComponentCostId = x.ComponentCostId,
+                                ComponentCostId = $"{x.ComponentCostId}_{NewProgramUniqueId}",
                                 Year = x.Year,
                                 Amount = x.Amount,
                                 StageName = checkStageType.Name,
@@ -761,7 +765,8 @@ namespace WebAPI.Controllers.Programs
                             NewMajorItems.AddRange(MajorItems.Select(x => new ProjectMajorWorkItem()
                             {
                                 ProjectId = x.ProjectId.Replace("BP", FirstSegment),
-                                ReferenceId = x.ReferenceId.UpdateReferenceId(FirstSegment),
+                                ProgramUniqueId = NewProgramUniqueId,
+                                ReferenceId = $"{x.ReferenceId}_{NewProgramUniqueId}",
                                 ComponentId = x.ComponentId,
                                 YearOfWork = x.YearOfWork,
                                 WorkTypeId = x.WorkTypeId,
@@ -773,7 +778,7 @@ namespace WebAPI.Controllers.Programs
                             }));
                             NewMajorLocations.AddRange(MajorLocations.Select(x => new ProjectMajorWorkLocations()
                             {
-                                ParentId = x.ParentId.UpdateReferenceId(FirstSegment),
+                                ParentId = $"{x.ParentId}_{NewProgramUniqueId}",
                                 StageName = checkStageType.Name,
                                 InfraId = x.InfraId,
                                 DetailedScope = x.DetailedScope,
@@ -804,6 +809,7 @@ namespace WebAPI.Controllers.Programs
                             NewFundingProfiles.AddRange(FundingProfiles.Select(x => new ProjectFundingProfile()
                             {
                                 ProjectId = x.ProjectId.Replace("BP", FirstSegment),
+                                ProgramUniqueId = NewProgramUniqueId,
                                 Source = x.Source,
                                 Agreement = x.Agreement,
                                 Amount = x.Amount,
@@ -839,6 +845,7 @@ namespace WebAPI.Controllers.Programs
                         NewRevisions.AddRange(ProjectRevisions.Select(project => new ProjectRevisions()
                         {
                             ProgramId = project.ProgramId,
+                            ProgramUniqueId = NewProgramUniqueId,
                             ReferenceId = project.ReferenceId,
                             ProjectId = project.ProjectId.Replace("BP", FirstSegment),
                             AlternateId = project.AlternateId,
@@ -898,6 +905,7 @@ namespace WebAPI.Controllers.Programs
                         var newStages = NewRevisions.Select(pr => new ProjectStages
                         {
                             ProgramId = dto.ProgramId,
+                            ProgramUniqueId = NewProgramUniqueId,
                             ReferenceId = pr.ReferenceId,
                             RevisionId = pr.Id,
                             StageId = (EnumProgramStage)checkStageType.NameId,//checkStage.StageId.UpdateStage(),
@@ -911,6 +919,7 @@ namespace WebAPI.Controllers.Programs
                         var newProgramRevision = new ProgramRevisions()
                         {
                             ProgramId = dto.ProgramId,
+                            ProgramUniqueId = NewProgramUniqueId,
                             RevisionNumber = 1,
                             Name = dto.Name,
                             DataSecurityGroup = checkRevisions.DataSecurityGroup,
@@ -928,6 +937,7 @@ namespace WebAPI.Controllers.Programs
                         #region Program Stages
                         var newStage = new ProgramStages()
                         {
+                            ProgramUniqueId = NewProgramUniqueId,
                             ProgramId = dto.ProgramId,
                             RevisionId = newProgramRevision.Id,
                             StageId = dto.Stage,
