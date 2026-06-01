@@ -30,8 +30,10 @@ const LoginForm: React.FC = () => {
 	  await authService.login(credentials);
 	  await validateSession();
 	} catch (err: any) {
-	  const message = err.Message || err.message || 'Login failed. Please try again.';
-	  showToast({ type: 'error', message });
+	  if (!err.Message) {
+	    const raw = err.message || 'Login failed. Please try again.';
+	    showToast({ type: 'error', message: raw.trimEnd().endsWith('.') ? raw : `${raw}.` });
+	  }
 	} finally {
 	  setIsLoading(false);
 	}
