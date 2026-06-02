@@ -105,9 +105,14 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
       }
 
       if (!formData.regName) {
-        showToast({ type: 'error', message: 'Plantilla Office is required.' });
+        showToast({ type: 'error', message: 'Region is required.' });
         return;
       }
+      // Commented for since data in admin areas is still not fully integrated with plantilla office data
+      // if (!formData.plantillaOfficeName) {
+      //   showToast({ type: 'error', message: 'Plantilla Office is required.' });
+      //   return;
+      // }
       
       // Map form data to Users interface
       const selectedGroupNames = availableGroups
@@ -305,7 +310,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
               </label>
               <input
                 type="text"
-                value={formData.regName}
+                value={formData.plantillaOfficeName}
                 placeholder="Enter department"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-700"
                 disabled={true}
