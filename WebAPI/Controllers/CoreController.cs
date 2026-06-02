@@ -69,7 +69,7 @@ namespace WebAPI.Controllers
                     var user = _db.vUsers.FirstOrDefault(x => x.UserId == userId && x.IsActive == true);
                     if(user == null)
                     {
-                        context.Result = UnauthorizedUser();
+                        context.Result = UnauthorizedUser("Your session has expired. Please sign in to continue.");
                         return;
                     }
                     _Session = user;
@@ -169,11 +169,11 @@ namespace WebAPI.Controllers
         }
 
         [NonAction]
-        public IActionResult UnauthorizedUser()
+        public IActionResult UnauthorizedUser(string UnauthMessage = "Unauthorized.")
         {
             var responseObj = new
             {
-                Message = "Unauthorized.",
+                Message = UnauthMessage,
                 Data = new { Authenticated = false, User = new { } },
                 Redirect = "/login"
             };
