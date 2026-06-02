@@ -151,7 +151,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({
 								{user.RegName?.trim() && <Badge color="zinc" className="max-w-full truncate block" title={user.RegName.trim()}>{user.RegName.trim()}</Badge>}
 							</TableCell>
 							<TableCell className="max-w-[160px]">
-								{user.PlantillaOffice?.trim() && <Badge color="blue" className="max-w-full truncate block" title={user.PlantillaOffice.trim()}>{user.PlantillaOffice.trim()}</Badge>}
+								{user.PlantillaOfficeName?.trim() && <Badge color="blue" className="max-w-full truncate block" title={user.PlantillaOfficeName.trim()}>{user.PlantillaOfficeName.trim()}</Badge>}
 							</TableCell>
 							<TableCell>
 								{getStatusBadge(user.IsActive ?? false)}
