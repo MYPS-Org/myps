@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Dialog, DialogTitle, DialogPanel } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
+import { DateInput } from '../../../components/tailwindui/date-input';
 import type { ComponentCost, ComponentCostPerYear, ComponentTypeEnum } from '../../Project/Model';
 import type { ProgramList } from '../../Program/Model';
 import { XMarkIcon, PlusIcon, TrashIcon, SparklesIcon } from '@heroicons/react/24/outline';
@@ -688,8 +689,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                                             <label className="block text-xs font-medium text-gray-700 mb-1">
                                                 Start Date
                                             </label>
-                                            <input
-                                                type="date"
+                                            <DateInput
                                                 value={cost.StartDate ? cost.StartDate.split('T')[0] : ''}
                                                 onChange={(e) => handleEditPerYearCost(index, 'StartDate', e.target.value || null)}
                                                 onKeyDown={(e) => e.preventDefault()}
@@ -703,8 +703,7 @@ const ComponentCostDialog: React.FC<ComponentCostDialogProps> = ({
                                             <label className="block text-xs font-medium text-gray-700 mb-1">
                                                 End Date
                                             </label>
-                                            <input
-                                                type="date"
+                                            <DateInput
                                                 value={cost.EndDate ? cost.EndDate.split('T')[0] : ''}
                                                 onChange={(e) => handleEditPerYearCost(index, 'EndDate', e.target.value || null)}
                                                 onKeyDown={(e) => e.preventDefault()}

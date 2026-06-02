@@ -28,6 +28,8 @@ export interface HttpClientConfig {
     defaultHeaders?: Record<string, string>;
     withCredentials?: boolean;
 }
+const withPeriod = (msg: string) => msg.trimEnd().endsWith('.') ? msg : `${msg}.`;
+
 class HttpClient {
     private client: AxiosInstance;
     private preloaderCallbacks: ((state: PreloaderState) => void)[] = [];
@@ -120,7 +122,7 @@ class HttpClient {
                     if (this.toastCallback) {
                         this.toastCallback({
                             type: 'error',
-                            message: errorResponse.Message || 'An unknown error occurred. Please try again later.'
+                            message: withPeriod(errorResponse.Message || 'An unknown error occurred. Please try again later.')
                         });
                     }
                     
@@ -141,7 +143,7 @@ class HttpClient {
                     if (this.toastCallback) {
                         this.toastCallback({
                             type: 'error',
-                            message: error.response.data.Message
+                            message: withPeriod(error.response.data.Message)
                         });
                     }
                     const errorResponse: ErrorResponse = {

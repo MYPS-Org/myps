@@ -30,8 +30,10 @@ const LoginForm: React.FC = () => {
 	  await authService.login(credentials);
 	  await validateSession();
 	} catch (err: any) {
-	  const message = err.Message || err.message || 'Login failed. Please try again.';
-	  showToast({ type: 'error', message });
+	  if (!err.Message) {
+	    const raw = err.message || 'Login failed. Please try again.';
+	    showToast({ type: 'error', message: raw.trimEnd().endsWith('.') ? raw : `${raw}.` });
+	  }
 	} finally {
 	  setIsLoading(false);
 	}
@@ -65,9 +67,10 @@ const LoginForm: React.FC = () => {
 						value={credentials.UserName}
 						onChange={handleInputChange('UserName')}
 						autoComplete="username"
+						maxLength={50}
 						disabled={isLoading}
 						className={`w-full !text-black rounded-lg px-4 py-3 focus:ring-2 focus:ring-violet-500 ${submitted && !credentials.UserName ? 'border-2 border-red-500 ring-2 ring-red-300' : 'border border-gray-200'}`}
-						placeholder="exaple@email.com"
+						placeholder="example@email.com"
 					/>
 					{submitted && !credentials.UserName && <p className="mt-1 text-xs text-red-500">Username is required</p>}
 					</div>
@@ -78,6 +81,7 @@ const LoginForm: React.FC = () => {
 						value={credentials.Password}
 						onChange={handleInputChange('Password')}
 						autoComplete="current-password"
+						maxLength={64}
 						disabled={isLoading}
 						className={`w-full text-black rounded-lg px-4 py-3 focus:ring-2 focus:ring-violet-500 ${submitted && !credentials.Password ? 'border-2 border-red-500 ring-2 ring-red-300' : 'border border-gray-200'}`}
 						placeholder="••••••••••••"
