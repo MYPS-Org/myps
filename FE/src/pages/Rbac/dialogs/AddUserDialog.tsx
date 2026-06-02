@@ -251,6 +251,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
                   placeholder="Enter user ID"
                   className={"w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-700" 
                     + (formData.userId ? '' : ' bg-gray-100')}
+                  disabled={true}
                   readOnly={!isDataLoaded || isLoading}
                   required
                 />
@@ -283,6 +284,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
                   placeholder="Enter region code"
                   className={"w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-700" 
                     + (formData.regCode ? ' bg-gray-100' : '')}
+                  disabled={true}
                   readOnly={!isDataLoaded || isLoading}
                   required
                 />
