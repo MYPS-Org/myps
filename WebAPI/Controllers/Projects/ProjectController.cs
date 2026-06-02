@@ -50,7 +50,7 @@ namespace WebAPI.Controllers.Projects
             {
                 if (dto.Filters == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Expected Parametes missing!", Title = "Parameter Error" });
+                    return new BadRequestObjectResult(new { Message = "Expected Parameters missing.", Title = "Parameter Error" });
                 }
                 if (!string.IsNullOrEmpty(dto.SortField))
                 {
@@ -59,7 +59,7 @@ namespace WebAPI.Controllers.Projects
                         .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
                     if (!isValid)
                     {
-                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort!", Title = "Parameter Error" });
+                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort.", Title = "Parameter Error" });
                     }
                 }
                 dto.sortDirection = string.IsNullOrEmpty(dto.sortDirection.ToString()) ? sortDirectionList.DESC : dto.sortDirection;
@@ -67,7 +67,7 @@ namespace WebAPI.Controllers.Projects
                 bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!);
                 if (!isValidDirection)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed!", Title = "Invalid sort option" });
+                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed.", Title = "Invalid sort option" });
                 }
                 // Validate pagination parameters
                 if (dto.page < 1) dto.page = 1;
@@ -167,7 +167,7 @@ namespace WebAPI.Controllers.Projects
                     var getLatest = Stage.OrderByDescending(x => x.Id).FirstOrDefault();
                     if(getLatest != null && getLatest.Region != _Session.RegCode)
                     {
-                        return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
+                        return new BadRequestObjectResult(new { Message = "Project not found.", Title = "Project Not Found" });
                     }
                 }
                 return Ok(new
@@ -295,11 +295,11 @@ namespace WebAPI.Controllers.Projects
                 #region Field Validation
                 if (dto.Feasibility == 0)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Feasibility is required!", Title = "Invalid Feasibility" });
+                    return new BadRequestObjectResult(new { Message = $"Feasibility is required.", Title = "Invalid Feasibility" });
                 }
                 if (dto.ImplementationMode == 0)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Implementation Mode is required!", Title = "Invalid Implementation Mode" });
+                    return new BadRequestObjectResult(new { Message = $"Implementation Mode is required.", Title = "Invalid Implementation Mode" });
                 }
                 var ValidateProject = await _db.tProjectStages.AsNoTracking().Where(x => x.ProgramId == dto.ProgramId && x.StageName == dto.StageName).ToListAsync();
                 if (ValidateProject != null && !dto.IsAllowedToProceed)
@@ -314,91 +314,91 @@ namespace WebAPI.Controllers.Projects
                 var Program = await _db.vPrograms.FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
                 if (Program == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Selected Program not found!", Title = "Program Not Found" });
+                    return new BadRequestObjectResult(new { Message = "Selected Program not found.", Title = "Program Not Found" });
                 }
                 var ProgramDetails = await _db.vProgramDetails.FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId && x.StageName == Program.StageName);
                 if(ProgramDetails == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Selected Program details not found!", Title = "Program Details Not Found" });
+                    return new BadRequestObjectResult(new { Message = "Selected Program details not found.", Title = "Program Details Not Found" });
                 }
                 if (ProgramDetails.IsPublished == true)
                 {
-                    return new BadRequestObjectResult(new { Message = "Selected Program is already published!", Title = "Program Already Published" });
+                    return new BadRequestObjectResult(new { Message = "Selected Program is already published.", Title = "Program Already Published" });
                 }
                 var Category = await _db.tOptionProjectCategory.FirstOrDefaultAsync(x => x.CategoryId == dto.Category && (x.ValidUntil == 0 || x.ValidUntil >= CurrentDate.Year));
                 if(Category == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Selected Category '{dto.Category}' is not valid!", Title = "Invalid Category" });
+                    return new BadRequestObjectResult(new { Message = $"Selected Category '{dto.Category}' is not valid.", Title = "Invalid Category" });
                 }
                 var Thrust = await _db.tProjectThrustLists.FirstOrDefaultAsync(x => x.PAPKey == dto.Thrust);
                 if(Thrust == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Selected Thrust '{dto.Thrust}' is not valid!", Title = "Invalid Thrust" });
+                    return new BadRequestObjectResult(new { Message = $"Selected Thrust '{dto.Thrust}' is not valid.", Title = "Invalid Thrust" });
                 }
                 var Origin = await _db.tOptionProjectOrigin.FirstOrDefaultAsync(x => x.NameId == dto.Origin);
                 if(Origin == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Selected Origin '{dto.Origin}' is not valid!", Title = "Invalid Origin" });
+                    return new BadRequestObjectResult(new { Message = $"Selected Origin '{dto.Origin}' is not valid.", Title = "Invalid Origin" });
                 }
                 var City = await _db.tOptionAdminAreaCityMunicipality.FirstOrDefaultAsync(x => x.GdbId == dto.City);
                 if(City == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Selected City '{dto.City}' is not valid!", Title = "Invalid City" });
+                    return new BadRequestObjectResult(new { Message = $"Selected City '{dto.City}' is not valid.", Title = "Invalid City" });
                 }
                 var LD = await _db.tOptionAdminAreaCongressionalDistrict.FirstOrDefaultAsync(x => x.GdbId.ToString() == dto.LegislativeDistrict);
                 if(LD == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Selected Legislative District '{dto.LegislativeDistrict}' is not valid!", Title = "Invalid Legislative District" });
+                    return new BadRequestObjectResult(new { Message = $"Selected Legislative District '{dto.LegislativeDistrict}' is not valid.", Title = "Invalid Legislative District" });
                 }
                 var SelectedDeo = await _db.tOptionAdminAreaDistrictEngineeringOffice.FirstOrDefaultAsync(x => x.ParticipantId == dto.DEO);
                 if (SelectedDeo == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Selected DEO '{dto.DEO}' is not valid!", Title = "Invalid DEO" });
+                    return new BadRequestObjectResult(new { Message = $"Selected DEO '{dto.DEO}' is not valid.", Title = "Invalid DEO" });
                 }
                 var SelectedRegion = await _db.tOptionAdminAreaRegion.FirstOrDefaultAsync(x => x.ParticipantId == SelectedDeo.RegionParticipantId);
                 if (SelectedRegion == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Selected Region '{dto.Region}' is not valid!", Title = "Invalid Region" });
+                    return new BadRequestObjectResult(new { Message = $"Selected Region '{dto.Region}' is not valid.", Title = "Invalid Region" });
                 }
                 var OperatingUnit = await _db.vAdminOperatingUnit.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == dto.OperatingUnit);
                 if(OperatingUnit == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Selected Operating Unit '{dto.OperatingUnit}' is not valid!", Title = "Invalid Operating Unit" });
+                    return new BadRequestObjectResult(new { Message = $"Selected Operating Unit '{dto.OperatingUnit}' is not valid.", Title = "Invalid Operating Unit" });
                 }
                 var IO = await _db.vAdminImplementingOffice.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == dto.ImplementingOffice);
                 if(IO == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Selected Implementing Office '{dto.ImplementingOffice}' is not valid!", Title = "Invalid Implementing Office" });
+                    return new BadRequestObjectResult(new { Message = $"Selected Implementing Office '{dto.ImplementingOffice}' is not valid.", Title = "Invalid Implementing Office" });
                 }
                 var Feasib = await _db.tOptionProjectFeasibilityStudy.FirstOrDefaultAsync(x => x.NameId == dto.Feasibility);
                 if(Feasib == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Selected Feasibility '{dto.Feasibility}' is not valid!", Title = "Invalid Feasibility" });
+                    return new BadRequestObjectResult(new { Message = $"Selected Feasibility '{dto.Feasibility}' is not valid.", Title = "Invalid Feasibility" });
                 }
                 var Agency = await _db.tOptionProjectAgency.FirstOrDefaultAsync(x => x.NameId == dto.Agency);
                 if(Agency == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Selected Agency '{dto.Agency}' is not valid!", Title = "Invalid Agency" });
+                    return new BadRequestObjectResult(new { Message = $"Selected Agency '{dto.Agency}' is not valid.", Title = "Invalid Agency" });
                 }
                 var ImplementationMode = await _db.tOptionProjectImplementationMode.FirstOrDefaultAsync(x => x.NameId == dto.ImplementationMode);
                 if(ImplementationMode == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Selected Implementation Mode '{dto.ImplementationMode}' is not valid!", Title = "Invalid Implementation Mode" });
+                    return new BadRequestObjectResult(new { Message = $"Selected Implementation Mode '{dto.ImplementationMode}' is not valid.", Title = "Invalid Implementation Mode" });
                 }
                 var EmergencyMode = await _db.tOptionProjectEmergencyMode.FirstOrDefaultAsync(x => x.NameId == dto.EmergencyMode);
                 if(EmergencyMode == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Selected Emergency Mode '{dto.EmergencyMode}' is not valid!", Title = "Invalid Emergency Mode" });
+                    return new BadRequestObjectResult(new { Message = $"Selected Emergency Mode '{dto.EmergencyMode}' is not valid.", Title = "Invalid Emergency Mode" });
                 }
                 var RowAvailable = await _db.tOptionProjectRowAvailable.FirstOrDefaultAsync(x => x.NameId == dto.EmergencyMode);
                 if(RowAvailable == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Selected Row Available '{dto.EmergencyMode}' is not valid!", Title = "Invalid Row Available" });
+                    return new BadRequestObjectResult(new { Message = $"Selected Row Available '{dto.RowAvailable}' is not valid.", Title = "Invalid Row Available" });
                 }
                 var DetailedDesign = await _db.tOptionProjectDetailedDesign.FirstOrDefaultAsync(x => x.NameId == dto.EmergencyMode);
                 if(DetailedDesign == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Selected Detailed Design '{dto.EmergencyMode}' is not valid!", Title = "Invalid Detailed Design" });
+                    return new BadRequestObjectResult(new { Message = $"Selected Detailed Design '{dto.EmergencyMode}' is not valid.", Title = "Invalid Detailed Design" });
                 }
                 #endregion
                 #region Generate ProjectId
@@ -511,21 +511,21 @@ namespace WebAPI.Controllers.Projects
                 .FirstOrDefaultAsync();
                 if (Project == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
+                    return new BadRequestObjectResult(new { Message = "Project not found.", Title = "Project Not Found" });
                 }
                 if(_Session.ApplyFilter && Project.Region != _Session.RegCode)
                 {
-                    return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
+                    return new BadRequestObjectResult(new { Message = "Project not found.", Title = "Project Not Found" });
                 }
                 var CurrentProgramVersion = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == Project.ProgramId);
                 if (CurrentProgramVersion == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"No program is associated with the Project ID {dto.ProjectId}. Please contact administrator!", Title = "Program Not Associated" });
+                    return new BadRequestObjectResult(new { Message = $"No program is associated with the Project ID {dto.ProjectId}. Please contact administrator.", Title = "Program Not Associated" });
                 }
                 var Program = await _db.vProgramDetails.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == Project.ProgramId && x.StageName == dto.StageName);
                 if (Program == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Program not found for this project!", Title = "Program Not Found" });
+                    return new BadRequestObjectResult(new { Message = "Program not found for this project.", Title = "Program Not Found" });
                 }
                 int CurrentYear = (int)Functions.CurrentDate().Year;
                 var Doc = await _db.tProjectSupportingDocs.AsNoTracking().Where(x => x.ProjectId == Project.ProjectId && x.StageName == Project.StageName).ToListAsync();
@@ -709,12 +709,12 @@ namespace WebAPI.Controllers.Projects
                 .FirstOrDefaultAsync();
                 if (Project == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
+                    return new BadRequestObjectResult(new { Message = "Project not found.", Title = "Project Not Found" });
                 }
                 var CurrentProgramVersion = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProjectDetails.ProgramId);
                 if(CurrentProgramVersion == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"No program is associated with the Project ID {dto.ProjectDetails.ProjectId}. Please contact administrator!", Title = "Program Not Associated" });
+                    return new BadRequestObjectResult(new { Message = $"No program is associated with the Project ID {dto.ProjectDetails.ProjectId}. Please contact administrator.", Title = "Program Not Associated" });
                 }
                 if(CurrentProgramVersion.StageName != dto.ProjectDetails.StageName)
                 {
@@ -746,7 +746,7 @@ namespace WebAPI.Controllers.Projects
                 var Program = await _db.vProgramDetails.AsNoTracking().OrderByDescending(x => x.RevisionNumber).FirstOrDefaultAsync(x => x.ProgramId == Project.ProgramId && x.StageName == dto.ProjectDetails.StageName);
                 if (Program == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Program not found for this project!", Title = "Program Not Found" });
+                    return new BadRequestObjectResult(new { Message = "Program not found for this project.", Title = "Program Not Found" });
                 }
                 bool HasCostUpdate = false;
 
@@ -968,7 +968,7 @@ namespace WebAPI.Controllers.Projects
                     var Category = await _db.tOptionProjectCategory.AsNoTracking().Where(x => x.ValidUntil >= CurrentDate.Year || x.ValidUntil == 0).FirstOrDefaultAsync(x => x.CategoryId == dto.ProjectDetails!.Category);
                     if (Category == null)
                     {
-                        return new BadRequestObjectResult(new { Message = $"Selected Category '{dto.ProjectDetails!.Category}' is not valid!", Title = "Invalid Category" });
+                        return new BadRequestObjectResult(new { Message = $"Selected Category '{dto.ProjectDetails!.Category}' is not valid.", Title = "Invalid Category" });
                     }
                     var OldCategory = await _db.tOptionProjectCategory.AsNoTracking().FirstOrDefaultAsync(x => x.CategoryId == Project.Category);
                     hasUpdated = true;
@@ -990,7 +990,7 @@ namespace WebAPI.Controllers.Projects
                     var Thrust = await _db.tProjectThrustLists.AsNoTracking().FirstOrDefaultAsync(x => x.PAPKey == dto.ProjectDetails!.Thrust);
                     if (Thrust == null)
                     {
-                        return new BadRequestObjectResult(new { Message = $"Selected Thrust '{dto.ProjectDetails!.Thrust}' is not valid!", Title = "Invalid Thrust" });
+                        return new BadRequestObjectResult(new { Message = $"Selected Thrust '{dto.ProjectDetails!.Thrust}' is not valid.", Title = "Invalid Thrust" });
                     }
                     var OldThrust = await _db.tProjectThrustLists.AsNoTracking().FirstOrDefaultAsync(x => x.PAPKey == Project.Thrust);
                     hasUpdated = true;
@@ -1012,7 +1012,7 @@ namespace WebAPI.Controllers.Projects
                     var Origin = await _db.tOptionProjectOrigin.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == dto.ProjectDetails!.Origin);
                     if (Origin == null)
                     {
-                        return new BadRequestObjectResult(new { Message = $"Selected Origin '{dto.ProjectDetails!.Origin}' is not valid!", Title = "Invalid Origin" });
+                        return new BadRequestObjectResult(new { Message = $"Selected Origin '{dto.ProjectDetails!.Origin}' is not valid.", Title = "Invalid Origin" });
                     }
                     var OldOrigin = await _db.tOptionProjectOrigin.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == Project.Origin);
                     hasUpdated = true;
@@ -1034,7 +1034,7 @@ namespace WebAPI.Controllers.Projects
                     var City = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().FirstOrDefaultAsync(x => x.GdbId == dto.ProjectDetails!.City);
                     if (City == null)
                     {
-                        return new BadRequestObjectResult(new { Message = $"Selected City '{dto.ProjectDetails!.City}' is not valid!", Title = "Invalid City" });
+                        return new BadRequestObjectResult(new { Message = $"Selected City '{dto.ProjectDetails!.City}' is not valid.", Title = "Invalid City" });
                     }
                     var OldCity = await _db.tOptionAdminAreaCityMunicipality.AsNoTracking().FirstOrDefaultAsync(x => x.GdbId == Project.City);
                     hasUpdated = true;
@@ -1078,7 +1078,7 @@ namespace WebAPI.Controllers.Projects
                     var LD = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().FirstOrDefaultAsync(x => x.GdbId == dto.ProjectDetails!.LegislativeDistrict);
                     if (LD == null)
                     {
-                        return new BadRequestObjectResult(new { Message = $"Selected Legislative District '{dto.ProjectDetails!.LegislativeDistrict}' is not valid!", Title = "Invalid Legislative District" });
+                        return new BadRequestObjectResult(new { Message = $"Selected Legislative District '{dto.ProjectDetails!.LegislativeDistrict}' is not valid.", Title = "Invalid Legislative District" });
                     }
                     var OldLD = await _db.tOptionAdminAreaCongressionalDistrict.AsNoTracking().FirstOrDefaultAsync(x => x.GdbId == Project.LegislativeDistrict);
                     transactionLogs.Add(new TransactionLog
@@ -1101,7 +1101,7 @@ namespace WebAPI.Controllers.Projects
                     var OperatingUnit = await _db.vAdminOperatingUnit.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == dto.ProjectDetails!.OperatingUnit);
                     if (OperatingUnit == null)
                     {
-                        return new BadRequestObjectResult(new { Message = $"Selected Operating Unit '{dto.ProjectDetails!.OperatingUnit}' is not valid!", Title = "Invalid Operating Unit" });
+                        return new BadRequestObjectResult(new { Message = $"Selected Operating Unit '{dto.ProjectDetails!.OperatingUnit}' is not valid.", Title = "Invalid Operating Unit" });
                     }
                     var OldOperatingUnit = await _db.vAdminOperatingUnit.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == Project.OperatingUnit);
                     hasUpdated = true;
@@ -1123,7 +1123,7 @@ namespace WebAPI.Controllers.Projects
                     var IO = await _db.vAdminImplementingOffice.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == dto.ProjectDetails!.ImplementingOffice);
                     if (IO == null)
                     {
-                        return new BadRequestObjectResult(new { Message = $"Selected Implementing Office '{dto.ProjectDetails!.ImplementingOffice}' is not valid!", Title = "Invalid Implementing Office" });
+                        return new BadRequestObjectResult(new { Message = $"Selected Implementing Office '{dto.ProjectDetails!.ImplementingOffice}' is not valid.", Title = "Invalid Implementing Office" });
                     }
                     var OldIO = await _db.vAdminImplementingOffice.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == Project.ImplementingOffice);
                     hasUpdated = true;
@@ -1183,7 +1183,7 @@ namespace WebAPI.Controllers.Projects
                     var Agency = await _db.tOptionProjectAgency.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == dto.ProjectDetails!.Agency);
                     if (Agency == null)
                     {
-                        return new BadRequestObjectResult(new { Message = $"Selected Agency '{dto.ProjectDetails!.Agency}' is not valid!", Title = "Invalid Agency" });
+                        return new BadRequestObjectResult(new { Message = $"Selected Agency '{dto.ProjectDetails!.Agency}' is not valid.", Title = "Invalid Agency" });
                     }
                     var OldAgency = await _db.tOptionProjectAgency.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == Project.Agency);
                     hasUpdated = true;
@@ -1202,14 +1202,14 @@ namespace WebAPI.Controllers.Projects
                 }
                 if(dto.ProjectDetails!.ImplementationMode == null || dto.ProjectDetails!.ImplementationMode == 0)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Implementation Mode is required!", Title = "Implementation Mode Required" });
+                    return new BadRequestObjectResult(new { Message = $"Implementation Mode is required.", Title = "Implementation Mode Required" });
                 }
                 if (Project.ImplementationMode != dto.ProjectDetails?.ImplementationMode)
                 {
                     var ImplementationMode = await _db.tOptionProjectImplementationMode.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == dto.ProjectDetails!.ImplementationMode);
                     if (ImplementationMode == null)
                     {
-                        return new BadRequestObjectResult(new { Message = $"Selected Implementation Mode '{dto.ProjectDetails!.ImplementationMode}' is not valid!", Title = "Invalid Implementation Mode" });
+                        return new BadRequestObjectResult(new { Message = $"Selected Implementation Mode '{dto.ProjectDetails!.ImplementationMode}' is not valid.", Title = "Invalid Implementation Mode" });
                     }
                     var OldImplementationMode = await _db.tOptionProjectImplementationMode.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == Project.ImplementationMode);
                     hasUpdated = true;
@@ -1231,7 +1231,7 @@ namespace WebAPI.Controllers.Projects
                     var EmergencyMode = await _db.tOptionProjectEmergencyMode.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == dto.ProjectDetails!.EmergencyMode);
                     if (EmergencyMode == null)
                     {
-                        return new BadRequestObjectResult(new { Message = $"Selected Emergency Mode '{dto.ProjectDetails!.EmergencyMode}' is not valid!", Title = "Invalid Emergency Mode" });
+                        return new BadRequestObjectResult(new { Message = $"Selected Emergency Mode '{dto.ProjectDetails!.EmergencyMode}' is not valid.", Title = "Invalid Emergency Mode" });
                     }
                     var OldEmergencyMode = await _db.tOptionProjectEmergencyMode.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == Project.EmergencyMode);
                     hasUpdated = true;
@@ -1250,14 +1250,14 @@ namespace WebAPI.Controllers.Projects
                 }
                 if (dto.ProjectDetails!.Feasibility == null || dto.ProjectDetails!.Feasibility == 0)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Feasibility is required!", Title = "Feasibility Required" });
+                    return new BadRequestObjectResult(new { Message = $"Feasibility is required.", Title = "Feasibility Required" });
                 }
                 if (Project.Feasibility != dto.ProjectDetails?.Feasibility)
                 {
                     var Feasib = await _db.tOptionProjectFeasibilityStudy.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == dto.ProjectDetails!.Feasibility);
                     if (Feasib == null)
                     {
-                        return new BadRequestObjectResult(new { Message = $"Selected Feasibility '{dto.ProjectDetails!.Feasibility}' is not valid!", Title = "Invalid Feasibility" });
+                        return new BadRequestObjectResult(new { Message = $"Selected Feasibility '{dto.ProjectDetails!.Feasibility}' is not valid.", Title = "Invalid Feasibility" });
                     }
                     var OldFeasibility = await _db.tOptionProjectFeasibilityStudy.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == Project.Feasibility);
                     hasUpdated = true;
@@ -1295,7 +1295,7 @@ namespace WebAPI.Controllers.Projects
                     var DetailedDesign = await _db.tOptionProjectDetailedDesign.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == dto.ProjectDetails!.DetailedDesign);
                     if (DetailedDesign == null)
                     {
-                        return new BadRequestObjectResult(new { Message = $"Selected Detailed Design '{dto.ProjectDetails!.DetailedDesign}' is not valid!", Title = "Invalid Detailed Design" });
+                        return new BadRequestObjectResult(new { Message = $"Selected Detailed Design '{dto.ProjectDetails!.DetailedDesign}' is not valid.", Title = "Invalid Detailed Design" });
                     }
                     var OldDetailedDesign = await _db.tOptionProjectDetailedDesign.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == Project.DetailedDesign);
                     hasUpdated = true;
@@ -1333,7 +1333,7 @@ namespace WebAPI.Controllers.Projects
                     var RowAvailable = await _db.tOptionProjectRowAvailable.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == dto.ProjectDetails!.RowAvailable);
                     if (RowAvailable == null)
                     {
-                        return new BadRequestObjectResult(new { Message = $"Selected Row Available '{dto.ProjectDetails!.EmergencyMode}' is not valid!", Title = "Invalid Row Available" });
+                        return new BadRequestObjectResult(new { Message = $"Selected Row Available '{dto.ProjectDetails!.EmergencyMode}' is not valid.", Title = "Invalid Row Available" });
                     }
                     var OldRowAvailable = await _db.tOptionProjectRowAvailable.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == Project.RowAvailable);
                     hasUpdated = true;
@@ -1510,7 +1510,7 @@ namespace WebAPI.Controllers.Projects
                                     var Component = await _db.tOptionProjectComponent.FirstOrDefaultAsync(x => x.ComponentName == item.ComponentType);
                                     if (Component == null)
                                     {
-                                        return new BadRequestObjectResult(new { Message = $"Selected Component '{item.ComponentType}' is not valid!", Title = "Invalid Component" });
+                                        return new BadRequestObjectResult(new { Message = $"Selected Component '{item.ComponentType}' is not valid.", Title = "Invalid Component" });
                                     }
                                     transactionLogs.Add(new TransactionLog
                                     {
@@ -1715,7 +1715,7 @@ namespace WebAPI.Controllers.Projects
                                     var Infra = await _db.tInfraType.FirstOrDefaultAsync(x => x.InfraCode == item.InfraType);
                                     if (Infra == null)
                                     {
-                                        return new BadRequestObjectResult(new { Message = $"Selected Infrastructure Type '{item.InfraType}' is not valid!", Title = "Invalid Infrastructure Type" });
+                                        return new BadRequestObjectResult(new { Message = $"Selected Infrastructure Type '{item.InfraType}' is not valid.", Title = "Invalid Infrastructure Type" });
                                     }
                                 }
                                 if (ExistingItem.ComponentId != item.ComponentId)
@@ -1756,7 +1756,7 @@ namespace WebAPI.Controllers.Projects
                                     var WorkTypeEnum = await _db.tOptionScopeOfWork.FirstOrDefaultAsync(x => x.Enum == item.WorkTypeId);
                                     if (WorkTypeEnum == null)
                                     {
-                                        return new BadRequestObjectResult(new { Message = $"Selected Work Type '{WorkTypeEnum.Description}' is not valid!", Title = "Invalid Work Type" });
+                                        return new BadRequestObjectResult(new { Message = $"Selected Work Type '{item.WorkTypeId}' is not valid.", Title = "Invalid Work Type" });
                                     }
                                     var oldWorkType = await _db.tOptionScopeOfWork.AsNoTracking().FirstOrDefaultAsync(x => x.Enum == ExistingItem.WorkTypeId);
                                     transactionLogs.Add(new TransactionLog
@@ -2338,7 +2338,7 @@ namespace WebAPI.Controllers.Projects
                     var CurrentVersion = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == Program.Id);
                     if (CurrentVersion == null)
                     {
-                        return new BadRequestObjectResult(new { Message = "Program not found for this project!", Title = "Program Not Found" });
+                        return new BadRequestObjectResult(new { Message = "Program not found for this project.", Title = "Program Not Found" });
                     }
                     CurrentVersion.Cost = ProgramAmount;
                     _db.tProgramRevisions.Update(CurrentVersion);
@@ -2347,7 +2347,7 @@ namespace WebAPI.Controllers.Projects
                 await transaction.CommitAsync();
                 return Ok(new
                 {
-                    Message = $"Project {dto.ProjectDetails!.ProjectId} updated successfully!",
+                    Message = $"Project {dto.ProjectDetails!.ProjectId} updated successfully.",
                     Title = "Update Complete"
                 });
 
@@ -2376,20 +2376,20 @@ namespace WebAPI.Controllers.Projects
                 .FirstOrDefaultAsync();
                 if(Project == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
+                    return new BadRequestObjectResult(new { Message = "Project not found.", Title = "Project Not Found" });
                 }
                 if(_Session.ApplyFilter && Project.Region != _Session.RegCode)
                 {
-                    return new BadRequestObjectResult(new { Message = "You don't have access to add notes for this project!", Title = "Access Denied" });
+                    return new BadRequestObjectResult(new { Message = "You don't have access to add notes for this project.", Title = "Access Denied" });
                 }
                 if (dto.File == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "No file uploaded!", Title = "File Upload Error" });
+                    return new BadRequestObjectResult(new { Message = "No file uploaded.", Title = "File Upload Error" });
                 }
                 string FilePath = Path.Combine(Appsetting.Resources.ProjectNotes, Project.ProjectId!, dto.File.Name);
                 if (!dto.File.UploadFile(FilePath))
                 {
-                    return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted!", Title = "File Corrupted" });
+                    return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted.", Title = "File Corrupted" });
                 }
                 var AddNotes = new ProjectNotes()
                 {
@@ -2404,7 +2404,7 @@ namespace WebAPI.Controllers.Projects
                 await _db.tProjectNotes.AddAsync(AddNotes);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
-                return Ok(new { Message = "Notes added successfully!", Tile = "Add Success." });
+                return Ok(new { Message = "Notes added successfully.", Title = "Add Success." });
             }
             catch (Exception ex)
             {
@@ -2430,16 +2430,16 @@ namespace WebAPI.Controllers.Projects
                 .FirstOrDefaultAsync();
                 if (Project == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
+                    return new BadRequestObjectResult(new { Message = "Project not found.", Title = "Project Not Found" });
                 }
                 if(_Session.ApplyFilter && Project.Region != _Session.RegCode)
                 {
-                    return new BadRequestObjectResult(new { Message = "You don't have access to delete notes for this project!", Title = "Access Denied" });
+                    return new BadRequestObjectResult(new { Message = "You don't have access to delete notes for this project.", Title = "Access Denied" });
                 }
                 var Note = await _db.tProjectNotes.FirstOrDefaultAsync(x => x.Id == dto.Id);
                 if (Note == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Project note not found!", Title = "Project Not Found" });
+                    return new BadRequestObjectResult(new { Message = "Project note not found.", Title = "Project Not Found" });
                 }
                 if (System.IO.File.Exists(Note.FilePath))
                 {
@@ -2459,7 +2459,7 @@ namespace WebAPI.Controllers.Projects
                 _db.tProjectNotes.Remove(Note);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
-                return Ok(new { Message = "Notes deleted successfully!", Tile = "Delete Success." });
+                return Ok(new { Message = "Notes deleted successfully.", Title = "Delete Success." });
             }
             catch (Exception ex)
             {
@@ -2485,24 +2485,24 @@ namespace WebAPI.Controllers.Projects
                 .FirstOrDefaultAsync();
                 if(Project == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
+                    return new BadRequestObjectResult(new { Message = "Project not found.", Title = "Project Not Found" });
                 }
                 if(_Session.ApplyFilter && Project.Region != _Session.RegCode)
                 {
-                    return new BadRequestObjectResult(new { Message = "You don't have access to add supporting documents for this project!", Title = "Access Denied" });
+                    return new BadRequestObjectResult(new { Message = "You don't have access to add supporting documents for this project.", Title = "Access Denied" });
                 }
                 if (dto.File == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "No file uploaded!", Title = "File Upload Error" });
+                    return new BadRequestObjectResult(new { Message = "No file uploaded.", Title = "File Upload Error" });
                 }
                 string FilePath = Path.Combine(Appsetting.Resources.SupportingDocs, Project.ProjectId!, dto.File.Name);
                 if (!dto.File.ValidateFileSize(50))
                 {
-                    return new BadRequestObjectResult(new { Message = "Uploaded file exceeds the maximum allowed size of 50 MB!", Title = "File Size Exceeded" });
+                    return new BadRequestObjectResult(new { Message = "Uploaded file exceeds the maximum allowed size of 50 MB.", Title = "File Size Exceeded" });
                 }
                 if (dto.File.IsPdfCorrupted())
                 {
-                    return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted or not valid!", Title = "File Corrupted" });
+                    return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted or not valid.", Title = "File Corrupted" });
                 }
                 var type = dto.DocumentType.Split(":");
                 string docType = type[0];
@@ -2522,7 +2522,7 @@ namespace WebAPI.Controllers.Projects
                 await _db.tProjectSupportingDocs.AddAsync(AddSupporting);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
-                return Ok(new { Message = "Supporting Docs added successfully!", Tile = "Add Success." });
+                return Ok(new { Message = "Supporting Docs added successfully.", Title = "Add Success." });
             }
             catch (Exception ex)
             {
@@ -2548,16 +2548,16 @@ namespace WebAPI.Controllers.Projects
                 .FirstOrDefaultAsync();
                 if (Project == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Project Not Found" });
+                    return new BadRequestObjectResult(new { Message = "Project not found.", Title = "Project Not Found" });
                 }
                 if(_Session.ApplyFilter && Project.Region != _Session.RegCode)
                 {
-                    return new BadRequestObjectResult(new { Message = "You don't have access to delete supporting documents for this project!", Title = "Access Denied" });
+                    return new BadRequestObjectResult(new { Message = "You don't have access to delete supporting documents for this project.", Title = "Access Denied" });
                 }
                 var Note = await _db.tProjectSupportingDocs.FirstOrDefaultAsync(x => x.Id == dto.Id);
                 if(Note == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Supporting Doc not found!", Title = "Project Not Found" });
+                    return new BadRequestObjectResult(new { Message = "Supporting Doc not found.", Title = "Project Not Found" });
                 }
                 if (System.IO.File.Exists(Note.FilePath))
                 {
@@ -2577,7 +2577,7 @@ namespace WebAPI.Controllers.Projects
                 _db.tProjectSupportingDocs.Remove(Note);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
-                return Ok(new { Message = "Supporting Document deleted successfully!", Tile = "Delete Success." });
+                return Ok(new { Message = "Supporting Document deleted successfully.", Title = "Delete Success." });
             }
             catch (Exception ex)
             {

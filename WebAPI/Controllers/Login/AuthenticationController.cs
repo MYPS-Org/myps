@@ -58,7 +58,7 @@ namespace WebAPI.Controllers.Auth
                 };
                 var verifyAccount = await _db.vUsers.FirstOrDefaultAsync(x => x.UserId == dto.UserName && x.IsActive == true);
 
-                if (verifyAccount == null) { LoginLog.ValidationMessage = "Account not active"; return UnauthorizedUser(); }
+                if (verifyAccount == null) { LoginLog.ValidationMessage = "Account not active."; return UnauthorizedUser(); }
 
                 var request = new AuthenticatePIS(dto.UserName, dto.Password);
                 var employee = await APIRequest.XML(request);

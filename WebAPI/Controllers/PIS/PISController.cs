@@ -44,7 +44,7 @@ namespace WebAPI.Controllers.MockUps
                     return new BadRequestObjectResult(
                         new
                         {
-                            Message = $"Employee: '{dto.EmployeeId}' already exists",
+                            Message = $"Employee: '{dto.EmployeeId}' already exists.",
                             Title = "User Exists"
                         }
                     );
@@ -56,7 +56,7 @@ namespace WebAPI.Controllers.MockUps
                     return new BadRequestObjectResult(
                         new
                         {
-                            Message = $"Employee: '{dto.EmployeeId}' not found",
+                            Message = $"Employee: '{dto.EmployeeId}' not found.",
                             Title = "User Not Found"
                         }
                     );
@@ -92,7 +92,7 @@ namespace WebAPI.Controllers.MockUps
                     return new BadRequestObjectResult(
                         new
                         {
-                            Message = $"Employee: '{dto.EmployeeId}' does not exist",
+                            Message = $"Employee: '{dto.EmployeeId}' does not exist.",
                             Title = "User Not Found"
                         }
                     );
@@ -104,7 +104,7 @@ namespace WebAPI.Controllers.MockUps
                     return new BadRequestObjectResult(
                         new
                         {
-                            Message = $"Employee: '{dto.EmployeeId}' not found",
+                            Message = $"Employee: '{dto.EmployeeId}' not found.",
                             Title = "User Not Found"
                         }
                     );

@@ -31,7 +31,7 @@ namespace WebAPI.Controllers.Revision
             {
                 if (dto.Filters == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Expected Parametes missing!", Title = "Parameter Error" });
+                    return new BadRequestObjectResult(new { Message = "Expected Parameters missing.", Title = "Parameter Error" });
                 }
                 if (!string.IsNullOrEmpty(dto.SortField))
                 {
@@ -40,7 +40,7 @@ namespace WebAPI.Controllers.Revision
                         .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
                     if (!isValid)
                     {
-                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort!", Title = "Parameter Error" });
+                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort.", Title = "Parameter Error" });
                     }
                 }
                 dto.sortDirection = string.IsNullOrEmpty(dto.sortDirection.ToString()) ? sortDirectionList.DESC : dto.sortDirection;
@@ -48,7 +48,7 @@ namespace WebAPI.Controllers.Revision
                 bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!);
                 if (!isValidDirection)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed!", Title = "Invalid sort option" });
+                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed.", Title = "Invalid sort option" });
                 }
                 // Validate pagination parameters
                 if (dto.page < 1) dto.page = 1;
@@ -138,17 +138,17 @@ namespace WebAPI.Controllers.Revision
                 .FirstOrDefaultAsync();
                 if (Project == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Project not found or not in GAA-R stage!", Title = "Invalid Project" });
+                    return new BadRequestObjectResult(new { Message = "Project not found or not in GAA-R stage.", Title = "Invalid Project" });
                 }
                 if (_Session.ApplyFilter && Project.Region == _Session.RegCode)
                 {
-                    return new BadRequestObjectResult(new { Message = "You don't have permission to view this project!", Title = "Permission Denied" });
+                    return new BadRequestObjectResult(new { Message = "You don't have permission to view this project.", Title = "Permission Denied" });
                 }
                 int? RevisedNumber = Project.RevisedNumber;
                 var RevisionDetails = await _db.vRevisionLists.AsNoTracking().FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId);
                 if(RevisionDetails == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Revision details not found!", Title = "Invalid Revision" });
+                    return new BadRequestObjectResult(new { Message = "Revision details not found.", Title = "Invalid Revision" });
                 }
                 string ProjectRevisionStatus = (RevisionDetails.RegionStatus == EnumRevisionStatus.ForCorrection) ? RevisionDetails.RegionStatusName : RevisionDetails.COStatusName;
 
@@ -198,7 +198,7 @@ namespace WebAPI.Controllers.Revision
                 SelectedType = await _db.tOptionRevisionHeader.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionGroupId == RevisionDetails.RevisionGroupId);
                 if (SelectedType == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Revision Type not found!", Title = "Invalid Revision Type" });
+                    return new BadRequestObjectResult(new { Message = "Revision Type not found.", Title = "Invalid Revision Type" });
                 }
                 //if (dto.RevisionCategory != null)
                 //{
@@ -211,7 +211,7 @@ namespace WebAPI.Controllers.Revision
                 SelectedReason = await _db.tOptionRevisionReasons.AsNoTracking().FirstOrDefaultAsync(x => x.ReasonId == RevisionDetails.ReasonId && x.RevisionGroupId == RevisionDetails.RevisionGroupId);
                 if (SelectedReason == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Revision Reason not found!", Title = "Invalid Revision Reason" });
+                    return new BadRequestObjectResult(new { Message = "Revision Reason not found.", Title = "Invalid Revision Reason" });
                 }
                 var RevisionDoc = await _db.tRevisionDocuments.AsNoTracking().Where(x => x.TransactionId == dto.TransactionId).ToListAsync();
                 var ForCorrections = await _db.tRevisionForCorrectionDetails.Where(x => x.TransactionId == dto.TransactionId).ToListAsync();
@@ -221,12 +221,12 @@ namespace WebAPI.Controllers.Revision
                 var CurrentProgramVersion = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == Project.ProgramId);
                 if (CurrentProgramVersion == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"No program is associated with the Project ID {ProjectId}. Please contact administrator!", Title = "Program Not Associated" });
+                    return new BadRequestObjectResult(new { Message = $"No program is associated with the Project ID {ProjectId}. Please contact administrator.", Title = "Program Not Associated" });
                 }
                 var Program = await _db.vProgramDetails.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == Project.ProgramId && x.StageName == Project.StageName);
                 if (Program == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Program not found for this project!", Title = "Program Not Found" });
+                    return new BadRequestObjectResult(new { Message = "Program not found for this project.", Title = "Program Not Found" });
                 }
                 #endregion
 
@@ -362,7 +362,7 @@ namespace WebAPI.Controllers.Revision
                 .FirstOrDefaultAsync();
                 if(Project == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Project not found or not in GAA-R stage!", Title = "Invalid Project" });
+                    return new BadRequestObjectResult(new { Message = "Project not found or not in GAA-R stage.", Title = "Invalid Project" });
                 }
                 var ComponentCost = await _db.vProjectComponentCostStatus.AsNoTracking().Where(x => x.ProjectId == dto.ProjectId && x.StageName == Project.StageName && !x.IsDeleted).ToListAsync();
                 string json = JsonConvert.SerializeObject(ComponentCost);
@@ -432,20 +432,20 @@ namespace WebAPI.Controllers.Revision
                 SelectedType = await _db.tOptionRevisionHeader.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionGroupId == dto.RevisionHeader);
                 if(SelectedType == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Revision Type not found!", Title = "Invalid Revision Type" });
+                    return new BadRequestObjectResult(new { Message = "Revision Type not found.", Title = "Invalid Revision Type" });
                 }
                 if(dto.RevisionCategory != null)
                 {
                     SelectedCategory = await _db.tOptionRevisionCategory.AsNoTracking().FirstOrDefaultAsync(x => x.CategoryId == dto.RevisionCategory);
                     if (SelectedCategory == null)
                     {
-                        return new BadRequestObjectResult(new { Message = "Revision Category not found!", Title = "Invalid Revision Category" });
+                        return new BadRequestObjectResult(new { Message = "Revision Category not found.", Title = "Invalid Revision Category" });
                     }
                 }
                 SelectedReason = await _db.tOptionRevisionReasons.AsNoTracking().FirstOrDefaultAsync(x => x.ReasonId == dto.RevisionReason && x.RevisionGroupId == dto.RevisionHeader);
                 if (SelectedReason == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Revision Reason not found!", Title = "Invalid Revision Reason" });
+                    return new BadRequestObjectResult(new { Message = "Revision Reason not found.", Title = "Invalid Revision Reason" });
                 }
                 #endregion
 
@@ -453,12 +453,12 @@ namespace WebAPI.Controllers.Revision
                 var CurrentProgramVersion = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == Project.ProgramId);
                 if (CurrentProgramVersion == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"No program is associated with the Project ID {dto.ProjectId}. Please contact administrator!", Title = "Program Not Associated" });
+                    return new BadRequestObjectResult(new { Message = $"No program is associated with the Project ID {dto.ProjectId}. Please contact administrator.", Title = "Program Not Associated" });
                 }
                 var Program = await _db.vProgramDetails.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == Project.ProgramId && x.StageName == Project.StageName);
                 if (Program == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Program not found for this project!", Title = "Program Not Found" });
+                    return new BadRequestObjectResult(new { Message = "Program not found for this project.", Title = "Program Not Found" });
                 }
                 #endregion
 
@@ -585,19 +585,19 @@ namespace WebAPI.Controllers.Revision
             {
                 if (_Session.UserGroupNames.Count() == 0)
                 {
-                    return new BadRequestObjectResult(new { Message = "Account usergroup is not allowed to submit Revision. Please contact administrator!", Title = "User Groups Missing" });
+                    return new BadRequestObjectResult(new { Message = "Account usergroup is not allowed to submit Revision. Please contact administrator.", Title = "User Groups Missing" });
                 }
                 if (dto.RevisionDetails.ApprovedDocument == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Approved Document is required!", Title = "Missing Approved Document" });
+                    return new BadRequestObjectResult(new { Message = "Approved Document is required.", Title = "Missing Approved Document" });
                 }
                 if (dto.RevisionDetails.ApprovedDocument.IsPdfCorrupted())
                 {
-                    return new BadRequestObjectResult(new { Message = "Approved Document file is corrupted or not a valid PDF!", Title = "Invalid File" });
+                    return new BadRequestObjectResult(new { Message = "Approved Document file is corrupted or not a valid PDF.", Title = "Invalid File" });
                 }
                 if (!dto.RevisionDetails.ApprovedDocument.ValidateFileSize(50))
                 {
-                    return new BadRequestObjectResult(new { Message = "Approved Document file size exceeds the maximum limit of 50 MB!", Title = "File Size Exceeded" });
+                    return new BadRequestObjectResult(new { Message = "Approved Document file size exceeds the maximum limit of 50 MB.", Title = "File Size Exceeded" });
                 }
                 string User = _Session.UserId;
                 DateTime CurrentDate = Functions.CurrentDate();
@@ -617,35 +617,35 @@ namespace WebAPI.Controllers.Revision
                 var Project = await _db.tProjectRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectDetails.ProjectId && x.Id == dto.ProjectDetails.RevisionId);
                 if (Project == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Invalid Project" });
+                    return new BadRequestObjectResult(new { Message = "Project not found.", Title = "Invalid Project" });
                 }
                 var ProjectStage = await _db.tProjectStages.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionId == dto.ProjectDetails.RevisionId && x.StageName == "GAA-R");
                 if (ProjectStage == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Project Stage not found!", Title = "Invalid Project Stage" });
+                    return new BadRequestObjectResult(new { Message = "Project Stage not found.", Title = "Invalid Project Stage" });
                 }
 
                 var ProgramDetails = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == ProjectStage.ProgramId && x.StageName == ProjectStage.StageName);
                 if (ProgramDetails == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Project Program ID not found!", Title = "No Program ID Found" });
+                    return new BadRequestObjectResult(new { Message = "Project Program ID not found.", Title = "No Program ID Found" });
                 }
 
                 var RevisionRules = await _db.vRevisionRules.AsNoTracking().FirstOrDefaultAsync(x => x.ReasonId == dto.RevisionDetails.ReasonId && x.PCMA_Status == dto.RevisionDetails.ConstructionStatus && x.Package_Status == dto.RevisionDetails.PackageStatus);
                 if (RevisionRules == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Revision type does not exist in PCMA_Status: {dto.RevisionDetails.ConstructionStatus} Package_Status: {dto.RevisionDetails.PackageStatus}!", Title = "Invalid Revision Type" });
+                    return new BadRequestObjectResult(new { Message = $"Revision type does not exist in PCMA_Status: {dto.RevisionDetails.ConstructionStatus} Package_Status: {dto.RevisionDetails.PackageStatus}.", Title = "Invalid Revision Type" });
                 }
                 var RevisionCategory = await _db.tOptionRevisionHeader.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionGroupId == RevisionRules.RevisionGroupId);
                 if (RevisionCategory == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Revision category does not match with the selected revision reason!", Title = "Invalid Revision Category" });
+                    return new BadRequestObjectResult(new { Message = "Revision category does not match with the selected revision reason.", Title = "Invalid Revision Category" });
                 }
                 var DocumentNaming = await _db.tOptionRevisionDocuments.AsNoTracking().FirstOrDefaultAsync(x => (x.CategoryId != null && x.CategoryId == dto.RevisionDetails.CategoryId) || x.RevisionGroupId == RevisionCategory.RevisionGroupId);
                 if (DocumentNaming == null)
                 {
                     await transaction.RollbackAsync();
-                    return new BadRequestObjectResult(new { Message = "Document naming convention not found for the selected revision reason! Please contact Administrator", Title = "Missing Document Naming" });
+                    return new BadRequestObjectResult(new { Message = "Document naming convention not found for the selected revision reason. Please contact Administrator.", Title = "Missing Document Naming" });
                 }
                 var HasPendingModification = await _db.vRevisionLists.AsNoTracking()
                     .FirstOrDefaultAsync(x => x.TransactionId.Contains(dto.ProjectDetails.ProjectId!) && x.COStatus != EnumRevisionStatus.Approved);
@@ -656,7 +656,7 @@ namespace WebAPI.Controllers.Revision
                 var jsonRules = JsonConvert.DeserializeObject<ModificationRules>(RevisionRules.Field);
                 if (jsonRules == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Rules does not exist in {RevisionRules.Reason}! Please contact admin", Title = "No Rules Exists" });
+                    return new BadRequestObjectResult(new { Message = $"Rules does not exist in {RevisionRules.Reason}. Please contact admin.", Title = "No Rules Exists" });
                 }
                 Project.IsRevised = true;
                 Project.RevisedNumber = (Project.RevisedNumber ?? 0) + 1;
@@ -1325,7 +1325,7 @@ namespace WebAPI.Controllers.Revision
                 string ResourcePath = Path.Combine(Directory.GetCurrentDirectory(), FilePath);
                 if (!dto.RevisionDetails.ApprovedDocument.UploadFile(ResourcePath))
                 {
-                    return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted!", Title = "File Corrupted" });
+                    return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted.", Title = "File Corrupted" });
                 }
                 await _db.tRevisionDocuments.AddAsync(new RevisionDocuments
                 {
@@ -1642,13 +1642,13 @@ namespace WebAPI.Controllers.Revision
                 }
                 if (_Session.UserGroupNames.Count() == 0)
                 {
-                    return new BadRequestObjectResult(new { Message = "Account usergroup is not allowed to submit Revision. Please contact administrator!", Title = "User Groups Missing" });
+                    return new BadRequestObjectResult(new { Message = "Account usergroup is not allowed to submit Revision. Please contact administrator.", Title = "User Groups Missing" });
                 }
                 bool isROUser = _Session.UserGroupNames.Contains("RPC");
                 bool isCOUser = _Session.UserGroupNames.Contains("AUC");
                 if(!isCOUser && !isROUser)
                 {
-                    return new BadRequestObjectResult(new { Message = "Account usergroup is not allowed to update Revision. Please contact administrator!", Title = "Invalid User Group" });
+                    return new BadRequestObjectResult(new { Message = "Account usergroup is not allowed to update Revision. Please contact administrator.", Title = "Invalid User Group" });
                 }
                 var SelectedProjectRevision = await _db.tRevisionProjects.AsNoTracking().FirstOrDefaultAsync(x => x.TransactionId == dto.TransactionId);
                 if (SelectedProjectRevision == null)
@@ -1773,7 +1773,7 @@ namespace WebAPI.Controllers.Revision
                             string ResourcePath = Path.Combine(Directory.GetCurrentDirectory(), FilePath);
                             if (!dto.Document.UploadFile(ResourcePath))
                             {
-                                return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted!", Title = "File Corrupted" });
+                                return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted.", Title = "File Corrupted" });
                             }
                             await _db.tRevisionDocuments.AddAsync(new RevisionDocuments
                             {
@@ -1837,19 +1837,19 @@ namespace WebAPI.Controllers.Revision
             {
                 if (_Session.UserGroupNames.Count() == 0)
                 {
-                    return new BadRequestObjectResult(new { Message = "Account usergroup is not allowed to submit Revision. Please contact administrator!", Title = "User Groups Missing" });
+                    return new BadRequestObjectResult(new { Message = "Account usergroup is not allowed to submit Revision. Please contact administrator.", Title = "User Groups Missing" });
                 }
                 if (dto.RevisionDetails.ApprovedDocument == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Approved Document is required!", Title = "Missing Approved Document" });
+                    return new BadRequestObjectResult(new { Message = "Approved Document is required.", Title = "Missing Approved Document" });
                 }
                 if (dto.RevisionDetails.ApprovedDocument.IsPdfCorrupted())
                 {
-                    return new BadRequestObjectResult(new { Message = "Approved Document file is corrupted or not a valid PDF!", Title = "Invalid File" });
+                    return new BadRequestObjectResult(new { Message = "Approved Document file is corrupted or not a valid PDF.", Title = "Invalid File" });
                 }
                 if (!dto.RevisionDetails.ApprovedDocument.ValidateFileSize(50))
                 {
-                    return new BadRequestObjectResult(new { Message = "Approved Document file size exceeds the maximum limit of 50 MB!", Title = "File Size Exceeded" });
+                    return new BadRequestObjectResult(new { Message = "Approved Document file size exceeds the maximum limit of 50 MB.", Title = "File Size Exceeded" });
                 }
                 string User = _Session.UserId;
                 DateTime CurrentDate = Functions.CurrentDate();
@@ -1894,24 +1894,24 @@ namespace WebAPI.Controllers.Revision
                 var Project = await _db.tProjectRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectDetails.ProjectId && x.IsRevised == true);
                 if (Project == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Invalid Project" });
+                    return new BadRequestObjectResult(new { Message = "Project not found.", Title = "Invalid Project" });
                 }
 
                 var RevisionRules = await _db.vRevisionRules.AsNoTracking().FirstOrDefaultAsync(x => x.ReasonId == dto.RevisionDetails.ReasonId && x.PCMA_Status == dto.RevisionDetails.ConstructionStatus && x.Package_Status == dto.RevisionDetails.PackageStatus);
                 if (RevisionRules == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Revision type does not exist in PCMA_Status: {dto.RevisionDetails.ConstructionStatus} Package_Status: {dto.RevisionDetails.PackageStatus}!", Title = "Invalid Revision Type" });
+                    return new BadRequestObjectResult(new { Message = $"Revision type does not exist in PCMA_Status: {dto.RevisionDetails.ConstructionStatus} Package_Status: {dto.RevisionDetails.PackageStatus}.", Title = "Invalid Revision Type" });
                 }
                 var RevisionCategory = await _db.tOptionRevisionHeader.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionGroupId == RevisionRules.RevisionGroupId);
                 if (RevisionCategory == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Revision category does not match with the selected revision reason!", Title = "Invalid Revision Category" });
+                    return new BadRequestObjectResult(new { Message = "Revision category does not match with the selected revision reason.", Title = "Invalid Revision Category" });
                 }
                 var DocumentNaming = await _db.tOptionRevisionDocuments.AsNoTracking().FirstOrDefaultAsync(x => (x.CategoryId != null && x.CategoryId == dto.RevisionDetails.CategoryId) || x.RevisionGroupId == RevisionCategory.RevisionGroupId);
                 if (DocumentNaming == null)
                 {
                     await transaction.RollbackAsync();
-                    return new BadRequestObjectResult(new { Message = "Document naming convention not found for the selected revision reason! Please contact Administrator", Title = "Missing Document Naming" });
+                    return new BadRequestObjectResult(new { Message = "Document naming convention not found for the selected revision reason! Please contact Administrator.", Title = "Missing Document Naming" });
                 }
                 var HasPendingModification = await _db.vRevisionLists.AsNoTracking()
                     .FirstOrDefaultAsync(x => x.TransactionId.Contains(dto.ProjectDetails.ProjectId!) && x.COStatus != EnumRevisionStatus.Approved);
@@ -1924,7 +1924,7 @@ namespace WebAPI.Controllers.Revision
                 var jsonRules = JsonConvert.DeserializeObject<ModificationRules>(RevisionRules.Field);
                 if (jsonRules == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Rules does not exist in {RevisionRules.Reason}! Please contact admin", Title = "No Rules Exists" });
+                    return new BadRequestObjectResult(new { Message = $"Rules does not exist in {RevisionRules.Reason}. Please contact Administrator.", Title = "No Rules Exists" });
                 }
                 string RevisionTransactionId = $"{dto.ProjectDetails.ProjectId}-{DocumentNaming.SecondSegmentName}";
                 #endregion
@@ -3057,7 +3057,7 @@ namespace WebAPI.Controllers.Revision
                 string ResourcePath = Path.Combine(Directory.GetCurrentDirectory(), FilePath);
                 if (!dto.RevisionDetails.ApprovedDocument.UploadFile(ResourcePath))
                 {
-                    return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted!", Title = "File Corrupted" });
+                    return new BadRequestObjectResult(new { Message = "Uploaded file is corrupted.", Title = "File Corrupted" });
                 }
                 await _db.tRevisionDocuments.AddAsync(new RevisionDocuments
                 {

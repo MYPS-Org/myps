@@ -2309,7 +2309,7 @@ namespace WebAPI.Controllers.CodeTable
                 return Ok(new
                 {
                     Title = "Udpate Success",
-                    Message = $"{tablename} updated successfully"
+                    Message = $"{tablename} updated successfully."
                 });
             }
             catch (Exception ex)

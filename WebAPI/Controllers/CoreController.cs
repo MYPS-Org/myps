@@ -173,7 +173,7 @@ namespace WebAPI.Controllers
         {
             var responseObj = new
             {
-                Message = "Unauthorized",
+                Message = "Unauthorized.",
                 Data = new { Authenticated = false, User = new { } },
                 Redirect = "/login"
             };

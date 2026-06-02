@@ -48,7 +48,7 @@ namespace Helpers.API
                     return new PCMAResponse
                     {
                         Success = false,
-                        Message = "Invalid response format",
+                        Message = "Invalid response format.",
                         ResponseData = xml
                     };
                 }
@@ -56,7 +56,7 @@ namespace Helpers.API
                 return new PCMAResponse
                 {
                     Success = true,
-                    Message = "PCMA published successfully",
+                    Message = "PCMA published successfully.",
                     ResponseData = result.Value ?? xml
                 };
             }
@@ -65,7 +65,7 @@ namespace Helpers.API
                 return new PCMAResponse
                 {
                     Success = false,
-                    Message = $"Error parsing response: {ex.Message}",
+                    Message = $"Error parsing response: {ex.Message}.",
                     ResponseData = xml
                 };
             }
