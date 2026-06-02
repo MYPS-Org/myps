@@ -185,7 +185,7 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
               Add New Program
             </DialogTitle>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="text-gray-400 hover:text-gray-600 "
             >
               <XMarkIcon className="h-6 w-6" />
