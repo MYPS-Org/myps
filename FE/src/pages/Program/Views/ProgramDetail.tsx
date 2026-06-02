@@ -552,10 +552,10 @@ const ProgramDetail: React.FC = () => {
               items={(programEnums?.Dropdowns.DataSecurity || []).map(item => ({
                 id: item.ParticipantId ?? '',
                 name: item.Name ?? '',
-                groupType: item.OrgType === 'C' ? 'Central Office' : 
-                           item.OrgType === 'R' ? 'Regional Offices' : 
+                groupType: item.OrgType === 'C' ? 'Central Office' :
+                           item.OrgType === 'R' ? (item.RegionName ?? 'Regional Offices') :
                            item.OrgType === 'B' ? 'Bureaus' :
-                           item.OrgType === 'PMO' ? 'Project Management Offices' : 
+                           item.OrgType === 'PMO' ? 'Project Management Offices' :
                            item.OrgType || 'Other'
               }))}
               selectedIds={programEnums?.Details.DataSecurityGroup || []}
