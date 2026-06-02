@@ -24,7 +24,7 @@ namespace WebAPI.Controllers.ProjectGroup
             {
                 if (dto.Filters == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Expected Parametes missing!", Title = "Parameter Error" });
+                    return new BadRequestObjectResult(new { Message = "Expected Parameters missing.", Title = "Parameter Error" });
                 }
                 if (!string.IsNullOrEmpty(dto.SortField))
                 {
@@ -33,7 +33,7 @@ namespace WebAPI.Controllers.ProjectGroup
                         .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
                     if (!isValid)
                     {
-                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort!", Title = "Parameter Error" });
+                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort.", Title = "Parameter Error" });
                     }
                 }
                 dto.sortDirection = string.IsNullOrEmpty(dto.sortDirection.ToString()) ? sortDirectionList.DESC : dto.sortDirection;
@@ -41,7 +41,7 @@ namespace WebAPI.Controllers.ProjectGroup
                 bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!);
                 if (!isValidDirection)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed!", Title = "Invalid sort option" });
+                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed.", Title = "Invalid sort option" });
                 }
                 // Validate pagination parameters
                 if (dto.page < 1) dto.page = 1;
@@ -108,7 +108,7 @@ namespace WebAPI.Controllers.ProjectGroup
                 var CheckName = await _db.tProjectGroups.AsNoTracking().FirstOrDefaultAsync(x => x.Name == dto.Name);
                 if(CheckName != null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Project Group Name already exists!", Title = "Duplicate Name" });
+                    return new BadRequestObjectResult(new { Message = "Project Group Name already exists.", Title = "Duplicate Name" });
                 }
                 string GroupId = $"PRG-{("tCountSequence").GenerateCode()}";
                 var NewGroup = new ProjectGroups
@@ -148,7 +148,7 @@ namespace WebAPI.Controllers.ProjectGroup
                 var CheckName = await _db.tProjectGroups.AsNoTracking().FirstOrDefaultAsync(x => x.GroupId == dto.GroupId);
                 if (CheckName == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Project Group not found!", Title = "Not Found" });
+                    return new BadRequestObjectResult(new { Message = "Project Group not found.", Title = "Not Found" });
                 }
                 var ExistingProjects = await _db.tProjectsInGroup
                     .AsNoTracking()
@@ -221,7 +221,7 @@ namespace WebAPI.Controllers.ProjectGroup
                 var CheckProject = await _db.vProjectLatestStage.AsNoTracking().FirstOrDefaultAsync(x => x.ProjectId == dto.ProjectId);
                 if (CheckProject == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Project not found!", Title = "Not Found" });
+                    return new BadRequestObjectResult(new { Message = "Project not found.", Title = "Not Found" });
                 }
                 return Ok(new
                 {
@@ -258,11 +258,11 @@ namespace WebAPI.Controllers.ProjectGroup
                 var CheckMissingProjects = dto.ProjectId.Except(CheckProjects.Select(x => x.ReferenceId)).ToList();
                 if (CheckMissingProjects.Count > 0)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Projects {string.Join(", ", CheckMissingProjects)} not found!", Title = "Not Found" });
+                    return new BadRequestObjectResult(new { Message = $"Projects {string.Join(", ", CheckMissingProjects)} not found.", Title = "Not Found" });
                 }
                 if (CheckProjects.Count < 1)
                 {
-                    return new BadRequestObjectResult(new { Message = $"No Projects not found!", Title = "Not Found" });
+                    return new BadRequestObjectResult(new { Message = $"No Projects found.", Title = "Not Found" });
                 }
                 await _db.tProjectsInGroup.AddRangeAsync(CheckProjects.Select(x =>
                 {
@@ -298,12 +298,12 @@ namespace WebAPI.Controllers.ProjectGroup
                 var CheckName = await _db.vProjectsInGroup.AsNoTracking().FirstOrDefaultAsync(x => dto.ProjectId == x.ProjectId);
                 if (CheckName == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Project not found in group!", Title = "Not Found" });
+                    return new BadRequestObjectResult(new { Message = "Project not found in group.", Title = "Not Found" });
                 }
                 var CheckProjects = await _db.tProjects.AsNoTracking().FirstOrDefaultAsync(x => dto.ProjectId == x.ReferenceId);
                 if (CheckProjects == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Project not found! Please contact administrator", Title = "Not Found" });
+                    return new BadRequestObjectResult(new { Message = "Project not found. Please contact administrator.", Title = "Not Found" });
                 }
                 var ExistingProject = await _db.tProjectsInGroup
                     .AsNoTracking()
@@ -344,14 +344,14 @@ namespace WebAPI.Controllers.ProjectGroup
             {
                 if (string.IsNullOrEmpty(dto.GroupId))
                 {
-                    return new BadRequestObjectResult(new { Message = "Expected Parametes missing!", Title = "Parameter Error" });
+                    return new BadRequestObjectResult(new { Message = "Expected Parameters missing.", Title = "Parameter Error" });
                 }
                 var GroupDetail = await _db.vProjectGroups
                     .AsNoTracking()
                     .FirstOrDefaultAsync(x => x.GroupId == dto.GroupId);
                 if (GroupDetail == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Project Group not found!", Title = "Not Found" });
+                    return new BadRequestObjectResult(new { Message = "Project Group not found.", Title = "Not Found" });
                 }
                 var ProjectDetails = await _db.tProjectsInGroup.AsNoTracking().Where(x => x.GroupId == dto.GroupId).Select(x => x.ProjectId).ToListAsync();
                 var ProjectList = await _db.vProjectLatestStage
@@ -379,14 +379,14 @@ namespace WebAPI.Controllers.ProjectGroup
             {
                 if (string.IsNullOrEmpty(dto.GroupDetails.GroupId))
                 {
-                    return new BadRequestObjectResult(new { Message = "Expected Parametes missing!", Title = "Parameter Error" });
+                    return new BadRequestObjectResult(new { Message = "Expected Parameters missing.", Title = "Parameter Error" });
                 }
                 var GroupDetail = await _db.tProjectGroups
                     .AsNoTracking()
                     .FirstOrDefaultAsync(x => x.GroupId == dto.GroupDetails.GroupId);
                 if (GroupDetail == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Project Group not found!", Title = "Not Found" });
+                    return new BadRequestObjectResult(new { Message = "Project Group not found.", Title = "Not Found" });
                 }
                 var transactionLogs = new List<TransactionLog>();
                 DateTime CurrentDate = Functions.CurrentDate();;
@@ -455,7 +455,7 @@ namespace WebAPI.Controllers.ProjectGroup
                 }
                 return Ok(new
                 {
-                    Message = $"Project Group {dto.GroupDetails.GroupId} updated successfully!",
+                    Message = $"Project Group {dto.GroupDetails.GroupId} updated successfully.",
                     Title = "Update Complete"
                 });
             }

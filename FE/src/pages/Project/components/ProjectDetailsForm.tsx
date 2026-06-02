@@ -358,7 +358,7 @@ const ProjectDetailsForm: React.FC<ProjectDetailsFormProps> = ({
                                         disabled={disabled}
                                         error={!!errors.Category}
                                         allowClear={true}
-                                        searchPlaceholder="Search category..."
+                                        searchPlaceholder="Search"
                                     />
                                 </div>
                             </div>

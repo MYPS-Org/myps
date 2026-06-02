@@ -59,7 +59,7 @@ namespace WebAPI.Controllers.GlobalSearch
                  */
                 var CheckCategory = await _db.tOptionGlobalSearch.FirstOrDefaultAsync(x => x.CategoryName == dto.Category);
                 if (CheckCategory == null) {
-                    return new BadRequestObjectResult(new { Message = $"Category '{dto.Category}' not found", Title = "Invalid Category" });
+                    return new BadRequestObjectResult(new { Message = $"Category '{dto.Category}' not found.", Title = "Invalid Category" });
                 }
                 if(dto.Category == "Alternate ID")
                 {

@@ -62,7 +62,7 @@ namespace WebAPI.Controllers.Programs
             {
                 if (dto.Filters == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Expected Parametes missing!", Title = "Parameter Error" });
+                    return new BadRequestObjectResult(new { Message = "Expected Parameters missing.", Title = "Parameter Error" });
                 }
                 if (!string.IsNullOrEmpty(dto.SortField))
                 {
@@ -71,7 +71,7 @@ namespace WebAPI.Controllers.Programs
                         .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
                     if (!isValid)
                     {
-                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort!", Title = "Parameter Error" });
+                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort.", Title = "Parameter Error" });
                     }
                 }
                 dto.sortDirection = string.IsNullOrEmpty(dto.sortDirection.ToString()) ? sortDirectionList.DESC : dto.sortDirection;
@@ -79,7 +79,7 @@ namespace WebAPI.Controllers.Programs
                 bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!);
                 if (!isValidDirection)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed!", Title = "Invalid sort option" });
+                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed.", Title = "Invalid sort option" });
                 }
                 // Validate pagination parameters
                 if (dto.page < 1) dto.page = 1;
@@ -194,24 +194,24 @@ namespace WebAPI.Controllers.Programs
                 var checkProgram = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Name == dto.Name);
                 if (checkProgram != null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Program name '{dto.Name}' already exists in the System!", Title = "Program Already Exists" });
+                    return new BadRequestObjectResult(new { Message = $"Program name '{dto.Name}' already exists in the System.", Title = "Program Already Exists" });
                 }
                 var checkStageType = await _db.tOptionProgramStage.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == (int)dto.Stage);
                 if (checkStageType == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Program Stage '{dto.Stage}' is not valid!", Title = "Invalid Stage" });
+                    return new BadRequestObjectResult(new { Message = $"Program Stage '{dto.Stage}' is not valid.", Title = "Invalid Stage" });
                 }
                 var checkType = await _db.tOptionProgramType.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == (int)dto.Type);
                 if (checkType == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Program Type '{dto.Type}' is not valid!", Title = "Invalid Type" });
+                    return new BadRequestObjectResult(new { Message = $"Program Type '{dto.Type}' is not valid.", Title = "Invalid Type" });
                 }
                 string[] includes = { "CO", "R", "UPMO", "PMOC", "B" };
                 var GetSecurityGroup = await _db.vAdminImplementingOffice.AsNoTracking().Where(x => includes.Contains(x.OrgType)).Select(x => x.ParticipantId).ToListAsync();
                 var CheckItems = dto.DataSecurityGroup.Where(x => !GetSecurityGroup.Contains(x));
                 if (CheckItems.Count() > 0)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Security Group '{string.Join(", ", CheckItems)}' is not valid!", Title = "Invalid Security Group" });
+                    return new BadRequestObjectResult(new { Message = $"Security Group '{string.Join(", ", CheckItems)}' is not valid.", Title = "Invalid Security Group" });
                 }
                 if (dto.IsSkipped == true && string.IsNullOrEmpty(dto.SkipReason))
                 {
@@ -264,7 +264,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     Id = ReferenceId,
                     Stage = dto.Stage.ToString(),
-                    Message = "Program added successfully",
+                    Message = "Program added successfully.",
                     Title = "Add Complete"
                 });
             }
@@ -284,12 +284,12 @@ namespace WebAPI.Controllers.Programs
             {
                 if (string.IsNullOrEmpty(dto.ProgramId))
                 {
-                    return new BadRequestObjectResult(new { Message = "Expected Parametes missing!", Title = "Parameter Error" });
+                    return new BadRequestObjectResult(new { Message = "Expected Parameters missing.", Title = "Parameter Error" });
                 }
                 var CurrentProgramVersion = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
                 if (CurrentProgramVersion == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Programs table. Please contact administrator!", Title = "Program not found" });
+                    return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Programs table. Please contact administrator.", Title = "Program not found" });
                 }
                 var query = _db.vProgramDetails
                 .AsNoTracking()
@@ -352,7 +352,7 @@ namespace WebAPI.Controllers.Programs
             {
                 if (string.IsNullOrEmpty(dto.ProgramId))
                 {
-                    return new BadRequestObjectResult(new { Message = "Expected Parametes missing!", Title = "Parameter Error" });
+                    return new BadRequestObjectResult(new { Message = "Expected Parameters missing.", Title = "Parameter Error" });
                 }
                 EnumProgramStage[] StagesToCheck =
                 {
@@ -378,7 +378,7 @@ namespace WebAPI.Controllers.Programs
                     var ProjectRevision = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dto.RevisionId && x.DataSecurityGroup.Contains(_Session.RegCode));
                     if(ProjectRevision == null)
                     {
-                        return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist or you do not have permission to delete this program. Please contact administrator!", Title = "Program not found or Access Denied" });
+                        return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist or you do not have permission to delete this program. Please contact administrator.", Title = "Program not found or Access Denied" });
                     }
                 }
                 var program = await _db.tPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
@@ -389,7 +389,7 @@ namespace WebAPI.Controllers.Programs
                 var ProgramStage = await _db.tProgramStages.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionId == dto.RevisionId);
                 if (ProgramStage == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Program Stage with Revision ID '{dto.RevisionId}' does not exist in the Program Stages table. Please contact administrator!", Title = "Stage not found" });
+                    return new BadRequestObjectResult(new { Message = $"Program Stage with Revision ID '{dto.RevisionId}' does not exist in the Program Stages table. Please contact administrator.", Title = "Stage not found" });
                 }
                 var TransactionLog = new TransactionLog()
                 {
@@ -437,7 +437,7 @@ namespace WebAPI.Controllers.Programs
                 await transaction.CommitAsync();
                 return Ok(new
                 {
-                    Message = "Program delete successfully!",
+                    Message = "Program deleted successfully.",
                     Title = "Delete Complete"
                 });
             }
@@ -502,7 +502,7 @@ namespace WebAPI.Controllers.Programs
                 }
                 List<TransactionLog> transactionLogs = new List<TransactionLog>();
                 DateTime CurrentDate = Functions.CurrentDate();;
-                if (string.IsNullOrEmpty(dto.Name)) { return new BadRequestObjectResult(new { Message = $"Program name field cannot be empty!", Title = "Update Failed" }); }
+                if (string.IsNullOrEmpty(dto.Name)) { return new BadRequestObjectResult(new { Message = $"Program name field cannot be empty.", Title = "Update Failed" }); }
                 var NewProgramVersion = new ProgramRevisions()
                 {
                     ProgramId = getProgram.ProgramId,
@@ -554,7 +554,7 @@ namespace WebAPI.Controllers.Programs
                 var CheckItems = dto.DataSecurityGroup.Where(x => !GetSecurityGroup.Select(x => x.ParticipantId).Contains(x));
                 if (CheckItems.Count() > 0)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Security Group '{string.Join(", ", CheckItems)}' is not valid!", Title = "Invalid Security Group" });
+                    return new BadRequestObjectResult(new { Message = $"Security Group '{string.Join(", ", CheckItems)}' is not valid.", Title = "Invalid Security Group" });
                 }
                 if (dto.DataSecurityGroup != NewProgramVersion.DataSecurityGroup)
                 {
@@ -648,7 +648,7 @@ namespace WebAPI.Controllers.Programs
                 }
                 return Ok(new
                 {
-                    Message = $"Program {dto.ProgramId} updated successfully!",
+                    Message = $"Program {dto.ProgramId} updated successfully.",
                     Title = "Update Complete"
                 });
             }
@@ -669,29 +669,29 @@ namespace WebAPI.Controllers.Programs
                 var checkProgram = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
                 if (checkProgram == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Programs table. Please contact administrator!", Title = "Program not found" });
+                    return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Programs table. Please contact administrator.", Title = "Program not found" });
                 }
                 if (_Session.ApplyFilter)
                 {
                     if (!checkProgram.DataSecurityGroup.Contains(_Session.RegCode))
                     {
-                        return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist or you do not have permission to update this program. Please contact administrator!", Title = "Program not found or Access Denied" });
+                        return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist or you do not have permission to update this program. Please contact administrator.", Title = "Program not found or Access Denied" });
                     }
                 }
                 var checkRevisions = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId && x.Id == checkProgram.RevisionId);
                 if (checkRevisions == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Revisions table. Please contact administrator!", Title = "Program not found" });
+                    return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Revisions table. Please contact administrator.", Title = "Program not found" });
                 }
                 var checkStage = await _db.tProgramStages.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionId == checkRevisions.Id && x.ProgramId == dto.ProgramId);
                 if (checkStage == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Program ID Revision '{checkRevisions.Id}' does not exist in the Stages table. Please contact administrator!", Title = "Program Stage not found" });
+                    return new BadRequestObjectResult(new { Message = $"Program ID Revision '{checkRevisions.Id}' does not exist in the Stages table. Please contact administrator.", Title = "Program Stage not found" });
                 }
                 var checkStageType = await _db.tOptionProgramStage.AsNoTracking().FirstOrDefaultAsync(x => x.NameId == (int)dto.Stage);
                 if (checkStageType == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Program Stage '{dto.Stage}' is not valid!", Title = "Invalid Stage" });
+                    return new BadRequestObjectResult(new { Message = $"Program Stage '{dto.Stage}' is not valid.", Title = "Invalid Stage" });
                 }
 
                 var checkProjects = await _db.fProjectsPerStage
@@ -954,7 +954,7 @@ namespace WebAPI.Controllers.Programs
                         await transaction.CommitAsync();
                         return Ok(new
                         {
-                            Message = "Program updated successfully",
+                            Message = "Program updated successfully.",
                             Title = "Update Stage Complete"
                         });
                     }
@@ -982,13 +982,13 @@ namespace WebAPI.Controllers.Programs
                 var checkProgram = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
                 if (checkProgram == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Programs table. Please contact administrator!", Title = "Program not found" });
+                    return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Programs table. Please contact administrator.", Title = "Program not found" });
                 }
                 if (_Session.ApplyFilter)
                 {
                     if (!checkProgram.DataSecurityGroup.Contains(_Session.RegCode))
                     {
-                        return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist or you do not have permission to update this program. Please contact administrator!", Title = "Program not found or Access Denied" });
+                        return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist or you do not have permission to update this program. Please contact administrator.", Title = "Program not found or Access Denied" });
                     }
                 }
                 char[] delimiters = { ';', ',', ' ', '\n' };
@@ -1031,7 +1031,7 @@ namespace WebAPI.Controllers.Programs
 
                     return Ok(new
                     {
-                        Message = $"The selected projects have been excluded from automatic publication to PCMA.\n\nList of missing Projects:{string.Join("\n", MissingProjectIds)}",
+                        Message = $"The selected projects have been excluded from automatic publication to PCMA.\n\nList of missing Projects:{string.Join("\n", MissingProjectIds)}.",
                         Title = "Restrict Publishing Successful"
                     });
                 }
@@ -1062,13 +1062,13 @@ namespace WebAPI.Controllers.Programs
                 var checkProgram = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
                 if (checkProgram == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Programs table. Please contact administrator!", Title = "Program not found" });
+                    return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Programs table. Please contact administrator.", Title = "Program not found" });
                 }
                 if (_Session.ApplyFilter)
                 {
                     if (!checkProgram.DataSecurityGroup.Contains(_Session.RegCode))
                     {
-                        return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist or you do not have permission to update this program. Please contact administrator!", Title = "Program not found or Access Denied" });
+                        return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist or you do not have permission to update this program. Please contact administrator.", Title = "Program not found or Access Denied" });
                     }
                 }
                 char[] delimiters = { ';', ',', '.', '&', ' ', '\n' };
@@ -1111,7 +1111,7 @@ namespace WebAPI.Controllers.Programs
 
                     return Ok(new
                     {
-                        Message = $"The selected projects have been excluded from automatic publication to PCMA.\n\nList of missing Projects:{string.Join("\n", MissingProjectIds)}",
+                        Message = $"The selected projects have been excluded from automatic publication to PCMA.\n\nList of missing Projects:{string.Join("\n", MissingProjectIds)}.",
                         Title = "Restrict Publishing Successful"
                     });
                 }
@@ -1142,13 +1142,13 @@ namespace WebAPI.Controllers.Programs
                 var checkProgram = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
                 if (checkProgram == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Programs table. Please contact administrator!", Title = "Program not found" });
+                    return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Programs table. Please contact administrator.", Title = "Program not found" });
                 }
                 if(_Session.ApplyFilter)
                 {
                     if (!checkProgram.DataSecurityGroup.Contains(_Session.RegCode))
                     {
-                        return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist or you do not have permission to update this program. Please contact administrator!", Title = "Program not found or Access Denied" });
+                        return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist or you do not have permission to update this program. Please contact administrator.", Title = "Program not found or Access Denied" });
                     }
                 }
                 char[] delimiters = { ';', ',', '.', '&', ' ', '\n' };
@@ -1191,7 +1191,7 @@ namespace WebAPI.Controllers.Programs
 
                     return Ok(new
                     {
-                        Message = $"The selected projects have been excluded from automatic publication to PCMA.\n\nList of missing Projects:{string.Join("\n", MissingProjectIds)}",
+                        Message = $"The selected projects have been excluded from automatic publication to PCMA.\n\nList of missing Projects:{string.Join("\n", MissingProjectIds)}.",
                         Title = "Restrict Publishing Successful"
                     });
                 }
@@ -1222,13 +1222,13 @@ namespace WebAPI.Controllers.Programs
                 var checkProgram = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
                 if (checkProgram == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Programs table. Please contact administrator!", Title = "Program not found" });
+                    return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist in the Programs table. Please contact administrator.", Title = "Program not found" });
                 }
                 if (_Session.ApplyFilter)
                 {
                     if (!checkProgram.DataSecurityGroup.Contains(_Session.RegCode))
                     {
-                        return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist or you do not have permission to update this program. Please contact administrator!", Title = "Program not found or Access Denied" });
+                        return new BadRequestObjectResult(new { Message = $"Program ID '{dto.ProgramId}' does not exist or you do not have permission to update this program. Please contact administrator.", Title = "Program not found or Access Denied" });
                     }
                 }
                 char[] delimiters = { ';', ',', '.', '&', ' ', '\n' };
@@ -1272,7 +1272,7 @@ namespace WebAPI.Controllers.Programs
 
                     return Ok(new
                     {
-                        Message = $"The selected projects have been successfully restored to their original stage.\n\nList of projects not found or already active:{string.Join("\n", missingProjectIds)}",
+                        Message = $"The selected projects have been successfully restored to their original stage.\n\nList of projects not found or already active:{string.Join("\n", missingProjectIds)}.",
                         Title = "Restore Projects Successful"
                     });
                 }

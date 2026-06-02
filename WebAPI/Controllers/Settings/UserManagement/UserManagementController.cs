@@ -32,7 +32,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
             {
                 if (dto.Filters == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Expected Parameters missing!", Title = "Parameter Error" });
+                    return new BadRequestObjectResult(new { Message = "Expected Parameters missing.", Title = "Parameter Error" });
                 }
 
                 // Validate sort field against AppModules (scalar columns only)
@@ -44,7 +44,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
 
                     if (!isValid)
                     {
-                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort!", Title = "Parameter Error" });
+                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort.", Title = "Parameter Error" });
                     }
                 }
 
@@ -54,7 +54,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
 
                 if (!Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!))
                 {
-                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed!", Title = "Invalid sort option" });
+                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed.", Title = "Invalid sort option" });
                 }
 
                 if (dto.page < 1) dto.page = 1;
@@ -108,7 +108,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 {
                     return new BadRequestObjectResult(new
                     {
-                        Message = $"Module '{dto.ModuleName}' already exists in the System!",
+                        Message = $"Module '{dto.ModuleName}' already exists in the System.",
                         Title = "Duplicate Module"
                     });
                 }
@@ -207,7 +207,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 {
                     return new BadRequestObjectResult(new
                     {
-                        Message = $"Module with Id '{dto.Id}' does not exist in the System!",
+                        Message = $"Module with Id '{dto.Id}' does not exist in the System.",
                         Title = "Module not found"
                     });
                 }
@@ -337,7 +337,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 {
                     return new BadRequestObjectResult(new
                     {
-                        Message = $"Module '{dto.ModuleName}' does not exist in the System!",
+                        Message = $"Module '{dto.ModuleName}' does not exist in the System.",
                         Title = "Module not found"
                     });
                 }
@@ -425,7 +425,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
             {
                 if (dto.Filters == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Expected Parametes missing!", Title = "Parameter Error" });
+                    return new BadRequestObjectResult(new { Message = "Expected Parameters missing.", Title = "Parameter Error" });
                 }
                 if (!string.IsNullOrEmpty(dto.SortField))
                 {
@@ -434,7 +434,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                         .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
                     if (!isValid)
                     {
-                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort!", Title = "Parameter Error" });
+                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort.", Title = "Parameter Error" });
                     }
                 }
                 dto.sortDirection = string.IsNullOrEmpty(dto.sortDirection.ToString()) ? sortDirectionList.DESC : dto.sortDirection;
@@ -442,7 +442,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!);
                 if (!isValidDirection)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed!", Title = "Invalid sort option" });
+                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed.", Title = "Invalid sort option" });
                 }
                 // Validate pagination parameters
                 if (dto.page < 1) dto.page = 1;
@@ -507,7 +507,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 var getUser = await _db.tUsers.FirstOrDefaultAsync(x => x.Id == dto.Id);
                 if (getUser == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"User '{dto.UserId}' does not exists in the System!", Title = "User not found" });
+                    return new BadRequestObjectResult(new { Message = $"User '{dto.UserId}' does not exist in the System.", Title = "User not found" });
                 }
                 var getUserGroups = await _db.tUserGroups.Where(x => x.UserId == getUser.UserId).ToListAsync();
                 if(getUserGroups.Count > 0)
@@ -783,7 +783,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
             {
                 if (dto.Filters == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Expected Parametes missing!", Title = "Parameter Error" });
+                    return new BadRequestObjectResult(new { Message = "Expected Parameters missing.", Title = "Parameter Error" });
                 }
                 if (!string.IsNullOrEmpty(dto.SortField))
                 {
@@ -792,7 +792,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                         .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
                     if (!isValid)
                     {
-                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort!", Title = "Parameter Error" });
+                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort.", Title = "Parameter Error" });
                     }
                 }
                 dto.sortDirection = string.IsNullOrEmpty(dto.sortDirection.ToString()) ? sortDirectionList.DESC : dto.sortDirection;
@@ -800,7 +800,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!);
                 if (!isValidDirection)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed!", Title = "Invalid sort option" });
+                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed.", Title = "Invalid sort option" });
                 }
                 // Validate pagination parameters
                 if (dto.page < 1) dto.page = 1;
@@ -988,7 +988,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
             {
                 if (dto.Filters == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Expected Parametes missing!", Title = "Parameter Error" });
+                    return new BadRequestObjectResult(new { Message = "Expected Parameters missing.", Title = "Parameter Error" });
                 }
                 if (!string.IsNullOrEmpty(dto.SortField))
                 {
@@ -997,7 +997,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                         .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
                     if (!isValid)
                     {
-                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort!", Title = "Parameter Error" });
+                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort.", Title = "Parameter Error" });
                     }
                 }
                 dto.sortDirection = string.IsNullOrEmpty(dto.sortDirection.ToString()) ? sortDirectionList.DESC : dto.sortDirection;
@@ -1005,7 +1005,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!);
                 if (!isValidDirection)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed!", Title = "Invalid sort option" });
+                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed.", Title = "Invalid sort option" });
                 }
                 // Validate pagination parameters
                 if (dto.page < 1) dto.page = 1;
@@ -1362,7 +1362,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
             {
                 if (dto.Filters == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Expected Parametes missing!", Title = "Parameter Error" });
+                    return new BadRequestObjectResult(new { Message = "Expected Parameters missing.", Title = "Parameter Error" });
                 }
                 if (!string.IsNullOrEmpty(dto.SortField))
                 {
@@ -1371,7 +1371,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                         .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
                     if (!isValid)
                     {
-                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort!", Title = "Parameter Error" });
+                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort.", Title = "Parameter Error" });
                     }
                 }
                 dto.sortDirection = string.IsNullOrEmpty(dto.sortDirection.ToString()) ? sortDirectionList.DESC : dto.sortDirection;
@@ -1379,7 +1379,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
                 bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!);
                 if (!isValidDirection)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed!", Title = "Invalid sort option" });
+                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed.", Title = "Invalid sort option" });
                 }
                 // Validate pagination parameters
                 if (dto.page < 1) dto.page = 1;

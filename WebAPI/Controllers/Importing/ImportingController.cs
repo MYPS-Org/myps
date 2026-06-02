@@ -429,7 +429,7 @@ namespace WebAPI.Controllers.Importing
                     });
                 }
 
-                return Ok(new { Message = $"Projects imported: {projects.Count}", Title = "Project Imported Successfully" });
+                return Ok(new { Message = $"Projects imported: {projects.Count}.", Title = "Project Imported Successfully" });
 
             }
             catch (Exception ex)

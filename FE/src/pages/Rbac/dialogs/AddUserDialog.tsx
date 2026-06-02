@@ -105,6 +105,11 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
       }
 
       if (!formData.regName) {
+        showToast({ type: 'error', message: 'Region is required.' });
+        return;
+      }
+      
+      if (!formData.plantillaOfficeName) {
         showToast({ type: 'error', message: 'Plantilla Office is required.' });
         return;
       }
@@ -246,6 +251,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
                   placeholder="Enter user ID"
                   className={"w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-700" 
                     + (formData.userId ? '' : ' bg-gray-100')}
+                  disabled={true}
                   readOnly={!isDataLoaded || isLoading}
                   required
                 />
@@ -269,15 +275,16 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Region Code
+                  Region
                 </label>
                 <input
                   type="text"
-                  value={formData.regCode}
-                  onChange={(e) => handleChange('regCode', e.target.value)}
-                  placeholder="Enter region code"
+                  value={formData.regName}
+                  onChange={(e) => handleChange('regName', e.target.value)}
+                  placeholder="Enter region"
                   className={"w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-700" 
-                    + (formData.regCode ? ' bg-gray-100' : '')}
+                    + (formData.regName ? ' bg-gray-100' : '')}
+                  disabled={true}
                   readOnly={!isDataLoaded || isLoading}
                   required
                 />
@@ -305,7 +312,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({ isOpen, onClose, onSubmit
               </label>
               <input
                 type="text"
-                value={formData.regName}
+                value={formData.plantillaOfficeName}
                 placeholder="Enter department"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-700"
                 disabled={true}

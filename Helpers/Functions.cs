@@ -182,7 +182,7 @@ namespace Helpers
             }
             catch (Exception e)
             {
-                throw new Exception(new { Message = $"Failed to upload file: {e.ToString()}", Title = "File Upload Error" }.ToString());
+                //throw new Exception(new { Message = $"Failed to upload file: {e.Message}.", Title = "File Upload Error" }.ToString());
                 return false;
             }
         }
@@ -655,7 +655,7 @@ namespace Helpers
             if (dto == null || dto.Filters == null)
             {
                 result.HasError = true;
-                result.ErrorMessage = "Expected Parameters missing!";
+                result.ErrorMessage = "Expected Parameters missing.";
                 return result;
             }
 
@@ -670,7 +670,7 @@ namespace Helpers
             if (prop == null)
             {
                 result.HasError = true;
-                result.ErrorMessage = $"Invalid Column: {dto.SortField} to sort!";
+                result.ErrorMessage = $"Invalid Column: {dto.SortField} to sort.";
                 return result;
             }
 
@@ -679,7 +679,7 @@ namespace Helpers
             if (!Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!.Value))
             {
                 result.HasError = true;
-                result.ErrorMessage = $"Sorting Direction: {dto.sortDirection} not allowed!";
+                result.ErrorMessage = $"Sorting Direction: {dto.sortDirection} not allowed.";
                 return result;
             }
 

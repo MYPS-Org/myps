@@ -72,7 +72,7 @@ namespace WebAPI.Controllers.Programs
             {
                 if (dto.Filters == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Expected Parametes missing!", Title = "Parameter Error" });
+                    return new BadRequestObjectResult(new { Message = "Expected Parameters missing.", Title = "Parameter Error" });
                 }
                 if (!string.IsNullOrEmpty(dto.SortField))
                 {
@@ -81,7 +81,7 @@ namespace WebAPI.Controllers.Programs
                         .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
                     if (!isValid)
                     {
-                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort!", Title = "Parameter Error" });
+                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort.", Title = "Parameter Error" });
                     }
                 }
                 dto.sortDirection = string.IsNullOrEmpty(dto.sortDirection.ToString()) ? sortDirectionList.DESC : dto.sortDirection;
@@ -89,7 +89,7 @@ namespace WebAPI.Controllers.Programs
                 bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!);
                 if (!isValidDirection)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed!", Title = "Invalid sort option" });
+                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed.", Title = "Invalid sort option" });
                 }
                 // Validate pagination parameters
                 if (dto.page < 1) dto.page = 1;
@@ -207,7 +207,7 @@ namespace WebAPI.Controllers.Programs
                 var checkClassification = await _db.tFutureRoadsClassification.AsNoTracking().FirstOrDefaultAsync(x => x.ClassificationId == dto.Classification);
                 if(checkClassification == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Classification '{dto.Classification}' is not valid!", Title = "Invalid Classification" });
+                    return new BadRequestObjectResult(new { Message = $"Classification '{dto.Classification}' is not valid.", Title = "Invalid Classification" });
                 }
                 DateTime currentDate = Functions.CurrentDate();;
                 string UserId = _Session.UserId;
@@ -270,7 +270,7 @@ namespace WebAPI.Controllers.Programs
                 }
                 return Ok(new
                 {
-                    Message = "Future Road added successfully",
+                        Message = "Future Road added successfully.",
                     Title = "Add Complete"
                 });
             }
@@ -298,17 +298,17 @@ namespace WebAPI.Controllers.Programs
                 var checkRoadName = await _db.tFutureRoads.AsNoTracking().FirstOrDefaultAsync(x => x.Name == dto.Name);
                 if (checkRoadName != null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Future Road name '{dto.Name}' already exists in the System!", Title = "Road Already Exists" });
+                    return new BadRequestObjectResult(new { Message = $"Future Road name '{dto.Name}' already exists in the System.", Title = "Road Already Exists" });
                 }
                 var checkRoadID = await _db.tFutureRoads.AsNoTracking().FirstOrDefaultAsync(x => x.RoadId == dto.RoadId);
                 if (checkRoadID != null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Future Road ID '{dto.Name}' already exists in the System!", Title = "Road ID Already Exists" });
+                    return new BadRequestObjectResult(new { Message = $"Future Road ID '{dto.Name}' already exists in the System.", Title = "Road ID Already Exists" });
                 }
                 var checkClassification = await _db.tFutureRoadsClassification.AsNoTracking().FirstOrDefaultAsync(x => x.ClassificationId == dto.Classification);
                 if(checkClassification == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Classification '{dto.Classification}' is not valid!", Title = "Invalid Classification" });
+                    return new BadRequestObjectResult(new { Message = $"Classification '{dto.Classification}' is not valid.", Title = "Invalid Classification" });
                 }
                 DateTime currentDate = Functions.CurrentDate();;
                 string UserId = _Session.UserId;
@@ -325,7 +325,7 @@ namespace WebAPI.Controllers.Programs
                 await transaction.CommitAsync();
                 return Ok(new
                 {
-                    Message = "Future Road added successfully",
+                    Message = "Future Road added successfully.",
                     Title = "Add Complete"
                 });
             }
@@ -388,7 +388,7 @@ namespace WebAPI.Controllers.Programs
                 await transaction.CommitAsync();
                 return Ok(new
                 {
-                    Message = "Future Road deleted successfully",
+                    Message = "Future Road deleted successfully.",
                     Title = "Remove Complete"
                 });
             }
@@ -427,7 +427,7 @@ namespace WebAPI.Controllers.Programs
             {
                 if (dto.Filters == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Expected Parametes missing!", Title = "Parameter Error" });
+                    return new BadRequestObjectResult(new { Message = "Expected Parameters missing.", Title = "Parameter Error" });
                 }
                 if (!string.IsNullOrEmpty(dto.SortField))
                 {
@@ -436,7 +436,7 @@ namespace WebAPI.Controllers.Programs
                         .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
                     if (!isValid)
                     {
-                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort!", Title = "Parameter Error" });
+                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort.", Title = "Parameter Error" });
                     }
                 }
                 dto.sortDirection = string.IsNullOrEmpty(dto.sortDirection.ToString()) ? sortDirectionList.DESC : dto.sortDirection;
@@ -444,7 +444,7 @@ namespace WebAPI.Controllers.Programs
                 bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!);
                 if (!isValidDirection)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed!", Title = "Invalid sort option" });
+                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed.", Title = "Invalid sort option" });
                 }
                 // Validate pagination parameters
                 if (dto.page < 1) dto.page = 1;
@@ -515,7 +515,7 @@ namespace WebAPI.Controllers.Programs
                 var checkDEO = await _db.tOptionAdminAreaDistrictEngineeringOffice.AsNoTracking().FirstOrDefaultAsync(x => x.ParticipantId == dto.DEO);
                 if (checkDEO == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"DEO '{dto.DEO}' is not valid!", Title = "Invalid DEO" });
+                    return new BadRequestObjectResult(new { Message = $"DEO '{dto.DEO}' is not valid.", Title = "Invalid DEO" });
                 }
                 DateTime currentDate = Functions.CurrentDate();;
                 string UserId = _Session.UserId;
@@ -533,7 +533,7 @@ namespace WebAPI.Controllers.Programs
                 await transaction.CommitAsync();
                 return Ok(new
                 {
-                    Message = "Future Road Section added successfully",
+                    Message = "Future Road Section added successfully.",
                     Title = "Add Complete"
                 });
             }
@@ -566,7 +566,7 @@ namespace WebAPI.Controllers.Programs
                 var checkRoadSectionId = await _db.tFutureRoadSections.AsNoTracking().FirstOrDefaultAsync(x => x.Id != dto.Id);
                 if (checkRoadSectionId != null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Road Section ID {dto.RoadSectionId} already exist in the system. Please use other Road ID", Title = "Invalid Road Section ID" });
+                    return new BadRequestObjectResult(new { Message = $"Road Section ID {dto.RoadSectionId} already exist in the system. Please use other Road ID.", Title = "Invalid Road Section ID" });
                 }
                 var CheckIfUsedinProject = await _db.tProjectMajorWorkLocations.AsNoTracking().FirstOrDefaultAsync(x => x.InfraId == checkRoad.RoadSectionId);
                 if (CheckIfUsedinProject != null)
@@ -676,7 +676,7 @@ namespace WebAPI.Controllers.Programs
                 }
                 return Ok(new
                 {
-                    Message = "Future Road added successfully",
+                    Message = "Future Road added successfully.",
                     Title = "Add Complete"
                 });
             }
@@ -739,7 +739,7 @@ namespace WebAPI.Controllers.Programs
                 await transaction.CommitAsync();
                 return Ok(new
                 {
-                    Message = "Future Road section deleted successfully",
+                    Message = "Future Road section deleted successfully.",
                     Title = "Remove Complete"
                 });
             }
@@ -778,7 +778,7 @@ namespace WebAPI.Controllers.Programs
             {
                 if (dto.Filters == null)
                 {
-                    return new BadRequestObjectResult(new { Message = "Expected Parametes missing!", Title = "Parameter Error" });
+                    return new BadRequestObjectResult(new { Message = "Expected Parameters missing.", Title = "Parameter Error" });
                 }
                 if (!string.IsNullOrEmpty(dto.SortField))
                 {
@@ -787,7 +787,7 @@ namespace WebAPI.Controllers.Programs
                         .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
                     if (!isValid)
                     {
-                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort!", Title = "Parameter Error" });
+                        return new BadRequestObjectResult(new { Message = $"Invalid Column: {dto.SortField} to sort.", Title = "Parameter Error" });
                     }
                 }
                 dto.sortDirection = string.IsNullOrEmpty(dto.sortDirection.ToString()) ? sortDirectionList.DESC : dto.sortDirection;
@@ -795,7 +795,7 @@ namespace WebAPI.Controllers.Programs
                 bool isValidDirection = Enum.IsDefined(typeof(sortDirectionList), dto.sortDirection!);
                 if (!isValidDirection)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed!", Title = "Invalid sort option" });
+                    return new BadRequestObjectResult(new { Message = $"Sorting Direction: {dto.sortDirection} not allowed.", Title = "Invalid sort option" });
                 }
                 // Validate pagination parameters
                 if (dto.page < 1) dto.page = 1;
@@ -866,12 +866,12 @@ namespace WebAPI.Controllers.Programs
                 var checkBridgeName = await _db.tFutureBridge.AsNoTracking().FirstOrDefaultAsync(x => x.Name == dto.Name);
                 if (checkBridgeName != null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Bridge name '{dto.Name}' already exists in the System!", Title = "Bridge Already Exists" });
+                    return new BadRequestObjectResult(new { Message = $"Bridge name '{dto.Name}' already exists in the System.", Title = "Bridge Already Exists" });
                 }
                 var checkRoadSectionId = await _db.tFutureRoadSections.AsNoTracking().FirstOrDefaultAsync(x => x.RoadSectionId == dto.RoadSectionId);
                 if (checkRoadSectionId == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Road Section '{dto.RoadSectionId}' is not valid!", Title = "Invalid Road Section" });
+                    return new BadRequestObjectResult(new { Message = $"Road Section '{dto.RoadSectionId}' is not valid.", Title = "Invalid Road Section" });
                 }
                 DateTime currentDate = Functions.CurrentDate();;
                 string UserId = _Session.UserId;
@@ -892,7 +892,7 @@ namespace WebAPI.Controllers.Programs
                 await transaction.CommitAsync();
                 return Ok(new
                 {
-                    Message = "Future Bridge added successfully",
+                    Message = "Future Bridge added successfully.",
                     Title = "Add Complete"
                 });
             }
@@ -925,7 +925,7 @@ namespace WebAPI.Controllers.Programs
                 var checkRoadSectionId = await _db.tFutureRoadSections.AsNoTracking().FirstOrDefaultAsync(x =>x.RoadSectionId == dto.RoadSectionId);
                 if (checkRoadSectionId == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"Road Section ID {dto.RoadSectionId} does not exist in the system. Please use other Road ID", Title = "Invalid Road Section ID" });
+                    return new BadRequestObjectResult(new { Message = $"Road Section ID {dto.RoadSectionId} does not exist in the system. Please use other Road ID.", Title = "Invalid Road Section ID" });
                 }
                 var checkBridgeId = await _db.tFutureBridge.AsNoTracking().FirstOrDefaultAsync(x => x.Id != dto.Id);
                 if (checkBridgeId == null)
@@ -1050,7 +1050,7 @@ namespace WebAPI.Controllers.Programs
                 }
                 return Ok(new
                 {
-                    Message = "Future Road added successfully",
+                    Message = "Future Road added successfully.",
                     Title = "Add Complete"
                 });
             }
@@ -1102,7 +1102,7 @@ namespace WebAPI.Controllers.Programs
                 await transaction.CommitAsync();
                 return Ok(new
                 {
-                    Message = "Future Bridge deleted successfully",
+                    Message = "Future Bridge deleted successfully.",
                     Title = "Remove Complete"
                 });
             }

@@ -75,7 +75,7 @@ namespace Main
 
                         var responseObj = new
                         {
-                            message = "Unauthorized",
+                            Message = "Unauthorized.",
                             data = new { Authenticated = false, user = new { } }
                         };
 

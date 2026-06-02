@@ -21,19 +21,6 @@ namespace WebAPI.Controllers.MockUps
         public PISController(MYPSDbContext db, IProducer<Null, string> producer, PCMADbContext pcma) : base(db, producer, pcma) { }
         [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> test()
-        {
-            try
-            {
-                var aa = _pcma.QueryFromFile<PCMAProjectComponentStatus>("PCMA").ToList();
-                return Ok(new { Tee = aa });
-            }
-            catch(Exception e)
-            {
-                return ExceptionHandler(e);
-            }
-        }
-        [HttpPost]
         public async Task<IActionResult> SearchUser([FromBody] SearchUserDTO dto)
         {
             try
@@ -44,7 +31,7 @@ namespace WebAPI.Controllers.MockUps
                     return new BadRequestObjectResult(
                         new
                         {
-                            Message = $"Employee: '{dto.EmployeeId}' already exists",
+                            Message = $"Employee: '{dto.EmployeeId}' already exists.",
                             Title = "User Exists"
                         }
                     );
@@ -56,7 +43,7 @@ namespace WebAPI.Controllers.MockUps
                     return new BadRequestObjectResult(
                         new
                         {
-                            Message = $"Employee: '{dto.EmployeeId}' not found",
+                            Message = $"Employee: '{dto.EmployeeId}' not found.",
                             Title = "User Not Found"
                         }
                     );
@@ -64,14 +51,16 @@ namespace WebAPI.Controllers.MockUps
                 var getRegCode = await _db.vAdminImplementingOffice.FirstOrDefaultAsync(x => x.ParticipantId == employee.CentralOrRegionId);
                 var getPlantillaOffice = await _db.vAdminImplementingOffice.FirstOrDefaultAsync(x => x.ParticipantId == employee.PlantillaOfficeId);
                 string UserId = $"{employee.PersonFamilyName?.Replace(" ","")}{employee.PersonForename?[0]}{employee.PersonMiddleInitial1?[0]}".ToLower();
-                DBHelper.Models.Table.Users newuser = new DBHelper.Models.Table.Users()
+                DBHelper.Models.Views.Users newuser = new DBHelper.Models.Views.Users()
                 {
                     EmployeeId = employee.EmployeeId,
                     UserId = UserId,
                     Name = $"{employee.PersonForename} {employee.PersonMiddleInitial1}. {employee.PersonFamilyName}",
                     Email = "",
                     RegCode = (getRegCode != null) ? getRegCode.RegionParticipantId : $"{employee.CentralOrRegionId} (Not Exists)",
+                    RegName = (getRegCode != null) ? getRegCode.RegionName : "",
                     PlantillaOffice = (getPlantillaOffice != null) ? getPlantillaOffice.ParticipantId : $"{employee.PlantillaOfficeId} (Not Exists)",
+                    PlantillaOfficeName = (getPlantillaOffice != null) ? getPlantillaOffice.Name : "",
                     IsActive = false
                 };
                 return Ok(newuser);
@@ -92,7 +81,7 @@ namespace WebAPI.Controllers.MockUps
                     return new BadRequestObjectResult(
                         new
                         {
-                            Message = $"Employee: '{dto.EmployeeId}' does not exist",
+                            Message = $"Employee: '{dto.EmployeeId}' does not exist.",
                             Title = "User Not Found"
                         }
                     );
@@ -104,20 +93,24 @@ namespace WebAPI.Controllers.MockUps
                     return new BadRequestObjectResult(
                         new
                         {
-                            Message = $"Employee: '{dto.EmployeeId}' not found",
+                            Message = $"Employee: '{dto.EmployeeId}' not found.",
                             Title = "User Not Found"
                         }
                     );
                 }
+                var getRegCode = await _db.vAdminImplementingOffice.FirstOrDefaultAsync(x => x.ParticipantId == employee.CentralOrRegionId);
+                var getPlantillaOffice = await _db.vAdminImplementingOffice.FirstOrDefaultAsync(x => x.ParticipantId == employee.PlantillaOfficeId);
                 string UserId = $"{employee.PersonFamilyName?.Replace(" ", "")}{employee.PersonForename?[0]}{employee.PersonMiddleInitial1?[0]}".ToLower();
-                DBHelper.Models.Table.Users newuser = new DBHelper.Models.Table.Users()
+                DBHelper.Models.Views.Users newuser = new DBHelper.Models.Views.Users()
                 {
                     EmployeeId = employee.EmployeeId,
                     UserId = UserId,
                     Name = $"{employee.PersonForename} {employee.PersonMiddleInitial1}. {employee.PersonFamilyName}",
                     Email = "",
-                    RegCode = employee.CentralOrRegionId!,
-                    PlantillaOffice = employee.PlantillaOfficeId,
+                    RegCode = (getRegCode != null) ? getRegCode.RegionParticipantId : $"{employee.CentralOrRegionId} (Not Exists)",
+                    RegName = (getRegCode != null) ? getRegCode.RegionName : "",
+                    PlantillaOffice = (getPlantillaOffice != null) ? getPlantillaOffice.ParticipantId : $"{employee.PlantillaOfficeId} (Not Exists)",
+                    PlantillaOfficeName = (getPlantillaOffice != null) ? getPlantillaOffice.Name : "",
                     IsActive = false
                 };
                 return Ok(newuser);

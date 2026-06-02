@@ -58,7 +58,7 @@ namespace WebAPI.Controllers.Auth
                 };
                 var verifyAccount = await _db.vUsers.FirstOrDefaultAsync(x => x.UserId == dto.UserName && x.IsActive == true);
 
-                if (verifyAccount == null) { LoginLog.ValidationMessage = "Account not active"; return UnauthorizedUser(); }
+                if (verifyAccount == null) { LoginLog.ValidationMessage = "Account not active."; return UnauthorizedUser("Your session has expired. Please sign in to continue."); }
 
                 var request = new AuthenticatePIS(dto.UserName, dto.Password);
                 var employee = await APIRequest.XML(request);
@@ -126,7 +126,7 @@ namespace WebAPI.Controllers.Auth
                 _db.tLoginHistory.Add(LoginLog);
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
-                return LoginLog.IsValid ? Ok(new { Message = "Login successful", Data = new { Authenticated = true, User = verifyAccount } }) : UnauthorizedUser();
+                return LoginLog.IsValid ? Ok(new { Message = "Login successful", Data = new { Authenticated = true, User = verifyAccount } }) : UnauthorizedUser("Invalid credentials. Please check your user ID and password and try again.");
             }
             catch (LdapException error)
             {
