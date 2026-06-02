@@ -34,6 +34,7 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
   const Group = programEnums?.Groups || [];
   const DataSecurity = programEnums?.DataSecurity || [];
   const [skipped, setSkipped] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const { showToast } = useToast();
 
   const [formData, setFormData] = useState({
@@ -54,6 +55,21 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const validationErrors: Record<string, string> = {};
+    if (!formData.Type || formData.Type === 0) {
+      validationErrors.Type = 'Program Type is required.';
+    }
+    if (formData.Type !== 3 && (!formData.Stage || formData.Stage === 0)) {
+      validationErrors.Stage = 'Program Stage is required.';
+    }
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      Object.values(validationErrors).forEach(msg => showToast({ type: 'error', message: msg }));
+      return;
+    }
+    setErrors({});
+
     const fullName = formData.AddedName
       ? `${formData.Name} ${formData.AddedName}`
       : formData.Name;
@@ -83,6 +99,9 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
   };
 
   const handleChange = (field: string, value: any) => {
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
     setFormData(prev => {
       const newFormData = { ...prev, [field]: value };
       
@@ -136,6 +155,7 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
   };
 
   const handleReset = () => {
+    setErrors({});
     setFormData({
       Id: 0,
       Stage: 0,
@@ -165,7 +185,7 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
               Add New Program
             </DialogTitle>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="text-gray-400 hover:text-gray-600 "
             >
               <XMarkIcon className="h-6 w-6" />
@@ -211,17 +231,21 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
               <input
                 type="number"
                 value={formData.YearStart}
+                min={1990}
+                max={2100}
                 onChange={(e) => handleChange('YearStart', Number(e.target.value))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-500"
                 required
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Program Type</label>
+              <label className={`block text-sm font-medium mb-2 ${errors.Type ? 'text-red-500' : 'text-gray-700'}`}>
+                Program Type <span className="text-red-500">*</span>
+              </label>
               <select
                 value={formData.Type}
                 onChange={(e) => handleChange('Type', Number(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                className={`w-full px-3 py-2 border ${errors.Type ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900`}
               >
                 <option className="text-gray-500" value="">
                   Select Type
@@ -234,11 +258,13 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Program Stage</label>
+              <label className={`block text-sm font-medium mb-2 ${errors.Stage ? 'text-red-500' : 'text-gray-700'}`}>
+                Program Stage <span className="text-red-500">*</span>
+              </label>
               <select
                 value={formData.Stage}
                 onChange={(e) => handleChange('Stage', Number(e.target.value))}
-                className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 ${formData.Type == 3 ? '!bg-gray-50 cursor-not-allowed' : ''}`}
+                className={`w-full px-3 py-2 border ${errors.Stage ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 ${formData.Type == 3 ? '!bg-gray-50 cursor-not-allowed' : ''}`}
                 disabled={formData.Type == 3}
               >
                 <option className="text-gray-500" value="">
