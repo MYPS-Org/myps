@@ -39,7 +39,7 @@ UserGroupIcon,
 } from '@heroicons/react/20/solid'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext' // for getting data friom context
-import Logo from '../assets/img/logo.png' // Adjust the import path as necessary
+import { MainResource } from '@MainResource';
 import protectedRoutes from '../components/Routes'
 
 export default function SideBar() {
@@ -64,7 +64,7 @@ const currentPath = (localStorage.getItem('currentPath') != undefined) ? localSt
 		<SidebarHeader>
 			<Dropdown>
 			<DropdownButton as={SidebarItem} className="">
-				<Avatar src={Logo} />
+				<Avatar src={MainResource.Images.ReportLogo} />
 				<SidebarLabel className="text-gray-500">MYPS</SidebarLabel>
 				<ChevronDownIcon />
 			</DropdownButton>

@@ -3,7 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { authService, type LoginRequest } from './Service';
 import { Input } from '../../components/tailwindui/input';
 import { Text } from '../../components/tailwindui/text';
-import Logo from '../../assets/img/logo.png';
+import { MainResource } from '@MainResource';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/16/solid';
 import { useToast } from '../../components/toaster/ToasterContext';
 
@@ -117,7 +117,7 @@ const LoginForm: React.FC = () => {
 				</div>
 				{/* Right: Illustration */}
 				<div className="white hidden md:flex w-1/2 items-center justify-center relative">
-				<img src={Logo} className="w-4/5 h-auto text-white" />
+				<img src={MainResource.Images.ReportLogo} className="w-4/5 h-auto text-white" />
 			</div>
 		</div>
 	</div>
