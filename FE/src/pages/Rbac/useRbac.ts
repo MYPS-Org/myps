@@ -179,7 +179,11 @@ export function useRbac() {
 		if (selectedTab === 'userGroups') {
 			const newFilter: UserGroupPagination = {
 				...UserGroupFilter,
-				sortField: field === 0 ? 'GroupName' : '',
+				sortField: field === 0 ? 'GroupName'
+				         : field === 1 ? 'NumberOfUsers'
+				         : field === 3 ? 'Description'
+				         : field === 4 ? 'CreatedDate'
+				         : '',
 				sortDirection: (direction || 0) as 0 | 1,
 				page: 1,
 			};
@@ -197,7 +201,12 @@ export function useRbac() {
 		} else if (selectedTab === 'users') {
 			const newFilter: UserPagination = {
 				...UserFilter,
-				sortField: field === 0 ? 'Name' : field === 1 ? 'Email' : field === 2 ? 'Office' : field === 3 ? 'Status' : '',
+				sortField: field === 0 ? 'Name'
+				         : field === 1 ? 'UserGroup'
+				         : field === 2 ? 'RegName'
+				         : field === 3 ? 'PlantillaOffice'
+				         : field === 4 ? 'IsActive'
+				         : '',
 				sortDirection: (direction || 0) as 0 | 1,
 				page: 1,
 			};

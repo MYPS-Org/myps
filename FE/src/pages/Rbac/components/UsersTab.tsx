@@ -113,16 +113,16 @@ export const UsersTab: React.FC<UsersTabProps> = ({
 							key={user.Id}
 							className={`hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
 						>
-							<TableCell>
+							<TableCell className="max-w-[180px]">
 								<div className="flex items-center space-x-3s">
-									<div>
-										<div className="font-medium text-gray-900">{user.Name}</div>
-										<div className="text-sm text-gray-500">{user.UserId}</div>
-										{user.Email?.trim() && <div className="text-xs text-gray-400">{user.Email.trim()}</div>}
+									<div className="min-w-0">
+										<div className="font-medium text-gray-900 truncate" title={user.Name}>{user.Name}</div>
+										<div className="text-sm text-gray-500 truncate" title={user.UserId}>{user.UserId}</div>
+										{user.Email?.trim() && <div className="text-xs text-gray-400 truncate" title={user.Email.trim()}>{user.Email.trim()}</div>}
 									</div>
 								</div>
 							</TableCell>
-							<TableCell>
+							<TableCell className="max-w-[200px]">
 								<div className="flex flex-wrap gap-1">
 									{(() => {
 									const userGroups = user.UserGroupNames || [];
@@ -131,7 +131,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({
 										return (
 											<>
 												{visibleGroups.map((group: string, i: number) => (
-													<Badge key={i} color="blue" className="text-xs">{group.trim()}</Badge>
+													<Badge key={i} color="blue" className="text-xs max-w-[160px] truncate" title={group.trim()}>{group.trim()}</Badge>
 												))}
 												{userGroups.length > 3 && (
 													<Badge
@@ -147,11 +147,11 @@ export const UsersTab: React.FC<UsersTabProps> = ({
 									})()}
 								</div>
 							</TableCell>
-							<TableCell>
-								{user.RegName?.trim() && <Badge color="zinc">{user.RegName.trim()}</Badge>}
+							<TableCell className="max-w-[140px]">
+								{user.RegName?.trim() && <Badge color="zinc" className="max-w-full truncate block" title={user.RegName.trim()}>{user.RegName.trim()}</Badge>}
 							</TableCell>
-							<TableCell>
-								{user.PlantillaOffice?.trim() && <Badge color="blue">{user.PlantillaOffice.trim()}</Badge>}
+							<TableCell className="max-w-[160px]">
+								{user.PlantillaOffice?.trim() && <Badge color="blue" className="max-w-full truncate block" title={user.PlantillaOffice.trim()}>{user.PlantillaOffice.trim()}</Badge>}
 							</TableCell>
 							<TableCell>
 								{getStatusBadge(user.IsActive ?? false)}
