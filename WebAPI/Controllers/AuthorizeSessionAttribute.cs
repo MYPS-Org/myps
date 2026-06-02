@@ -63,8 +63,8 @@ namespace WebAPI.Controllers
                 {
                     context.Result = new UnauthorizedObjectResult(new
                     {
-                        Message = "You have been signed out. Log in to access this page.",
-                        Title = "Signed Out",
+                        //Message = "You have been signed out. Log in to access this page.",
+                        //Title = "Signed Out",
                         data = new { Authenticated = false },
                         user = new { },
                         Redirect = "/login"
