@@ -25,6 +25,14 @@ export default defineConfig(({ mode }) => {
     server: {
       host: "::",
       port: 8080,
+      // Allow Vite's dev server to read files under Main/Resources/Internal
+      // (one level up from FE/) so that @MainResource imports resolve.
+      fs: {
+        allow: [
+          path.resolve(__dirname),
+          path.resolve(__dirname, "../Main/Resources/Internal"),
+        ],
+      },
       proxy: {
         '/api': {
           target: env.VITE_API_BASE_URL,
@@ -46,6 +54,9 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
+        // Central asset registry — see Main/Resources/Internal/index.ts
+        // Import anywhere with: `import { MainResource } from '@MainResource';`
+        "@MainResource": path.resolve(__dirname, "../Main/Resources/Internal/index.ts"),
       },
     },
   }

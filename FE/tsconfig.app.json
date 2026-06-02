@@ -21,7 +21,19 @@
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true
+    "noUncheckedSideEffectImports": true,
+
+    /* Path aliases — keep in sync with vite.config.ts.
+       No baseUrl needed: with moduleResolution "bundler", paths resolve
+       relative to this tsconfig file location. baseUrl is deprecated and
+       removed in TypeScript 7.0. */
+    "paths": {
+      "@/*": ["./src/*"],
+      "@MainResource": ["../Main/Resources/Internal/index.ts"]
+    }
   },
-  "include": ["src"]
+  "include": [
+    "src",
+    "../Main/Resources/Internal/index.ts"
+  ]
 }
