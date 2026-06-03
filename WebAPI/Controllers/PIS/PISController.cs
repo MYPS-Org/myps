@@ -50,7 +50,7 @@ namespace WebAPI.Controllers.MockUps
                 }
                 var getRegCode = await _db.vAdminImplementingOffice.FirstOrDefaultAsync(x => x.ParticipantId == employee.CentralOrRegionId);
                 var getPlantillaOffice = await _db.vAdminImplementingOffice.FirstOrDefaultAsync(x => x.ParticipantId == employee.PlantillaOfficeId);
-                string UserId = $"{employee.PersonFamilyName?.Replace(" ","")}{employee.PersonForename?[0]}{employee.PersonMiddleInitial1?[0]}".ToLower();
+                string UserId = employee.NetworkId!;
                 DBHelper.Models.Views.Users newuser = new DBHelper.Models.Views.Users()
                 {
                     EmployeeId = employee.EmployeeId,
@@ -100,7 +100,7 @@ namespace WebAPI.Controllers.MockUps
                 }
                 var getRegCode = await _db.vAdminImplementingOffice.FirstOrDefaultAsync(x => x.ParticipantId == employee.CentralOrRegionId);
                 var getPlantillaOffice = await _db.vAdminImplementingOffice.FirstOrDefaultAsync(x => x.ParticipantId == employee.PlantillaOfficeId);
-                string UserId = $"{employee.PersonFamilyName?.Replace(" ", "")}{employee.PersonForename?[0]}{employee.PersonMiddleInitial1?[0]}".ToLower();
+                string UserId = employee.NetworkId!;
                 DBHelper.Models.Views.Users newuser = new DBHelper.Models.Views.Users()
                 {
                     EmployeeId = employee.EmployeeId,
