@@ -219,6 +219,7 @@ const AddProgramDialog: React.FC<AddProgramDialogProps> = ({
                     onChange={(e) => handleChange('AddedName', e.target.value)}
                     className='w-full px-3 py-2 border-y border-r rounded-r-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
                     placeholder="Add Sub Name"
+                    required
                     maxLength={100}
                   />
                 </div>

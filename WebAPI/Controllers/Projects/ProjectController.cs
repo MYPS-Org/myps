@@ -520,7 +520,10 @@ namespace WebAPI.Controllers.Projects
                 var CurrentProgramVersion = await _db.vPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == Project.ProgramId);
                 if (CurrentProgramVersion == null)
                 {
-                    return new BadRequestObjectResult(new { Message = $"No program is associated with the Project ID {dto.ProjectId}. Please contact administrator.", Title = "Program Not Associated" });
+                    return new BadRequestObjectResult(new { Message = $"No program is associated with the Project ID {dto.ProjectId}. Please contact administrator.", Title = "Program Not Associated",
+                        Project = JsonConvert.SerializeObject(Project),
+                        ProgramId = Project.ProgramId
+                    });
                 }
                 var Program = await _db.vProgramDetails.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == Project.ProgramId && x.StageName == dto.StageName);
                 if (Program == null)

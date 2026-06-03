@@ -15,9 +15,8 @@ namespace DBHelper.Models.Table
         [Required]
         [MaxLength(100)]
         public string ProjectId { get; set; } = string.Empty;
-        [Required]
         [MaxLength(200)]
-        public string ProgramUniqueId { get; set; } = string.Empty;
+        public string? ProgramUniqueId { get; set; }
         [Required]
         public string Source { get; set; } = string.Empty;
         [Required]

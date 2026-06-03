@@ -58,7 +58,7 @@ namespace WebAPI.Controllers.Auth
                 };
                 var verifyAccount = await _db.vUsers.FirstOrDefaultAsync(x => x.UserId == dto.UserName && x.IsActive == true);
 
-                if (verifyAccount == null) { LoginLog.ValidationMessage = "Account not active."; return UnauthorizedUser("Your session has expired. Please sign in to continue."); }
+                if (verifyAccount == null) { LoginLog.ValidationMessage = "Account not active."; return UnauthorizedUser("Invalid credentials. Please check your user ID and password and try again."); }
 
                 var request = new AuthenticatePIS(dto.UserName, dto.Password);
                 var employee = await APIRequest.XML(request);
