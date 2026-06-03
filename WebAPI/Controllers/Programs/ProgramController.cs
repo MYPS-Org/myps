@@ -1277,8 +1277,7 @@ namespace WebAPI.Controllers.Programs
                     });
                 }
 
-                await transaction.CommitAsync();
-                return Ok(new
+                return new BadRequestObjectResult(new
                 {
                     Message = "No deleted projects were found matching the provided IDs. They may already be active or do not belong to this program.",
                     Title = "No Projects Restored"
