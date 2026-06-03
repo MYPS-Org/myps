@@ -84,6 +84,11 @@ h6 {
 }
 
 
+/* Prevent descenders (g, q, p, y, j) from being clipped by the tight :root line-height */
+input, textarea, select {
+  line-height: 1.5;
+}
+
 /* Autofill styles for Tailwind input fields */
 input:-webkit-autofill,
 input:-webkit-autofill:focus,
