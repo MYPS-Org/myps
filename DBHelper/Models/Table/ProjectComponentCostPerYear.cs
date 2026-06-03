@@ -16,9 +16,8 @@ namespace DBHelper.Models.Table
         [Required]
         [MaxLength(200)]
         public string ComponentCostId { get; set; } = string.Empty;
-        [Required]
         [MaxLength(200)]
-        public string ProgramUniqueId { get; set; } = string.Empty;
+        public string? ProgramUniqueId { get; set; }
         public Double? Amount { get; set; }
         public int? Year { get; set; }
         public DateTime? StartDate { get; set; }
