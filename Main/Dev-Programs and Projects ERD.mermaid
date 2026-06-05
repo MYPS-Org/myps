@@ -39,6 +39,7 @@ erDiagram
         int         YearStart
         nvarchar    CreatedBy
         datetime    CreatedDate
+        nvarchar    ProgramUniqueId
     }
 
     %% ─── PROJECT GROUP ───────────────────────────────────────
@@ -51,6 +52,9 @@ erDiagram
         datetime    CreatedDate
         bit         IsDeleted
         bit         IsPublished
+        nvarchar    ProgramUniqueId
+        nvarchar    AlternateId
+        nvarchar    OriginProjectId
     }
 
     tProjectStages {
@@ -105,6 +109,7 @@ erDiagram
         datetime    CreatedDate
         bit         IsPublishable
         bit         IsDeleted
+        nvarchar    ProgramUniqueId
     }
 
     %% ─── COMPONENT GROUP ─────────────────────────────────────
@@ -131,6 +136,11 @@ erDiagram
         nvarchar    UpdatedBy
         datetime    UpdatedDate
         bit         IsDeleted
+        nvarchar    ProgramUniqueId
+        nvarchar    ConstructionStatusCode
+        nvarchar    ConstructionStatusName
+        bit         PackedStatusCode
+        nvarchar    PackedStatusName
     }
 
     tProjectComponentCostPerYear {
@@ -146,6 +156,7 @@ erDiagram
         nvarchar    UpdatedBy
         datetime    UpdatedDate
         bit         IsDeleted
+        nvarchar    ProgramUniqueId
     }
 
     %% ─── MAJOR WORK GROUP ────────────────────────────────────
@@ -182,11 +193,13 @@ erDiagram
         nvarchar    UpdatedBy
         datetime    UpdatedDate
         bit         IsDeleted
+        nvarchar    ProgramUniqueId
     }
 
     tProjectMajorWorkLocations {
         int         Id                  PK
         nvarchar    ParentId            FK
+        nvarchar    StageName
         nvarchar    InfraId
         nvarchar    DetailedScope
         int         TargetUnitId
@@ -206,6 +219,7 @@ erDiagram
         nvarchar    UpdatedBy
         datetime    UpdatedDate
         bit         IsDeleted
+        nvarchar    ProgramUniqueId
     }
 
     %% ─── FUNDING GROUP ───────────────────────────────────────
@@ -246,6 +260,7 @@ erDiagram
         nvarchar    UpdatedBy
         datetime    UpdatedDate
         bit         IsDeleted
+        nvarchar    ProgramUniqueId
     }
 
     %% ─── PROJECT REVISION LOOKUPS ────────────────────────────
@@ -270,6 +285,7 @@ erDiagram
         int         ValidToDate
         nvarchar    InfrastructureType
         nvarchar    ThrustDescription
+        bit         IsActive
     }
 
     tOptionProjectOrigin {
