@@ -2191,6 +2191,8 @@ namespace WebAPI.Controllers.Projects
                             }
                         }
                     }
+                    await _db.tProjectMajorWorkItem.AddRangeAsync(NewWorkItems);
+                    await _db.tProjectMajorWorkLocations.AddRangeAsync(NewWorkLocations);
                 }
                 #endregion
                 #endregion
