@@ -704,16 +704,15 @@ namespace WebAPI.Controllers.Programs
                     HashSet<int> RevisionIds = checkProjects.Select(p => p.Id!).ToHashSet();
                     var ProjectRevisions = await _db.tProjectRevisions.AsNoTracking().Where(x => RevisionIds.Contains(x.Id)).ToListAsync();
 
-                    var Components = await _db.tProjectComponentCost.AsNoTracking().Where(x => projectIds.Contains(x.ProjectId) && x.StageName == checkStage.StageName).ToListAsync();
+                    var Components = await _db.tProjectComponentCost.AsNoTracking().Where(x => projectIds.Contains(x.ProjectId) && x.StageName == checkStage.StageName && x.IsDeleted == false).ToListAsync();
                     HashSet<string> ComponentsRefs = Components.Select(pr => pr.CostId).ToHashSet();
-                    var ComponentsPerYear = await _db.tProjectComponentCostPerYear.AsNoTracking().Where(x => ComponentsRefs.Contains(x.ComponentCostId) && x.StageName == checkStage.StageName).ToListAsync();
+                    var ComponentsPerYear = await _db.tProjectComponentCostPerYear.AsNoTracking().Where(x => ComponentsRefs.Contains(x.ComponentCostId) && x.StageName == checkStage.StageName && x.IsDeleted == false).ToListAsync();
 
-                    var MajorItems = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => projectIds.Contains(x.ProjectId) && x.StageName == checkStage.StageName).ToListAsync();
+                    var MajorItems = await _db.tProjectMajorWorkItem.AsNoTracking().Where(x => projectIds.Contains(x.ProjectId) && x.StageName == checkStage.StageName && x.IsDeleted == false).ToListAsync();
                     HashSet<string> MajorItemsRefs = MajorItems.Select(pr => pr.ReferenceId).ToHashSet();
-                    var MajorLocations = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => MajorItemsRefs.Contains(x.ParentId)).ToListAsync();
+                    var MajorLocations = await _db.tProjectMajorWorkLocations.AsNoTracking().Where(x => MajorItemsRefs.Contains(x.ParentId) && x.IsDeleted == false).ToListAsync();
 
-                    var FundingProfiles = await _db.tProjectFundingProfile.AsNoTracking().Where(x => projectIds.Contains(x.ProjectId) && x.StageName == checkStage.StageName).ToListAsync();
-
+                    var FundingProfiles = await _db.tProjectFundingProfile.AsNoTracking().Where(x => projectIds.Contains(x.ProjectId) && x.StageName == checkStage.StageName && x.IsDeleted == false).ToListAsync();
                     var SupportingDocuments = await _db.tProjectSupportingDocs.AsNoTracking().Where(x => projectIds.Contains(x.ProjectId) && x.StageName == checkStage.StageName).ToListAsync();
                     string HostName = User.FindFirstValue("HostName")!;
                     string Date = CurrentDate.ToString("MMddyyyy");
@@ -728,32 +727,39 @@ namespace WebAPI.Controllers.Programs
                         List<ProjectComponentCostPerYear> NewComponentPerYear = new List<ProjectComponentCostPerYear>();
                         if (Components.Count() > 0)
                         {
-                            NewComponent.AddRange(Components.Select(x => new DBHelper.Models.Table.ProjectComponentCost()
+                            foreach (var ComponentId in ComponentsRefs)
                             {
-                                ProjectId = x.ProjectId.Replace("BP", FirstSegment),
-                                ProgramUniqueId = NewProgramUniqueId,
-                                CostId = $"{x.CostId}_{NewProgramUniqueId}",
-                                ComponentType = x.ComponentType,
-                                ComponentId = x.ComponentId,
-                                Description = x.Description,
-                                Total = x.Total,
-                                StageName = checkStageType.Name,
-                                CreatedBy = x.CreatedBy,
-                                CreatedDate = x.CreatedDate,
-                                IsDeleted = x.IsDeleted
-                            }));
-                            NewComponentPerYear.AddRange(ComponentsPerYear.Select(x => new ProjectComponentCostPerYear()
-                            {
-                                ComponentCostId = $"{x.ComponentCostId}_{NewProgramUniqueId}",
-                                ProgramUniqueId = NewProgramUniqueId,
-                                Year = x.Year,
-                                Amount = x.Amount,
-                                StageName = checkStageType.Name,
-                                StartDate = x.StartDate,
-                                EndDate = x.EndDate,
-                                CreatedBy = x.CreatedBy,
-                                CreatedDate = x.CreatedDate
-                            }));
+                                var SelectedComponentCost = Components.Where(x => x.CostId == ComponentId).FirstOrDefault();
+                                if (SelectedComponentCost != null)
+                                {
+                                    NewComponent.Add(new DBHelper.Models.Table.ProjectComponentCost()
+                                    {
+                                        ProjectId = SelectedComponentCost.ProjectId.Replace("BP", FirstSegment),
+                                        ProgramUniqueId = NewProgramUniqueId,
+                                        CostId = $"{ComponentId}_{NewProgramUniqueId}",
+                                        ComponentType = SelectedComponentCost.ComponentType,
+                                        ComponentId = SelectedComponentCost.ComponentId,
+                                        Description = SelectedComponentCost.Description,
+                                        Total = SelectedComponentCost.Total,
+                                        StageName = checkStageType.Name,
+                                        CreatedBy = SelectedComponentCost.CreatedBy,
+                                        CreatedDate = SelectedComponentCost.CreatedDate,
+                                        IsDeleted = SelectedComponentCost.IsDeleted
+                                    });
+                                    NewComponentPerYear.AddRange(ComponentsPerYear.Where(x => x.ComponentCostId == ComponentId).Select(x => new ProjectComponentCostPerYear()
+                                    {
+                                        ComponentCostId = $"{ComponentId}_{NewProgramUniqueId}",
+                                        ProgramUniqueId = NewProgramUniqueId,
+                                        Year = x.Year,
+                                        Amount = x.Amount,
+                                        StageName = checkStageType.Name,
+                                        StartDate = x.StartDate,
+                                        EndDate = x.EndDate,
+                                        CreatedBy = x.CreatedBy,
+                                        CreatedDate = x.CreatedDate,
+                                        IsDeleted = x.IsDeleted
+                                    }));
+                                }
                             await _db.tProjectComponentCost.AddRangeAsync(NewComponent);
                             await _db.tProjectComponentCostPerYear.AddRangeAsync(NewComponentPerYear);
                         }
@@ -763,43 +769,50 @@ namespace WebAPI.Controllers.Programs
                         List<ProjectMajorWorkLocations> NewMajorLocations = new List<ProjectMajorWorkLocations>();
                         if (MajorItems.Count() > 0)
                         {
-                            NewMajorItems.AddRange(MajorItems.Select(x => new ProjectMajorWorkItem()
+                            foreach (var reference in MajorItemsRefs)
                             {
-                                ProjectId = x.ProjectId.Replace("BP", FirstSegment),
-                                ProgramUniqueId = NewProgramUniqueId,
-                                ReferenceId = $"{x.ReferenceId}_{NewProgramUniqueId}",
-                                ComponentId = x.ComponentId,
-                                YearOfWork = x.YearOfWork,
-                                WorkTypeId = x.WorkTypeId,
-                                InfraType = x.InfraType,
-                                StageName = checkStageType.Name,
-                                CreatedBy = x.CreatedBy,
-                                CreatedDate = x.CreatedDate,
-                                IsDeleted = x.IsDeleted
-                            }));
-                            NewMajorLocations.AddRange(MajorLocations.Select(x => new ProjectMajorWorkLocations()
-                            {
-                                ParentId = $"{x.ParentId}_{NewProgramUniqueId}",
-                                ProgramUniqueId = NewProgramUniqueId,
-                                StageName = checkStageType.Name,
-                                InfraId = x.InfraId,
-                                DetailedScope = x.DetailedScope,
-                                TargetUnitId = x.TargetUnitId,
-                                TargetUnit = x.TargetUnit,
-                                StartX = x.StartX,
-                                StartY = x.StartY,
-                                EndX = x.EndX,
-                                EndY = x.EndY,
-                                PhysicalTarget = x.PhysicalTarget,
-                                StartStationLimit = x.StartStationLimit,
-                                EndStationLimit = x.EndStationLimit,
-                                EndChainage = x.EndChainage,
-                                StartChainage = x.StartChainage,
-                                CreatedBy = x.CreatedBy,
-                                CreatedDate = x.CreatedDate,
-                                Length = x.Length,
-                                IsDeleted = x.IsDeleted
-                            }));
+                                var SelectedMajorItem = MajorItems.FirstOrDefault(x => x.ReferenceId == reference);
+                                if (SelectedMajorItem != null)
+                                {
+                                    NewMajorItems.Add(new ProjectMajorWorkItem()
+                                    {
+                                        ProjectId = SelectedMajorItem.ProjectId.Replace("BP", FirstSegment),
+                                        ProgramUniqueId = NewProgramUniqueId,
+                                        ReferenceId = $"{SelectedMajorItem.ComponentId}_{NewProgramUniqueId}",
+                                        ComponentId = SelectedMajorItem.ComponentId,
+                                        YearOfWork = SelectedMajorItem.YearOfWork,
+                                        WorkTypeId = SelectedMajorItem.WorkTypeId,
+                                        InfraType = SelectedMajorItem.InfraType,
+                                        StageName = checkStageType.Name,
+                                        CreatedBy = SelectedMajorItem.CreatedBy,
+                                        CreatedDate = SelectedMajorItem.CreatedDate,
+                                        IsDeleted = SelectedMajorItem.IsDeleted
+                                    });
+                                    NewMajorLocations.AddRange(MajorLocations.Where(x => x.ParentId == reference).Select(x => new ProjectMajorWorkLocations()
+                                    {
+                                        ParentId = $"{SelectedMajorItem.ComponentId}_{NewProgramUniqueId}",
+                                        ProgramUniqueId = NewProgramUniqueId,
+                                        StageName = checkStageType.Name,
+                                        InfraId = x.InfraId,
+                                        DetailedScope = x.DetailedScope,
+                                        TargetUnitId = x.TargetUnitId,
+                                        TargetUnit = x.TargetUnit,
+                                        StartX = x.StartX,
+                                        StartY = x.StartY,
+                                        EndX = x.EndX,
+                                        EndY = x.EndY,
+                                        PhysicalTarget = x.PhysicalTarget,
+                                        StartStationLimit = x.StartStationLimit,
+                                        EndStationLimit = x.EndStationLimit,
+                                        EndChainage = x.EndChainage,
+                                        StartChainage = x.StartChainage,
+                                        CreatedBy = x.CreatedBy,
+                                        CreatedDate = x.CreatedDate,
+                                        Length = x.Length,
+                                        IsDeleted = x.IsDeleted
+                                    }));
+                                }
+                            }
                             await _db.tProjectMajorWorkItem.AddRangeAsync(NewMajorItems);
                             await _db.tProjectMajorWorkLocations.AddRangeAsync(NewMajorLocations);
                         }

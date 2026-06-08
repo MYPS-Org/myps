@@ -36,6 +36,7 @@ erDiagram
     tRevisionDetails {
         int         Id                  PK
         nvarchar    ProgramRevisionId
+        nvarchar    ProgramUniqueId
         nvarchar    TransactionId       UK
         int         RevisionGroupId     FK
         int         CategoryId          FK
@@ -54,6 +55,15 @@ erDiagram
         datetime    COLastUpdatedDate
         nvarchar    CreatedBy
         datetime    CreatedDate
+    }
+
+    tRevisionDetailsComponentsStatus {
+        int         Id                  PK
+        nvarchar    TransactionId       FK
+        nvarchar    ComponentId
+        int         ConstructionStatusCode
+        nvarchar    ConstructionStatusName
+        bit         IsPackaged
     }
 
     tRevisionDocuments {
@@ -222,6 +232,7 @@ erDiagram
         int         ValidToDate
         nvarchar    InfrastructureType
         nvarchar    ThrustDescription
+        bit         IsActive
     }
 
     tOptionProjectOrigin {
@@ -430,6 +441,7 @@ erDiagram
     tOptionRevisionStatus       ||--o{ tRevisionDetails             : "Enum > COStatus"
 
     %% Revision Details children
+    tRevisionDetails            ||--o{ tRevisionDetailsComponentsStatus : "TransactionId"
     tRevisionDetails            ||--o{ tRevisionDocuments           : "TransactionId"
     tRevisionDetails            ||--o{ tRevisionForCorrectionDetails : "TransactionId"
     tRevisionDetails            ||--o{ tRevisionProjects            : "Id > RevisionId"

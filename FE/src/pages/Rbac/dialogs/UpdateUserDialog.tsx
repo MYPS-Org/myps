@@ -29,6 +29,7 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
     email: user.Email || '',
     userGroupIds: user.UserGroupIds || [] as number[],
     regCode: user.RegCode || '',
+    regName: user.RegName || '',
     plantillaOffice: user.PlantillaOffice || '',
     plantillaOfficeName: user.PlantillaOfficeName || '',
     isActive: user.IsActive ? 'active' : 'inactive',
@@ -44,6 +45,7 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
       email: user.Email || '',
       userGroupIds: user.UserGroupIds || [] as number[],
       regCode: user.RegCode || '',
+      regName: user.RegName || '',
       plantillaOffice: user.PlantillaOffice || '',
       plantillaOfficeName: user.PlantillaOfficeName || '',
       isActive: user.IsActive ? 'active' : 'inactive',
@@ -69,6 +71,7 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
           userId: userData.Data.UserId || '',
           email: userData.Data.Email || '',
           regCode: userData.Data.RegCode || '',
+          regName: userData.Data.RegName || '',
           plantillaOffice: userData.Data.PlantillaOffice || '',
           plantillaOfficeName: userData.Data.PlantillaOfficeName || '',
         }));
@@ -121,6 +124,7 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
       Name: formData.name,
       Email: formData.email,
       RegCode: formData.regCode,
+      RegName: formData.regName,
       PlantillaOffice: formData.plantillaOffice,
       PlantillaOfficeName: formData.plantillaOfficeName,
       IsActive: formData.isActive === 'active',
@@ -138,6 +142,7 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
         email: '',
         userGroupIds: [],
         regCode: '',
+        regName: '',
         plantillaOffice: '',
         plantillaOfficeName: '',
         isActive: 'active',
@@ -230,19 +235,33 @@ const UpdateUserDialog: React.FC<UpdateUserDialogProps> = ({ isOpen, onClose, on
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Name
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => handleChange('name', e.target.value)}
-                placeholder="Enter name"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                disabled
-                required
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Name
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => handleChange('name', e.target.value)}
+                  placeholder="Enter name"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-700"
+                  disabled
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Region
+                </label>
+                <input
+                  type="text"
+                  value={formData.regName}
+                  placeholder="Enter region"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-700"
+                  disabled
+                />
+              </div>
             </div>
 
             <div>
