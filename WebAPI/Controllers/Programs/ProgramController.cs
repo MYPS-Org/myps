@@ -760,6 +760,7 @@ namespace WebAPI.Controllers.Programs
                                         IsDeleted = x.IsDeleted
                                     }));
                                 }
+                            }
                             await _db.tProjectComponentCost.AddRangeAsync(NewComponent);
                             await _db.tProjectComponentCostPerYear.AddRangeAsync(NewComponentPerYear);
                         }
