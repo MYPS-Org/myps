@@ -218,14 +218,18 @@ namespace WebAPI.Controllers.Programs
                     return new BadRequestObjectResult(new { Message = $"Please provide a reason for skipping stage of this program.", Title = "Skip Reason Required" });
                 }
                 string hostName = User.FindFirstValue(ClaimTypes.GivenName) ?? "Unknown";
-                string ReferenceId = "PR_" + hostName + "_" + ("tCountSequence").GenerateCode();
-                DateTime currentDate = Functions.CurrentDate();
+                //string ReferenceId = "PR_" + hostName + "_" + ("tCountSequence").GenerateCode();
+                DateTime CurrentDate = Functions.CurrentDate();
+                string HostName = User.FindFirstValue("HostName")!;
+                string Date = CurrentDate.ToString("MMddyyyy");
+                string Time = CurrentDate.ToString("HHmmss");
+                string NewProgramUniqueId = $"{HostName}_{Date}_{Time}";
                 string UserId = _Session.UserId;
                 var newProgram = new DBHelper.Models.Table.Programs()
                 {
-                    ProgramId = ReferenceId,
+                    ProgramId = NewProgramUniqueId,
                     CreatedBy = UserId,
-                    CreatedDate = currentDate,
+                    CreatedDate = CurrentDate,
                     IsDeleted = false,
                     IsSkipped = dto.IsSkipped,
                     SkipReason = dto.IsSkipped ? dto.SkipReason : null
@@ -233,7 +237,7 @@ namespace WebAPI.Controllers.Programs
                 await _db.tPrograms.AddAsync(newProgram);
                 var newRevisions = new ProgramRevisions()
                 {
-                    ProgramId = ReferenceId,
+                    ProgramId = NewProgramUniqueId,
                     RevisionNumber = 1,
                     Name = dto.Name,
                     DataSecurityGroup = dto.DataSecurityGroup,
@@ -242,27 +246,28 @@ namespace WebAPI.Controllers.Programs
                     Type = dto.Type,
                     YearStart = dto.YearStart,
                     CreatedBy = UserId,
-                    CreatedDate = currentDate
+                    CreatedDate = CurrentDate,
+                    ProgramUniqueId = NewProgramUniqueId
 
                 };
                 await _db.tProgramRevisions.AddAsync(newRevisions);
                 await _db.SaveChangesAsync();
                 await _db.tProgramStages.AddAsync(new ProgramStages()
                 {
-                    ProgramId = ReferenceId,
-                    ProgramUniqueId = ReferenceId,
+                    ProgramId = NewProgramUniqueId,
+                    ProgramUniqueId = NewProgramUniqueId,
                     RevisionId = newRevisions.Id,
                     StageId = dto.Stage,
                     StageName = dto.Stage.ToString(),
                     CreatedBy = UserId,
-                    CreatedDate = currentDate,
+                    CreatedDate = CurrentDate,
                     IsPublished = false,
                 });
                 await _db.SaveChangesAsync();
                 await transaction.CommitAsync();
                 return Ok(new
                 {
-                    Id = ReferenceId,
+                    Id = NewProgramUniqueId,
                     Stage = dto.Stage.ToString(),
                     Message = "Program added successfully.",
                     Title = "Add Complete"

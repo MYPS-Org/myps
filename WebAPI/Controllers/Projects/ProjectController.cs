@@ -2151,7 +2151,7 @@ namespace WebAPI.Controllers.Projects
                                 ProgramUniqueId = Project.ProgramUniqueId!,
                                 StageName = Program.StageName,
                                 ProjectId = Project.ProjectId!,
-                                ReferenceId = $"{WorkComponentId},{Project.ProgramUniqueId}",
+                                ReferenceId = $"{WorkComponentId}_{Project.ProgramUniqueId}",
                                 ComponentId = x.ComponentId,
                                 YearOfWork = x.YearOfWork,
                                 WorkTypeId = x.WorkTypeId,
@@ -2169,7 +2169,7 @@ namespace WebAPI.Controllers.Projects
                                     {
                                         ProgramUniqueId = Project.ProgramUniqueId!,
                                         StageName = Program.StageName,
-                                        ParentId = $"{WorkComponentId},{Project.ProgramUniqueId}",
+                                        ParentId = $"{WorkComponentId}_{Project.ProgramUniqueId}",
                                         InfraId = item.InfraId,
                                         DetailedScope = item.DetailedScope,
                                         TargetUnitId = item.TargetUnitId,
