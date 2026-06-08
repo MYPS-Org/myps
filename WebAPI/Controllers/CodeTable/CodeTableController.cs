@@ -1420,12 +1420,12 @@ namespace WebAPI.Controllers.CodeTable
                         });
                     }
                     var CheckIfAlreadyUse = await _db.tRevisionDetails.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionGroupId == data.RevisionGroupId);
-                    if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
+                    if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Delete))
                     {
                         return new BadRequestObjectResult(new
                         {
                             Title = "Revision Header In Use",
-                            Message = "The selected revision header is currently in use and cannot be updated or deleted."
+                            Message = "The selected revision header is currently in use and cannot be deleted."
                         });
                     }
                     var CheckNameIfExists = await _db.tOptionRevisionHeader.AsNoTracking().FirstOrDefaultAsync(x => x.RevisionName == data.RevisionName);
@@ -1496,12 +1496,12 @@ namespace WebAPI.Controllers.CodeTable
                         });
                     }
                     var CheckIfAlreadyUse = await _db.tRevisionDetails.AsNoTracking().FirstOrDefaultAsync(x => x.CategoryId == data.CategoryId);
-                    if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
+                    if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Delete))
                     {
                         return new BadRequestObjectResult(new
                         {
                             Title = "Revision Category In Use",
-                            Message = "The selected revision category is currently in use and cannot be updated or deleted."
+                            Message = "The selected revision category is currently in use and cannot be deleted."
                         });
                     }
                     var CheckNameIfExists = await _db.tOptionRevisionCategory.AsNoTracking().FirstOrDefaultAsync(x => x.CategoryName == data.CategoryName);
@@ -1572,12 +1572,12 @@ namespace WebAPI.Controllers.CodeTable
                         });
                     }
                     var CheckIfAlreadyUse = await _db.tRevisionDetails.AsNoTracking().FirstOrDefaultAsync(x => x.ReasonId == data.ReasonId);
-                    if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
+                    if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Delete))
                     {
                         return new BadRequestObjectResult(new
                         {
                             Title = "Revision Reason In Use",
-                            Message = "The selected revision reason is currently in use and cannot be updated or deleted."
+                            Message = "The selected revision reason is currently in use and cannot be deleted."
                         });
                     }
                     var CheckNameIfExists = await _db.tOptionRevisionReasons.AsNoTracking().FirstOrDefaultAsync(x => x.Reason == data.Reason);
@@ -1677,12 +1677,12 @@ namespace WebAPI.Controllers.CodeTable
                         });
                     }
                     var CheckIfAlreadyUse = await _db.tRevisionDetails.AsNoTracking().FirstOrDefaultAsync(x => x.ReasonId == data.ReasonId);
-                    if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Update || dto.TransactionType == CodeTransactionType.Delete))
+                    if (CheckIfAlreadyUse != null && (dto.TransactionType == CodeTransactionType.Delete))
                     {
                         return new BadRequestObjectResult(new
                         {
                             Title = "Revision Rule In Use",
-                            Message = "The selected revision rule is currently in use and cannot be updated or deleted."
+                            Message = "The selected revision rule is currently in use and cannot be deleted."
                         });
                     }
                     var CheckNameIfExists = await _db.tRevisionRules.AsNoTracking().FirstOrDefaultAsync(x => x.PCMA_Status == data.PCMA_Status && x.Package_Status == data.Package_Status && x.Field == data.Field);
