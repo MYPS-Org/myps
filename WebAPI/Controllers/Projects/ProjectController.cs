@@ -423,12 +423,13 @@ namespace WebAPI.Controllers.Projects
                     ProgramId = ProgramDetails.ProgramId,
                     ReferenceId = ReferenceId,
                     CreatedBy = _Session.UserId,
-                    CreatedDate = CurrentDate
+                    CreatedDate = CurrentDate,
                 };
                 await _db.tProjects.AddAsync(SubmitProject);
                 var ProjectRevision = new ProjectRevisions()
                 {
                     ProgramId = dto.ProgramId,
+                    ProgramUniqueId = ProgramDetails.ProgramUniqueId,
                     ReferenceId = ReferenceId,
                     ProjectId = ReferenceId,
                     AlternateId = dto.AlternateId,
@@ -468,6 +469,7 @@ namespace WebAPI.Controllers.Projects
                 var ProjectStage = new ProjectStages()
                 {
                     ProgramId = ProgramDetails.ProgramId,
+                    ProgramUniqueId = ProgramDetails.ProgramUniqueId,
                     ReferenceId = ProjectRevision.ReferenceId,
                     RevisionId = ProjectRevision.Id,
                     StageId = ProgramDetails.StageId,
