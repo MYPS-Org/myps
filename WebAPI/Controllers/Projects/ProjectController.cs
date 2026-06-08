@@ -1465,32 +1465,40 @@ namespace WebAPI.Controllers.Projects
                 if (NewComponentCostData.Count() > 0)
                 {
                     HasCostUpdate = true;
-                    var NewCostToAdd = NewComponentCostData.Select((item, index) => new DBHelper.Models.Table.ProjectComponentCost
+                    List<ProjectComponentCost> NewCostToAdd = new List<ProjectComponentCost>();
+                    List<ProjectComponentCostPerYear> NewComponentCostYear = new List<ProjectComponentCostPerYear>();
+                    foreach (var CostId in NewComponentIds)
                     {
-                        ProgramUniqueId = Project.ProgramUniqueId!,
-                        StageName = Project.StageName!,
-                        CostId = item.CostId,
-                        ProjectId = Project.ProjectId!,
-                        ComponentId = item.ComponentId,
-                        ComponentType = item.ComponentType,
-                        Description = item.Description,
-                        Total = item.Total,
-                        CreatedBy = _Session.UserId,
-                        CreatedDate = CurrentDate
-                    }).ToList();
+                        var NewComponentCost = NewComponentCostData.FirstOrDefault(x => x.ComponentId == CostId);
+                        if (NewComponentCost != null)
+                        {
+                            NewCostToAdd.Add(new ProjectComponentCost
+                            {
+                                ProgramUniqueId = Project.ProgramUniqueId!,
+                                StageName = Project.StageName!,
+                                CostId = $"{NewComponentCost.ComponentId}_{Project.ProgramUniqueId}",
+                                ProjectId = Project.ProjectId!,
+                                ComponentId = NewComponentCost.ComponentId,
+                                ComponentType = NewComponentCost.ComponentType,
+                                Description = NewComponentCost.Description,
+                                Total = NewComponentCost.Total,
+                                CreatedBy = _Session.UserId,
+                                CreatedDate = CurrentDate
+                            });
+                            NewComponentCostYear.AddRange(dto.ComponentCostPerYear.Where(x => x.Id == 0 && CostId.Contains(x.ComponentCostId)).Select(x => new ProjectComponentCostPerYear
+                            {
+                                ProgramUniqueId = $"{NewComponentCost.ComponentId}_{Project.ProgramUniqueId}",
+                                ComponentCostId = x.ComponentCostId!,
+                                Amount = x.Amount,
+                                Year = x.Year,
+                                StartDate = x.StartDate!,
+                                EndDate = x.EndDate,
+                                CreatedBy = _Session.UserId,
+                                CreatedDate = CurrentDate
+                            }));
+                        }
+                    }
                     await _db.tProjectComponentCost.AddRangeAsync(NewCostToAdd);
-                    var CostReferenceId = NewCostToAdd.Select(x => x.CostId);
-                    var NewComponentCostYear = dto.ComponentCostPerYear.Where(x => x.Id == 0 && CostReferenceId.Contains(x.ComponentCostId)).Select(x => new DBHelper.Models.Table.ProjectComponentCostPerYear
-                    {
-                        ProgramUniqueId = Project.ProgramUniqueId!,
-                        ComponentCostId = x.ComponentCostId!,
-                        Amount = x.Amount,
-                        Year = x.Year,
-                        StartDate = x.StartDate!,
-                        EndDate = x.EndDate,
-                        CreatedBy = _Session.UserId,
-                        CreatedDate = CurrentDate
-                    }).ToList();
                     await _db.tProjectComponentCostPerYear.AddRangeAsync(NewComponentCostYear);
                 }
                 #endregion
@@ -2129,59 +2137,60 @@ namespace WebAPI.Controllers.Projects
                     #endregion
                 }
                 #region New Major Item of Works
-                var newMajorItems = dto.MajorItemOfWorks.Where(x => x.Id == 0).ToList();
-                if (newMajorItems.Count > 0)
+                if (NewMajorItemComponentIds.Count > 0)
                 {
-                    var NewWorkItemIds = newMajorItems.Select(x => x.ReferenceId).ToHashSet();
-                    var NewWorkLocations = dto.MajorItemLocations.Where(x => NewWorkItemIds.Contains(x.ParentId)).ToHashSet();
-                    var locationLookup = NewWorkLocations
-                    .GroupBy(x => x.ParentId)
-                    .ToDictionary(g => g.Key, g => g.ToList());
-
-                    foreach (var location in newMajorItems)
+                    List<ProjectMajorWorkItem> NewWorkItems = new List<ProjectMajorWorkItem>();
+                    List<ProjectMajorWorkLocations> NewWorkLocations = new List<ProjectMajorWorkLocations>();
+                    foreach (var WorkComponentId in NewMajorItemComponentIds)
                     {
-                        string oldId = location.ReferenceId;
-                        location.ReferenceId = Project.ProjectId + "-" + location.ComponentId;
-                        if (locationLookup.TryGetValue(oldId, out var children))
+                        var WorkItem = dto.MajorItemOfWorks.Where(x => x.ComponentId == WorkComponentId && x.Id == 0);
+                        if (WorkItem != null)
                         {
-                            children.ForEach(x => x.ParentId = location.ReferenceId);
+                            NewWorkItems.AddRange(WorkItem.Select(x => new ProjectMajorWorkItem
+                            {
+                                ProgramUniqueId = Project.ProgramUniqueId!,
+                                StageName = Program.StageName,
+                                ProjectId = Project.ProjectId!,
+                                ReferenceId = $"{WorkComponentId},{Project.ProgramUniqueId}",
+                                ComponentId = x.ComponentId,
+                                YearOfWork = x.YearOfWork,
+                                WorkTypeId = x.WorkTypeId,
+                                InfraType = x.InfraType,
+                                CreatedBy = _Session.UserId,
+                                CreatedDate = CurrentDate
+                            }));
+                            string WorkItemId = WorkItem.FirstOrDefault()!.ReferenceId;
+                            if (!string.IsNullOrEmpty(WorkItemId))
+                            {
+                                var WorkLocations = dto.MajorItemLocations.Where(x => x.ParentId == WorkItemId);
+                                if (WorkLocations != null)
+                                {
+                                    NewWorkLocations.AddRange(WorkLocations.Select(item => new ProjectMajorWorkLocations
+                                    {
+                                        ProgramUniqueId = Project.ProgramUniqueId!,
+                                        StageName = Program.StageName,
+                                        ParentId = $"{WorkComponentId},{Project.ProgramUniqueId}",
+                                        InfraId = item.InfraId,
+                                        DetailedScope = item.DetailedScope,
+                                        TargetUnitId = item.TargetUnitId,
+                                        TargetUnit = item.TargetUnit,
+                                        StartX = item.StartX,
+                                        StartY = item.StartY,
+                                        EndX = item.EndX,
+                                        EndY = item.EndY,
+                                        PhysicalTarget = item.PhysicalTarget,
+                                        StartStationLimit = item.StartStationLimit,
+                                        EndStationLimit = item.EndStationLimit,
+                                        EndChainage = item.EndChainage,
+                                        StartChainage = item.StartChainage,
+                                        Length = item.Length,
+                                        CreatedBy = _Session.UserId,
+                                        CreatedDate = CurrentDate
+                                    }));
+                                }
+                            }
                         }
                     }
-                    await _db.tProjectMajorWorkItem.AddRangeAsync(newMajorItems.Select(item => new ProjectMajorWorkItem
-                    {
-                        ProgramUniqueId = Project.ProgramUniqueId!,
-                        StageName = Program.StageName,
-                        ProjectId = Project.ProjectId!,
-                        ReferenceId = item.ReferenceId,
-                        ComponentId = item.ComponentId,
-                        YearOfWork = item.YearOfWork,
-                        WorkTypeId = item.WorkTypeId,
-                        InfraType = item.InfraType,
-                        CreatedBy = _Session.UserId,
-                        CreatedDate = CurrentDate
-                    }));
-                    await _db.tProjectMajorWorkLocations.AddRangeAsync(NewWorkLocations.Select(item => new ProjectMajorWorkLocations
-                    {
-                        ProgramUniqueId = Project.ProgramUniqueId,
-                        StageName = Program.StageName,
-                        ParentId = item.ParentId,
-                        InfraId = item.InfraId,
-                        DetailedScope = item.DetailedScope,
-                        TargetUnitId = item.TargetUnitId,
-                        TargetUnit = item.TargetUnit,
-                        StartX = item.StartX,
-                        StartY = item.StartY,
-                        EndX = item.EndX,
-                        EndY = item.EndY,
-                        PhysicalTarget = item.PhysicalTarget,
-                        StartStationLimit = item.StartStationLimit,
-                        EndStationLimit = item.EndStationLimit,
-                        EndChainage = item.EndChainage,
-                        StartChainage = item.StartChainage,
-                        Length = item.Length,
-                        CreatedBy = _Session.UserId,
-                        CreatedDate = CurrentDate
-                    }));
                 }
                 #endregion
                 #endregion
