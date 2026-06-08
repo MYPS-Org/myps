@@ -421,7 +421,7 @@ Loaded when reviewing an existing revision from the list.
 - Sets `transactionIdAtom` (so approval dialogs can read it)
 - Sets Jotai atoms: `setModificationContext`, `setStatusFromAPI`, `setFieldRules`
 - Renders `<ProjectForm mode="edit" ...>` — same form, but action buttons change based on `revisionStatus`
-- `onActionSuccess` callback navigates back to `/modification/list`
+- `onActionSuccess` callback navigates back to `/revision`
 
 ---
 
@@ -544,7 +544,7 @@ Both read `transactionIdAtom` for existing revision identification. PDF file val
 |---|---|---|---|
 | `ApproveModifyDialog` | 1 | None | `onSuccess()` or `/revision` |
 | `RejectModifyDialog` | 2 | Rejection reason (text, required) | `onSuccess()` or `/revision` |
-| `ForReviewModifyDialog` | 3 | Review comments (text, required) | `onSuccess()` or `/modification/list` |
+| `ForReviewModifyDialog` | 3 | Review comments (text, required) | `onSuccess()` or `/revision` |
 
 All three read `transactionIdAtom` directly via `useAtomValue`. All call `updateRevisionRequestStatus(txId, statusCode, ...)`.
 

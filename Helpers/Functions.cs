@@ -5,6 +5,8 @@ using DBHelper.Models.Extra;
 using DBHelper.Models.Table;
 using DBHelper.Models.Views;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using OfficeOpenXml;
@@ -30,6 +32,132 @@ namespace Helpers
     public static class Functions
     {
         private static readonly ConcurrentDictionary<string, string> _sqlCache = new();
+        #region CoreController Functions
+        public static string ValidateModel(this ModelStateDictionary ModelState)
+        {
+            var messages = new List<string>();
+            var HasError = ModelState.Where(ms => ms.Value.Errors.Count > 0).ToList();
+            if(HasError.Count > 0)
+            {
+                var MainError = HasError.ElementAt(1);
+                string key = MainError.Key;
+                var errors = MainError.Value!.Errors;
+
+                foreach (var error in errors)
+                {
+                    var match = Regex.Match(key, @"^(\w+)\[(\d+)\]\.(\w+)$");
+
+                    if (match.Success)
+                    {
+                        string collection = match.Groups[1].Value;
+                        int index = int.Parse(match.Groups[2].Value);
+                        string property = match.Groups[3].Value;
+
+                        messages.Add($"{collection} {(index + 1).ToOrdinal()} row: {error.ErrorMessage}");
+                    }
+                    else
+                    {
+                        string friendlyMessage = GetFriendlyErrorMessage(key, error);
+                        messages.Add(friendlyMessage);
+                    }
+                }
+                
+            }
+            //foreach (var entry in ModelState.Where(ms => ms.Value.Errors.Count > 0))
+            //{
+            //    string key = entry.Key;
+            //    var errors = entry.Value!.Errors;
+
+            //    foreach (var error in errors)
+            //    {
+            //        var match = Regex.Match(key, @"^(\w+)\[(\d+)\]\.(\w+)$");
+
+            //        if (match.Success)
+            //        {
+            //            string collection = match.Groups[1].Value;
+            //            int index = int.Parse(match.Groups[2].Value);
+            //            string property = match.Groups[3].Value;
+
+            //            messages.Add($"{collection} {(index + 1).ToOrdinal()} row: {error.ErrorMessage}");
+            //        }
+            //        else
+            //        {
+            //            string friendlyMessage = GetFriendlyErrorMessage(key, error);
+            //            messages.Add(friendlyMessage);
+            //        }
+            //    }
+            //}
+
+            return string.Join("\n", messages);
+        }
+
+        public static string GetFriendlyErrorMessage(string key, ModelError error)
+        {
+            string rawMessage = error.ErrorMessage;
+
+            // Handle JSON deserialization type conversion errors (e.g. invalid date, number, etc.)
+            if (string.IsNullOrWhiteSpace(rawMessage) && error.Exception != null)
+            {
+                rawMessage = error.Exception.Message;
+            }
+
+            // Extract field name from key (e.g. "dto" -> "Dto", "$.ComponentCostPerYear[0].StartDate" -> "StartDate")
+            string fieldLabel = key.ExtractFieldLabel();
+
+            // Detect null values
+            if (Regex.IsMatch(rawMessage, @"invalid start", RegexOptions.IgnoreCase))
+            {
+                return $"{fieldLabel}: is required and cannot be left empty.";
+            }
+
+            // Detect invalid date/datetime values
+            if (Regex.IsMatch(rawMessage, @"System\.DateTime", RegexOptions.IgnoreCase))
+            {
+                return $"{fieldLabel}: Please provide a valid date (e.g. 2024-01-15).";
+            }
+
+            // Detect missing/null required field
+            if (Regex.IsMatch(rawMessage, @"required|must not be (null|empty)", RegexOptions.IgnoreCase))
+            {
+                return $"{fieldLabel} is required.";
+            }
+
+            // Detect invalid number/integer values
+            if (Regex.IsMatch(rawMessage, @"System\.Int|System\.Decimal|System\.Double", RegexOptions.IgnoreCase))
+            {
+                return $"{fieldLabel}: Please provide a valid number.";
+            }
+
+            // Detect invalid boolean values
+            if (Regex.IsMatch(rawMessage, @"System\.Boolean", RegexOptions.IgnoreCase))
+            {
+                return $"{fieldLabel}: Please provide a valid value (true or false).";
+            }
+
+            // Detect invalid string values
+            if (Regex.IsMatch(rawMessage, @"System\.String", RegexOptions.IgnoreCase))
+            {
+                return $"{fieldLabel}: Please provide a valid text value.";
+            }
+
+            // Fallback: return the original message if it's already clean
+            return $"{fieldLabel}: {rawMessage}";
+        }
+        public static string ExtractFieldLabel(this string key)
+        {
+            // Handle JSON path format: $.ComponentCostPerYear[0].StartDate -> StartDate
+            var jsonPathMatch = Regex.Match(key, @"\.(\w+)$");
+            if (jsonPathMatch.Success)
+                return jsonPathMatch.Groups[1].Value; // e.g. "StartDate" -> "Start Date"
+
+            // Handle plain key like "dto"
+            if (!string.IsNullOrWhiteSpace(key) && key != "$")
+                return key;
+
+            return "A field";
+        }
+        #endregion
+        #region Extras
         public static DateTime CurrentDate()
         {
             var tz = TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila");
@@ -859,5 +987,6 @@ namespace Helpers
 
             return RFutureInfra.IsMatch(id);
         }
+        #endregion
     }
 }

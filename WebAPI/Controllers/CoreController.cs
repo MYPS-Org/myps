@@ -41,7 +41,7 @@ namespace WebAPI.Controllers
             {
                 if (context.ModelState.Root.ValidationState == ModelValidationState.Unvalidated)
                 {
-                    string errors = ValidateModel(context.ModelState);
+                    string errors = context.ModelState.ValidateModel();
                     if (!string.IsNullOrEmpty(errors))
                     {
                         var response = new
@@ -137,38 +137,6 @@ namespace WebAPI.Controllers
             }
         }
         [NonAction]
-        public string ValidateModel(ModelStateDictionary ModelState)
-        {
-            var messages = new List<string>();
-
-            foreach (var entry in ModelState.Where(ms => ms.Value.Errors.Count > 0))
-            {
-                string key = entry.Key;
-                var errors = entry.Value!.Errors;
-
-                foreach (var error in errors)
-                {
-                    var match = Regex.Match(key, @"^(\w+)\[(\d+)\]\.(\w+)$");
-
-                    if (match.Success)
-                    {
-                        string collection = match.Groups[1].Value;
-                        int index = int.Parse(match.Groups[2].Value);
-                        string property = match.Groups[3].Value;
-
-                        messages.Add($"{collection} {(index + 1).ToOrdinal()} row: {error.ErrorMessage}");
-                    }
-                    else
-                    {
-                        messages.Add($"{key}: {error.ErrorMessage}");
-                    }
-                }
-            }
-
-            return string.Join("\n", messages);
-        }
-
-        [NonAction]
         public IActionResult UnauthorizedUser(string UnauthMessage = "Unauthorized.")
         {
             var responseObj = new
@@ -178,18 +146,6 @@ namespace WebAPI.Controllers
                 Redirect = "/login"
             };
             return Unauthorized(responseObj);
-        }
-        private static readonly ConcurrentDictionary<string, LambdaExpression> _orderLambdaCache = new(StringComparer.OrdinalIgnoreCase);
-        // Builds (T e) => e.<SortField> with proper underlying type (no object boxing)
-        public static LambdaExpression GetOrderByLambda<T>(string sortField)
-        {
-            return _orderLambdaCache.GetOrAdd($"{typeof(T).FullName}.{sortField}", _ =>
-            {
-                var param = Expression.Parameter(typeof(T), "e");
-                var body = Expression.PropertyOrField(param, sortField);
-                var delegateType = typeof(Func<,>).MakeGenericType(typeof(T), body.Type);
-                return Expression.Lambda(delegateType, body, param);
-            });
         }
     }
 }

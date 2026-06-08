@@ -28,7 +28,7 @@ const ViewRevision: React.FC = () => {
                 type: 'error',
                 message: 'No transaction ID provided'
             });
-            navigate('/modification/list');
+            navigate('/revision');
             return;
         }
         
