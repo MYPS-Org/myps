@@ -39,7 +39,8 @@ Ask the user (use `AskUserQuestion` if not already provided):
 For each ATP section/test case area, check whether the User Manual covers it. Look specifically for:
 
 - **Missing Documentation** — features, work location variants, revision types, or modules present in the ATP but absent or thin in the manual
-- **Validation Mismatches** — error/validation messages, required-field rules, or eligibility conditions described in the ATP but missing or worded differently in the manual
+- **Validation Mismatches** — error/validation messages, required-field rules, or eligibility conditions described in the ATP but missing or worded differently in the manual. For any dropdown described as showing a custom validation message, check whether it's implemented as a native `<select required>` (form without `noValidate`) — if so, the message the user actually sees is the browser's *"Please select an item in the list."* tooltip, not the custom string; flag a mismatch if the manual or ATP documents the custom string instead. See [`documents/UserManual_Rules.md`](../../../documents/UserManual_Rules.md).
+- **Numbering Convention** — flag any Field Reference table still using prefixed IDs (`UI-UX-XXX`, `MIOW-`, `CC-`, etc.) instead of plain sequential `1, 2, 3...` per [`documents/UserManual_Rules.md`](../../../documents/UserManual_Rules.md#1-fieldaction-reference-numbering)
 - **Workflow Issues** — state transitions, approval routing, re-submission flows, or step sequences in the ATP not reflected in the manual
 - **Screenshot Review** — flag as POSSIBLY OUTDATED if the manual's date predates the ATP's date; otherwise NOT FLAGGED
 

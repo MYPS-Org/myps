@@ -1,3 +1,114 @@
+# UserManual.md — Changelog v3.8 → v3.9
+
+**Date:** June 14, 2026
+**Branch:** main (uncommitted)
+**Source:** User-requested authoring rules change (Field Reference numbering convention + native `<select required>` validation message accuracy)
+
+> **Note on canonical file:** `documents/UserManual.md` had drifted out of sync with
+> `FE/UserManual.md` (stuck at v3.7 while `FE/UserManual.md` had already been updated to v3.8 —
+> see the "v3.7 → v3.8" entry below, which described changes applied to `FE/UserManual.md` only).
+> As of this entry, `documents/UserManual.md` is the **canonical** manual going forward: it has
+> been re-synced from `FE/UserManual.md` v3.8 (bringing in those v3.8 changes), and this entry's
+> v3.9 changes are layered on top of that synced content.
+
+---
+
+## 1. Document Header
+
+| Field | v3.8 | v3.9 |
+|-------|------|------|
+| Version | 3.8 | 3.9 |
+| Date | June 10, 2026 | June 14, 2026 |
+
+---
+
+## 2. Sync `documents/UserManual.md` from `FE/UserManual.md` (v3.8)
+
+**Changed:** `documents/UserManual.md` (previously stuck at v3.7) was replaced with the content of
+`FE/UserManual.md` v3.8, bringing in: Section 3.1 "Username is required" / "Password is required"
+validation messages; Section 5.3.5 Auto-generated ID Prefix reference table (16 infrastructure
+types, e.g. Local Roads `LRD00001`); Section 5.4.6 "Mode of Implementation — New Project Record"
+behavior (`-A` suffixed project record); Section 5.5.3 project group map mention.
+
+> Source: `FE/UserManual.md` v3.8 (see "v3.7 → v3.8" entry below for full detail).
+
+---
+
+## 3. New file — `documents/UserManual_Rules.md`
+
+**New file added** defining two standing authoring rules for `UserManual.md`:
+
+1. Field/Action Reference tables use plain sequential numbering (`1, 2, 3...`, restarting per
+   table) instead of prefixed IDs (`UI-UX-XXX-Fnn/Ann`, `MIOW-`, `CC-`, `AIP-`, `BR-`, etc.).
+2. Validation messages for native `<select required>` dropdowns (in forms without `noValidate`)
+   must be documented as the browser's actual *"Please select an item in the list."* tooltip, not
+   the dead-code JS `alert`/`showToast` message.
+
+> Source: user request — "remove the UI-UX-XXX and use normal numbering" + "dialogs that use
+> required in native html ... use the 'Please select an item in the list.'" message.
+
+---
+
+## 4. Field Reference ID renumbering (all sections)
+
+**Changed:** All 222 `UI-UX-XXX-Fnn/Ann` IDs and 107 other prefixed IDs (`MIOW-`, `CC-`, `AIP-`,
+`BR-`, `CMI-`, `EXC-`, `FP-`, `NI-`, `PG-`, `RD-`, `REV-`, `RL-`, `SD-`, `SR-`, `TRM-`, `WL-`,
+`WL-DLG-`) across 56 Field/Action Reference tables were replaced with plain sequential numbering
+(`1, 2, 3...`), restarting at `1` for each table. No row content, ordering, or table structure
+changed — only the leftmost `Field Ref No.` column values.
+
+> Source: editorial — applies new Rule 1 from `documents/UserManual_Rules.md`.
+
+---
+
+## 5. Section 5.3.5 — Add Project Major Item of Works (Common Outcomes)
+
+| # | Old | New | Reason |
+|---|-----|-----|--------|
+| 1 | `"Please select a component"` | `"Please select an item in the list."` (with note: "Browser-native validation tooltip on the required dropdown.") | Component is a native `<select required>` in a form without `noValidate` — the browser tooltip fires before the `alert('Please select a component')` in `AddMajorItemDialog.tsx` can run |
+| 2 | `"Please select an infrastructure type"` | `"Please select an item in the list."` (same note) | Same — Infrastructure Type select |
+| 3 | `"Please select a type of work"` | `"Please select an item in the list."` (same note) | Same — Type of Work select |
+
+> Source: `FE/src/pages/Project/dialogs/AddMajorItemDialog.tsx:203-281` (also mirrored in
+> `FE/src/pages/Modification/dialogs/AddMajorItemDialog.tsx:220-300`) — applies new Rule 2.
+
+---
+
+## 6. Section 5.8.1 — Add New Future Road (Common Outcomes)
+
+| # | Old | New | Reason |
+|---|-----|-----|--------|
+| 1 | `"Please fill in all required fields"` (covering Road ID, Road Name, or Classification) | Split into two rows: `"Please fill in all required fields"` (Road ID / Road Name only) + new row `"Please select an item in the list."` (Classification) | Classification is a native `<select required>`; its empty-submit message is the browser tooltip, distinct from the Road ID/Road Name text-input message |
+
+> Source: `FE/src/pages/Rbia/Dialogs/FutureRoadDialog.tsx` — applies new Rule 2.
+
+---
+
+## 7. Section 5.4.2 — Revise Project (Common Outcomes)
+
+| # | Old | New | Reason |
+|---|-----|-----|--------|
+| 1 | `"Please select a category."` | `"Please select an item in the list."` (with note) | Category is a native `<select required>` — `showToast('Please select a category.')` in `RevisionDialog.tsx` is dead code |
+| 2 | `"Please select a reason."` | `"Please select an item in the list."` (with note) | Same — Reason select |
+
+> Source: `FE/src/pages/Project/dialogs/RevisionDialog.tsx:219-252` — applies new Rule 2.
+
+---
+
+## 8. Revision History Table (documents/UserManual.md)
+
+**New row added** for v3.9 summarizing the sync from `FE/UserManual.md` v3.8 plus all changes above.
+
+---
+
+## 9. Commits Covered
+
+| Commit | Message | Impact |
+|--------|---------|--------|
+| *(uncommitted)* | — | All changes above are uncommitted working-tree edits to `documents/UserManual.md`, `documents/UserManual_Rules.md`, and the `.claude/skills/{generate-user-manual,update-user-manual,gap-analysis}/SKILL.md` files |
+
+---
+
 # UserManual.md — Changelog v3.7 → v3.8
 
 **Date:** June 10, 2026

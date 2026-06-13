@@ -53,7 +53,8 @@ Build a short triage list before writing, so the final summary can report what w
 For each "include" item, edit `UserManual.md` following its existing conventions:
 
 - **New work location / revision type docs** → add a new subsection under the relevant module section, following the structure of sibling sections (Purpose, Step-by-Step, Field Reference table).
-- **Validation messages** → add rows to the relevant "Validation Errors and How to Fix Them" table (see [FE/UserManual.md:656](../../../FE/UserManual.md#L656) for the pattern: `Error Message | How to Fix`). Phrase the "How to Fix" column from the user's perspective.
+- **Field Reference tables** → number rows with plain sequential `1, 2, 3...` (restart per table). Do not introduce `UI-UX-XXX` or other prefixed IDs — see [`documents/UserManual_Rules.md`](../../../documents/UserManual_Rules.md#1-fieldaction-reference-numbering).
+- **Validation messages** → add rows to the relevant "Validation Errors and How to Fix Them" / "Common Outcomes & What to Do" table (see [FE/UserManual.md:656](../../../FE/UserManual.md#L656) for the pattern: `Error Message | How to Fix`). Phrase the "How to Fix" column from the user's perspective. Before writing a custom message for a dropdown, check whether it's a native `<select required>` in a form without `noValidate` — if so, document *"Please select an item in the list."* per [`documents/UserManual_Rules.md`](../../../documents/UserManual_Rules.md#2-validation-messages-for-native-select-required-dropdowns) instead of the JS-level message.
 - **Approval / revision workflows** → add a short "What Happens After You Submit" narrative with a simple numbered flow, near the relevant submission step.
 - **Field reference / dropdown dependency notes** → add or update rows in the existing field tables; describe dependent-dropdown behavior in one sentence ("Selecting X filters the options available in Y") rather than enumerating every combination.
 

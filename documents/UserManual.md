@@ -1,7 +1,7 @@
 ﻿# Web-Based MYPS System
 ## User Manual
-**Version:** 3.7
-**Date:** June 8, 2026
+**Version:** 3.9
+**Date:** June 14, 2026
 **Prepared By:** EPTISA — for DPWH / Asian Development Bank
 
 ---
@@ -31,6 +31,8 @@
 | 3.5 | May 6, 2026 | RP | RP | Section 5.8 Infra Management fully rewritten: page layout, hierarchy rule, and common table controls documented; Roads tab (Add/Edit/Delete Road dialogs with Field Reference tables, Filter Roads dialog, Add Road Section from road row with split ID builder); Road Sections tab (Edit/Delete Road Section dialogs, Filter Road Sections dialog with searchable DEO dropdown, Add Bridge from section row); Bridges tab (Edit/Delete Bridge dialogs, Filter Bridges dialog); Import dialog (3 groups — Road Network from RBIA, Admin Areas, Internal Org — with tri-state group checkboxes, active vs. pending item status, Start Import behavior) — all with Field Reference tables, step-by-step, On Success, and Common Outcomes |
 | 3.6 | June 2, 2026 | RP | RP | Section 5.2.5 rewritten: "Add Existing Project" button now opens Batch Restore dialog — users enter project IDs to restore deleted projects back to the program; Section 5.2.7 updated: "View AIP Report" renamed to "Generate Reports" throughout; Section 5.6 updated: Toggle Active feature added across all Code Tables sub-tabs — Active column and toggle button added to every table; Section 5.7 updated: Plantilla Office Name field added to Add User and Update User dialogs |
 | 3.7 | June 8, 2026 | RP | RP | Section 3.1 updated: login error messages revised — invalid credentials message and session-expired message updated to match current backend responses; Section 5.2.2 updated: Program Type and Program Stage fields now marked required (*) with frontend validation messages added; Section 5.7 updated: "Region Code" field in Add User dialog renamed to "Region" (now shows region name, not code), User ID and Region fields are now always disabled (fully read-only); Users list OFFICE column now displays PlantillaOfficeName (full office name) |
+| 3.8 | June 10, 2026 | RP | RP | Gap analysis follow-up: Section 3.1 added "Username is required" / "Password is required" inline validation messages to Common Outcomes and Appendix B; Section 5.3.5 added Auto-generated ID Prefix reference table for all 16 work location infrastructure types; Section 5.4.6 added "Mode of Implementation — New Project Record" behavior (creates a new `-A` suffixed project record) and a note on the remaining revision types relying on standard field-editability rules; Section 5.5.3 added mention of the project group map view |
+| 3.9 | June 14, 2026 | RP | RP | `documents/UserManual.md` established as the canonical manual (synced from `FE/UserManual.md` v3.8). Replaced all `UI-UX-XXX-Fnn/Ann` and other prefixed Field Reference IDs (`MIOW-`, `CC-`, `AIP-`, etc.) throughout the manual with plain sequential numbering (1, 2, 3...) per table — see new [`documents/UserManual_Rules.md`](./UserManual_Rules.md); corrected validation messages for native `<select required>` dropdowns in "Add Project Major Item of Works" (Component, Infrastructure Type, Type of Work), "Add New Future Road" (Classification), and "Revise Project" (Category, Reason) to the browser's actual *"Please select an item in the list."* tooltip |
 
 ### Consultant
 
@@ -228,9 +230,9 @@ Each user sees only the modules and actions permitted for their assigned user gr
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-001-F01 | USERNAME | The user's DPWH login identifier | Text input |
-| UI-UX-001-F02 | PASSWORD | The user's account password | Password input (masked) |
-| UI-UX-001-A01 | Sign In | Submit credentials to authenticate | Button |
+| 1 | USERNAME | The user's DPWH login identifier | Text input |
+| 2 | PASSWORD | The user's account password | Password input (masked) |
+| 3 | Sign In | Submit credentials to authenticate | Button |
 
 **Step-by-Step:**
 
@@ -247,6 +249,8 @@ Each user sees only the modules and actions permitted for their assigned user gr
 
 | Message / Situation | What it Means | What You Should Do |
 |---|---|---|
+| *"Username is required"* | The Sign In button was clicked while the USERNAME field was empty. | Enter your username before clicking Sign In. |
+| *"Password is required"* | The Sign In button was clicked while the PASSWORD field was empty. | Enter your password before clicking Sign In. |
 | *"Invalid credentials. Please check your user ID and password and try again."* | The username or password entered is incorrect. | Re-enter the correct username and password. |
 | *"Your session has expired. Please sign in to continue."* | The account is not active or the current session has expired. | Contact your PS Admin to verify the account is active, then log in again. |
 | Sign In button has no response | Session or connectivity issue. | Refresh the page and try again; contact support if persistent. |
@@ -324,9 +328,9 @@ The following table maps each active sidebar item to its route and source compon
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-003-F01 | Search By | Category to search across | Dropdown: Project ID, Alternate ID, Description, UACS, Program Name, Roads, Road Section, Bridge — categories loaded dynamically from the server |
-| UI-UX-003-F02 | Value | Keyword or identifier to search for | Text input; enabled only after a category is selected |
-| UI-UX-003-A01 | Search | Execute the search | Button; disabled until both a category and value are entered |
+| 1 | Search By | Category to search across | Dropdown: Project ID, Alternate ID, Description, UACS, Program Name, Roads, Road Section, Bridge — categories loaded dynamically from the server |
+| 2 | Value | Keyword or identifier to search for | Text input; enabled only after a category is selected |
+| 3 | Search | Execute the search | Button; disabled until both a category and value are entered |
 
 > Results for **Project ID, Alternate ID, Description, UACS**, and **Program Name** include a **View ↗** link that navigates to the record's detail page. **Roads, Road Section**, and **Bridge** results display data only — no navigation link is available for these categories.
 
@@ -419,11 +423,11 @@ The following table maps each active sidebar item to its route and source compon
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-004-F01 | Search Programs | Text input to filter the list by program name | Text; press Enter or click Search to apply |
-| UI-UX-004-A01 | Search | Submits the name search and refreshes the list | Button (blue); enabled when input has text |
-| UI-UX-004-A02 | Clear | Clears the active name search and reloads all programs | Button (red); visible only when a search term or name filter is active |
-| UI-UX-004-A03 | Filters | Opens the Filter Programs dialog for Year Start, Program Group, and Program Stage filters | Button (yellow); displays a count badge when any filter is active |
-| UI-UX-004-A04 | Add Program | Opens the Add Program dialog (see Section 5.2.2) | Button (blue) |
+| 1 | Search Programs | Text input to filter the list by program name | Text; press Enter or click Search to apply |
+| 2 | Search | Submits the name search and refreshes the list | Button (blue); enabled when input has text |
+| 3 | Clear | Clears the active name search and reloads all programs | Button (red); visible only when a search term or name filter is active |
+| 4 | Filters | Opens the Filter Programs dialog for Year Start, Program Group, and Program Stage filters | Button (yellow); displays a count badge when any filter is active |
+| 5 | Add Program | Opens the Add Program dialog (see Section 5.2.2) | Button (blue) |
 
 ---
 
@@ -431,11 +435,11 @@ The following table maps each active sidebar item to its route and source compon
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-004-F02 | Start Year | Filter programs by fiscal start year | Dropdown: All Years, 2000 – (current year + 10) |
-| UI-UX-004-F03 | Program Group | Filter by the program group the program belongs to | Dropdown: All Groups, values from Code Tables |
-| UI-UX-004-F04 | Program Stage | Filter by budget stage | Dropdown: All Stages, values from Code Tables |
-| UI-UX-004-A05 | Apply | Applies the selected filters and refreshes the list | Button |
-| UI-UX-004-A06 | Clear Filters | Resets Year Start, Group, and Stage filters (preserves any active name search) | Button; visible only when at least one filter is active |
+| 1 | Start Year | Filter programs by fiscal start year | Dropdown: All Years, 2000 – (current year + 10) |
+| 2 | Program Group | Filter by the program group the program belongs to | Dropdown: All Groups, values from Code Tables |
+| 3 | Program Stage | Filter by budget stage | Dropdown: All Stages, values from Code Tables |
+| 4 | Apply | Applies the selected filters and refreshes the list | Button |
+| 5 | Clear Filters | Resets Year Start, Group, and Stage filters (preserves any active name search) | Button; visible only when at least one filter is active |
 
 ---
 
@@ -443,9 +447,9 @@ The following table maps each active sidebar item to its route and source compon
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-004-A07 | Program Name (link) | Expands or collapses the program row to reveal its budget stages | Click to toggle; chevron icon indicates state |
-| UI-UX-004-A08 | View | Opens the Program Details page for the selected program at its current stage | Button (orange); in the Actions column |
-| UI-UX-004-A09 | Delete (trash icon) | Opens the Delete Program confirmation dialog | Button (red); in the Actions column |
+| 1 | Program Name (link) | Expands or collapses the program row to reveal its budget stages | Click to toggle; chevron icon indicates state |
+| 2 | View | Opens the Program Details page for the selected program at its current stage | Button (orange); in the Actions column |
+| 3 | Delete (trash icon) | Opens the Delete Program confirmation dialog | Button (red); in the Actions column |
 
 ---
 
@@ -557,16 +561,16 @@ When a program row is expanded, a nested table lists all budget stages under tha
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-005-F01 | Program Name | Auto-generated from Stage + Start Year (e.g. "BP 2025") | Read-only; cannot be typed directly |
-| UI-UX-005-F02 | Sub Name | Optional additional label appended to the auto-generated name | Text input; optional |
-| UI-UX-005-F03 | Start Year | Fiscal year of the program | Numeric input; required |
-| UI-UX-005-F04 | Program Type * | Classification of the program | Dropdown (Code Tables → Program → Program Type); required |
-| UI-UX-005-F05 | Program Stage * | Initial budget stage | Dropdown (Code Tables → Program → Program Stage); required; disabled when Type = TF |
-| UI-UX-005-F06 | Skip Reason | Reason for skipping a stage | Text input; required only when the selected stage skips one or more prior stages |
-| UI-UX-005-F07 | User Groups | Groups that can access this program | Multi-select checkbox list; required |
-| UI-UX-005-F08 | Data Security Access | Offices with data visibility access | Multi-select checkbox list; required |
-| UI-UX-005-A01 | Cancel | Discard the form without saving | Button |
-| UI-UX-005-A02 | Submit | Save the new program | Button |
+| 1 | Program Name | Auto-generated from Stage + Start Year (e.g. "BP 2025") | Read-only; cannot be typed directly |
+| 2 | Sub Name | Optional additional label appended to the auto-generated name | Text input; optional |
+| 3 | Start Year | Fiscal year of the program | Numeric input; required |
+| 4 | Program Type * | Classification of the program | Dropdown (Code Tables → Program → Program Type); required |
+| 5 | Program Stage * | Initial budget stage | Dropdown (Code Tables → Program → Program Stage); required; disabled when Type = TF |
+| 6 | Skip Reason | Reason for skipping a stage | Text input; required only when the selected stage skips one or more prior stages |
+| 7 | User Groups | Groups that can access this program | Multi-select checkbox list; required |
+| 8 | Data Security Access | Offices with data visibility access | Multi-select checkbox list; required |
+| 9 | Cancel | Discard the form without saving | Button |
+| 10 | Submit | Save the new program | Button |
 
 > **TF Programs:** Selecting Program Type = TF automatically locks the Stage to the final stage and sets the Program Name to `TF{Year}` (e.g. "TF2025"). The Stage dropdown is disabled in this case.
 
@@ -672,9 +676,9 @@ When a program row is expanded, a nested table lists all budget stages under tha
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| BR-F01 | Project IDs | The IDs of deleted projects to restore | Text area; enter one or more project IDs separated by commas, spaces, semicolons, or line breaks; required |
-| BR-A01 | Restore Projects | Submit the restore request | Button (indigo); opens a confirmation dialog before proceeding |
-| BR-A02 | Cancel | Close the dialog without restoring | Button |
+| 1 | Project IDs | The IDs of deleted projects to restore | Text area; enter one or more project IDs separated by commas, spaces, semicolons, or line breaks; required |
+| 2 | Restore Projects | Submit the restore request | Button (indigo); opens a confirmation dialog before proceeding |
+| 3 | Cancel | Close the dialog without restoring | Button |
 
 **Step-by-Step:**
 
@@ -794,15 +798,15 @@ When a program row is expanded, a nested table lists all budget stages under tha
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| AIP-F01 | Report Type | Type of report | Dropdown; required |
-| AIP-F02 | Stage Name | Program stage for the report | Dropdown; required |
-| AIP-F03 | Category | Project expenditure category | Dropdown; required |
-| AIP-F04 | Region | Target region | Dropdown; required |
-| AIP-F05 | District Engineering Office | Target DEO | Dropdown; optional |
-| AIP-F06 | Implementing Office | Target implementing office | Dropdown; optional |
-| AIP-F07 | Operating Unit | Target operating unit | Dropdown; optional |
-| AIP-F08 | Legislative District | Target legislative district | Dropdown; optional |
-| AIP-A01 | Generate Report | Generate and download the report as a PDF | Button |
+| 1 | Report Type | Type of report | Dropdown; required |
+| 2 | Stage Name | Program stage for the report | Dropdown; required |
+| 3 | Category | Project expenditure category | Dropdown; required |
+| 4 | Region | Target region | Dropdown; required |
+| 5 | District Engineering Office | Target DEO | Dropdown; optional |
+| 6 | Implementing Office | Target implementing office | Dropdown; optional |
+| 7 | Operating Unit | Target operating unit | Dropdown; optional |
+| 8 | Legislative District | Target legislative district | Dropdown; optional |
+| 9 | Generate Report | Generate and download the report as a PDF | Button |
 
 **Step-by-Step:**
 
@@ -839,54 +843,54 @@ When a program row is expanded, a nested table lists all budget stages under tha
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-0034-F01 | Project ID | Auto-generated project identifier | Read-only; system-generated |
-| UI-UX-0034-F02 | Multi-Year ID | Multi-year program reference | Text input; optional |
-| UI-UX-0034-F03 | Alternate ID | Alternate reference identifier | Text input; optional |
-| UI-UX-0034-F04 | External ID | External system reference | Text input; optional |
-| UI-UX-0034-F05 | UACS | Unified Accounts Code Structure | Text input; optional |
-| UI-UX-0034-F06 | Tier | Project funding tier | Dropdown; optional |
-| UI-UX-0034-F07 | Category | Project expenditure category | Dropdown (Code Tables → Project Details → Category); required |
-| UI-UX-0034-F08 | Sub Category | Sub-classification under category | Dropdown; required |
-| UI-UX-0034-F09 | MYCA Approval Date | Date of MYCA approval | Date input; required |
-| UI-UX-0034-F10 | Description | Brief project description | Text area; required |
+| 1 | Project ID | Auto-generated project identifier | Read-only; system-generated |
+| 2 | Multi-Year ID | Multi-year program reference | Text input; optional |
+| 3 | Alternate ID | Alternate reference identifier | Text input; optional |
+| 4 | External ID | External system reference | Text input; optional |
+| 5 | UACS | Unified Accounts Code Structure | Text input; optional |
+| 6 | Tier | Project funding tier | Dropdown; optional |
+| 7 | Category | Project expenditure category | Dropdown (Code Tables → Project Details → Category); required |
+| 8 | Sub Category | Sub-classification under category | Dropdown; required |
+| 9 | MYCA Approval Date | Date of MYCA approval | Date input; required |
+| 10 | Description | Brief project description | Text area; required |
 
 *Location Details*
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-0034-F11 | Province | Project province | Dropdown (Code Tables → Admin Areas); required |
-| UI-UX-0034-F12 | City / Municipality | Project city or municipality | Dropdown (filtered by Province); required |
-| UI-UX-0034-F13 | Legislative District | Legislative district | Dropdown; required |
+| 1 | Province | Project province | Dropdown (Code Tables → Admin Areas); required |
+| 2 | City / Municipality | Project city or municipality | Dropdown (filtered by Province); required |
+| 3 | Legislative District | Legislative district | Dropdown; required |
 
 *Organizational Responsibilities*
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-0034-F14 | District Engineering Office | Responsible DEO | Dropdown (Code Tables → Admin Areas → DEO); required |
-| UI-UX-0034-F15 | Region | Regional office | Dropdown; required |
-| UI-UX-0034-F16 | Implementing Office | Office responsible for implementation | Dropdown; required |
-| UI-UX-0034-F17 | Operating Unit | UACS operating unit | Dropdown; required |
-| UI-UX-0034-F18 | Region Wide | Indicates if project spans entire region | Toggle; required |
+| 1 | District Engineering Office | Responsible DEO | Dropdown (Code Tables → Admin Areas → DEO); required |
+| 2 | Region | Regional office | Dropdown; required |
+| 3 | Implementing Office | Office responsible for implementation | Dropdown; required |
+| 4 | Operating Unit | UACS operating unit | Dropdown; required |
+| 5 | Region Wide | Indicates if project spans entire region | Toggle; required |
 
 *Project Source*
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-0034-F19 | Origin | Source of the project | Dropdown (Code Tables → Project Details → Origin); required |
-| UI-UX-0034-F20 | Originating Agency | Agency that originated the project | Dropdown (Code Tables → Project Details → Agency); required |
+| 1 | Origin | Source of the project | Dropdown (Code Tables → Project Details → Origin); required |
+| 2 | Originating Agency | Agency that originated the project | Dropdown (Code Tables → Project Details → Agency); required |
 
 *Implementation Readiness and Modality*
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-0034-F21 | Implementation Mode | Mode of implementation | Dropdown; required |
-| UI-UX-0034-F22 | Emergency Mode | Emergency designation | Dropdown; required |
-| UI-UX-0034-F23 | ROW Available | Right-of-way availability status | Dropdown; required |
-| UI-UX-0034-F24 | Feasibility Study | Feasibility study completion status | Dropdown (Yes / No); required |
-| UI-UX-0034-F25 | Feasibility Date | Date of feasibility study | Date input; required if Feasibility Study = Yes |
-| UI-UX-0034-F26 | Detailed Design | Detailed design completion status | Dropdown (Yes / No); required |
-| UI-UX-0034-F27 | Detailed Design Date | Date of detailed design | Date input; required if Detailed Design = Yes |
-| UI-UX-0034-A01 | Save Project | Save the new project | Button |
+| 1 | Implementation Mode | Mode of implementation | Dropdown; required |
+| 2 | Emergency Mode | Emergency designation | Dropdown; required |
+| 3 | ROW Available | Right-of-way availability status | Dropdown; required |
+| 4 | Feasibility Study | Feasibility study completion status | Dropdown (Yes / No); required |
+| 5 | Feasibility Date | Date of feasibility study | Date input; required if Feasibility Study = Yes |
+| 6 | Detailed Design | Detailed design completion status | Dropdown (Yes / No); required |
+| 7 | Detailed Design Date | Date of detailed design | Date input; required if Detailed Design = Yes |
+| 8 | Save Project | Save the new project | Button |
 
 **Step-by-Step:**
 
@@ -963,11 +967,11 @@ Identifies the island group or region associated with the project (e.g., `LZ` = 
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| FP-F01 | Source | Funding source organization | Dropdown (Code Tables → Funding Profile → Funding Source); required |
-| FP-F02 | Agreement | Loan or grant agreement | Dropdown (Code Tables → Funding Profile → Funding Agreement); required |
-| FP-F03 | Amount | Allocated budget amount | Numeric input; required |
-| FP-A01 | Add Funding | Add a new funding row | Button (blue) |
-| FP-A02 | Delete | Remove a funding row | Button |
+| 1 | Source | Funding source organization | Dropdown (Code Tables → Funding Profile → Funding Source); required |
+| 2 | Agreement | Loan or grant agreement | Dropdown (Code Tables → Funding Profile → Funding Agreement); required |
+| 3 | Amount | Allocated budget amount | Numeric input; required |
+| 4 | Add Funding | Add a new funding row | Button (blue) |
+| 5 | Delete | Remove a funding row | Button |
 
 **Step-by-Step:**
 
@@ -1019,9 +1023,9 @@ Identifies the island group or region associated with the project (e.g., `LZ` = 
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| CC-A01 | Add Component | Opens the Add Component Cost dialog | Button (blue); disabled when the project is read-only |
-| CC-A02 | Edit (pencil icon) | Opens the Edit Component Cost dialog for the selected row | Per-row button |
-| CC-A03 | Delete (trash icon) | Opens the Delete Component confirmation dialog | Per-row button |
+| 1 | Add Component | Opens the Add Component Cost dialog | Button (blue); disabled when the project is read-only |
+| 2 | Edit (pencil icon) | Opens the Edit Component Cost dialog for the selected row | Per-row button |
+| 3 | Delete (trash icon) | Opens the Delete Component confirmation dialog | Per-row button |
 
 ---
 
@@ -1031,20 +1035,20 @@ The dialog title is **"Add Project Component Cost"** (add mode) or **"Edit Proje
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| CC-F01 | Component Type | Classification of the component | Dropdown (Code Tables → Component Cost types); required |
-| CC-F02 | Component ID | System-generated identifier derived from Component Type | Read-only text field; auto-populated when Component Type is selected |
-| CC-F03 | Description | Narrative description of the component | Text area; optional — can be auto-filled using the **Auto-fill** button |
-| CC-A04 | Auto-fill | Fetches a suggested description from GIS data for the selected component | Link button (sparkle icon); enabled only when a Component Type is selected |
-| CC-F04 | Cost Breakdown by Year | Section containing one or more per-year cost rows | Repeating group |
-| CC-F05 | Year | Fiscal year for this cost entry | Numeric input; pre-filled to Program Start Year; required |
-| CC-F06 | Amount | Budget amount for this year (₱) | Numeric input; required; must be > 0 |
-| CC-F07 | Start Date | Implementation start date for this year | Date input; required |
-| CC-F08 | End Date | Implementation end date for this year | Date input; required |
-| CC-A05 | Add Year | Add a new per-year cost row to the component | Button (blue); each click adds one row starting from the next year |
-| CC-A06 | Delete per-year row | Remove a per-year cost row | Per-row trash icon; new (unsaved) rows are hard-deleted; existing rows are soft-deleted |
-| CC-F09 | Total | Sum of all per-year amounts; automatically calculated | Read-only; displayed at the bottom of the dialog |
-| CC-A07 | Cancel / ✕ | Discard changes and close the dialog | Button |
-| CC-A08 | Save / Submit | Validate and save the component cost | Button (blue) |
+| 1 | Component Type | Classification of the component | Dropdown (Code Tables → Component Cost types); required |
+| 2 | Component ID | System-generated identifier derived from Component Type | Read-only text field; auto-populated when Component Type is selected |
+| 3 | Description | Narrative description of the component | Text area; optional — can be auto-filled using the **Auto-fill** button |
+| 4 | Auto-fill | Fetches a suggested description from GIS data for the selected component | Link button (sparkle icon); enabled only when a Component Type is selected |
+| 5 | Cost Breakdown by Year | Section containing one or more per-year cost rows | Repeating group |
+| 6 | Year | Fiscal year for this cost entry | Numeric input; pre-filled to Program Start Year; required |
+| 7 | Amount | Budget amount for this year (₱) | Numeric input; required; must be > 0 |
+| 8 | Start Date | Implementation start date for this year | Date input; required |
+| 9 | End Date | Implementation end date for this year | Date input; required |
+| 10 | Add Year | Add a new per-year cost row to the component | Button (blue); each click adds one row starting from the next year |
+| 11 | Delete per-year row | Remove a per-year cost row | Per-row trash icon; new (unsaved) rows are hard-deleted; existing rows are soft-deleted |
+| 12 | Total | Sum of all per-year amounts; automatically calculated | Read-only; displayed at the bottom of the dialog |
+| 13 | Cancel / ✕ | Discard changes and close the dialog | Button |
+| 14 | Save / Submit | Validate and save the component cost | Button (blue) |
 
 **Component ID Auto-generation Rules:**
 
@@ -1136,12 +1140,12 @@ The dialog title is **"Add Project Major Item of Works"** (add mode) or **"Edit 
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| MIOW-F01 | Component | Component Cost entry to link this major item to | Dropdown (only non-excluded active components); required; **locked in edit mode** |
-| MIOW-F02 | Year of Work | Fiscal year this work item applies to | Numeric input; defaults to Program Start Year; minimum = Program Start Year; required |
-| MIOW-F03 | Infrastructure Type | Type of infrastructure | Dropdown (Code Tables → Infrastructure Types); filters based on Component — if Component = `ROW`, only shows types that have a **ROW Acquisition** work type; required; **locked in edit mode** |
-| MIOW-F04 | Type of Work | Specific work type, filtered by the selected Infrastructure Type | Dropdown (only work types matching the selected Infrastructure Type); if Component = `ROW`, restricted to **ROW Acquisition** entries only; required; **locked in edit mode** |
-| MIOW-A01 | Cancel | Discard changes and close the dialog | Button |
-| MIOW-A02 | Add Item / Update Item | Save the major item | Button (orange) |
+| 1 | Component | Component Cost entry to link this major item to | Dropdown (only non-excluded active components); required; **locked in edit mode** |
+| 2 | Year of Work | Fiscal year this work item applies to | Numeric input; defaults to Program Start Year; minimum = Program Start Year; required |
+| 3 | Infrastructure Type | Type of infrastructure | Dropdown (Code Tables → Infrastructure Types); filters based on Component — if Component = `ROW`, only shows types that have a **ROW Acquisition** work type; required; **locked in edit mode** |
+| 4 | Type of Work | Specific work type, filtered by the selected Infrastructure Type | Dropdown (only work types matching the selected Infrastructure Type); if Component = `ROW`, restricted to **ROW Acquisition** entries only; required; **locked in edit mode** |
+| 5 | Cancel | Discard changes and close the dialog | Button |
+| 6 | Add Item / Update Item | Save the major item | Button (orange) |
 
 **Add Mode — Component Availability:**
 
@@ -1187,10 +1191,10 @@ The dialog title is **"Add Project Major Item of Works"** (add mode) or **"Edit 
 
 | Message / Situation | What it Means | What You Should Do |
 |---|---|---|
-| *"Please select a component"* | Component field is blank on submit. | Select a component from the dropdown. |
+| *"Please select an item in the list."* | Component field is blank on submit. Browser-native validation tooltip on the required dropdown. | Select a component from the dropdown. |
 | *"No components available. Please add more components first."* | All eligible components are already assigned to existing major items. | Add a new Component Cost entry (Section 5.3.3) before adding another major item. |
-| *"Please select an infrastructure type"* | Infrastructure Type field is blank on submit. | Select an Infrastructure Type. |
-| *"Please select a type of work"* | Type of Work field is blank or set to the placeholder value. | Select a Type of Work. If the list is empty, verify the selected Infrastructure Type is correct. |
+| *"Please select an item in the list."* | Infrastructure Type field is blank on submit. Browser-native validation tooltip on the required dropdown. | Select an Infrastructure Type. |
+| *"Please select an item in the list."* | Type of Work field is blank or set to the placeholder value. Browser-native validation tooltip on the required dropdown. | Select a Type of Work. If the list is empty, verify the selected Infrastructure Type is correct. |
 | *"Please enter a valid year"* | Year of Work is out of the valid range (< 1900 or > 2100). | Enter a valid fiscal year. |
 
 ---
@@ -1213,9 +1217,28 @@ How the **Infrastructure ID** for each Work Location row is determined depends o
 |---|---|---|
 | **National Road** (InfraCode = `R`) | Selected from RBIA Road Section inventory | Click the **Search / Edit** icon on the row; the Select Infrastructure dialog opens automatically to the **Road Sections** tab |
 | **National Bridge** (InfraCode = `B`) | Selected from RBIA Bridge inventory | Click the **Search / Edit** icon on the row; the Select Infrastructure dialog opens automatically to the **Bridges** tab |
-| **All other types** (Local Road `LR`, Local Bridge `LB`, LFCS, LWW, etc.) | Auto-generated by the system using the Infrastructure Type prefix (e.g., `LR-00001`) | Generated automatically when clicking **Add Work Location**; user does not need to search |
+| **All other types** (Local Road, Local Bridge, etc.) | Auto-generated by the system using the Infrastructure Type prefix (e.g., `LRD00001`) | Generated automatically when clicking **Add Work Location**; user does not need to search |
 
 > **Auto-generated IDs** are assigned immediately when the row is created. Copying a row (`Copy` button) generates a new unique ID for the copy.
+
+**Auto-generated ID Prefixes by Infrastructure Type:**
+
+| Infrastructure Type | ID Prefix | Example |
+|---|---|---|
+| Accessibility Facility | `AF` | `AF00001` |
+| Consultancy | `CS` | `CS00001` |
+| Flood Control Structures | `FCS` | `FCS00001` |
+| Hospitals | `HSP` | `HSP00001` |
+| Local Bridges | `LBR` | `LBR00001` |
+| Local Roads | `LRD` | `LRD00001` |
+| Local Flood Control Structures | `LFCS` | `LFCS00001` |
+| Multi-Purpose Buildings | `MPB` | `MPB00001` |
+| Non-Infra | `NI` | `NI00001` |
+| Other Buildings | `OTB` | `OTB00001` |
+| Rain Water Collector | `RWC` | `RWC00001` |
+| School Buildings | `SCH` | `SCH00001` |
+| Septage & Sewerage Plants | `SPS` | `SPS00001` |
+| Water Supply Systems | `WSS` | `WSS00001` |
 
 ---
 
@@ -1241,14 +1264,14 @@ How the **Infrastructure ID** for each Work Location row is determined depends o
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| WL-F01 | Infrastructure ID | Identifier for the infrastructure asset | Auto-generated for local types; selected from RBIA for road/bridge types |
-| WL-F02 | Detailed Scope of Work | Textual description of the specific scope | Text input; must not be a duplicate of another active row with the same Station/Chainage values |
-| WL-F03 | Physical Target | Quantity of work (in units from Type of Work) | Numeric input; null/0 is allowed |
-| WL-F04 | Length | Length of the work section | Numeric; required for Roads (derived from chainages); optional for length-based types; allowed null for non-length units |
-| WL-A01 | Add Work Location | Add a new work location row for this Major Item | Button; auto-generates InfraId for non-road/bridge types |
-| WL-A02 | Copy | Duplicate an existing row; generates a new InfraId if auto-generated type | Per-row button |
-| WL-A03 | Edit (search icon) | Open the Select Infrastructure dialog to change the road section or bridge (Road and Bridge types only) | Per-row button; not available for auto-generated types |
-| WL-A04 | Delete (trash icon) | Open the Delete Work Location dialog | Per-row button |
+| 1 | Infrastructure ID | Identifier for the infrastructure asset | Auto-generated for local types; selected from RBIA for road/bridge types |
+| 2 | Detailed Scope of Work | Textual description of the specific scope | Text input; must not be a duplicate of another active row with the same Station/Chainage values |
+| 3 | Physical Target | Quantity of work (in units from Type of Work) | Numeric input; null/0 is allowed |
+| 4 | Length | Length of the work section | Numeric; required for Roads (derived from chainages); optional for length-based types; allowed null for non-length units |
+| 5 | Add Work Location | Add a new work location row for this Major Item | Button; auto-generates InfraId for non-road/bridge types |
+| 6 | Copy | Duplicate an existing row; generates a new InfraId if auto-generated type | Per-row button |
+| 7 | Edit (search icon) | Open the Select Infrastructure dialog to change the road section or bridge (Road and Bridge types only) | Per-row button; not available for auto-generated types |
+| 8 | Delete (trash icon) | Open the Delete Work Location dialog | Per-row button |
 
 ---
 
@@ -1256,12 +1279,12 @@ How the **Infrastructure ID** for each Work Location row is determined depends o
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| WL-F05 | Start Station Limit | Starting LRP station reference | Text input; auto-fillable from Start Chainage |
-| WL-F06 | End Station Limit | Ending LRP station reference | Text input; auto-fillable from End Chainage |
-| WL-F07 | Start Chainage | Starting chainage in meters | Numeric input; required for Roads |
-| WL-F08 | End Chainage | Ending chainage in meters; must be > Start Chainage | Numeric input; required for Roads |
-| WL-A05 | Auto-fill Station (→ button) | Converts chainage to station limit using the road's LRP data | Button next to Start/End Station Limit field |
-| WL-A06 | Auto-fill Chainage (→ button) | Converts station limit to chainage using the road's LRP data | Button next to Start/End Chainage field |
+| 1 | Start Station Limit | Starting LRP station reference | Text input; auto-fillable from Start Chainage |
+| 2 | End Station Limit | Ending LRP station reference | Text input; auto-fillable from End Chainage |
+| 3 | Start Chainage | Starting chainage in meters | Numeric input; required for Roads |
+| 4 | End Chainage | Ending chainage in meters; must be > Start Chainage | Numeric input; required for Roads |
+| 5 | Auto-fill Station (→ button) | Converts chainage to station limit using the road's LRP data | Button next to Start/End Station Limit field |
+| 6 | Auto-fill Chainage (→ button) | Converts station limit to chainage using the road's LRP data | Button next to Start/End Chainage field |
 
 ---
 
@@ -1269,10 +1292,10 @@ How the **Infrastructure ID** for each Work Location row is determined depends o
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| WL-F09 | Start X | Longitude of the start point | Numeric; valid Philippine range: 116.67 – 126.60 |
-| WL-F10 | Start Y | Latitude of the start point | Numeric; valid Philippine range: 4.67 – 21.17 |
-| WL-F11 | End X | Longitude of the end point | Numeric; optional |
-| WL-F12 | End Y | Latitude of the end point | Numeric; optional |
+| 1 | Start X | Longitude of the start point | Numeric; valid Philippine range: 116.67 – 126.60 |
+| 2 | Start Y | Latitude of the start point | Numeric; valid Philippine range: 4.67 – 21.17 |
+| 3 | End X | Longitude of the end point | Numeric; optional |
+| 4 | End Y | Latitude of the end point | Numeric; optional |
 
 ---
 
@@ -1280,14 +1303,14 @@ How the **Infrastructure ID** for each Work Location row is determined depends o
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| WL-DLG-F01 | Tab | Selects the data source | Road Sections (for `R`) or Bridges (for `B`); pre-selected based on Infrastructure Type |
-| WL-DLG-F02 | Search | Filter term | Text input; searches Road Section ID or Bridge ID |
-| WL-DLG-A01 | Search button | Executes the search | Button |
-| WL-DLG-F03 | Filter by Road Section | (Bridge tab only) Narrows bridge list by road section | Dropdown; populated by the user's DEO road sections |
-| WL-DLG-F04 | Page Size | Records per page | Dropdown: 10, 25, 50, 100 |
-| WL-DLG-A02 | Select row | Marks a road section or bridge for use | Click any table row; selected row is highlighted |
-| WL-DLG-A03 | Confirm | Assigns the selected infrastructure to the Work Location row | Button; disabled until a row is selected |
-| WL-DLG-A04 | Cancel / ✕ | Close the dialog without selecting | Button |
+| 1 | Tab | Selects the data source | Road Sections (for `R`) or Bridges (for `B`); pre-selected based on Infrastructure Type |
+| 2 | Search | Filter term | Text input; searches Road Section ID or Bridge ID |
+| 3 | Search button | Executes the search | Button |
+| 4 | Filter by Road Section | (Bridge tab only) Narrows bridge list by road section | Dropdown; populated by the user's DEO road sections |
+| 5 | Page Size | Records per page | Dropdown: 10, 25, 50, 100 |
+| 6 | Select row | Marks a road section or bridge for use | Click any table row; selected row is highlighted |
+| 7 | Confirm | Assigns the selected infrastructure to the Work Location row | Button; disabled until a row is selected |
+| 8 | Cancel / ✕ | Close the dialog without selecting | Button |
 
 ---
 
@@ -1320,7 +1343,7 @@ How the **Infrastructure ID** for each Work Location row is determined depends o
 **Step-by-Step: Adding a Work Location for Local / Other Infrastructure Types**
 
 1. Expand the Major Item row.
-2. Click **Add Work Location** — the system **auto-generates an Infrastructure ID** (e.g., `LR-00001`) using the Infrastructure Type prefix. No manual selection is needed.
+2. Click **Add Work Location** — the system **auto-generates an Infrastructure ID** (e.g., `LRD00001`) using the Infrastructure Type prefix (see prefix table above). No manual selection is needed.
 3. Enter **Detailed Scope of Work**.
 4. Enter **Physical Target** and **Length**.
 5. Optionally enter **Start X/Y** and **End X/Y** coordinates.
@@ -1371,10 +1394,10 @@ How the **Infrastructure ID** for each Work Location row is determined depends o
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| SD-F01 | Document Type | Classification of the document | Dropdown; required |
-| SD-F02 | Note Description | Brief description of the document | Text input; required |
-| SD-F03 | File Upload | PDF file to attach | File picker; PDF only; required |
-| SD-A01 | Submit | Upload and save the document | Button |
+| 1 | Document Type | Classification of the document | Dropdown; required |
+| 2 | Note Description | Brief description of the document | Text input; required |
+| 3 | File Upload | PDF file to attach | File picker; PDF only; required |
+| 4 | Submit | Upload and save the document | Button |
 
 **Step-by-Step:**
 
@@ -1477,10 +1500,10 @@ The map panel appears at the top of the project form. Click the **Project Locati
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| RL-F01 | Search Projects | Filter the list by Project ID | Text input; press Enter or click Search to apply |
-| RL-A01 | Search | Submit the Project ID search | Button |
-| RL-A02 | Clear (✕) | Remove the active search and reload the full list | Appears only when a search term is active |
-| RL-A03 | View | Open the revision request in detail view | Per-row button (blue) |
+| 1 | Search Projects | Filter the list by Project ID | Text input; press Enter or click Search to apply |
+| 2 | Search | Submit the Project ID search | Button |
+| 3 | Clear (✕) | Remove the active search and reload the full list | Appears only when a search term is active |
+| 4 | View | Open the revision request in detail view | Per-row button (blue) |
 
 **Step-by-Step:**
 
@@ -1512,8 +1535,8 @@ The map panel appears at the top of the project form. Click the **Project Locati
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| REV-A01 | Revise Project | Opens the revision type dropdown menu | Button (yellow); visible only on projects at GAA-R stage with published status |
-| REV-F01 | Revision Type | List of available revision types | Dropdown menu listing all headers from Code Tables → Revision → Headers; loaded dynamically |
+| 1 | Revise Project | Opens the revision type dropdown menu | Button (yellow); visible only on projects at GAA-R stage with published status |
+| 2 | Revision Type | List of available revision types | Dropdown menu listing all headers from Code Tables → Revision → Headers; loaded dynamically |
 
 **Step-by-Step:**
 
@@ -1536,12 +1559,12 @@ The map panel appears at the top of the project form. Click the **Project Locati
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| RD-F01 | Project ID | Read-only display of the project identifier | Shown in the Project Information panel; not editable |
-| RD-F02 | Revision Type | Read-only display of the selected revision type name | Shown in the Project Information panel; not editable |
-| RD-F03 | Category | Sub-classification for revision types that require it | Dropdown; visible only when the selected revision type has defined categories; selecting a category filters the available Reasons |
-| RD-F04 | Reason | Specific reason for the revision | Dropdown; required; filtered by Revision Type and (if shown) by selected Category; disabled until at least a Revision Type is resolved |
-| RD-A01 | Submit | Validate selections and navigate to the modification form | Button; disabled while submitting |
-| RD-A02 | Cancel / ✕ | Close the dialog without proceeding | Button |
+| 1 | Project ID | Read-only display of the project identifier | Shown in the Project Information panel; not editable |
+| 2 | Revision Type | Read-only display of the selected revision type name | Shown in the Project Information panel; not editable |
+| 3 | Category | Sub-classification for revision types that require it | Dropdown; visible only when the selected revision type has defined categories; selecting a category filters the available Reasons |
+| 4 | Reason | Specific reason for the revision | Dropdown; required; filtered by Revision Type and (if shown) by selected Category; disabled until at least a Revision Type is resolved |
+| 5 | Submit | Validate selections and navigate to the modification form | Button; disabled while submitting |
+| 6 | Cancel / ✕ | Close the dialog without proceeding | Button |
 
 > **Category filtering:** The Category dropdown is only shown when the selected revision type has associated categories defined in Code Tables. If no categories are defined for the type, the dialog shows only the Reason dropdown.
 
@@ -1565,8 +1588,8 @@ The map panel appears at the top of the project form. Click the **Project Locati
 
 | Message / Situation | What it Means | What You Should Do |
 |---|---|---|
-| *"Please select a category."* | The Category dropdown is visible but no category was selected before clicking Submit. | Select a category from the dropdown. |
-| *"Please select a reason."* | The Reason dropdown was left blank. | Select a reason before clicking Submit. |
+| *"Please select an item in the list."* | The Category dropdown is visible but no category was selected before clicking Submit. Browser-native validation tooltip on the required dropdown. | Select a category from the dropdown. |
+| *"Please select an item in the list."* | The Reason dropdown was left blank. Browser-native validation tooltip on the required dropdown. | Select a reason before clicking Submit. |
 | Yellow **Revise Project** button not visible | The project has not been published to PCMA or is not at GAA-R stage. | Use Allow Publishing in a GAA-R program to publish the project first (see Section 5.2.6). |
 
 ---
@@ -1642,9 +1665,9 @@ When a Termination revision is initiated, a mandatory dialog appears before the 
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| TRM-F01 | Has Unfinished Work | Whether the project has incomplete physical work | Radio buttons: **Yes** / **No**; required |
-| TRM-A01 | Confirm | Submit the selection and proceed | Button |
-| TRM-A02 | Cancel / ✕ | Abort the termination and return to the project | Button |
+| 1 | Has Unfinished Work | Whether the project has incomplete physical work | Radio buttons: **Yes** / **No**; required |
+| 2 | Confirm | Submit the selection and proceed | Button |
+| 3 | Cancel / ✕ | Abort the termination and return to the project | Button |
 
 **Step-by-Step:**
 
@@ -1663,10 +1686,10 @@ When a Non-Implementable revision is initiated, a component selection dialog ope
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| NI-F01 | Component checkbox list | Select which components to mark as non-implementable | Checkbox per row; at least one must be selected |
-| NI-A01 | Select All / Deselect All | Toggle all component checkboxes | Header checkbox |
-| NI-A02 | Confirm | Proceed with the selected components | Button; disabled when no component is selected |
-| NI-A03 | Cancel / ✕ | Abort and return to the project | Button |
+| 1 | Component checkbox list | Select which components to mark as non-implementable | Checkbox per row; at least one must be selected |
+| 2 | Select All / Deselect All | Toggle all component checkboxes | Header checkbox |
+| 3 | Confirm | Proceed with the selected components | Button; disabled when no component is selected |
+| 4 | Cancel / ✕ | Abort and return to the project | Button |
 
 **Step-by-Step:**
 
@@ -1685,10 +1708,32 @@ When a component cost is added or edited and the **Project Cost is greater than 
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| EXC-A01 | OK | Create an EXC component for the difference | Button; system auto-creates a new `EXC` component |
-| EXC-A02 | Cancel | Do not create the component; return to the form | Button |
+| 1 | OK | Create an EXC component for the difference | Button; system auto-creates a new `EXC` component |
+| 2 | Cancel | Do not create the component; return to the form | Button |
 
 > This prompt applies when the revision type is: Adjustment, Change in Authority to Implement, For Savings — Partial Unutilized Balance, Non-Implementable, or Termination.
+
+---
+
+**Mode of Implementation — New Project Record**
+
+When a **Mode of Implementation** revision is submitted, the system creates a **new project record** to represent the project under its new implementation mode, instead of changing the original project in place.
+
+> The new project's ID is the original Project ID with an **`-A`** suffix (e.g., `P01234567` becomes `P01234567-A`). The original project remains in the system for reference.
+
+**Step-by-Step:**
+
+1. Select **Mode of Implementation** and complete the Revision Dialog.
+2. Make the required edits in the modification form (e.g., updated Implementation Mode).
+3. Submit the revision as described in Section 5.4.7.
+
+**On Success:** A new project record (`<original Project ID>-A`) is created with the updated implementation mode and follows the standard approval routing.
+
+---
+
+**Other Revision Types (Additional Funding, Adjustment, Change in Authority to Implement, Change in Funding, Change of Creditor, Expired Funding, For Savings — Partial Unutilized Balance, Multi-Year Costing Changes)**
+
+These revision types do not have additional dialogs or special behaviors beyond the standard modification form described in Section 5.4.5. Which fields and sections are editable depends on the selected Reason and the project's PCMA Construction Status (Section 5.4.5, Field Editability Rules) — fields that are not applicable to the selected revision type and reason will appear grayed out in the modification form.
 
 ---
 
@@ -1698,10 +1743,10 @@ In the modification form, major items can be copied to a different component usi
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| CMI-F01 | Source Major Item | The major item being copied | Read-only display (Infrastructure Type, Type of Work, Year) |
-| CMI-F02 | Target Component | The component to copy the major item into | Dropdown; shows only unassigned, eligible components (excludes `EAO`, `EXC`, `SAV`, `CoS` and already-used components) |
-| CMI-A01 | Confirm | Execute the copy to the selected component | Button; disabled until a target component is selected |
-| CMI-A02 | Cancel / ✕ | Close without copying | Button |
+| 1 | Source Major Item | The major item being copied | Read-only display (Infrastructure Type, Type of Work, Year) |
+| 2 | Target Component | The component to copy the major item into | Dropdown; shows only unassigned, eligible components (excludes `EAO`, `EXC`, `SAV`, `CoS` and already-used components) |
+| 3 | Confirm | Execute the copy to the selected component | Button; disabled until a target component is selected |
+| 4 | Cancel / ✕ | Close without copying | Button |
 
 **Step-by-Step:**
 
@@ -1724,13 +1769,13 @@ In the modification form, major items can be copied to a different component usi
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| SR-F01 | Revision Category | Read-only summary of the revision type and category | Display only |
-| SR-F02 | Reason | Read-only summary of the selected reason | Display only |
-| SR-F03 | Date of Approval | Official date on the supporting approval document | Date input; required |
-| SR-F04 | Approval Document | PDF file of the supporting approval document | File picker; PDF only; required |
-| SR-F05 | Certification Checkbox | Confirms that the document is accurate and aligned with the revisions | Checkbox; required for DPC, RPC, and AUC user groups |
-| SR-A01 | Submit | Validate and submit the revision request | Button; disabled while submitting |
-| SR-A02 | Cancel / ✕ | Close the dialog without submitting | Button |
+| 1 | Revision Category | Read-only summary of the revision type and category | Display only |
+| 2 | Reason | Read-only summary of the selected reason | Display only |
+| 3 | Date of Approval | Official date on the supporting approval document | Date input; required |
+| 4 | Approval Document | PDF file of the supporting approval document | File picker; PDF only; required |
+| 5 | Certification Checkbox | Confirms that the document is accurate and aligned with the revisions | Checkbox; required for DPC, RPC, and AUC user groups |
+| 6 | Submit | Validate and submit the revision request | Button; disabled while submitting |
+| 7 | Cancel / ✕ | Close the dialog without submitting | Button |
 
 > **Funding vs. Component Cost validation:** Before submission, the system checks that the Funding Profile total equals the Component Cost total. If they differ by more than ₱0.01, submission is blocked.
 
@@ -1910,11 +1955,11 @@ In the modification form, major items can be copied to a different component usi
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| PG-F01 | Project Group Name | Name of the group | Text input; required |
-| PG-F02 | Description | Brief description of the group | Text input; required |
-| PG-F03 | User Group | User group associated with this project group | Dropdown; required |
-| PG-A01 | Cancel | Discard the form | Button |
-| PG-A02 | Submit | Save the new project group | Button |
+| 1 | Project Group Name | Name of the group | Text input; required |
+| 2 | Description | Brief description of the group | Text input; required |
+| 3 | User Group | User group associated with this project group | Dropdown; required |
+| 4 | Cancel | Discard the form | Button |
+| 5 | Submit | Save the new project group | Button |
 
 **Step-by-Step:**
 
@@ -1937,6 +1982,8 @@ In the modification form, major items can be copied to a different component usi
 **Who uses this:** DEO, RO, PS Admin
 
 **Group fields:** Name, Description, User Group, Update button
+
+**Map:** A map showing the general geographic location of the projects in the group is displayed alongside the group fields.
 
 **Project table columns:** Project ID, Category, Description, Origin, City, Legislative District, Operating Unit, Implementing Office, DEO, Region, Agency, Created By, Created Date, Add Project
 
@@ -2210,15 +2257,15 @@ When **Can Add** is off for a section, the Add button is hidden during the revis
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-0115-F01 | MODULE NAME | The name of the system module (e.g., Program, Project, Revision) | Text; required |
-| UI-UX-0115-F02 | DESCRIPTION | Optional description of the module's purpose | Text; optional |
-| UI-UX-0115-F03 | CONTROLLERS | Count of API controllers linked to this module, shown as X / Y linked | Read-only display |
-| UI-UX-0115-F04 | VIEWS | Count of frontend routes linked to this module, shown as X / Y linked | Read-only display |
-| UI-UX-0115-A01 | Sync Routes | Synchronises the route/view permission list from the live frontend route definitions to the database | Button |
-| UI-UX-0115-A02 | Sync API | Synchronises the API controller and action list from the backend to the database | Button |
-| UI-UX-0115-A03 | Add Module | Opens an inline add row at the top of the table to create a new module | Button |
-| UI-UX-0115-A04 | Edit (pencil icon) | Switches the module row into inline edit mode | Row action |
-| UI-UX-0115-A05 | Delete (trash icon) | Triggers an inline delete confirmation on the row | Row action |
+| 1 | MODULE NAME | The name of the system module (e.g., Program, Project, Revision) | Text; required |
+| 2 | DESCRIPTION | Optional description of the module's purpose | Text; optional |
+| 3 | CONTROLLERS | Count of API controllers linked to this module, shown as X / Y linked | Read-only display |
+| 4 | VIEWS | Count of frontend routes linked to this module, shown as X / Y linked | Read-only display |
+| 5 | Sync Routes | Synchronises the route/view permission list from the live frontend route definitions to the database | Button |
+| 6 | Sync API | Synchronises the API controller and action list from the backend to the database | Button |
+| 7 | Add Module | Opens an inline add row at the top of the table to create a new module | Button |
+| 8 | Edit (pencil icon) | Switches the module row into inline edit mode | Row action |
+| 9 | Delete (trash icon) | Triggers an inline delete confirmation on the row | Row action |
 
 **Step-by-Step: Viewing Module Details**
 
@@ -2304,16 +2351,16 @@ When **Can Add** is off for a section, the Add button is hidden during the revis
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-0116-F01 | USER | Full name, User ID (login ID), and email address of the user | Display |
-| UI-UX-0116-F02 | USER GROUP | Badges showing the groups assigned to the user. If more than 3 groups are assigned, a "+N more" badge appears | Display; click "+N more" to expand |
-| UI-UX-0116-F03 | REGION | The user's assigned regional office code | Display |
-| UI-UX-0116-F04 | OFFICE | Full name of the plantilla office of the user (PlantillaOfficeName) | Display |
-| UI-UX-0116-F05 | STATUS | Active (green badge) or Inactive (red badge) | Display |
-| UI-UX-0116-A01 | Filter | Opens the Filter Users dialog | Button |
-| UI-UX-0116-A02 | Clear Filters | Clears all active filters and reloads the list; only visible when filters are active | Button (red) |
-| UI-UX-0116-A03 | Add User | Opens the Add New User dialog | Button (blue) |
-| UI-UX-0116-A04 | Edit (pencil icon) | Opens the Update User dialog for the selected user | Row action |
-| UI-UX-0116-A05 | Delete (trash icon) | Opens the Delete User confirmation dialog | Row action |
+| 1 | USER | Full name, User ID (login ID), and email address of the user | Display |
+| 2 | USER GROUP | Badges showing the groups assigned to the user. If more than 3 groups are assigned, a "+N more" badge appears | Display; click "+N more" to expand |
+| 3 | REGION | The user's assigned regional office code | Display |
+| 4 | OFFICE | Full name of the plantilla office of the user (PlantillaOfficeName) | Display |
+| 5 | STATUS | Active (green badge) or Inactive (red badge) | Display |
+| 6 | Filter | Opens the Filter Users dialog | Button |
+| 7 | Clear Filters | Clears all active filters and reloads the list; only visible when filters are active | Button (red) |
+| 8 | Add User | Opens the Add New User dialog | Button (blue) |
+| 9 | Edit (pencil icon) | Opens the Update User dialog for the selected user | Row action |
+| 10 | Delete (trash icon) | Opens the Delete User confirmation dialog | Row action |
 
 The column headers **User**, **User Group**, **Region**, **Office**, and **Status** are sortable. Click a column header to sort ascending or descending.
 
@@ -2328,12 +2375,12 @@ The column headers **User**, **User Group**, **Region**, **Office**, and **Statu
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-0116-F10 | NAME | Search by user's full name (partial match) | Text input |
-| UI-UX-0116-F11 | USER GROUP | Search by assigned user group name (partial match) | Text input |
-| UI-UX-0116-F12 | STATUS | Filter by account status | Dropdown: All / Active / Inactive |
-| UI-UX-0116-A10 | Clear Filter | Clears all filter fields and reloads the full list | Button (disabled if all fields are empty) |
-| UI-UX-0116-A11 | Cancel | Closes the dialog without applying | Button |
-| UI-UX-0116-A12 | Apply Filter | Applies the entered criteria and reloads the list | Button (orange) |
+| 1 | NAME | Search by user's full name (partial match) | Text input |
+| 2 | USER GROUP | Search by assigned user group name (partial match) | Text input |
+| 3 | STATUS | Filter by account status | Dropdown: All / Active / Inactive |
+| 4 | Clear Filter | Clears all filter fields and reloads the full list | Button (disabled if all fields are empty) |
+| 5 | Cancel | Closes the dialog without applying | Button |
+| 6 | Apply Filter | Applies the entered criteria and reloads the list | Button (orange) |
 
 3. Click **Apply Filter**. The dialog closes and the list refreshes to show matching records.
 4. To remove all filters at once, click the red **Clear Filters** button in the toolbar.
@@ -2348,18 +2395,18 @@ The column headers **User**, **User Group**, **Region**, **Office**, and **Statu
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-0117-F01 | EMPLOYEE ID | The employee's ID number in the Personnel Information System (PIS) | Text input; required |
-| UI-UX-0117-A01 | Search icon (magnifying glass) | Triggers a PIS lookup using the entered Employee ID | Button |
-| UI-UX-0117-F02 | USER ID | System login identifier — auto-filled from PIS after a successful lookup; always read-only (disabled) | Text; read-only |
-| UI-UX-0117-F03 | NAME | Employee's full name — auto-filled from PIS; read-only | Text; read-only |
-| UI-UX-0117-F04 | REGION | Regional office name — auto-filled from PIS; always read-only (disabled) | Text; read-only |
-| UI-UX-0117-F05 | EMAIL | Work email address — auto-filled from PIS; editable | Email input |
-| UI-UX-0117-F06 | PLANTILLA OFFICE | Assigned plantilla office code — auto-filled from PIS; read-only | Text; read-only |
-| UI-UX-0117-F07 | PLANTILLA OFFICE NAME | Full name of the assigned plantilla office — auto-filled from PIS; read-only | Text; read-only |
-| UI-UX-0117-F08 | USER GROUPS | Checkbox list of all available user groups; select one or more | Multi-select checkbox list |
-| UI-UX-0117-F09 | STATUS | Account status | Dropdown: Active (default) / Inactive |
-| UI-UX-0117-A02 | Cancel | Closes the dialog without saving | Button |
-| UI-UX-0117-A03 | Add User | Submits the form and creates the user account | Button (blue) |
+| 1 | EMPLOYEE ID | The employee's ID number in the Personnel Information System (PIS) | Text input; required |
+| 2 | Search icon (magnifying glass) | Triggers a PIS lookup using the entered Employee ID | Button |
+| 3 | USER ID | System login identifier — auto-filled from PIS after a successful lookup; always read-only (disabled) | Text; read-only |
+| 4 | NAME | Employee's full name — auto-filled from PIS; read-only | Text; read-only |
+| 5 | REGION | Regional office name — auto-filled from PIS; always read-only (disabled) | Text; read-only |
+| 6 | EMAIL | Work email address — auto-filled from PIS; editable | Email input |
+| 7 | PLANTILLA OFFICE | Assigned plantilla office code — auto-filled from PIS; read-only | Text; read-only |
+| 8 | PLANTILLA OFFICE NAME | Full name of the assigned plantilla office — auto-filled from PIS; read-only | Text; read-only |
+| 9 | USER GROUPS | Checkbox list of all available user groups; select one or more | Multi-select checkbox list |
+| 10 | STATUS | Account status | Dropdown: Active (default) / Inactive |
+| 11 | Cancel | Closes the dialog without saving | Button |
+| 12 | Add User | Submits the form and creates the user account | Button (blue) |
 
 **Step-by-Step:**
 
@@ -2393,16 +2440,16 @@ The column headers **User**, **User Group**, **Region**, **Office**, and **Statu
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-0118-F01 | EMPLOYEE ID | Employee ID — editable in update mode | Text input; required |
-| UI-UX-0118-F02 | USER ID | System login identifier — editable in update mode | Text input; required |
-| UI-UX-0118-F03 | NAME | Employee's full name — editable in update mode | Text input; required |
-| UI-UX-0118-F04 | EMAIL | Work email address | Email input |
-| UI-UX-0118-F05 | PLANTILLA OFFICE | Assigned plantilla office code | Text input |
-| UI-UX-0118-F06 | PLANTILLA OFFICE NAME | Full name of the assigned plantilla office | Text input |
-| UI-UX-0118-F07 | USER GROUP | Checkbox list of all available groups; current assignments pre-ticked | Multi-select checkbox list |
-| UI-UX-0118-F08 | STATUS | Account status | Dropdown: Active / Inactive |
-| UI-UX-0118-A01 | Cancel | Closes the dialog without saving | Button |
-| UI-UX-0118-A02 | Update User | Submits the updated user data | Button (blue) |
+| 1 | EMPLOYEE ID | Employee ID — editable in update mode | Text input; required |
+| 2 | USER ID | System login identifier — editable in update mode | Text input; required |
+| 3 | NAME | Employee's full name — editable in update mode | Text input; required |
+| 4 | EMAIL | Work email address | Email input |
+| 5 | PLANTILLA OFFICE | Assigned plantilla office code | Text input |
+| 6 | PLANTILLA OFFICE NAME | Full name of the assigned plantilla office | Text input |
+| 7 | USER GROUP | Checkbox list of all available groups; current assignments pre-ticked | Multi-select checkbox list |
+| 8 | STATUS | Account status | Dropdown: Active / Inactive |
+| 9 | Cancel | Closes the dialog without saving | Button |
+| 10 | Update User | Submits the updated user data | Button (blue) |
 
 **Step-by-Step:**
 
@@ -2443,16 +2490,16 @@ The column headers **User**, **User Group**, **Region**, **Office**, and **Statu
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-0120-F01 | GROUP NAME | Name of the user group; click the row to expand permissions detail | Display; row is clickable |
-| UI-UX-0120-F02 | MEMBERS | Number of users currently assigned to this group (with user icon) | Display |
-| UI-UX-0120-F03 | PERMISSIONS | Summary badges: "X API" (blue) for granted API actions, "Y Routes" (green) for granted route access | Display |
-| UI-UX-0120-F04 | DESCRIPTION | Optional description text | Display |
-| UI-UX-0120-F05 | CREATED | Date the group was created | Display |
-| UI-UX-0120-A01 | Filter Group | Opens the Filter User Group dialog | Button |
-| UI-UX-0120-A02 | Clear Filter | Removes active filters and reloads the list; visible only when a filter is active | Button (red) |
-| UI-UX-0120-A03 | Add Group | Opens the Add New Group dialog | Button (blue) |
-| UI-UX-0120-A04 | Edit (pencil icon) | Opens the Update Group dialog | Row action |
-| UI-UX-0120-A05 | Delete (trash icon) | Opens the Delete Group confirmation dialog | Row action |
+| 1 | GROUP NAME | Name of the user group; click the row to expand permissions detail | Display; row is clickable |
+| 2 | MEMBERS | Number of users currently assigned to this group (with user icon) | Display |
+| 3 | PERMISSIONS | Summary badges: "X API" (blue) for granted API actions, "Y Routes" (green) for granted route access | Display |
+| 4 | DESCRIPTION | Optional description text | Display |
+| 5 | CREATED | Date the group was created | Display |
+| 6 | Filter Group | Opens the Filter User Group dialog | Button |
+| 7 | Clear Filter | Removes active filters and reloads the list; visible only when a filter is active | Button (red) |
+| 8 | Add Group | Opens the Add New Group dialog | Button (blue) |
+| 9 | Edit (pencil icon) | Opens the Update Group dialog | Row action |
+| 10 | Delete (trash icon) | Opens the Delete Group confirmation dialog | Row action |
 
 The column headers **Group Name**, **Members**, **Permissions**, **Description**, and **Created** are sortable.
 
@@ -2472,11 +2519,11 @@ Click anywhere on a group row (not on the action buttons) to expand a permission
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-0120-F10 | GROUP NAME | Search by group name (partial match) | Text input |
-| UI-UX-0120-F11 | PERMISSION NAME | Search by a permission name associated with the group | Text input |
-| UI-UX-0120-A10 | Clear Filters | Clears all fields; disabled if fields are already empty | Button |
-| UI-UX-0120-A11 | Cancel | Closes without applying | Button |
-| UI-UX-0120-A12 | Filter Group | Applies the filter and reloads the list | Button (orange) |
+| 1 | GROUP NAME | Search by group name (partial match) | Text input |
+| 2 | PERMISSION NAME | Search by a permission name associated with the group | Text input |
+| 3 | Clear Filters | Clears all fields; disabled if fields are already empty | Button |
+| 4 | Cancel | Closes without applying | Button |
+| 5 | Filter Group | Applies the filter and reloads the list | Button (orange) |
 
 3. Click **Filter Group**. The list refreshes to show matching groups.
 
@@ -2490,11 +2537,11 @@ Click anywhere on a group row (not on the action buttons) to expand a permission
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-0121-F01 | GROUP NAME | The name of the new group | Text input; required (marked with *) |
-| UI-UX-0121-F02 | DESCRIPTION | Optional explanation of the group's role | Textarea; optional |
-| UI-UX-0121-F03 | APPLY FILTER | When checked, this group applies a data filter (restricts data visible to its members to their own region/office only) | Checkbox; defaults to unchecked |
-| UI-UX-0121-A01 | Cancel | Closes the dialog without creating the group | Button |
-| UI-UX-0121-A02 | Create Group | Submits the form and creates the group | Button (blue); disabled if Group Name is empty |
+| 1 | GROUP NAME | The name of the new group | Text input; required (marked with *) |
+| 2 | DESCRIPTION | Optional explanation of the group's role | Textarea; optional |
+| 3 | APPLY FILTER | When checked, this group applies a data filter (restricts data visible to its members to their own region/office only) | Checkbox; defaults to unchecked |
+| 4 | Cancel | Closes the dialog without creating the group | Button |
+| 5 | Create Group | Submits the form and creates the group | Button (blue); disabled if Group Name is empty |
 
 **Step-by-Step:**
 
@@ -2527,20 +2574,20 @@ The Edit Group dialog is the primary screen for managing what a user group can a
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-0122-F01 | GROUP NAME | Name of the group — editable | Text input; required |
-| UI-UX-0122-F02 | DESCRIPTION | Group description — editable | Textarea; optional |
-| UI-UX-0122-F03 | APPLY FILTER | Restricts members' data view to their own region/office | Checkbox |
-| UI-UX-0122-F04 | MODULE PERMISSIONS | Accordion-style list of all system modules with their API and route permissions | Interactive accordion |
-| UI-UX-0122-A01 | Expand All | Expands all module accordions simultaneously | Link button |
-| UI-UX-0122-A02 | Collapse All | Collapses all module accordions | Link button |
-| UI-UX-0122-A03 | Module header row | Click to expand or collapse that module's permissions | Clickable header |
-| UI-UX-0122-F05 | API PERMISSIONS section | Lists backend controllers, each with their individual actions as checkboxes | Per module |
-| UI-UX-0122-F06 | Controller row checkbox | Indeterminate checkbox that selects or deselects all actions in that controller at once | Checkbox (tri-state) |
-| UI-UX-0122-F07 | Action row checkbox | Grants or revokes a single API endpoint action for this group | Checkbox |
-| UI-UX-0122-F08 | ROUTE ACCESS section | Lists frontend routes (page names and paths) accessible to this group | Per module |
-| UI-UX-0122-F09 | Route row checkbox | Grants or revokes access to a specific frontend page for this group | Checkbox |
-| UI-UX-0122-A04 | Cancel | Closes the dialog without saving changes | Button |
-| UI-UX-0122-A05 | Save Changes | Submits all permission changes to the server | Button (blue) |
+| 1 | GROUP NAME | Name of the group — editable | Text input; required |
+| 2 | DESCRIPTION | Group description — editable | Textarea; optional |
+| 3 | APPLY FILTER | Restricts members' data view to their own region/office | Checkbox |
+| 4 | MODULE PERMISSIONS | Accordion-style list of all system modules with their API and route permissions | Interactive accordion |
+| 5 | Expand All | Expands all module accordions simultaneously | Link button |
+| 6 | Collapse All | Collapses all module accordions | Link button |
+| 7 | Module header row | Click to expand or collapse that module's permissions | Clickable header |
+| 8 | API PERMISSIONS section | Lists backend controllers, each with their individual actions as checkboxes | Per module |
+| 9 | Controller row checkbox | Indeterminate checkbox that selects or deselects all actions in that controller at once | Checkbox (tri-state) |
+| 10 | Action row checkbox | Grants or revokes a single API endpoint action for this group | Checkbox |
+| 11 | ROUTE ACCESS section | Lists frontend routes (page names and paths) accessible to this group | Per module |
+| 12 | Route row checkbox | Grants or revokes access to a specific frontend page for this group | Checkbox |
+| 13 | Cancel | Closes the dialog without saving changes | Button |
+| 14 | Save Changes | Submits all permission changes to the server | Button (blue) |
 
 **Step-by-Step:**
 
@@ -2572,11 +2619,11 @@ The Edit Group dialog is the primary screen for managing what a user group can a
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-0123-F01 | Group info panel | Displays Group Name, Members count, and total Permissions count of the group to be deleted | Read-only |
-| UI-UX-0123-F02 | Member impact warning | Shown if the group has one or more members; warns that their access may be affected | Warning block |
-| UI-UX-0123-F03 | CONFIRMATION INPUT | Must type the word **DELETE** (case-insensitive) to enable the delete button | Text input; required |
-| UI-UX-0123-A01 | Cancel | Closes the dialog without deleting | Button |
-| UI-UX-0123-A02 | Delete Group | Submits the deletion; enabled only when the confirmation word has been typed | Button (red) |
+| 1 | Group info panel | Displays Group Name, Members count, and total Permissions count of the group to be deleted | Read-only |
+| 2 | Member impact warning | Shown if the group has one or more members; warns that their access may be affected | Warning block |
+| 3 | CONFIRMATION INPUT | Must type the word **DELETE** (case-insensitive) to enable the delete button | Text input; required |
+| 4 | Cancel | Closes the dialog without deleting | Button |
+| 5 | Delete Group | Submits the deletion; enabled only when the confirmation word has been typed | Button (red) |
 
 **Step-by-Step:**
 
@@ -2661,11 +2708,11 @@ Each tab shows a count badge with the current total number of records. The count
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-0128-R-F01 | Search input | Filter by road name | Text; press Enter or click Search |
-| UI-UX-0128-R-A01 | Search | Executes the name search | Button (blue) |
-| UI-UX-0128-R-A02 | Clear Filter | Removes active filter and reloads all roads | Button (red); visible only when a filter is active |
-| UI-UX-0128-R-A03 | Filter | Opens the Filter Roads dialog | Button (white/orange when active); shows count badge |
-| UI-UX-0128-R-A04 | Add Road | Opens the Add New Future Road dialog | Button (blue) |
+| 1 | Search input | Filter by road name | Text; press Enter or click Search |
+| 2 | Search | Executes the name search | Button (blue) |
+| 3 | Clear Filter | Removes active filter and reloads all roads | Button (red); visible only when a filter is active |
+| 4 | Filter | Opens the Filter Roads dialog | Button (white/orange when active); shows count badge |
+| 5 | Add Road | Opens the Add New Future Road dialog | Button (blue) |
 
 ---
 
@@ -2675,11 +2722,11 @@ Each tab shows a count badge with the current total number of records. The count
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-0128-R-F10 | ROAD ID | Unique identifier for the road | Text input; required; format: `FR{5digits}{IslandCode}` (e.g., `FR00001LZ`) |
-| UI-UX-0128-R-F11 | ROAD NAME | Name of the road | Text input; required |
-| UI-UX-0128-R-F12 | CLASSIFICATION | Road classification | Dropdown: Primary (1), Secondary (2), Tertiary (3), Quaternary (4); required |
-| UI-UX-0128-R-A10 | ✕ (close) | Dismiss the dialog without saving | Button |
-| UI-UX-0128-R-A11 | Save | Validate and save the new road | Button (blue) |
+| 1 | ROAD ID | Unique identifier for the road | Text input; required; format: `FR{5digits}{IslandCode}` (e.g., `FR00001LZ`) |
+| 2 | ROAD NAME | Name of the road | Text input; required |
+| 3 | CLASSIFICATION | Road classification | Dropdown: Primary (1), Secondary (2), Tertiary (3), Quaternary (4); required |
+| 4 | ✕ (close) | Dismiss the dialog without saving | Button |
+| 5 | Save | Validate and save the new road | Button (blue) |
 
 1. Click **Add Road**. The **Add New Future Road** dialog opens.
 2. Enter the **Road ID** following the format `FR{5digits}{IslandCode}` (e.g., `FR00001LZ` for Luzon, `FR00002VS` for Visayas).
@@ -2695,7 +2742,8 @@ Each tab shows a count badge with the current total number of records. The count
 
 | Message / Situation | What it Means | What You Should Do |
 |---|---|---|
-| *"Please fill in all required fields"* | One or more of Road ID, Road Name, or Classification was left blank | Complete all required fields before clicking Save |
+| *"Please fill in all required fields"* | Road ID or Road Name was left blank | Complete all required fields before clicking Save |
+| *"Please select an item in the list."* | Classification dropdown was left at the placeholder. Browser-native validation tooltip on the required dropdown. | Select a Classification before clicking Save. |
 
 ---
 
@@ -2718,10 +2766,10 @@ The **Edit Future Road** dialog uses the same fields as the Add dialog. All fiel
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-0128-R-DEL-F01 | Road info panel | Displays Road ID, Name, and Classification of the road to be deleted | Read-only |
-| UI-UX-0128-R-DEL-F02 | CONFIRMATION INPUT | Must type **DELETE** to enable the delete button | Text input; required; case-insensitive |
-| UI-UX-0128-R-DEL-A01 | Cancel | Closes the dialog without deleting | Button |
-| UI-UX-0128-R-DEL-A02 | Delete Road | Permanently removes the road | Button (red); disabled until confirmation text is typed |
+| 1 | Road info panel | Displays Road ID, Name, and Classification of the road to be deleted | Read-only |
+| 2 | CONFIRMATION INPUT | Must type **DELETE** to enable the delete button | Text input; required; case-insensitive |
+| 3 | Cancel | Closes the dialog without deleting | Button |
+| 4 | Delete Road | Permanently removes the road | Button (red); disabled until confirmation text is typed |
 
 1. Click the red **trash icon** on the road's row.
 2. The **Delete Future Road** dialog opens, displaying the road's ID, name, and classification, along with a warning that the action cannot be undone.
@@ -2747,12 +2795,12 @@ The **Edit Future Road** dialog uses the same fields as the Add dialog. All fiel
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-0128-R-FLT-F01 | ROAD ID | Filter by road identifier (partial match) | Text input |
-| UI-UX-0128-R-FLT-F02 | ROAD NAME | Filter by road name (partial match) | Text input |
-| UI-UX-0128-R-FLT-F03 | CLASSIFICATION | Filter by road class | Dropdown: All / Primary / Secondary / Tertiary / Quaternary |
-| UI-UX-0128-R-FLT-A01 | Clear Filter | Resets all filter fields and reloads all roads | Button (zinc); disabled when all fields are empty |
-| UI-UX-0128-R-FLT-A02 | Cancel | Closes the dialog without applying | Button (zinc) |
-| UI-UX-0128-R-FLT-A03 | Apply Filter | Applies the filter criteria and refreshes the table | Button (orange) |
+| 1 | ROAD ID | Filter by road identifier (partial match) | Text input |
+| 2 | ROAD NAME | Filter by road name (partial match) | Text input |
+| 3 | CLASSIFICATION | Filter by road class | Dropdown: All / Primary / Secondary / Tertiary / Quaternary |
+| 4 | Clear Filter | Resets all filter fields and reloads all roads | Button (zinc); disabled when all fields are empty |
+| 5 | Cancel | Closes the dialog without applying | Button (zinc) |
+| 6 | Apply Filter | Applies the filter criteria and refreshes the table | Button (orange) |
 
 1. Click the **Filter** button in the toolbar.
 2. In the **Filter Roads** dialog, enter any combination of Road ID, Road Name, or Classification. Leave a field empty to include all values for that field.
@@ -2771,12 +2819,12 @@ Each road row has a blue **+ Add Section** button. This is the only way to creat
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-0128-RS-F01 | PARENT ROAD ID | The road this section belongs to | Read-only text field; pre-filled with `{RoadId} - {RoadName}` |
-| UI-UX-0128-RS-F02 | SECTION ROAD ID | Section identifier, assembled from three parts | Split input: prefix `FS` (fixed) + 5-digit number (user-entered, digits only, max 5 chars) + island code suffix (auto-derived from parent Road ID) |
-| UI-UX-0128-RS-F03 | ENGINEERING DISTRICT | DEO responsible for this section | Dropdown (loaded from DEO list); required |
-| UI-UX-0128-RS-F04 | ROAD LENGTH | Length of the road section in metres | Numeric input; required |
-| UI-UX-0128-RS-A01 | ✕ (close) | Dismiss the dialog without saving | Button |
-| UI-UX-0128-RS-A02 | Save | Validate and save the road section | Button (blue) |
+| 1 | PARENT ROAD ID | The road this section belongs to | Read-only text field; pre-filled with `{RoadId} - {RoadName}` |
+| 2 | SECTION ROAD ID | Section identifier, assembled from three parts | Split input: prefix `FS` (fixed) + 5-digit number (user-entered, digits only, max 5 chars) + island code suffix (auto-derived from parent Road ID) |
+| 3 | ENGINEERING DISTRICT | DEO responsible for this section | Dropdown (loaded from DEO list); required |
+| 4 | ROAD LENGTH | Length of the road section in metres | Numeric input; required |
+| 5 | ✕ (close) | Dismiss the dialog without saving | Button |
+| 6 | Save | Validate and save the road section | Button (blue) |
 
 > The **Section Road ID** is composed in real time as the user types. When the 5-digit number is entered, the full ID is assembled as `FS{00000}{IslandCode}`. The island code is extracted automatically from the parent road's Road ID (e.g., if the road is `FR00001LZ`, the island code is `LZ`).
 
@@ -2815,9 +2863,9 @@ Each road row has a blue **+ Add Section** button. This is the only way to creat
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
 | UI-UX-0128-RS-T01 | Search input | Filter by section road ID | Text; press Enter or click Search |
-| UI-UX-0128-RS-A01 | Search | Executes the section ID search | Button (blue) |
-| UI-UX-0128-RS-A02 | Clear Filter | Removes active filter and reloads all sections | Button (red); visible only when a filter is active |
-| UI-UX-0128-RS-A03 | Filter | Opens the Filter Road Sections dialog | Button (white/orange when active); shows count badge |
+| 1 | Search | Executes the section ID search | Button (blue) |
+| 2 | Clear Filter | Removes active filter and reloads all sections | Button (red); visible only when a filter is active |
+| 3 | Filter | Opens the Filter Road Sections dialog | Button (white/orange when active); shows count badge |
 
 ---
 
@@ -2827,12 +2875,12 @@ The **Edit Future Road Section** dialog opens when the pencil icon is clicked di
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-0128-RS-F10 | PARENT ROAD ID | The parent road | Dropdown of all roads; required |
-| UI-UX-0128-RS-F11 | SECTION ROAD ID | Section identifier | Split input: `FS` prefix + 5-digit number + island code suffix |
-| UI-UX-0128-RS-F12 | ENGINEERING DISTRICT | DEO responsible | Dropdown; required |
-| UI-UX-0128-RS-F13 | ROAD LENGTH | Length in metres | Numeric; required |
-| UI-UX-0128-RS-A10 | ✕ (close) | Dismiss without saving | Button |
-| UI-UX-0128-RS-A11 | Save | Validate and save | Button (blue) |
+| 1 | PARENT ROAD ID | The parent road | Dropdown of all roads; required |
+| 2 | SECTION ROAD ID | Section identifier | Split input: `FS` prefix + 5-digit number + island code suffix |
+| 3 | ENGINEERING DISTRICT | DEO responsible | Dropdown; required |
+| 4 | ROAD LENGTH | Length in metres | Numeric; required |
+| 5 | ✕ (close) | Dismiss without saving | Button |
+| 6 | Save | Validate and save | Button (blue) |
 
 1. Click the yellow **pencil icon** on the road section's row.
 2. The **Edit Future Road Section** dialog opens, pre-filled with the section's current data.
@@ -2849,10 +2897,10 @@ The **Edit Future Road Section** dialog opens when the pencil icon is clicked di
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-0128-RS-DEL-F01 | Section info panel | Displays Section Road ID, Parent Road ID, Length, and Engineering District of the section to be deleted | Read-only |
-| UI-UX-0128-RS-DEL-F02 | CONFIRMATION INPUT | Must type **DELETE** to enable the delete button | Text input; required; case-insensitive |
-| UI-UX-0128-RS-DEL-A01 | Cancel | Closes the dialog without deleting | Button |
-| UI-UX-0128-RS-DEL-A02 | Delete Road Section | Permanently removes the section | Button (red); disabled until confirmation text is typed |
+| 1 | Section info panel | Displays Section Road ID, Parent Road ID, Length, and Engineering District of the section to be deleted | Read-only |
+| 2 | CONFIRMATION INPUT | Must type **DELETE** to enable the delete button | Text input; required; case-insensitive |
+| 3 | Cancel | Closes the dialog without deleting | Button |
+| 4 | Delete Road Section | Permanently removes the section | Button (red); disabled until confirmation text is typed |
 
 1. Click the red **trash icon** on the section's row.
 2. The **Delete Road Section** dialog opens showing the Section Road ID, Parent Road ID, Length, and Engineering District, with a warning that the action cannot be undone.
@@ -2878,12 +2926,12 @@ The **Edit Future Road Section** dialog opens when the pencil icon is clicked di
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-0128-RS-FLT-F01 | ROAD ID | Filter by parent road identifier (partial match) | Text input |
-| UI-UX-0128-RS-FLT-F02 | SECTION ROAD ID | Filter by section road identifier (partial match) | Text input |
-| UI-UX-0128-RS-FLT-F03 | ENGINEERING DISTRICT (DEO) | Filter by assigned engineering district | Searchable dropdown: All Districts / individual DEO names |
-| UI-UX-0128-RS-FLT-A01 | Clear Filter | Resets all fields and reloads all sections | Button (zinc); disabled when all fields are empty |
-| UI-UX-0128-RS-FLT-A02 | Cancel | Closes the dialog without applying | Button (zinc) |
-| UI-UX-0128-RS-FLT-A03 | Apply Filter | Applies filter criteria and refreshes the table | Button (orange) |
+| 1 | ROAD ID | Filter by parent road identifier (partial match) | Text input |
+| 2 | SECTION ROAD ID | Filter by section road identifier (partial match) | Text input |
+| 3 | ENGINEERING DISTRICT (DEO) | Filter by assigned engineering district | Searchable dropdown: All Districts / individual DEO names |
+| 4 | Clear Filter | Resets all fields and reloads all sections | Button (zinc); disabled when all fields are empty |
+| 5 | Cancel | Closes the dialog without applying | Button (zinc) |
+| 6 | Apply Filter | Applies filter criteria and refreshes the table | Button (orange) |
 
 1. Click the **Filter** button.
 2. In the **Filter Road Sections** dialog, enter any combination of Road ID, Section Road ID, or select an Engineering District. Leave a field empty to include all values.
@@ -2902,14 +2950,14 @@ Each road section row has a blue **+ Add Bridge** button. This is the only way t
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-0128-B-F01 | SECTION ROAD ID | The road section this bridge belongs to | Read-only; pre-filled with the parent section's ID |
-| UI-UX-0128-B-F02 | BRIDGE ID | Bridge identifier, assembled from three parts | Split input: prefix `FB` (fixed) + 5-digit number (user-entered, digits only, max 5 chars) + island code suffix (auto-derived from parent section ID) |
-| UI-UX-0128-B-F03 | BRIDGE NAME | Name of the bridge | Text input; required |
-| UI-UX-0128-B-F04 | FROM CHAINAGE (km) | Starting position of the bridge along the road section, in kilometres | Numeric input (step 0.01, min 0); required |
-| UI-UX-0128-B-F05 | BRIDGE LENGTH (m) | Total length of the bridge structure, in metres | Numeric input (step 0.01, min 0.01); required |
-| UI-UX-0128-B-F06 | WEIGHT OF CARRIAGE WAYS (Kg) | Load capacity of the bridge's carriageway(s) in kilograms | Numeric input (step 1, min 0); required |
-| UI-UX-0128-B-A01 | ✕ (close) | Dismiss the dialog without saving | Button |
-| UI-UX-0128-B-A02 | Save | Validate and save the bridge | Button (blue) |
+| 1 | SECTION ROAD ID | The road section this bridge belongs to | Read-only; pre-filled with the parent section's ID |
+| 2 | BRIDGE ID | Bridge identifier, assembled from three parts | Split input: prefix `FB` (fixed) + 5-digit number (user-entered, digits only, max 5 chars) + island code suffix (auto-derived from parent section ID) |
+| 3 | BRIDGE NAME | Name of the bridge | Text input; required |
+| 4 | FROM CHAINAGE (km) | Starting position of the bridge along the road section, in kilometres | Numeric input (step 0.01, min 0); required |
+| 5 | BRIDGE LENGTH (m) | Total length of the bridge structure, in metres | Numeric input (step 0.01, min 0.01); required |
+| 6 | WEIGHT OF CARRIAGE WAYS (Kg) | Load capacity of the bridge's carriageway(s) in kilograms | Numeric input (step 1, min 0); required |
+| 7 | ✕ (close) | Dismiss the dialog without saving | Button |
+| 8 | Save | Validate and save the bridge | Button (blue) |
 
 > The **Bridge ID** is assembled in real time: `FB{00000}{IslandCode}`. The island code is derived automatically from the parent section's Section Road ID. A preview of the full ID is displayed below the input as soon as the number is entered.
 
@@ -2958,9 +3006,9 @@ Each road section row has a blue **+ Add Bridge** button. This is the only way t
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
 | UI-UX-0128-B-T01 | Search input | Filter by bridge name | Text; press Enter or click Search |
-| UI-UX-0128-B-A01 | Search | Executes the bridge name search | Button (blue) |
-| UI-UX-0128-B-A02 | Clear Filter | Removes active filter and reloads all bridges | Button (red); visible only when a filter is active |
-| UI-UX-0128-B-A03 | Filter | Opens the Filter Bridges dialog | Button (white/orange when active); shows count badge |
+| 1 | Search | Executes the bridge name search | Button (blue) |
+| 2 | Clear Filter | Removes active filter and reloads all bridges | Button (red); visible only when a filter is active |
+| 3 | Filter | Opens the Filter Bridges dialog | Button (white/orange when active); shows count badge |
 
 ---
 
@@ -2983,10 +3031,10 @@ The **Edit Future Bridge** dialog uses the same fields as the Add dialog. All fi
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-0128-B-DEL-F01 | Bridge info panel | Displays Bridge Name, Section Road ID, From Chainage, Length, and Carriage Ways | Read-only |
-| UI-UX-0128-B-DEL-F02 | CONFIRMATION INPUT | Must type **DELETE** to enable the delete button | Text input; required; case-insensitive |
-| UI-UX-0128-B-DEL-A01 | Cancel | Closes the dialog without deleting | Button |
-| UI-UX-0128-B-DEL-A02 | Delete Bridge | Permanently removes the bridge | Button (red); disabled until confirmation text is typed |
+| 1 | Bridge info panel | Displays Bridge Name, Section Road ID, From Chainage, Length, and Carriage Ways | Read-only |
+| 2 | CONFIRMATION INPUT | Must type **DELETE** to enable the delete button | Text input; required; case-insensitive |
+| 3 | Cancel | Closes the dialog without deleting | Button |
+| 4 | Delete Bridge | Permanently removes the bridge | Button (red); disabled until confirmation text is typed |
 
 1. Click the red **trash icon** on the bridge's row.
 2. The **Delete Bridge** dialog opens showing the Bridge Name, Section Road ID, From Chainage, Length, and Carriage Ways, along with a warning that the action cannot be undone.
@@ -3012,12 +3060,12 @@ The **Edit Future Bridge** dialog uses the same fields as the Add dialog. All fi
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-0128-B-FLT-F01 | SECTION ROAD ID | Filter by parent road section identifier (partial match) | Text input |
-| UI-UX-0128-B-FLT-F02 | BRIDGE ID | Filter by bridge identifier (partial match) | Text input |
-| UI-UX-0128-B-FLT-F03 | BRIDGE NAME | Filter by bridge name (partial match) | Text input |
-| UI-UX-0128-B-FLT-A01 | Clear Filter | Resets all fields and reloads all bridges | Button (zinc); disabled when all fields are empty |
-| UI-UX-0128-B-FLT-A02 | Cancel | Closes the dialog without applying | Button (zinc) |
-| UI-UX-0128-B-FLT-A03 | Apply Filter | Applies filter criteria and refreshes the table | Button (orange) |
+| 1 | SECTION ROAD ID | Filter by parent road section identifier (partial match) | Text input |
+| 2 | BRIDGE ID | Filter by bridge identifier (partial match) | Text input |
+| 3 | BRIDGE NAME | Filter by bridge name (partial match) | Text input |
+| 4 | Clear Filter | Resets all fields and reloads all bridges | Button (zinc); disabled when all fields are empty |
+| 5 | Cancel | Closes the dialog without applying | Button (zinc) |
+| 6 | Apply Filter | Applies filter criteria and refreshes the table | Button (orange) |
 
 1. Click the **Filter** button.
 2. In the **Filter Bridges** dialog, enter any combination of Section Road ID, Bridge ID, or Bridge Name. Leave a field empty to include all values.
@@ -3040,7 +3088,7 @@ The **Edit Future Bridge** dialog uses the same fields as the Add dialog. All fi
 
 | Field Ref No. | Fields / Blocks / Objects | Description | Values / Actions |
 |---|---|---|---|
-| UI-UX-0128-IMP-A01 | ✕ (close) | Close the dialog and discard all selections | Button |
+| 1 | ✕ (close) | Close the dialog and discard all selections | Button |
 | UI-UX-0128-IMP-G01 | **Import Road Network Data from RBIA** (group) | Group header checkbox — selects or deselects all items in this group at once; shows a dash (−) when only some items are checked | Tri-state checkbox |
 | UI-UX-0128-IMP-I01 | Roads | Import national road records from the GIS | Item checkbox; **active** — connected to GIS |
 | UI-UX-0128-IMP-I02 | Road Section | Import road section records from the GIS | Item checkbox; **active** — connected to GIS |
@@ -3050,7 +3098,7 @@ The **Edit Future Bridge** dialog uses the same fields as the Add dialog. All fi
 | UI-UX-0128-IMP-I05 | City/Municipality, Legislative District | Import administrative division lookup data | Item checkbox; **pending** — not yet connected |
 | UI-UX-0128-IMP-G03 | **Import Lookup tables from Internal Org** (group) | Group header checkbox | Tri-state checkbox |
 | UI-UX-0128-IMP-I06 | DEO, Implementing Office | Import internal organizational unit lookup data | Item checkbox; **pending** — not yet connected |
-| UI-UX-0128-IMP-A02 | Start Import | Execute the import for all checked items | Button (blue); disabled when no items are selected; shows "Importing..." while running |
+| 1 | Start Import | Execute the import for all checked items | Button (blue); disabled when no items are selected; shows "Importing..." while running |
 
 **Import Status Summary:**
 
@@ -3213,6 +3261,8 @@ When reporting an issue to support, include the following information:
 
 | Area | Message or Condition | User Action |
 |------|----------------------|-------------|
+| Login | Username is required | Enter your username before clicking Sign In |
+| Login | Password is required | Enter your password before clicking Sign In |
 | Login | Invalid credentials. Please check your user ID and password and try again. | Re-enter the correct username and password |
 | Login | Your session has expired. Please sign in to continue. | Contact your PS Admin to verify the account is active, then log in again |
 | Add Program | Name: The Name field is required | Enter a program name in the Sub Name field before clicking Submit |
