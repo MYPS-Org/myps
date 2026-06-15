@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import { formValidation, type FormValidationError } from '../../../utils/FormValidation';
+import { isRoadInfraType } from '../../../utils/infraIdGenerator';
 import { projectDetailsRules } from '../rules/projectDetailsRules';
 import type { 
   ProjectDetails, 
@@ -732,6 +733,18 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
       if (!majorItem.IsDeleted && majorItem.MajorItemLocations) {
         majorItem.MajorItemLocations.forEach((location, locIndex) => {
           if (!location.IsDeleted) {
+            // For Road infrastructure, length is derived from chainages and must be at least 1m,
+            // even when Length is still null (e.g. Start/End Chainage left at 0)
+            if (isRoadInfraType(majorItem.InfraType)) {
+              const startCh = location.StartChainage ?? 0;
+              const endCh = location.EndChainage ?? 0;
+              if ((endCh - startCh) < 1) {
+                businessValidationErrors.push(
+                  `Major Item Component ${majorItem.ComponentId}, Location ${locIndex + 1} (${location.InfraId || 'Unknown'}): Length must be at least 1m. End Chainage must be greater than Start Chainage.`
+                );
+              }
+            }
+
             const length = location.Length ?? null;
             if (length === null || length === undefined) {
               return; // Skip validation if length is null/undefined
