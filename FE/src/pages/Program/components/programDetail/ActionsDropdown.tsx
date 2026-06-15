@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ChevronDownIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
 import { useToast } from '../../../../components/toaster/ToasterContext';
 import { downloadAIPReport, exportProjects, importProjects } from '../../Service';
-import type { AIPReportParams } from '../../Model.d';
+import type { AIPReportParams, TableEnum } from '../../Model';
 import type { ImportedProject } from '../../../Project/Model.d';
 import { transformImportedProjects } from '../../utils/transformImportedProjects';
 import AIPReportDialog from '../../dialogs/AIPReportDialog';
@@ -14,6 +14,7 @@ interface ActionsDropdownProps {
   programName: string;
   stageName: string;
   stageId: number;
+  stages?: TableEnum[];
   onRefresh: () => Promise<void>;
   onLoadingChange: (loading: boolean) => void;
 }
@@ -23,6 +24,7 @@ const ActionsDropdown: React.FC<ActionsDropdownProps> = ({
   programName,
   stageName,
   stageId,
+  stages = [],
   onRefresh,
   onLoadingChange,
 }) => {
@@ -246,6 +248,7 @@ const ActionsDropdown: React.FC<ActionsDropdownProps> = ({
           programName={programName}
           stageName={stageName}
           stageId={stageId}
+          stages={stages}
         />
       )}
     </>

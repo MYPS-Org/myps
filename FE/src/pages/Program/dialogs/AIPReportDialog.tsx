@@ -9,6 +9,7 @@ import type {
   AIPDropdownOperatingUnit,
   AIPDropdownDEO,
   AIPDropdownImplementingOffice,
+  TableEnum,
 } from '../../Program/Model';
 import { fetchAIPReportDropdownData } from '../../Program/Service';
 
@@ -20,7 +21,12 @@ interface AIPReportDialogProps {
   programName?: string;
   stageName?: string;
   stageId?: number;
+  stages?: TableEnum[];
 }
+
+// Stage range available for selection: BP (NameId 4) through GAA-R (NameId 10)
+const MIN_STAGE_NAME_ID = 4;
+const MAX_STAGE_NAME_ID = 10;
 
 type ReportTypeOption = { value: AIPReportType; label: string };
 
@@ -61,6 +67,7 @@ const AIPReportDialog: React.FC<AIPReportDialogProps> = ({
   programName = '',
   stageName = '',
   stageId = 0,
+  stages = [],
 }) => {
   const [dropdowns, setDropdowns] = useState<AIPReportDropdowns | null>(null);
   const [isLoadingDropdowns, setIsLoadingDropdowns] = useState(false);
@@ -82,6 +89,11 @@ const AIPReportDialog: React.FC<AIPReportDialogProps> = ({
 
   const availableReportTypes = getAvailableReportTypes(stageId);
   const isAIPType = formData.ReportType === 'AIP' || formData.ReportType === 'AIP02';
+
+  // Stage Name dropdown options — limited to BP through GAA-R stages
+  const stageOptions = stages
+    .filter((s) => s.NameId >= MIN_STAGE_NAME_ID && s.NameId <= MAX_STAGE_NAME_ID)
+    .sort((a, b) => a.NameId - b.NameId);
 
   // Resolve selected Region object — used for ParticipantId-based filtering
   const selectedRegion = formData.RegionName
@@ -293,13 +305,18 @@ const AIPReportDialog: React.FC<AIPReportDialogProps> = ({
                         Stage Name
                         <span className="ml-1 text-gray-400 font-normal">(optional)</span>
                       </label>
-                      <input
-                        type="text"
+                      <select
                         value={formData.StageName ?? ''}
                         onChange={(e) => handleChange('StageName', e.target.value)}
                         className={selectClass()}
-                        placeholder="e.g. GAA-R"
-                      />
+                      >
+                        <option value="">All stages</option>
+                        {stageOptions.map((stage) => (
+                          <option key={stage.Id} value={stage.Name}>
+                            {stage.Name}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   )}
 
