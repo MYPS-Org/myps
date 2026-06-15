@@ -391,32 +391,57 @@ namespace WebAPI.Controllers.Revision
                     return new BadRequestObjectResult(new { Message = "Project not found in PCMA", Title = "Project Not Found" });
                 }
                 #region Project Construction Status Validation
-                string ConStatus = "On-Going";
-                var HasOnGoing = ComponentCost.FirstOrDefault(x => x.ConstructionStatusName == ConStatus);
-                if(HasOnGoing == null)
+                var UniqueComponentStatus = ComponentCost.Select(x => x.ConstructionStatusName).Distinct().ToList();
+                string ConStatus = UniqueComponentStatus switch
                 {
-                    #region Has Completed
-                    string[] CompletedCondition = { "Terminated", "Not Yet Started" };
-                    var HasCompleted = ComponentCost.Where(x => x.ConstructionStatusName == "Completed");
-                    HasOnGoing = HasCompleted.FirstOrDefault(x => CompletedCondition.Contains(x.ConstructionStatusName));
-                    if (HasOnGoing == null) ConStatus = "Completed";
-                    #endregion
+                    // If there are no components at all
+                    { Count: 0 } => "No Components",
 
-                    #region Has Not Yet Started
-                    string[] NYSCondition = { "Completed", "Terminated" };
-                    var HasNYS = ComponentCost.Where(x => x.ConstructionStatusName == "Not Yet Started");
-                    HasOnGoing = HasNYS.FirstOrDefault(x => NYSCondition.Contains(x.ConstructionStatusName));
-                    if (HasOnGoing == null) ConStatus = "Not Yet Started";
-                    #endregion
+                    // If the ONLY status in the list is Terminated
+                    _ when UniqueComponentStatus.Count == 1 && UniqueComponentStatus.Contains("Terminated")
+                        => "Terminated",
 
-                    #region Terminated
-                    string[] HasOtherStatus = { "Completed", "Not Yet Started", "On-Going" };
-                    var ProjectTerminated = ComponentCost.FirstOrDefault(x => x.ConstructionStatusName == "Terminated" && !HasOtherStatus.Contains(x.ConstructionStatusName));
-                    if (ProjectTerminated != null) {
-                        ConStatus = "Terminated";
-                    }
-                    #endregion
-                }
+                    // If there is On-Going anywhere, it takes top priority
+                    _ when UniqueComponentStatus.Contains("On-Going")
+                        => "On-Going",
+
+                    // If there is Not Yet Started (and no On-Going)
+                    _ when UniqueComponentStatus.Contains("Not Yet Started")
+                        => "Not Yet Started",
+
+                    // If everything left is Completed (ignoring Terminated)
+                    _ when UniqueComponentStatus.Contains("Completed")
+                        => "Completed",
+
+                    // Fallback default case
+                    _ => "On-Going"
+                };
+                //string ConStatus = "On-Going";
+                //var HasOnGoing = ComponentCost.FirstOrDefault(x => x.ConstructionStatusName == ConStatus);
+                //if(HasOnGoing == null)
+                //{
+                //    #region Has Completed
+                //    string[] CompletedCondition = { "Terminated", "Not Yet Started" };
+                //    var HasCompleted = ComponentCost.Where(x => x.ConstructionStatusName == "Completed");
+                //    HasOnGoing = HasCompleted.FirstOrDefault(x => CompletedCondition.Contains(x.ConstructionStatusName));
+                //    if (HasOnGoing == null) ConStatus = "Completed";
+                //    #endregion
+
+                //    #region Has Not Yet Started
+                //    string[] NYSCondition = { "Completed", "Terminated" };
+                //    var HasNYS = ComponentCost.Where(x => x.ConstructionStatusName == "Not Yet Started");
+                //    HasOnGoing = HasNYS.FirstOrDefault(x => NYSCondition.Contains(x.ConstructionStatusName));
+                //    if (HasOnGoing == null) ConStatus = "Not Yet Started";
+                //    #endregion
+
+                //    #region Terminated
+                //    string[] HasOtherStatus = { "Completed", "Not Yet Started", "On-Going" };
+                //    var ProjectTerminated = ComponentCost.Where(x => x.ConstructionStatusName == "Terminated" && !HasOtherStatus.Contains(x.ConstructionStatusName)).ToList();
+                //    if (ProjectTerminated.Count > 0) {
+                //        ConStatus = "Terminated";
+                //    }
+                //    #endregion
+                //}
                 #endregion
                 #region Project Packaged Status Validation
                 string PackedStatus =
