@@ -89,10 +89,6 @@ const WorkLocationTable: React.FC<WorkLocationTableProps> = ({
         return { isValid: false, message: 'Start and End Chainage are required for Roads.' };
       }
 
-      if (location.EndChainage <= location.StartChainage) {
-        return { isValid: false, message: 'End Chainage must be greater than Start Chainage for Roads.' };
-      }
-
       return { isValid: true, message: '' };
     } else if (isLengthBasedMeasure(actualTargetUnit)) {
       // For non-Roads with length-based measure: length is optional
