@@ -101,11 +101,25 @@ changed — only the leftmost `Field Ref No.` column values.
 
 ---
 
-## 9. Commits Covered
+## 9. Section 5.3.3 — Component Cost (Component ID examples)
+
+| # | Old | New | Reason |
+|---|-----|-----|--------|
+| 1 | Purpose text: "...generate Component IDs (e.g., `DR1`, `ROW`, `FS`)..." | "...generate Component IDs (e.g., `CW1`, `ROW`, `FS`)..." | `DR1` is not a generated Component ID — Civil Works entries auto-generate `CW1`, `CW2`, etc. |
+| 2 | Component Cost table, "Component ID" row: "Auto-generated identifier... (e.g., `DR1`, `ROW`)" | "...(e.g., `CW1`, `EAO`)" | Same correction; `EAO` added as a second real example (a fixed component type code) |
+| 3 | "Auto-generated Component IDs" table: "Civil Works (first entry) → `DR1`, increments to `DR2`, `DR3`..." | "Civil Works (first entry) → `CW1`, increments to `CW2`, `CW3`..." | Matches the actual increment logic in code |
+| 4 | Section 5.4 Major Items of Work table, "Component" row: "Component ID the major item is linked to (e.g., `DR1`)" | "...(e.g., `CW1`)" | Same correction for consistency |
+
+> Source: `FE/src/pages/Project/dialogs/ComponentCostDialog.tsx:243-350` (Civil Works `CW1`/`CW2`... increment logic) and `FE/src/pages/Project/dialogs/AddMajorItemDialog.tsx:161-162` (`EAO` as a fixed component type code) — editorial correction, no version bump (still v3.9).
+
+---
+
+## 10. Commits Covered
 
 | Commit | Message | Impact |
 |--------|---------|--------|
-| *(uncommitted)* | — | All changes above are uncommitted working-tree edits to `documents/UserManual.md`, `documents/UserManual_Rules.md`, and the `.claude/skills/{generate-user-manual,update-user-manual,gap-analysis}/SKILL.md` files |
+| *(uncommitted)* | — | Sections 1–8 above are uncommitted working-tree edits to `documents/UserManual.md`, `documents/UserManual_Rules.md`, and the `.claude/skills/{generate-user-manual,update-user-manual,gap-analysis}/SKILL.md` files |
+| *(uncommitted)* | — | Section 9 above is a further uncommitted edit to `documents/UserManual.md` correcting `DR1` → `CW1`/`EAO` Component ID examples in Section 5.3.3 |
 
 ---
 

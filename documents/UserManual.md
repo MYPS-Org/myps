@@ -997,7 +997,7 @@ Identifies the island group or region associated with the project (e.g., `LZ` = 
 
 #### 5.3.3 Component Cost
 
-**Purpose:** Record the project budget breakdown by component, cost year, and amount. Component entries generate Component IDs (e.g., `DR1`, `ROW`, `FS`) that are later referenced by Major Items of Work.
+**Purpose:** Record the project budget breakdown by component, cost year, and amount. Component entries generate Component IDs (e.g., `CW1`, `ROW`, `FS`) that are later referenced by Major Items of Work.
 
 **Who uses this:** DEO, RO, PS Admin
 
@@ -1010,7 +1010,7 @@ Identifies the island group or region associated with the project (e.g., `LZ` = 
 | Column | Description |
 |--------|-------------|
 | Component Type | Classification of the cost component (e.g., Civil Works, ROW Acquisition) |
-| Component ID | Auto-generated identifier derived from the Component Type (e.g., `DR1`, `ROW`) |
+| Component ID | Auto-generated identifier derived from the Component Type (e.g., `CW1`, `EAO`) |
 | Description | Narrative description of the component |
 | Total | Sum of all per-year amounts for this component |
 | Actions | **Edit** button (pencil icon) and **Delete** button (trash icon) |
@@ -1054,7 +1054,7 @@ The dialog title is **"Add Project Component Cost"** (add mode) or **"Edit Proje
 
 | Component Type | Generated Component ID | Notes |
 |---|---|---|
-| Civil Works (first entry) | `DR1` | Increments to `DR2`, `DR3`, etc. for each additional Civil Works entry |
+| Civil Works (first entry) | `CW1` | Increments to `CW2`, `CW3`, etc. for each additional Civil Works entry |
 | ROW Acquisition | `ROW` | Fixed; no increment |
 | Feasibility Study | `FS` | Fixed |
 | Detailed Engineering Design | `DED` | Fixed |
@@ -1125,7 +1125,7 @@ The dialog title is **"Add Project Component Cost"** (add mode) or **"Edit Proje
 
 | Column | Description |
 |--------|-------------|
-| Component | Component ID the major item is linked to (e.g., `DR1`) |
+| Component | Component ID the major item is linked to (e.g., `CW1`) |
 | Year of Work | Fiscal year this work is planned |
 | Infrastructure Type | Type of infrastructure (e.g., Road, Bridge, Local Road) |
 | Type of Work | Specific scope of work (e.g., Asphalt Overlay, Repair) |
