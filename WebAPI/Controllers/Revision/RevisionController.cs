@@ -410,8 +410,11 @@ namespace WebAPI.Controllers.Revision
                     #endregion
 
                     #region Terminated
-                    var ProjectTerminated = ComponentCost.Where(x => x.ConstructionStatusName != "Terminated" && string.IsNullOrEmpty(x.ConstructionStatusName));
-                    if (ProjectTerminated != null) ConStatus = "Terminated";
+                    string[] HasOtherStatus = { "Completed", "Not Yet Started", "On-Going" };
+                    var ProjectTerminated = ComponentCost.FirstOrDefault(x => x.ConstructionStatusName == "Terminated" && !HasOtherStatus.Contains(x.ConstructionStatusName));
+                    if (ProjectTerminated != null) {
+                        ConStatus = "Terminated";
+                    }
                     #endregion
                 }
                 #endregion
