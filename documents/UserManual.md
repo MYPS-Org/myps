@@ -1375,8 +1375,7 @@ How the **Infrastructure ID** for each Work Location row is determined depends o
 
 | Message / Situation | What it Means | What You Should Do |
 |---|---|---|
-| *"Start and End Chainage are required for Roads."* | A Road work location row has missing chainage values. | Enter both Start Chainage and End Chainage before saving. |
-| *"End Chainage must be greater than Start Chainage for Roads."* | End Chainage value is equal to or less than Start Chainage. | Correct the chainage values so End > Start. |
+| *"Start and End Chainage are required for Roads."* | A Road work location's Start Chainage or End Chainage was cleared (left empty). Both default to `0` and do not trigger this message on their own. | Re-enter both Start Chainage and End Chainage values before saving. |
 | *"Length must be greater than or equal to 0."* | Length was entered as a negative number. | Enter a non-negative length value. |
 | *"Length must be less than or equal to (max)."* | Length exceeds the maximum allowed for the work type. | Reduce the length value. |
 | *"Please select an infrastructure item"* | Confirm was clicked in the Select Infrastructure dialog without selecting a row. | Click on a row in the dialog table to select it before clicking Confirm. |

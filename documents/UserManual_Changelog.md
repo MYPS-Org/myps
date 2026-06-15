@@ -114,12 +114,23 @@ changed — only the leftmost `Field Ref No.` column values.
 
 ---
 
-## 10. Commits Covered
+## 10. Section 5.3.5 — Work Locations (Common Outcomes) — Road chainage validation correction
+
+| # | Old | New | Reason |
+|---|-----|-----|--------|
+| 1 | Two separate rows: *"Start and End Chainage are required for Roads."* ("A Road work location row has missing chainage values.") and *"End Chainage must be greater than Start Chainage for Roads."* (shown whenever End Chainage ≤ Start Chainage, including the default `0`/`0`) | Merged into one row: *"Start and End Chainage are required for Roads."*, clarified as only firing when Start/End Chainage is cleared (left empty) — Start/End Chainage both default to `0` and do **not** trigger this message on their own. | The `EndChainage <= StartChainage` check conflicted with the separate `"Length must be greater than or equal to 0."` rule and incorrectly flagged the default `0`/`0` Road row as an error. This check was removed from `validateLength` in `WorkLocationTable.tsx`; only the "required" (null/undefined) check remains. |
+
+> Source: `FE/src/pages/Project/components/WorkLocationTable.tsx` (`validateLength`) — also reverts the related `ProjectForm.tsx` save/update business-validation check added and then removed in the same working session; editorial/feature correction, no version bump (still v3.9).
+
+---
+
+## 11. Commits Covered
 
 | Commit | Message | Impact |
 |--------|---------|--------|
 | *(uncommitted)* | — | Sections 1–8 above are uncommitted working-tree edits to `documents/UserManual.md`, `documents/UserManual_Rules.md`, and the `.claude/skills/{generate-user-manual,update-user-manual,gap-analysis}/SKILL.md` files |
 | *(uncommitted)* | — | Section 9 above is a further uncommitted edit to `documents/UserManual.md` correcting `DR1` → `CW1`/`EAO` Component ID examples in Section 5.3.3 |
+| *(uncommitted)* | — | Section 10 above is a further uncommitted edit to `documents/UserManual.md` correcting the Road chainage validation messages in Section 5.3.5 |
 
 ---
 
