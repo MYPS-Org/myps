@@ -159,24 +159,31 @@ namespace WebAPI.Controllers.Revision
                     return new BadRequestObjectResult(new { Message = "Project not found in PCMA", Title = "Project Not Found" });
                 }
                 #region Project Construction Status Validation
-                string ConStatus = "On-Going";
-                var HasOnGoing = ProjectComponentsStatus.FirstOrDefault(x => x.ConstructionStatusName == ConStatus);
-                if (HasOnGoing == null)
+                var UniqueComponentStatus = ProjectComponentsStatus.Select(x => x.ConstructionStatusName).Distinct().ToList();
+                string ConStatus = UniqueComponentStatus switch
                 {
-                    #region Has Completed
-                    string[] CompletedCondition = { "Terminated", "Not Yet Started" };
-                    var HasCompleted = ProjectComponentsStatus.Where(x => x.ConstructionStatusName == "Completed");
-                    HasOnGoing = HasCompleted.FirstOrDefault(x => CompletedCondition.Contains(x.ConstructionStatusName));
-                    if (HasOnGoing == null) ConStatus = "Completed";
-                    #endregion
+                    // Rule 0: If there are no components at all
+                    { Count: 0 } => "No Components",
 
-                    #region Has Not Yet Started
-                    string[] NYSCondition = { "Completed", "Terminated" };
-                    var HasNYS = ProjectComponentsStatus.Where(x => x.ConstructionStatusName == "Not Yet Started");
-                    HasOnGoing = HasNYS.FirstOrDefault(x => NYSCondition.Contains(x.ConstructionStatusName));
-                    if (HasOnGoing == null) ConStatus = "Not Yet Started";
-                    #endregion
-                }
+                    // Rule 1: "On-Going" ALWAYS wins if it exists anywhere in the list
+                    _ when UniqueComponentStatus.Contains("On-Going")
+                        => "On-Going",
+
+                    // Rule 2: If the ONLY status in the list is "Terminated"
+                    _ when UniqueComponentStatus.Count == 1 && UniqueComponentStatus.Contains("Terminated")
+                        => "Terminated",
+
+                    // Rule 3: If there is "Not Yet Started" mixed with anything else (except On-Going)
+                    _ when UniqueComponentStatus.Contains("Not Yet Started")
+                        => "Not Yet Started",
+
+                    // Rule 4: If everything left is "Completed" (ignoring any Terminated components)
+                    _ when UniqueComponentStatus.Contains("Completed")
+                        => "Completed",
+
+                    // Fallback default case
+                    _ => string.Empty
+                };
                 #endregion
                 #region Project Packaged Status Validation
                 string PackedStatus =
@@ -394,27 +401,27 @@ namespace WebAPI.Controllers.Revision
                 var UniqueComponentStatus = ComponentCost.Select(x => x.ConstructionStatusName).Distinct().ToList();
                 string ConStatus = UniqueComponentStatus switch
                 {
-                    // If there are no components at all
+                    // Rule 0: If there are no components at all
                     { Count: 0 } => "No Components",
 
-                    // If the ONLY status in the list is Terminated
-                    _ when UniqueComponentStatus.Count == 1 && UniqueComponentStatus.Contains("Terminated")
-                        => "Terminated",
-
-                    // If there is On-Going anywhere, it takes top priority
+                    // Rule 1: "On-Going" ALWAYS wins if it exists anywhere in the list
                     _ when UniqueComponentStatus.Contains("On-Going")
                         => "On-Going",
 
-                    // If there is Not Yet Started (and no On-Going)
+                    // Rule 2: If the ONLY status in the list is "Terminated"
+                    _ when UniqueComponentStatus.Count == 1 && UniqueComponentStatus.Contains("Terminated")
+                        => "Terminated",
+
+                    // Rule 3: If there is "Not Yet Started" mixed with anything else (except On-Going)
                     _ when UniqueComponentStatus.Contains("Not Yet Started")
                         => "Not Yet Started",
 
-                    // If everything left is Completed (ignoring Terminated)
+                    // Rule 4: If everything left is "Completed" (ignoring any Terminated components)
                     _ when UniqueComponentStatus.Contains("Completed")
                         => "Completed",
 
                     // Fallback default case
-                    _ => "On-Going"
+                    _ => string.Empty
                 };
                 //string ConStatus = "On-Going";
                 //var HasOnGoing = ComponentCost.FirstOrDefault(x => x.ConstructionStatusName == ConStatus);
