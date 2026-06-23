@@ -28,27 +28,44 @@ export function useMapLibreMap(): UseMapLibreMapResult {
       style: BASEMAPS[DEFAULT_BASEMAP].style,
       center: METRO_MANILA_CENTER,
       zoom: DEFAULT_ZOOM,
+      // We drive resize() ourselves below, off a ResizeObserver on the container — that
+      // reacts to the container's actual box (sidebar reflows, fullscreen, etc.), not
+      // just window resize, and avoids double-triggering against MapLibre's own tracker.
+      trackResize: false,
     });
 
     map.addControl(new maplibregl.NavigationControl(), 'top-right');
     map.addControl(new maplibregl.FullscreenControl(), 'top-right');
 
-    const handleResize = () => map.resize();
+    // Coalesce bursts of ResizeObserver/fullscreenchange callbacks (fired mid-drag,
+    // before the surrounding layout has necessarily settled) into one resize() per
+    // animation frame, by which point layout for that frame is final.
+    let resizeFrame: number | null = null;
+    const scheduleResize = () => {
+      if (resizeFrame !== null) return;
+      resizeFrame = requestAnimationFrame(() => {
+        resizeFrame = null;
+        map.resize();
+      });
+    };
+
+    const resizeObserver = new ResizeObserver(scheduleResize);
+    resizeObserver.observe(containerRef.current);
+    document.addEventListener('fullscreenchange', scheduleResize);
+
     const handleLoad = () => {
       setIsMapReady(true);
       setStyleGeneration((generation) => generation + 1);
     };
 
     map.on('load', handleLoad);
-    map.on('resize', handleResize);
-    document.addEventListener('fullscreenchange', handleResize);
-    window.addEventListener('resize', handleResize);
 
     mapRef.current = map;
 
     return () => {
-      document.removeEventListener('fullscreenchange', handleResize);
-      window.removeEventListener('resize', handleResize);
+      if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
+      resizeObserver.disconnect();
+      document.removeEventListener('fullscreenchange', scheduleResize);
       map.remove();
       mapRef.current = null;
       setIsMapReady(false);
