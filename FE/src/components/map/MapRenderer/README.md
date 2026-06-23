@@ -29,8 +29,9 @@ MapRenderer.tsx          orchestrator — wires the two hooks below to the JSX
 ├── useProjectMapLayers.ts owns the data: sources, layers, popups, visibility
 ├── layerConfig.ts         the layer definitions (the "source of truth" for buckets)
 ├── geoJsonUtils.ts        pure helpers: bounds/centroid, grouping, popup HTML
-├── mapStyle.ts            basemap style spec + initial center/zoom
+├── mapStyle.ts            basemap style specs (light/voyager/dark/streets/satellite) + initial center/zoom
 ├── LayerControlWidget.tsx the on-map checkbox widget
+├── BasemapSwitcherWidget.tsx the on-map basemap dropdown
 ├── MapStatusOverlays.tsx  loading / error / empty-state UI
 └── types.ts               shared TypeScript types
 ```
@@ -61,16 +62,22 @@ anything else.
 
 ### 2. `useMapLibreMap.ts` — the map instance
 
-Creates the MapLibre map on mount (carto-light basemap from `mapStyle.ts`), adds
-navigation/fullscreen controls, handles resize. Returns:
+Creates the MapLibre map on mount (defaults to the `light` basemap from `mapStyle.ts`),
+adds navigation/fullscreen controls, handles resize. Returns:
 
 ```ts
-{ containerRef, mapRef, isMapReady }
+{ containerRef, mapRef, isMapReady, basemap, setBasemap, styleGeneration }
 ```
 
 `containerRef` goes on the `<div>` MapLibre mounts into. `isMapReady` flips to `true`
 on the map's `load` event — native MapLibre sources/layers can only be added safely
 after that, which is why this is split out from the data hook below.
+
+`setBasemap(id)` calls `map.setStyle(...)` with one of the styles from `BASEMAPS` in
+`mapStyle.ts`. Swapping styles wipes every source/layer MapLibre doesn't own (i.e. all
+of `useProjectMapLayers`'s sources/layers), so `styleGeneration` is bumped each time a
+style finishes (re)loading — `useProjectMapLayers` watches it to rebuild its skeleton
+and re-feed the current GeoJSON after a basemap switch.
 
 ### 3. `useProjectMapLayers.ts` — turning GeoJSON into layers on the map
 
@@ -100,6 +107,15 @@ hide/show mechanism, and it's native to MapLibre (no re-fetching or re-grouping 
 Pure presentational component. Given `layers`, `visibility`, and `onToggle`, renders a
 small floating panel (bottom-left) with one checkbox + color swatch per layer. Reuses
 the existing `Checkbox` primitive from `components/tailwindui/checkbox.tsx`.
+
+### `BasemapSwitcherWidget.tsx` — the basemap dropdown
+
+Pure presentational component, floating top-left. A plain `<select>` listing every
+entry in `BASEMAPS` (`mapStyle.ts`); `onChange` calls `setBasemap(id)` from
+`useMapLibreMap`. Available basemaps: **Light**, **Voyager**, **Dark** (all CARTO
+raster tiles, no API key), **Streets** (OpenStreetMap standard tiles), and
+**Satellite** (Esri World Imagery). Add a new basemap by adding an entry to
+`BASEMAPS` in `mapStyle.ts` — nothing else needs to change.
 
 ### 5. `geoJsonUtils.ts` — pure helpers
 

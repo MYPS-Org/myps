@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import maplibregl, { type GeoJSONSource, type MapLayerMouseEvent } from 'maplibre-gl';
 import type { LayerVisibilityState, MapLayerDefinition, ProjectFeatureProperties } from './types';
 import { buildPopupHtml, computeBoundsAndCentroid, groupFeaturesByLayer } from './geoJsonUtils';
@@ -27,6 +27,7 @@ const emptyFeatureCollection = (): GeoJSON.FeatureCollection => ({ type: 'Featur
 export function useProjectMapLayers(
   mapRef: RefObject<maplibregl.Map | null>,
   isMapReady: boolean,
+  styleGeneration: number,
   geoJsonData: GeoJSON.FeatureCollection | null | undefined,
   layers: MapLayerDefinition[]
 ): UseProjectMapLayersResult {
@@ -36,7 +37,14 @@ export function useProjectMapLayers(
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Build the (empty) source + sublayers per bucket once the map's style has loaded.
+  // Switching basemaps replaces the whole style, wiping our sources/layers, so this
+  // rebuilds the skeleton (and restores per-layer visibility) every time styleGeneration
+  // changes, in addition to the initial isMapReady transition.
+  const visibilityRef = useRef(visibility);
+  useEffect(() => {
+    visibilityRef.current = visibility;
+  }, [visibility]);
+
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !isMapReady) return;
@@ -107,10 +115,31 @@ export function useProjectMapLayers(
         map.on('mouseenter', sublayerId, handleMouseEnter);
         map.on('mouseleave', sublayerId, handleMouseLeave);
       });
-    });
-  }, [mapRef, isMapReady, layers]);
 
-  // Feed the grouped GeoJSON into each bucket's source whenever the data changes.
+      const layerVisible = visibilityRef.current[layer.id] ?? true;
+      sublayerIdsFor(layer.id).forEach((sublayerId) => {
+        if (map.getLayer(sublayerId)) {
+          map.setLayoutProperty(sublayerId, 'visibility', layerVisible ? 'visible' : 'none');
+        }
+      });
+    });
+
+    return () => {
+      layers.forEach((layer) => {
+        [lineLayerId(layer.id), fillLayerId(layer.id), pointLayerId(layer.id)].forEach((sublayerId) => {
+          map.off('click', sublayerId, handleFeatureClick);
+          map.off('mouseenter', sublayerId, handleMouseEnter);
+          map.off('mouseleave', sublayerId, handleMouseLeave);
+        });
+      });
+    };
+  }, [mapRef, isMapReady, styleGeneration, layers]);
+
+  // Feed the grouped GeoJSON into each bucket's source whenever the data changes, and
+  // again whenever the style reloads (a basemap switch wipes source data back to empty).
+  // Bounds are only (re)fit on an actual data change, so switching basemaps doesn't
+  // jerk the camera back to the fitted view.
+  const lastFitDataRef = useRef<GeoJSON.FeatureCollection | null | undefined>(undefined);
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !isMapReady) return;
@@ -131,11 +160,14 @@ export function useProjectMapLayers(
         source?.setData(grouped[layer.id]);
       });
 
-      const { bounds, centroid } = computeBoundsAndCentroid(geoJsonData);
-      if (!bounds.isEmpty()) {
-        map.fitBounds(bounds, { padding: 50, maxZoom: 15, duration: 1000 });
-      } else {
-        map.setCenter(centroid);
+      if (lastFitDataRef.current !== geoJsonData) {
+        lastFitDataRef.current = geoJsonData;
+        const { bounds, centroid } = computeBoundsAndCentroid(geoJsonData);
+        if (!bounds.isEmpty()) {
+          map.fitBounds(bounds, { padding: 50, maxZoom: 15, duration: 1000 });
+        } else {
+          map.setCenter(centroid);
+        }
       }
 
       setIsLoading(false);
@@ -144,7 +176,7 @@ export function useProjectMapLayers(
       setError('Failed to render map data');
       setIsLoading(false);
     }
-  }, [mapRef, isMapReady, geoJsonData, layers]);
+  }, [mapRef, isMapReady, styleGeneration, geoJsonData, layers]);
 
   const toggleLayer = useCallback(
     (id: string) => {

@@ -4,6 +4,7 @@ import { useMapLibreMap } from './useMapLibreMap';
 import { useProjectMapLayers } from './useProjectMapLayers';
 import { DEFAULT_MAP_LAYERS } from './layerConfig';
 import LayerControlWidget from './LayerControlWidget';
+import BasemapSwitcherWidget from './BasemapSwitcherWidget';
 import { MapEmptyState, MapErrorBanner, MapLoadingOverlay } from './MapStatusOverlays';
 
 interface MapRendererProps {
@@ -14,10 +15,11 @@ interface MapRendererProps {
 }
 
 const MapRenderer: React.FC<MapRendererProps> = ({ geoJsonData, height = '400px' }) => {
-  const { containerRef, mapRef, isMapReady } = useMapLibreMap();
+  const { containerRef, mapRef, isMapReady, basemap, setBasemap, styleGeneration } = useMapLibreMap();
   const { visibility, toggleLayer, isLoading, error } = useProjectMapLayers(
     mapRef,
     isMapReady,
+    styleGeneration,
     geoJsonData,
     DEFAULT_MAP_LAYERS
   );
@@ -30,6 +32,7 @@ const MapRenderer: React.FC<MapRendererProps> = ({ geoJsonData, height = '400px'
       {error && <MapErrorBanner message={error} />}
       {!geoJsonData && !isLoading && <MapEmptyState />}
 
+      <BasemapSwitcherWidget current={basemap} onChange={setBasemap} />
       <LayerControlWidget layers={DEFAULT_MAP_LAYERS} visibility={visibility} onToggle={toggleLayer} />
     </div>
   );
