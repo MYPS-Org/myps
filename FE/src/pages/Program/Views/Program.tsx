@@ -15,18 +15,17 @@ interface PaginationResponse<T> {
 }
 
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '../../../components/tailwindui/table'; // Adjust the import path as necessary
+import { CollapsibleTable, ExpandToggleButton, ExpandedPanel } from '../../../components/tailwindui/collapsible-table'; // Adjust the import path as necessary
 
 // #region Import Dialogs
 import { AddProgramDialog, DeleteProgramDialog, FilterDialogProgramList } from '../dialogs';
 // #endregion
 
 import { Button } from '../../../components/tailwindui/button'; // Adjust the import path as necessary
-import { 
-    PlusIcon, 
+import {
+    PlusIcon,
     MagnifyingGlassIcon,
     TrashIcon,
-    ChevronDownIcon,
-    ChevronRightIcon,
     XMarkIcon,
     FunnelIcon
 } from '@heroicons/react/24/outline'; // Adjust the import path as necessary
@@ -369,139 +368,92 @@ const Program: React.FC = () => {
                             </div>
                         </div>
                     </div>
-                <Table className="px-5" striped>
-                    <TableHead>
-                    <TableRow>
-                        <TableHeader>Name</TableHeader>
-                        <TableHeader>Status</TableHeader>
-                        {/* <TableHeader>Program Stage</TableHeader> */}
-                        <TableHeader>Program Type</TableHeader>
-                        <TableHeader>No. of Projects</TableHeader>
-                        <TableHeader>Start Year</TableHeader>
-                        {/* <TableHeader>End Year</TableHeader> */}
-                        <TableHeader>Actions</TableHeader>
-                    </TableRow>
-                    </TableHead>
-                    <TableBody>
-                    {ProgramData.lists.map((program, idx) => (
-                        <React.Fragment key={`${program.Id}-${idx}`}>
-                            <TableRow>
-                                <TableCell>
-                                    <div className="flex items-center">
-                                        <button 
-                                            onClick={() => handleDropDownTable(program.ProgramId)}
-                                            className="flex items-center text-blue-600 hover:text-blue-800 font-medium hover:underline transition-colors"
-                                        >
-                                            {expandedRows.has(program.ProgramId || '') ? (
-                                                <ChevronDownIcon className="w-4 h-4 mr-2 text-gray-500 transition-transform" />
-                                            ) : (
-                                                <ChevronRightIcon className="w-4 h-4 mr-2 text-gray-500 transition-transform" />
-                                            )}
-                                            {program.Name}
-                                        </button>
-                                    </div>
-                                </TableCell>
-                                <TableCell>
-                                    {program.Status}
-                                </TableCell>
-                                <TableCell>
-                                    {getStatusBadge(program.Type || '')}
-                                </TableCell>
-                                {/* <TableCell>
-                                    {program.StageName}
-                                </TableCell> */}
-                                <TableCell>
-                                    {program.NumberOfProjects !== undefined ? program.NumberOfProjects : 'N/A'}
-                                </TableCell>
-                                <TableCell>
-                                    {program.YearStart}
-                                </TableCell>
-                                <TableCell>
-                                    <div className="flex items-center space-x-1">
-                                        <Button 
-                                            color="orange"
-                                            onClick={() => handleViewDetails(program.ProgramId, program.StageName)}
-                                            className="text-xs px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded"
-                                        >
-                                            View
-                                        </Button>
-                                        <Button color="red" onClick={() => {setIsDeleteProgramOpen(true); setSelectedProgram(program.ProgramId);}} className="text-xs px-3 py-1.5 bg-red-500 hover:bg-red-600 rounded">
-                                            <TrashIcon stroke='white' className="h-5 w-5 text-gray-900" />
-                                        </Button>
-                                    </div>
-                                </TableCell>
-                            </TableRow>
-                            
-                            {/* Expandable Child Table */}
-                            {expandedRows.has(program.ProgramId || '') && (
-                                <TableRow>
-                                    <TableCell colSpan={7} className="p-0 bg-gray-50/50 border-t border-gray-200">
-                                        <div className="px-8 py-6">
-                                            <div className="flex items-center justify-between mb-4">
-                                                <h4 className="text-sm font-semibold text-gray-900">
-                                                    Program Stages under "{program.Name}"
-                                                </h4>
-                                                <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded-full border">
-                                                    {stageLists[program.ProgramId || '']?.Stages?.length || 0} stages
-                                                </span>
-                                            </div>
-                                            <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-                                                <Table className="mb-0">
-                                                    <TableHead>
-                                                        <TableRow>
-                                                            <TableHeader justify="center" className="text-xs">Stage Name</TableHeader>
-                                                            {/* <TableHeader className="text-xs">Status</TableHeader> */}
-                                                            <TableHeader justify="center" className="text-xs">Type</TableHeader>
-                                                            <TableHeader justify="center" className="text-xs">Start Year</TableHeader>
-                                                            <TableHeader justify="center" className="text-xs">Projects</TableHeader>
-                                                            <TableHeader justify="center" className="text-xs">Amount</TableHeader>
-                                                            <TableHeader justify="center" className="text-xs">Actions</TableHeader>
-                                                        </TableRow>
-                                                    </TableHead>
-                                                    <TableBody>
-                                                        {stageLists[program.ProgramId || '']?.Stages?.map((stage) => (
-                                                            <TableRow key={stage.Id}>
-                                                                <TableCell className="font-medium text-sm text-center">{stage.StageName}</TableCell>
-                                                                {/* <TableCell>
-                                                                    {getStatusBadge(getStatusString(stage.Status || 0))}
-                                                                </TableCell> */}
-                                                                <TableCell className="text-sm text-gray-600 text-center">{stage.TypeName}</TableCell>
-                                                                <TableCell className="text-sm text-gray-600 text-center">{stage.YearStart}</TableCell>
-                                                                {/* <TableCell className="text-sm text-gray-600">{stage.YearEnd}</TableCell> */}
-                                                                <TableCell className="text-sm font-medium text-center">
-                                                                    {stage.NumberOfProjects !== undefined ? stage.NumberOfProjects : 'N/A'}
-                                                                </TableCell>
-                                                                <TableCell className="text-sm font-medium text-center">
-                                                                    {stage.Cost ? `₱${stage.Cost.toLocaleString()}` : 'N/A'}
-                                                                </TableCell>
-                                                                <TableCell className='text-center'>
-                                                                    <Button
-                                                                        color="blue"
-                                                                        className="text-xs px-3 py-1.5 text-center"
-                                                                        onClick={() => handleViewDetails(stage.ProgramId, stage.Description ?? stage.StageName)}
-                                                                    >
-                                                                        View Details
-                                                                    </Button>
-                                                                </TableCell>
-                                                            </TableRow>
-                                                        )) || (
-                                                            <TableRow>
-                                                                <TableCell colSpan={7} className="text-center py-4 text-gray-500">
-                                                                    No stages available for this program
-                                                                </TableCell>
-                                                            </TableRow>
-                                                        )}
-                                                    </TableBody>
-                                                </Table>
-                                            </div>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </React.Fragment>
-                    ))}
-                    </TableBody>
-                </Table>
+                <CollapsibleTable<ParentProgram>
+                    className="px-5"
+                    striped
+                    data={ProgramData.lists}
+                    rowKey={(program, idx) => `${program.Id}-${idx}`}
+                    isRowExpanded={(program) => expandedRows.has(program.ProgramId || '')}
+                    onToggleRow={(program) => handleDropDownTable(program.ProgramId)}
+                    columns={[
+                        {
+                            header: 'Name',
+                            render: (program, { isExpanded, toggleExpand }) => (
+                                <ExpandToggleButton label={program.Name} isExpanded={isExpanded} onClick={toggleExpand} />
+                            )
+                        },
+                        { header: 'Status', render: (program) => program.Status },
+                        { header: 'Program Type', render: (program) => getStatusBadge(program.Type || '') },
+                        { header: 'No. of Projects', render: (program) => (program.NumberOfProjects !== undefined ? program.NumberOfProjects : 'N/A') },
+                        { header: 'Start Year', render: (program) => program.YearStart },
+                        {
+                            header: 'Actions',
+                            render: (program) => (
+                                <div className="flex items-center space-x-1">
+                                    <Button
+                                        color="orange"
+                                        onClick={() => handleViewDetails(program.ProgramId, program.StageName)}
+                                        className="text-xs px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded"
+                                    >
+                                        View
+                                    </Button>
+                                    <Button color="red" onClick={() => {setIsDeleteProgramOpen(true); setSelectedProgram(program.ProgramId);}} className="text-xs px-3 py-1.5 bg-red-500 hover:bg-red-600 rounded">
+                                        <TrashIcon stroke='white' className="h-5 w-5 text-gray-900" />
+                                    </Button>
+                                </div>
+                            )
+                        }
+                    ]}
+                    renderExpandedContent={(program) => (
+                        <ExpandedPanel
+                            title={`Program Stages under "${program.Name}"`}
+                            badge={`${stageLists[program.ProgramId || '']?.Stages?.length || 0} stages`}
+                        >
+                            <Table className="mb-0">
+                                <TableHead>
+                                    <TableRow>
+                                        <TableHeader justify="center" className="text-xs">Stage Name</TableHeader>
+                                        <TableHeader justify="center" className="text-xs">Type</TableHeader>
+                                        <TableHeader justify="center" className="text-xs">Start Year</TableHeader>
+                                        <TableHeader justify="center" className="text-xs">Projects</TableHeader>
+                                        <TableHeader justify="center" className="text-xs">Amount</TableHeader>
+                                        <TableHeader justify="center" className="text-xs">Actions</TableHeader>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                    {stageLists[program.ProgramId || '']?.Stages?.map((stage) => (
+                                        <TableRow key={stage.Id}>
+                                            <TableCell className="font-medium text-sm text-center">{stage.StageName}</TableCell>
+                                            <TableCell className="text-sm text-gray-600 text-center">{stage.TypeName}</TableCell>
+                                            <TableCell className="text-sm text-gray-600 text-center">{stage.YearStart}</TableCell>
+                                            <TableCell className="text-sm font-medium text-center">
+                                                {stage.NumberOfProjects !== undefined ? stage.NumberOfProjects : 'N/A'}
+                                            </TableCell>
+                                            <TableCell className="text-sm font-medium text-center">
+                                                {stage.Cost ? `₱${stage.Cost.toLocaleString()}` : 'N/A'}
+                                            </TableCell>
+                                            <TableCell className='text-center'>
+                                                <Button
+                                                    color="blue"
+                                                    className="text-xs px-3 py-1.5 text-center"
+                                                    onClick={() => handleViewDetails(stage.ProgramId, stage.Description ?? stage.StageName)}
+                                                >
+                                                    View Details
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    )) || (
+                                        <TableRow>
+                                            <TableCell colSpan={6} className="text-center py-4 text-gray-500">
+                                                No stages available for this program
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </ExpandedPanel>
+                    )}
+                />
                 <Pagination className="my-6">
                     {
                         ProgramData.totalPages > 1 && (

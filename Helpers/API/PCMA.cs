@@ -41,7 +41,7 @@ namespace Helpers.API
                 var doc = XDocument.Parse(xml);
                 var ns = "http://tempuri.org/";
 
-                var result = doc.Descendants(XName.Get("PublishPCMAResult", ns)).FirstOrDefault();
+                var result = doc.Descendants(XName.Get("copyMYPSDataResult", ns)).FirstOrDefault();
 
                 if (result == null)
                 {

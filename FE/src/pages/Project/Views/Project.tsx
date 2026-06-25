@@ -5,14 +5,13 @@ import { useNavigate } from 'react-router-dom';
 import type { ProjectLists, ProjectPagination, ProjectRevisionList } from '../Model.d'; // Adjust the import path as necessary
 import { fetchProject, fetchProjectStagesByProjectId } from '../Service'; // Adjust the import path as necessary
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '../../../components/tailwindui/table'; // Adjust the import path as necessary
+import { CollapsibleTable, ExpandToggleButton, ExpandedPanel } from '../../../components/tailwindui/collapsible-table'; // Adjust the import path as necessary
 import { Button } from '../../../components/tailwindui/button'; // Adjust the import path as necessary
 import { Pagination, PaginationPrevious, PaginationNext, PaginationPage, PaginationList } from '../../../components/tailwindui/pagination'; // Adjust the import path as necessary
 import {
-    PlusIcon, 
+    PlusIcon,
     MagnifyingGlassIcon,
-    XMarkIcon,
-    ChevronDownIcon,
-    ChevronRightIcon
+    XMarkIcon
 } from '@heroicons/react/24/outline'; // Adjust the import path as necessary
 import { useToast } from '../../../components/toaster/ToasterContext'; // Adjust the import path as necessary
 
@@ -234,119 +233,88 @@ const Project: React.FC = () => {
                         </div>
                     </div>
                     
-                    <Table className="px-5">
-                        <TableHead>
-                            <TableRow>
-                                <TableHeader>Project ID</TableHeader>
-                                <TableHeader>Program Name</TableHeader>
-                                <TableHeader>Category</TableHeader>
-                                {/* <TableHeader>Total Project Cost (PHP)</TableHeader> */}
-                                <TableHeader>Updated By</TableHeader>
-                                <TableHeader>Created Date</TableHeader>
-                                <TableHeader>Actions</TableHeader>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {ProjectData?.lists.map((project, idx) => (
-                                <React.Fragment key={`${project.Id}-${idx}`}>
-                                    <TableRow>
-                                        <TableCell>
-                                            <div className="flex items-center">
-                                                <button 
-                                                    onClick={() => handleDropDownTable(project.ProjectId)}
-                                                    className="flex items-center text-blue-600 hover:text-blue-800 font-medium hover:underline transition-colors"
-                                                >
-                                                    {expandedRows.has(project.ProjectId || '') ? (
-                                                        <ChevronDownIcon className="w-4 h-4 mr-2 text-gray-500 transition-transform" />
-                                                    ) : (
-                                                        <ChevronRightIcon className="w-4 h-4 mr-2 text-gray-500 transition-transform" />
-                                                    )}
-                                                    {project.ProjectId}
-                                                </button>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>{project.ProgramName}</TableCell>
-                                        <TableCell>{project.Category}</TableCell>
-                                        <TableCell>{project.UpdateBy}</TableCell>
-                                        <TableCell>{project.CreatedDate.StringToDate()}</TableCell>
-                                        <TableCell>
-                                            <div className="flex items-center space-x-1">
-                                                <Button 
-                                                    color="orange"
-                                                    onClick={() => project.ProjectId && handleViewDetails(project.ProjectId, project.StageName)}
-                                                    className="text-xs px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded"
-                                                >
-                                                    View Details
-                                                </Button>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-
-                                    {/* Expandable Child Table */}
-                                    {expandedRows.has(project.ProjectId || '') && (
+                    <CollapsibleTable<ProjectLists>
+                        className="px-5"
+                        data={ProjectData?.lists || []}
+                        rowKey={(project, idx) => `${project.Id}-${idx}`}
+                        isRowExpanded={(project) => expandedRows.has(project.ProjectId || '')}
+                        onToggleRow={(project) => handleDropDownTable(project.ProjectId)}
+                        columns={[
+                            {
+                                header: 'Project ID',
+                                render: (project, { isExpanded, toggleExpand }) => (
+                                    <ExpandToggleButton label={project.ProjectId} isExpanded={isExpanded} onClick={toggleExpand} />
+                                )
+                            },
+                            { header: 'Program Name', render: (project) => project.ProgramName },
+                            { header: 'Category', render: (project) => project.Category },
+                            { header: 'Updated By', render: (project) => project.UpdateBy },
+                            { header: 'Created Date', render: (project) => project.CreatedDate.StringToDate() },
+                            {
+                                header: 'Actions',
+                                render: (project) => (
+                                    <div className="flex items-center space-x-1">
+                                        <Button
+                                            color="orange"
+                                            onClick={() => project.ProjectId && handleViewDetails(project.ProjectId, project.StageName)}
+                                            className="text-xs px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded"
+                                        >
+                                            View Details
+                                        </Button>
+                                    </div>
+                                )
+                            }
+                        ]}
+                        renderExpandedContent={(project) => (
+                            <ExpandedPanel
+                                title={`Project Stages for "${project.ProjectId}"`}
+                                badge={`${revisionLists[project.ProjectId || '']?.Stages?.length || 0} stages`}
+                            >
+                                <Table className="mb-0">
+                                    <TableHead>
                                         <TableRow>
-                                            <TableCell colSpan={6} className="p-0 bg-gray-50/50 border-t border-gray-200">
-                                                <div className="px-8 py-6">
-                                                    <div className="flex items-center justify-between mb-4">
-                                                        <h4 className="text-sm font-semibold text-gray-900">
-                                                            Project Stages for "{project.ProjectId}"
-                                                        </h4>
-                                                        <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded-full border">
-                                                            {revisionLists[project.ProjectId || '']?.Stages?.length || 0} stages
-                                                        </span>
-                                                    </div>
-                                                    <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-                                                        <Table className="mb-0">
-                                                            <TableHead>
-                                                                <TableRow>
-                                                                    <TableHeader justify="center" className="text-xs">Project ID</TableHeader>
-                                                                    <TableHeader justify="center" className="text-xs">Stage Name</TableHeader>
-                                                                    <TableHeader justify="center" className="text-xs">Description</TableHeader>
-                                                                    <TableHeader justify="center" className="text-xs">Category</TableHeader>
-                                                                    <TableHeader justify="center" className="text-xs">SubProgram</TableHeader>
-                                                                    <TableHeader justify="center" className="text-xs">Created By</TableHeader>
-                                                                    <TableHeader justify="center" className="text-xs">Created Date</TableHeader>
-                                                                    <TableHeader justify="center" className="text-xs">Actions</TableHeader>
-                                                                </TableRow>
-                                                            </TableHead>
-                                                            <TableBody>
-                                                                {revisionLists[project.ProjectId || '']?.Stages?.map((stage) => (
-                                                                    <TableRow key={stage.Id}>
-                                                                        <TableCell className="font-medium text-sm text-center truncate max-w-32">{stage.ProjectId}</TableCell>
-                                                                        <TableCell className="font-medium text-sm text-center truncate max-w-32">{stage.StageName}</TableCell>
-                                                                        <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.Description}</TableCell>
-                                                                        <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.Category}</TableCell>
-                                                                        <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.Thrust}</TableCell>
-                                                                        <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.CreatedBy}</TableCell>
-                                                                        <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.CreatedDate.StringToDate()}</TableCell>
-                                                                        <TableCell className='text-center'>
-                                                                            <Button
-                                                                                color="blue"
-                                                                                className="text-xs px-3 py-1.5 text-center"
-                                                                                onClick={() => handleViewDetails(stage.ProjectId, stage.StageName)}
-                                                                            >
-                                                                                View Details
-                                                                            </Button>
-                                                                        </TableCell>
-                                                                    </TableRow>
-                                                                )) || (
-                                                                    <TableRow>
-                                                                        <TableCell colSpan={7} className="text-center py-4 text-gray-500">
-                                                                            No revisions available for this project
-                                                                        </TableCell>
-                                                                    </TableRow>
-                                                                )}
-                                                            </TableBody>
-                                                        </Table>
-                                                    </div>
-                                                </div>
-                                            </TableCell>
+                                            <TableHeader justify="center" className="text-xs">Project ID</TableHeader>
+                                            <TableHeader justify="center" className="text-xs">Stage Name</TableHeader>
+                                            <TableHeader justify="center" className="text-xs">Description</TableHeader>
+                                            <TableHeader justify="center" className="text-xs">Category</TableHeader>
+                                            <TableHeader justify="center" className="text-xs">SubProgram</TableHeader>
+                                            <TableHeader justify="center" className="text-xs">Created By</TableHeader>
+                                            <TableHeader justify="center" className="text-xs">Created Date</TableHeader>
+                                            <TableHeader justify="center" className="text-xs">Actions</TableHeader>
                                         </TableRow>
-                                    )}
-                                </React.Fragment>
-                            ))}
-                        </TableBody>
-                    </Table>
+                                    </TableHead>
+                                    <TableBody>
+                                        {revisionLists[project.ProjectId || '']?.Stages?.map((stage) => (
+                                            <TableRow key={stage.Id}>
+                                                <TableCell className="font-medium text-sm text-center truncate max-w-32">{stage.ProjectId}</TableCell>
+                                                <TableCell className="font-medium text-sm text-center truncate max-w-32">{stage.StageName}</TableCell>
+                                                <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.Description}</TableCell>
+                                                <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.Category}</TableCell>
+                                                <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.Thrust}</TableCell>
+                                                <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.CreatedBy}</TableCell>
+                                                <TableCell className="text-sm text-gray-600 text-center truncate max-w-32">{stage.CreatedDate.StringToDate()}</TableCell>
+                                                <TableCell className='text-center'>
+                                                    <Button
+                                                        color="blue"
+                                                        className="text-xs px-3 py-1.5 text-center"
+                                                        onClick={() => handleViewDetails(stage.ProjectId, stage.StageName)}
+                                                    >
+                                                        View Details
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        )) || (
+                                            <TableRow>
+                                                <TableCell colSpan={8} className="text-center py-4 text-gray-500">
+                                                    No revisions available for this project
+                                                </TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </ExpandedPanel>
+                        )}
+                    />
                     <Pagination className="my-6">
                         {
                             ProjectData.totalPages > 1 && (

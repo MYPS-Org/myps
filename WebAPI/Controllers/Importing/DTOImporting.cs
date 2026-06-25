@@ -56,6 +56,7 @@ namespace WebAPI.Controllers.Importing
         public string RegionWide { get; set; } = string.Empty;
         [Required]
         public string Tier { get; set; } = string.Empty;
+        public string? Rank { get; set; } = string.Empty;
     }
     public class ImportFundingProfile
     {

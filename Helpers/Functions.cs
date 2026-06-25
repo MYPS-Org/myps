@@ -39,7 +39,7 @@ namespace Helpers
             var HasError = ModelState.Where(ms => ms.Value.Errors.Count > 0).ToList();
             if(HasError.Count > 0)
             {
-                var MainError = HasError.ElementAt(1);
+                var MainError = (HasError.Count > 1) ? HasError.ElementAt(1) : HasError.FirstOrDefault();
                 string key = MainError.Key;
                 var errors = MainError.Value!.Errors;
 
