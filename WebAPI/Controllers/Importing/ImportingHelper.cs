@@ -270,7 +270,7 @@ namespace WebAPI.Controllers.Importing
                 RowAvailable = RowAvailable.NameId,
                 RegionWide = RegionWide.NameId,
                 Tier = (details.Tier == "Tier I") ? 1 : 2,
-                //Rank = details.Rank,
+                Rank = string.IsNullOrEmpty(details.Rank) ? null : double.Parse(details.Rank),
             };
             var ProjectStage = new DBHelper.Models.Table.ProjectStages
             {

@@ -511,6 +511,7 @@ namespace WebAPI.Controllers.Programs
                 var NewProgramVersion = new ProgramRevisions()
                 {
                     ProgramId = getProgram.ProgramId,
+                    ProgramUniqueId = getProgram.ProgramUniqueId,
                     RevisionNumber = getProgram.RevisionNumber + 1, // Increment the revision number
                     Name = getProgram.Name,
                     DataSecurityGroup = getProgram.DataSecurityGroup,
@@ -1098,50 +1099,69 @@ namespace WebAPI.Controllers.Programs
 
                 var projectIdsJson = System.Text.Json.JsonSerializer.Serialize(projectIds);
 
+                // ✅ Fetch only the projects that actually exist in this program+stage
                 var checkProjects = await _db.fProjectsPerStage
-                .FromSqlInterpolated($@"
-                    SELECT *
-                    FROM dbo.fProjectsInProgram({dto.ProgramId}) fp
-                    WHERE fp.StageName = {checkProgram.StageName}
-                      AND fp.ProjectId IN (SELECT [value] FROM OPENJSON({projectIdsJson}))
-                ")
-                .AsNoTracking()
-                .ToListAsync(); 
-                var existingSet = new HashSet<string>(
-                    checkProjects.Select(a => a.ProjectId),
-                    StringComparer.OrdinalIgnoreCase
-                );
-                var MissingProjectIds = projectIds
-                    .Where(x => !existingSet.Contains(x))
-                    .ToArray();
-                if (existingSet.Count() > 0)
+                    .FromSqlInterpolated($@"
+                        SELECT *
+                        FROM dbo.fProjectsInProgram({dto.ProgramId}) fp
+                        WHERE fp.StageName = {checkProgram.StageName}
+                          AND fp.ProjectId IN (SELECT [value] FROM OPENJSON({projectIdsJson}))
+                          AND fp.IsPublishable = 0
+                          AND fp.IsPublished = 0
+                    ")
+                    .AsNoTracking()
+                    .ToListAsync();
+                if (checkProjects.Count == 0)
                 {
-                    HashSet<int> RevisionIds = checkProjects.Select(p => p.Id!).ToHashSet();
-                    var projectsToUpdate = await _db.tProjectRevisions
-                        .Where(ps => RevisionIds.Contains(ps.Id))
-                        .ToListAsync();
-                    foreach (var projectStage in projectsToUpdate)
+                    await transaction.RollbackAsync();
+                    return BadRequest(new
                     {
-                        projectStage.IsPublishable = true;
-                    }
-                    _db.tProjectRevisions.UpdateRange(projectsToUpdate);
-                    await _db.SaveChangesAsync();
-                    await transaction.CommitAsync();
-
-                    return Ok(new
-                    {
-                        Message = $"The selected projects have been excluded from automatic publication to PCMA.\n\nList of missing Projects:{string.Join("\n", MissingProjectIds)}.",
-                        Title = "Restrict Publishing Successful"
+                        Message = "None of the provided Project IDs were found in the current program and stage. No changes were made.",
+                        Title = "Restrict Publishing Failed"
                     });
                 }
-                var notExisting = projectIds
+
+                var existingSet = checkProjects.Select(x => x.ProjectId).ToHashSet<string>();
+
+                var missingProjectIds = projectIds
                     .Where(x => !existingSet.Contains(x))
                     .ToArray();
+
+                var revisionIds = checkProjects.Select(p => p.Id).ToHashSet<int>();
+
+                var projectsToUpdate = await _db.tProjectRevisions
+                    .Where(ps => revisionIds.Contains(ps.Id))
+                    .ToListAsync();
+
+                if (projectsToUpdate.Count == 0)
+                {
+                    return new BadRequestObjectResult(new { Message = $"No valid project revisions found for the specified projects.", Title = "Projects Not Found" });
+                }
+
+                foreach (var projectStage in projectsToUpdate)
+                {
+                    projectStage.IsPublishable = true;
+                }
+                if(missingProjectIds.Count() > 0)
+                {
+                    transaction.Rollback();
+                    return Ok(new
+                    {
+                        Message = "Some projects were not found in the current program and stage, but the valid ones have been restricted from publication.",
+                        MissingProjectIds = missingProjectIds,
+                        Title = "Partial Success"
+                    });
+                }
+
+                _db.tProjectRevisions.UpdateRange(projectsToUpdate);
+                await _db.SaveChangesAsync();
+                await transaction.CommitAsync();
+
 
                 return Ok(new
                 {
-                    Message = "The selected projects have been excluded from automatic publication to PCMA.",
-                    Title = "Restrict Publishing Successful"
+                    Message = $"Projects allowed for automatic publication to PCMA.",
+                    Title = "Allow Publishing Successful"
                 });
             }
             catch (Exception ex)

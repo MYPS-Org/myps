@@ -118,6 +118,9 @@ namespace DBHelper.Data
         public DbSet<Models.Functions.ProjectDetails> fProjectDetails { get; set; }
         public DbSet<Models.Functions.PendingProjectRevisions> fPendingProjectRevisions { get; set; }
         #endregion
+        #region Stored Procedures
+        public DbSet<Models.Procedures.myps_pub_program> sp_myps_pub_program { get; set; }
+        #endregion
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<AdminOperatingUnit>().HasNoKey().ToView("vAdminOperatingUnit");
