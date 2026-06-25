@@ -17,7 +17,7 @@ const BasemapSwitcherWidget: React.FC<BasemapSwitcherWidgetProps> = ({ current, 
         padding: '6px 8px',
         borderRadius: '8px',
         boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-        zIndex: 999,
+        zIndex: 1,
         fontSize: '12px',
       }}
     >
