@@ -48,6 +48,7 @@ export function useProjectMapLayers(
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !isMapReady) return;
+    console.log('[map-debug] skeleton effect running, styleGeneration=', styleGeneration); // TEMP DEBUG
 
     const handleFeatureClick = (e: MapLayerMouseEvent) => {
       const feature = e.features?.[0];
@@ -143,6 +144,7 @@ export function useProjectMapLayers(
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !isMapReady) return;
+    console.log('[map-debug] data effect running, styleGeneration=', styleGeneration, 'sourceBridgesExists=', !!map.getSource(sourceId('bridges'))); // TEMP DEBUG
 
     if (!geoJsonData) {
       setError(null);

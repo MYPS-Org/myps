@@ -78,7 +78,11 @@ export function useMapLibreMap(): UseMapLibreMapResult {
     if (!map) return;
 
     setBasemapState(id);
-    map.once('style.load', () => setStyleGeneration((generation) => generation + 1));
+    console.log('[map-debug] setBasemap called', id); // TEMP DEBUG
+    map.once('style.load', () => {
+      console.log('[map-debug] style.load fired for', id); // TEMP DEBUG
+      setStyleGeneration((generation) => generation + 1);
+    });
     map.setStyle(BASEMAPS[id].style);
   }, []);
 

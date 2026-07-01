@@ -1,4 +1,6 @@
-// Sample data copied from sample-json-gis/project_bridge_response_1782717096870.json
+// Sample data copied from sample-json-gis/project_bridge_response_1782717096870.json.
+// The source coordinates were identical for all 4 features (same point); nudged 3 of
+// them apart slightly so each renders as a distinct marker on the playground map.
 export const bridgeSample: GeoJSON.FeatureCollection = {
   type: 'FeatureCollection',
   features: [
@@ -62,7 +64,7 @@ export const bridgeSample: GeoJSON.FeatureCollection = {
         IsDeleted: false,
         crs: 32651,
       },
-      geometry: { type: 'Point', coordinates: [120.82404821857313, 15.094007673634403] },
+      geometry: { type: 'Point', coordinates: [120.82704821857313, 15.097007673634403] },
     },
     {
       id: '8',
@@ -93,7 +95,7 @@ export const bridgeSample: GeoJSON.FeatureCollection = {
         IsDeleted: false,
         crs: 32651,
       },
-      geometry: { type: 'Point', coordinates: [120.82404821857313, 15.094007673634403] },
+      geometry: { type: 'Point', coordinates: [120.82104821857313, 15.097507673634403] },
     },
     {
       id: '9',
@@ -124,7 +126,7 @@ export const bridgeSample: GeoJSON.FeatureCollection = {
         IsDeleted: false,
         crs: 32651,
       },
-      geometry: { type: 'Point', coordinates: [120.82404821857313, 15.094007673634403] },
+      geometry: { type: 'Point', coordinates: [120.82504821857313, 15.090507673634403] },
     },
   ],
 };
