@@ -15,7 +15,7 @@
 > ```
 > dotnet build ReportGeneration\ReportGeneration.csproj
 > dotnet build WebAPI\WebAPI.csproj
-> dotnet build myps_backend.sln
+> dotnet build project_myps.sln
 > ```
 
 ---
