@@ -17,6 +17,12 @@ import ViewRevision from '../pages/Modification/views/ViewRevision';
 import MultiYearReports from '../pages/Reports/MultiYearReports';
 import ProgramReports from '../pages/Reports/ProgramReports';
 import ProjectReports from '../pages/Reports/ProjectReports';
+// NOTE: LSWalletList and LSWalletDetail do not exist yet — they are built in
+// the junior-engineer pass that follows this senior-engineer pass. The imports
+// below will cause a TypeScript/Vite error until those View files are created.
+// That is expected and will be resolved in the next implementation step.
+import LSWalletList from '../pages/LSWallet/Views/LSWalletList';
+import LSWalletDetail from '../pages/LSWallet/Views/LSWalletDetail';
 // ✅ Extend RouteObject with a permission key
 export type AppRoute = RouteObject & {
   RouteName?: string; // matches keys returned by your session/API
@@ -59,5 +65,10 @@ const protectedRoutes: AppRoute[] = [
   { RouteName: 'Settings', path: '/settings', element: <Settings /> },
   { RouteName: 'CodeTables', path: '/code-tables', element: <CodeTables /> },
   // #endregion Settings Routes
+
+  // #region LS Wallet Routes
+  { RouteName: 'LumpSumList', path: '/lumpsum', element: <LSWalletList /> },
+  { RouteName: 'LumpSumDetails', path: '/lumpsum/:walletId', element: <LSWalletDetail /> },
+  // #endregion LS Wallet Routes
 ];
 export default protectedRoutes;

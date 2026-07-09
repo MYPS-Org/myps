@@ -1,165 +1,134 @@
-# Plan: Lump Sum Wallet
+# Plan: Module 11 — LS Wallet (Lump Sum Wallet) Frontend
 
-Status: Ready for implementation
-Created: 2026-07-01
-Source: User description — Lump Sum project acting as a budget wallet for multiple connected publishable projects, with automatic reconciliation when connected project amounts change.
+Status: Implemented
+Created: 2026-07-09
+Source: `lumpsum-wallet-workflow.md`, `ls-wallet-schema.md`, `lumpsum-wallet-process-flow.md` (ADR-021/ADR-025-based reference docs) — user request to build the frontend module against mock data ahead of backend schema finalization.
 
----
+> **Supersedes** the earlier version of this file (created 2026-07-01), which described a different, full-stack design (`LumpSumWallets`/`LumpSumWalletProjects` tables connecting an existing LS project to existing regular projects). That design predates the ADR-021 (2026-07-01 + amendments) / ADR-025 (2026-07-06) decisions captured in the reference docs above, and is not backend-scoped for this phase. Replaced in full per user confirmation (2026-07-09).
 
 ## Context
 
-Currently, Lump Sum projects (`IslandCode = "LS"`) exist in MYPS but have no relationship to other projects. They are simply regular projects with relaxed location validation and a special import path. This feature introduces a **wallet/budget container** concept on top of the existing LS project type: the LS project becomes the wallet owner, and other regular projects are connected to it, drawing from its total budget. The wallet itself must never publish to PCMA; only connected projects do. When a connected project's funding profile is revised post-publish, the wallet automatically reconciles without triggering a DCR on the wallet.
+MYPS needs a new "LS Wallet" concept: a budget container owned by a Program that itemized AIP projects draw funding from (8 workflows, WF-1–WF-8, fully specified in the three reference docs above). The backend schema is still on hold (pending a schema session), so this phase is **frontend-only**: build the full UI against mock data shaped exactly like the eventual API contracts, so swapping mock → real API later only touches the inside of service functions, never components.
 
----
+Two naming/routing decisions were confirmed with the user before designing:
+- Claim the already-reserved, unwired route placeholders `LumpSumList` (`/lumpsum`) and `LumpSumDetails` (`/lumpsum/:projectId`, renamed to `:walletId`) from `FE/src/utils/appRouteList.ts` — avoids extra RBAC route-sync work. A matching sidebar entry already exists, commented out, in `FE/src/layouts/AppSidebar.tsx` (lines 113–116) — re-enable it with the standard `ViewAccess`/`protectedRoutes` permission guard used by the other sidebar items.
+- Model the itemized-project revision UI on this codebase's **actual** Modification module pattern (2-stage Region→CO), not the source docs' literal "IO→RO→CO" wording, which doesn't exist anywhere in this codebase.
+
+Deep exploration (3 parallel Explore agents) confirmed the codebase conventions this module must follow: per-feature `Model.d.ts`/`Service.ts`/`Views/`/`components/`/`dialogs/`/`rules/` folder structure, plain-React-state forms validated via `FormValidation.ts`, `SearchableDropdown` for server-driven options, the `GisPlayground/mockData/` precedent for typed mock data, `CollapsibleTable`+`Pagination` for lists, and the declarative `{show, disabled, onClick}[]` action-button pattern from `actionButtons/revisionActions.ts`.
+
+**Critical naming guardrail:** this codebase already has an unrelated existing concept — `ProjectDetails.IslandCode === 'LS'` marks a legacy "Lump Sum project type" with its own "Itemized Lump Sum Import" dialog in `FE/src/pages/Project/`. The new module must never share a type name or folder with that feature. New module folder: `FE/src/pages/LSWallet/`.
 
 ## Goal
 
-Turn any Lump Sum project (`IslandCode = "LS"`) into a **budget wallet** that holds a total budget (derived from its own funding profile) and tracks consumption by connected projects. Connected projects can be published to PCMA independently. When a connected project's total funding profile changes via revision, the wallet's available balance reflects the delta automatically on next load — no DCR, no manual wallet update.
-
----
+Ship a frontend-only LS Wallet module covering all 8 workflows against typed mock data, structured so that a later backend integration only requires editing `Service.ts` function bodies — no component changes.
 
 ## Acceptance Criteria
 
-As a MYPS user, I want to designate a Lump Sum project as a wallet and connect regular projects to it, so that I can track how much of the lump sum budget is consumed and ensure no over-allocation occurs.
+As a Program Coordinator, I want to create and manage LS Wallet containers for Programs, link itemized AIP projects to them, and track live funding balances, so that lump-sum budget allocations are controlled and auditable within the MYPS workflow.
 
-- [ ] AC-1: A wallet can be created from any LS project; API stores a `LumpSumWallets` record linked to the LS project (1:1 — unique constraint on `LumpSumProjectId`).
-- [ ] AC-2: Wallet detail API returns `TotalBudget`, `Consumed`, `Available` where `Available = TotalBudget - Consumed`. Budget = SUM of LS project's `ProjectFundingProfile.Amount` at current stage. Consumed = SUM of all connected projects' `ProjectFundingProfile.Amount` at current stage (all sources).
-- [ ] AC-3: A regular project can be connected to a wallet **only when the program is at GAA-R stage**; attempting outside this stage returns 400.
-- [ ] AC-4: A project already connected to another wallet is rejected (400) on connection attempt.
-- [ ] AC-5: Connecting a project that would push `Consumed > TotalBudget` returns 400 with a descriptive over-allocation message.
-- [ ] AC-6: The Lump Sum project's `IsPublishable` is always `false`; the `ValidateProjectForPublish` / `ValidateProjectForPublishv2` guards enforce this unconditionally via `IslandCode == "LS"` check.
-- [ ] AC-7: Connected projects retain their own `IsPublishable` logic and can be published to PCMA independently.
-- [ ] AC-8: After a connected project's revision approval updates its funding profile, the wallet's next API load reflects the new consumed/available figures — no manual wallet action required.
-- [ ] AC-9: Disconnecting a project removes it from `LumpSumWalletProjects`; balance recalculates on next load.
-- [ ] AC-10: Wallet list UI shows all wallets with budget summary. Wallet detail shows connected projects with their allocated amounts.
-- [ ] AC-11: The `/lumpsum` sidebar route is active and permission-guarded.
-
----
+- [ ] **WF-1 Create Wallet**: "Add Wallet" opens a 3-section dialog (Project Details / Funding Profile / Component locked to `'LS'`, Total auto = Amount); Program required; new wallet appears in list without reload; `CurrentStage` inherits from Program.
+- [ ] **WF-2 Stage Cascade**: dev simulation action bulk-advances `CurrentStage` on all wallets for a Program; reflected on List/Detail; no per-wallet opt-out.
+- [ ] **WF-3 Replenish**: decrease blocked (UI + mock service layer); increase raises `Amount`/`Available` live; stage-gated with tooltip explanation when blocked.
+- [ ] **WF-4 Create Itemized Project**: Option A (manual Wallet ID entry + validation messages) and Option B (from Wallet Detail, pre-linked) both gated on GAA-R + Available > 0; populate matrix respected (details+funding auto-fill except Amount, component cost never pre-filled); `'LS'` excluded from all project component-type dropdowns; only the wallet-flagged funding line draws down Available.
+- [ ] **WF-5 Live Balance**: `WalletBalanceWidget` shows Total/Used/Available live; the doc's worked scenario (10M→12M→itemize 3M→edit to 3.5M→publish freezes 3.5M→later revision doesn't move it→delete unpublished 1M project returns Available) passes end-to-end against seed data.
+- [ ] **WF-6 Revision**: "Request Revision" on a published itemized project follows the Region→CO 2-stage chain; wallet `Used` for that project stays frozen at `PublishedDrawAmount` throughout; pre-publish edits bypass revision entirely and flow live.
+- [ ] **WF-7 Delete**: 3-tier hard/soft/blocked matrix implemented identically for Wallet and Itemized Project per the decision table; deleting/soft-deleting an unpublished itemized project returns its draw to Available immediately.
+- [ ] **WF-8 Publish**: mocked 13-rule check blocks with a specific failing-rules list on failure; on all-pass, mock PCMA accept flips status to Published and captures the `PublishedDrawAmount` snapshot at that exact moment; no "publish wallet" action exists anywhere.
+- [ ] **Mock/API-swap**: all data access goes through `Service.ts` only (no component imports `mockData/` directly); every service function has the real `httpClient.post<T>()` shape ready; swapping to real API touches only `Service.ts` function bodies.
+- [ ] **Routes/RBAC**: `appRouteList.ts` and `Routes.tsx` updated for `LumpSumList`/`LumpSumDetails` (`:walletId`), sidebar entry re-enabled with permission guard, confirmed with team before merge given RBAC is already synced to these route names.
 
 ## Approach
 
-### Data Model
+**Module structure** — new self-contained module at `FE/src/pages/LSWallet/`: `Model.d.ts` (all schema-derived TS interfaces, PascalCase, no aliases), `Service.ts` (every function has the real `httpClient.post<T>()` call shape ready/commented, resolves from mock data internally — this is the only file that changes when a real API lands), `mockData/` (typed mock store + seed data, following `GisPlayground/mockData/` provenance-commented precedent), `store/` (Jotai atoms wrapping the mock store so mutations trigger re-renders), `Views/` (`LSWalletList.tsx`, `LSWalletDetail.tsx`), `components/` (form sections, balance widget, action buttons), `dialogs/` (one per user action), `rules/` (validation arrays), `hooks/`, `utils/`.
 
-Two new dedicated tables (not reusing `ProjectGroups` to avoid polluting the group concept):
+**Live balance engine (WF-5)** — a pure function `computeWalletBalance(wallet, itemizedProjects)` computes `Total = wallet.Amount`, `Used = SUM(project.PublishedDrawAmount ?? project.CurrentDrawAmount)` over active (non-deleted, non-cancelled) itemized projects, `Available = Total - Used`. `PublishedDrawAmount` is `null` until WF-8 publish captures a snapshot — this is the FE mock's answer to the source docs' unresolved "frozen-Used mechanism" open item. A `walletStoreAtom` (Jotai) backs all reads so every mutation (replenish, itemize, delete, publish) is reflected live without page reload.
 
-**`LumpSumWallets`**
-- `Id` (int PK)
-- `WalletId` (string, unique, generated via `GenerateCode()` helper at `Helpers/Functions.cs:259`, prefix `LSW-`)
-- `LumpSumProjectId` (string FK → `Projects.ReferenceId`, unique constraint — 1:1)
-- `Name` (MaxLength 200)
-- `Description` (MaxLength 500, nullable)
-- `CreatedBy`, `CreatedDate`, `IsDeleted`
+**Stage cascade (WF-2)** — since there's no real user-facing trigger for this (it's a side effect of Program stage advance, which is out of scope/backend), it's simulated via a clearly-labeled dev/demo dialog that bulk-updates `CurrentStage` on all wallets matching a `ProgramId` in the mock store.
 
-**`LumpSumWalletProjects`**
-- `Id` (int PK)
-- `WalletId` (string FK → `LumpSumWallets.WalletId`)
-- `ConnectedProjectId` (string FK → `Projects.ReferenceId`, unique constraint — one project per wallet max)
-- `CreatedBy`, `CreatedDate`
+**Revision (WF-6)** — mirrors `FE/src/pages/Modification/` structurally (Region→CO status codes 1/2/3, Approve/Reject/ForReview dialog trio, Jotai field-permission-store pattern) rather than inventing new revision UI.
 
-### Budget Computation (on-demand, no materialized cache needed)
+**Routing** — rename `:projectId`→`:walletId` in `appRouteList.ts` (safe: routes are currently unwired, zero existing callsites), add `Routes.tsx` entries for `LumpSumList`/`LumpSumDetails`, re-enable the existing commented-out sidebar item in `AppSidebar.tsx`.
 
-```
-TotalBudget  = SUM(ProjectFundingProfile.Amount)
-               WHERE ProjectId = walletProject.ReferenceId
-               AND IsDeleted = false
-               AND Stage = currentStage (joined via vProjectLatestStage)
-
-Consumed     = SUM(ProjectFundingProfile.Amount)
-               WHERE ProjectId IN connectedProjectIds
-               AND IsDeleted = false
-               AND Stage = currentStage
-
-Available    = TotalBudget - Consumed
-```
-
-### IsPublishable Guard
-
-In `Helpers/Functions.cs:910` (`ValidateProjectForPublish`) and `line ~934` (`ValidateProjectForPublishv2`), add as the **first check**:
-
-```csharp
-if (pr.IslandCode == "LS") return false;
-```
-
-This ensures no LS project can ever become publishable regardless of data completeness.
-
-### No-DCR Wallet Reconciliation
-
-The wallet is **never submitted to PCMA** (`IsPublishable = false`). When a connected project revision updates its funding profile rows, the wallet's `Consumed` / `Available` values are automatically correct on the next API read. There is no wallet-side state to write, no DCR to generate. This is intentionally passive by design.
-
-### GAA-R Stage Gate
-
-`ConnectProject` endpoint in `LumpSumWalletController` will call the existing stage-checking pattern (cf. `PCMAController.PublishProgram`) to validate the program is at GAA-R stage before allowing a project to be connected.
-
----
+**Cross-module touch** — the wallet-exclusive `'LS'` component type must be filtered out of the Project module's component-type dropdown (`ComponentCostDialog.tsx`) via an exported constant `WALLET_EXCLUSIVE_COMPONENT_TYPES`, kept traceable to the LSWallet module.
 
 ## Tasks
 
 ### Senior (complex/architectural — senior-engineer implements directly)
-
-- **S1 — DB models + DbContext registration**: Create `DBHelper/Models/Table/LumpSumWallets.cs` and `LumpSumWalletProjects.cs`. Register both `DbSet`s in `DBHelper/Data/MYPSDbContext.cs`.
-
-- **S2 — IsPublishable LS guard**: In `Helpers/Functions.cs`, add `if (pr.IslandCode == "LS") return false;` as the first line of `ValidateProjectForPublish` (line 910) and `ValidateProjectForPublishv2` (line ~934). Verify and patch the `IsPublishable` assignment in `WebAPI/Controllers/Programs/ProgramController.cs` (~line 907) if needed.
-
-- **S3 — LumpSumWalletController + DTOs**: Create `WebAPI/Controllers/LumpSumWallet/LumpSumWalletController.cs` and `DTOLumpSumWallet.cs`. Six endpoints: `CreateWallet`, `GetWallets` (paginated + budget summary), `GetWalletDetail`, `ConnectProject` (GAA-R gate + over-allocation guard + duplicate-wallet guard), `DisconnectProject`, `DeleteWallet` (blocked if any connected project `IsPublished = true`). Budget formula joins `vProjectLatestStage` to scope `ProjectFundingProfile` sums to current stage.
-
-- **S4 — RevisionController audit note**: In `WebAPI/Controllers/Revision/RevisionController.cs`, after the block that writes approved funding profile changes, add a `TransactionLog` entry noting the wallet auto-reconciliation (no DCR generated for the wallet). This makes the no-DCR decision explicit and auditable.
+- `Model.d.ts` — all schema-derived interfaces + Dto wire types
+- Mock store (`mockData/walletMockStore.ts`) — mutation functions (create/replenish/delete/itemize/publish/cascade), each returning shallow copies
+- Seed data (`mockData/walletSeedData.ts`) — must reproduce the WF-5 worked numeric scenario exactly
+- `Service.ts` — full service layer with the mock/real-API swap seam
+- Live balance engine — `computeWalletBalance` pure fn + `walletStoreAtom`/`walletBalanceAtom` (Jotai) + `useWalletBalance` hook
+- Declarative action-button config — `walletActions.ts` (stage/balance-gated show/disabled logic) + `WalletActionButtons.tsx`
+- Route wiring — rename param, add `Routes.tsx` entries, re-enable sidebar item (verify zero existing callsites first)
+- Revision store — Jotai atoms mirroring `fieldPermissionStore.ts` (Region/CO status)
+- `'LS'` component-type exclusion — constant + filter change in `Project/dialogs/ComponentCostDialog.tsx`
+- `LSWalletDetail.tsx` — master orchestrator page (all section state, mutation callbacks, live recalculation wiring)
 
 ### Junior (precise, scoped — delegate to junior-engineer)
-
-- **J1 — TS model types**: Create `FE/src/pages/LumpSumWallet/Model.d.ts` with interfaces: `LumpSumWallet`, `LumpSumWalletProject`, `WalletDetailResponse`, `WalletListResponse`, `CreateWalletModel`, `ConnectProjectModel`.
-
-- **J2 — Service.ts**: Create `FE/src/pages/LumpSumWallet/Service.ts`. Functions: `fetchWallets`, `createWallet`, `getWalletDetail`, `connectProject`, `disconnectProject`, `deleteWallet`. Follow `httpClient.post` pattern from `FE/src/pages/ProjectGroups/Service.ts`. No try/catch toast duplication (interceptor handles it).
-
-- **J3 — Wallet list page**: Create `FE/src/pages/LumpSumWallet/Views/LumpSumWalletList.tsx`. Paginated table: Wallet Name, LS Project ID, Total Budget, Consumed, Available (color-coded: green >20% remaining, yellow 10–20%, red <10%). Create Wallet button. Row click navigates to detail. Use `ProjectGroups` list view as structural template.
-
-- **J4 — Wallet detail page**: Create `FE/src/pages/LumpSumWallet/Views/LumpSumWalletDetail.tsx`. Header with budget summary bar. Table of connected projects: Project ID, Description, Allocated Amount, Disconnect button. Connect Project button. Use `ProjectGroupDetails.tsx` as structural template.
-
-- **J5 — Dialogs**: Create `FE/src/pages/LumpSumWallet/dialogs/CreateWalletDialog.tsx` (Name maxLength 200, Description maxLength 500, LS Project ID search) and `ConnectProjectDialog.tsx` (Project ID input, search, preview amount, over-allocation warning before submit, confirm). Export from `dialogs/index.ts`. Follow Headless UI Dialog + `useToast()` pattern from `FE/src/components/toaster/ToasterContext.tsx`.
-
-- **J6 — Routes + sidebar**: In `FE/src/utils/appRouteList.ts` add `/lumpsum` (list) and `/lumpsum/:walletId` (detail) routes. In `FE/src/layouts/AppSidebar.tsx` uncomment the lumpsum `SidebarItem` (lines 113–116) and wrap with the ViewAccess permission guard matching the pattern of other sidebar items.
+- `walletFormRules.ts` validation rules
+- `WalletStatusBadge.tsx` (stage/status pill)
+- `WalletBalanceWidget.tsx` (Total/Used/Available cards + progress bar, presentational only)
+- `WalletDetailsSection.tsx`, `FundingProfileSection.tsx`, `WalletComponentSection.tsx` (form sections)
+- `CreateWalletDialog.tsx`, `ReplenishWalletDialog.tsx`, `DeleteWalletDialog.tsx`
+- `CreateItemizedProjectDialog.tsx`, `PublishItemizedProjectDialog.tsx`, `DeleteItemizedProjectDialog.tsx`
+- `ItemizedProjectRevisionDialog.tsx` + `ApproveRevisionDialog.tsx`/`RejectRevisionDialog.tsx`/`ReturnRevisionForReviewDialog.tsx`
+- `AdvanceProgramStageDialog.tsx` (dev/demo cascade simulation, clearly labeled)
+- `LSWalletList.tsx` (list page, `CollapsibleTable` + `Pagination`, mirrors `Program.tsx`/`Project.tsx`)
 
 ### Documentation (tech-writer)
-
-- **D1**: Document the Lump Sum Wallet data model, all six API endpoint contracts (request/response shapes), the budget computation formula (stage-scoped FundingProfile sum), the over-allocation rule, the GAA-R stage gate, and the no-DCR reconciliation design rationale in the UserManual or an API reference doc.
-
----
+- Inline comments in `walletBalance.ts` documenting the draw-sync formula and its future SQL-view correspondence
+- Inline comments in `walletMockStore.ts` flagging `PublishedDrawAmount` as a stand-in for the unresolved backend snapshot mechanism
+- Inline "REAL API SWAP" comment blocks in every `Service.ts` function (endpoint, payload shape, response type)
 
 ## Files / Components Touched
 
-**Create:**
-- `DBHelper/Models/Table/LumpSumWallets.cs`
-- `DBHelper/Models/Table/LumpSumWalletProjects.cs`
-- `WebAPI/Controllers/LumpSumWallet/LumpSumWalletController.cs`
-- `WebAPI/Controllers/LumpSumWallet/DTOLumpSumWallet.cs`
-- `FE/src/pages/LumpSumWallet/Model.d.ts`
-- `FE/src/pages/LumpSumWallet/Service.ts`
-- `FE/src/pages/LumpSumWallet/Views/LumpSumWalletList.tsx`
-- `FE/src/pages/LumpSumWallet/Views/LumpSumWalletDetail.tsx`
-- `FE/src/pages/LumpSumWallet/dialogs/CreateWalletDialog.tsx`
-- `FE/src/pages/LumpSumWallet/dialogs/ConnectProjectDialog.tsx`
-- `FE/src/pages/LumpSumWallet/dialogs/index.ts`
+**New** (`FE/src/pages/LSWallet/`): `Model.d.ts`, `Service.ts`, `mockData/{walletMockStore,walletSeedData}.ts`, `store/{walletStore,revisionStore}.ts`, `hooks/{useWalletBalance,useWalletActions}.ts`, `utils/{walletBalance,walletActions,walletStatusBadge,constants}.ts`, `rules/walletFormRules.ts`, `components/{WalletDetailsSection,FundingProfileSection,WalletComponentSection,WalletBalanceWidget,WalletActionButtons}.tsx`, `dialogs/*` (11 dialogs listed above), `Views/{LSWalletList,LSWalletDetail}.tsx`.
 
-**Modify:**
-- `DBHelper/Data/MYPSDbContext.cs` — two new DbSet entries
-- `Helpers/Functions.cs` — LS guard in `ValidateProjectForPublish` (line 910) + `ValidateProjectForPublishv2` (line ~934)
-- `WebAPI/Controllers/Programs/ProgramController.cs` — verify/patch `IsPublishable` assignment (~line 907)
-- `WebAPI/Controllers/Revision/RevisionController.cs` — reconciliation audit log entry
-- `FE/src/utils/appRouteList.ts` — add lumpsum routes
-- `FE/src/layouts/AppSidebar.tsx` — uncomment + permission-guard lumpsum sidebar item (lines 113–116)
-
----
+**Modified**: `FE/src/utils/appRouteList.ts` (rename `:projectId`→`:walletId`), `FE/src/components/Routes.tsx` (add `LumpSumList`/`LumpSumDetails` entries), `FE/src/layouts/AppSidebar.tsx` (re-enable the commented `/lumpsum` `SidebarItem`, lines 113–116, with a `ViewAccess` guard matching the `/projects` item just above it), `FE/src/pages/Project/dialogs/ComponentCostDialog.tsx` (component-type filter only, no other Project module changes).
 
 ## Risks / Open Questions / Assumptions
 
-**Risks:**
-1. **Stage-scoped FundingProfile sum**: Must join `vProjectLatestStage` before summing `ProjectFundingProfile.Amount`; without this, rows from superseded stages are double-counted. This is the primary correctness risk in S3.
-2. **EF migration coordination**: Two new tables require a migration that must be reviewed by DBA before production deploy.
+- **OPEN-1 (upstream, unresolved)**: frozen-Used snapshot mechanism unspecified in source docs. *Assumption*: mock `PublishedDrawAmount: number | null`, set at publish time, formula reads `PublishedDrawAmount ?? CurrentDrawAmount`. Must be re-sourced from the real API response later, not computed client-side.
+- **OPEN-2 (upstream, unresolved)**: replenish window (GAA-only vs GAA+). *Assumption*: allow at GAA and all later stages via a single stage-order constant, easy to tighten to GAA-only later.
+- **RISK**: renaming `:projectId`→`:walletId` — confirmed safe (routes unwired, no callsites), but re-verify with a repo-wide search before editing.
+- **RISK**: `LumpSumList`/`LumpSumDetails` are already present in `appRouteList.ts`, meaning RBAC may already grant access to some roles the moment `Routes.tsx` wires a real component — confirm with team before merging the route change.
+- **RISK**: Option A (manual Wallet ID entry on the existing Project creation form) touches `FE/src/pages/Project/` — keep this a single optional field + blur-validation call to minimize blast radius on that already-large form; Option B (from Wallet Detail) is the safer primary path if Option A proves risky mid-implementation.
+- **RISK**: the "13-rule compliance check" content isn't enumerated in any source doc — mock with 13 placeholder named rules (12 auto-pass, 1 checks draw ≤ available); real rule content needs confirmation before backend wiring.
+- **Naming guardrail**: no type/dialog in the new module may be named ambiguously close to the existing `IslandCode === 'LS'` "Lump Sum project type" / "Itemized Lump Sum Import" feature already in `Project/`.
+- **Superseded design**: the previous version of this plan (`LumpSumWallets`/`LumpSumWalletProjects` backend tables, connecting an existing LS project to existing regular projects) is fully replaced. If any of that earlier work was already implemented in code, reconcile/remove it during implementation — not verified as part of this planning pass.
 
-**Assumptions:**
-- 1:1 LS project → wallet (unique constraint on `LumpSumProjectId`). Confirmed by user.
-- Consumption basis = total funding profile across all sources at current stage. Confirmed by user.
-- Projects can only be connected to a wallet at GAA-R stage.
-- Wallet deletion is blocked if any connected project has `IsPublished = true`.
-- Wallet membership and ProjectGroup membership are independent (a project can be in both).
-- `GenerateCode()` helper (`Helpers/Functions.cs:259`) is reusable for generating `LSW-` wallet IDs.
-- `IslandCode = "LS"` remains the sole discriminator for LS projects (no additional DB flag needed).
+## Verification
+
+Since this is FE-only with no backend, verification is manual UI walkthrough against the seeded mock scenario:
+1. `npm run dev` in `FE/`, navigate to `/lumpsum`.
+2. Walk the WF-5 worked scenario end-to-end (create 10M wallet → replenish to 12M → itemize 3M draw → edit draw to 3.5M → publish → attempt a revision → delete a different unpublished 1M-draw project) and confirm Total/Used/Available match the doc's numbers at every step.
+3. Exercise each WF-7 delete tier (hard/soft/blocked) for both entities.
+4. Confirm `'LS'` is absent from the component-type dropdown on both a regular and an itemized project.
+5. Confirm no component file imports anything from `LSWallet/mockData/` directly (only via `Service.ts`).
+
+## Completion Log
+
+Date: 2026-07-09
+
+**Senior** (2 passes):
+- Pass 1 — architecture: `Model.d.ts`, mock store (`walletMockStore.ts`), seed data reproducing the WF-5 worked scenario, `Service.ts` (18 functions, mock/API-swap seam), live balance engine (`walletBalance.ts` + `walletStore.ts` Jotai atom + `useWalletBalance.ts`), declarative action config (`walletActions.ts` + `WalletActionButtons.tsx`), route wiring (`:projectId`→`:walletId` rename confirmed safe via repo-wide search, `Routes.tsx`/`appRouteList.ts` entries, `AppSidebar.tsx` re-enabled), revision store scaffolding, `'LS'` component-type exclusion in `Project/dialogs/ComponentCostDialog.tsx`, and component-contract specs for the junior pass. A real correctness bug found during verification (missing `HasStageData` on `LSWallet`, causing `deleteWallet`'s hard/soft/blocked tier logic to key off itemized-projects' stage data instead of the wallet's own) was fixed before junior work began.
+- Pass 2 — `LSWalletDetail.tsx` orchestrator page wiring every dialog/component together, plus a new `EditDrawAmountDialog.tsx` (missing from the original task list — the "Edit Draw Amount" action existed with no dialog behind it) and exporting `resolveWalletDeleteTier()`/`resolveProjectDeleteTier()` from `walletActions.ts` so delete tiers can be resolved before opening the delete dialogs.
+
+**Junior** (6 parallel batches, all files disjoint): status/balance display (`walletStatusBadge.tsx`, `WalletBalanceWidget.tsx`); form sections + validation rules (`WalletDetailsSection`, `FundingProfileSection`, `WalletComponentSection`, `walletFormRules.ts`); wallet-level dialogs (`CreateWalletDialog`, `ReplenishWalletDialog`, `DeleteWalletDialog`); itemized-project dialogs (`CreateItemizedProjectDialog`, `PublishItemizedProjectDialog`, `DeleteItemizedProjectDialog`); revision dialogs (`ItemizedProjectRevisionDialog`, `Approve/Reject/ReturnRevisionForReviewDialog`); dev tooling + list page (`AdvanceProgramStageDialog`, `LSWalletList.tsx`).
+
+**Documentation**: verified the plan's three inline-comment requirements were already satisfied by the implementation (draw-sync formula in `walletBalance.ts`, REAL API SWAP blocks in every `Service.ts` function, OPEN-1 snapshot comment in `walletMockStore.ts` — no edits needed). Added `FE/src/pages/LSWallet/LSWallet.md` (developer reference, following the `Modification.md`/`program.md` convention) and `FE/src/pages/LSWallet/UserManual.md` (end-user manual for a Project Coordinator, following the per-module UserManual.md convention used by every other module).
+
+**Deviations / flags:**
+- WF-4 Option A (manual Wallet ID entry on the regular Project-creation form) was **not built** — only Option B (from Wallet Detail, wallet pre-linked) exists, per the plan's own risk note recommending this as the safer primary path.
+- `DeleteWalletDialog`/`DeleteItemizedProjectDialog`'s `tier` prop is **required**, not optional as originally specified — the caller resolves the tier via the newly-exported resolver functions before opening the dialog, avoiding a dry-run delete call.
+- Revision review is a **simplified inline table** (expandable per published project on the Detail page with inline Approve/Reject/Return buttons), not a separate reviewer-queue page mirroring Modification's `ViewRevision.tsx`.
+- `LSWalletList.tsx` row actions are limited to **View (navigate) + dev stage-cascade** — Replenish/Add Itemized Project/Delete require full itemized-project context for correct tier resolution, so they live only on the Detail page. The list page's originally-planned full `WalletActionButtons` row (which would have used an empty `itemizedProjects: []`, silently breaking delete-tier resolution) was caught and corrected during verification.
+- `HasStageData` was added to `LSWallet` (not in the original schema doc list) specifically to fix the wallet-delete-tier bug noted above.
+- Revision approval does not mutate a distinct "project cost" field, since `ItemizedProject.ComponentCosts` is an intentionally opaque placeholder pending the real backend schema — the load-bearing acceptance criterion (wallet `Used` stays frozen through revision) holds regardless.
+- All six junior batches' output required a follow-up verification/fix pass (unused-variable lint errors, a few `any` types, missing `useToast` wiring in one dialog, placeholder `'current-user'` strings replaced with the real `useAuth()` hook in the four revision dialogs) — all resolved before proceeding to the next stage.
+
+**Files changed:**
+- New: 32 files under `FE/src/pages/LSWallet/` (see folder listing in `LSWallet.md`), including `Model.d.ts`, `Service.ts`, mock store + seed data, Jotai stores, balance engine, action config, 12 dialogs, 5 components, 2 views, validation rules, and the two documentation files.
+- Modified: `FE/src/utils/appRouteList.ts`, `FE/src/components/Routes.tsx`, `FE/src/layouts/AppSidebar.tsx`, `FE/src/pages/Project/dialogs/ComponentCostDialog.tsx` (surgical component-type filter only).
+- Verification: `npx tsc -b --noEmit` and `npx eslint` both run clean across every touched file (zero errors; 2 pre-existing-style `react-hooks/exhaustive-deps` warnings consistent with an existing warning already present elsewhere in the codebase before this work).
