@@ -9,7 +9,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
-import { XMarkIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
+import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import { Button } from '../../../components/tailwindui/button';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import * as Service from '../Service';
@@ -73,39 +73,29 @@ const PublishItemizedProjectDialog: React.FC<PublishItemizedProjectDialogProps> 
 
   return (
     <Dialog open={open} onClose={onClose} className="relative z-50">
-      <div className="fixed inset-0 bg-black/30 dark:bg-black/50" aria-hidden="true" />
+      <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
 
       <div className="fixed inset-0 flex items-center justify-center p-4">
-        <DialogPanel className="w-full max-w-2xl bg-white dark:bg-gray-800 rounded-lg shadow-xl">
-          {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <DialogTitle className="text-lg font-semibold text-gray-900 dark:text-white">
-              Publish Project — Compliance Check
-            </DialogTitle>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-            >
-              <XMarkIcon className="w-6 h-6" />
-            </button>
-          </div>
+        <DialogPanel className="mx-auto w-full max-w-2xl rounded-lg bg-white p-6 shadow-xl">
+          <DialogTitle className="text-xl font-semibold text-gray-900 mb-6">
+            Publish Project — Compliance Check
+          </DialogTitle>
 
-          {/* Content */}
-          <div className="p-6 space-y-6">
+          <div className="space-y-6">
             {/* Loading State */}
             {isLoading && (
               <div className="flex items-center justify-center py-8">
                 <div className="text-center">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-3"></div>
-                  <p className="text-gray-600 dark:text-gray-400">Running compliance check...</p>
+                  <p className="text-gray-600">Running compliance check...</p>
                 </div>
               </div>
             )}
 
             {/* Error State */}
             {error && !isLoading && (
-              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p className="text-sm text-red-600">{error}</p>
               </div>
             )}
 
@@ -114,8 +104,8 @@ const PublishItemizedProjectDialog: React.FC<PublishItemizedProjectDialogProps> 
               <>
                 {/* Failure Banner */}
                 {!complianceResult.AllPassed && (
-                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-                    <p className="text-sm font-semibold text-red-600 dark:text-red-400">
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <p className="text-sm font-semibold text-red-600">
                       Publish blocked — {failedRulesCount} rule{failedRulesCount !== 1 ? 's' : ''} failed
                     </p>
                   </div>
@@ -123,8 +113,8 @@ const PublishItemizedProjectDialog: React.FC<PublishItemizedProjectDialogProps> 
 
                 {/* Success Banner */}
                 {complianceResult.AllPassed && (
-                  <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
-                    <p className="text-sm font-semibold text-green-600 dark:text-green-400">
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <p className="text-sm font-semibold text-green-600">
                       All 13 rules passed. Project published to PCMA.
                     </p>
                   </div>
@@ -132,32 +122,32 @@ const PublishItemizedProjectDialog: React.FC<PublishItemizedProjectDialogProps> 
 
                 {/* Rules List */}
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-3">
                     Compliance Rules
                   </h3>
                   <div className="space-y-2 max-h-96 overflow-y-auto">
                     {complianceResult.Rules.map((rule, idx) => (
                       <div
                         key={idx}
-                        className="flex items-start gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-md"
+                        className="flex items-start gap-3 p-3 border border-gray-200 rounded-md"
                       >
                         {rule.Pass ? (
-                          <CheckCircleIcon className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+                          <CheckCircleIcon className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                         ) : (
-                          <XCircleIcon className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                          <XCircleIcon className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                         )}
                         <div className="flex-1">
                           <p
                             className={`text-sm font-medium ${
                               rule.Pass
-                                ? 'text-gray-900 dark:text-white'
-                                : 'text-red-600 dark:text-red-400'
+                                ? 'text-gray-900'
+                                : 'text-red-600'
                             }`}
                           >
                             {rule.RuleName}
                           </p>
                           {rule.FailReason && (
-                            <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+                            <p className="text-sm text-red-600 mt-1">
                               {rule.FailReason}
                             </p>
                           )}
@@ -169,17 +159,17 @@ const PublishItemizedProjectDialog: React.FC<PublishItemizedProjectDialogProps> 
               </>
             )}
 
-            {/* Form Actions */}
-            <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-              <Button
-                type="button"
-                onClick={onClose}
-                color="zinc"
-                disabled={isLoading}
-              >
-                Close
-              </Button>
-            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 border-t pt-6">
+            <Button
+              type="button"
+              onClick={onClose}
+              color="zinc"
+              disabled={isLoading}
+            >
+              Close
+            </Button>
           </div>
         </DialogPanel>
       </div>

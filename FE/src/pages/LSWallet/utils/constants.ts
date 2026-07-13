@@ -38,3 +38,24 @@ export const STAGE_ORDER: readonly string[] = [
  * Change to 'GAA-R' to tighten to a single stage — one-line change.
  */
 export const REPLENISH_ALLOWED_FROM_STAGE = 'GAA';
+
+/**
+ * Mock component type list for the WalletComponentCostDialog.
+ * These mirror the real ComponentTypeEnum records from the backend code tables.
+ *
+ * MOCK NOTE: The real component types come from getProjectDetails().Dropdowns.ComponentTypes,
+ * which requires an existing project ID. Until the backend LSWallet endpoint returns
+ * component types directly, this hardcoded list is used. Replace with a real API call
+ * when the backend /LSWallet/component-types endpoint is available.
+ *
+ * KEY DIFFERENCE from ComponentCostDialog: 'LS' (Lump Sum) is INCLUDED here
+ * (it is explicitly excluded from regular Project's ComponentCostDialog via
+ * WALLET_EXCLUSIVE_COMPONENT_TYPES). Wallets may select 'LS' as their component type.
+ */
+export const MOCK_WALLET_COMPONENT_TYPES = [
+  { Id: 1, ComponentId: 'LS', ComponentName: 'Lump Sum', ExportToPCMA: false, IsDeleted: false, IsActive: true },
+  { Id: 2, ComponentId: 'DR', ComponentName: 'Civil Works', ExportToPCMA: true, IsDeleted: false, IsActive: true },
+  { Id: 3, ComponentId: 'ROW', ComponentName: 'Right-of-Way', ExportToPCMA: true, IsDeleted: false, IsActive: true },
+  { Id: 4, ComponentId: 'ENG', ComponentName: 'Engineering Services', ExportToPCMA: false, IsDeleted: false, IsActive: true },
+  { Id: 5, ComponentId: 'ADM', ComponentName: 'Administrative Cost', ExportToPCMA: false, IsDeleted: false, IsActive: true },
+];

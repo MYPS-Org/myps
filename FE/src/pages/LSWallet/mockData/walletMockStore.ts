@@ -9,6 +9,11 @@
 //   - Only Service.ts may import from this module.
 //   - No component or hook may import mockData/ directly.
 //
+// AMOUNT INVARIANT: wallet.Amount is ALWAYS derived as:
+//   Amount = SUM(wallet.WalletFundingProfiles where !IsDeleted)
+// Every mutation function that touches WalletFundingProfiles must call
+// recomputeWalletAmount() afterwards. Never set Amount directly.
+//
 // All mutation functions return shallow copies of the mutated entity so callers
 // never hold a reference to the live store arrays.
 // =============================================================================
@@ -18,6 +23,7 @@ import type {
   ItemizedProject,
   ItemizedProjectRevision,
   WalletStage,
+  WalletFundingProfile,
   DtoCreateWallet,
   DtoCreateItemizedProject,
   DtoSubmitRevision,
@@ -39,6 +45,39 @@ const _revisions: ItemizedProjectRevision[] = [];
 let _nextWalletId = 100;
 let _nextProjectId = 200;
 let _nextRevisionId = 300;
+// Seed data has WalletFundingProfile IDs up to 3 and WalletComponentCost IDs up to 2
+let _nextFundingProfileId = 10;
+
+// ---------------------------------------------------------------------------
+// Internal helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Recompute a wallet's Amount from its non-deleted funding profiles.
+ * Must be called after any mutation to WalletFundingProfiles.
+ */
+const recomputeWalletAmount = (wallet: LSWallet): LSWallet => {
+  const amount = wallet.WalletFundingProfiles
+    .filter(p => !p.IsDeleted)
+    .reduce((sum, p) => sum + p.Amount, 0);
+  return { ...wallet, Amount: amount };
+};
+
+/**
+ * Recalculate Percentage on each non-deleted profile so they sum to 100%.
+ * Deleted profiles keep their existing Percentage value unchanged.
+ */
+const recalcPercentages = (profiles: WalletFundingProfile[]): WalletFundingProfile[] => {
+  const totalAmount = profiles
+    .filter(p => !p.IsDeleted)
+    .reduce((sum, p) => sum + p.Amount, 0);
+
+  return profiles.map(p => {
+    if (p.IsDeleted) return p;
+    const pct = totalAmount > 0 ? Math.round((p.Amount / totalAmount) * 10000) / 100 : 0;
+    return { ...p, Percentage: pct };
+  });
+};
 
 // ---------------------------------------------------------------------------
 // Read helpers (return copies — callers should never mutate returned data)
@@ -81,41 +120,97 @@ export const getRevisionById = (id: number): ItemizedProjectRevision | undefined
 // Wallet mutations
 // ---------------------------------------------------------------------------
 
-/** WF-1: Create a new LSWallet. ComponentType is always 'LS'. */
+/**
+ * WF-1: Create a new LSWallet from the new array-based DTO.
+ *
+ * Amount is computed from dto.fundingProfiles (AMOUNT INVARIANT) rather than
+ * being taken directly from the DTO. ComponentType is always 'LS'.
+ */
 export const createWallet = (dto: DtoCreateWallet, programName: string): LSWallet => {
-  const newWallet: LSWallet = {
+  const fundingProfiles = dto.fundingProfiles.map((p, i) => ({
+    ...p,
+    Id: _nextFundingProfileId + i,
+    WalletId: _nextWalletId,
+  }));
+  _nextFundingProfileId += dto.fundingProfiles.length;
+
+  const profilesWithPct = recalcPercentages(fundingProfiles);
+
+  const newWalletRaw: LSWallet = {
     Id: _nextWalletId++,
     ProgramId: dto.programId,
     ProgramName: programName,
+    TypeName: dto.typeName,
+    YearStart: dto.yearStart,
+    ProgramStageName: dto.programStageName,
     CategoryId: dto.categoryId,
     CategoryName: '',          // Caller should resolve from dropdown data
     SubCategoryId: dto.subCategoryId,
     SubCategoryName: '',       // Caller should resolve from dropdown data
     OperatingUnit: dto.operatingUnit,
-    FundingSource: dto.fundingSource,
-    FundingAgreement: dto.fundingAgreement,
-    Amount: dto.amount,
-    FundingPercentage: dto.fundingPercentage,
-    CurrentStage: 'BP',        // Will be overwritten by advanceProgramStage if Program is already past BP
+    // AMOUNT INVARIANT: derived from funding profiles, not set directly
+    Amount: 0,                 // Will be recomputed by recomputeWalletAmount below
+    // Seed CurrentStage from the selected program's stage if provided; fall back to 'BP'.
+    // advanceProgramStage() (WF-2) will bulk-update this field later for all wallets
+    // belonging to the same program when the program stage advances.
+    CurrentStage: (dto.currentStage as WalletStage) || 'BP',
     HasStageData: false,       // Brand new — untouched since creation (WF-7 hard-delete tier)
     ComponentType: 'LS',
-    ComponentYear: dto.componentYear,
-    ComponentAmount: dto.amount,
-    ComponentTotal: dto.amount,
-    ComponentUACS: dto.componentUACS ?? undefined,
-    ComponentStartDate: dto.componentStartDate ?? null,
-    ComponentEndDate: dto.componentEndDate ?? null,
+    WalletFundingProfiles: profilesWithPct,
+    WalletComponentCosts: dto.componentCosts.map((c, i) => ({
+      ...c,
+      Id: i + 1,
+      WalletId: _nextWalletId - 1,
+    })),
+    WalletComponentCostPerYear: dto.componentCostPerYear.map((y, i) => ({
+      ...y,
+      Id: i + 1,
+    })),
+    // Optional project-details fields
+    MYId: dto.myId,
+    AlternateId: dto.alternateId,
+    ExternalId: dto.externalId,
+    UACS: dto.uacs,
+    Tier: dto.tier,
+    Rank: dto.rank,
+    MYCAApprovalDate: dto.mycaApprovalDate,
+    Description: dto.description,
+    Province: dto.province,
+    City: dto.city,
+    LegislativeDistrict: dto.legislativeDistrict,
+    DEO: dto.deo,
+    Region: dto.region,
+    ImplementingOffice: dto.implementingOffice,
+    RegionWide: dto.regionWide,
+    Origin: dto.origin,
+    Agency: dto.agency,
+    ImplementationMode: dto.implementationMode,
+    EmergencyMode: dto.emergencyMode,
+    Feasibility: dto.feasibility,
+    FeasibilityDate: dto.feasibilityDate,
+    DetailedDesign: dto.detailedDesign,
+    DetailedDesignDate: dto.detailedDesignDate,
+    RowAvailable: dto.rowAvailable,
     CreatedBy: dto.createdBy,
     CreatedDate: new Date().toISOString(),
     IsDeleted: false,
   };
 
+  // Recompute Amount from profiles (enforces AMOUNT INVARIANT)
+  const newWallet = recomputeWalletAmount(newWalletRaw);
   _wallets.push(newWallet);
   return { ...newWallet };
 };
 
 /**
- * WF-3: Replenish a wallet's Amount.
+ * WF-3: Replenish a wallet's budget by adding a new "Replenishment" funding line.
+ *
+ * Rather than mutating Amount directly, this adds a new WalletFundingProfile
+ * (Source: 'Replenishment') sized to bring the total to newAmount, then
+ * recomputes Amount = SUM(WalletFundingProfiles). The DtoReplenishWallet
+ * contract (walletId, newAmount, updatedBy) is unchanged — ReplenishWalletDialog
+ * needs no edits.
+ *
  * Guard: newAmount must be strictly greater than the current Amount.
  * Throws with a descriptive message that Service.ts surfaces to the UI.
  */
@@ -130,15 +225,35 @@ export const replenishWallet = (walletId: number, newAmount: number, updatedBy: 
     );
   }
 
-  const updated: LSWallet = {
+  const topupAmount = newAmount - wallet.Amount;
+
+  const replenishLine: WalletFundingProfile = {
+    Id: _nextFundingProfileId++,
+    WalletId: walletId,
+    Source: 'Replenishment',
+    Agreement: '',
+    Amount: topupAmount,
+    Percentage: 0,   // Recalculated by recalcPercentages below
+    CreatedBy: updatedBy,
+    CreatedDate: new Date().toISOString(),
+    IsDeleted: false,
+  };
+
+  const newProfiles = recalcPercentages([
+    ...wallet.WalletFundingProfiles,
+    replenishLine,
+  ]);
+
+  const updatedRaw: LSWallet = {
     ...wallet,
-    Amount: newAmount,
-    ComponentAmount: newAmount,
-    ComponentTotal: newAmount,
+    WalletFundingProfiles: newProfiles,
     HasStageData: true, // Replenish only happens at GAA+, so the wallet now has history
     UpdatedBy: updatedBy,
     UpdatedDate: new Date().toISOString(),
   };
+
+  // AMOUNT INVARIANT: recompute from profiles
+  const updated = recomputeWalletAmount(updatedRaw);
   _wallets[idx] = updated;
   return { ...updated };
 };
@@ -180,12 +295,16 @@ export const hardDeleteWallet = (walletId: number): LSWallet => {
 /**
  * WF-4: Add an ItemizedProject to a wallet.
  * A single wallet-line FundingLine is auto-created with IsWalletLine = true.
+ * Source/Agreement are pulled from the first non-deleted WalletFundingProfile.
  */
 export const addItemizedProject = (dto: DtoCreateItemizedProject): ItemizedProject => {
   const wallet = _wallets.find(w => w.Id === dto.parentWalletId);
   if (!wallet) throw new Error('Parent wallet not found.');
 
   const projectId = `LS-W${String(dto.parentWalletId).padStart(3, '0')}-P${String(_nextProjectId).padStart(3, '0')}`;
+
+  // Use the first non-deleted funding profile for the itemized project's funding line
+  const primaryProfile = wallet.WalletFundingProfiles.find(p => !p.IsDeleted);
 
   const newProject: ItemizedProject = {
     Id: _nextProjectId++,
@@ -199,8 +318,8 @@ export const addItemizedProject = (dto: DtoCreateItemizedProject): ItemizedProje
     FundingLines: [
       {
         Id: Date.now(),
-        Source: wallet.FundingSource,
-        Agreement: wallet.FundingAgreement,
+        Source: primaryProfile?.Source || '',
+        Agreement: primaryProfile?.Agreement || '',
         Amount: dto.drawAmount,
         Percentage: 100,
         IsWalletLine: true,

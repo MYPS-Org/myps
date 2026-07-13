@@ -8,16 +8,29 @@
 //
 // DESIGN CHOICE: Wallet 1 is seeded already at 12,000,000 (post-replenish state)
 // so the demo immediately shows a realistic balance. The WF-3 replenish step
-// (10M → 12M) is NOT replayed at seed time — the seed represents the "after
-// replenish" snapshot. A comment marks where the original amount was 10M.
+// (10M → 12M) is represented as two funding profile lines:
+//   Line 1: 10,000,000 (original GAA allocation)
+//   Line 2:  2,000,000 (Replenishment top-up)
 // This makes the balance widget show correct numbers without any setup steps.
+//
+// BALANCE INVARIANT (Wallet 1 at seed state):
+//   Amount   = SUM(WalletFundingProfiles) = 10,000,000 + 2,000,000 = 12,000,000
+//   Used     = PublishedDrawAmount(A)=3,500,000 + CurrentDrawAmount(B)=1,000,000 = 4,500,000
+//   Available = 12,000,000 - 4,500,000 = 7,500,000
 //
 // For Program references, two stub records are defined here since no existing
 // Program mock/lookup data is reusable in-module (Program/Service.ts calls the
 // real API). Reuse these IDs if you need to reference a Program from the UI.
 // =============================================================================
 
-import type { LSWallet, ItemizedProject, FundingLine } from '../Model.d';
+import type {
+  LSWallet,
+  ItemizedProject,
+  FundingLine,
+  WalletFundingProfile,
+  WalletComponentCost,
+  WalletComponentCostPerYear,
+} from '../Model.d';
 
 // ---------------------------------------------------------------------------
 // Program stubs referenced by wallets below
@@ -36,32 +49,83 @@ export const SEED_PROGRAMS = [
 ];
 
 // ---------------------------------------------------------------------------
-// Seed wallets
+// Seed wallets — with array-based funding/component data
 // ---------------------------------------------------------------------------
 
-/** Wallet 1 — post-replenish state (was 10,000,000; now 12,000,000 at GAA) */
+/** Wallet 1 — post-replenish state (was 10M; now 12M at GAA) */
 export const SEED_WALLET_1: LSWallet = {
   Id: 1,
   ProgramId: 'P_CO-APP-2024',
   ProgramName: 'Asset Preservation Program 2024',
+  // Program metadata at wallet-creation time (informational display snapshots)
+  ProgramStageName: 'GAA',    // Program stage at the time this wallet was created
   CategoryId: 1,
   CategoryName: 'OO1: Ensure Safe and Reliable National Road System',
   SubCategoryId: 101,
   SubCategoryName: 'Rehabilitation/Reconstruction/Upgrading of Damaged Paved Roads',
   OperatingUnit: 'CO-PS',
-  FundingSource: 'General Appropriations Act',
-  FundingAgreement: 'GAA-2024-APP-001',
-  Amount: 12_000_000,   // Originally 10M; replenished to 12M (see WF-3 scenario)
-  FundingPercentage: 100,
+  // AMOUNT INVARIANT: Amount = SUM(WalletFundingProfiles) = 10M + 2M = 12M
+  Amount: 12_000_000,
   CurrentStage: 'GAA',
-  HasStageData: true, // Already replenished once (10M -> 12M) — has history, not brand new
+  HasStageData: true,         // Already replenished once — has history, not brand new
   ComponentType: 'LS',
-  ComponentYear: 2024,
-  ComponentAmount: 12_000_000,
-  ComponentTotal: 12_000_000,
-  ComponentUACS: '101101100001000',
-  ComponentStartDate: '2024-01-01',
-  ComponentEndDate: '2024-12-31',
+  // Array-based funding profile (replaces flat FundingSource/FundingAgreement/FundingPercentage)
+  WalletFundingProfiles: [
+    {
+      Id: 1,
+      WalletId: 1,
+      Source: 'General Appropriations Act',
+      Agreement: 'GAA-2024-APP-001',
+      Amount: 10_000_000,
+      Percentage: 83.33,
+      CreatedBy: 'admin',
+      CreatedDate: '2024-01-15T08:00:00.000Z',
+      IsDeleted: false,
+    },
+    {
+      Id: 2,
+      WalletId: 1,
+      Source: 'Replenishment',
+      Agreement: '',
+      Amount: 2_000_000,
+      Percentage: 16.67,
+      CreatedBy: 'admin',
+      CreatedDate: '2024-02-01T09:00:00.000Z',
+      IsDeleted: false,
+    },
+  ] satisfies WalletFundingProfile[],
+  // Array-based component cost (replaces flat ComponentYear/ComponentAmount/etc.)
+  WalletComponentCosts: [
+    {
+      Id: 1,
+      WalletId: 1,
+      CostId: 'LS-W001-CC001',
+      ComponentType: 'Lump Sum',
+      ComponentId: 'LS',
+      Description: 'Lump Sum allocation — Asset Preservation Program 2024',
+      Total: 12_000_000,
+      IsDeleted: false,
+      CreatedBy: 'admin',
+      CreatedDate: '2024-01-15T08:00:00.000Z',
+    },
+  ] satisfies WalletComponentCost[],
+  WalletComponentCostPerYear: [
+    {
+      Id: 1,
+      ComponentCostId: 'LS-W001-CC001',
+      Amount: 12_000_000,
+      Year: 2024,
+      StartDate: '2024-01-01',
+      EndDate: '2024-12-31',
+      CreatedBy: 'admin',
+      CreatedDate: '2024-01-15T08:00:00.000Z',
+      IsDeleted: false,
+    },
+  ] satisfies WalletComponentCostPerYear[],
+  // Project details fields
+  Tier: 1,
+  Description: 'Lump Sum wallet for the Asset Preservation Program 2024. Covers rehabilitation and reconstruction of damaged paved roads in the CO-PS operating unit.',
+  UACS: '101101100001000',
   CreatedBy: 'admin',
   CreatedDate: '2024-01-15T08:00:00.000Z',
   IsDeleted: false,
@@ -72,24 +136,64 @@ export const SEED_WALLET_2: LSWallet = {
   Id: 2,
   ProgramId: 'P_CO-IBF-2024',
   ProgramName: 'Infrastructure Build Fund 2024',
+  // Program metadata at wallet-creation time (informational display snapshots)
+  ProgramStageName: 'GAA-R',  // Program stage at the time this wallet was created
   CategoryId: 2,
   CategoryName: 'OO2: Ensure Safe and Reliable National Bridge System',
   SubCategoryId: 201,
   SubCategoryName: 'Bridge Replacement/Rehabilitation Program',
   OperatingUnit: 'CO-BRS',
-  FundingSource: 'General Appropriations Act',
-  FundingAgreement: 'GAA-2024-IBF-002',
+  // AMOUNT INVARIANT: Amount = SUM(WalletFundingProfiles) = 5M
   Amount: 5_000_000,
-  FundingPercentage: 100,
   CurrentStage: 'GAA-R',
-  HasStageData: true, // Already cascaded through stages to reach GAA-R — has history
+  HasStageData: true,         // Already cascaded through stages to reach GAA-R
   ComponentType: 'LS',
-  ComponentYear: 2024,
-  ComponentAmount: 5_000_000,
-  ComponentTotal: 5_000_000,
-  ComponentUACS: '101101100002000',
-  ComponentStartDate: '2024-03-01',
-  ComponentEndDate: '2024-12-31',
+  // Array-based funding profile
+  WalletFundingProfiles: [
+    {
+      Id: 3,
+      WalletId: 2,
+      Source: 'General Appropriations Act',
+      Agreement: 'GAA-2024-IBF-002',
+      Amount: 5_000_000,
+      Percentage: 100,
+      CreatedBy: 'admin',
+      CreatedDate: '2024-03-01T08:00:00.000Z',
+      IsDeleted: false,
+    },
+  ] satisfies WalletFundingProfile[],
+  // Array-based component cost
+  WalletComponentCosts: [
+    {
+      Id: 2,
+      WalletId: 2,
+      CostId: 'LS-W002-CC001',
+      ComponentType: 'Lump Sum',
+      ComponentId: 'LS',
+      Description: 'Lump Sum allocation — Infrastructure Build Fund 2024',
+      Total: 5_000_000,
+      IsDeleted: false,
+      CreatedBy: 'admin',
+      CreatedDate: '2024-03-01T08:00:00.000Z',
+    },
+  ] satisfies WalletComponentCost[],
+  WalletComponentCostPerYear: [
+    {
+      Id: 2,
+      ComponentCostId: 'LS-W002-CC001',
+      Amount: 5_000_000,
+      Year: 2024,
+      StartDate: '2024-03-01',
+      EndDate: '2024-12-31',
+      CreatedBy: 'admin',
+      CreatedDate: '2024-03-01T08:00:00.000Z',
+      IsDeleted: false,
+    },
+  ] satisfies WalletComponentCostPerYear[],
+  // Project details fields
+  Tier: 2,
+  Description: 'Lump Sum wallet for the Infrastructure Build Fund 2024. Covers bridge replacement and rehabilitation in the CO-BRS operating unit.',
+  UACS: '101101100002000',
   CreatedBy: 'admin',
   CreatedDate: '2024-03-01T08:00:00.000Z',
   IsDeleted: false,
@@ -198,7 +302,7 @@ export const SEED_PROJECT_C: ItemizedProject = {
 
 // ---------------------------------------------------------------------------
 // Expected balance for Wallet 1 at seed state (for manual verification):
-//   Total     = 12,000,000
+//   Total     = SUM(WalletFundingProfiles) = 10,000,000 + 2,000,000 = 12,000,000
 //   Used      = PublishedDrawAmount(A)=3,500,000 + CurrentDrawAmount(B)=1,000,000
 //             = 4,500,000  (Project C excluded because IsDeleted=true)
 //   Available = 12,000,000 - 4,500,000 = 7,500,000

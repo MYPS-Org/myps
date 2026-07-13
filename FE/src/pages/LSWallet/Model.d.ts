@@ -18,42 +18,156 @@
 export type WalletStage = 'BP' | 'NEP' | 'HGAB' | 'GAA' | 'GAA-R';
 
 // ---------------------------------------------------------------------------
+// Wallet-local funding and component cost interfaces
+//
+// These are structurally identical to the Project module's FundingProfile,
+// ComponentCost, and ComponentCostPerYear interfaces (FE/src/pages/Project/Model.d.ts),
+// but declared here so the LSWallet module stays self-contained per its
+// documented mock-swap architecture. Any schema change to the Project originals
+// must be manually mirrored here.
+//
+// STRUCTURAL TYPING NOTE: WalletComponentCost is passed to Project's
+// DeleteComponentDialog (which expects ComponentCost). If ComponentCost gains
+// a new required field, WalletComponentCost must be updated to match.
+// ---------------------------------------------------------------------------
+
+export interface WalletFundingProfile {
+  Id: number;
+  WalletId: number;       // FK → LSWallet.Id (replaces ProjectId)
+  Source: string;
+  Agreement: string;
+  Percentage: number;
+  Amount: number;
+  CreatedBy: string;
+  CreatedDate: string;
+  IsDeleted: boolean;
+}
+
+export interface WalletComponentCost {
+  Id: number;
+  WalletId: number;       // FK → LSWallet.Id (replaces ProjectId)
+  CostId: string;
+  ComponentType: string;
+  ComponentId: string;
+  Description?: string;
+  Total: number;
+  StageName?: string;
+  IsDeleted: boolean;
+  RevisedNumber?: number;
+  ConstructionStatusCode?: number;
+  ConstructionStatusName?: string;
+  PackedStatusCode?: boolean;
+  PackedStatusName?: string;
+  CreatedBy: string;
+  CreatedDate: string;
+  UpdatedBy?: string;
+  UpdatedDate?: string;
+}
+
+export interface WalletComponentCostPerYear {
+  Id: number;
+  ComponentCostId: string;
+  StageName?: string;
+  Amount?: number;
+  Year?: number;
+  StartDate?: string | null;
+  EndDate?: string | null;
+  CreatedBy: string;
+  CreatedDate: string;
+  UpdatedBy?: string;
+  UpdatedDate?: string;
+  IsDeleted: boolean;
+}
+
+// ---------------------------------------------------------------------------
 // Core domain types
 // ---------------------------------------------------------------------------
 
 /**
  * An LS Wallet: a budget container owned by a Program.
  * ComponentType is always 'LS' (locked on creation, enforced by service layer).
+ *
+ * AMOUNT INVARIANT: `Amount` is a derived value — it is always the
+ * SUM(WalletFundingProfiles where !IsDeleted). The mock store recomputes it
+ * on every mutation (createWallet, replenishWallet). Do NOT set Amount directly;
+ * mutate WalletFundingProfiles instead and let the store recompute.
  */
 export interface LSWallet {
   Id: number;
   // Program association (denormalized for list/display without an extra fetch)
   ProgramId: string;
   ProgramName: string;
-  // Category / Sub-category (Thrust) / OU
+  // Program metadata at selection time (denormalized display fields).
+  // All three fields are populated from the selected ProgramList entry and stored
+  // so the Detail page can show them without an extra fetch.
+  //
+  // STAGE NOTE: ProgramStageName (the Program's stage at wallet-creation time) is a
+  // separate, independent field from CurrentStage (the wallet's own lifecycle stage).
+  // CurrentStage is seeded from the program's stage at creation and then advanced
+  // in bulk via the WF-2 stage cascade (advanceProgramStage), so the two values can
+  // diverge over the wallet's lifetime. ProgramStageName is informational display data
+  // that never changes after creation; CurrentStage is the live workflow state.
+  TypeName?: string;          // Program's TypeName at the time of wallet creation
+  YearStart?: number;         // Program's YearStart at the time of wallet creation
+  ProgramStageName?: string;  // Program's StageName at the time of wallet creation (informational, read-only after creation)
+  // Category / Sub-category (Thrust) / OU — kept as flat fields for backward-compat
+  // with all consumers (list, dialogs, balance widget) that read them directly.
   CategoryId: number;
   CategoryName: string;
   SubCategoryId: number;      // = Thrust
   SubCategoryName: string;
   OperatingUnit: string;
-  // Funding
-  FundingSource: string;
-  FundingAgreement: string;
-  Amount: number;             // Total wallet budget; raised on replenish
-  FundingPercentage: number;
+  // Derived amount (see invariant note above)
+  Amount: number;             // Total wallet budget = SUM(WalletFundingProfiles)
   // Stage tracking
   CurrentStage: WalletStage;  // Inherits from Program; advanced via WF-2 cascade
   // WF-7 delete-tier routing: false only for a wallet that has never been touched
   // since creation (no replenish, no stage cascade) — drives hard vs soft/blocked delete.
   HasStageData: boolean;
-  // Component (always 'LS', locked)
+  // Component type (always 'LS', locked)
   ComponentType: 'LS';
-  ComponentYear: number;
-  ComponentAmount: number;    // Matches Amount for an LS wallet
-  ComponentTotal: number;     // = Amount
-  ComponentUACS?: string;
-  ComponentStartDate?: string | null;
-  ComponentEndDate?: string | null;
+
+  // ── Multi-line funding profile array (replaces flat FundingSource/FundingAgreement/FundingPercentage) ──
+  WalletFundingProfiles: WalletFundingProfile[];
+
+  // ── Multi-row component cost arrays (replaces flat ComponentYear/ComponentAmount/etc.) ──
+  WalletComponentCosts: WalletComponentCost[];
+  WalletComponentCostPerYear: WalletComponentCostPerYear[];
+
+  // ── General Information (new ProjectDetails-parity fields, all optional) ──
+  MYId?: string;
+  AlternateId?: string;
+  ExternalId?: string;
+  UACS?: string;
+  Tier?: number;              // 1 = Tier I, 2 = Tier II
+  Rank?: number;
+  MYCAApprovalDate?: string | null;
+  Description?: string;
+
+  // ── Location Details ──
+  Province?: string;           // GdbId of province
+  City?: string;               // GdbId of city/municipality
+  LegislativeDistrict?: string; // GdbId of legislative district
+
+  // ── Organizational Responsibilities ──
+  DEO?: string;                // ParticipantId of District Engineering Office
+  Region?: string;             // ParticipantId of Regional Office
+  ImplementingOffice?: string; // ParticipantId of Implementing Office
+  RegionWide?: number;         // 1=Region Wide, 2=Non-Region Wide, 3=Region Wide AIP ignores DEO
+
+  // ── Project Source ──
+  Origin?: number;             // TableEnum.NameId
+  Agency?: number;             // AgencyEnum.NameId
+
+  // ── Implementation Readiness and Modality ──
+  ImplementationMode?: number; // TableEnum.NameId
+  EmergencyMode?: number;      // TableEnum.NameId
+  Feasibility?: number;        // TableEnum.NameId
+  FeasibilityDate?: string | null;
+  DetailedDesign?: number;     // TableEnum.NameId
+  DetailedDesignDate?: string | null;
+  RowAvailable?: number;       // TableEnum.NameId
+
   // Audit
   CreatedBy: string;
   CreatedDate: string;
@@ -145,20 +259,58 @@ export interface ItemizedProjectRevision {
 // camelCase to match the real API payload shape when backend is wired.
 // ---------------------------------------------------------------------------
 
-/** Payload for WF-1 Create Wallet */
+/**
+ * Payload for WF-1 Create Wallet.
+ *
+ * REAL API SWAP NOTE: When the backend is ready, replace the mock store call
+ * with a real httpClient.post call. The fundingProfiles and componentCosts arrays
+ * map directly to the backend's expected array-based funding/component schema.
+ */
 export interface DtoCreateWallet {
   programId: string;
+  // Denormalized program fields — populated client-side from the selected ProgramList
+  // entry and stored on the wallet so the Detail page can display them without an
+  // extra fetch. A real API could compute these server-side instead.
+  typeName?: string;
+  yearStart?: number;
+  // Program's stage at wallet-creation time (informational display, never changes).
+  // Distinct from currentStage — see LSWallet.ProgramStageName STAGE NOTE above.
+  programStageName?: string;
+  // Wallet's initial stage, seeded from the selected Program's StageName.
+  // Defaults to 'BP' in the mock if omitted. Advanced later by WF-2 stage cascade.
+  currentStage?: WalletStage;
   categoryId: number;
   subCategoryId: number;
   operatingUnit: string;
-  fundingSource: string;
-  fundingAgreement: string;
-  amount: number;
-  fundingPercentage: number;
-  componentYear: number;
-  componentUACS?: string | null;
-  componentStartDate?: string | null;
-  componentEndDate?: string | null;
+  // Array-based funding and component data (replaces old flat fields)
+  fundingProfiles: WalletFundingProfile[];
+  componentCosts: WalletComponentCost[];
+  componentCostPerYear: WalletComponentCostPerYear[];
+  // Optional ProjectDetails-parity fields
+  myId?: string;
+  alternateId?: string;
+  externalId?: string;
+  uacs?: string;
+  tier?: number;
+  rank?: number;
+  mycaApprovalDate?: string | null;
+  description?: string;
+  province?: string;
+  city?: string;
+  legislativeDistrict?: string;
+  deo?: string;
+  region?: string;
+  implementingOffice?: string;
+  regionWide?: number;
+  origin?: number;
+  agency?: number;
+  implementationMode?: number;
+  emergencyMode?: number;
+  feasibility?: number;
+  feasibilityDate?: string | null;
+  detailedDesign?: number;
+  detailedDesignDate?: string | null;
+  rowAvailable?: number;
   createdBy: string;
 }
 

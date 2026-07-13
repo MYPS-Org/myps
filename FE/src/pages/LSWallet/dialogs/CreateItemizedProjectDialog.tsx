@@ -13,7 +13,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
-import { XMarkIcon } from '@heroicons/react/24/outline';
 import { Button } from '../../../components/tailwindui/button';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -108,42 +107,32 @@ const CreateItemizedProjectDialog: React.FC<CreateItemizedProjectDialogProps> = 
 
   return (
     <Dialog open={open} onClose={onClose} className="relative z-50">
-      <div className="fixed inset-0 bg-black/30 dark:bg-black/50" aria-hidden="true" />
+      <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
 
       <div className="fixed inset-0 flex items-center justify-center p-4">
-        <DialogPanel className="w-full max-w-2xl bg-white dark:bg-gray-800 rounded-lg shadow-xl">
-          {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <DialogTitle className="text-lg font-semibold text-gray-900 dark:text-white">
-              Create Itemized Project
-            </DialogTitle>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-            >
-              <XMarkIcon className="w-6 h-6" />
-            </button>
-          </div>
+        <DialogPanel className="mx-auto w-full max-w-2xl rounded-lg bg-white p-6 shadow-xl">
+          <DialogTitle className="text-xl font-semibold text-gray-900 mb-6">
+            Create Itemized Project
+          </DialogTitle>
 
-          {/* Content */}
-          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
             {/* Wallet Context Section */}
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">
                 Linked Wallet
               </h3>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span className="text-gray-600 dark:text-gray-400">Program Name</span>
-                  <p className="font-medium text-gray-900 dark:text-white">{wallet.ProgramName}</p>
+                  <span className="text-gray-600">Program Name</span>
+                  <p className="font-medium text-gray-900">{wallet.ProgramName}</p>
                 </div>
                 <div>
-                  <span className="text-gray-600 dark:text-gray-400">Wallet ID</span>
-                  <p className="font-medium text-gray-900 dark:text-white">{wallet.Id}</p>
+                  <span className="text-gray-600">Wallet ID</span>
+                  <p className="font-medium text-gray-900">{wallet.Id}</p>
                 </div>
                 <div>
-                  <span className="text-gray-600 dark:text-gray-400">Available Balance</span>
-                  <p className="font-medium text-gray-900 dark:text-white">
+                  <span className="text-gray-600">Available Balance</span>
+                  <p className="font-medium text-gray-900">
                     ₱{balance.Available.toLocaleString('en-PH')}
                   </p>
                 </div>
@@ -152,39 +141,39 @@ const CreateItemizedProjectDialog: React.FC<CreateItemizedProjectDialogProps> = 
 
             {/* Project Details Section (Read-only, populated from wallet) */}
             <div>
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">
                 Project Details
               </h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Category
                   </label>
-                  <div className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                  <div className="px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600">
                     {wallet.CategoryName}
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Sub-category (Thrust)
                   </label>
-                  <div className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                  <div className="px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600">
                     {wallet.SubCategoryName}
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Operating Unit
                   </label>
-                  <div className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                  <div className="px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600">
                     {wallet.OperatingUnit}
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Program
                   </label>
-                  <div className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                  <div className="px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600">
                     {wallet.ProgramId}
                   </div>
                 </div>
@@ -193,11 +182,11 @@ const CreateItemizedProjectDialog: React.FC<CreateItemizedProjectDialogProps> = 
 
             {/* Draw Amount Input Section */}
             <div>
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">
                 Wallet Draw
               </h3>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Draw Amount <span className="text-red-600">*</span>
                 </label>
                 <input
@@ -212,8 +201,8 @@ const CreateItemizedProjectDialog: React.FC<CreateItemizedProjectDialogProps> = 
                     handleCurrencyBlur(e, (value) => setDrawAmount(value.toString()));
                   }}
                   placeholder="Enter draw amount"
-                  className={`w-full px-3 py-2 border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white ${
-                    errors ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                  className={`w-full px-3 py-2 border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 ${
+                    errors ? 'border-red-500' : 'border-gray-300'
                   }`}
                 />
                 {errors && <p className="mt-1 text-sm text-red-600">{errors}</p>}
@@ -221,7 +210,7 @@ const CreateItemizedProjectDialog: React.FC<CreateItemizedProjectDialogProps> = 
             </div>
 
             {/* Form Actions */}
-            <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex justify-end gap-3 border-t pt-6">
               <Button
                 type="button"
                 onClick={onClose}

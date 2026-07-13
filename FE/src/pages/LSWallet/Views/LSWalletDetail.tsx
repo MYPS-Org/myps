@@ -13,9 +13,10 @@
 //   and updated via onSuccess callbacks from the revision dialogs.
 // =============================================================================
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAtomValue } from 'jotai';
+import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 
 import { walletDataAtom } from '../store/walletStore';
 import { useWalletBalance } from '../hooks/useWalletBalance';
@@ -29,12 +30,20 @@ import {
   resolveProjectDeleteTier,
 } from '../utils/walletActions';
 
+import {
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  TableHeader,
+} from '../../../components/tailwindui/table';
+
 import WalletBalanceWidget from '../components/WalletBalanceWidget';
 import WalletStatusBadge from '../utils/walletStatusBadge';
 import WalletActionButtons from '../components/WalletActionButtons';
-import WalletDetailsSection from '../components/WalletDetailsSection';
-import FundingProfileSection from '../components/FundingProfileSection';
-import WalletComponentSection from '../components/WalletComponentSection';
+import CollapsibleSection from '../components/CollapsibleSection';
+import WalletForm from '../components/WalletForm';
 
 import ReplenishWalletDialog from '../dialogs/ReplenishWalletDialog';
 import CreateItemizedProjectDialog from '../dialogs/CreateItemizedProjectDialog';
@@ -134,11 +143,22 @@ const LSWalletDetail: React.FC = () => {
   }, [walletIdNum]);
 
   // ---------------------------------------------------------------------------
-  // Stable no-op for the disabled form sections.
-  // The sections' internal useEffects list onChange as a dep, so it must be
-  // referentially stable to avoid unnecessary effect re-runs.
+  // Collapsible section state — all default to true (expanded)
+  // Follows the same pattern as ProjectForm.tsx (isProgramOpen, isProjectOpen, etc.)
+  // Wallet Details / Funding Profile / Component Details are no longer owned
+  // here — they're rendered via <WalletForm mode="edit" .../> below, the same
+  // component the Add Wallet page uses, mirroring how AddProject.tsx/EditProject.tsx
+  // both delegate to ProjectForm.tsx instead of each hand-rolling the same sections.
   // ---------------------------------------------------------------------------
-  const noOp = useCallback(() => {}, []);
+  const [isProjectsOpen, setIsProjectsOpen] = useState(true);
+  const [isRevHistoryOpen, setIsRevHistoryOpen] = useState(true);
+
+  // Per-project revision expansion — keyed by project.Id (numeric PK, not ProjectId string)
+  // Default {} means all collapsed, matching the old <details> default-closed behaviour
+  const [expandedRevisions, setExpandedRevisions] = useState<Record<number, boolean>>({});
+
+  const toggleProjectRevision = (id: number) =>
+    setExpandedRevisions((prev) => ({ ...prev, [id]: !prev[id] }));
 
   // ---------------------------------------------------------------------------
   // Dialog state — wallet-level (always mounted, toggled via boolean)
@@ -245,7 +265,7 @@ const LSWalletDetail: React.FC = () => {
   // Render
   // ---------------------------------------------------------------------------
   return (
-    <div className="space-y-6 p-6">
+    <div className="overflow-hidden max-w-10xl mx-auto p-6 space-y-6">
       {/* Breadcrumb */}
       <nav className="text-sm text-gray-500 flex items-center gap-1">
         <Link to="/lumpsum" className="hover:text-gray-700 hover:underline">
@@ -276,251 +296,259 @@ const LSWalletDetail: React.FC = () => {
         <WalletActionButtons actions={walletActions} />
       </div>
 
-      {/* Read-only wallet detail sections.
-          All three sections support disabled={true} which locks inputs.
-          The no-op onChange prevents any state mutation from happening inside them. */}
-      <div className="space-y-4">
-        <WalletDetailsSection wallet={wallet} onChange={noOp} disabled />
-        <FundingProfileSection wallet={wallet} onChange={noOp} disabled />
-        <WalletComponentSection wallet={wallet} onChange={noOp} disabled />
-      </div>
+      {/* Wallet Details / Funding Profile / Component Details — same WalletForm
+          component the Add Wallet page uses (mode="edit" renders it read-only),
+          mirroring how EditProject.tsx reuses ProjectForm.tsx instead of
+          duplicating its sections. */}
+      <WalletForm mode="edit" initialData={wallet} />
 
-      {/* ------------------------------------------------------------------ */}
-      {/* Itemized Projects table                                             */}
-      {/* ------------------------------------------------------------------ */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">Itemized Projects</h2>
+      <CollapsibleSection
+        title="Itemized Projects"
+        isOpen={isProjectsOpen}
+        onToggle={() => setIsProjectsOpen(!isProjectsOpen)}
+      >
+            {projects.length === 0 ? (
+              <p className="text-sm text-gray-500">No itemized projects for this wallet.</p>
+            ) : (
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableHeader justify="center">Project ID</TableHeader>
+                    <TableHeader justify="center">Draw Amount</TableHeader>
+                    <TableHeader justify="center">Publish Status</TableHeader>
+                    <TableHeader justify="center">Project Status</TableHeader>
+                    <TableHeader justify="center">Actions</TableHeader>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {projects.map((project) => {
+                    // PublishedDrawAmount is the frozen snapshot used for the Used balance.
+                    // Before publish, show CurrentDrawAmount (live, editable).
+                    const displayAmount =
+                      project.PublishedDrawAmount ?? project.CurrentDrawAmount;
+                    const amountLabel =
+                      project.PublishedDrawAmount != null ? '(published)' : '(current)';
 
-        {projects.length === 0 ? (
-          <p className="text-sm text-gray-500">No itemized projects for this wallet.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-200 text-left text-gray-600 text-xs uppercase tracking-wide">
-                  <th className="pb-3 pr-4">Project ID</th>
-                  <th className="pb-3 pr-4">Draw Amount</th>
-                  <th className="pb-3 pr-4">Publish Status</th>
-                  <th className="pb-3 pr-4">Project Status</th>
-                  <th className="pb-3">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {projects.map((project) => {
-                  // PublishedDrawAmount is the frozen snapshot used for the Used balance.
-                  // Before publish, show CurrentDrawAmount (live, editable).
-                  const displayAmount =
-                    project.PublishedDrawAmount ?? project.CurrentDrawAmount;
-                  const amountLabel =
-                    project.PublishedDrawAmount != null ? '(published)' : '(current)';
-
-                  const projectActions = getItemizedProjectActions({
-                    project,
-                    wallet,
-                    actions: {
-                      onEditDraw: () => setEditDrawTarget(project),
-                      onPublish: () => setPublishTarget(project),
-                      onRequestRevision: () => setRevisionTarget(project),
-                      onDelete: () => {
-                        const tier = resolveProjectDeleteTier(project);
-                        setDeleteProjectTarget({ project, tier });
+                    const projectActions = getItemizedProjectActions({
+                      project,
+                      wallet,
+                      actions: {
+                        onEditDraw: () => setEditDrawTarget(project),
+                        onPublish: () => setPublishTarget(project),
+                        onRequestRevision: () => setRevisionTarget(project),
+                        onDelete: () => {
+                          const tier = resolveProjectDeleteTier(project);
+                          setDeleteProjectTarget({ project, tier });
+                        },
                       },
-                    },
-                  });
+                    });
 
-                  return (
-                    <tr key={project.ProjectId} className="hover:bg-gray-50">
-                      <td className="py-3 pr-4 font-mono text-xs text-gray-700">
-                        {project.ProjectId}
-                      </td>
-                      <td className="py-3 pr-4">
-                        {formatCurrency(displayAmount)}
-                        <span className="ml-1 text-xs text-gray-400">{amountLabel}</span>
-                      </td>
-                      <td className="py-3 pr-4">
-                        <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                            project.PublishStatus === 'Published'
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-gray-100 text-gray-600'
-                          }`}
-                        >
-                          {project.PublishStatus}
-                        </span>
-                      </td>
-                      <td className="py-3 pr-4 text-gray-600 text-xs">
-                        {project.ProjectStatus}
-                      </td>
-                      <td className="py-3">
-                        <WalletActionButtons actions={projectActions} size="xs" />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                    return (
+                      <TableRow key={project.ProjectId}>
+                        <TableCell className="font-mono text-xs text-gray-700">
+                          {project.ProjectId}
+                        </TableCell>
+                        <TableCell>
+                          {formatCurrency(displayAmount)}
+                          <span className="ml-1 text-xs text-gray-400">{amountLabel}</span>
+                        </TableCell>
+                        <TableCell>
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                              project.PublishStatus === 'Published'
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-gray-100 text-gray-600'
+                            }`}
+                          >
+                            {project.PublishStatus}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-gray-600 text-xs">
+                          {project.ProjectStatus}
+                        </TableCell>
+                        <TableCell>
+                          <WalletActionButtons actions={projectActions} size="xs" />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
+      </CollapsibleSection>
 
-      {/* ------------------------------------------------------------------ */}
-      {/* Revision history — one collapsible section per published project    */}
-      {/* ------------------------------------------------------------------ */}
       {projects.some((p) => p.PublishStatus === 'Published') && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">Revision History</h2>
+        <CollapsibleSection
+          title="Revision History"
+          isOpen={isRevHistoryOpen}
+          onToggle={() => setIsRevHistoryOpen(!isRevHistoryOpen)}
+        >
+              <div className="space-y-3">
+                {projects
+                  .filter((p) => p.PublishStatus === 'Published')
+                  .map((project) => {
+                    const projectRevisions = revisions[project.Id] ?? [];
+                    // Keyed by project.Id (numeric PK) — NOT project.ProjectId (string AIP code)
+                    const isExpanded = !!expandedRevisions[project.Id];
 
-          <div className="space-y-3">
-            {projects
-              .filter((p) => p.PublishStatus === 'Published')
-              .map((project) => {
-                const projectRevisions = revisions[project.Id] ?? [];
-                return (
-                  <details
-                    key={project.Id}
-                    className="border border-gray-200 rounded-lg"
-                  >
-                    <summary className="px-4 py-3 cursor-pointer select-none text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg">
-                      {project.ProjectId}
-                      <span className="ml-2 text-xs text-gray-400 font-normal">
-                        {projectRevisions.length} revision
-                        {projectRevisions.length !== 1 ? 's' : ''}
-                      </span>
-                    </summary>
-
-                    <div className="px-4 pb-4 pt-1">
-                      {projectRevisions.length === 0 ? (
-                        <p className="text-sm text-gray-500 py-2">
-                          No revisions submitted.
-                        </p>
-                      ) : (
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-sm">
-                            <thead>
-                              <tr className="border-b border-gray-100 text-left text-xs text-gray-500 uppercase tracking-wide">
-                                <th className="pb-2 pr-3">Transaction ID</th>
-                                <th className="pb-2 pr-3">Reason</th>
-                                <th className="pb-2 pr-3">Requested Cost</th>
-                                <th className="pb-2 pr-3">Region</th>
-                                <th className="pb-2 pr-3">CO</th>
-                                <th className="pb-2">Actions</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-50">
-                              {projectRevisions.map((revision) => {
-                                // Region is actionable when it's pending reviewer action.
-                                // CO is actionable only after Region approves.
-                                const regionActionable = revision.RegionStatus === 0;
-                                const coActionable =
-                                  revision.RegionStatus === 1 && revision.COStatus === 0;
-
-                                return (
-                                  <tr key={revision.Id}>
-                                    <td className="py-2 pr-3 font-mono text-xs text-gray-700">
-                                      {revision.TransactionId}
-                                    </td>
-                                    <td className="py-2 pr-3 max-w-xs">
-                                      <span
-                                        className="block truncate text-gray-600"
-                                        title={revision.Reason}
-                                      >
-                                        {revision.Reason}
-                                      </span>
-                                    </td>
-                                    <td className="py-2 pr-3 text-gray-700">
-                                      {formatCurrency(revision.RequestedCost)}
-                                    </td>
-                                    <td className="py-2 pr-3">
-                                      <span
-                                        className={`inline-flex px-1.5 py-0.5 rounded text-xs font-medium ${revisionStatusClass(revision.RegionStatus)}`}
-                                      >
-                                        {revisionStatusLabel(revision.RegionStatus)}
-                                      </span>
-                                    </td>
-                                    <td className="py-2 pr-3">
-                                      <span
-                                        className={`inline-flex px-1.5 py-0.5 rounded text-xs font-medium ${revisionStatusClass(revision.COStatus)}`}
-                                      >
-                                        {revisionStatusLabel(revision.COStatus)}
-                                      </span>
-                                    </td>
-                                    <td className="py-2">
-                                      {regionActionable && (
-                                        <div className="flex gap-1 flex-wrap">
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              setApproveTarget({ revision, stage: 'Region' })
-                                            }
-                                            className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200"
-                                          >
-                                            Approve (R)
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              setRejectTarget({ revision, stage: 'Region' })
-                                            }
-                                            className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
-                                          >
-                                            Reject (R)
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              setReturnTarget({ revision, stage: 'Region' })
-                                            }
-                                            className="text-xs px-2 py-1 bg-amber-100 text-amber-700 rounded hover:bg-amber-200"
-                                          >
-                                            Return (R)
-                                          </button>
-                                        </div>
-                                      )}
-                                      {coActionable && (
-                                        <div className="flex gap-1 flex-wrap">
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              setApproveTarget({ revision, stage: 'CO' })
-                                            }
-                                            className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200"
-                                          >
-                                            Approve (CO)
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              setRejectTarget({ revision, stage: 'CO' })
-                                            }
-                                            className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
-                                          >
-                                            Reject (CO)
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              setReturnTarget({ revision, stage: 'CO' })
-                                            }
-                                            className="text-xs px-2 py-1 bg-amber-100 text-amber-700 rounded hover:bg-amber-200"
-                                          >
-                                            Return (CO)
-                                          </button>
-                                        </div>
-                                      )}
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
+                    return (
+                      <div
+                        key={project.Id}
+                        className="border border-gray-200 rounded-lg"
+                      >
+                        {/* Per-project toggle header */}
+                        <div
+                          className="flex justify-between items-center px-4 py-3 cursor-pointer select-none hover:bg-gray-50 rounded-lg"
+                          onClick={() => toggleProjectRevision(project.Id)}
+                        >
+                          <span className="text-sm font-medium text-gray-700">
+                            {project.ProjectId}
+                            <span className="ml-2 text-xs text-gray-400 font-normal">
+                              {projectRevisions.length} revision
+                              {projectRevisions.length !== 1 ? 's' : ''}
+                            </span>
+                          </span>
+                          {isExpanded ? (
+                            <ChevronDownIcon className="h-4 w-4 text-gray-500" />
+                          ) : (
+                            <ChevronRightIcon className="h-4 w-4 text-gray-500" />
+                          )}
                         </div>
-                      )}
-                    </div>
-                  </details>
-                );
-              })}
-          </div>
-        </div>
+
+                        {isExpanded && (
+                          <div className="px-4 pb-4 pt-1">
+                            {projectRevisions.length === 0 ? (
+                              <p className="text-sm text-gray-500 py-2">
+                                No revisions submitted.
+                              </p>
+                            ) : (
+                              <Table>
+                                <TableHead>
+                                  <TableRow>
+                                    <TableHeader justify="center">Transaction ID</TableHeader>
+                                    <TableHeader justify="center">Reason</TableHeader>
+                                    <TableHeader justify="center">Requested Cost</TableHeader>
+                                    <TableHeader justify="center">Region</TableHeader>
+                                    <TableHeader justify="center">CO</TableHeader>
+                                    <TableHeader justify="center">Actions</TableHeader>
+                                  </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                  {projectRevisions.map((revision) => {
+                                    // Region is actionable when it's pending reviewer action.
+                                    // CO is actionable only after Region approves.
+                                    const regionActionable = revision.RegionStatus === 0;
+                                    const coActionable =
+                                      revision.RegionStatus === 1 && revision.COStatus === 0;
+
+                                    return (
+                                      <TableRow key={revision.Id}>
+                                        <TableCell className="font-mono text-xs text-gray-700">
+                                          {revision.TransactionId}
+                                        </TableCell>
+                                        <TableCell className="max-w-xs">
+                                          <span
+                                            className="block truncate text-gray-600"
+                                            title={revision.Reason}
+                                          >
+                                            {revision.Reason}
+                                          </span>
+                                        </TableCell>
+                                        <TableCell className="text-gray-700">
+                                          {formatCurrency(revision.RequestedCost)}
+                                        </TableCell>
+                                        <TableCell>
+                                          {/* rounded-full for pill consistency with publish-status badge */}
+                                          <span
+                                            className={`inline-flex px-1.5 py-0.5 rounded-full text-xs font-medium ${revisionStatusClass(revision.RegionStatus)}`}
+                                          >
+                                            {revisionStatusLabel(revision.RegionStatus)}
+                                          </span>
+                                        </TableCell>
+                                        <TableCell>
+                                          <span
+                                            className={`inline-flex px-1.5 py-0.5 rounded-full text-xs font-medium ${revisionStatusClass(revision.COStatus)}`}
+                                          >
+                                            {revisionStatusLabel(revision.COStatus)}
+                                          </span>
+                                        </TableCell>
+                                        <TableCell>
+                                          {regionActionable && (
+                                            <div className="flex gap-1 flex-wrap">
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  setApproveTarget({ revision, stage: 'Region' })
+                                                }
+                                                className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200"
+                                              >
+                                                Approve (R)
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  setRejectTarget({ revision, stage: 'Region' })
+                                                }
+                                                className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
+                                              >
+                                                Reject (R)
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  setReturnTarget({ revision, stage: 'Region' })
+                                                }
+                                                className="text-xs px-2 py-1 bg-amber-100 text-amber-700 rounded hover:bg-amber-200"
+                                              >
+                                                Return (R)
+                                              </button>
+                                            </div>
+                                          )}
+                                          {coActionable && (
+                                            <div className="flex gap-1 flex-wrap">
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  setApproveTarget({ revision, stage: 'CO' })
+                                                }
+                                                className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200"
+                                              >
+                                                Approve (CO)
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  setRejectTarget({ revision, stage: 'CO' })
+                                                }
+                                                className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
+                                              >
+                                                Reject (CO)
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  setReturnTarget({ revision, stage: 'CO' })
+                                                }
+                                                className="text-xs px-2 py-1 bg-amber-100 text-amber-700 rounded hover:bg-amber-200"
+                                              >
+                                                Return (CO)
+                                              </button>
+                                            </div>
+                                          )}
+                                        </TableCell>
+                                      </TableRow>
+                                    );
+                                  })}
+                                </TableBody>
+                              </Table>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+        </CollapsibleSection>
       )}
 
       {/* ================================================================== */}

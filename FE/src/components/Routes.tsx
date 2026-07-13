@@ -21,6 +21,7 @@ import ProjectReports from '../pages/Reports/ProjectReports';
 // the junior-engineer pass that follows this senior-engineer pass. The imports
 // below will cause a TypeScript/Vite error until those View files are created.
 // That is expected and will be resolved in the next implementation step.
+import AddWallet from '../pages/LSWallet/Views/AddWallet';
 import LSWalletList from '../pages/LSWallet/Views/LSWalletList';
 import LSWalletDetail from '../pages/LSWallet/Views/LSWalletDetail';
 // ✅ Extend RouteObject with a permission key
@@ -68,6 +69,7 @@ const protectedRoutes: AppRoute[] = [
 
   // #region LS Wallet Routes
   { RouteName: 'LumpSumList', path: '/lumpsum', element: <LSWalletList /> },
+  { RouteName: 'AddWallet', path: '/lumpsum/add', element: <AddWallet /> },
   { RouteName: 'LumpSumDetails', path: '/lumpsum/:walletId', element: <LSWalletDetail /> },
   // #endregion LS Wallet Routes
 ];

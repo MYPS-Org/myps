@@ -29,20 +29,23 @@ pages/LSWallet/
 │   ├── walletBalance.ts                # computeWalletBalance() — pure balance formula, no side effects
 │   ├── walletActions.ts                # getWalletActions(), getItemizedProjectActions(), resolveWalletDeleteTier(), resolveProjectDeleteTier()
 │   ├── walletStatusBadge.tsx           # WalletStatusBadge component (stage pill)
-│   └── constants.ts                    # WALLET_EXCLUSIVE_COMPONENT_TYPES, STAGE_ORDER, REPLENISH_ALLOWED_FROM_STAGE
+│   └── constants.ts                    # WALLET_EXCLUSIVE_COMPONENT_TYPES, STAGE_ORDER, REPLENISH_ALLOWED_FROM_STAGE, MOCK_WALLET_COMPONENT_TYPES
 │
 ├── components/
 │   ├── WalletBalanceWidget.tsx         # Total / Used / Available cards + progress bar (presentational)
 │   ├── WalletActionButtons.tsx         # Renders declarative action array from walletActions.ts
-│   ├── WalletDetailsSection.tsx        # Project Details form section (reused in Create and Detail views)
-│   ├── FundingProfileSection.tsx       # Funding Profile form section
-│   └── WalletComponentSection.tsx      # Component section (locked to 'LS' type, amount auto-filled)
+│   ├── CollapsibleSection.tsx          # Reusable chevron-toggle collapsible card; used by WalletForm for all three sections
+│   ├── WalletForm.tsx                  # Create/display wallet form; owns fundingProfiles/componentCosts/componentCostPerYear array state, derives Amount client-side, orchestrates validation + confirm-before-create flow
+│   ├── WalletDetailsSection.tsx        # Full project-details-parity form: General Information, Location Details, Organizational Responsibilities, Project Source, Implementation Readiness and Modality; replaces WalletProgramSection
+│   ├── WalletFundingProfileForm.tsx    # Multi-line funding table with Add/Delete, auto-computed percentage, color-coded totals row; replaces FundingProfileSection
+│   └── WalletComponentCostForm.tsx     # Multi-row component cost table with budget summary cards (Total/Max/Remaining), Add/Edit via WalletComponentCostDialog, Delete via Project's DeleteComponentDialog; replaces WalletComponentSection
 │
 ├── rules/
 │   └── walletFormRules.ts              # Create Wallet form validation rules (FormValidation.ts pattern)
 │
-├── dialogs/                            # One dialog per user action (12 total)
-│   ├── CreateWalletDialog.tsx
+├── dialogs/                            # One dialog per user action (13 total)
+│   ├── SaveWalletConfirmDialog.tsx     # Confirm-before-create dialog opened by WalletForm on the Add Wallet page
+│   ├── WalletComponentCostDialog.tsx   # Add/Edit wallet component cost; allows 'LS' component type; adapted from Project's ComponentCostDialog with no Major Item of Works linkage and no GIS auto-fill
 │   ├── ReplenishWalletDialog.tsx
 │   ├── DeleteWalletDialog.tsx
 │   ├── AdvanceProgramStageDialog.tsx   # Dev/demo stage-cascade simulation (clearly labeled)
@@ -56,7 +59,8 @@ pages/LSWallet/
 │   └── ReturnRevisionForReviewDialog.tsx
 │
 └── Views/
-    ├── LSWalletList.tsx                # List page — paginated table, search, Add Wallet, dev stage trigger
+    ├── LSWalletList.tsx                # List page — paginated table, search, Add Wallet (navigates to /lumpsum/add), dev stage trigger
+    ├── AddWallet.tsx                   # Thin page wrapper for WalletForm; registered at /lumpsum/add
     └── LSWalletDetail.tsx              # Detail page — orchestrator for all wallet and project actions
 ```
 
@@ -67,7 +71,10 @@ pages/LSWallet/
 | Route | Component | Route Name |
 |---|---|---|
 | `/lumpsum` | `LSWalletList` | `LumpSumList` |
+| `/lumpsum/add` | `AddWallet` | `AddWallet` |
 | `/lumpsum/:walletId` | `LSWalletDetail` | `LumpSumDetails` |
+
+The `/lumpsum/add` route is registered **before** the dynamic `/lumpsum/:walletId` route in `Routes.tsx` so the literal segment `add` is not captured as a `:walletId` param.
 
 Both route names (`LumpSumList` / `LumpSumDetails`) were **pre-existing RBAC placeholders** in `appRouteList.ts` — this module claimed them. The `:projectId` param in the original placeholder was renamed `:walletId` (confirmed safe: zero prior callsites). A pre-existing commented-out sidebar entry in `AppSidebar.tsx` was re-enabled with the standard `ViewAccess` guard matching the `/projects` sidebar item.
 
@@ -83,18 +90,45 @@ All interfaces use PascalCase properties. No camelCase aliases (codebase convent
 
 | Interface | Purpose |
 |---|---|
-| `LSWallet` | Budget container owned by a Program. `ComponentType` is always `'LS'`. |
+| `LSWallet` | Budget container owned by a Program. `ComponentType` is always `'LS'`. Carries three array fields (`WalletFundingProfiles`, `WalletComponentCosts`, `WalletComponentCostPerYear`) and ~26 optional ProjectDetails-parity flat fields. `Amount` is a **derived** value — see Amount Invariant note below. |
+| `WalletFundingProfile` | One funding line on an `LSWallet` (structurally mirrors Project's `FundingProfile`). Fields: `Id`, `WalletId`, `Source`, `Agreement`, `Percentage` (auto-calculated), `Amount`, `CreatedBy`, `CreatedDate`, `IsDeleted`. |
+| `WalletComponentCost` | One component cost row on an `LSWallet` (structurally mirrors Project's `ComponentCost`). `WalletId` replaces `ProjectId`; `ComponentType` is always `'LS'` in practice. Passed to Project's `DeleteComponentDialog` via a safe cast. |
+| `WalletComponentCostPerYear` | Per-year cost breakdown linked to a `WalletComponentCost` by `ComponentCostId`. Has `Year`, `Amount`, `StartDate`, `EndDate`, `IsDeleted`. |
 | `ItemizedProject` | AIP project that draws from a wallet. Has `CurrentDrawAmount` (live) and `PublishedDrawAmount` (frozen at WF-8). |
 | `FundingLine` | One funding line on an `ItemizedProject`. The one with `IsWalletLine: true` is the line that draws down Available. |
 | `LSWalletBalance` | Computed result: `{ WalletId, Total, Used, Available }`. Mirrors the future `vLSWalletBalance` SQL view. |
 | `ItemizedProjectRevision` | Revision record for a published project (WF-6). Status codes match the Modification module: `0=Pending, 1=Approved, 2=Disapproved, 3=ForReview`. |
 | `WalletStage` | `'BP' | 'NEP' | 'HGAB' | 'GAA' | 'GAA-R'` |
 
+### Amount Invariant
+
+`wallet.Amount` is **always derived**, never set directly:
+
+```
+Amount = SUM(WalletFundingProfiles where !IsDeleted)
+```
+
+The mock store enforces this via `recomputeWalletAmount()`, which is called after every mutation that touches `WalletFundingProfiles` (`createWallet`, `replenishWallet`). `WalletForm.tsx` mirrors this with a `useEffect` that recomputes `Amount` client-side whenever `fundingProfiles` state changes, so validation and the confirm dialog always read the correct total without a store round-trip.
+
+**Do not set `Amount` directly.** Mutate `WalletFundingProfiles` and let the store (or the form's `useEffect`) recompute.
+
+### `LSWallet` Optional ProjectDetails-Parity Fields
+
+The following optional fields were added to `LSWallet` to reach parity with the Project module's `ProjectDetails` shape. All are `undefined` by default and not required for wallet creation.
+
+| Group | Fields |
+|---|---|
+| General Information | `MYId`, `AlternateId`, `ExternalId`, `UACS`, `Tier` (1–5), `Rank`, `MYCAApprovalDate`, `Description` |
+| Location Details | `Province` (GdbId), `City` (GdbId), `LegislativeDistrict` (GdbId) |
+| Organizational Responsibilities | `DEO` (ParticipantId), `Region` (ParticipantId), `ImplementingOffice` (ParticipantId), `RegionWide` (1/2/3) |
+| Project Source | `Origin` (TableEnum.NameId), `Agency` (AgencyEnum.NameId) |
+| Implementation Readiness and Modality | `ImplementationMode`, `EmergencyMode`, `Feasibility`, `FeasibilityDate`, `DetailedDesign`, `DetailedDesignDate`, `RowAvailable` |
+
 ### Dto Wire Types
 
 | Interface | Purpose |
 |---|---|
-| `DtoCreateWallet` | WF-1 Create Wallet payload |
+| `DtoCreateWallet` | WF-1 Create Wallet payload. Required: `programId`, `categoryId`, `subCategoryId`, `operatingUnit`, `createdBy`, `fundingProfiles: WalletFundingProfile[]`, `componentCosts: WalletComponentCost[]`, `componentCostPerYear: WalletComponentCostPerYear[]`. All ~26 ProjectDetails-parity flat fields are optional. No flat `FundingSource`/`Amount`/`FundingPercentage`/`ComponentYear` fields — those are replaced by the arrays. |
 | `DtoReplenishWallet` | WF-3 Replenish payload — `newAmount` must exceed current `Amount` |
 | `DtoCreateItemizedProject` | WF-4 Create Itemized Project payload |
 | `DtoUpdateDrawAmount` | Pre-publish draw edit payload |
@@ -152,6 +186,7 @@ Source: `utils/walletBalance.ts` (`computeWalletBalance`).
 
 ```
 Total     = wallet.Amount
+            where Amount = SUM(WalletFundingProfiles where !IsDeleted)   ← DERIVED, not stored directly
 Used      = SUM(effectiveDraw) over active itemized projects
             where active = IsDeleted === false AND IsCancelled === false
             and effectiveDraw = project.PublishedDrawAmount ?? project.CurrentDrawAmount
@@ -177,7 +212,10 @@ const balance = useWalletBalance(walletId);
 **Seed data verification** (`walletSeedData.ts`, Wallet 1 at seed state):
 
 ```
-Total     = 12,000,000
+Amount    = SUM(WalletFundingProfiles)
+          = 10,000,000 (original GAA allocation) + 2,000,000 (replenishment top-up)
+          = 12,000,000
+Total     = wallet.Amount = 12,000,000
 Used      = PublishedDrawAmount(Project A)=3,500,000
            + CurrentDrawAmount(Project B)=1,000,000
            (Project C excluded — IsDeleted: true)
@@ -215,7 +253,7 @@ Soft-deleting an unpublished itemized project immediately returns the draw to Av
 
 | Workflow | Entry Dialog | Service Function | Mock Store Function |
 |---|---|---|---|
-| WF-1 Create Wallet | `CreateWalletDialog` | `createWallet()` | `walletMockStore.createWallet()` |
+| WF-1 Create Wallet | `AddWallet` page (`WalletForm.tsx`) → `SaveWalletConfirmDialog` | `createWallet()` | `walletMockStore.createWallet()` |
 | WF-2 Stage Cascade | `AdvanceProgramStageDialog` | `advanceProgramStage()` | `walletMockStore.advanceProgramStage()` |
 | WF-3 Replenish | `ReplenishWalletDialog` | `replenishWallet()` | `walletMockStore.replenishWallet()` |
 | WF-4 Create Itemized Project | `CreateItemizedProjectDialog` | `createItemizedProject()` | `walletMockStore.addItemizedProject()` |
@@ -235,7 +273,7 @@ All 18 functions return `Promise<ApiResponse<T>>`. `ApiResponse<T>` is `{ Data: 
 | `fetchWalletList(pagination)` | Paginated list with optional ProgramId / Stage / OperatingUnit filters |
 | `fetchWalletById(id)` | Single wallet by numeric ID |
 | `createWallet(payload, programName)` | WF-1 — creates wallet, syncs atom |
-| `replenishWallet(payload)` | WF-3 — increases Amount; throws if `newAmount <= current` |
+| `replenishWallet(payload)` | WF-3 — adds a new `WalletFundingProfile` (Source: `'Replenishment'`, Amount: `newAmount - current`) then recomputes `Amount = SUM(WalletFundingProfiles)`; throws if `newAmount <= current` |
 | `deleteWallet(walletId, updatedBy)` | WF-7 — returns `{ tier, wallet }` |
 | `fetchItemizedProjectsByWalletId(walletId)` | All projects for a wallet |
 | `validateWalletForItemization(walletId)` | WF-4 gate check — returns `{ valid, message? }` |
@@ -280,8 +318,30 @@ Jotai atoms for revision context (`currentRevisionContextAtom`, `regionStatusAto
 - Fetches wallet list via `Service.fetchWalletList()` on mount and pagination changes.
 - Balances fetched via `useAllWalletBalances()` hook (single atom read, avoids per-row service calls).
 - Search: filters by `OperatingUnit` (Enter key or button).
+- **Add Wallet** (header button) and **Create Your First Wallet** (empty-state button) both `navigate('/lumpsum/add')`. No dialog is opened from this page for wallet creation.
 - Row actions: **View** (navigates to `/lumpsum/:walletId`) and **[Dev] Advance Stage** (opens `AdvanceProgramStageDialog`). Replenish / Add Itemized / Delete are intentionally not on the list row — they need the full itemized-project context for correct delete-tier resolution and live only on the Detail page.
 - Columns: Wallet ID | Program Name | Category | Stage | Total / Available | Created | Actions.
+
+### `AddWallet.tsx` and `WalletForm.tsx`
+
+> **Architecture note — modal → full page.** The "Add Wallet" flow was originally a modal dialog (`CreateWalletDialog`). It was migrated to a dedicated full page modeled on the Project module's `AddProject.tsx` / `ProjectForm.tsx` architecture. `AddWallet.tsx` is a thin page wrapper that renders `<WalletForm />`, exactly mirroring `AddProject.tsx` / `ProjectForm.tsx`.
+
+`WalletForm.tsx` owns the full create-wallet experience. It is mode-driven (`mode="add"` for the Add Wallet page, `mode="edit"` for read-only display in LSWalletDetail):
+
+- Maintains **separate array state** alongside flat wallet state: `fundingProfiles: WalletFundingProfile[]`, `componentCosts: WalletComponentCost[]`, `componentCostPerYear: WalletComponentCostPerYear[]`. Initialized from `initialData` arrays in edit mode.
+- Has a `useEffect` that recomputes `wallet.Amount` client-side as `SUM(fundingProfiles where !IsDeleted)` whenever `fundingProfiles` changes, keeping validation and the confirm dialog accurate without a store round-trip.
+- Loads `projectEnums` via `getProjectEnums()` to populate dropdowns.
+- Renders three `CollapsibleSection` cards (all expanded by default):
+  1. **"Project Details"** — `WalletDetailsSection` (General Information, Location Details, Organizational Responsibilities, Project Source, Implementation Readiness and Modality)
+  2. **"Funding Profile"** — `WalletFundingProfileForm` (multi-line funding table, Add/Delete, auto-computed percentage)
+  3. **"Component Cost"** — `WalletComponentCostForm` (multi-row cost table, budget summary cards, Add/Edit/Delete)
+- In `mode="edit"` all sections render disabled; the "Create Wallet" button and `SaveWalletConfirmDialog` are not rendered.
+- Validates in two steps before opening the confirm dialog:
+  1. Flat-field rules via `walletFormRules.ts` (`ProgramId` required, `CategoryId` required, `Tier` optional 1–5).
+  2. Array-level check: at least one non-deleted `WalletFundingProfile` with `Amount > 0`.
+- On confirmation, builds a `DtoCreateWallet` payload with the array fields and all optional flat fields, calls `Service.createWallet()`, then navigates to `/lumpsum/{newWalletId}`.
+
+> **Removed rules note:** The old `walletFormRules.ts` entries for `FundingSource`, `Amount`, `FundingPercentage`, `ComponentYear`, `ComponentAmount` have been dropped. Those flat fields no longer exist on `DtoCreateWallet`. The rules file now only validates `ProgramId`, `CategoryId`, and the optional `Tier` range.
 
 ### `LSWalletDetail.tsx`
 
@@ -289,7 +349,7 @@ Orchestrator page for all wallet-level and project-level operations. Key design 
 
 - **Reactive from the atom.** Wallet fields (`CurrentStage`, `Amount`, `HasStageData`) and project fields (`PublishStatus`, `CurrentDrawAmount`) are all read from `walletDataAtom`. Every mutation via `Service.ts` calls `syncAtom()`, so the UI stays consistent without explicit refetches.
 - **Revisions are the sole exception** — they are not in the atom snapshot. On mount, `LSWalletDetail` fetches revision history for all published projects and stores the result in local state (`useState<Record<number, ItemizedProjectRevision[]>>`). Revision actions update this local state via `onSuccess` callbacks.
-- **Form sections are reused in disabled mode.** `WalletDetailsSection`, `FundingProfileSection`, and `WalletComponentSection` accept an `onChange` prop and an `disabled` flag. In Detail view they render in read-only mode with a stable `noOp` callback.
+- **Form sections are reused in disabled mode.** `WalletForm` accepts a `mode` prop. In Detail view, `LSWalletDetail` renders `<WalletForm mode="edit" initialData={wallet} />`, which renders all three section components (`WalletDetailsSection`, `WalletFundingProfileForm`, `WalletComponentCostForm`) in disabled mode using a stable `noOp` callback. No separate disabled-mode rendering logic is needed in the Detail page.
 - **Delete tier is pre-resolved.** Before opening either delete dialog, Detail calls `resolveWalletDeleteTier()` / `resolveProjectDeleteTier()` and passes the resolved tier as a required prop. The dialogs do not determine their own tier.
 
 ---
@@ -298,7 +358,8 @@ Orchestrator page for all wallet-level and project-level operations. Key design 
 
 | Dialog | Triggered from | Primary service call |
 |---|---|---|
-| `CreateWalletDialog` | List page "Add Wallet" | `Service.createWallet()` |
+| `SaveWalletConfirmDialog` | Add Wallet page (`WalletForm.tsx`) — "Create Wallet" button | `Service.createWallet()` |
+| `WalletComponentCostDialog` | `WalletComponentCostForm` — "Add Component" / pencil edit | None (updates in-form state only; persisted on wallet save) |
 | `ReplenishWalletDialog` | Detail page action buttons | `Service.replenishWallet()` |
 | `DeleteWalletDialog` | Detail page; requires `tier` prop | `Service.deleteWallet()` |
 | `AdvanceProgramStageDialog` | List row "[Dev] Advance Stage" or Detail action | `Service.advanceProgramStage()` |
@@ -325,7 +386,9 @@ The service returns `{ complianceResult: { Rules, AllPassed }, project }`. If `A
 
 ---
 
-## Cross-Module Touch: `ComponentCostDialog.tsx`
+## Cross-Module Touches
+
+### Project → LSWallet: `ComponentCostDialog.tsx`
 
 `FE/src/pages/Project/dialogs/ComponentCostDialog.tsx` imports `WALLET_EXCLUSIVE_COMPONENT_TYPES` from `LSWallet/utils/constants.ts` and filters it from the component-type dropdown:
 
@@ -339,6 +402,23 @@ componentTypes?.filter(
 This ensures the `'LS'` component type (reserved for wallet component lines) cannot be selected on regular or itemized AIP projects. If the backend adds more wallet-exclusive types, adding them to `WALLET_EXCLUSIVE_COMPONENT_TYPES` in `constants.ts` is the only code change needed.
 
 **Context:** The existing codebase already has an unrelated feature — `ProjectDetails.IslandCode === 'LS'` marks a legacy "Lump Sum project type" with its own "Itemized Lump Sum Import" dialog in `FE/src/pages/Project/`. The LSWallet module is distinct from that feature. The `WALLET_EXCLUSIVE_COMPONENT_TYPES` filter does not affect that feature.
+
+### LSWallet → Project: `useLocationFilters` and `DeleteComponentDialog`
+
+Two components in this module import from `FE/src/pages/Project/` — both are intentional, scoped exceptions:
+
+| LSWallet file | Project import | Reason |
+|---|---|---|
+| `WalletDetailsSection.tsx` | `useLocationFilters` from `Project/filteringLocations` | Pure hook (no side effects, no store access) that handles province/city/LD cascade filtering. Importing avoids duplicating ~150 lines of filtering logic. Guarded by the `isLumpSum = true` argument so the hook returns the full unfiltered list (wallet is program-wide). |
+| `WalletComponentCostForm.tsx` | `DeleteComponentDialog` from `Project/dialogs/deleteDialogs/` | `WalletComponentCost` is structurally compatible with `ComponentCost` for the subset of fields `DeleteComponentDialog` reads (`ComponentId`, `ComponentType`, `Total`, `Description`). The cast is safe because the only structural difference is `WalletId: number` vs `ProjectId: string`, which `DeleteComponentDialog` does not access. `relatedMajorItemsCount` is always `0` (wallets have no Major Item of Works). |
+
+**Structural typing risk:** If `ComponentCost` gains a new required field that `WalletComponentCost` does not carry, the cast in `WalletComponentCostForm` will fail at runtime. Update `WalletComponentCost` in `Model.d.ts` to match when that happens.
+
+### `MOCK_WALLET_COMPONENT_TYPES` and `WalletComponentCostDialog`
+
+`utils/constants.ts` also exports `MOCK_WALLET_COMPONENT_TYPES` — a hardcoded list of `ComponentTypeEnum`-shaped records (`LS`, `DR`, `ROW`, `ENG`, `ADM`) used by `WalletComponentCostDialog`. This list exists because the real component types come from `getProjectDetails().Dropdowns.ComponentTypes`, which requires an existing project ID that wallets do not have. Replace with a direct `/LSWallet/component-types` endpoint call when the backend provides one.
+
+`WalletComponentCostDialog` deliberately does **not** apply the `WALLET_EXCLUSIVE_COMPONENT_TYPES` filter — wallets must be able to select `'LS'` as their component type. This is the mirror-image of `ComponentCostDialog`'s explicit exclusion.
 
 ---
 
@@ -382,11 +462,15 @@ Added during implementation (not in the original schema doc list). Drives hard v
 
 ## Seed Data
 
-Wallet 1 (`Id: 1`) — `Asset Preservation Program 2024`, 12,000,000 at GAA stage. Has three seeded itemized projects:
+Wallet 1 (`Id: 1`) — `Asset Preservation Program 2024`, `Amount: 12,000,000` at GAA stage. `Amount` is derived from two seeded `WalletFundingProfiles`:
+- Profile Id 1: `Source: 'General Appropriations Act'`, `Amount: 10,000,000` (original allocation).
+- Profile Id 2: `Source: 'Replenishment'`, `Amount: 2,000,000` (represents the WF-3 replenish top-up).
+
+Has three seeded itemized projects:
 - Project A (`LS-W001-P001`): Published, `PublishedDrawAmount = 3,500,000`.
 - Project B (`LS-W001-P002`): Not published, `CurrentDrawAmount = 1,000,000`.
 - Project C (`LS-W001-P003`): Soft-deleted — excluded from balance.
 
-Wallet 2 (`Id: 2`) — `Infrastructure Build Fund 2024`, 5,000,000 at GAA-R. No itemized projects — available for WF-4 demos.
+Wallet 2 (`Id: 2`) — `Infrastructure Build Fund 2024`, `Amount: 5,000,000` at GAA-R. One `WalletFundingProfile` (100% GAA). No itemized projects — available for WF-4 demos.
 
-The seed represents the **after-replenish** state of the WF-5 worked scenario. The 10M → 12M replenish step is not replayed at seed time; the seed starts at 12M.
+The seed represents the **after-replenish** state of the WF-5 worked scenario. Rather than replaying the 10M → 12M replenish step, the seed starts with two funding profile lines that sum to 12M. Calling `replenishWallet()` at runtime appends a third profile line (Source: `'Replenishment'`); it does not mutate existing lines.

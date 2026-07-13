@@ -17,7 +17,7 @@
 
 import React, { useState } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
-import { ExclamationTriangleIcon, LockClosedIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { ExclamationTriangleIcon, LockClosedIcon } from '@heroicons/react/24/outline';
 import { Button } from '../../../components/tailwindui/button';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import * as Service from '../Service';
@@ -79,12 +79,12 @@ const DeleteItemizedProjectDialog: React.FC<DeleteItemizedProjectDialogProps> = 
         return (
           <>
             <div className="flex gap-3 mb-4">
-              <LockClosedIcon className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+              <LockClosedIcon className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-gray-900 dark:text-white mb-2">
+                <p className="text-sm font-medium text-gray-900 mb-2">
                   Published Project — Cannot Delete
                 </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-gray-600">
                   This project is published and cannot be deleted directly. To cancel or modify it,
                   please submit a revision request.
                 </p>
@@ -97,12 +97,12 @@ const DeleteItemizedProjectDialog: React.FC<DeleteItemizedProjectDialogProps> = 
         return (
           <>
             <div className="flex gap-3 mb-4">
-              <ExclamationTriangleIcon className="w-5 h-5 text-orange-600 dark:text-orange-400 flex-shrink-0 mt-0.5" />
+              <ExclamationTriangleIcon className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-gray-900 dark:text-white mb-2">
+                <p className="text-sm font-medium text-gray-900 mb-2">
                   Soft Delete — Excludes from Active Views
                 </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-gray-600">
                   This project will be marked as deleted and excluded from all active views. The
                   wallet-funded draw amount will immediately return to the wallet's available balance.
                   This action can be reversed if needed.
@@ -116,12 +116,12 @@ const DeleteItemizedProjectDialog: React.FC<DeleteItemizedProjectDialogProps> = 
         return (
           <>
             <div className="flex gap-3 mb-4">
-              <ExclamationTriangleIcon className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+              <ExclamationTriangleIcon className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-gray-900 dark:text-white mb-2">
+                <p className="text-sm font-medium text-gray-900 mb-2">
                   Permanent Deletion — No Recovery
                 </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-gray-600">
                   This action is permanent and cannot be undone. The project will be completely
                   removed from the system, and the wallet-funded draw amount will immediately return
                   to the wallet's available balance.
@@ -138,35 +138,24 @@ const DeleteItemizedProjectDialog: React.FC<DeleteItemizedProjectDialogProps> = 
 
   return (
     <Dialog open={open} onClose={onClose} className="relative z-50">
-      <div className="fixed inset-0 bg-black/30 dark:bg-black/50" aria-hidden="true" />
+      <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
 
       <div className="fixed inset-0 flex items-center justify-center p-4">
-        <DialogPanel className="w-full max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-xl">
-          {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <DialogTitle className="text-lg font-semibold text-gray-900 dark:text-white">
-              Delete Project
-            </DialogTitle>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-            >
-              <XMarkIcon className="w-6 h-6" />
-            </button>
-          </div>
+        <DialogPanel className="mx-auto w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+          <DialogTitle className="text-xl font-semibold text-gray-900 mb-6">
+            Delete Project
+          </DialogTitle>
 
-          {/* Content */}
-          <div className="p-6 space-y-4">
-            <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              <p className="font-medium text-gray-900 dark:text-white mb-1">Project ID:</p>
+          <div className="space-y-4 mb-6">
+            <div className="text-sm text-gray-600 mb-4">
+              <p className="font-medium text-gray-900 mb-1">Project ID:</p>
               <p>{project.ProjectId}</p>
             </div>
 
             {renderTierContent()}
           </div>
 
-          {/* Actions */}
-          <div className="flex justify-end space-x-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex justify-end gap-3 border-t pt-6">
             {tier === 'blocked' ? (
               // Read-only mode for blocked projects
               <Button type="button" onClick={onClose} color="zinc">

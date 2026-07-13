@@ -140,8 +140,10 @@ export const fetchWalletById = async (id: number): Promise<ApiResponse<LSWallet>
  *     payload,
  *     { preloaderMessage: 'Creating wallet...' }
  *   );
- *   // Expected payload: DtoCreateWallet
- *   // Expected response: ApiResponse<LSWallet> (the created entity)
+ *   // Expected payload: DtoCreateWallet (array-based fundingProfiles + componentCosts)
+ *   // Expected response: ApiResponse<LSWallet> (the created entity with all new fields)
+ *   // NOTE: Amount in the response should equal SUM(fundingProfiles) — backend must
+ *   // enforce the AMOUNT INVARIANT on its end as well.
  */
 export const createWallet = async (
   payload: DtoCreateWallet,
