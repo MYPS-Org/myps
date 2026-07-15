@@ -100,8 +100,7 @@ namespace DBHelper.Data
         public DbSet<Models.Views.UserViewPermission> vUserViewPermission { get; set; }
         public DbSet<Models.Views.UserGroups> vUserGroups { get; set; }
         public DbSet<Models.Views.APIPermissions> vAPIPermissions { get; set; }
-        public DbSet<Models.Views.Programs> vPrograms { get; set; }
-        public DbSet<Models.Views.ProgramDetails> vProgramDetails { get; set; }
+        public DbSet<Models.Views.ProgramLatest> vProgramLatest { get; set; }
         public DbSet<Models.Views.Projects> vProjects { get; set; }
         public DbSet<Models.Views.ProjectGroups> vProjectGroups { get; set; }
         public DbSet<Models.Views.ProjectsInGroup> vProjectsInGroup { get; set; }
@@ -114,6 +113,8 @@ namespace DBHelper.Data
         public DbSet<Models.Views.ProjectLatestStage> vProjectLatestStage { get; set; }
         #endregion
         #region Functions
+        public DbSet<Models.Functions.ProgramStages> fProgramStages { get; set; }
+        public DbSet<Models.Functions.ProgramDetails> fProgramDetails { get; set; }
         public DbSet<Models.Functions.ProjectsPerStage> fProjectsPerStage { get; set; }
         public DbSet<Models.Functions.ProjectDetails> fProjectDetails { get; set; }
         public DbSet<Models.Functions.PendingProjectRevisions> fPendingProjectRevisions { get; set; }

@@ -130,7 +130,7 @@ namespace WebAPI.Controllers.Revision
                 //dto.OperatingUnitName = "";
                 //dto.LegislativeDistrictName = "";
 
-                var programDetailsQuery = _db.vProgramDetails
+                var programDetailsQuery = _db.fProgramStages
                 .AsNoTracking()
                 .Where(x => x.ProgramId == dto.ProgramId && x.StageName == dto.StageName);
 
@@ -211,7 +211,7 @@ namespace WebAPI.Controllers.Revision
                 //dto.ImplementingOfficeName = "";
                 //dto.OperatingUnitName = "";
                 //dto.LegislativeDistrictName = "";
-                var programDetailsQuery = _db.vProgramDetails
+                var programDetailsQuery = _db.fProgramStages
                     .AsNoTracking()
                     .Where(x => x.ProgramId == dto.ProgramId && x.StageName == dto.StageName);
 
@@ -282,7 +282,7 @@ namespace WebAPI.Controllers.Revision
                 //dto.ImplementingOfficeName = "";
                 //dto.OperatingUnitName = "";
                 //dto.LegislativeDistrictName = "";
-                var ProgramDetails = _db.vProgramDetails
+                var ProgramDetails = _db.fProgramStages
                 .AsNoTracking()
                 .Where(x => x.ProgramId == dto.ProgramId && x.StageName == dto.StageName);
 

@@ -103,7 +103,7 @@ namespace WebAPI.Controllers.Importing
             {
                 return new IsValidProgramIdResponse { IsValid = false, Message = $"The provided stage '{StageName}' does not match the latest stage for Program '{ProgramID}'. Current stage: '{CheckProgram.StageName}'" };
             }
-            var Details = _db.vProgramDetails.AsNoTracking().FirstOrDefault(x => x.ProgramId == ProgramID && x.StageName == StageName);
+            var Details = _db.fProgramStages.AsNoTracking().FirstOrDefault(x => x.ProgramId == ProgramID && x.StageName == StageName);
             if (Details == null)
             {
                 return new IsValidProgramIdResponse { IsValid = false, Message = $"Program details not found for ProgramID: {ProgramID} at Stage: {StageName}." };

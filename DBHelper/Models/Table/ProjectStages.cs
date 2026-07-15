@@ -10,22 +10,27 @@ using System.Threading.Tasks;
 
 namespace DBHelper.Models.Table
 {
+    [Table("dbo.tProjectStages")]
     public class ProjectStages
     {
         [Key]
         public int Id { get; set; }
         [Required]
-        [MaxLength(100)]
-        public string ReferenceId { get; set; } = string.Empty;
+        [MaxLength(200)]
+        // FK -> dbo.tProjects(ProjectPK)
+        public string ProjectFK { get; set; } = string.Empty;
         [Required]
         [MaxLength(200)]
+        // FK -> dbo.tPrograms(ProgramPK)
+        public string ProgramFK { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(255)]
         public string ProgramId { get; set; } = string.Empty;
         [Required]
-        [MaxLength(200)]
-        public string ProgramUniqueId { get; set; } = string.Empty;
-        [Required]
+        // FK -> dbo.tProjectRevisions(Id)
         public int RevisionId { get; set; }
         [Required]
+        // FK -> dbo.tOptionProgramStage(NameId)
         public EnumProgramStage StageId { get; set; }
         [Required]
         [MaxLength(100)]

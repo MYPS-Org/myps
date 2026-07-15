@@ -230,7 +230,7 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = $"No program is associated with the Project ID {ProjectId}. Please contact administrator.", Title = "Program Not Associated" });
                 }
-                var Program = await _db.vProgramDetails.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == Project.ProgramId && x.StageName == Project.StageName);
+                var Program = await _db.fProgramStages.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == Project.ProgramId && x.StageName == Project.StageName);
                 if (Program == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Program not found for this project.", Title = "Program Not Found" });
@@ -490,7 +490,7 @@ namespace WebAPI.Controllers.Revision
                 {
                     return new BadRequestObjectResult(new { Message = $"No program is associated with the Project ID {dto.ProjectId}. Please contact administrator.", Title = "Program Not Associated" });
                 }
-                var Program = await _db.vProgramDetails.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == Project.ProgramId && x.StageName == Project.StageName);
+                var Program = await _db.fProgramStages.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == Project.ProgramId && x.StageName == Project.StageName);
                 if (Program == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Program not found for this project.", Title = "Program Not Found" });

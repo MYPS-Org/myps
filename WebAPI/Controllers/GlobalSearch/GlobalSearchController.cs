@@ -73,7 +73,7 @@ namespace WebAPI.Controllers.GlobalSearch
                 }
                 if (dto.Category == "Program Name") 
                 {
-                    var Programs = await _db.vProgramDetails.Where(x => x.Name.Contains(dto.SearchFor)).ToListAsync();
+                    var Programs = await _db.fProgramStages.Where(x => x.Name.Contains(dto.SearchFor)).ToListAsync();
                     return Ok(new { Data = Programs, Title = $"{Programs.Count} program/s found." });
                 }
                 if(dto.Category == "Project ID")

@@ -7,13 +7,19 @@ namespace DBHelper.Models.Enums
         public required T Filters { get; set; }
         public int limit { get; set; } = 10;
         public int page { get; set; } = 1;
-        public string SortField { get; set; } = "Id";
-        public sortDirectionList? sortDirection { get; set; } = sortDirectionList.DESC; //ASC//DESC
+        public PaginationDirection Direction { get; set; } = PaginationDirection.Next;
+        public long? PreviousFilteredId { get; set; }
+        public long? NextFilteredId { get; set; }
     }
-    public enum sortDirectionList
+    public enum PaginationDirection
     {
-        ASC = 0,
-        DESC = 1
+        Next,
+        Previous
+    }
+    public class PaginationPages
+    {
+        public int? PageNumber { get; set; }
+        public long? PageStartId { get; set; }
     }
     public class FilterDataResult<T>
     {
@@ -40,7 +46,22 @@ namespace DBHelper.Models.Enums
         public List<T> lists { get; set; } = new List<T>();
         public int page { get; set; }
         public int limit { get; set; }
-        public int total { get; set; }
+        public long? total { get; set; }
         public int totalPages { get; set; }
     }
+    public class PaginationCount
+    {
+        public long TotalCount { get; set; } = 0;
+    }
+    /*
+     
+     var response = new
+                {
+                    lists = permissionLists,
+                    dto.page,
+                    dto.limit,
+                    total = totalRecords,
+                    totalPages
+                };
+     */
 }

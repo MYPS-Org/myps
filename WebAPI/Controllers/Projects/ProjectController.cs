@@ -188,7 +188,7 @@ namespace WebAPI.Controllers.Projects
         {
             try
             {
-                var AvailablePrograms = await _db.vProgramDetails.AsNoTracking().Where(x => x.IsPublished != true).ToListAsync();
+                var AvailablePrograms = await _db.fProgramStages.AsNoTracking().Where(x => x.IsPublished != true).ToListAsync();
                 int CurrentYear = (int)Functions.CurrentDate().Year;
                 var Category = await _db.tOptionProjectCategory.AsNoTracking().Where(x => x.ValidUntil >= CurrentYear || x.ValidUntil == 0).OrderBy(x => x.CategoryName).ToListAsync();
                 var Thrust = await _db.tProjectThrustLists.AsNoTracking().OrderBy(x => x.ThrustDescription).ToListAsync();
@@ -316,7 +316,7 @@ namespace WebAPI.Controllers.Projects
                 {
                     return new BadRequestObjectResult(new { Message = "Selected Program not found.", Title = "Program Not Found" });
                 }
-                var ProgramDetails = await _db.vProgramDetails.FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId && x.StageName == Program.StageName);
+                var ProgramDetails = await _db.fProgramStages.FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId && x.StageName == Program.StageName);
                 if(ProgramDetails == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Selected Program details not found.", Title = "Program Details Not Found" });
@@ -527,7 +527,7 @@ namespace WebAPI.Controllers.Projects
                         ProgramId = Project.ProgramId
                     });
                 }
-                var Program = await _db.vProgramDetails.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == Project.ProgramId && x.StageName == dto.StageName);
+                var Program = await _db.fProgramStages.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == Project.ProgramId && x.StageName == dto.StageName);
                 if (Program == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Program not found for this project.", Title = "Program Not Found" });
@@ -748,7 +748,7 @@ namespace WebAPI.Controllers.Projects
                         return Ok(new { Message = $"Description: {dto.ProjectDetails.Description} already exist in {ValidateProgram.ProjectId}! Do you still want to proceed?", Title = "Description Exists", Type = "Prompt" });
                     }
                 }
-                var Program = await _db.vProgramDetails.AsNoTracking().OrderByDescending(x => x.RevisionNumber).FirstOrDefaultAsync(x => x.ProgramId == Project.ProgramId && x.StageName == dto.ProjectDetails.StageName);
+                var Program = await _db.fProgramStages.AsNoTracking().OrderByDescending(x => x.RevisionNumber).FirstOrDefaultAsync(x => x.ProgramId == Project.ProgramId && x.StageName == dto.ProjectDetails.StageName);
                 if (Program == null)
                 {
                     return new BadRequestObjectResult(new { Message = "Program not found for this project.", Title = "Program Not Found" });

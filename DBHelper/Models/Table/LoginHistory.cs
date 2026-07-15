@@ -16,9 +16,6 @@ namespace DBHelper.Models.Table
         [MaxLength(100)]
         public string UserId { get; set; } = string.Empty;
         [Required]
-        [MaxLength(500)]
-        public string Pass { get; set; } = string.Empty;
-        [Required]
         [MaxLength(15)]
         public string IpAddress { get; set; } = string.Empty;
         [Required]

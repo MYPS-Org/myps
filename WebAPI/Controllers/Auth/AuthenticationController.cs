@@ -26,21 +26,6 @@ namespace WebAPI.Controllers.Auth
         public AuthController(MYPSDbContext db, IProducer<Null, string> producer, PCMADbContext pcma) : base (db, producer, pcma) { }
         [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> TestLogin([FromBody] LoginDto dto)
-        {
-            try
-            {
-                var request = new AuthenticatePIS(dto.UserName, dto.Password);
-                var employee = await APIRequest.XML(request);
-                return Ok(new { Message = "Test successful", Data = new { Response = employee } });
-            }
-            catch (Exception ex)
-            {
-                return ExceptionHandler(ex);
-            }
-        }
-        [AllowAnonymous]
-        [HttpPost]
         public async Task<IActionResult> Login([FromBody] LoginDto dto)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
@@ -65,7 +50,6 @@ namespace WebAPI.Controllers.Auth
                 LoginLog = new LoginHistory()
                 {
                     UserId = dto.UserName,
-                    Pass = dto.Password,
                     IpAddress = clientIp,
                     HostName = hostName,
                     LogDate = CurrentDate,

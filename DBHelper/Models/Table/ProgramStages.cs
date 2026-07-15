@@ -10,17 +10,23 @@ using System.Threading.Tasks;
 
 namespace DBHelper.Models.Table
 {
+    [Table("dbo.tProgramStages")]
     public class ProgramStages
     {
         [Key]
         public int Id { get; set; }
         [Required]
+        [MaxLength(200)]
+        // FK -> dbo.tPrograms(ProgramPK)
+        public string ProgramFK { get; set; } = string.Empty;
+        [Required]
+        [MaxLength(255)]
         public string ProgramId { get; set; } = string.Empty;
         [Required]
-        public string ProgramUniqueId { get; set; } = string.Empty;
-        [Required]
+        // FK -> dbo.tProgramRevisions(Id)
         public int RevisionId { get; set; }
         [Required]
+        // FK -> dbo.tOptionProgramStage(NameId)
         public EnumProgramStage StageId { get; set; }
         [Required]
         [MaxLength(100)]
@@ -30,7 +36,5 @@ namespace DBHelper.Models.Table
         public string CreatedBy { get; set; } = string.Empty;
         [Required]
         public DateTime CreatedDate { get; set; }
-        [Required]
-        public bool IsPublished { get; set; }
     }
 }
