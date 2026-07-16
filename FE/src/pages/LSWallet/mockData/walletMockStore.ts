@@ -14,6 +14,10 @@
 // Every mutation function that touches WalletFundingProfiles must call
 // recomputeWalletAmount() afterwards. Never set Amount directly.
 //
+// DRAW AMOUNT INVARIANT: project.CurrentDrawAmount is ALWAYS derived as:
+//   CurrentDrawAmount = SUM(project.FundingLines.Amount)
+// updateItemizedProjectDraw() enforces this; never set CurrentDrawAmount directly.
+//
 // All mutation functions return shallow copies of the mutated entity so callers
 // never hold a reference to the live store arrays.
 // =============================================================================
@@ -21,13 +25,20 @@
 import type {
   LSWallet,
   ItemizedProject,
+  FundingLine,
   ItemizedProjectRevision,
   WalletStage,
   WalletFundingProfile,
   DtoCreateWallet,
-  DtoCreateItemizedProject,
+  DtoImportItemizedProjects,
   DtoSubmitRevision,
 } from '../Model.d';
+import type {
+  ComponentCost,
+  ComponentCostPerYear,
+  MajorItemOfWork,
+  MajorItemLocations,
+} from '../../Project/Model.d';
 import {
   SEED_WALLETS,
   SEED_ITEMIZED_PROJECTS,
@@ -47,6 +58,9 @@ let _nextProjectId = 200;
 let _nextRevisionId = 300;
 // Seed data has WalletFundingProfile IDs up to 3 and WalletComponentCost IDs up to 2
 let _nextFundingProfileId = 10;
+// Synthetic record IDs for imported sub-rows (FundingLines, ComponentCosts, etc.)
+// Module-level so sequential across multiple importItemizedProjects() calls.
+let _nextSyntheticId = 5000;
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -77,6 +91,18 @@ const recalcPercentages = (profiles: WalletFundingProfile[]): WalletFundingProfi
     const pct = totalAmount > 0 ? Math.round((p.Amount / totalAmount) * 10000) / 100 : 0;
     return { ...p, Percentage: pct };
   });
+};
+
+/**
+ * Compute percentage fields on a FundingLine array so they sum to 100%.
+ * Used by importItemizedProjects when building per-project FundingLines.
+ */
+const calcFundingLinePercentages = (lines: FundingLine[]): FundingLine[] => {
+  const total = lines.reduce((sum, l) => sum + l.Amount, 0);
+  return lines.map(l => ({
+    ...l,
+    Percentage: total > 0 ? Math.round((l.Amount / total) * 10000) / 100 : 0,
+  }));
 };
 
 // ---------------------------------------------------------------------------
@@ -293,61 +319,219 @@ export const hardDeleteWallet = (walletId: number): LSWallet => {
 // ---------------------------------------------------------------------------
 
 /**
- * WF-4: Add an ItemizedProject to a wallet.
- * A single wallet-line FundingLine is auto-created with IsWalletLine = true.
- * Source/Agreement are pulled from the first non-deleted WalletFundingProfile.
+ * WF-4: Batch-import Excel-sourced itemized projects into a wallet.
+ *
+ * For each parsed project in dto.projects:
+ *  1. Assigns a generated ProjectId: "LS-W{walletId}-P{_nextProjectId}"
+ *  2. Builds FundingLines from the project's Excel funding profile rows.
+ *     Percentages are computed from amounts. IsWalletLine has been removed —
+ *     all lines represent real funding sources.
+ *  3. Sets CurrentDrawAmount = SUM(FundingLines.Amount)  [DRAW AMOUNT INVARIANT]
+ *  4. Builds ComponentCosts / ComponentCostPerYear by grouping parsed
+ *     ImportedComponentCost rows by ComponentId. The generated ProjectId
+ *     replaces the Excel placeholder ProjectId in every row.
+ *  5. Builds MajorItemOfWorks / MajorItemLocations by grouping parsed
+ *     ImportedMajorItem rows by ReferenceId.
+ *  6. Copies project detail fields (MYId, ExternalId, UACS, Description,
+ *     Province, City, LegislativeDistrict, DEO, Region, ImplementingOffice,
+ *     OperatingUnit) directly from the Excel parsed data.
+ *
+ * NOTE (mock limitation): CategoryId and SubCategoryId cannot be resolved from
+ * the Excel raw names (e.g. "MFO 2: ...") without a lookup table, so the wallet's
+ * own values are used as placeholders. The real backend will resolve these names
+ * to IDs server-side.
+ *
+ * Replaces the removed addItemizedProject() (single project + manual draw amount).
  */
-export const addItemizedProject = (dto: DtoCreateItemizedProject): ItemizedProject => {
+export const importItemizedProjects = (dto: DtoImportItemizedProjects): ItemizedProject[] => {
   const wallet = _wallets.find(w => w.Id === dto.parentWalletId);
   if (!wallet) throw new Error('Parent wallet not found.');
 
-  const projectId = `LS-W${String(dto.parentWalletId).padStart(3, '0')}-P${String(_nextProjectId).padStart(3, '0')}`;
+  const created: ItemizedProject[] = [];
+  const now = new Date().toISOString();
 
-  // Use the first non-deleted funding profile for the itemized project's funding line
-  const primaryProfile = wallet.WalletFundingProfiles.find(p => !p.IsDeleted);
+  for (const importedProject of dto.projects) {
+    const numericId = _nextProjectId++;
+    const projectId = `LS-W${String(dto.parentWalletId).padStart(3, '0')}-P${String(numericId).padStart(3, '0')}`;
 
-  const newProject: ItemizedProject = {
-    Id: _nextProjectId++,
-    ProjectId: projectId,
-    ParentWalletId: dto.parentWalletId,
-    ProjectType: 'LS',
-    CategoryId: dto.categoryId,
-    SubCategoryId: dto.subCategoryId,
-    OperatingUnit: dto.operatingUnit,
-    ProgramId: dto.programId,
-    FundingLines: [
-      {
-        Id: Date.now(),
-        Source: primaryProfile?.Source || '',
-        Agreement: primaryProfile?.Agreement || '',
-        Amount: dto.drawAmount,
-        Percentage: 100,
-        IsWalletLine: true,
-      },
-    ],
-    ComponentCosts: [],
-    CurrentDrawAmount: dto.drawAmount,
-    PublishedDrawAmount: null,
-    PublishStatus: 'NotPublished',
-    ProjectStatus: 'NotYetStarted',
-    HasStageData: false,
-    IsDeleted: false,
-    IsCancelled: false,
-    CreatedDate: new Date().toISOString(),
-  };
+    // ─── FundingLines ──────────────────────────────────────────────────────
+    // Build from the parsed funding profile rows. Percentage is computed from
+    // amount ratios. All lines contribute to CurrentDrawAmount.
+    const rawLines: FundingLine[] = importedProject.FundingProfiles.map((fp) => ({
+      Id: _nextSyntheticId++,      // module-level counter avoids cross-call collisions
+      Source: fp.Source,
+      Agreement: fp.Agreement,
+      Amount: fp.Amount,
+      Percentage: 0,               // computed below
+    }));
+    const fundingLines = calcFundingLinePercentages(rawLines);
 
-  _itemizedProjects.push(newProject);
-  return { ...newProject };
+    // DRAW AMOUNT INVARIANT: total = SUM(funding lines)
+    const currentDrawAmount = fundingLines.reduce((sum, fl) => sum + fl.Amount, 0);
+
+    // ─── ComponentCosts + ComponentCostPerYear ─────────────────────────────
+    // Group by ComponentId: one ComponentCost per unique ComponentId,
+    // one ComponentCostPerYear per ImportedComponentCost row.
+    // The generated projectId replaces the Excel placeholder ProjectId.
+    const costMap = new Map<string, ComponentCost>();
+    const perYearRows: ComponentCostPerYear[] = [];
+
+    for (const ic of importedProject.ComponentCosts) {
+      const costId = `${projectId}-${ic.ComponentId}`;
+
+      if (!costMap.has(costId)) {
+        costMap.set(costId, {
+          Id: _nextSyntheticId++,
+          ProjectId: projectId,        // generated ID replaces Excel placeholder
+          CostId: costId,
+          ComponentType: ic.ComponentType,
+          ComponentId: ic.ComponentId,
+          Description: ic.Description,
+          Total: 0,                    // accumulated below
+          IsDeleted: false,
+          CreatedBy: dto.createdBy,
+          CreatedDate: now,
+        });
+      }
+      costMap.get(costId)!.Total += ic.Total;
+
+      perYearRows.push({
+        Id: _nextSyntheticId++,
+        ComponentCostId: costId,
+        Amount: ic.Total,
+        Year: ic.ActivityYear,
+        StartDate: ic.StartDate ?? null,
+        EndDate: ic.EndDate ?? null,
+        IsDeleted: false,
+        CreatedBy: dto.createdBy,
+        CreatedDate: now,
+      });
+    }
+
+    // ─── MajorItemOfWorks + MajorItemLocations ─────────────────────────────
+    // Group by ReferenceId: one MajorItemOfWork per unique ReferenceId,
+    // one MajorItemLocations per ImportedMajorItem row.
+    const workMap = new Map<string, MajorItemOfWork>();
+    const locations: MajorItemLocations[] = [];
+    let fallbackRefCounter = 0;
+
+    for (const mi of importedProject.MajorItemsOfWork) {
+      // Use the Excel's Reference ID if present; generate one as fallback.
+      const refId = mi.ReferenceId || `${projectId}-${mi.ComponentId}-${++fallbackRefCounter}`;
+
+      if (!workMap.has(refId)) {
+        workMap.set(refId, {
+          Id: _nextSyntheticId++,
+          ProjectId: projectId,
+          ReferenceId: refId,
+          ComponentId: mi.ComponentId,
+          YearOfWork: mi.ActivityYear ?? 0,
+          // WorkTypeId and InfraType require lookup resolution that the mock
+          // cannot perform without the enum tables. The real API resolves these.
+          WorkTypeId: 0,
+          InfraType: '',
+          TargetUnitId: 0,
+          TargetUnit: mi.TargetUnit ?? '',
+          CreatedBy: dto.createdBy,
+          IsDeleted: false,
+        });
+      }
+
+      locations.push({
+        Id: _nextSyntheticId++,
+        ParentId: refId,
+        StageName: '',
+        InfraId: mi.InfraId ?? '',
+        DetailedScope: mi.DetailedScope ?? '',
+        TargetUnitId: 0,
+        TargetUnit: mi.TargetUnit ?? '',
+        PhysicalTarget: mi.PhysicalTarget ?? null,
+        Length: mi.Length ?? null,
+        StartChainage: mi.StartChainage ?? 0,
+        EndChainage: mi.EndChainage ?? 0,
+        StartX: mi.StartX ?? 0,
+        StartY: mi.StartY ?? 0,
+        EndX: mi.EndX ?? null,
+        EndY: mi.EndY ?? null,
+        StartStationLimit: mi.StartStation ?? '',
+        EndStationLimit: mi.EndStation ?? '',
+        IsDeleted: false,
+      });
+    }
+
+    // ─── Project detail fields ─────────────────────────────────────────────
+    // Copy directly from the Excel parsed data (per plan: these come from the
+    // Excel, not force-copied from the wallet).
+    const d = importedProject.ProjectDetails;
+
+    const newProject: ItemizedProject = {
+      Id: numericId,
+      ProjectId: projectId,
+      ParentWalletId: dto.parentWalletId,
+      ProjectType: 'LS',
+      // CategoryId/SubCategoryId: mock limitation — wallet values used as placeholders
+      // since the mock cannot resolve Excel category names to IDs. Real API resolves.
+      CategoryId: wallet.CategoryId,
+      SubCategoryId: wallet.SubCategoryId,
+      // OperatingUnit comes from Excel directly (may differ from wallet's OU)
+      OperatingUnit: d.OperatingUnit ?? wallet.OperatingUnit,
+      ProgramId: dto.programId,
+      FundingLines: fundingLines,
+      ComponentCosts: Array.from(costMap.values()),
+      ComponentCostPerYear: perYearRows,
+      MajorItemOfWorks: Array.from(workMap.values()),
+      MajorItemLocations: locations,
+      // DRAW AMOUNT INVARIANT: computed from funding lines
+      CurrentDrawAmount: currentDrawAmount,
+      PublishedDrawAmount: null,
+      PublishStatus: 'NotPublished',
+      ProjectStatus: 'NotYetStarted',
+      HasStageData: false,
+      IsDeleted: false,
+      IsCancelled: false,
+      CreatedDate: now,
+      // Project-detail parity fields from Excel
+      MYId: d.MYId,
+      // AlternateId is NOT used as the wallet-link field (ParentWalletId is).
+      // Leave it undefined for imported projects; Excel doesn't carry this field.
+      AlternateId: undefined,
+      ExternalId: d.ExternalId,
+      UACS: d.UACS,
+      Description: d.Description,
+      Province: d.Province,
+      City: d.City,
+      LegislativeDistrict: d.LegislativeDistrict,
+      DEO: d.DEO,
+      Region: d.Region,
+      ImplementingOffice: d.ImplementingOffice,
+      // Enum fields (Origin, Agency, ImplementationMode, etc.) require name-to-ID
+      // resolution that the mock cannot perform. Leave undefined; real API resolves.
+    };
+
+    _itemizedProjects.push(newProject);
+    created.push({ ...newProject });
+  }
+
+  return created;
 };
 
 /**
- * Update the live draw amount (pre-publish edit).
- * NOTE: This NEVER touches PublishedDrawAmount — that field is frozen at publish time.
- * Post-publish draws must go through the WF-6 revision workflow.
+ * Update the funding lines and recompute draw amount (pre-publish edit).
+ *
+ * Accepts the full updated FundingLines array instead of a single numeric
+ * amount. CurrentDrawAmount is recomputed as SUM(fundingLines.Amount) to
+ * enforce the DRAW AMOUNT INVARIANT.
+ *
+ * NOTE: This NEVER touches PublishedDrawAmount — that field is frozen at
+ * publish time. Post-publish draws must go through the WF-6 revision workflow.
+ *
+ * REAL API SWAP NOTE: Service.ts should destructure the DtoUpdateDrawAmount
+ * payload and call this function as:
+ *   store.updateItemizedProjectDraw(payload.projectId, payload.fundingLines, payload.updatedBy)
  */
 export const updateItemizedProjectDraw = (
   projectId: string,
-  newAmount: number,
+  fundingLines: FundingLine[],
   updatedBy?: string
 ): ItemizedProject => {
   const idx = _itemizedProjects.findIndex(p => p.ProjectId === projectId);
@@ -360,9 +544,13 @@ export const updateItemizedProjectDraw = (
     );
   }
 
+  // DRAW AMOUNT INVARIANT: recompute total from the new lines
+  const newTotal = fundingLines.reduce((sum, fl) => sum + fl.Amount, 0);
+
   const updated: ItemizedProject = {
     ...project,
-    CurrentDrawAmount: newAmount,
+    FundingLines: fundingLines,
+    CurrentDrawAmount: newTotal,
     UpdatedDate: new Date().toISOString(),
     ...(updatedBy ? { UpdatedDate: new Date().toISOString() } : {}),
   };

@@ -49,8 +49,8 @@ pages/LSWallet/
 │   ├── ReplenishWalletDialog.tsx
 │   ├── DeleteWalletDialog.tsx
 │   ├── AdvanceProgramStageDialog.tsx   # Dev/demo stage-cascade simulation (clearly labeled)
-│   ├── CreateItemizedProjectDialog.tsx
-│   ├── EditDrawAmountDialog.tsx        # Pre-publish draw amount editor (guards against exceeding Available)
+│   ├── ImportItemizedProjectsDialog.tsx # WF-4 drag-drop/parse/tabbed-review import; wallet-scoped clone of Program's ImportProjectsDialog; adds bulk balance guard
+│   ├── EditDrawAmountDialog.tsx        # Pre-publish funding-line table editor (add/remove/edit rows); live total guards against exceeding Available
 │   ├── PublishItemizedProjectDialog.tsx
 │   ├── DeleteItemizedProjectDialog.tsx
 │   ├── ItemizedProjectRevisionDialog.tsx
@@ -94,8 +94,8 @@ All interfaces use PascalCase properties. No camelCase aliases (codebase convent
 | `WalletFundingProfile` | One funding line on an `LSWallet` (structurally mirrors Project's `FundingProfile`). Fields: `Id`, `WalletId`, `Source`, `Agreement`, `Percentage` (auto-calculated), `Amount`, `CreatedBy`, `CreatedDate`, `IsDeleted`. |
 | `WalletComponentCost` | One component cost row on an `LSWallet` (structurally mirrors Project's `ComponentCost`). `WalletId` replaces `ProjectId`; `ComponentType` is always `'LS'` in practice. Passed to Project's `DeleteComponentDialog` via a safe cast. |
 | `WalletComponentCostPerYear` | Per-year cost breakdown linked to a `WalletComponentCost` by `ComponentCostId`. Has `Year`, `Amount`, `StartDate`, `EndDate`, `IsDeleted`. |
-| `ItemizedProject` | AIP project that draws from a wallet. Has `CurrentDrawAmount` (live) and `PublishedDrawAmount` (frozen at WF-8). |
-| `FundingLine` | One funding line on an `ItemizedProject`. The one with `IsWalletLine: true` is the line that draws down Available. |
+| `ItemizedProject` | AIP project that draws from a wallet. Has `CurrentDrawAmount` (derived: `SUM(FundingLines.Amount)` — see Draw Amount Invariant below) and `PublishedDrawAmount` (frozen at WF-8). Carries full ProjectDetails-parity optional fields (same groups as `LSWallet`) and typed arrays `ComponentCosts`, `ComponentCostPerYear`, `MajorItemOfWorks`, `MajorItemLocations` — all reusing Project module types directly. |
+| `FundingLine` | One funding source on an `ItemizedProject`. All lines on a project contribute to `CurrentDrawAmount`. `IsWalletLine` has been removed — the balance formula uses `CurrentDrawAmount` directly. |
 | `LSWalletBalance` | Computed result: `{ WalletId, Total, Used, Available }`. Mirrors the future `vLSWalletBalance` SQL view. |
 | `ItemizedProjectRevision` | Revision record for a published project (WF-6). Status codes match the Modification module: `0=Pending, 1=Approved, 2=Disapproved, 3=ForReview`. |
 | `WalletStage` | `'BP' | 'NEP' | 'HGAB' | 'GAA' | 'GAA-R'` |
@@ -111,6 +111,18 @@ Amount = SUM(WalletFundingProfiles where !IsDeleted)
 The mock store enforces this via `recomputeWalletAmount()`, which is called after every mutation that touches `WalletFundingProfiles` (`createWallet`, `replenishWallet`). `WalletForm.tsx` mirrors this with a `useEffect` that recomputes `Amount` client-side whenever `fundingProfiles` state changes, so validation and the confirm dialog always read the correct total without a store round-trip.
 
 **Do not set `Amount` directly.** Mutate `WalletFundingProfiles` and let the store (or the form's `useEffect`) recompute.
+
+### Draw Amount Invariant
+
+`project.CurrentDrawAmount` is **always derived**, never set directly:
+
+```
+CurrentDrawAmount = SUM(FundingLines[].Amount)
+```
+
+The mock store enforces this via `updateItemizedProjectDraw()` (which recomputes the total from the submitted `fundingLines` array) and via `importItemizedProjects()` (which computes it at import time for each project). `EditDrawAmountDialog.tsx` mirrors this client-side: the dialog's "New Total" footer is computed live from the in-dialog rows, and that computed total is what gets submitted — never a manually-typed single number.
+
+**Do not set `CurrentDrawAmount` directly.** Mutate `FundingLines` and call `updateItemizedProjectDraw()` (or `importItemizedProjects()` on first creation).
 
 ### `LSWallet` Optional ProjectDetails-Parity Fields
 
@@ -130,8 +142,8 @@ The following optional fields were added to `LSWallet` to reach parity with the 
 |---|---|
 | `DtoCreateWallet` | WF-1 Create Wallet payload. Required: `programId`, `categoryId`, `subCategoryId`, `operatingUnit`, `createdBy`, `fundingProfiles: WalletFundingProfile[]`, `componentCosts: WalletComponentCost[]`, `componentCostPerYear: WalletComponentCostPerYear[]`. All ~26 ProjectDetails-parity flat fields are optional. No flat `FundingSource`/`Amount`/`FundingPercentage`/`ComponentYear` fields — those are replaced by the arrays. |
 | `DtoReplenishWallet` | WF-3 Replenish payload — `newAmount` must exceed current `Amount` |
-| `DtoCreateItemizedProject` | WF-4 Create Itemized Project payload |
-| `DtoUpdateDrawAmount` | Pre-publish draw edit payload |
+| `DtoImportItemizedProjects` | WF-4 batch import payload — `parentWalletId`, `programId`, `projects: ImportedProject[]`, `createdBy`. The mock store assigns generated IDs (`LS-W{walletId}-P{n}`), rewrites placeholder ProjectIds, derives `CurrentDrawAmount = SUM(FundingProfiles.Amount)` per project, and groups component/major-item rows into typed arrays. Replaces the removed `DtoCreateItemizedProject`. |
+| `DtoUpdateDrawAmount` | Pre-publish draw edit payload — `projectId`, `fundingLines: FundingLine[]`, `updatedBy`. Carries the full updated `FundingLines` array; the mock store recomputes `CurrentDrawAmount = SUM(fundingLines.Amount)`. Replaces the old flat `newDrawAmount: number` field. |
 | `DtoSubmitRevision` | WF-6 revision submission payload |
 | `DtoReviewRevision` | Approve / reject / return payload — `stage: 'Region' | 'CO'` |
 
@@ -256,7 +268,7 @@ Soft-deleting an unpublished itemized project immediately returns the draw to Av
 | WF-1 Create Wallet | `AddWallet` page (`WalletForm.tsx`) → `SaveWalletConfirmDialog` | `createWallet()` | `walletMockStore.createWallet()` |
 | WF-2 Stage Cascade | `AdvanceProgramStageDialog` | `advanceProgramStage()` | `walletMockStore.advanceProgramStage()` |
 | WF-3 Replenish | `ReplenishWalletDialog` | `replenishWallet()` | `walletMockStore.replenishWallet()` |
-| WF-4 Create Itemized Project | `CreateItemizedProjectDialog` | `createItemizedProject()` | `walletMockStore.addItemizedProject()` |
+| WF-4 Import Itemized Projects | `ImportItemizedProjectsDialog` | `importItemizedProjects()` | `walletMockStore.importItemizedProjects()` |
 | WF-5 Live Balance | `WalletBalanceWidget` (display) | `fetchWalletBalance()` (convenience) | — computed by `computeWalletBalance()` |
 | WF-6 Revision | `ItemizedProjectRevisionDialog` → `ApproveRevisionDialog` / `RejectRevisionDialog` / `ReturnRevisionForReviewDialog` | `submitRevision()`, `approveRevision()`, `rejectRevision()`, `returnRevisionForReview()` | corresponding mock store functions |
 | WF-7 Delete | `DeleteWalletDialog` / `DeleteItemizedProjectDialog` | `deleteWallet()` / `deleteItemizedProject()` | `hardDelete*()` / `softDelete*()` |
@@ -277,8 +289,8 @@ All 18 functions return `Promise<ApiResponse<T>>`. `ApiResponse<T>` is `{ Data: 
 | `deleteWallet(walletId, updatedBy)` | WF-7 — returns `{ tier, wallet }` |
 | `fetchItemizedProjectsByWalletId(walletId)` | All projects for a wallet |
 | `validateWalletForItemization(walletId)` | WF-4 gate check — returns `{ valid, message? }` |
-| `createItemizedProject(payload)` | WF-4 — creates project with auto-generated ID, syncs atom |
-| `updateItemizedProjectDraw(payload)` | Pre-publish draw edit; throws on published project |
+| `importItemizedProjects(payload)` | WF-4 — batch-imports parsed Excel projects; assigns generated IDs (`LS-W{walletId}-P{n}`), computes `CurrentDrawAmount = SUM(FundingLines)` per project, syncs atom |
+| `updateItemizedProjectDraw(payload)` | Pre-publish draw edit; accepts full `fundingLines: FundingLine[]` array; recomputes `CurrentDrawAmount = SUM`; throws on published project |
 | `deleteItemizedProject(projectId)` | WF-7 — returns `{ tier, project }` |
 | `publishItemizedProject(projectId)` | WF-8 — runs 13-rule mock check, returns `{ complianceResult, project }` |
 | `fetchWalletRevisions(itemizedProjectId)` | Revision history for one project |
@@ -363,8 +375,8 @@ Orchestrator page for all wallet-level and project-level operations. Key design 
 | `ReplenishWalletDialog` | Detail page action buttons | `Service.replenishWallet()` |
 | `DeleteWalletDialog` | Detail page; requires `tier` prop | `Service.deleteWallet()` |
 | `AdvanceProgramStageDialog` | List row "[Dev] Advance Stage" or Detail action | `Service.advanceProgramStage()` |
-| `CreateItemizedProjectDialog` | Detail page "Add Itemized Project" | `Service.createItemizedProject()` |
-| `EditDrawAmountDialog` | Per-project "Edit Draw Amount" (pre-publish only) | `Service.updateItemizedProjectDraw()` |
+| `ImportItemizedProjectsDialog` | Detail page "Add Itemized Project" — drag-drop Excel import with tabbed review (Summary / Projects / Funding / Components / Cost-per-Year / Major Items / Locations / Errors) and bulk balance guard (Import disabled if `SUM(all parsed funding amounts) > balance.Available`) | `Service.importItemizedProjects()` |
+| `EditDrawAmountDialog` | Per-project "Edit Draw Amount" (pre-publish only) — funding-line table editor (add/remove/edit Source, Agreement, Amount, Percentage rows); live total computed from rows; existing overdraw guard applied to that total | `Service.updateItemizedProjectDraw()` |
 | `PublishItemizedProjectDialog` | Per-project "Publish" | `Service.publishItemizedProject()` |
 | `DeleteItemizedProjectDialog` | Per-project "Delete/Remove Project"; requires `tier` prop | `Service.deleteItemizedProject()` |
 | `ItemizedProjectRevisionDialog` | Per-project "Request Revision" (post-publish only) | `Service.submitRevision()` |
@@ -442,9 +454,9 @@ Manually entering a Wallet ID on the regular Project creation form was not built
 
 The revision review interface is an inline expandable table on `LSWalletDetail.tsx`, not a separate reviewer-queue page. The `store/revisionStore.ts` atoms are in place to support a dedicated reviewer page in a future phase. `LSWalletDetail.tsx` manages revision state locally until then.
 
-### `EditDrawAmountDialog` addition
+### `EditDrawAmountDialog` rework
 
-This dialog was not in the original plan's task list but was added during implementation. It handles pre-publish draw amount edits and guards against pushing Available negative. The "Edit Draw Amount" action had always been in `getItemizedProjectActions()` but lacked a dialog until this was built.
+This dialog was not in the original plan's task list. Its first version (now replaced) was a simple single-amount text input. It has since been reworked into a full funding-line table editor: the user can add, remove, and edit individual `FundingLine` rows (Source, Agreement, Amount, Percentage). A live "New Total" footer is computed from the rows, and a change indicator panel below the table shows whether the edit is an increase (draws more from Available) or a decrease (returns funds). The existing overdraw guard (`newTotal <= CurrentDrawAmount + balance.Available`) is applied to that computed total — not a manually typed number. Submits `DtoUpdateDrawAmount` with the full `fundingLines` array; the mock store recomputes `CurrentDrawAmount = SUM(fundingLines.Amount)` (DRAW AMOUNT INVARIANT). The "Edit Draw Amount" action was always in `getItemizedProjectActions()`; this rework is the dialog that backs it.
 
 ### `DeleteWalletDialog` and `DeleteItemizedProjectDialog` `tier` prop
 
@@ -468,7 +480,7 @@ Wallet 1 (`Id: 1`) — `Asset Preservation Program 2024`, `Amount: 12,000,000` a
 
 Has three seeded itemized projects:
 - Project A (`LS-W001-P001`): Published, `PublishedDrawAmount = 3,500,000`.
-- Project B (`LS-W001-P002`): Not published, `CurrentDrawAmount = 1,000,000`.
+- Project B (`LS-W001-P002`): Not published, `CurrentDrawAmount = 1,000,000`. Seeded with two `FundingLine` records to demonstrate multi-source funding: ₱600,000 "General Appropriations Act" (60%) + ₱400,000 "Replenishment" (40%) — summing to 1,000,000 (DRAW AMOUNT INVARIANT in effect at seed time).
 - Project C (`LS-W001-P003`): Soft-deleted — excluded from balance.
 
 Wallet 2 (`Id: 2`) — `Infrastructure Build Fund 2024`, `Amount: 5,000,000` at GAA-R. One `WalletFundingProfile` (100% GAA). No itemized projects — available for WF-4 demos.

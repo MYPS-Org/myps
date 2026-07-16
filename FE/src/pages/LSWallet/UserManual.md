@@ -137,11 +137,11 @@ Replenishment increases the wallet's Total budget. You can replenish once the wa
 
 ---
 
-## Creating an Itemized Project
+## Creating Itemized Projects (Bulk Import)
 
-An itemized project is an AIP project that draws a specific amount from this wallet as its budget.
+Itemized projects are added by importing an Excel file — the same file format used by the Program module's project import. A single import can bring in one project or many at once.
 
-**Before you can create one:**
+**Before you can import:**
 - The wallet must be at the **GAA-R** stage.
 - The wallet must have a positive Available balance.
 
@@ -150,27 +150,54 @@ If either condition is not met, the **Add Itemized Project** button will be visi
 ### Steps
 
 1. On the wallet detail page, click **Add Itemized Project**.
-2. The **Create Itemized Project** dialog opens. Several fields are pre-filled from the wallet:
-   - Category and Sub-Category are inherited from the wallet.
-   - Program is inherited from the wallet.
-   - Operating Unit is inherited from the wallet.
-3. Enter the **Draw Amount** — the portion of the wallet's Available budget this project will use.
-4. Click **Submit**.
+2. The **Import Itemized Projects** dialog opens, showing the wallet name and its current Available balance at the top.
+3. Drag and drop your Excel file onto the upload area, or click the area to browse for the file. The file must have four required sheets: **PROJECT DETAILS**, **FUNDING PROFILE**, **COMPONENT DETAILS**, and **MAJOR ITEMS OF WORK**.
+4. The system reads the file and displays the results across several review tabs:
 
-The new project appears in the Itemized Projects table immediately. The wallet's Available balance decreases by the draw amount right away.
+   | Tab | What it shows |
+   |---|---|
+   | Summary | Counts of projects, funding rows, components, major items, and any parse errors — plus the balance check result |
+   | Projects | One row per project with name, location, category, and other details |
+   | Funding | All funding profile rows from the file, with a totals row at the bottom |
+   | Components | Component cost data grouped by project and component |
+   | Cost / Year | Per-year cost breakdown for each component |
+   | Major Items | Major items of work |
+   | Locations | Location details for each major item |
+   | Errors | Any rows the system could not read |
 
-> The project's component details and funding line are created automatically. The funding source and agreement are copied from the wallet.
+5. Review the tabs to confirm the data looks correct. If there are parse errors, the dialog opens on the Errors tab automatically.
+6. Click **Import** (the button shows the count of projects ready to import) to confirm.
+
+The new projects appear in the Itemized Projects table immediately. Each project's draw amount is set automatically from the total of its Funding Profile rows in the file. The wallet's Available balance decreases accordingly.
+
+> **Project IDs from the file are replaced by system-generated IDs.** Any Project ID in the Excel file (such as a placeholder like `P-001`) is used only to link that project's rows within the file during parsing. Once imported, each project receives a permanent wallet-scoped ID in the format `LS-W001-P004`. The original Excel ID is discarded.
+
+### Balance check
+
+The dialog automatically totals all funding amounts across every project in the file and compares that total against the wallet's Available balance.
+
+- If the combined total fits within the Available balance, a green confirmation appears on the Summary tab and the **Import** button is active.
+- If the combined total would exceed the Available balance, the **Import** button is disabled. The Summary tab shows an "Overdraw Warning" with the exact amount by which the import would exceed the limit. You must either reduce the amounts in your import file or replenish the wallet before retrying.
+
+The Funding tab always shows a totals footer row so you can see the combined import amount at a glance, regardless of whether it passes the check.
 
 ---
 
-## Editing a Draw Amount (Before Publishing)
+## Editing Funding Lines (Before Publishing)
 
-Before a project is published, you can adjust how much it draws from the wallet.
+Before a project is published, you can adjust the funding lines that make up its draw amount. A project can be funded by a single source or by several sources — the draw amount is always the total of all its funding lines combined.
 
 1. In the Itemized Projects table, click **Edit Draw Amount** next to the project.
-2. Enter the new amount.
-3. The system will check that the new amount does not push the wallet's Available balance below zero. If it would, the system blocks the change with an explanation.
-4. Click **Confirm** to save. The Available balance updates immediately.
+2. The **Edit Draw — Funding Lines** dialog opens, showing the project's current funding lines in a table. Each row has a Source, Agreement, Amount, and Percentage.
+3. Make your changes:
+   - **Edit** any field directly in the table by clicking on it.
+   - **Add a new funding source** by clicking the **Add Row** link (for example, if this project will now draw from two sources instead of one).
+   - **Remove a row** using the trash icon on that row.
+4. As you make changes, the dialog shows a running **New Total** in the footer of the table, and an indicator panel below it explains the effect:
+   - An **increase** means more will be drawn from the wallet's Available balance.
+   - A **decrease** means funds will be returned to the wallet's Available balance.
+5. The system checks that the new total does not exceed what the wallet has available. If it would, the total row turns red and the **Save Changes** button is disabled.
+6. Click **Save Changes**. The project's draw amount updates to the new total immediately, and the wallet's Available balance adjusts to match.
 
 Once a project is published, this button disappears. To change a published project's cost, use **Request Revision** instead.
 

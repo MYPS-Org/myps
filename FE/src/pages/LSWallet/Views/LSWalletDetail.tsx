@@ -17,11 +17,14 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAtomValue } from 'jotai';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { useToast } from '../../../components/toaster/ToasterContext';
+import { useAuth } from '../../../contexts/AuthContext';
+import type { ImportedProject } from '../../Project/Model.d';
 
 import { walletDataAtom } from '../store/walletStore';
 import { useWalletBalance } from '../hooks/useWalletBalance';
 import * as Service from '../Service';
-import type { ItemizedProject, ItemizedProjectRevision } from '../Model.d';
+import type { ItemizedProject, ItemizedProjectRevision, DtoImportItemizedProjects } from '../Model.d';
 import type { LSWallet } from '../Model.d';
 import {
   getWalletActions,
@@ -46,7 +49,7 @@ import CollapsibleSection from '../components/CollapsibleSection';
 import WalletForm from '../components/WalletForm';
 
 import ReplenishWalletDialog from '../dialogs/ReplenishWalletDialog';
-import CreateItemizedProjectDialog from '../dialogs/CreateItemizedProjectDialog';
+import ImportItemizedProjectsDialog from '../dialogs/ImportItemizedProjectsDialog';
 import DeleteWalletDialog from '../dialogs/DeleteWalletDialog';
 import AdvanceProgramStageDialog from '../dialogs/AdvanceProgramStageDialog';
 import EditDrawAmountDialog from '../dialogs/EditDrawAmountDialog';
@@ -87,6 +90,8 @@ const LSWalletDetail: React.FC = () => {
   const { walletId: walletIdStr } = useParams<{ walletId: string }>();
   const navigate = useNavigate();
   const walletIdNum = Number(walletIdStr);
+  const { user } = useAuth();
+  const { showToast } = useToast();
 
   // ---------------------------------------------------------------------------
   // Reactive wallet + project data from Jotai atom.
@@ -164,7 +169,7 @@ const LSWalletDetail: React.FC = () => {
   // Dialog state — wallet-level (always mounted, toggled via boolean)
   // ---------------------------------------------------------------------------
   const [replenishOpen, setReplenishOpen] = useState(false);
-  const [createProjectOpen, setCreateProjectOpen] = useState(false);
+  const [importProjectsOpen, setImportProjectsOpen] = useState(false);
   const [deleteWalletOpen, setDeleteWalletOpen] = useState(false);
   const [deleteWalletTier, setDeleteWalletTier] = useState<'hard' | 'soft' | 'blocked'>('soft');
   const [advanceStageOpen, setAdvanceStageOpen] = useState(false);
@@ -233,6 +238,31 @@ const LSWalletDetail: React.FC = () => {
   }
 
   // ---------------------------------------------------------------------------
+  // Import Itemized Projects handler
+  // ---------------------------------------------------------------------------
+  const handleImportItemizedProjects = async (importedProjects: ImportedProject[]) => {
+    if (!wallet) return;
+
+    const payload: DtoImportItemizedProjects = {
+      parentWalletId: wallet.Id,
+      programId: wallet.ProgramId,
+      projects: importedProjects,
+      createdBy: user?.UserId || '',
+    };
+
+    try {
+      const result = await Service.importItemizedProjects(payload);
+      setImportProjectsOpen(false);
+      showToast({
+        type: 'success',
+        message: `Successfully imported ${result.Data.length} project${result.Data.length !== 1 ? 's' : ''}.`,
+      });
+    } catch {
+      // httpClient interceptor already showed the error toast
+    }
+  };
+
+  // ---------------------------------------------------------------------------
   // Wallet-level action config
   // ---------------------------------------------------------------------------
   const walletActions = getWalletActions({
@@ -241,7 +271,7 @@ const LSWalletDetail: React.FC = () => {
     itemizedProjects: projects,
     actions: {
       onReplenish: () => setReplenishOpen(true),
-      onAddItemizedProject: () => setCreateProjectOpen(true),
+      onAddItemizedProject: () => setImportProjectsOpen(true),
       onDelete: () => {
         // Resolve tier here so DeleteWalletDialog receives it as a required prop
         const tier = resolveWalletDeleteTier(wallet, projects);
@@ -565,10 +595,10 @@ const LSWalletDetail: React.FC = () => {
         currentBalance={balance}
       />
 
-      <CreateItemizedProjectDialog
-        open={createProjectOpen}
-        onClose={() => setCreateProjectOpen(false)}
-        onSuccess={() => setCreateProjectOpen(false)}
+      <ImportItemizedProjectsDialog
+        isOpen={importProjectsOpen}
+        onClose={() => setImportProjectsOpen(false)}
+        onSubmit={handleImportItemizedProjects}
         wallet={wallet}
         balance={balance}
       />

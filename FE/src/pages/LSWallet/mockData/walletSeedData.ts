@@ -209,7 +209,6 @@ const walletLine1: FundingLine = {
   Agreement: 'GAA-2024-APP-001',
   Amount: 3_500_000,
   Percentage: 100,
-  IsWalletLine: true,
 };
 
 /** Project A — PUBLISHED. PublishedDrawAmount is frozen at 3,500,000 */
@@ -224,6 +223,9 @@ export const SEED_PROJECT_A: ItemizedProject = {
   ProgramId: 'P_CO-APP-2024',
   FundingLines: [{ ...walletLine1 }],
   ComponentCosts: [],
+  ComponentCostPerYear: [],
+  MajorItemOfWorks: [],
+  MajorItemLocations: [],
   CurrentDrawAmount: 3_500_000,
   PublishedDrawAmount: 3_500_000,  // Frozen snapshot captured at WF-8 publish
   PublishStatus: 'Published',
@@ -238,12 +240,19 @@ const walletLine2: FundingLine = {
   Id: 11,
   Source: 'General Appropriations Act',
   Agreement: 'GAA-2024-APP-001',
-  Amount: 1_000_000,
-  Percentage: 100,
-  IsWalletLine: true,
+  Amount: 600_000,
+  Percentage: 60,
 };
 
-/** Project B — NOT PUBLISHED. CurrentDrawAmount = 1,000,000 (live, affects Available) */
+const walletLine2b: FundingLine = {
+  Id: 21,
+  Source: 'Replenishment',
+  Agreement: '',
+  Amount: 400_000,
+  Percentage: 40,
+};
+
+/** Project B — NOT PUBLISHED. CurrentDrawAmount = 1,000,000 (live, affects Available) - multi-funded with 2 funding lines */
 export const SEED_PROJECT_B: ItemizedProject = {
   Id: 102,
   ProjectId: 'LS-W001-P002',
@@ -253,8 +262,11 @@ export const SEED_PROJECT_B: ItemizedProject = {
   SubCategoryId: 101,
   OperatingUnit: 'CO-PS',
   ProgramId: 'P_CO-APP-2024',
-  FundingLines: [{ ...walletLine2 }],
+  FundingLines: [{ ...walletLine2 }, { ...walletLine2b }],
   ComponentCosts: [],
+  ComponentCostPerYear: [],
+  MajorItemOfWorks: [],
+  MajorItemLocations: [],
   CurrentDrawAmount: 1_000_000,
   PublishedDrawAmount: null,       // Not yet published
   PublishStatus: 'NotPublished',
@@ -271,7 +283,6 @@ const walletLine3: FundingLine = {
   Agreement: 'GAA-2024-APP-001',
   Amount: 2_000_000,
   Percentage: 100,
-  IsWalletLine: true,
 };
 
 /**
@@ -290,6 +301,9 @@ export const SEED_PROJECT_C: ItemizedProject = {
   ProgramId: 'P_CO-APP-2024',
   FundingLines: [{ ...walletLine3 }],
   ComponentCosts: [],
+  ComponentCostPerYear: [],
+  MajorItemOfWorks: [],
+  MajorItemLocations: [],
   CurrentDrawAmount: 2_000_000,
   PublishedDrawAmount: null,
   PublishStatus: 'NotPublished',
@@ -306,6 +320,11 @@ export const SEED_PROJECT_C: ItemizedProject = {
 //   Used      = PublishedDrawAmount(A)=3,500,000 + CurrentDrawAmount(B)=1,000,000
 //             = 4,500,000  (Project C excluded because IsDeleted=true)
 //   Available = 12,000,000 - 4,500,000 = 7,500,000
+//
+// NOTE: Project B demonstrates multi-source funding with 2 FundingLines:
+//   Line 1 (walletLine2): 600,000 (60%)
+//   Line 2 (walletLine2b): 400,000 (40%)
+//   CurrentDrawAmount = SUM(FundingLines.Amount) = 1,000,000 (derived)
 // ---------------------------------------------------------------------------
 
 // Initial arrays exported for use by walletMockStore.ts

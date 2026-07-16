@@ -11,6 +11,20 @@
 // Naming prefix "LSWallet" is used wherever collision risk exists.
 // =============================================================================
 
+// Import Project module types reused by ItemizedProject. These types are
+// consumed directly to avoid Wallet-prefixed mirrors that would drift out of
+// sync when the Project originals change.
+import type {
+  ComponentCost,
+  ComponentCostPerYear,
+  MajorItemOfWork,
+  MajorItemLocations,
+  ImportedProject,
+} from '../Project/Model.d';
+
+// Re-export for convenience of module-internal consumers (mock store, utils).
+export type { ComponentCost, ComponentCostPerYear, MajorItemOfWork, MajorItemLocations, ImportedProject };
+
 // ---------------------------------------------------------------------------
 // Stage type — matches the real StageName strings used throughout this codebase.
 // Source: ProgramStageTable code table / Program module StageName field.
@@ -178,8 +192,10 @@ export interface LSWallet {
 
 /**
  * A funding line attached to an ItemizedProject.
- * Exactly one line per project will have IsWalletLine = true — that line is the
- * one that draws down the parent wallet's Available balance.
+ * All lines on a project contribute to CurrentDrawAmount = SUM(FundingLines.Amount).
+ *
+ * NOTE: The former IsWalletLine boolean has been removed. It was never read by
+ * any consumer — the balance formula uses CurrentDrawAmount directly.
  */
 export interface FundingLine {
   Id: number;
@@ -187,14 +203,19 @@ export interface FundingLine {
   Agreement: string;
   Amount: number;
   Percentage: number;
-  IsWalletLine: boolean;      // true = this line represents the wallet allocation
 }
 
 /**
  * An AIP project itemized against an LSWallet.
- * Pre-publish edits update CurrentDrawAmount live.
+ *
+ * Pre-publish edits update CurrentDrawAmount live (via EditDrawAmountDialog
+ * which edits the FundingLines array and recomputes the total).
  * Post-publish, PublishedDrawAmount is the frozen snapshot used for Used calculation.
  * See OPEN-1 in the plan for the backend snapshot resolution note.
+ *
+ * DRAW AMOUNT INVARIANT: CurrentDrawAmount = SUM(FundingLines.Amount).
+ * The mock store enforces this on every mutation. Do NOT set CurrentDrawAmount
+ * directly; mutate FundingLines and call updateItemizedProjectDraw instead.
  */
 export interface ItemizedProject {
   Id: number;
@@ -205,20 +226,65 @@ export interface ItemizedProject {
   SubCategoryId: number;
   OperatingUnit: string;
   ProgramId: string;
-  // Funding lines — one of these has IsWalletLine = true
+
+  // ── Funding lines (all lines contribute to CurrentDrawAmount) ────────────
   FundingLines: FundingLine[];
-  // Component costs placeholder — typed as an opaque array; real shape TBD with backend
-  ComponentCosts: Record<string, unknown>[];
-  // Balance tracking
+
+  // ── Typed component cost arrays (from Project/Model.d — shared types) ────
+  // NOTE: ComponentCost.ProjectId holds this project's generated ID (e.g. "LS-W001-P001"),
+  // NOT the Excel placeholder ID. The mock store rewrites it on import.
+  ComponentCosts: ComponentCost[];
+  ComponentCostPerYear: ComponentCostPerYear[];
+  MajorItemOfWorks: MajorItemOfWork[];
+  MajorItemLocations: MajorItemLocations[];
+
+  // ── Balance tracking ──────────────────────────────────────────────────────
+  // DRAW AMOUNT INVARIANT (see above): CurrentDrawAmount = SUM(FundingLines.Amount)
   CurrentDrawAmount: number;        // Live amount (editable before publish)
   PublishedDrawAmount: number | null; // Frozen at publish time (null = not yet published)
-  // Status flags
+
+  // ── Status flags ──────────────────────────────────────────────────────────
   PublishStatus: 'NotPublished' | 'Published';
   ProjectStatus: 'NotYetStarted' | 'Packaged' | 'Ongoing' | 'Completed' | 'Terminated';
   HasStageData: boolean;            // true = hard delete blocked (soft-delete only)
   IsDeleted: boolean;
   IsCancelled: boolean;
-  // Audit
+
+  // ── General Information (ProjectDetails-parity fields, all optional) ──────
+  MYId?: string;
+  AlternateId?: string;           // Free-text; NOT the wallet-link field (ParentWalletId is)
+  ExternalId?: string;
+  UACS?: string;
+  Tier?: number;                  // 1 = Tier I, 2 = Tier II
+  Rank?: number;
+  MYCAApprovalDate?: string | null;
+  Description?: string;
+
+  // ── Location Details ──────────────────────────────────────────────────────
+  Province?: string;
+  City?: string;
+  LegislativeDistrict?: string;
+
+  // ── Organizational Responsibilities ───────────────────────────────────────
+  DEO?: string;
+  Region?: string;
+  ImplementingOffice?: string;
+  RegionWide?: number;
+
+  // ── Project Source ────────────────────────────────────────────────────────
+  Origin?: number;
+  Agency?: number;
+
+  // ── Implementation Readiness and Modality ─────────────────────────────────
+  ImplementationMode?: number;
+  EmergencyMode?: number;
+  Feasibility?: number;
+  FeasibilityDate?: string | null;
+  DetailedDesign?: number;
+  DetailedDesignDate?: string | null;
+  RowAvailable?: number;
+
+  // ── Audit ─────────────────────────────────────────────────────────────────
   CreatedDate: string;
   UpdatedDate?: string;
 }
@@ -321,21 +387,35 @@ export interface DtoReplenishWallet {
   updatedBy: string;
 }
 
-/** Payload for WF-4 Create Itemized Project */
-export interface DtoCreateItemizedProject {
+/**
+ * Payload for WF-4 batch import of Excel-sourced itemized projects.
+ *
+ * Replaces the old flat DtoCreateItemizedProject (single project + manual draw amount).
+ * The `projects` array carries the raw parsed Excel data from parseImportFile().
+ * The mock store (importItemizedProjects) assigns generated IDs, rewrites placeholder
+ * ProjectIds, and computes CurrentDrawAmount = SUM(each project's FundingProfiles.Amount).
+ *
+ * REAL API SWAP NOTE: When the backend is ready, Service.ts should transform
+ * `projects` into the flat ImportProjectDTO shape (using transformImportedProjects
+ * builder helpers) before sending to the API endpoint.
+ */
+export interface DtoImportItemizedProjects {
   parentWalletId: number;
-  categoryId: number;
-  subCategoryId: number;
-  operatingUnit: string;
   programId: string;
-  drawAmount: number;       // Becomes CurrentDrawAmount
+  projects: ImportedProject[];  // raw parsed output from parseImportFile()
   createdBy: string;
 }
 
-/** Payload for updating a draw amount (pre-publish edit) */
+/**
+ * Payload for updating draw amount on a pre-publish itemized project (WF-5 edit).
+ *
+ * Carries the full updated FundingLines array instead of a single numeric amount.
+ * The mock store (updateItemizedProjectDraw) recomputes CurrentDrawAmount as
+ * SUM(fundingLines.Amount) and enforces the publish guard.
+ */
 export interface DtoUpdateDrawAmount {
   projectId: string;
-  newDrawAmount: number;
+  fundingLines: FundingLine[];
   updatedBy: string;
 }
 

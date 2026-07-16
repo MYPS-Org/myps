@@ -23,7 +23,7 @@ import type {
   LSWalletPagination,
   DtoCreateWallet,
   DtoReplenishWallet,
-  DtoCreateItemizedProject,
+  DtoImportItemizedProjects,
   DtoUpdateDrawAmount,
   DtoSubmitRevision,
   DtoReviewRevision,
@@ -301,26 +301,26 @@ export const validateWalletForItemization = async (
 };
 
 /**
- * WF-4: Create an itemized project linked to a wallet.
+ * WF-4: Batch-import Excel-sourced itemized projects into a wallet.
  *
  * REAL API SWAP:
- *   return httpClient.post<ItemizedProject>(
- *     '/LSWallet/itemized-projects/create',
+ *   return httpClient.post<ItemizedProject[]>(
+ *     '/LSWallet/itemized-projects/import',
  *     payload,
- *     { preloaderMessage: 'Creating itemized project...' }
+ *     { preloaderMessage: 'Importing itemized projects...' }
  *   );
- *   // Expected payload: DtoCreateItemizedProject
- *   // Expected response: ApiResponse<ItemizedProject>
+ *   // Expected payload: DtoImportItemizedProjects
+ *   // Expected response: ApiResponse<ItemizedProject[]>
  */
-export const createItemizedProject = async (
-  payload: DtoCreateItemizedProject
-): Promise<ApiResponse<ItemizedProject>> => {
+export const importItemizedProjects = async (
+  payload: DtoImportItemizedProjects
+): Promise<ApiResponse<ItemizedProject[]>> => {
   try {
-    const created = store.addItemizedProject(payload);
+    const created = store.importItemizedProjects(payload);
     syncAtom();
     return mockResponse(created);
   } catch (err) {
-    console.error('createItemizedProject error:', err);
+    console.error('importItemizedProjects error:', err);
     throw err;
   }
 };
@@ -343,7 +343,7 @@ export const updateItemizedProjectDraw = async (
   try {
     const updated = store.updateItemizedProjectDraw(
       payload.projectId,
-      payload.newDrawAmount,
+      payload.fundingLines,
       payload.updatedBy
     );
     syncAtom();
