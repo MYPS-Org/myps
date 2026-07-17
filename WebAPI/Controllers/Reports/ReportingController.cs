@@ -3,7 +3,7 @@ using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Extra;
 using DBHelper.Models.Procedures;
-using DBHelper.Models.Table;
+using DBHelper.Models.Table.Project;
 using DBHelper.Models.Views;
 using Helpers;
 using Microsoft.AspNetCore.Authorization;

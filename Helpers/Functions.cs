@@ -3,6 +3,8 @@ using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Extra;
 using DBHelper.Models.Table;
+using DBHelper.Models.Table.Lookups;
+using DBHelper.Models.Table.Project;
 using DBHelper.Models.Views;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -206,7 +208,7 @@ namespace Helpers
         {
             return ReferenceId + "-" + ("tCountComponentCost").GenerateCode() + "-" + StageName;
         }
-        public static string GenerateProjectID(this MYPSDbContext _db, DBHelper.Models.Views.ProgramDetails ProgramDetails, DBHelper.Models.Table.OptionProjectCategory Category, string IslandCode)
+        public static string GenerateProjectID(this MYPSDbContext _db, DBHelper.Models.Views.ProgramDetails ProgramDetails, OptionProjectCategory Category, string IslandCode)
         {
             string FirstSegment = ProgramDetails.StageName.GenerateProjec1stSegment();
             string SecondSegment = ProgramDetails.YearStart.GenerateProjec2ndSegment();
@@ -907,71 +909,71 @@ namespace Helpers
                 RevisionTransaction = Transaction
             };
         }
-        public static bool ValidateProjectForPublish(DBHelper.Models.Table.ProjectRevisions pr, List<DBHelper.Models.Table.ProjectComponentCostPerYear>? pc)
-        {
-            //var validation = new List<ProjectValidation>();
-            if (pr == null)
-            {
-                return false;// validation;
-            }
-            #region Project Location Validation
-            if (string.IsNullOrEmpty(pr.DEO) || string.IsNullOrEmpty(pr.LegislativeDistrict) || string.IsNullOrEmpty(pr.ImplementingOffice) || string.IsNullOrEmpty(pr.OperatingUnit)) {
-                return false;
-            }
-            #endregion
-            #region Component Cost Per Year Validation
-            if(pc != null)
-            {
-                var HasBlankData = pc.FirstOrDefault(x => x.Amount == null || x.Year == null || x.StartDate == null || x.EndDate == null);
-                if (HasBlankData != null)
-                {
-                    return false;
-                }
-            }
-            #endregion
-            return true;
-        }
-        public static bool ValidateProjectForPublishv2(DBHelper.Models.Table.ProjectRevisions pr, DBHelper.Models.Table.ProjectComponentCost? pc)
-        {
-            //var validation = new List<ProjectValidation>();
-            if (pr == null)
-            {
-                return false;// validation;
-            }
-            #region Project Location Validation
-            string ProjectLocation = string.Empty;
-            if (string.IsNullOrEmpty(pr.DEO)) {
-                ProjectLocation = "ProjectLocation: DEO field is required.";
-            }
-            if (string.IsNullOrEmpty(pr.LegislativeDistrict)) {
-                ProjectLocation = string.IsNullOrEmpty(ProjectLocation) ? "ProjectLocation: Legislative District field is required." : ProjectLocation + " Legislative District field is required.";
-            }
-            if (string.IsNullOrEmpty(pr.ImplementingOffice)) {
-                ProjectLocation = string.IsNullOrEmpty(ProjectLocation) ? "ProjectLocation: Implementing Office field is required." : ProjectLocation + " Implementing Office field is required.";
-            }
-            if (string.IsNullOrEmpty(pr.OperatingUnit)) {
-                ProjectLocation = string.IsNullOrEmpty(ProjectLocation) ? "ProjectLocation: Operating Unit field is required." : ProjectLocation + " Operating Unit field is required.";
-            }
-            if(!string.IsNullOrEmpty(ProjectLocation))
-            {
-                return false;
-            }
-            #endregion
-            #region Component Cost Validation
-            string ComponentCost = string.Empty;
-            if(!string.IsNullOrEmpty(ComponentCost))
-            {
-                return false;
-            }
-            #endregion
-            /*
-            ProjectLocation: DEO LD Municipality IO OU
-            Project Implementation Plan: Planned Start Date Planned End Date
-            OverLapping Projects: GIS
-            Major Items of Work: Validated Major Work Locations
-             */
-            return true;
-        }
+        //public static bool ValidateProjectForPublish(ProjectRevisions pr, List<ProjectComponentCostPerYear>? pc)
+        //{
+        //    //var validation = new List<ProjectValidation>();
+        //    if (pr == null)
+        //    {
+        //        return false;// validation;
+        //    }
+        //    #region Project Location Validation
+        //    if (string.IsNullOrEmpty(pr.DEO) || string.IsNullOrEmpty(pr.LegislativeDistrict) || string.IsNullOrEmpty(pr.ImplementingOffice) || string.IsNullOrEmpty(pr.OperatingUnit)) {
+        //        return false;
+        //    }
+        //    #endregion
+        //    #region Component Cost Per Year Validation
+        //    if(pc != null)
+        //    {
+        //        var HasBlankData = pc.FirstOrDefault(x => x.Amount == null || x.Year == null || x.StartDate == null || x.EndDate == null);
+        //        if (HasBlankData != null)
+        //        {
+        //            return false;
+        //        }
+        //    }
+        //    #endregion
+        //    return true;
+        //}
+        //public static bool ValidateProjectForPublishv2(ProjectRevisions pr, ProjectComponentCost? pc)
+        //{
+        //    //var validation = new List<ProjectValidation>();
+        //    if (pr == null)
+        //    {
+        //        return false;// validation;
+        //    }
+        //    #region Project Location Validation
+        //    string ProjectLocation = string.Empty;
+        //    if (string.IsNullOrEmpty(pr.DEO)) {
+        //        ProjectLocation = "ProjectLocation: DEO field is required.";
+        //    }
+        //    if (string.IsNullOrEmpty(pr.LegislativeDistrict)) {
+        //        ProjectLocation = string.IsNullOrEmpty(ProjectLocation) ? "ProjectLocation: Legislative District field is required." : ProjectLocation + " Legislative District field is required.";
+        //    }
+        //    if (string.IsNullOrEmpty(pr.ImplementingOffice)) {
+        //        ProjectLocation = string.IsNullOrEmpty(ProjectLocation) ? "ProjectLocation: Implementing Office field is required." : ProjectLocation + " Implementing Office field is required.";
+        //    }
+        //    if (string.IsNullOrEmpty(pr.OperatingUnit)) {
+        //        ProjectLocation = string.IsNullOrEmpty(ProjectLocation) ? "ProjectLocation: Operating Unit field is required." : ProjectLocation + " Operating Unit field is required.";
+        //    }
+        //    if(!string.IsNullOrEmpty(ProjectLocation))
+        //    {
+        //        return false;
+        //    }
+        //    #endregion
+        //    #region Component Cost Validation
+        //    string ComponentCost = string.Empty;
+        //    if(!string.IsNullOrEmpty(ComponentCost))
+        //    {
+        //        return false;
+        //    }
+        //    #endregion
+        //    /*
+        //    ProjectLocation: DEO LD Municipality IO OU
+        //    Project Implementation Plan: Planned Start Date Planned End Date
+        //    OverLapping Projects: GIS
+        //    Major Items of Work: Validated Major Work Locations
+        //     */
+        //    return true;
+        //}
         public static bool IsValidFutureInfraId(this string First2Letter, string id)
         {
             Regex RFutureInfra = new Regex(

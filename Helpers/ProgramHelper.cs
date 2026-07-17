@@ -2,7 +2,7 @@
 using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Extra;
-using DBHelper.Models.Table;
+using DBHelper.Models.Table.Program;
 using DBHelper.Models.Views;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -38,9 +38,9 @@ namespace Helpers
     }
     public class ProgramHelperDataResult
     {
-        public DBHelper.Models.Table.Programs Program { get; set; } = new DBHelper.Models.Table.Programs();
-        public DBHelper.Models.Table.ProgramRevisions ProgramRevision { get; set; } = new DBHelper.Models.Table.ProgramRevisions();
-        public DBHelper.Models.Table.ProgramStages ProgramStage { get; set; } = new DBHelper.Models.Table.ProgramStages();
+        public DBHelper.Models.Table.Program.Programs Program { get; set; } = new DBHelper.Models.Table.Program.Programs();
+        public DBHelper.Models.Table.Program.ProgramRevisions ProgramRevision { get; set; } = new DBHelper.Models.Table.Program.ProgramRevisions();
+        public DBHelper.Models.Table.Program.ProgramStages ProgramStage { get; set; } = new DBHelper.Models.Table.Program.ProgramStages();
     }
     public class ProgramHelperParams
     {

@@ -35,7 +35,7 @@ namespace WebAPI.Controllers.Revision
                 }
                 if (!string.IsNullOrEmpty(dto.SortField))
                 {
-                    bool isValid = typeof(DBHelper.Models.Views.Projects)
+                    bool isValid = typeof(DBHelper.Models.Views.Project.Projects)
                         .GetProperties(BindingFlags.Public | BindingFlags.Instance)
                         .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
                     if (!isValid)

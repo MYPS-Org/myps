@@ -3,6 +3,7 @@ using Dapper;
 using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Table;
+using DBHelper.Models.Table.Lookups;
 using DBHelper.Models.Views;
 using Helpers;
 using Microsoft.AspNetCore.Authorization;

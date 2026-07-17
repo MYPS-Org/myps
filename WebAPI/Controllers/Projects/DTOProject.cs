@@ -1,7 +1,8 @@
 ﻿using DBHelper.Models.Enums;
 using DBHelper.Models.Extra;
-using DBHelper.Models.Functions;
+using DBHelper.Models.Functions.Project;
 using DBHelper.Models.Table;
+using DBHelper.Models.Table.Project;
 using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;

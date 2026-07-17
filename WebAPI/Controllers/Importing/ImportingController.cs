@@ -2,7 +2,7 @@
 using Dapper;
 using DBHelper.Data;
 using DBHelper.Models.Enums;
-using DBHelper.Models.Table;
+using DBHelper.Models.Table.Project;
 using DBHelper.Models.Views;
 using Helpers;
 using JetBrains.Annotations;
@@ -79,9 +79,9 @@ namespace WebAPI.Controllers.Importing
 
                 List<ImportProjectReference> ProjectReference = new List<ImportProjectReference>();
                 #region Projects
-                List<DBHelper.Models.Table.Projects> projects = new List<DBHelper.Models.Table.Projects>();
+                List<DBHelper.Models.Table.Project.Projects> projects = new List<DBHelper.Models.Table.Project.Projects>();
                 //List<DBHelper.Models.Table.ProjectRevisions> projectrevisions = new List<DBHelper.Models.Table.ProjectRevisions>();
-                List<DBHelper.Models.Table.ProjectStages> projectstages = new List<DBHelper.Models.Table.ProjectStages>();
+                List<ProjectStages> projectstages = new List<ProjectStages>();
                 foreach (var Item in dto.ProjectDetails)
                 {
                     var Projects = _db.GenerateProject(IsValidProgram.ProgramDetails, Item, ProjectReference);
@@ -113,7 +113,7 @@ namespace WebAPI.Controllers.Importing
                 #endregion
 
                 #region Funding Profile
-                List<DBHelper.Models.Table.ProjectFundingProfile> FundingProfile = new List<DBHelper.Models.Table.ProjectFundingProfile>();
+                List<ProjectFundingProfile> FundingProfile = new List<ProjectFundingProfile>();
                 foreach (var Item in dto.FundingProfile)
                 {
                     var Reference = ProjectReference.FirstOrDefault(x => x.OldProjectId == Item.ProjectId);
@@ -136,7 +136,7 @@ namespace WebAPI.Controllers.Importing
                 #endregion
 
                 #region Component Cost
-                List<DBHelper.Models.Table.ProjectComponentCost> ComponentCost = new List<DBHelper.Models.Table.ProjectComponentCost>();
+                List<ProjectComponentCost> ComponentCost = new List<ProjectComponentCost>();
                 foreach(var Item in dto.ComponentCosts)
                 {
                     var Reference = ProjectReference.FirstOrDefault(x => x.OldProjectId == Item.ProjectId);
@@ -160,7 +160,7 @@ namespace WebAPI.Controllers.Importing
                 #endregion
 
                 #region Component Cost Per Year
-                List<DBHelper.Models.Table.ProjectComponentCostPerYear> ComponentCostPerYear = new List<DBHelper.Models.Table.ProjectComponentCostPerYear>();
+                List<ProjectComponentCostPerYear> ComponentCostPerYear = new List<ProjectComponentCostPerYear>();
                 foreach (var Item in dto.ComponentCostPerYear)
                 {
                     var OldReference = ProjectReference.FirstOrDefault(x => x.OldProjectId == Item.ComponentCostId.Split("-")[0]);
@@ -185,7 +185,7 @@ namespace WebAPI.Controllers.Importing
                 #endregion
 
                 #region MajorItemOfWork
-                List<DBHelper.Models.Table.ProjectMajorWorkItem> MajorItemOfWork = new List<DBHelper.Models.Table.ProjectMajorWorkItem>();
+                List<ProjectMajorWorkItem> MajorItemOfWork = new List<ProjectMajorWorkItem>();
                 foreach (var Item in dto.MajorItemOfWorks)
                 {
                     var Reference = ProjectReference.FirstOrDefault(x => x.OldProjectId == Item.ProjectId);
@@ -210,7 +210,7 @@ namespace WebAPI.Controllers.Importing
                 #endregion
 
                 #region MajorWorkLocations
-                List<DBHelper.Models.Table.ProjectMajorWorkLocations> MajorWorkLocations = new List<DBHelper.Models.Table.ProjectMajorWorkLocations>();
+                List<ProjectMajorWorkLocations> MajorWorkLocations = new List<ProjectMajorWorkLocations>();
                 foreach (var Item in dto.MajorItemLocations)
                 {
                     var OldReference = ProjectReference.FirstOrDefault(x => x.OldProjectId == Item.ParentId.Split("-")[0]);

@@ -23,8 +23,12 @@
 
   <ItemGroup>
     <None Include="Models\Table\CodeTableTransactionLog.cs" />
-    <None Include="Models\Table\OptionSearchCategory.cs" />
+    <None Include="Models\Table\Lookups\OptionSearchCategory.cs" />
     <None Include="Models\Table\RevisionRules.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Models\Table\AdminAreas\" />
   </ItemGroup>
 
 </Project>

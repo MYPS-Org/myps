@@ -2,6 +2,7 @@
 using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Table;
+using DBHelper.Models.Views.Project;
 using Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -28,7 +29,7 @@ namespace WebAPI.Controllers.ProjectGroup
                 }
                 if (!string.IsNullOrEmpty(dto.SortField))
                 {
-                    bool isValid = typeof(DBHelper.Models.Views.ProjectGroups)
+                    bool isValid = typeof(DBHelper.Models.Views.Project.ProjectGroups)
                         .GetProperties(BindingFlags.Public | BindingFlags.Instance)
                         .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
                     if (!isValid)
@@ -70,7 +71,7 @@ namespace WebAPI.Controllers.ProjectGroup
                         : baseQuery.OrderByDescending(e => EF.Property<object>(e, dto.SortField));
 
                 // Apply pagination and execute query
-                List<DBHelper.Models.Views.ProjectGroups> permissionLists = await sortedQuery
+                List<DBHelper.Models.Views.Project.ProjectGroups> permissionLists = await sortedQuery
                    .Skip((dto.page - 1) * dto.limit)
                    .Take(dto.limit)
                    .ToListAsync();

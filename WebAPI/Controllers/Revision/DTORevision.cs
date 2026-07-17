@@ -1,6 +1,6 @@
 ﻿using DBHelper.Models.Enums;
 using DBHelper.Models.Extra;
-using DBHelper.Models.Functions;
+using DBHelper.Models.Functions.Project;
 using DBHelper.Models.Table;
 using System.ComponentModel.DataAnnotations;
 

@@ -1,4 +1,5 @@
 ﻿using DBHelper.Data;
+using DBHelper.Models.Table.Project;
 using Helpers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -114,9 +115,9 @@ namespace WebAPI.Controllers.Importing
         #region Project Validation
         public class GenerateProjecttResponse : ValidationResponse
         {
-            public DBHelper.Models.Table.Projects Project { get; set; } = new DBHelper.Models.Table.Projects();
-            public DBHelper.Models.Table.ProjectRevisions ProjectRevision { get; set; } = new DBHelper.Models.Table.ProjectRevisions();
-            public DBHelper.Models.Table.ProjectStages ProjectStage { get; set; } = new DBHelper.Models.Table.ProjectStages();
+            public DBHelper.Models.Table.Project.Projects Project { get; set; } = new DBHelper.Models.Table.Projects();
+            public ProjectRevisions ProjectRevision { get; set; } = new DBHelper.Models.Table.ProjectRevisions();
+            public ProjectStages ProjectStage { get; set; } = new DBHelper.Models.Table.ProjectStages();
             public ImportProjectReference ImportReference { get; set; } = new ImportProjectReference();
         }
         public static GenerateProjecttResponse GenerateProject(this MYPSDbContext _db, DBHelper.Models.Views.ProgramDetails ProgramDetails, ImportProjectDetails details, List<ImportProjectReference> Saved)
@@ -286,7 +287,7 @@ namespace WebAPI.Controllers.Importing
         #region Funding Profile
         public class GenerateFundingProfileResponse : ValidationResponse
         {
-            public DBHelper.Models.Table.ProjectFundingProfile FundingProfile { get; set; } = new DBHelper.Models.Table.ProjectFundingProfile();
+            public ProjectFundingProfile FundingProfile { get; set; } = new DBHelper.Models.Table.ProjectFundingProfile();
         }
         public static GenerateFundingProfileResponse GenerateFundingProfile(this MYPSDbContext _db, ImportFundingProfile Funding, ImportProjectReference ProjectRef)
         {
@@ -318,7 +319,7 @@ namespace WebAPI.Controllers.Importing
         #region Component Cost
         public class GenerateComponentCostResponse : ValidationResponse
         {
-            public DBHelper.Models.Table.ProjectComponentCost ComponentCost { get; set; } = new DBHelper.Models.Table.ProjectComponentCost();
+            public ProjectComponentCost ComponentCost { get; set; } = new DBHelper.Models.Table.ProjectComponentCost();
         }
         public static GenerateComponentCostResponse GenerateComponentCost(this MYPSDbContext _db, ImportComponentCost ComponentCost, ImportProjectReference ProjectRef)
         {
@@ -346,7 +347,7 @@ namespace WebAPI.Controllers.Importing
         #region Component Cost Per Year
         public class GenerateComponentCostPerYearResponse : ValidationResponse
         {
-            public DBHelper.Models.Table.ProjectComponentCostPerYear ComponentCostPerYear { get; set; } = new DBHelper.Models.Table.ProjectComponentCostPerYear();
+            public ProjectComponentCostPerYear ComponentCostPerYear { get; set; } = new DBHelper.Models.Table.ProjectComponentCostPerYear();
         }
         public static GenerateComponentCostPerYearResponse GenerateComponentCostPerYear(this MYPSDbContext _db, ImportComponentCostPerYear ComponentCostPerYear)
         {
@@ -364,7 +365,7 @@ namespace WebAPI.Controllers.Importing
         #region Major Work Item
         public class GenerateMajorWorkItemResponse : ValidationResponse
         {
-            public DBHelper.Models.Table.ProjectMajorWorkItem MajorWorkItem { get; set; } = new DBHelper.Models.Table.ProjectMajorWorkItem();
+            public ProjectMajorWorkItem MajorWorkItem { get; set; } = new DBHelper.Models.Table.ProjectMajorWorkItem();
         }
         public static GenerateMajorWorkItemResponse GenerateMajorWorkItem(this MYPSDbContext _db, ImportMajorItemOfWork MajorWorkItem, ImportProjectReference ProjectRef)
         {
@@ -397,7 +398,7 @@ namespace WebAPI.Controllers.Importing
         #region Major Work Location
         public class GenerateMajorWorkLocationResponse : ValidationResponse
         {
-            public DBHelper.Models.Table.ProjectMajorWorkLocations MajorWorkLocation { get; set; } = new DBHelper.Models.Table.ProjectMajorWorkLocations();
+            public ProjectMajorWorkLocations MajorWorkLocation { get; set; } = new DBHelper.Models.Table.ProjectMajorWorkLocations();
         }
         public static GenerateMajorWorkLocationResponse GenerateMajorWorkLocation(this MYPSDbContext _db, ImportMajorItemLocation MajorWorkLocation)
         {

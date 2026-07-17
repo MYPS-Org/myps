@@ -3,7 +3,9 @@ using Dapper;
 using DBHelper.Data;
 using DBHelper.Models.Enums;
 using DBHelper.Models.Table;
-using DBHelper.Models.Views;
+using DBHelper.Models.Table.Lookups;
+using DBHelper.Models.Table.Project;
+using DBHelper.Models.Views.Program;
 using Helpers;
 using JetBrains.Annotations;
 using Microsoft.AspNetCore.Authorization;
@@ -20,6 +22,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Xml;
+using WebAPI.Controllers.Programs;
 namespace WebAPI.Controllers.Projects
 {
     [ApiController]
@@ -43,6 +46,130 @@ namespace WebAPI.Controllers.Projects
         }
         #region Project Lists
 
+
+        [HttpPost]
+        public async Task<IActionResult> ShowProjects([FromBody] ShowProjectDTO dto)
+        {
+            try
+            {
+                if (dto.Filters == null)
+                {
+                    return new BadRequestObjectResult(new { Message = "Expected Parameters missing.", Title = "Parameter Error" });
+                }
+
+                // Validate pagination parameters
+                if (dto.page < 1) dto.page = 1;
+                if (dto.limit < 1) dto.limit = 10;
+
+                var filterDefs = new List<(string Clause, string ParamName, object Value)>();
+
+                if (!string.IsNullOrEmpty(dto.Filters.ProgramId))
+                    filterDefs.Add(("v.ProgramId LIKE @programId", "@programId", $"%{dto.Filters.ProgramId}%"));
+
+                if (!string.IsNullOrEmpty(dto.Filters.ProjectId))
+                    filterDefs.Add(("v.ProjectId = @projectId", "@projectId", dto.Filters.ProjectId));
+
+                if (_Session.ApplyFilter)
+                {
+                    filterDefs.Add((
+                        "EXISTS (SELECT 1 FROM vProgramDataSecurityGroups d WHERE d.ProgramFK = v.Id AND d.ParticipantId = @regCode)",
+                        "@regCode", _Session.RegCode));
+                }
+
+                string filterWhere = filterDefs.Count > 0
+                    ? " WHERE " + string.Join(" AND ", filterDefs.Select(f => f.Clause))
+                    : "";
+
+                SqlParameter[] BuildParams(params SqlParameter[] extra) =>
+                    filterDefs.Select(f => new SqlParameter(f.ParamName, f.Value))
+                              .Concat(extra)
+                              .ToArray();
+
+                long? pageStartId = null;
+                if (dto.page > 1)
+                {
+                    string pageIndexSql = $@"
+                        SELECT ((rn - 1) / @limit) + 1 AS PageNumber, Id AS PageStartId
+                        FROM (
+                            SELECT v.Id, ROW_NUMBER() OVER (ORDER BY v.Id DESC) AS rn
+                            FROM dbo.vProgramLatest v{filterWhere}
+                        ) x
+                        WHERE (rn - 1) % @limit = 0 AND ((rn - 1) / @limit) + 1 = @page";
+
+                    var pageParams = BuildParams(
+                        new SqlParameter("@limit", dto.limit),
+                        new SqlParameter("@page", dto.page));
+
+                    var pageRow = await _db.Set<PaginationPages>()
+                        .FromSqlRaw(pageIndexSql, pageParams)
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync();
+
+                    if (pageRow == null)
+                    {
+                        var emptyCountParams = BuildParams();
+                        var emptyCount = await _db.Set<PaginationCount>()
+                            .FromSqlRaw($"SELECT COUNT_BIG(*) AS TotalCount FROM dbo.vProgramLatest v{filterWhere}", emptyCountParams)
+                            .AsNoTracking()
+                            .FirstOrDefaultAsync();
+
+                        long total = emptyCount?.TotalCount ?? 0;
+                        return Ok(new FilteredResult<ProgramLatest>
+                        {
+                            lists = new List<ProgramLatest>(),
+                            totalPages = (int)Math.Ceiling((double)total / dto.limit),
+                            page = dto.page,
+                            limit = dto.limit,
+                            total = total
+                        });
+                    }
+
+                    pageStartId = pageRow.PageStartId;
+                }
+
+                string fetchWhere = filterWhere;
+                var fetchExtraParams = new List<SqlParameter> { new SqlParameter("@limit", dto.limit) };
+
+                if (pageStartId.HasValue)
+                {
+                    fetchWhere += (filterWhere.Length > 0 ? " AND" : " WHERE") + " v.Id <= @pageStartId";
+                    fetchExtraParams.Add(new SqlParameter("@pageStartId", pageStartId.Value));
+                }
+
+                string fetchSql = $@"
+                    SELECT TOP (@limit) *
+                    FROM dbo.vProgramLatest v{fetchWhere}
+                    ORDER BY v.Id DESC";
+
+                var projects = await _db.vProgramLatest
+                    .FromSqlRaw(fetchSql, BuildParams(fetchExtraParams.ToArray()))
+                    .AsNoTracking()
+                    .ToListAsync();
+
+                string countSql = $"SELECT COUNT_BIG(*) AS TotalCount FROM dbo.vProgramLatest v{filterWhere}";
+                var countParams = BuildParams();
+
+                var records = await _db.Set<PaginationCount>()
+                    .FromSqlRaw(countSql, countParams)
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync() ?? new PaginationCount { TotalCount = 0 };
+
+                var totalPages = (int)Math.Ceiling((double)records.TotalCount / dto.limit);
+
+                return Ok(new FilteredResult<ProgramLatest>
+                {
+                    lists = projects,
+                    totalPages = totalPages,
+                    page = dto.page,
+                    limit = dto.limit,
+                    total = records.TotalCount
+                });
+            }
+            catch (Exception ex)
+            {
+                return ExceptionHandler(ex);
+            }
+        }
         [HttpPost]
         public async Task<IActionResult> ShowProjects([FromBody] ShowProjectDTO dto)
         {
@@ -54,7 +181,7 @@ namespace WebAPI.Controllers.Projects
                 }
                 if (!string.IsNullOrEmpty(dto.SortField))
                 {
-                    bool isValid = typeof(DBHelper.Models.Views.Projects)
+                    bool isValid = typeof(DBHelper.Models.Views.Project.Projects)
                         .GetProperties(BindingFlags.Public | BindingFlags.Instance)
                         .Any(p => string.Equals(p.Name, dto.SortField, StringComparison.OrdinalIgnoreCase));
                     if (!isValid)
