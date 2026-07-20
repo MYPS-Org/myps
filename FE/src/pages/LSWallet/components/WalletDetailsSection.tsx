@@ -154,7 +154,7 @@ const WalletDetailsSection: React.FC<WalletDetailsSectionProps> = ({
           General Information:
         </h3>
 
-        {/* Row 1: Wallet ID | MYId
+        {/* Row 1: Wallet ID | MYId | AlternateId
             Program selection has moved to the dedicated "Program Details" card
             (WalletProgramDetailsSection) rendered before this section. */}
         <div className="grid grid-cols-3 gap-5">
@@ -185,10 +185,7 @@ const WalletDetailsSection: React.FC<WalletDetailsSectionProps> = ({
               />
             </div>
           </div>
-        </div>
 
-        {/* Row 2: AlternateId | ExternalId | UACS */}
-        <div className="grid grid-cols-3 gap-5">
           <div className="w-full flex flex-col text-left gap-2">
             <div className="flex flex-row gap-5 items-center">
               <label className={`w-1/3 ${errors.AlternateId ? 'text-red-500' : 'text-gray-600'}`}>
@@ -204,7 +201,10 @@ const WalletDetailsSection: React.FC<WalletDetailsSectionProps> = ({
               />
             </div>
           </div>
+        </div>
 
+        {/* Row 2: ExternalId | UACS | Tier + Rank (mirrors ProjectDetailsForm's Tier/Rank pairing) */}
+        <div className="grid grid-cols-3 gap-5">
           <div className="w-full flex flex-col text-left gap-2">
             <div className="flex flex-row gap-5 items-center">
               <label className={`w-1/3 ${errors.ExternalId ? 'text-red-500' : 'text-gray-600'}`}>
@@ -236,46 +236,39 @@ const WalletDetailsSection: React.FC<WalletDetailsSectionProps> = ({
               />
             </div>
           </div>
-        </div>
 
-        {/* Row 3: Tier | Rank */}
-        <div className="grid grid-cols-3 gap-5">
-          <div className="w-full flex flex-col text-left gap-2">
-            <div className="flex flex-row gap-5 items-center">
-              <label className={`w-1/3 text-sm font-medium ${errors.Tier ? 'text-red-500' : 'text-gray-700'}`}>
-                <span className="text-red-500 text-lg">*</span>Tier:
-              </label>
-              <select
-                value={wallet.Tier ?? ''}
-                onChange={(e) => onChange('Tier', e.target.value ? parseInt(e.target.value) : undefined)}
-                className={`w-2/3 mt-1 px-3 py-2 border ${errors.Tier ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none`}
-                disabled={disabled}
-              >
-                <option value="">Select Tier</option>
-                <option value={1}>Tier I</option>
-                <option value={2}>Tier II</option>
-              </select>
-            </div>
+          <div className="w-full flex flex-row gap-5 items-center">
+            <label className={`w-1/3 text-sm font-medium ${errors.Tier ? 'text-red-500' : 'text-gray-700'}`}>
+              Tier
+            </label>
+            <select
+              value={wallet.Tier ?? ''}
+              onChange={(e) => onChange('Tier', e.target.value ? parseInt(e.target.value) : undefined)}
+              className={`w-2/3 mt-1 px-3 py-2 border ${errors.Tier ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none`}
+              disabled={disabled}
+            >
+              <option value="">Select Tier</option>
+              <option value={1}>Tier I</option>
+              <option value={2}>Tier II</option>
+            </select>
           </div>
 
-          <div className="w-full flex flex-col text-left gap-2">
-            <div className="flex flex-row gap-5 items-center">
-              <label className={`w-1/3 text-sm font-medium ${errors.Rank ? 'text-red-500' : 'text-gray-700'}`}>
-                Rank:
-              </label>
-              <input
-                type="number"
-                value={wallet.Rank || ''}
-                onChange={(e) => onChange('Rank', e.target.value ? parseInt(e.target.value) : undefined)}
-                className={`w-2/3 mt-1 px-3 py-2 border ${errors.Rank ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none`}
-                disabled={disabled}
-                min={1}
-              />
-            </div>
+          <div className="flex flex-row gap-5 items-center">
+            <label className={`w-1/3 text-sm font-medium ${errors.Rank ? 'text-red-500' : 'text-gray-700'}`}>
+              Rank
+            </label>
+            <input
+              type="number"
+              value={wallet.Rank || ''}
+              onChange={(e) => onChange('Rank', e.target.value ? parseInt(e.target.value) : undefined)}
+              className={`w-2/3 mt-1 px-3 py-2 border ${errors.Rank ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none`}
+              disabled={disabled}
+              min={1}
+            />
           </div>
         </div>
 
-        {/* Row 4: Category | Sub-Category | MYCA Approval Date */}
+        {/* Row 3: Category | Sub-Category | MYCA Approval Date */}
         <div className="grid grid-cols-3 gap-5 border-t-2 pt-4 border-gray-200">
           <div className="w-full flex flex-col text-left gap-2">
             <div className="flex flex-row gap-5 items-center">
@@ -338,33 +331,6 @@ const WalletDetailsSection: React.FC<WalletDetailsSectionProps> = ({
                 className={`w-2/3 mt-1 px-3 py-2 border ${errors.MYCAApprovalDate ? 'border-red-500' : 'border-gray-300'} ${getDisabledClass(disabled)} rounded-md truncate`}
                 disabled={disabled}
               />
-            </div>
-          </div>
-        </div>
-
-        {/* Row 5: Operating Unit */}
-        <div className="grid grid-cols-3 gap-5">
-          <div className="w-full flex flex-col text-left gap-2">
-            <div className="flex flex-row gap-5 items-center">
-              <label className={`w-1/3 ${errors.OperatingUnit ? 'text-red-500' : 'text-gray-600'}`}>
-                <span className="text-red-500 text-lg">*</span>Operating Unit:
-              </label>
-              <div className="w-2/3 min-w-0">
-                <SearchableDropdown
-                  options={formatDropdownOptions(
-                    projectEnums?.OperatingUnits || [],
-                    'ParticipantId',
-                    'Name'
-                  )}
-                  value={wallet.OperatingUnit || ''}
-                  onChange={(value) => onChange('OperatingUnit', value === '' ? undefined : value.toString())}
-                  placeholder="Select Operating Unit"
-                  disabled={disabled}
-                  error={!!errors.OperatingUnit}
-                  allowClear={true}
-                  searchPlaceholder="Search operating units..."
-                />
-              </div>
             </div>
           </div>
         </div>
@@ -530,6 +496,28 @@ const WalletDetailsSection: React.FC<WalletDetailsSectionProps> = ({
 
           <div className="w-full flex flex-col text-left gap-2">
             <div className="flex flex-row gap-5 items-center">
+              <label className={`w-1/3 ${errors.OperatingUnit ? 'text-red-500' : 'text-gray-600'}`}>
+                Operating Unit:
+              </label>
+              <div className="w-2/3">
+                <SearchableDropdown
+                  options={formatDropdownOptions(filteredOUs || [], 'ParticipantId', 'Name')}
+                  value={wallet.OperatingUnit || ''}
+                  onChange={(value) => onChange('OperatingUnit', value === '' ? undefined : value.toString())}
+                  placeholder="Select Operating Unit"
+                  disabled={disabled}
+                  error={!!errors.OperatingUnit}
+                  allowClear={true}
+                  searchPlaceholder="Search operating units..."
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-5">
+          <div className="w-full flex flex-col text-left gap-2">
+            <div className="flex flex-row gap-5 items-center">
               <label className={`w-1/3 ${errors.RegionWide ? 'text-red-500' : 'text-gray-600'}`}>
                 Region Wide:
               </label>
@@ -544,28 +532,6 @@ const WalletDetailsSection: React.FC<WalletDetailsSectionProps> = ({
                   <option key={opt.id} value={opt.value}>{opt.name}</option>
                 ))}
               </select>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-5">
-          <div className="w-full flex flex-col text-left gap-2">
-            <div className="flex flex-row gap-5 items-center">
-              <label className={`w-1/3 ${errors.OperatingUnit ? 'text-red-500' : 'text-gray-600'}`}>
-                Operating Unit (Org):
-              </label>
-              <div className="w-2/3">
-                <SearchableDropdown
-                  options={formatDropdownOptions(filteredOUs || [], 'ParticipantId', 'Name')}
-                  value={wallet.OperatingUnit || ''}
-                  onChange={(value) => onChange('OperatingUnit', value === '' ? undefined : value.toString())}
-                  placeholder="Select Operating Unit"
-                  disabled={disabled}
-                  error={!!errors.OperatingUnit}
-                  allowClear={true}
-                  searchPlaceholder="Search operating units..."
-                />
-              </div>
             </div>
           </div>
         </div>
