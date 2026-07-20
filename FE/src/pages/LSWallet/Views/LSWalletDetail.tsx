@@ -26,12 +26,7 @@ import { useWalletBalance } from '../hooks/useWalletBalance';
 import * as Service from '../Service';
 import type { ItemizedProject, ItemizedProjectRevision, DtoImportItemizedProjects } from '../Model.d';
 import type { LSWallet } from '../Model.d';
-import {
-  getWalletActions,
-  getItemizedProjectActions,
-  resolveWalletDeleteTier,
-  resolveProjectDeleteTier,
-} from '../utils/walletActions';
+import { getWalletActions, getItemizedProjectActions } from '../utils/walletActions';
 
 import {
   Table,
@@ -171,17 +166,13 @@ const LSWalletDetail: React.FC = () => {
   const [replenishOpen, setReplenishOpen] = useState(false);
   const [importProjectsOpen, setImportProjectsOpen] = useState(false);
   const [deleteWalletOpen, setDeleteWalletOpen] = useState(false);
-  const [deleteWalletTier, setDeleteWalletTier] = useState<'hard' | 'soft' | 'blocked'>('soft');
   const [advanceStageOpen, setAdvanceStageOpen] = useState(false);
 
   // Dialog state — project-level (conditionally mounted; null = closed)
   const [editDrawTarget, setEditDrawTarget] = useState<ItemizedProject | null>(null);
   const [publishTarget, setPublishTarget] = useState<ItemizedProject | null>(null);
   const [revisionTarget, setRevisionTarget] = useState<ItemizedProject | null>(null);
-  const [deleteProjectTarget, setDeleteProjectTarget] = useState<{
-    project: ItemizedProject;
-    tier: 'hard' | 'soft' | 'blocked';
-  } | null>(null);
+  const [deleteProjectTarget, setDeleteProjectTarget] = useState<ItemizedProject | null>(null);
 
   // Dialog state — revision-level (conditionally mounted)
   const [approveTarget, setApproveTarget] = useState<{
@@ -263,6 +254,18 @@ const LSWalletDetail: React.FC = () => {
   };
 
   // ---------------------------------------------------------------------------
+  // Add (new) Itemized Project handler — mirrors ProgramDetail.tsx's
+  // handleAddProject navigation, plus AlternateId so AddProject can trace the
+  // new itemized project back to this LS Wallet.
+  // ---------------------------------------------------------------------------
+  const handleAddItemizedProject = () => {
+    if (!wallet) return;
+    navigate(
+      `/projects/addproject?programId=${wallet.ProgramId}&stageName=${wallet.CurrentStage}&AlternateId=${wallet.Id}`
+    );
+  };
+
+  // ---------------------------------------------------------------------------
   // Wallet-level action config
   // ---------------------------------------------------------------------------
   const walletActions = getWalletActions({
@@ -272,12 +275,8 @@ const LSWalletDetail: React.FC = () => {
     actions: {
       onReplenish: () => setReplenishOpen(true),
       onAddItemizedProject: () => setImportProjectsOpen(true),
-      onDelete: () => {
-        // Resolve tier here so DeleteWalletDialog receives it as a required prop
-        const tier = resolveWalletDeleteTier(wallet, projects);
-        setDeleteWalletTier(tier);
-        setDeleteWalletOpen(true);
-      },
+      onAddNewItemizedProject: handleAddItemizedProject,
+      onDelete: () => setDeleteWalletOpen(true),
       onAdvanceStage: () => setAdvanceStageOpen(true),
     },
   });
@@ -366,10 +365,7 @@ const LSWalletDetail: React.FC = () => {
                         onEditDraw: () => setEditDrawTarget(project),
                         onPublish: () => setPublishTarget(project),
                         onRequestRevision: () => setRevisionTarget(project),
-                        onDelete: () => {
-                          const tier = resolveProjectDeleteTier(project);
-                          setDeleteProjectTarget({ project, tier });
-                        },
+                        onDelete: () => setDeleteProjectTarget(project),
                       },
                     });
 
@@ -409,7 +405,7 @@ const LSWalletDetail: React.FC = () => {
 
       {projects.some((p) => p.PublishStatus === 'Published') && (
         <CollapsibleSection
-          title="Revision History"
+          title="Transaction Logs"
           isOpen={isRevHistoryOpen}
           onToggle={() => setIsRevHistoryOpen(!isRevHistoryOpen)}
         >
@@ -603,13 +599,12 @@ const LSWalletDetail: React.FC = () => {
         balance={balance}
       />
 
-      {/* On wallet delete (any tier), navigate away — wallet is removed from active view */}
+      {/* On wallet delete, navigate away — wallet is removed from active view */}
       <DeleteWalletDialog
         open={deleteWalletOpen}
         onClose={() => setDeleteWalletOpen(false)}
         onSuccess={() => navigate('/lumpsum')}
         wallet={wallet}
-        tier={deleteWalletTier}
       />
 
       <AdvanceProgramStageDialog
@@ -668,8 +663,7 @@ const LSWalletDetail: React.FC = () => {
           open
           onClose={() => setDeleteProjectTarget(null)}
           onSuccess={() => setDeleteProjectTarget(null)}
-          project={deleteProjectTarget.project}
-          tier={deleteProjectTarget.tier}
+          project={deleteProjectTarget}
         />
       )}
 

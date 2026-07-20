@@ -45,43 +45,6 @@ const isStageAtOrAfter = (currentStage: string, referenceStage: string): boolean
 };
 
 // ---------------------------------------------------------------------------
-// Wallet-level delete tier logic (WF-7) — mirrors Service.ts's deleteWallet()
-// Tier 1 — Hard delete: wallet itself has no stage data yet (brand new, untouched)
-// Tier 2 — Soft delete: wallet has stage data, but no active itemized projects
-// Tier 3 — Blocked:     wallet has stage data AND active itemized projects
-// ---------------------------------------------------------------------------
-
-type WalletDeleteTier = 'hard' | 'soft' | 'blocked';
-
-export const resolveWalletDeleteTier = (
-  wallet: LSWallet,
-  itemizedProjects: ItemizedProject[]
-): WalletDeleteTier => {
-  if (!wallet.HasStageData) return 'hard';
-
-  const activeOwnProjects = itemizedProjects.filter(
-    p => p.ParentWalletId === wallet.Id && !p.IsDeleted && !p.IsCancelled
-  );
-
-  return activeOwnProjects.length > 0 ? 'blocked' : 'soft';
-};
-
-// ---------------------------------------------------------------------------
-// Itemized project delete tier (WF-7)
-// Tier 1 — Hard delete: project has no stage data (HasStageData = false)
-// Tier 2 — Soft delete: project has stage data but is not published
-// Tier 3 — Blocked:     project is published (PublishStatus === 'Published')
-// ---------------------------------------------------------------------------
-
-type ProjectDeleteTier = 'hard' | 'soft' | 'blocked';
-
-export const resolveProjectDeleteTier = (project: ItemizedProject): ProjectDeleteTier => {
-  if (project.PublishStatus === 'Published') return 'blocked';
-  if (project.HasStageData) return 'soft';
-  return 'hard';
-};
-
-// ---------------------------------------------------------------------------
 // Action params
 // ---------------------------------------------------------------------------
 
@@ -92,6 +55,7 @@ export interface WalletActionParams {
   actions: {
     onReplenish: () => void;
     onAddItemizedProject: () => void;
+    onAddNewItemizedProject: () => void;
     onDelete: () => void;
     onAdvanceStage: () => void;  // dev/demo cascade simulation
   };
@@ -119,7 +83,6 @@ export interface ItemizedProjectActionParams {
 export const getWalletActions = ({
   wallet,
   balance,
-  itemizedProjects,
   actions,
 }: WalletActionParams): WalletAction[] => {
   const canReplenish = isStageAtOrAfter(wallet.CurrentStage, REPLENISH_ALLOWED_FROM_STAGE);
@@ -129,19 +92,6 @@ export const getWalletActions = ({
     wallet.CurrentStage !== 'GAA-R'
       ? 'Wallet must be at GAA-R stage.'
       : 'No available balance remaining in this wallet.';
-
-  const deleteTier = resolveWalletDeleteTier(wallet, itemizedProjects);
-  const deleteDisabled = deleteTier === 'blocked';
-  const deleteLabel =
-    deleteTier === 'hard'
-      ? 'Delete Wallet'
-      : deleteTier === 'soft'
-      ? 'Remove Wallet'
-      : 'Delete Wallet';
-  const deleteReason =
-    deleteTier === 'blocked'
-      ? 'Cannot delete: remove or cancel all itemized projects first.'
-      : undefined;
 
   return [
     // Replenish — shown if stage >= GAA
@@ -160,29 +110,28 @@ export const getWalletActions = ({
     {
       show: true,
       color: 'green',
-      label: 'Add Itemized Project',
+      label: 'Import Itemized Project',
       disabled: !isAtGAARAndHasFunds,
       disabledReason: isAtGAARAndHasFunds ? undefined : gaarReason,
       onClick: actions.onAddItemizedProject,
     },
 
-    // Delete — always shown; tier determines disabled state
+    {
+      show: true,
+      color: 'blue',
+      label: 'Add Itemized Project',
+      disabled: isAtGAARAndHasFunds,
+      disabledReason: isAtGAARAndHasFunds ? undefined : gaarReason,
+      onClick: actions.onAddNewItemizedProject,
+    },
+
+    // Delete — the backend decides whether it's allowed; always clickable here
     {
       show: true,
       color: 'red',
-      label: deleteLabel,
-      disabled: deleteDisabled,
-      disabledReason: deleteReason,
-      onClick: actions.onDelete,
-    },
-
-    // Advance Stage (dev/demo only — labeled clearly to avoid confusion)
-    {
-      show: true,
-      color: 'zinc',
-      label: '[Dev] Advance Program Stage',
+      label: 'Delete Wallet',
       disabled: false,
-      onClick: actions.onAdvanceStage,
+      onClick: actions.onDelete,
     },
   ];
 };
@@ -192,54 +141,15 @@ export const getWalletActions = ({
  * Consumer: WalletActionButtons.tsx (project action variant).
  */
 export const getItemizedProjectActions = ({
-  project,
   actions,
 }: ItemizedProjectActionParams): ItemizedProjectAction[] => {
-  const isPublished = project.PublishStatus === 'Published';
-  const deleteTier = resolveProjectDeleteTier(project);
-  const deleteDisabled = deleteTier === 'blocked';
-  const deleteLabel =
-    deleteTier === 'hard' ? 'Delete Project' : 'Remove Project';
-  const deleteReason =
-    deleteTier === 'blocked'
-      ? 'Cannot delete a published project. Request a revision to cancel it.'
-      : undefined;
-
   return [
-    // Edit Draw — only visible/usable before publish
-    {
-      show: !isPublished,
-      color: 'blue',
-      label: 'Edit Draw Amount',
-      disabled: false,
-      onClick: actions.onEditDraw,
-    },
-
-    // Publish — shown only if not yet published
-    {
-      show: !isPublished,
-      color: 'green',
-      label: 'Publish',
-      disabled: false,
-      onClick: actions.onPublish,
-    },
-
-    // Request Revision — shown only after publish
-    {
-      show: isPublished,
-      color: 'orange',
-      label: 'Request Revision',
-      disabled: false,
-      onClick: actions.onRequestRevision,
-    },
-
-    // Delete — always shown, tier determines disabled state
+    // Delete — the backend decides whether it's allowed; always clickable here
     {
       show: true,
       color: 'red',
-      label: deleteLabel,
-      disabled: deleteDisabled,
-      disabledReason: deleteReason,
+      label: 'Delete Project',
+      disabled: false,
       onClick: actions.onDelete,
     },
   ];

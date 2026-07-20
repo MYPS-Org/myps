@@ -6,7 +6,6 @@
 //   - Pagination controls
 //   - Search/filter header
 //   - "Add Wallet" primary button (navigates to /lumpsum/add)
-//   - "[Dev] Advance Program Stage" button (dev simulation tool)
 //   - WalletActionButtons per row for wallet-level actions
 //
 // Data: fetched via Service.fetchWalletList() on mount and pagination changes
@@ -164,19 +163,6 @@ const LSWalletList: React.FC = () => {
       <Button color="blue" onClick={() => navigate(`/lumpsum/${wallet.Id}`)}>
         View
         <ArrowRightIcon className="w-3 h-3" />
-      </Button>
-      <Button
-        color="zinc"
-        onClick={() => {
-          setSelectedProgram({
-            id: wallet.ProgramId,
-            name: wallet.ProgramName,
-            stage: wallet.CurrentStage,
-          });
-          setIsAdvanceStageOpen(true);
-        }}
-      >
-        [Dev] Advance Stage
       </Button>
     </div>
   );

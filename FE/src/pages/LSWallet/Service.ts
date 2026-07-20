@@ -186,47 +186,37 @@ export const replenishWallet = async (
 };
 
 /**
- * WF-7: Delete a wallet (tier-aware: hard / soft / blocked).
- *
- * Returns { tier, wallet } so the UI can show a tier-specific message.
+ * WF-7: Delete a wallet. The backend owns whether this ends up a hard or soft
+ * delete and whether it's blocked (e.g. active itemized projects still attached) —
+ * the caller just sends the request and handles success/error, same as
+ * Program's deleteProgram() (see Program/Service.ts).
  *
  * REAL API SWAP:
- *   return httpClient.post<{ tier: string; wallet: LSWallet }>(
+ *   return httpClient.post<LSWallet>(
  *     '/LSWallet/delete',
  *     { walletId, updatedBy },
  *     { preloaderMessage: 'Deleting wallet...' }
  *   );
- *   // The API should return the tier it applied so the UI can show the right message.
  */
 export const deleteWallet = async (
   walletId: number,
   updatedBy: string
-): Promise<ApiResponse<{ tier: 'hard' | 'soft' | 'blocked'; wallet: LSWallet | null }>> => {
+): Promise<ApiResponse<LSWallet | null>> => {
   try {
     const wallet = store.getWalletById(walletId);
     if (!wallet) throw new Error('Wallet not found.');
-
-    if (!wallet.HasStageData) {
-      // Tier 1 — hard delete (brand new, untouched since creation)
-      const deleted = store.hardDeleteWallet(walletId);
-      syncAtom();
-      return mockResponse({ tier: 'hard' as const, wallet: deleted });
-    }
 
     const allProjects = store.getAllItemizedProjects();
     const activeOwnProjects = allProjects.filter(
       p => p.ParentWalletId === walletId && !p.IsDeleted && !p.IsCancelled
     );
-
     if (activeOwnProjects.length > 0) {
-      // Tier 3 — blocked (has active itemized projects)
-      return mockResponse({ tier: 'blocked' as const, wallet });
+      throw new Error('Cannot delete: remove or cancel all itemized projects first.');
     }
 
-    // Tier 2 — soft delete (has stage data, no active itemized projects)
-    const softDeleted = store.softDeleteWallet(walletId, updatedBy);
+    const deleted = store.deleteWallet(walletId, updatedBy);
     syncAtom();
-    return mockResponse({ tier: 'soft' as const, wallet: softDeleted });
+    return mockResponse(deleted);
   } catch (err) {
     console.error('deleteWallet error:', err);
     throw err;
@@ -355,10 +345,13 @@ export const updateItemizedProjectDraw = async (
 };
 
 /**
- * WF-7: Delete an itemized project (tier-aware).
+ * WF-7: Delete an itemized project. The backend owns whether this ends up a
+ * hard or soft delete and whether it's blocked (e.g. already Published) —
+ * the caller just sends the request and handles success/error, same as
+ * Program's deleteProgram() (see Program/Service.ts).
  *
  * REAL API SWAP:
- *   return httpClient.post<{ tier: string; project: ItemizedProject | null }>(
+ *   return httpClient.post<ItemizedProject>(
  *     '/LSWallet/itemized-projects/delete',
  *     { projectId, updatedBy },
  *     { preloaderMessage: 'Deleting project...' }
@@ -366,24 +359,18 @@ export const updateItemizedProjectDraw = async (
  */
 export const deleteItemizedProject = async (
   projectId: string
-): Promise<ApiResponse<{ tier: 'hard' | 'soft' | 'blocked'; project: ItemizedProject | null }>> => {
+): Promise<ApiResponse<ItemizedProject | null>> => {
   try {
     const project = store.getItemizedProjectById(projectId);
     if (!project) throw new Error('Itemized project not found.');
 
     if (project.PublishStatus === 'Published') {
-      return mockResponse({ tier: 'blocked' as const, project });
+      throw new Error('Cannot delete a published project. Request a revision to cancel it.');
     }
 
-    if (project.HasStageData) {
-      const softDeleted = store.softDeleteItemizedProject(projectId);
-      syncAtom();
-      return mockResponse({ tier: 'soft' as const, project: softDeleted });
-    }
-
-    const hardDeleted = store.hardDeleteItemizedProject(projectId);
+    const deleted = store.deleteItemizedProject(projectId);
     syncAtom();
-    return mockResponse({ tier: 'hard' as const, project: hardDeleted });
+    return mockResponse(deleted);
   } catch (err) {
     console.error('deleteItemizedProject error:', err);
     throw err;

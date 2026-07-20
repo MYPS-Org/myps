@@ -271,7 +271,7 @@ Soft-deleting an unpublished itemized project immediately returns the draw to Av
 | WF-4 Import Itemized Projects | `ImportItemizedProjectsDialog` | `importItemizedProjects()` | `walletMockStore.importItemizedProjects()` |
 | WF-5 Live Balance | `WalletBalanceWidget` (display) | `fetchWalletBalance()` (convenience) | — computed by `computeWalletBalance()` |
 | WF-6 Revision | `ItemizedProjectRevisionDialog` → `ApproveRevisionDialog` / `RejectRevisionDialog` / `ReturnRevisionForReviewDialog` | `submitRevision()`, `approveRevision()`, `rejectRevision()`, `returnRevisionForReview()` | corresponding mock store functions |
-| WF-7 Delete | `DeleteWalletDialog` / `DeleteItemizedProjectDialog` | `deleteWallet()` / `deleteItemizedProject()` | `hardDelete*()` / `softDelete*()` |
+| WF-7 Delete | `DeleteWalletDialog` / `DeleteItemizedProjectDialog` | `deleteWallet()` / `deleteItemizedProject()` | `deleteWallet()` / `deleteItemizedProject()` (internally hard/soft) |
 | WF-8 Publish | `PublishItemizedProjectDialog` | `publishItemizedProject()` | `walletMockStore.publishItemizedProject()` |
 
 ---
@@ -286,12 +286,12 @@ All 18 functions return `Promise<ApiResponse<T>>`. `ApiResponse<T>` is `{ Data: 
 | `fetchWalletById(id)` | Single wallet by numeric ID |
 | `createWallet(payload, programName)` | WF-1 — creates wallet, syncs atom |
 | `replenishWallet(payload)` | WF-3 — adds a new `WalletFundingProfile` (Source: `'Replenishment'`, Amount: `newAmount - current`) then recomputes `Amount = SUM(WalletFundingProfiles)`; throws if `newAmount <= current` |
-| `deleteWallet(walletId, updatedBy)` | WF-7 — returns `{ tier, wallet }` |
+| `deleteWallet(walletId, updatedBy)` | WF-7 — single request; backend decides hard/soft/blocked internally, throws on rejection |
 | `fetchItemizedProjectsByWalletId(walletId)` | All projects for a wallet |
 | `validateWalletForItemization(walletId)` | WF-4 gate check — returns `{ valid, message? }` |
 | `importItemizedProjects(payload)` | WF-4 — batch-imports parsed Excel projects; assigns generated IDs (`LS-W{walletId}-P{n}`), computes `CurrentDrawAmount = SUM(FundingLines)` per project, syncs atom |
 | `updateItemizedProjectDraw(payload)` | Pre-publish draw edit; accepts full `fundingLines: FundingLine[]` array; recomputes `CurrentDrawAmount = SUM`; throws on published project |
-| `deleteItemizedProject(projectId)` | WF-7 — returns `{ tier, project }` |
+| `deleteItemizedProject(projectId)` | WF-7 — single request; backend decides hard/soft internally, throws if Published |
 | `publishItemizedProject(projectId)` | WF-8 — runs 13-rule mock check, returns `{ complianceResult, project }` |
 | `fetchWalletRevisions(itemizedProjectId)` | Revision history for one project |
 | `submitRevision(payload)` | WF-6 — creates new revision record |
@@ -331,7 +331,7 @@ Jotai atoms for revision context (`currentRevisionContextAtom`, `regionStatusAto
 - Balances fetched via `useAllWalletBalances()` hook (single atom read, avoids per-row service calls).
 - Search: filters by `OperatingUnit` (Enter key or button).
 - **Add Wallet** (header button) and **Create Your First Wallet** (empty-state button) both `navigate('/lumpsum/add')`. No dialog is opened from this page for wallet creation.
-- Row actions: **View** (navigates to `/lumpsum/:walletId`) and **[Dev] Advance Stage** (opens `AdvanceProgramStageDialog`). Replenish / Add Itemized / Delete are intentionally not on the list row — they need the full itemized-project context for correct delete-tier resolution and live only on the Detail page.
+- Row actions: **View** (navigates to `/lumpsum/:walletId`) and **[Dev] Advance Stage** (opens `AdvanceProgramStageDialog`). Replenish / Add Itemized / Delete are intentionally not on the list row — they need the full itemized-project context and live only on the Detail page.
 - Columns: Wallet ID | Program Name | Category | Stage | Total / Available | Created | Actions.
 
 ### `AddWallet.tsx` and `WalletForm.tsx`
@@ -362,7 +362,8 @@ Orchestrator page for all wallet-level and project-level operations. Key design 
 - **Reactive from the atom.** Wallet fields (`CurrentStage`, `Amount`, `HasStageData`) and project fields (`PublishStatus`, `CurrentDrawAmount`) are all read from `walletDataAtom`. Every mutation via `Service.ts` calls `syncAtom()`, so the UI stays consistent without explicit refetches.
 - **Revisions are the sole exception** — they are not in the atom snapshot. On mount, `LSWalletDetail` fetches revision history for all published projects and stores the result in local state (`useState<Record<number, ItemizedProjectRevision[]>>`). Revision actions update this local state via `onSuccess` callbacks.
 - **Form sections are reused in disabled mode.** `WalletForm` accepts a `mode` prop. In Detail view, `LSWalletDetail` renders `<WalletForm mode="edit" initialData={wallet} />`, which renders all three section components (`WalletDetailsSection`, `WalletFundingProfileForm`, `WalletComponentCostForm`) in disabled mode using a stable `noOp` callback. No separate disabled-mode rendering logic is needed in the Detail page.
-- **Delete tier is pre-resolved.** Before opening either delete dialog, Detail calls `resolveWalletDeleteTier()` / `resolveProjectDeleteTier()` and passes the resolved tier as a required prop. The dialogs do not determine their own tier.
+- **Delete is fully backend-owned.** Detail just opens the delete dialog; the dialog sends the delete request and the backend decides hard vs. soft vs. blocked. There is no FE-side tier resolution (mirrors `Program.tsx`'s `deleteProgram()` pattern).
+- **Two distinct "add itemized project" actions**, both GAA-R-and-funds-gated via `getWalletActions()`: the green **"Import Itemized Project"** button opens `ImportItemizedProjectsDialog` (bulk Excel import); the blue **"Add Itemized Project"** button (`handleAddItemizedProject` → `actions.onAddNewItemizedProject`) navigates to `/projects/addproject?programId=...&stageName=...&AlternateId={wallet.Id}` to create a single new itemized project directly, mirroring `ProgramDetail.tsx`'s `handleAddProject`.
 
 ---
 
@@ -373,12 +374,12 @@ Orchestrator page for all wallet-level and project-level operations. Key design 
 | `SaveWalletConfirmDialog` | Add Wallet page (`WalletForm.tsx`) — "Create Wallet" button | `Service.createWallet()` |
 | `WalletComponentCostDialog` | `WalletComponentCostForm` — "Add Component" / pencil edit | None (updates in-form state only; persisted on wallet save) |
 | `ReplenishWalletDialog` | Detail page action buttons | `Service.replenishWallet()` |
-| `DeleteWalletDialog` | Detail page; requires `tier` prop | `Service.deleteWallet()` |
+| `DeleteWalletDialog` | Detail page | `Service.deleteWallet()` |
 | `AdvanceProgramStageDialog` | List row "[Dev] Advance Stage" or Detail action | `Service.advanceProgramStage()` |
-| `ImportItemizedProjectsDialog` | Detail page "Add Itemized Project" — drag-drop Excel import with tabbed review (Summary / Projects / Funding / Components / Cost-per-Year / Major Items / Locations / Errors) and bulk balance guard (Import disabled if `SUM(all parsed funding amounts) > balance.Available`) | `Service.importItemizedProjects()` |
+| `ImportItemizedProjectsDialog` | Detail page "Import Itemized Project" — drag-drop Excel import with tabbed review (Summary / Projects / Funding / Components / Cost-per-Year / Major Items / Locations / Errors) and bulk balance guard (Import disabled if `SUM(all parsed funding amounts) > balance.Available`) | `Service.importItemizedProjects()` |
 | `EditDrawAmountDialog` | Per-project "Edit Draw Amount" (pre-publish only) — funding-line table editor (add/remove/edit Source, Agreement, Amount, Percentage rows); live total computed from rows; existing overdraw guard applied to that total | `Service.updateItemizedProjectDraw()` |
 | `PublishItemizedProjectDialog` | Per-project "Publish" | `Service.publishItemizedProject()` |
-| `DeleteItemizedProjectDialog` | Per-project "Delete/Remove Project"; requires `tier` prop | `Service.deleteItemizedProject()` |
+| `DeleteItemizedProjectDialog` | Per-project "Delete Project" | `Service.deleteItemizedProject()` |
 | `ItemizedProjectRevisionDialog` | Per-project "Request Revision" (post-publish only) | `Service.submitRevision()` |
 | `ApproveRevisionDialog` | Inline revision history row | `Service.approveRevision()` |
 | `RejectRevisionDialog` | Inline revision history row | `Service.rejectRevision()` |

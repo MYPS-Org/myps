@@ -314,6 +314,19 @@ export const hardDeleteWallet = (walletId: number): LSWallet => {
   return { ...deleted };
 };
 
+/**
+ * WF-7 Delete: single entry point for wallet deletion. Decides hard vs. soft
+ * internally based on HasStageData — callers don't need to know which applies.
+ */
+export const deleteWallet = (walletId: number, updatedBy: string): LSWallet => {
+  const wallet = _wallets.find(w => w.Id === walletId);
+  if (!wallet) throw new Error('Wallet not found.');
+
+  return wallet.HasStageData
+    ? softDeleteWallet(walletId, updatedBy)
+    : hardDeleteWallet(walletId);
+};
+
 // ---------------------------------------------------------------------------
 // Itemized project mutations
 // ---------------------------------------------------------------------------
@@ -586,6 +599,19 @@ export const hardDeleteItemizedProject = (projectId: string): ItemizedProject =>
 
   const [deleted] = _itemizedProjects.splice(idx, 1);
   return { ...deleted };
+};
+
+/**
+ * WF-7 Delete: single entry point for itemized project deletion. Decides hard
+ * vs. soft internally based on HasStageData — callers don't need to know which applies.
+ */
+export const deleteItemizedProject = (projectId: string): ItemizedProject => {
+  const project = _itemizedProjects.find(p => p.ProjectId === projectId);
+  if (!project) throw new Error('Itemized project not found.');
+
+  return project.HasStageData
+    ? softDeleteItemizedProject(projectId)
+    : hardDeleteItemizedProject(projectId);
 };
 
 /**
