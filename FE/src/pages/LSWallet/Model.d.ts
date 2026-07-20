@@ -388,6 +388,60 @@ export interface DtoReplenishWallet {
 }
 
 /**
+ * Payload for updating an existing LSWallet (Program Details + Wallet Details +
+ * Funding Profile + Component Cost in one composite save — mirrors updateEntireProject).
+ *
+ * All three array fields carry the FULL replacement set, including rows marked
+ * IsDeleted: true so the store/backend can reconcile soft-deletes.
+ *
+ * REAL API SWAP NOTE: When the backend is ready, replace the mock store call
+ * with a real httpClient.post call. The arrays map directly to the backend's
+ * expected array-based funding/component schema.
+ */
+export interface DtoUpdateWallet {
+  walletId: number;
+  programId: string;
+  // Denormalized program display fields — updated in case program selection changed.
+  typeName?: string;
+  yearStart?: number;
+  programStageName?: string;
+  currentStage?: WalletStage;
+  categoryId: number;
+  subCategoryId: number;
+  operatingUnit: string;
+  // Full replacement arrays (include IsDeleted rows for soft-delete reconciliation)
+  fundingProfiles: WalletFundingProfile[];
+  componentCosts: WalletComponentCost[];
+  componentCostPerYear: WalletComponentCostPerYear[];
+  // Optional ProjectDetails-parity fields (same set as DtoCreateWallet)
+  myId?: string;
+  alternateId?: string;
+  externalId?: string;
+  uacs?: string;
+  tier?: number;
+  rank?: number;
+  mycaApprovalDate?: string | null;
+  description?: string;
+  province?: string;
+  city?: string;
+  legislativeDistrict?: string;
+  deo?: string;
+  region?: string;
+  implementingOffice?: string;
+  regionWide?: number;
+  origin?: number;
+  agency?: number;
+  implementationMode?: number;
+  emergencyMode?: number;
+  feasibility?: number;
+  feasibilityDate?: string | null;
+  detailedDesign?: number;
+  detailedDesignDate?: string | null;
+  rowAvailable?: number;
+  updatedBy: string;
+}
+
+/**
  * Payload for WF-4 batch import of Excel-sourced itemized projects.
  *
  * Replaces the old flat DtoCreateItemizedProject (single project + manual draw amount).

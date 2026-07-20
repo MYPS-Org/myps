@@ -22,6 +22,7 @@ import type {
   LSWalletBalance,
   LSWalletPagination,
   DtoCreateWallet,
+  DtoUpdateWallet,
   DtoReplenishWallet,
   DtoImportItemizedProjects,
   DtoUpdateDrawAmount,
@@ -155,6 +156,34 @@ export const createWallet = async (
     return mockResponse(created);
   } catch (err) {
     console.error('createWallet error:', err);
+    throw err;
+  }
+};
+
+/**
+ * Update an existing wallet's full composite state (Program Details + Wallet Details +
+ * Funding Profile + Component Cost). Mirrors the updateEntireProject pattern.
+ *
+ * REAL API SWAP:
+ *   return httpClient.post<LSWallet>(
+ *     '/LSWallet/update',
+ *     payload,
+ *     { preloaderMessage: 'Updating wallet...' }
+ *   );
+ *   // Expected payload: DtoUpdateWallet (full replacement arrays + flat fields)
+ *   // Expected response: ApiResponse<LSWallet> (updated entity with all recomputed fields)
+ *   // NOTE: Amount in the response should equal SUM(non-deleted WalletFundingProfile.Amount)
+ */
+export const updateWallet = async (
+  payload: DtoUpdateWallet,
+  programName: string
+): Promise<ApiResponse<LSWallet>> => {
+  try {
+    const updated = store.updateWallet(payload, programName);
+    syncAtom();
+    return mockResponse(updated);
+  } catch (err) {
+    console.error('updateWallet error:', err);
     throw err;
   }
 };

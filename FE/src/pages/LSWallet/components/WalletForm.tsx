@@ -1,24 +1,26 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useToast } from '../../../components/toaster/ToasterContext';
 import { formValidation } from '../../../utils/FormValidation';
 import { walletFormRules } from '../rules/walletFormRules';
-import { createWallet } from '../Service';
+import { createWallet, updateWallet } from '../Service';
 import { getProjectEnums } from '../../Project/Service';
 import { Button } from '../../../components/tailwindui/button';
+import { useWalletBalance } from '../hooks/useWalletBalance';
 
 import CollapsibleSection from './CollapsibleSection';
 import WalletProgramDetailsSection from './WalletProgramDetailsSection';
 import WalletDetailsSection from './WalletDetailsSection';
 import WalletFundingProfileForm from './WalletFundingProfileForm';
 import WalletComponentCostForm from './WalletComponentCostForm';
-// SaveWalletConfirmDialog: { isOpen, onClose, onConfirm: () => Promise<void>, programName?: string }
+// SaveWalletConfirmDialog: { isOpen, onClose, onConfirm, programName?, title?, confirmLabel? }
 import SaveWalletConfirmDialog from '../dialogs/SaveWalletConfirmDialog';
 
 import type {
   LSWallet,
   DtoCreateWallet,
+  DtoUpdateWallet,
   WalletFundingProfile,
   WalletComponentCost,
   WalletComponentCostPerYear,
@@ -33,13 +35,22 @@ interface WalletFormProps {
 
 // Mirrors ProjectForm.tsx: one Form component, mode-driven, reused by both
 // the Add page (mode="add") and the Detail page (mode="edit", initialData=wallet).
-// mode="edit" is display-only (all sections rendered disabled).
+//
+// Two-phase creation pattern (mirroring AddProject / ProjectForm):
+//   Phase 1 (add mode)  — only Program Details + Wallet Details, no funding/component sections.
+//                         Creates the wallet to get a real backend-generated Id.
+//   Phase 2 (edit mode) — all four sections editable; "Update Wallet" saves the full composite
+//                         state (flat fields + Funding Profile + Component Cost) in one call.
 const WalletForm: React.FC<WalletFormProps> = ({ initialData, mode = 'add' }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { showToast } = useToast();
 
-  const isDisabled = mode === 'edit';
+  // A wallet is read-only only when it has been soft-deleted.
+  // No IsLocked/IsActive field exists on the current model; IsDeleted is the
+  // only terminal state. This single line is the designated swap point if a
+  // real "locked" field is added later.
+  const isDisabled = Boolean(initialData?.IsDeleted);
 
   // ── Flat wallet state (details, not arrays) ──────────────────────────────
   const [wallet, setWallet] = useState<Partial<LSWallet>>(
@@ -62,13 +73,18 @@ const WalletForm: React.FC<WalletFormProps> = ({ initialData, mode = 'add' }) =>
 
   // ── Confirm-dialog state ─────────────────────────────────────────────────
   const [selectedProgramName, setSelectedProgramName] = useState<string>('');
-  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+  const [isCreateConfirmDialogOpen, setIsCreateConfirmDialogOpen] = useState(false);
+  const [isUpdateConfirmDialogOpen, setIsUpdateConfirmDialogOpen] = useState(false);
 
   // ── Collapsible section states — all expanded by default ─────────────────
   const [isProgramDetailsOpen, setIsProgramDetailsOpen] = useState(true);
   const [isDetailsOpen, setIsDetailsOpen] = useState(true);
   const [isFundingOpen, setIsFundingOpen] = useState(true);
   const [isComponentOpen, setIsComponentOpen] = useState(true);
+
+  // ── Live balance — used by the Used-floor guard in handleUpdateWallet ─────
+  // Returns null when wallet.Id is 0 (add mode — wallet not yet persisted).
+  const balance = useWalletBalance(wallet.Id ?? 0);
 
   // ── Sync from initialData in edit mode ───────────────────────────────────
   useEffect(() => {
@@ -107,16 +123,14 @@ const WalletForm: React.FC<WalletFormProps> = ({ initialData, mode = 'add' }) =>
   }, []);
 
   // ── Generic flat-field setter ─────────────────────────────────────────────
+  // Always wired to handleChange (edit mode relies on isDisabled to prevent
+  // mutation when the wallet is locked, not a no-op onChange).
   const handleChange = (field: keyof LSWallet, value: LSWallet[keyof LSWallet]) => {
     setWallet((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
   };
-
-  // Stable no-op for edit mode (mirrors LSWalletDetail.tsx noOp pattern).
-  const noOp = useCallback(() => {}, []);
-  const onSectionChange = mode === 'add' ? handleChange : noOp;
 
   // ── Funding profile handlers ──────────────────────────────────────────────
   const handleAddFundingProfile = () => {
@@ -193,9 +207,11 @@ const WalletForm: React.FC<WalletFormProps> = ({ initialData, mode = 'add' }) =>
     }
   };
 
-  // ── Step 1: Validate → open confirm dialog (does NOT call API) ────────────
+  // ── Add flow — Step 1: Validate → open confirm dialog ────────────────────
   const handleSaveWallet = () => {
-    // 1a. Standard flat-field rules
+    // Standard flat-field rules (ProgramId, CategoryId, Tier only — funding data
+    // is not collected in add mode, so the former "at least one funding profile"
+    // gate has been removed).
     const validationErrors = formValidation(wallet, walletFormRules);
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
@@ -205,19 +221,7 @@ const WalletForm: React.FC<WalletFormProps> = ({ initialData, mode = 'add' }) =>
       return;
     }
 
-    // 1b. Array-level: must have at least one active funding profile with Amount > 0
-    const validFundingProfiles = fundingProfiles.filter(
-      (p) => !p.IsDeleted && (p.Amount || 0) > 0
-    );
-    if (validFundingProfiles.length === 0) {
-      showToast({
-        type: 'error',
-        message: 'At least one Funding Profile with an Amount greater than zero is required.',
-      });
-      return;
-    }
-
-    // 1c. Resolve program name for the confirm dialog
+    // Resolve program name for the confirm dialog
     const selectedProgram = projectEnums?.Programs.find(
       (p) => p.ProgramId === wallet.ProgramId
     );
@@ -227,10 +231,10 @@ const WalletForm: React.FC<WalletFormProps> = ({ initialData, mode = 'add' }) =>
     }
 
     setSelectedProgramName(selectedProgram.Name);
-    setIsConfirmDialogOpen(true);
+    setIsCreateConfirmDialogOpen(true);
   };
 
-  // ── Step 2: API call after user confirms in the dialog ────────────────────
+  // ── Add flow — Step 2: API call after user confirms ───────────────────────
   const confirmSaveWallet = async () => {
     setIsSaving(true);
     try {
@@ -244,9 +248,10 @@ const WalletForm: React.FC<WalletFormProps> = ({ initialData, mode = 'add' }) =>
         categoryId: wallet.CategoryId!,
         subCategoryId: wallet.SubCategoryId || 0,
         operatingUnit: wallet.OperatingUnit || '',
-        fundingProfiles: fundingProfiles.filter((p) => !p.IsDeleted),
-        componentCosts: componentCosts.filter((c) => !c.IsDeleted),
-        componentCostPerYear: componentCostPerYear.filter((p) => !p.IsDeleted),
+        // Phase 1 only collects Program Details + Wallet Details; arrays are empty.
+        fundingProfiles: [],
+        componentCosts: [],
+        componentCostPerYear: [],
         // Optional flat detail fields
         myId: wallet.MYId,
         alternateId: wallet.AlternateId,
@@ -287,6 +292,89 @@ const WalletForm: React.FC<WalletFormProps> = ({ initialData, mode = 'add' }) =>
     }
   };
 
+  // ── Edit flow — Step 1: Used-floor guard → open confirm dialog ────────────
+  const handleUpdateWallet = () => {
+    // Compute the derived amount from the current client-side funding profile state.
+    const derivedAmount = fundingProfiles
+      .filter((p) => !p.IsDeleted)
+      .reduce((sum, p) => sum + (p.Amount || 0), 0);
+
+    // Block saves that would push Available negative by checking against the
+    // currently drawn amount (sum of itemized-project draws from Jotai atom).
+    if (balance && derivedAmount < balance.Used) {
+      showToast({
+        type: 'error',
+        message:
+          `Cannot reduce wallet amount below current draw commitments ` +
+          `(₱${balance.Used.toLocaleString('en-PH')}). ` +
+          `Remove or cancel itemized projects first, then reduce funding.`,
+      });
+      return;
+    }
+
+    // Program name is already on the wallet record in edit mode.
+    setSelectedProgramName(wallet.ProgramName || '');
+    setIsUpdateConfirmDialogOpen(true);
+  };
+
+  // ── Edit flow — Step 2: API call after user confirms ──────────────────────
+  const confirmUpdateWallet = async () => {
+    setIsSaving(true);
+    try {
+      const payload: DtoUpdateWallet = {
+        walletId: wallet.Id!,
+        programId: wallet.ProgramId!,
+        typeName: wallet.TypeName,
+        yearStart: wallet.YearStart,
+        programStageName: wallet.ProgramStageName,
+        currentStage: wallet.CurrentStage,
+        categoryId: wallet.CategoryId!,
+        subCategoryId: wallet.SubCategoryId || 0,
+        operatingUnit: wallet.OperatingUnit || '',
+        // Full replacement arrays — include IsDeleted rows so the store/backend
+        // can reconcile soft-deletes. Store filters for the Amount invariant.
+        fundingProfiles,
+        componentCosts,
+        componentCostPerYear,
+        // Optional flat detail fields
+        myId: wallet.MYId,
+        alternateId: wallet.AlternateId,
+        externalId: wallet.ExternalId,
+        uacs: wallet.UACS,
+        tier: wallet.Tier,
+        rank: wallet.Rank,
+        mycaApprovalDate: wallet.MYCAApprovalDate || null,
+        description: wallet.Description,
+        province: wallet.Province,
+        city: wallet.City,
+        legislativeDistrict: wallet.LegislativeDistrict,
+        deo: wallet.DEO,
+        region: wallet.Region,
+        implementingOffice: wallet.ImplementingOffice,
+        regionWide: wallet.RegionWide,
+        origin: wallet.Origin,
+        agency: wallet.Agency,
+        implementationMode: wallet.ImplementationMode,
+        emergencyMode: wallet.EmergencyMode,
+        feasibility: wallet.Feasibility,
+        feasibilityDate: wallet.FeasibilityDate || null,
+        detailedDesign: wallet.DetailedDesign,
+        detailedDesignDate: wallet.DetailedDesignDate || null,
+        rowAvailable: wallet.RowAvailable,
+        updatedBy: user?.UserId || '',
+      };
+
+      await updateWallet(payload, selectedProgramName);
+
+      showToast({ type: 'success', message: 'Wallet updated successfully.' });
+    } catch {
+      // httpClient interceptor handles error toasts automatically (FE/CLAUDE.md).
+      console.error('Error updating wallet.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
@@ -299,7 +387,7 @@ const WalletForm: React.FC<WalletFormProps> = ({ initialData, mode = 'add' }) =>
       >
         <WalletProgramDetailsSection
           wallet={wallet}
-          onChange={onSectionChange}
+          onChange={handleChange}
           errors={errors}
           disabled={isDisabled}
           projectEnums={projectEnums}
@@ -314,46 +402,53 @@ const WalletForm: React.FC<WalletFormProps> = ({ initialData, mode = 'add' }) =>
       >
         <WalletDetailsSection
           wallet={wallet}
-          onChange={onSectionChange}
+          onChange={handleChange}
           errors={errors}
           disabled={isDisabled}
           projectEnums={projectEnums}
         />
       </CollapsibleSection>
 
-      <CollapsibleSection
-        title="Funding Profile"
-        isOpen={isFundingOpen}
-        onToggle={() => setIsFundingOpen(!isFundingOpen)}
-      >
-        <WalletFundingProfileForm
-          fundingProfiles={fundingProfiles}
-          onAdd={handleAddFundingProfile}
-          onEdit={handleEditFundingProfile}
-          onDelete={handleDeleteFundingProfile}
-          disabled={isDisabled}
-        />
-      </CollapsibleSection>
+      {/* Funding Profile and Component Cost are hidden in add mode.
+          The wallet must be created first (Phase 1) to get a real Id before
+          funding/component rows — which use that Id as a FK — can be saved. */}
+      {mode === 'edit' && (
+        <>
+          <CollapsibleSection
+            title="Funding Profile"
+            isOpen={isFundingOpen}
+            onToggle={() => setIsFundingOpen(!isFundingOpen)}
+          >
+            <WalletFundingProfileForm
+              fundingProfiles={fundingProfiles}
+              onAdd={handleAddFundingProfile}
+              onEdit={handleEditFundingProfile}
+              onDelete={handleDeleteFundingProfile}
+              disabled={isDisabled}
+            />
+          </CollapsibleSection>
 
-      <CollapsibleSection
-        title="Component Cost"
-        isOpen={isComponentOpen}
-        onToggle={() => setIsComponentOpen(!isComponentOpen)}
-      >
-        <WalletComponentCostForm
-          componentCosts={componentCosts}
-          componentCostPerYear={componentCostPerYear}
-          onAdd={handleAddComponentCost}
-          onEdit={handleEditComponentCost}
-          onDelete={handleDeleteComponentCost}
-          componentTypes={MOCK_WALLET_COMPONENT_TYPES}
-          maxAmountCost={wallet.Amount}
-          walletId={wallet.Id}
-          disabled={isDisabled}
-        />
-      </CollapsibleSection>
+          <CollapsibleSection
+            title="Component Cost"
+            isOpen={isComponentOpen}
+            onToggle={() => setIsComponentOpen(!isComponentOpen)}
+          >
+            <WalletComponentCostForm
+              componentCosts={componentCosts}
+              componentCostPerYear={componentCostPerYear}
+              onAdd={handleAddComponentCost}
+              onEdit={handleEditComponentCost}
+              onDelete={handleDeleteComponentCost}
+              componentTypes={MOCK_WALLET_COMPONENT_TYPES}
+              maxAmountCost={wallet.Amount}
+              walletId={wallet.Id}
+              disabled={isDisabled}
+            />
+          </CollapsibleSection>
+        </>
+      )}
 
-      {/* Save flow only applies in add mode — edit mode is display-only. */}
+      {/* Add mode — Create Wallet button + confirm dialog */}
       {mode === 'add' && (
         <>
           <div className="flex justify-end">
@@ -363,10 +458,31 @@ const WalletForm: React.FC<WalletFormProps> = ({ initialData, mode = 'add' }) =>
           </div>
 
           <SaveWalletConfirmDialog
-            isOpen={isConfirmDialogOpen}
-            onClose={() => setIsConfirmDialogOpen(false)}
+            isOpen={isCreateConfirmDialogOpen}
+            onClose={() => setIsCreateConfirmDialogOpen(false)}
             onConfirm={confirmSaveWallet}
             programName={selectedProgramName}
+            // title and confirmLabel omitted — fallback to "Create New Wallet" / "Create Wallet"
+          />
+        </>
+      )}
+
+      {/* Edit mode — Update Wallet button + confirm dialog */}
+      {mode === 'edit' && (
+        <>
+          <div className="flex justify-end">
+            <Button color="blue" onClick={handleUpdateWallet} disabled={isSaving || isDisabled}>
+              {isSaving ? 'Saving...' : 'Update Wallet'}
+            </Button>
+          </div>
+
+          <SaveWalletConfirmDialog
+            isOpen={isUpdateConfirmDialogOpen}
+            onClose={() => setIsUpdateConfirmDialogOpen(false)}
+            onConfirm={confirmUpdateWallet}
+            programName={selectedProgramName}
+            title="Update Wallet"
+            confirmLabel="Update Wallet"
           />
         </>
       )}

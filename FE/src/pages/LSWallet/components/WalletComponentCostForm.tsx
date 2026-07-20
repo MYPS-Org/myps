@@ -265,8 +265,9 @@ const WalletComponentCostForm: React.FC<WalletComponentCostFormProps> = ({
                     <div className="flex space-x-2">
                       <button
                         onClick={() => handleOpenEditModal(index)}
-                        className="text-blue-600 hover:text-blue-800"
+                        className={`text-blue-600 hover:text-blue-800 ${getDisabledClass(disabled)}`}
                         title="Edit"
+                        disabled={disabled}
                       >
                         <PencilIcon className="w-4 h-4" />
                       </button>

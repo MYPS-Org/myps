@@ -213,7 +213,7 @@ const LSWalletList: React.FC = () => {
                 </div>
                 <Button color="green" onClick={() => navigate('/lumpsum/add')}>
                   <PlusIcon className="w-4 h-4 mr-1" />
-                  Add Wallet
+                  Add Lumpsum Project
                 </Button>
               </div>
             </div>

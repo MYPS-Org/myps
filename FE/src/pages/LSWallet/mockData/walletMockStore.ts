@@ -29,7 +29,10 @@ import type {
   ItemizedProjectRevision,
   WalletStage,
   WalletFundingProfile,
+  WalletComponentCost,
+  WalletComponentCostPerYear,
   DtoCreateWallet,
+  DtoUpdateWallet,
   DtoImportItemizedProjects,
   DtoSubmitRevision,
 } from '../Model.d';
@@ -58,6 +61,11 @@ let _nextProjectId = 200;
 let _nextRevisionId = 300;
 // Seed data has WalletFundingProfile IDs up to 3 and WalletComponentCost IDs up to 2
 let _nextFundingProfileId = 10;
+// Module-level counter for WalletComponentCost IDs assigned in updateWallet().
+// Starts at 500 to avoid clashing with seed data (max Id 2) and any createWallet
+// index-based IDs (i+1 pattern). This counter is NOT used by createWallet (the
+// pre-existing i+1 collision bug there is left untouched per the plan scope).
+let _nextComponentCostId = 500;
 // Synthetic record IDs for imported sub-rows (FundingLines, ComponentCosts, etc.)
 // Module-level so sequential across multiple importItemizedProjects() calls.
 let _nextSyntheticId = 5000;
@@ -279,6 +287,131 @@ export const replenishWallet = (walletId: number, newAmount: number, updatedBy: 
   };
 
   // AMOUNT INVARIANT: recompute from profiles
+  const updated = recomputeWalletAmount(updatedRaw);
+  _wallets[idx] = updated;
+  return { ...updated };
+};
+
+/**
+ * Update an existing wallet's Program Details, Wallet Details, Funding Profile,
+ * and Component Cost in one composite save (mirrors updateEntireProject).
+ *
+ * All three array fields in dto carry the FULL replacement set — including rows
+ * marked IsDeleted: true for soft-delete reconciliation. The store replaces the
+ * wallet's arrays wholesale; Amount is always re-derived from the submitted
+ * funding profiles (AMOUNT INVARIANT).
+ *
+ * Used-floor guard: derivedAmount from funding profiles must not be less than
+ * usedAmount (sum of active itemized-project draws). The WalletForm client-side
+ * guard normally catches this first; this store-side check is the backstop.
+ */
+export const updateWallet = (dto: DtoUpdateWallet, programName: string): LSWallet => {
+  const idx = _wallets.findIndex(w => w.Id === dto.walletId);
+  if (idx === -1) throw new Error(`Wallet with Id ${dto.walletId} not found.`);
+
+  const existing = _wallets[idx];
+
+  // ── Used-floor guard ────────────────────────────────────────────────────────
+  // Replicates the walletBalance.ts computeWalletBalance `Used` formula inline
+  // (cannot import from utils/ without a circular dependency with Service.ts).
+  const usedAmount = _itemizedProjects
+    .filter(
+      p =>
+        p.ParentWalletId === dto.walletId &&
+        p.IsDeleted === false &&
+        p.IsCancelled === false
+    )
+    .reduce((sum, p) => {
+      const effectiveDraw = p.PublishedDrawAmount ?? p.CurrentDrawAmount;
+      return sum + effectiveDraw;
+    }, 0);
+
+  const derivedAmount = dto.fundingProfiles
+    .filter(p => !p.IsDeleted)
+    .reduce((sum, p) => sum + p.Amount, 0);
+
+  if (derivedAmount < usedAmount) {
+    throw new Error(
+      `Cannot reduce wallet amount below current draw commitments ` +
+      `(₱${usedAmount.toLocaleString('en-PH')}). ` +
+      `Remove or cancel itemized projects first, then reduce funding.`
+    );
+  }
+
+  // ── Assign IDs to new funding profile rows ──────────────────────────────────
+  const stampedProfiles: WalletFundingProfile[] = dto.fundingProfiles.map(p => {
+    if (p.Id !== 0) return { ...p, WalletId: dto.walletId };
+    // New row: assign next counter ID
+    return { ...p, Id: _nextFundingProfileId++, WalletId: dto.walletId };
+  });
+
+  const profilesWithPct = recalcPercentages(stampedProfiles);
+
+  // ── Assign IDs to new component cost rows ──────────────────────────────────
+  // Uses _nextComponentCostId (not createWallet's i+1 pattern) to avoid cross-wallet collisions.
+  const stampedCosts: WalletComponentCost[] = dto.componentCosts.map(c => {
+    if (c.Id !== 0) return { ...c, WalletId: dto.walletId };
+    return { ...c, Id: _nextComponentCostId++, WalletId: dto.walletId };
+  });
+
+  // Stamp WalletId on per-year rows (no new-ID assignment needed — these rows
+  // carry their own Id from the client-side form, or 0 for brand-new rows which
+  // will get a real Id from the backend when the API is wired).
+  const stampedPerYear: WalletComponentCostPerYear[] = dto.componentCostPerYear.map(y => ({
+    ...y,
+  }));
+
+  // ── Build updated wallet — merge flat DTO fields onto the existing record ───
+  const updatedRaw: LSWallet = {
+    ...existing,
+    // Flat program/wallet detail fields from the DTO
+    ProgramId: dto.programId,
+    ProgramName: programName,
+    TypeName: dto.typeName ?? existing.TypeName,
+    YearStart: dto.yearStart ?? existing.YearStart,
+    ProgramStageName: dto.programStageName ?? existing.ProgramStageName,
+    CurrentStage: (dto.currentStage as WalletStage) ?? existing.CurrentStage,
+    CategoryId: dto.categoryId,
+    SubCategoryId: dto.subCategoryId,
+    OperatingUnit: dto.operatingUnit,
+    // Optional detail fields
+    MYId: dto.myId,
+    AlternateId: dto.alternateId,
+    ExternalId: dto.externalId,
+    UACS: dto.uacs,
+    Tier: dto.tier,
+    Rank: dto.rank,
+    MYCAApprovalDate: dto.mycaApprovalDate ?? null,
+    Description: dto.description,
+    Province: dto.province,
+    City: dto.city,
+    LegislativeDistrict: dto.legislativeDistrict,
+    DEO: dto.deo,
+    Region: dto.region,
+    ImplementingOffice: dto.implementingOffice,
+    RegionWide: dto.regionWide,
+    Origin: dto.origin,
+    Agency: dto.agency,
+    ImplementationMode: dto.implementationMode,
+    EmergencyMode: dto.emergencyMode,
+    Feasibility: dto.feasibility,
+    FeasibilityDate: dto.feasibilityDate ?? null,
+    DetailedDesign: dto.detailedDesign,
+    DetailedDesignDate: dto.detailedDesignDate ?? null,
+    RowAvailable: dto.rowAvailable,
+    // Replace arrays wholesale with the submitted sets (includes IsDeleted rows)
+    WalletFundingProfiles: profilesWithPct,
+    WalletComponentCosts: stampedCosts,
+    WalletComponentCostPerYear: stampedPerYear,
+    // Audit stamps
+    HasStageData: true,
+    UpdatedBy: dto.updatedBy,
+    UpdatedDate: new Date().toISOString(),
+    // Amount placeholder — recomputed below (AMOUNT INVARIANT)
+    Amount: 0,
+  };
+
+  // AMOUNT INVARIANT: re-derive from the submitted funding profiles
   const updated = recomputeWalletAmount(updatedRaw);
   _wallets[idx] = updated;
   return { ...updated };
