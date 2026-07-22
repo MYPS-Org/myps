@@ -25,7 +25,7 @@ namespace WebAPI.Controllers.Revision
         public RevisionController(MYPSDbContext db, IProducer<Null, string> producer, PCMADbContext pcma) : base(db, producer, pcma) { }
         
         [HttpPost]
-        public async Task<IActionResult> RevisionRequests([FromBody] RevisionRequestsDTO dto)
+        public async Task<IActionResult> RevisionRequests([FromBody] RevisionRequestsDTO dto, CancellationToken cancellationToken)
         {
             try
             {
@@ -125,7 +125,7 @@ namespace WebAPI.Controllers.Revision
         }
         
         [HttpPost]
-        public async Task<IActionResult> ViewReviseProject([FromBody] ViewReviseProjectDTO dto)
+        public async Task<IActionResult> ViewReviseProject([FromBody] ViewReviseProjectDTO dto, CancellationToken cancellationToken)
         {
             try
             {
@@ -358,7 +358,7 @@ namespace WebAPI.Controllers.Revision
         }
         
         [HttpPost]
-        public async Task<IActionResult> ReviseProject([FromBody] ReviseProjectDTO dto)
+        public async Task<IActionResult> ReviseProject([FromBody] ReviseProjectDTO dto, CancellationToken cancellationToken)
         {
             try
             {
@@ -613,7 +613,7 @@ namespace WebAPI.Controllers.Revision
         }
         
         [HttpPost]
-        public async Task<IActionResult> RequestRevision([FromBody] RequstRevisionsDTO dto)  
+        public async Task<IActionResult> RequestRevision([FromBody] RequstRevisionsDTO dto, CancellationToken cancellationToken)  
         {
             var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -1664,7 +1664,7 @@ namespace WebAPI.Controllers.Revision
         }
         
         [HttpPost]
-        public async Task<IActionResult> UpdateRevisionStatus([FromBody] UpdateRevisionStatusDTO dto)
+        public async Task<IActionResult> UpdateRevisionStatus([FromBody] UpdateRevisionStatusDTO dto, CancellationToken cancellationToken)
         {
             var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -1865,7 +1865,7 @@ namespace WebAPI.Controllers.Revision
         }
         
         [HttpPost]
-        public async Task<IActionResult> ResubmitRevision([FromBody] ResubmitRevisionDTO dto)
+        public async Task<IActionResult> ResubmitRevision([FromBody] ResubmitRevisionDTO dto, CancellationToken cancellationToken)
         {
             var transaction = await _db.Database.BeginTransactionAsync();
             try

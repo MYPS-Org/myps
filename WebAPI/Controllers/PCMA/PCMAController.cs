@@ -19,7 +19,7 @@ namespace WebAPI.Controllers.MockUps
     {
         public PCMAController(MYPSDbContext db, IProducer<Null, string> producer, PCMADbContext pcma) : base(db, producer, pcma) { }
         [HttpPost]
-        public async Task<IActionResult> PublishProgram([FromBody] PublishProgramDTO dto)
+        public async Task<IActionResult> PublishProgram([FromBody] PublishProgramDTO dto, CancellationToken cancellationToken)
         {
             try
             {

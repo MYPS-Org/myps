@@ -119,7 +119,7 @@ namespace WebAPI.Controllers.CodeTable
 
         
         [HttpPost]
-        public async Task<IActionResult> GetTransactionLog([FromBody] GetTransactionLogDTO dto)
+        public async Task<IActionResult> GetTransactionLog([FromBody] GetTransactionLogDTO dto, CancellationToken cancellationToken)
         {
             try
             {
@@ -194,7 +194,7 @@ namespace WebAPI.Controllers.CodeTable
         }
         
         [HttpPost]
-        public async Task<IActionResult> UpdateCodeTable([FromBody] UpdateCodeTableDTO dto)
+        public async Task<IActionResult> UpdateCodeTable([FromBody] UpdateCodeTableDTO dto, CancellationToken cancellationToken)
         {
             var transaction = await _db.Database.BeginTransactionAsync();
             try

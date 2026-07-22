@@ -33,7 +33,7 @@ namespace WebAPI.Controllers.Importing
         public ImportingController(MYPSDbContext db, IProducer<Null, string> producer, PCMADbContext pcma) : base(db, producer, pcma) { }
         
         [HttpPost]
-        public async Task<IActionResult> ImportProject([FromBody] ImportProjectDTO dto)
+        public async Task<IActionResult> ImportProject([FromBody] ImportProjectDTO dto, CancellationToken cancellationToken)
         {
             var transaction = await _db.Database.BeginTransactionAsync();
             try

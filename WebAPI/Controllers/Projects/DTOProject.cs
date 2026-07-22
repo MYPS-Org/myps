@@ -26,6 +26,8 @@ namespace WebAPI.Controllers.Projects
     }
     public class AddProjectDTO : ProjectDetails
     {
+        [Required]
+        public string ProgramId { get; set; } = string.Empty;
         public bool IsAllowedToProceed { get; set; } = false;
     }
     public class ProjectDetailsDTO

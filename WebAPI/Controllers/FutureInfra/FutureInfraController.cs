@@ -66,7 +66,7 @@ namespace WebAPI.Controllers.Programs
         }
         
         [HttpPost]
-        public async Task<IActionResult> ShowFutureRoads([FromBody] ShowFutureRoadsDTO dto)
+        public async Task<IActionResult> ShowFutureRoads([FromBody] ShowFutureRoadsDTO dto, CancellationToken cancellationToken)
         {
             try
             {
@@ -146,7 +146,7 @@ namespace WebAPI.Controllers.Programs
         }
         
         [HttpPost]
-        public async Task<IActionResult> EditFutureRoads([FromBody] EditFutureRoadsDTO dto)
+        public async Task<IActionResult> EditFutureRoads([FromBody] EditFutureRoadsDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -282,7 +282,7 @@ namespace WebAPI.Controllers.Programs
         }
         
         [HttpPost]
-        public async Task<IActionResult> AddFutureRoads([FromBody] AddFutureRoadsDTO dto)
+        public async Task<IActionResult> AddFutureRoads([FromBody] AddFutureRoadsDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -337,7 +337,7 @@ namespace WebAPI.Controllers.Programs
         }
         
         [HttpPost]
-        public async Task<IActionResult> DeleteFutureRoad([FromBody] DeleteFutureRoadDTO dto)
+        public async Task<IActionResult> DeleteFutureRoad([FromBody] DeleteFutureRoadDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -421,7 +421,7 @@ namespace WebAPI.Controllers.Programs
         }
         
         [HttpPost]
-        public async Task<IActionResult> ShowFutureRoadSections([FromBody] ShowFutureRoadSectionsDTO dto)
+        public async Task<IActionResult> ShowFutureRoadSections([FromBody] ShowFutureRoadSectionsDTO dto, CancellationToken cancellationToken)
         {
             try
             {
@@ -499,7 +499,7 @@ namespace WebAPI.Controllers.Programs
         }
         
         [HttpPost]
-        public async Task<IActionResult> AddFutureRoadSections([FromBody] AddFutureRoadSectionsDTO dto)
+        public async Task<IActionResult> AddFutureRoadSections([FromBody] AddFutureRoadSectionsDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -545,7 +545,7 @@ namespace WebAPI.Controllers.Programs
         }
         
         [HttpPost]
-        public async Task<IActionResult> EditFutureRoadSections([FromBody] EditFutureRoadSectionsDTO dto)
+        public async Task<IActionResult> EditFutureRoadSections([FromBody] EditFutureRoadSectionsDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -688,7 +688,7 @@ namespace WebAPI.Controllers.Programs
         }
         
         [HttpPost]
-        public async Task<IActionResult> DeleteFutureRoadSection([FromBody] DeleteFutureRoadSectionDTO dto)
+        public async Task<IActionResult> DeleteFutureRoadSection([FromBody] DeleteFutureRoadSectionDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -772,7 +772,7 @@ namespace WebAPI.Controllers.Programs
         }
         
         [HttpPost]
-        public async Task<IActionResult> ShowFutureBridge([FromBody] ShowFutureBridgeDTO dto)
+        public async Task<IActionResult> ShowFutureBridge([FromBody] ShowFutureBridgeDTO dto, CancellationToken cancellationToken)
         {
             try
             {
@@ -850,7 +850,7 @@ namespace WebAPI.Controllers.Programs
         }
         
         [HttpPost]
-        public async Task<IActionResult> AddFutureBridge([FromBody] AddFutureBridgeDTO dto)
+        public async Task<IActionResult> AddFutureBridge([FromBody] AddFutureBridgeDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -904,7 +904,7 @@ namespace WebAPI.Controllers.Programs
         }
         
         [HttpPost]
-        public async Task<IActionResult> EditFutureBridge([FromBody] EditFutureBridgeDTO dto)
+        public async Task<IActionResult> EditFutureBridge([FromBody] EditFutureBridgeDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -1062,7 +1062,7 @@ namespace WebAPI.Controllers.Programs
         }
         
         [HttpPost]
-        public async Task<IActionResult> DeleteFutureBridg([FromBody] DeleteFutureBridgeDTO dto)
+        public async Task<IActionResult> DeleteFutureBridg([FromBody] DeleteFutureBridgeDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try

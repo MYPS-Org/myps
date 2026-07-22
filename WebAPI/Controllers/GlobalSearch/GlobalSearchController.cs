@@ -43,7 +43,7 @@ namespace WebAPI.Controllers.GlobalSearch
         }
         
         [HttpPost]
-        public async Task<IActionResult> Search([FromBody] SearchDTO dto)
+        public async Task<IActionResult> Search([FromBody] SearchDTO dto, CancellationToken cancellationToken)
         {
             try
             {

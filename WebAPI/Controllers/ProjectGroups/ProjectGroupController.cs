@@ -19,7 +19,7 @@ namespace WebAPI.Controllers.ProjectGroup
         #region Project Lists
         
         [HttpPost]
-        public async Task<IActionResult> ShowProjectGroups([FromBody] ShowProjectGroupDTO dto)
+        public async Task<IActionResult> ShowProjectGroups([FromBody] ShowProjectGroupDTO dto, CancellationToken cancellationToken)
         {
             try
             {
@@ -101,7 +101,7 @@ namespace WebAPI.Controllers.ProjectGroup
         #region Add Project Group
         
         [HttpPost]
-        public async Task<IActionResult> AddProjectGroup([FromBody] AddProjectGroupDTO dto)
+        public async Task<IActionResult> AddProjectGroup([FromBody] AddProjectGroupDTO dto, CancellationToken cancellationToken)
         {
             var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -141,7 +141,7 @@ namespace WebAPI.Controllers.ProjectGroup
         #region Delete Project Group
         
         [HttpPost]
-        public async Task<IActionResult> DeleteProjectGroup([FromBody] DeleteProjectGroupDTO dto)
+        public async Task<IActionResult> DeleteProjectGroup([FromBody] DeleteProjectGroupDTO dto, CancellationToken cancellationToken)
         {
             var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -206,7 +206,7 @@ namespace WebAPI.Controllers.ProjectGroup
         #region Add Project
         
         [HttpPost]
-        public async Task<IActionResult> SearchProject([FromBody] SearchProjectDTO dto)
+        public async Task<IActionResult> SearchProject([FromBody] SearchProjectDTO dto, CancellationToken cancellationToken)
         {
             try
             {
@@ -236,7 +236,7 @@ namespace WebAPI.Controllers.ProjectGroup
         }
         
         [HttpPost]
-        public async Task<IActionResult> AddProject([FromBody] ProjectGroupAddProjectDTO dto)
+        public async Task<IActionResult> AddProject([FromBody] ProjectGroupAddProjectDTO dto, CancellationToken cancellationToken)
         {
             var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -291,7 +291,7 @@ namespace WebAPI.Controllers.ProjectGroup
         }
         
         [HttpPost]
-        public async Task<IActionResult> DeleteProject([FromBody] ProjectGroupDeleteProjectDTO dto)
+        public async Task<IActionResult> DeleteProject([FromBody] ProjectGroupDeleteProjectDTO dto, CancellationToken cancellationToken)
         {
             var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -339,7 +339,7 @@ namespace WebAPI.Controllers.ProjectGroup
         #region Project Group Details
 
         [HttpPost]
-        public async Task<IActionResult> ProjectGroupDetails([FromBody] ShowProjectGroupDetailsDTO dto)
+        public async Task<IActionResult> ProjectGroupDetails([FromBody] ShowProjectGroupDetailsDTO dto, CancellationToken cancellationToken)
         {
             try
             {
@@ -374,7 +374,7 @@ namespace WebAPI.Controllers.ProjectGroup
         }
         
         [HttpPost]
-        public async Task<IActionResult> UpdateProjectGroupDetails([FromBody] UpdateProjectGroupDetailsDTO dto)
+        public async Task<IActionResult> UpdateProjectGroupDetails([FromBody] UpdateProjectGroupDetailsDTO dto, CancellationToken cancellationToken)
         {
             try
             {

@@ -21,7 +21,7 @@ namespace WebAPI.Controllers.MockUps
         public PISController(MYPSDbContext db, IProducer<Null, string> producer, PCMADbContext pcma) : base(db, producer, pcma) { }
         [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> SearchUser([FromBody] SearchUserDTO dto)
+        public async Task<IActionResult> SearchUser([FromBody] SearchUserDTO dto, CancellationToken cancellationToken)
         {
             try
             {
@@ -71,7 +71,7 @@ namespace WebAPI.Controllers.MockUps
             }
         }
         [HttpPost]
-        public async Task<IActionResult> GetUserInfo([FromBody] SearchUserDTO dto)
+        public async Task<IActionResult> GetUserInfo([FromBody] SearchUserDTO dto, CancellationToken cancellationToken)
         {
             try
             {
@@ -122,7 +122,7 @@ namespace WebAPI.Controllers.MockUps
         }
         //[AllowAnonymous]
         //[HttpPost]
-        //public async Task<IActionResult> AuthenticateAcccount([FromBody] AuthenticateUserDTO dto)
+        //public async Task<IActionResult> AuthenticateAcccount([FromBody] AuthenticateUserDTO dto, CancellationToken cancellationToken)
         //{
         //    try
         //    {

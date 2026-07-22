@@ -15,32 +15,85 @@ namespace DBHelper.Data
         public MYPSDbContext(DbContextOptions<MYPSDbContext> options) : base(options) {
             this.Database.SetCommandTimeout(TimeSpan.FromMinutes(30));
         }
+        #region Admin Areas
+
         #region Tables
-        public DbSet<Models.Table.Users> tUsers { get; set; }
-        public DbSet<Models.Table.AppModules> tAppModules { get; set; }
-        public DbSet<Models.Table.PermissionControllers> tPermissionControllers { get; set; }
-        public DbSet<Models.Table.PermissionActions> tPermissionActions { get; set; }
-        public DbSet<Models.Table.PermissionViews> tPermissionViews { get; set; }
-        public DbSet<Models.Table.GroupRoles> tGroupRoles { get; set; }
-        public DbSet<Models.Table.UserGroups> tUserGroups { get; set; }
-        public DbSet<Models.Table.Groups> tGroups { get; set; }
+        public DbSet<Models.Table.AdminAreas.OptionAdminAreaCityMunicipality> tOptionAdminAreaCityMunicipality { get; set; }
+        public DbSet<Models.Table.AdminAreas.OptionAdminAreaCongressionalDistrict> tOptionAdminAreaCongressionalDistrict { get; set; }
+        public DbSet<Models.Table.AdminAreas.OptionAdminAreaProvince> tOptionAdminAreaProvince { get; set; }
+        public DbSet<Models.Table.AdminAreas.OptionAdminAreaRegion> tOptionAdminAreaRegion { get; set; }
+        public DbSet<Models.Table.AdminAreas.OptionAdminOffice> tOptionAdminOffice { get; set; }
+        #endregion
+
+        #region Views
+        public DbSet<Models.Views.AdminAreas.AdminBureau> vAdminBureau { get; set; }
+        public DbSet<Models.Views.AdminAreas.AdminCentralOffice> vAdminCentralOffice { get; set; }
+        public DbSet<Models.Views.AdminAreas.AdminDEO> vAdminDEO { get; set; }
+        public DbSet<Models.Views.AdminAreas.AdminDivision> vAdminDivision { get; set; }
+        public DbSet<Models.Views.AdminAreas.AdminImplementingOffice> vAdminImplementingOffice { get; set; }
+        public DbSet<Models.Views.AdminAreas.AdminOfficeRegion> vAdminOfficeRegion { get; set; }
+        public DbSet<Models.Views.AdminAreas.AdminOperatingUnit> vAdminOperatingUnit { get; set; }
+        public DbSet<Models.Views.AdminAreas.AdminPMOCluster> vAdminPMOCluster { get; set; }
+        public DbSet<Models.Views.AdminAreas.AdminService> vAdminService { get; set; }
+        public DbSet<Models.Views.AdminAreas.AdminSubDEO> vAdminSubDEO { get; set; }
+        public DbSet<Models.Views.AdminAreas.AdminUPMO> vAdminUPMO { get; set; }
+        #endregion
+
+        #endregion
+
+
+        #region Programs
+
+        #region Tables
         public DbSet<Models.Table.Program.Programs> tPrograms { get; set; }
         public DbSet<Models.Table.Program.ProgramStages> tProgramStages { get; set; }
         public DbSet<ProgramRevisions> tProgramRevisions { get; set; }
         public DbSet<OptionProgramStage> tOptionProgramStage { get; set; }
         public DbSet<OptionProgramType> tOptionProgramType { get; set; }
         public DbSet<OptionProgramStatus> tOptionProgramStatus { get; set; }
+        #endregion
+
+        #region Functions
+        public DbSet<Models.Functions.Program.ProgramStages> fProgramStages { get; set; }
+        public DbSet<Models.Functions.Program.UserVisiblePrograms> fUserVisiblePrograms { get; set; }
+        public DbSet<ProgramDetails> fProgramDetails { get; set; }
+        public DbSet<ProgramDetailsInProject> fProgramDetailsInProject { get; set; }
+        #endregion
+
+        #region Views
+        public DbSet<ProgramLatest> vProgramLatest { get; set; }
+        #endregion
+
+        #endregion
+
+        #region Others
+
+        #region Table
+        public DbSet<Models.Table.Lookups.Project.OptionProjectThrustList> tOptionProjectThrustList { get; set; }
+        public DbSet<Models.Table.Lookups.Project.OptionProjectTier> tOptionProjectTier { get; set; }
+        #endregion
+
+        #region Views
+        public DbSet<Models.Functions.Others.UserVisibleRegions> fUserVisibleRegions { get; set; }
+        public DbSet<Models.Functions.Others.UserVisibleOffices> fUserVisibleOffices { get; set; }
+        #endregion
+
+        #region Functions
+        #endregion
+
+        #endregion
+
+        #region Projects
+
+        #region Tables
         public DbSet<Models.Table.Project.Projects> tProjects { get; set; }
         public DbSet<ProjectRevisions> tProjectRevisions { get; set; }
         public DbSet<Models.Table.Project.ProjectStages> tProjectStages { get; set; }
+        #endregion
+
+        #endregion
         public DbSet<OptionProjectCategory> tOptionProjectCategory { get; set; }
-        public DbSet<Models.Table.ProjectThrustLists> tProjectThrustLists { get; set; }
         public DbSet<OptionProjectOrigin> tOptionProjectOrigin { get; set; }
-        public DbSet<OptionAdminAreaCityMunicipality> tOptionAdminAreaCityMunicipality { get; set; }
-        public DbSet<OptionAdminBureau> tOptionAdminBureau { get; set; }
-        public DbSet<OptionAdminAreaCongressionalDistrict> tOptionAdminAreaCongressionalDistrict { get; set; }
-        public DbSet<OptionAdminAreaDistrictEngineeringOffice> tOptionAdminAreaDistrictEngineeringOffice { get; set; }
-        public DbSet<OptionAdminAreaRegion> tOptionAdminAreaRegion { get; set; }
         public DbSet<OptionProjectImplementationMode> tOptionProjectImplementationMode { get; set; }
         public DbSet<OptionProjectEmergencyMode> tOptionProjectEmergencyMode { get; set; }
         public DbSet<OptionProjectFeasibilityStudy> tOptionProjectFeasibilityStudy { get; set; }
@@ -58,14 +111,11 @@ namespace DBHelper.Data
         public DbSet<Models.Table.ProjectNotes> tProjectNotes { get; set; }
         public DbSet<ProjectSupportingDocs> tProjectSupportingDocs { get; set; }
         public DbSet<ProjectFundingProfile> tProjectFundingProfile { get; set; }
-        public DbSet<Models.Table.ProjectFundingAgreementLists> tProjectFundingAgreementLists { get; set; }
-        public DbSet<Models.Table.ProjectFundingSource> tProjectFundingSource { get; set; }
         public DbSet<OptionFundingSource> tOptionFundingSource { get; set; }
         public DbSet<OptionFundingAgreement> tOptionFundingAgreement { get; set; }
         public DbSet<Models.Table.InfraType> tInfraType { get; set; }
         public DbSet<Models.Table.ProjectsInGroup> tProjectsInGroup { get; set; }
         public DbSet<Models.Table.ProjectGroups> tProjectGroups { get; set; }
-        public DbSet<OptionAdminAreaProvince> tOptionAdminAreaProvince { get; set; }
         public DbSet<Models.Table.DropdownSupportingDocs> tDropdownSupportingDocs { get; set; }
         public DbSet<Models.Table.FutureRoads> tFutureRoads { get; set; }
         public DbSet<Models.Table.FutureRoadsClassification> tFutureRoadsClassification { get; set; }
@@ -99,6 +149,18 @@ namespace DBHelper.Data
         public DbSet<Models.Table.LoginHistory> tLoginHistory { get; set; }
         public DbSet<OptionGlobalSearch> tOptionGlobalSearch { get; set; }
         #endregion
+
+        #region Tables
+        #region Users and User Access
+        public DbSet<Models.Table.Users> tUsers { get; set; }
+        public DbSet<Models.Table.AppModules> tAppModules { get; set; }
+        public DbSet<Models.Table.PermissionControllers> tPermissionControllers { get; set; }
+        public DbSet<Models.Table.PermissionActions> tPermissionActions { get; set; }
+        public DbSet<Models.Table.PermissionViews> tPermissionViews { get; set; }
+        public DbSet<Models.Table.GroupRoles> tGroupRoles { get; set; }
+        public DbSet<Models.Table.UserGroups> tUserGroups { get; set; }
+        public DbSet<Models.Table.Groups> tGroups { get; set; }
+        #endregion
         #region Views
         public DbSet<Models.Views.Users> vUsers { get; set; }
         public DbSet<Models.Views.AppModules> vAppModules { get; set; }
@@ -106,21 +168,18 @@ namespace DBHelper.Data
         public DbSet<Models.Views.UserViewPermission> vUserViewPermission { get; set; }
         public DbSet<Models.Views.UserGroups> vUserGroups { get; set; }
         public DbSet<Models.Views.APIPermissions> vAPIPermissions { get; set; }
-        public DbSet<ProgramLatest> vProgramLatest { get; set; }
         public DbSet<Models.Views.Project.Projects> vProjects { get; set; }
         public DbSet<ProjectGroups> vProjectGroups { get; set; }
         public DbSet<ProjectsInGroup> vProjectsInGroup { get; set; }
-        public DbSet<Models.Views.AdminOperatingUnit> vAdminOperatingUnit { get; set; }
-        public DbSet<Models.Views.AdminImplementingOffice> vAdminImplementingOffice { get; set; }
         public DbSet<Models.Views.RevisionRules> vRevisionRules { get; set; }
         public DbSet<Models.Views.RevisionLists> vRevisionLists { get; set; }
         public DbSet<ProjectComponentCostStatus> vProjectComponentCostStatus { get; set; }
         public DbSet<Models.Views.Project.ProjectLatest> vProjectLatest { get; set; }
         #endregion
         #region Functions
-        public DbSet<Models.Functions.Program.ProgramStages> fProgramStages { get; set; }
-        public DbSet<ProgramDetails> fProgramDetails { get; set; }
+
         public DbSet<Models.Functions.Project.ProjectStages> fProjectStages { get; set; }
+        public DbSet<Models.Functions.Project.UserVisibleProjects> fUserVisibleProjects { get; set; }
         public DbSet<Models.Functions.Project.ProjectDetails> fProjectDetails { get; set; }
         #endregion
         #region Stored Procedures

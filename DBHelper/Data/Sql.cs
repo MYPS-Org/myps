@@ -1,5 +1,6 @@
-﻿using System.Data.SqlClient;
-using Dapper;
+﻿using Dapper;
+using System.Data;
+using System.Data.SqlClient;
 namespace DBHelper.Data
 {
     public static class Sql
@@ -27,6 +28,68 @@ namespace DBHelper.Data
                 sql.Close();
                 return ret;
             }
+        }
+        /*
+         var uniqueIds = await QueryAsync<UniqueID>(
+            connectionString,
+            "dbo.pGenerateUID",
+            commandType: CommandType.StoredProcedure,
+            cancellationToken: cancellationToken);
+
+        var forwarders = await QueryAsync<ForwarderDto>(
+            connectionString,
+            """
+            SELECT
+                Id,
+                Name,
+                ConnectionID
+            FROM dbo.tForwarders
+            WHERE Id = @Username
+              AND ConnectionID = @ConnectionID;
+            """,
+            new
+            {
+                Username = username,
+                ConnectionID = connectionId
+            },
+            cancellationToken: cancellationToken);
+         */
+        public static async Task<List<T>> QueryAsync<T>(
+            string connectionString,
+            string commandText,
+            object? parameters = null,
+            int commandTimeout = 120,
+            CommandType commandType = CommandType.Text,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                throw new ArgumentException(
+                    "Connection string is required.",
+                    nameof(connectionString));
+            }
+
+            if (string.IsNullOrWhiteSpace(commandText))
+            {
+                throw new ArgumentException(
+                    "SQL command is required.",
+                    nameof(commandText));
+            }
+
+            await using var connection = new SqlConnection(connectionString);
+
+            await connection.OpenAsync(cancellationToken);
+
+            var command = new CommandDefinition(
+                commandText: commandText.Trim(),
+                parameters: parameters,
+                commandTimeout: commandTimeout,
+                commandType: commandType,
+                cancellationToken: cancellationToken);
+
+            var results = await connection.QueryAsync<T>(command);
+
+            return results.ToList();
         }
     }
 }

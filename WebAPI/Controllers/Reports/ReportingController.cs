@@ -117,7 +117,7 @@ namespace WebAPI.Controllers.Revision
         }
 
         [HttpPost]
-        public async Task<IActionResult> RequestReportAIP([FromBody] RequestReportAIPDTO dto)
+        public async Task<IActionResult> RequestReportAIP([FromBody] RequestReportAIPDTO dto, CancellationToken cancellationToken)
         {
             try
             {
@@ -199,7 +199,7 @@ namespace WebAPI.Controllers.Revision
         }
 
         [HttpPost]
-        public async Task<IActionResult> RequestReportAIPOfficial([FromBody] RequestReportAIPDTO dto)
+        public async Task<IActionResult> RequestReportAIPOfficial([FromBody] RequestReportAIPDTO dto, CancellationToken cancellationToken)
         {
             try
             {
@@ -270,7 +270,7 @@ namespace WebAPI.Controllers.Revision
         }
 
         [HttpPost]
-        public async Task<IActionResult> RequestReportAIP02([FromBody] RequestReportAIPDTO dto)
+        public async Task<IActionResult> RequestReportAIP02([FromBody] RequestReportAIPDTO dto, CancellationToken cancellationToken)
         {
             try
             {
@@ -376,7 +376,7 @@ namespace WebAPI.Controllers.Revision
         }
 
         [HttpPost]
-        public async Task<IActionResult> RequestReportRBPComponents([FromBody] RequestReportRBPComponentsDTO dto)
+        public async Task<IActionResult> RequestReportRBPComponents([FromBody] RequestReportRBPComponentsDTO dto, CancellationToken cancellationToken)
         {
             try
             {
@@ -428,7 +428,7 @@ namespace WebAPI.Controllers.Revision
         #region RBPTier
 
         [HttpPost]
-        public async Task<IActionResult> RequestReportRBPTier(RequestReportRBPDTO dto)
+        public async Task<IActionResult> RequestReportRBPTier(RequestReportRBPDTO dto, CancellationToken cancellationToken)
         {
             try
             {
@@ -479,7 +479,7 @@ namespace WebAPI.Controllers.Revision
         #region RBP
 
         [HttpPost]
-        public async Task<IActionResult> RequestReportRBP(RequestReportRBPTierDTO dto)
+        public async Task<IActionResult> RequestReportRBP(RequestReportRBPTierDTO dto, CancellationToken cancellationToken)
         {
             try
             {
@@ -551,7 +551,7 @@ namespace WebAPI.Controllers.Revision
         }
 
         [HttpPost]
-        public async Task<IActionResult> RequestReportRDIP([FromBody] RequestReportRDIPDTO dto)
+        public async Task<IActionResult> RequestReportRDIP([FromBody] RequestReportRDIPDTO dto, CancellationToken cancellationToken)
         {
             try
             {
@@ -603,7 +603,7 @@ namespace WebAPI.Controllers.Revision
         #region Export Raw Projects
         [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> RequestRawProjects([FromBody] RequestRawProjectsDTO dto)
+        public async Task<IActionResult> RequestRawProjects([FromBody] RequestRawProjectsDTO dto, CancellationToken cancellationToken)
         {
             try
             {

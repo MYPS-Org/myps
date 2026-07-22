@@ -26,7 +26,7 @@ namespace WebAPI.Controllers.Auth
         public AuthController(MYPSDbContext db, IProducer<Null, string> producer, PCMADbContext pcma) : base (db, producer, pcma) { }
         [AllowAnonymous]
         [HttpPost]
-        public async Task<IActionResult> Login([FromBody] LoginDto dto)
+        public async Task<IActionResult> Login([FromBody] LoginDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             var LoginLog = new LoginHistory();

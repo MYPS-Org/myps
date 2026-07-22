@@ -51,7 +51,7 @@ namespace Helpers
     }
     public static class ProgramHelper
     {
-        public static async Task<ProgramHelperResponse> ValidateProgramId(this MYPSDbContext _db, ProgramHelperParams dto)
+        public static async Task<ProgramHelperResponse> ValidateProgramId(this MYPSDbContext _db, ProgramHelperParams dto, CancellationToken cancellationToken)
         {
             var response = new ProgramHelperResponse();
             if (string.IsNullOrWhiteSpace(dto.ProgramId))
@@ -60,7 +60,13 @@ namespace Helpers
                 response.Title = "Invalid Program ID";
                 return response;
             }
-            var GetProgramPK = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
+            if (!Enum.TryParse<EnumProgramStage>(dto.StageName, out var SelectedStage))
+            {
+                response.Title = "Invalid Stage";
+                response.Message = $"'{dto.StageName}' is not a valid program stage.";
+                return response;
+            }
+            var GetProgramPK = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId, cancellationToken);
             if (GetProgramPK == null)
             {
                 response.Title = "Program Not Found";
@@ -70,7 +76,7 @@ namespace Helpers
             var CheckProgramStage = await _db.fProgramStages
                 .FromSqlInterpolated($"SELECT * FROM fProgramStages({GetProgramPK.ProgramFK}) WHERE StageName = {dto.StageName}")
                 .AsNoTracking()
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(cancellationToken);
             if (CheckProgramStage == null)
             {
                 response.Title = "Stage Not Found";
@@ -79,7 +85,7 @@ namespace Helpers
             }
             if (!dto.ViewOldStage)
             {
-                var currentVersion = await _db.vProgramLatest.FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId);
+                var currentVersion = await _db.vProgramLatest.FirstOrDefaultAsync(x => x.ProgramId == dto.ProgramId, cancellationToken);
                 if (currentVersion == null)
                 {
                     response.Title = "Outdated Program Stage";
@@ -87,7 +93,7 @@ namespace Helpers
                     return response;
                 }
             }
-            var ProgramParent = await _db.tPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramPK == CheckProgramStage.ProgramPK);
+            var ProgramParent = await _db.tPrograms.AsNoTracking().FirstOrDefaultAsync(x => x.ProgramPK == CheckProgramStage.ProgramPK, cancellationToken);
             if (ProgramParent == null)
             {
                 response.Title = "Program Not Found";
@@ -105,14 +111,14 @@ namespace Helpers
             }
             response.IsValid = true;
             response.Data.Program = ProgramParent;
-            var GetProgramRevision = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == CheckProgramStage.RevisionId);
+            var GetProgramRevision = await _db.tProgramRevisions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == CheckProgramStage.RevisionId, cancellationToken);
             if(GetProgramRevision == null)
             {
                 response.Title = "Program Revision Not Found";
                 response.Message = $"The program revision for program ID '{dto.ProgramId}' does not exist in the system.";
                 return response;
             }
-            var GetProgramStage = await _db.tProgramStages.AsNoTracking().FirstOrDefaultAsync(x => x.Id == CheckProgramStage.Id);
+            var GetProgramStage = await _db.tProgramStages.AsNoTracking().FirstOrDefaultAsync(x => x.Id == CheckProgramStage.Id, cancellationToken);
             if (GetProgramStage == null)
             {
                 response.Title = "Program Stage Not Found";

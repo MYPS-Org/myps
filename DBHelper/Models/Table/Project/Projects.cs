@@ -31,13 +31,13 @@ namespace DBHelper.Models.Table.Project
         // FK -> dbo.tProjectGroups(Id)
         public int? ProjectGroupFK { get; set; }
         [Required]
-        public bool IsPublished { get; set; }
+        public bool IsPublished { get; set; } = false;
         [Required]
-        public bool IsRevised { get; set; }
+        public bool IsRevised { get; set; } = false;
         [Required]
-        public bool IsPublishable { get; set; }
+        public bool IsPublishable { get; set; } = false;
         [Required]
-        public int PCMARevisionCount { get; set; }
+        public int PCMARevisionCount { get; set; } = 0;
         [Required]
         [MaxLength(100)]
         public string CreatedBy { get; set; } = string.Empty;
@@ -51,5 +51,9 @@ namespace DBHelper.Models.Table.Project
         public DateTime? LockedDate { get; set; }
         [MaxLength(400)]
         public string? AlternateId { get; set; }
+        // FK -> dbo.tLSWallets(Id)
+        public int? ParentWalletId { get; set; }
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? WalletDrawFrozen { get; set; }
     }
 }

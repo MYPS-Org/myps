@@ -26,7 +26,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
         // and projects to the AppModules response model with full Linked info.
         // ─────────────────────────────────────────────────────────────────────────────
         [HttpPost]
-        public async Task<IActionResult> ShowAppModules([FromBody] ModulePaginationDto dto)
+        public async Task<IActionResult> ShowAppModules([FromBody] ModulePaginationDTO dto, CancellationToken cancellationToken)
         {
             try
             {
@@ -419,7 +419,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
             }
         }
         [HttpPost]
-        public async Task<IActionResult> ShowUsers([FromBody] UsersPaginationDto dto)
+        public async Task<IActionResult> ShowUsers([FromBody] UsersPaginationDTO dto, CancellationToken cancellationToken)
         {
             try
             {
@@ -777,7 +777,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
         #endregion
         #region VIEW PERMISSIONS TAB
         [HttpPost]
-        public async Task<IActionResult> ShowViewPermissions([FromBody] ShowViewPermissionsDTO dto)
+        public async Task<IActionResult> ShowViewPermissions([FromBody] ShowViewPermissionsDTO dto, CancellationToken cancellationToken)
         {
             try
             {
@@ -846,7 +846,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
         }
         
         [HttpPost]
-        public async Task<IActionResult> SyncViewPermissions([FromBody] SyncViewPermissionsDTO dto)
+        public async Task<IActionResult> SyncViewPermissions([FromBody] SyncViewPermissionsDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -905,7 +905,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
             }
         }
         [HttpPost]
-        public async Task<IActionResult> UpdateViewPermissionDetails([FromBody] UpdateViewPermissionDetailsDTO dto)
+        public async Task<IActionResult> UpdateViewPermissionDetails([FromBody] UpdateViewPermissionDetailsDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -982,7 +982,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
         #endregion
         #region PERMISSIONS TAB
         [HttpPost]
-        public async Task<IActionResult> ShowPermissions([FromBody] ShowPermissionsDTO dto)
+        public async Task<IActionResult> ShowPermissions([FromBody] ShowPermissionsDTO dto, CancellationToken cancellationToken)
         {
             try
             {
@@ -1156,7 +1156,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
             }
         }
         [HttpPost]
-        public async Task<IActionResult> UpdatePermissionControllerDetails([FromBody] UpdatePermissionControllerDetailsDTO dto)
+        public async Task<IActionResult> UpdatePermissionControllerDetails([FromBody] UpdatePermissionControllerDetailsDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -1188,7 +1188,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
             }
         }
         [HttpPost]
-        public async Task<IActionResult> UpdatePermissionActionDetails([FromBody] UpdatePermissionActionDetailsDTO dto)
+        public async Task<IActionResult> UpdatePermissionActionDetails([FromBody] UpdatePermissionActionDetailsDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -1356,7 +1356,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
             }
         }
         [HttpPost]
-        public async Task<IActionResult> ShowUserGroups([FromBody] UserGroupsPaginationDto dto)
+        public async Task<IActionResult> ShowUserGroups([FromBody] UserGroupsPaginationDTO dto, CancellationToken cancellationToken)
         {
             try
             {
@@ -1426,7 +1426,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
             }
         }
         [HttpPost]
-        public async Task<IActionResult> AddUserGroup([FromBody] AddUserGroupDTO dto)
+        public async Task<IActionResult> AddUserGroup([FromBody] AddUserGroupDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -1487,7 +1487,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
             }
         }
         [HttpPost]
-        public async Task<IActionResult> UpdateUserGroup([FromBody] UpdateUserGroupDTO dto)
+        public async Task<IActionResult> UpdateUserGroup([FromBody] UpdateUserGroupDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try

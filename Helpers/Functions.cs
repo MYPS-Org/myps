@@ -208,56 +208,6 @@ namespace Helpers
         {
             return ReferenceId + "-" + ("tCountComponentCost").GenerateCode() + "-" + StageName;
         }
-        public static string GenerateProjectID(this MYPSDbContext _db, DBHelper.Models.Views.ProgramDetails ProgramDetails, OptionProjectCategory Category, string IslandCode)
-        {
-            string FirstSegment = ProgramDetails.StageName.GenerateProjec1stSegment();
-            string SecondSegment = ProgramDetails.YearStart.GenerateProjec2ndSegment();
-
-            //var existingMaxIds = _db.vGetProjectCategoryVersions.AsNoTracking()
-            //    .Where(x => x.Category == Category.CategoryId
-            //        && x.ProjectSuffix == FirstSegment
-            //        && x.IslandCode == IslandCode
-            //        && x.YearStart == ProgramDetails.YearStart)
-            //    .OrderByDescending(x => x.MaxId)
-            //    .FirstOrDefault();
-            //int maxExisting = (existingMaxIds != null) ? existingMaxIds.MaxId : (_db.tOptionProjectCategory.FirstOrDefault(x => x.CategoryId == Category.CategoryId)!.Minimum);
-
-
-            //int nextId = Math.Max(maxExisting + 1, Category.Minimum);
-            //string ThirdSegment = nextId.ToString("D5");
-
-
-            var param = new Dictionary<string, object>
-            {
-                { "@ProjectSuffix", FirstSegment },
-                { "@CategoryId", Category.CategoryId },
-                { "@YearStart", ProgramDetails.YearStart },
-                { "@IslandCode", IslandCode }
-            };
-
-            string ThirdSegment = Sql.NormalQuery<string>(
-                Appsetting.DbConnections.MYPSDb,
-                "EXEC pGenerateThirdSegment @ProjectSuffix, @CategoryId, @YearStart, @IslandCode",
-                param
-            ).FirstOrDefault() ?? string.Empty;
-            return $"{FirstSegment}-{SecondSegment}-{ThirdSegment}-{IslandCode}";
-        }
-        public static string GenerateProjec1stSegment(this string StageName)
-        {
-            var stageGroups = new Dictionary<string, string[]>
-            {
-                { "BP", new[] { "BP", "RBP", "UPMO", "UBP" } },
-                { "MY", new[] { "RDIP", "UDIP", "PIP" } },
-                { "P",  new[] { "NEP", "HGAB", "GAA" } }
-            };
-            return stageGroups.FirstOrDefault(g => g.Value.Contains(StageName)).Key ?? "P";
-        }
-        public static string GenerateProjec2ndSegment(this int endYear)
-        {
-            int startYear = 2016;
-            int count = endYear - startYear;
-            return count.ToString("D3");
-        }
         public static string GenerateCode(this string TableName)
         {
             var uidList = new List<string>();

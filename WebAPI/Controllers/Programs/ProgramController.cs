@@ -47,108 +47,9 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-        
-        //[HttpPost]
-        //public async Task<IActionResult> ShowProgram([FromBody] ShowProgramDTO dto)
-        //{
-        //    try
-        //    {
-        //        if (dto.Filters == null)
-        //        {
-        //            return new BadRequestObjectResult(new { Message = "Expected Parameters missing.", Title = "Parameter Error" });
-        //        }
-        //        // Validate pagination parameters
-        //        if (dto.page < 1) dto.page = 1;
-        //        if (dto.limit < 1) dto.limit = 10;
-
-
-        //        var conditions = new List<string>();
-        //        var sqlParams = new List<SqlParameter>();
-
-        //        if (!string.IsNullOrEmpty(dto.Filters.Name))
-        //        {
-        //            conditions.Add("v.[Name] LIKE @name");                 // structure = your literal
-        //            sqlParams.Add(new SqlParameter("@name", $"%{dto.Filters.Name}%"));  // value = parameter
-        //        }
-        //        if (dto.Filters.StartYear.HasValue)
-        //        {
-        //            conditions.Add("v.StartYear = @startYear");
-        //            sqlParams.Add(new SqlParameter("@startYear", dto.Filters.StartYear.Value));
-        //        }
-        //        if (!string.IsNullOrEmpty(dto.Filters.StageName))
-        //        {
-        //            conditions.Add("v.StageName = @stageName");
-        //            sqlParams.Add(new SqlParameter("@stageName", dto.Filters.StageName));
-        //        }
-        //        if (!string.IsNullOrEmpty(dto.Filters.Type))
-        //        {
-        //            conditions.Add("v.[Type] = @type");
-        //            sqlParams.Add(new SqlParameter("@type", dto.Filters.Type));
-        //        }
-        //        if (_Session.ApplyFilter)
-        //        {
-        //            conditions.Add("v.DataSecurityGroup LIKE @regCode");
-        //            sqlParams.Add(new SqlParameter("@regCode", $"%{_Session.RegCode}%"));
-        //        }
-
-        //        string whereClause = conditions.Count > 0 ? " WHERE " + string.Join(" AND ", conditions) : "";
-
-        //        if(dto.page > 1)
-        //        {
-        //            string PageSql = @$"
-        //            SELECT
-        //                ((rn - 1) / {dto.limit}) + 1 AS PageNumber,
-        //                Id                          AS PageStartId   -- highest Id on the page = the jump cursor
-        //            FROM (
-        //                SELECT Id, ROW_NUMBER() OVER (ORDER BY Id DESC) AS rn
-        //                FROM dbo.vProgramLatest v{whereClause}
-        //            ) x
-        //            WHERE (rn - 1) % {dto.limit} = 0 AND ((rn - 1) / {dto.limit}) + 1 = {dto.page};";
-        //            PaginationPages paginationPages = (await _db.Set<PaginationPages>()
-        //                .FromSqlRaw(PageSql, sqlParams.ToArray())
-        //                .AsNoTracking()
-        //                .FirstOrDefaultAsync())!;
-        //            conditions.Add("v.Id <= @pageStartId");
-        //            sqlParams.Add(new SqlParameter("@pageStartId", paginationPages?.PageStartId ?? 1));
-
-        //            whereClause = conditions.Count > 0 ? " WHERE " + string.Join(" AND ", conditions) : "";
-        //        }
-
-        //        string sql = $"SELECT TOP {dto.limit} * FROM dbo.vProgramLatest v{whereClause} ORDER BY v.Id DESC";
-        //        var Projects = await _db.vProgramLatest
-        //            .FromSqlRaw(sql, sqlParams.ToArray())
-        //            .AsNoTracking()
-        //            .ToListAsync();
-
-
-        //        PaginationCount records = new PaginationCount();
-        //        string RowCountsSql = @$"
-        //            SELECT COUNT_BIG(*) AS TotalCount
-        //            FROM dbo.vProgramLatest v{whereClause}";
-        //        records = (await _db.Set<PaginationCount>().FromSqlRaw(RowCountsSql, sqlParams.ToArray())
-        //            .AsNoTracking()
-        //            .FirstOrDefaultAsync())!;
-
-
-        //        var totalPages = (int)Math.Ceiling((double)records.TotalCount / dto.limit);
-        //        FilteredResult<DBHelper.Models.Views.ProgramLatest> CursorResult = new FilteredResult<DBHelper.Models.Views.ProgramLatest>()
-        //        {
-        //            lists = Projects,
-        //            totalPages = totalPages,
-        //            page = dto.page,
-        //            limit = dto.limit,
-        //            total = records?.TotalCount
-        //        };
-        //        return Ok(CursorResult);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return ExceptionHandler(ex);
-        //    }
-        //}
 
         [HttpPost]
-        public async Task<IActionResult> ShowProgram([FromBody] ShowProgramDTO dto)
+        public async Task<IActionResult> ShowProgram([FromBody] ShowProgramDTO dto, CancellationToken cancellationToken)
         {
             try
             {
@@ -276,21 +177,29 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-
+        
         [HttpPost]
-        public async Task<IActionResult> ShowProgramStages([FromBody] ProgramDetailsDTO dto)
+        public async Task<IActionResult> ShowProgramStages([FromBody] ProgramDetailsDTO dto, CancellationToken cancellationToken)
         {
             try
             {
-                var Stages = await _db.fProgramStages
-                .FromSqlInterpolated($"SELECT * FROM dbo.fProgramStages({dto.ProgramId})")
-                .AsNoTracking()
-                .ToListAsync();
-
                 if (_Session.ApplyFilter)
                 {
-                    Stages = Stages.Where(x => x.DataSecurityGroup.Contains(_Session.RegCode)).ToList();
+                    var isVisible = await _db.fUserVisiblePrograms
+                        .FromSqlInterpolated($"SELECT * FROM dbo.fUserVisiblePrograms({_Session.UserId})")
+                        .AnyAsync(x => x.ProgramPK == dto.ProgramId);
+
+                    if (!isVisible)
+                    {
+                        return Ok(new { Stages = new List<DBHelper.Models.Functions.Program.ProgramStages>() });
+                    }
                 }
+
+                var Stages = await _db.fProgramStages
+                    .FromSqlInterpolated($"SELECT * FROM dbo.fProgramStages({dto.ProgramId})")
+                    .AsNoTracking()
+                    .ToListAsync();
+
                 return Ok(new
                 {
                     Stages = Stages
@@ -301,7 +210,7 @@ namespace WebAPI.Controllers.Programs
                 return ExceptionHandler(ex);
             }
         }
-        
+
         [HttpPost]
         public async Task<IActionResult> InitAddProgram()
         {
@@ -330,7 +239,7 @@ namespace WebAPI.Controllers.Programs
         }
         
         [HttpPost]
-        public async Task<IActionResult> AddProgram([FromBody] AddProgramDTO dto)
+        public async Task<IActionResult> AddProgram([FromBody] AddProgramDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -423,7 +332,7 @@ namespace WebAPI.Controllers.Programs
         #region Program Details
         
         [HttpPost]
-        public async Task<IActionResult> ProgramDetails([FromBody] ProgramDetailsDTO dto)
+        public async Task<IActionResult> ProgramDetails([FromBody] ProgramDetailsDTO dto, CancellationToken cancellationToken)
         {
             try
             {
@@ -437,7 +346,7 @@ namespace WebAPI.Controllers.Programs
                     StageName = dto.StageName,
                     _Session = _Session,
                     ViewOldStage = true
-                });
+                }, cancellationToken);
                 if (!ValidateProgram.IsValid)
                 {
                     return new BadRequestObjectResult(new { Message = ValidateProgram.Message, Title = ValidateProgram.Title });
@@ -487,7 +396,7 @@ namespace WebAPI.Controllers.Programs
         }
         
         [HttpPost]
-        public async Task<IActionResult> DeleteProgram([FromBody] DeleteProgramDTO dto)
+        public async Task<IActionResult> DeleteProgram([FromBody] DeleteProgramDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -511,7 +420,7 @@ namespace WebAPI.Controllers.Programs
                     ProgramId = dto.ProgramId,
                     StageName = dto.StageName,
                     _Session = _Session
-                });
+                }, cancellationToken);
                 if (!ValidateProgramId.IsValid)
                 {
                     return new BadRequestObjectResult(new
@@ -585,7 +494,7 @@ namespace WebAPI.Controllers.Programs
         }
         
         [HttpPost]
-        public async Task<IActionResult> UpdateProgramDetails([FromBody] UpdateProgramDTO dto)
+        public async Task<IActionResult> UpdateProgramDetails([FromBody] UpdateProgramDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -597,7 +506,7 @@ namespace WebAPI.Controllers.Programs
                     ProgramId = dto.ProgramId,
                     StageName = dto.StageName,
                     _Session = _Session
-                });
+                }, cancellationToken);
                 if (!ValidateProgramId.IsValid)
                 {
                     return new BadRequestObjectResult(new
@@ -764,7 +673,7 @@ namespace WebAPI.Controllers.Programs
         }
         
         [HttpPost]
-        public async Task<IActionResult> UpdateProgramStage([FromBody] UpdateProgramStageDTO dto)
+        public async Task<IActionResult> UpdateProgramStage([FromBody] UpdateProgramStageDTO dto, CancellationToken cancellationToken)
         {
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
@@ -780,7 +689,7 @@ namespace WebAPI.Controllers.Programs
                     ProgramId = dto.ProgramId,
                     StageName = dto.Stage.ToString(),
                     _Session = _Session
-                });
+                }, cancellationToken);
                 if(!ValidateProgramId.IsValid) {
                     return new BadRequestObjectResult(new { Message = ValidateProgramId.Message, Title = ValidateProgramId.Title });
                 }
@@ -1124,12 +1033,12 @@ namespace WebAPI.Controllers.Programs
                 }
 
                 var validationResult = await _db.ValidateProgramId(
-                    new ProgramHelperParams
-                    {
-                        ProgramId = dto.ProgramId,
-                        StageName = programDetails.StageName,
-                        _Session = _Session
-                    });
+                new ProgramHelperParams
+                {
+                    ProgramId = dto.ProgramId,
+                    StageName = programDetails.StageName,
+                    _Session = _Session
+                }, cancellationToken);
 
                 if (!validationResult.IsValid)
                 {
@@ -1298,12 +1207,12 @@ namespace WebAPI.Controllers.Programs
                 }
 
                 var validationResult = await _db.ValidateProgramId(
-                    new ProgramHelperParams
-                    {
-                        ProgramId = dto.ProgramId,
-                        StageName = programDetails.StageName,
-                        _Session = _Session
-                    });
+                new ProgramHelperParams
+                {
+                    ProgramId = dto.ProgramId,
+                    StageName = programDetails.StageName,
+                    _Session = _Session
+                }, cancellationToken);
 
                 if (!validationResult.IsValid)
                 {
@@ -1500,12 +1409,12 @@ namespace WebAPI.Controllers.Programs
                 }
 
                 var validationResult = await _db.ValidateProgramId(
-                    new ProgramHelperParams
-                    {
-                        ProgramId = dto.ProgramId,
-                        StageName = programDetails.StageName,
-                        _Session = _Session
-                    });
+                new ProgramHelperParams
+                {
+                    ProgramId = dto.ProgramId,
+                    StageName = programDetails.StageName,
+                    _Session = _Session
+                }, cancellationToken);
 
                 if (!validationResult.IsValid)
                 {
@@ -1649,7 +1558,7 @@ namespace WebAPI.Controllers.Programs
                     ProgramId = dto.ProgramId,
                     StageName = checkProgram.StageName,
                     _Session = _Session
-                });
+                }, cancellationToken);
                 if (!ValidateProgramId.IsValid)
                 {
                     return new BadRequestObjectResult(new

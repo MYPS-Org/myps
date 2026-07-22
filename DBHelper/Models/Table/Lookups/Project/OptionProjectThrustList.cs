@@ -2,13 +2,15 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DBHelper.Models.Table
+namespace DBHelper.Models.Table.Lookups.Project
 {
-    public class ProjectThrustLists
+    [Table("dbo.tOptionProjectThrustList")]
+    public class OptionProjectThrustList
     {
         [Key]
         public int Id { get; set; }
@@ -34,6 +36,7 @@ namespace DBHelper.Models.Table
         [Required]
         [MaxLength(400)]
         public string ThrustDescription { get; set; } = string.Empty;
-        public bool IsActive { get; set; } = false;
+        [Required]
+        public bool IsActive { get; set; }
     }
 }
