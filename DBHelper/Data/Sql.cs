@@ -91,5 +91,45 @@ namespace DBHelper.Data
 
             return results.ToList();
         }
+        #region How to use?
+        /*
+            Query
+            var employees = await QueryAsync<Employee>(
+                connectionString,
+                "SELECT Id, Name, Salary FROM Employees WHERE DepartmentId = @DeptId",
+                new { DeptId = 5 },
+                cancellationToken: cancellationToken);
+
+            var employees = await QueryAsync<Employee>(
+                connectionString,
+                @"SELECT Id, Name, Salary 
+                  FROM Employees 
+                  WHERE DepartmentId = @DeptId 
+                    AND Salary >= @MinSalary",
+                new { DeptId = 5, MinSalary = 50000m },
+                cancellationToken: cancellationToken);
+
+            Stored Procedure
+            var employees = await QueryAsync<Employee>(
+                connectionString,
+                "sp_GetEmployeesByDepartment",   // just the SP name
+                new { DeptId = 5 },
+                commandType: CommandType.StoredProcedure,
+                cancellationToken: cancellationToken);
+
+            var parameters = new DynamicParameters();
+            parameters.Add("DeptId", 5);
+            parameters.Add("TotalCount", dbType: DbType.Int32, direction: ParameterDirection.Output);
+
+            var employees = await QueryAsync<Employee>(
+                connectionString,
+                "sp_GetEmployeesByDepartment",
+                parameters,
+                commandType: CommandType.StoredProcedure,
+                cancellationToken: cancellationToken);
+
+            int totalCount = parameters.Get<int>("TotalCount");
+         */
+        #endregion
     }
 }

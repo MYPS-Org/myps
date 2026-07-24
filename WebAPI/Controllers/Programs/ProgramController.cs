@@ -285,7 +285,7 @@ namespace WebAPI.Controllers.Programs
                     DataSecurityGroup = dto.DataSecurityGroup,
                     UserGroup = dto.UserGroup,
                     Type = dto.Type,
-                    YearStart = dto.YearStart,
+                    StartYear = dto.YearStart,
                     CreatedBy = UserId,
                     CreatedDate = CurrentDate,
                 };
@@ -405,6 +405,7 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = "Expected Parameters missing.", Title = "Parameter Error" });
                 }
+                string ProgramId = dto.ProgramId;
                 EnumProgramStage[] StagesToCheck =
                 {
                     EnumProgramStage.NEP,
@@ -456,8 +457,8 @@ namespace WebAPI.Controllers.Programs
                 }
                 var TransactionLog = new TransactionLog()
                 {
-                    TransactionId = dto.ProgramId,
-                    TypeOfTransaction = "Delete",
+                    ReferenceId = ProgramId,
+                    TransactionType = EnumTransactionType.Delete.ToString(),
                     AffectedTable = "tPrograms",
                     AffectedColumn = "IsDeleted",
                     NewValue = "true",
@@ -500,6 +501,7 @@ namespace WebAPI.Controllers.Programs
             try
             {
                 bool hasUpdated = false;
+                string ProgramId = dto.ProgramId;
                 DateTime CurrentDate = Functions.CurrentDate();
                 var ValidateProgramId = await _db.ValidateProgramId(new ProgramHelperParams
                 {
@@ -536,8 +538,8 @@ namespace WebAPI.Controllers.Programs
                     ProgramRevisions.Name = dto.Name;
                     transactionLogs.Add(new TransactionLog
                     {
-                        TransactionId = dto.ProgramId,
-                        TypeOfTransaction = "Update",
+                        ReferenceId = ProgramId,
+                        TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tProgramRevisions",
                         AffectedColumn = "Name",
                         NewValue = dto.Name,
@@ -551,8 +553,8 @@ namespace WebAPI.Controllers.Programs
                     hasUpdated = true;
                     transactionLogs.Add(new TransactionLog
                     {
-                        TransactionId = dto.ProgramId,
-                        TypeOfTransaction = "Update",
+                        ReferenceId = ProgramId,
+                        TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tProgramRevisions",
                         AffectedColumn = "UserGroup",
                         NewValue = string.Join(", ", dto.UserGroup),
@@ -576,8 +578,8 @@ namespace WebAPI.Controllers.Programs
                     string OdSecurityGroup = string.Join(", ", GetSecurityGroup.Select(x => x.Name).Where(sg => dto.DataSecurityGroup.Contains(sg)));
                     transactionLogs.Add(new TransactionLog
                     {
-                        TransactionId = dto.ProgramId,
-                        TypeOfTransaction = "Update",
+                        ReferenceId = ProgramId,
+                        TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tProgramRevisions",
                         AffectedColumn = "DataSecurityGroup",
                         NewValue = CurrentSecurityGroup!,
@@ -596,8 +598,8 @@ namespace WebAPI.Controllers.Programs
                     ProgramRevisions.Status = dto.Status;
                     transactionLogs.Add(new TransactionLog
                     {
-                        TransactionId = dto.ProgramId,
-                        TypeOfTransaction = "Update",
+                        ReferenceId = ProgramId,
+                        TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tProgramRevisions",
                         AffectedColumn = "Status",
                         NewValue = Status.Name!,
@@ -615,8 +617,8 @@ namespace WebAPI.Controllers.Programs
                     ProgramParent.Type = dto.Type;
                     transactionLogs.Add(new TransactionLog
                     {
-                        TransactionId = dto.ProgramId,
-                        TypeOfTransaction = "Update",
+                        ReferenceId = ProgramId,
+                        TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tProgramRevisions",
                         AffectedColumn = "Type",
                         NewValue = Types.Name!,
@@ -625,18 +627,18 @@ namespace WebAPI.Controllers.Programs
                         CreatedDate = CurrentDate
                     });
                 }
-                if (dto.YearStart != ProgramParent.YearStart)
+                if (dto.YearStart != ProgramParent.StartYear)
                 {
                     hasUpdated = true;
-                    ProgramParent.YearStart = dto.YearStart;
+                    ProgramParent.StartYear = dto.YearStart;
                     transactionLogs.Add(new TransactionLog
                     {
-                        TransactionId = dto.ProgramId,
-                        TypeOfTransaction = "Update",
+                        ReferenceId = ProgramId,
+                        TransactionType = EnumTransactionType.Update.ToString(),
                         AffectedTable = "tProgramRevisions",
-                        AffectedColumn = "YearStart",
+                        AffectedColumn = "StartYear",
                         NewValue = dto.YearStart.ToString(),
-                        OldValue = ProgramParent.YearStart.ToString(),
+                        OldValue = ProgramParent.StartYear.ToString(),
                         CreatedBy = _Session.UserId,
                         CreatedDate = CurrentDate
                     });
@@ -683,7 +685,10 @@ namespace WebAPI.Controllers.Programs
                 {
                     return new BadRequestObjectResult(new { Message = $"Program Stage '{dto.Stage}' is not valid.", Title = "Invalid Stage" });
                 }
+
+                string ProgramId = dto.ProgramId;
                 DateTime CurrentDate = Functions.CurrentDate();
+
                 var ValidateProgramId = await _db.ValidateProgramId(new ProgramHelperParams
                 {
                     ProgramId = dto.ProgramId,
@@ -768,8 +773,8 @@ namespace WebAPI.Controllers.Programs
                         _db.tProgramRevisions.Update(ProgramRevision);
                         var transactionLog = new TransactionLog()
                         {
-                            TransactionId = dto.ProgramId,
-                            TypeOfTransaction = "Update",
+                            ReferenceId = ProgramId,
+                            TransactionType = EnumTransactionType.Update.ToString(),
                             AffectedTable = "tProgramStages",
                             AffectedColumn = "StageName",
                             NewValue = ValidateStage.Name,

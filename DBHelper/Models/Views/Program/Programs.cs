@@ -17,7 +17,7 @@ namespace DBHelper.Models.Views.Program
         public bool IsSkipped { get; set; }
         public string? SkipReason { get; set; }
         public string? Name { get; set; }
-        public string[] DataSecurityGroup { get; set; } = new string[] { };
+        public string[] DataSecurityGroup { get; set; } = Array.Empty<string>();
         public int[] UserGroup { get; set; } = new int[] { };
         public string? Status { get; set; }
         public string? Type { get; set; }

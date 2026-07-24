@@ -31,6 +31,8 @@ namespace DBHelper.Models.Table.Project
         [Required]
         public Double Percentage { get; set; }
         [Required]
+        public bool IsWalletDraw { get; set; }
+        [Required]
         [MaxLength(100)]
         public string CreatedBy { get; set; } = string.Empty;
         [Required]

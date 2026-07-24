@@ -28,6 +28,8 @@ namespace DBHelper.Models.Table.Project
         [Required]
         [MaxLength(200)]
         public string ProjectId { get; set; } = string.Empty;
+        [MaxLength(400)]
+        public string? AlternateId { get; set; }
         public DateTime? MYCAApprovalDate { get; set; }
         [Required]
         public string Description { get; set; } = string.Empty;
@@ -75,10 +77,10 @@ namespace DBHelper.Models.Table.Project
         public string CreatedBy { get; set; } = string.Empty;
         [Required]
         public DateTime CreatedDate { get; set; }
-        [Required]
-        public bool IsDeleted { get; set; }
         [MaxLength(200)]
         public string? UpdatedBy { get; set; }
         public DateTime? UpdatedDate { get; set; }
+        [Required]
+        public bool IsDeleted { get; set; }
     }
 }

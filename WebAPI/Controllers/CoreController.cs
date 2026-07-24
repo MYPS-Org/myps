@@ -94,11 +94,20 @@ namespace WebAPI.Controllers
             }
         }
         [NonAction]
-        public BadRequestObjectResult ExceptionHandler(Exception ex)
+        public ObjectResult ExceptionHandler(Exception ex)
         {
             Guid errorReferenceId = Guid.NewGuid();
             try
             {
+                if(ex is OperationCanceledException)
+                {
+                    return Ok(
+                    new
+                    {
+                        Message = "Operation has been cancelled",
+                        Title = "Operation cancelled"
+                    });
+                }
                 string Header = "\n\n/========================= MYPS ERROR EVENT STARTS HERE =========================/\n\n";
                 string Body = $"[{errorReferenceId}]\n\nException: [[EXCEPTION]]\n\n";
                 string Footer = "/========================= MYPS ERROR EVENT ENDS HERE =========================/\n\n";

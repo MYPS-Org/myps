@@ -8,25 +8,21 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DBHelper.Models.Table.Lookups
+namespace DBHelper.Models.Table.Lookups.Project
 {
-    public class OptionFundingAgreement
+    public class OptionFundingSource
     {
-        [Key]
+        [Required]
         public int Id { get; set; }
         public bool IsActive { get; set; } = false;
         [Required]
-        [MaxLength(50)]
-        public string SourceOrg { get; set; } = string.Empty;
-        [Required]
-        [MaxLength(50)]
-        public string Code { get; set; } = string.Empty;
-        [Required]
         [MaxLength(100)]
-        public string Name { get; set; } = string.Empty;
+        public string Organization { get; set; } = string.Empty;
         [Required]
+        [MaxLength(255)]
+        public string Name { get; set; } = string.Empty;
         [MaxLength(50)]
-        public string FinancingSourceSegmentCode { get; set; } = string.Empty;
+        public string? Nature { get; set; }
         [Required]
         [MaxLength(100)]
         public string CreatedBy { get; set; } = string.Empty;
