@@ -1,21 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { Button } from '../../../components/tailwindui/button';
-import type { ProgramEnums, ProgramPagination } from '../Model.d';
+import type { ProgramEnums, ProgramFilter } from '../Model.d';
 import type { TableEnum } from '../../Project/Model';
 import XMarkIcon from '@heroicons/react/24/outline/XMarkIcon';
 
 interface FilterDialogProgramListProps {
     isOpen: boolean;
     onClose: () => void;
-    currentFilters: ProgramPagination;
+    /** The current active filter values (ProgramFilter, not the old ProgramPagination wrapper). */
+    currentFilters: ProgramFilter;
     programEnums?: {
         Stages: TableEnum[];
         Types: TableEnum[];
         Groups: ProgramEnums[];
         DataSecurity: ProgramEnums[];
     };
-    onApplyFilters: (filters: ProgramPagination) => void;
+    /**
+     * Called with the chosen ProgramFilter when the user clicks Apply or Clear.
+     * The usePagination hook's applyFilters() already resets to page 1 and clears
+     * keyset cursors, so this callback must NOT inject page/limit/cursor fields.
+     */
+    onApplyFilters: (filters: ProgramFilter) => void;
 }
 
 export const FilterDialogProgramList: React.FC<FilterDialogProgramListProps> = ({
@@ -25,60 +31,62 @@ export const FilterDialogProgramList: React.FC<FilterDialogProgramListProps> = (
     programEnums,
     onApplyFilters
 }) => {
-    const [localFilters, setLocalFilters] = useState<ProgramPagination>(currentFilters);
+    // localFilters is now ProgramFilter directly — no longer wraps page/limit/sortField.
+    const [localFilters, setLocalFilters] = useState<ProgramFilter>(currentFilters);
 
-    // Update local filters when dialog opens or currentFilters change
+    // Sync local state whenever the dialog opens or the parent's active filters change.
     useEffect(() => {
         setLocalFilters(currentFilters);
     }, [currentFilters, isOpen]);
 
     const handleApply = () => {
-        onApplyFilters({
-            ...localFilters,
-            page: 1 // Reset to first page when applying filters
-        });
+        // Pass filter values directly. The hook's applyFilters() handles page reset + cursor clear.
+        onApplyFilters(localFilters);
         onClose();
     };
 
     const handleClear = () => {
-        const clearedFilters: ProgramPagination = {
-            ...currentFilters,
-            filters: {
-                Name: currentFilters.filters?.Name || '', // Keep the search term
-                YearStart: '',
-                GroupName: '',
-                StageName: '',
-            },
-            page: 1
+        const clearedFilters: ProgramFilter = {
+            Name: currentFilters.Name ?? '', // preserve the current search term
+            StartYear: null,
+            GroupName: '',
+            StageName: '',
         };
         setLocalFilters(clearedFilters);
         onApplyFilters(clearedFilters);
         onClose();
     };
 
-    const handleFilterChange = (field: string, value: string) => {
-        setLocalFilters(prev => ({
+    const handleFilterChange = (field: 'GroupName' | 'StageName', value: string) => {
+        setLocalFilters((prev: ProgramFilter) => ({
             ...prev,
-            filters: {
-                ...prev.filters,
-                [field]: value
-            }
+            [field]: value
         }));
     };
 
-    // Generate year options (e.g., from 2000 to current year + 10)
+    // StartYear is a number on the BE (sending '' triggers "Please provide a valid number"),
+    // so the <select>'s string value is parsed to a number, or null when cleared.
+    const handleStartYearChange = (value: string) => {
+        setLocalFilters((prev: ProgramFilter) => ({
+            ...prev,
+            StartYear: value ? Number(value) : null
+        }));
+    };
+
+    // Generate year options (2000 to current year + 10)
     const currentYear = new Date().getFullYear();
     const yearOptions = Array.from({ length: currentYear - 1999 + 10 }, (_, i) => (2000 + i).toString());
 
-    const hasActiveFilters = localFilters.filters?.YearStart || 
-                            localFilters.filters?.GroupName || 
-                            localFilters.filters?.StageName;
+    // StartYear (renamed from YearStart in ProgramFilter) and other dialog-managed fields
+    const hasActiveFilters = localFilters.StartYear ||
+                            localFilters.GroupName ||
+                            localFilters.StageName;
 
     return (
         <Dialog open={isOpen} onClose={onClose} className="fixed z-10 inset-0 overflow-y-auto">
             {/* Backdrop */}
             <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
-            
+
             {/* Full-screen container */}
             <div className="fixed inset-0 flex items-center justify-center p-4">
                 <DialogPanel className="w-full max-w-2xl bg-white rounded-lg shadow-xl">
@@ -101,15 +109,15 @@ export const FilterDialogProgramList: React.FC<FilterDialogProgramListProps> = (
                             Apply filters to narrow down the program list. The search term will be preserved.
                         </p>
 
-                        {/* Year Start Filter */}
+                        {/* Start Year Filter — state field is StartYear (renamed from YearStart) */}
                         <div className="mb-4">
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                                 Start Year
                             </label>
                             <select
                                 name="YearStart"
-                                value={localFilters.filters?.YearStart || ''}
-                                onChange={(e) => handleFilterChange('YearStart', e.target.value)}
+                                value={localFilters.StartYear ?? ''}
+                                onChange={(e) => handleStartYearChange(e.target.value)}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                             >
                                 <option value="">All Years</option>
@@ -126,7 +134,7 @@ export const FilterDialogProgramList: React.FC<FilterDialogProgramListProps> = (
                             </label>
                             <select
                                 name="GroupName"
-                                value={localFilters.filters?.GroupName || ''}
+                                value={localFilters.GroupName || ''}
                                 onChange={(e) => handleFilterChange('GroupName', e.target.value)}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                             >
@@ -146,7 +154,7 @@ export const FilterDialogProgramList: React.FC<FilterDialogProgramListProps> = (
                             </label>
                             <select
                                 name="StageName"
-                                value={localFilters.filters?.StageName || ''}
+                                value={localFilters.StageName || ''}
                                 onChange={(e) => handleFilterChange('StageName', e.target.value)}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                             >
@@ -168,24 +176,24 @@ export const FilterDialogProgramList: React.FC<FilterDialogProgramListProps> = (
                                 </div>
 
                                 <div className="flex flex-wrap gap-2">
-                                    {localFilters.filters?.YearStart && (
+                                    {localFilters.StartYear && (
                                         <span className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 text-sm text-blue-800 ring-1 ring-blue-200">
                                             <span className="font-medium">Start Year:</span>
-                                            {localFilters.filters.YearStart}
+                                            {localFilters.StartYear}
                                         </span>
                                     )}
 
-                                    {localFilters.filters?.GroupName && (
+                                    {localFilters.GroupName && (
                                         <span className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 text-sm text-blue-800 ring-1 ring-blue-200">
                                             <span className="font-medium">Group:</span>
-                                            {localFilters.filters.GroupName}
+                                            {localFilters.GroupName}
                                         </span>
                                     )}
 
-                                    {localFilters.filters?.StageName && (
+                                    {localFilters.StageName && (
                                         <span className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-1 text-sm text-blue-800 ring-1 ring-blue-200">
                                             <span className="font-medium">Stage:</span>
-                                            {localFilters.filters.StageName}
+                                            {localFilters.StageName}
                                         </span>
                                     )}
                                 </div>

@@ -1243,8 +1243,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, mode = 'add', in
             />
           </div>
         </div>
-
-        
       </div>
 
       {/* Activities Section */}

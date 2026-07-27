@@ -72,6 +72,10 @@ Use the [manual template](./assets/manual-template.md) as a structural guide.
 - Use **ASCII diagrams** or describe layout for key screens (see existing manual for style reference)
 - Add a **Table of Contents** with anchor links
 - Set `Last Updated` to today's date and increment the version number if updating an existing manual
+- Follow [`documents/UserManual_Rules.md`](../../../documents/UserManual_Rules.md) for the
+  Field Reference numbering convention (plain sequential `1, 2, 3...` per table — no `UI-UX-XXX`
+  or other prefixed IDs) and for documenting validation messages on native `<select required>`
+  dropdowns (use *"Please select an item in the list."* when applicable).
 
 #### Required Sections (Global)
 1. Introduction — system purpose and module overview table

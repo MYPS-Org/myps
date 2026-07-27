@@ -10,4 +10,17 @@ interface PaginationResponse<T> {
     limit: number;
     total: number;
     totalPages: number;
+    PreviousFilteredId?: number | null;
+    NextFilteredId?: number | null;
+    HasPrevious?: boolean;
+    HasNext?: boolean;
+}
+
+interface PaginatedRequest<TFilters> {
+    Filters?: TFilters;
+    limit: number;
+    page: number;
+    Direction?: 1 | 2; // 1 = Next, 2 = Previous — keyset navigation only, omitted for page-jump
+    PreviousFilteredId?: number | null;
+    NextFilteredId?: number | null;
 }
