@@ -3,13 +3,13 @@ using DBHelper.Models.Table;
 using System.ComponentModel.DataAnnotations;
 namespace WebAPI.Controllers.Settings.UserManagement
 {
-    public class UserGroupsPaginationDto : EnumPagination<UserGroupFilterDTO> { }
+    public class UserGroupsPaginationDTO : EnumPagination<UserGroupFilterDTO> { }
     public class UserGroupFilterDTO
     {
         public string? GroupName { get; set; }
         public int[]? PermissionActionIds { get; set; }
     }
-    public class DeleteUserGroupDto
+    public class DeleteUserGroupDTO
     {
         public int Id { get; set; }
     }

@@ -5,17 +5,17 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DBHelper.Models.Table
+namespace DBHelper.Models.Table.User
 {
-    public class Groups
+    public class UserGroups
     {
         [Key]
         public int Id { get; set; }
-        [MaxLength(100)]
-        public string? GroupName { get; set; }
-        [MaxLength(200)]
-        public string? Description { get; set; }
-        public bool ApplyFilter { get; set; } = false;
+        [Required]
+        [MaxLength(50)]
+        public string UserId { get; set; } = string.Empty;
+        [Required]
+        public int[] GroupIds { get; set; } = Array.Empty<int>();
         [MaxLength(50)]
         public string? CreatedBy { get; set; }
         public DateTime? CreatedDate { get; set; }

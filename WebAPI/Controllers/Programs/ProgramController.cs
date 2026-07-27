@@ -49,80 +49,86 @@ namespace WebAPI.Controllers.Programs
             }
         }
 
-        [AllowAnonymous]
         [HttpPost]
         public async Task<IActionResult> ShowProgram([FromBody] ShowProgramDTO dto, CancellationToken cancellationToken)
         {
-            var filters = new List<(
-                string Clause,
-                string ParamName,
-                object? Value)>();
-
-
-            if (!string.IsNullOrWhiteSpace(
-                    dto.Filters.Name))
+            try
             {
-                filters.Add((
-                    "v.Name = @Name",
-                    "@Name",
-                    $"%{dto.Filters.Name.Trim()}%"));
-            }
+                var filters = new List<(
+                    string Clause,
+                    string ParamName,
+                    object? Value)>();
 
-            if (!string.IsNullOrWhiteSpace(dto.Filters.StageName))
+
+                if (!string.IsNullOrWhiteSpace(
+                        dto.Filters.Name))
+                {
+                    filters.Add((
+                        "v.Name = @Name",
+                        "@Name",
+                        $"%{dto.Filters.Name.Trim()}%"));
+                }
+
+                if (!string.IsNullOrWhiteSpace(dto.Filters.StageName))
+                {
+                    filters.Add((
+                        "v.StageName = @StageName",
+                        "@StageName",
+                        dto.Filters.StageName));
+                }
+
+                if (dto.Filters.StartYear.HasValue)
+                {
+                    filters.Add((
+                        "v.StartYear = @StartYear",
+                        "@StartYear",
+                        dto.Filters.StartYear.Value));
+                }
+
+                if (!string.IsNullOrWhiteSpace(dto.Filters.Type))
+                {
+                    filters.Add((
+                        "v.Type = @Type",
+                        "@Type",
+                        dto.Filters.Type));
+                }
+                if (_Session.ApplyFilter)
+                {
+                    filters.Add((
+                        "EXISTS (SELECT 1 FROM vProgramDataSecurityGroups d WHERE d.ProgramFK = v.Id AND d.ParticipantId = @regCode)",
+                        "@regCode", _Session.RegCode));
+                }
+
+                FilterDataResult<ProgramLatest> result =
+                    await _db.FilterDataCursor<
+                        ProgramLatest,
+                        ShowProgramFilterDTO>(
+                            tableName: "vProgramLatest",
+                            dto: dto,
+                            filter: filters,
+                            keyColumn: "Id",
+                            descending: true,
+                            includeTotal: true,
+                            ct: cancellationToken);
+
+                if (result.HasError)
+                {
+                    return new BadRequestObjectResult(
+                        new ErrorResult
+                        {
+                            Title = "Pagination error",
+                            Message =
+                                result.ToString() ??
+                                "Unable to retrieve the records."
+                        });
+                }
+
+                return Ok(result.Data);
+            }
+            catch (Exception ex)
             {
-                filters.Add((
-                    "v.StageName = @StageName",
-                    "@StageName",
-                    dto.Filters.StageName));
+                return ExceptionHandler(ex);
             }
-
-            if (dto.Filters.StartYear.HasValue)
-            {
-                filters.Add((
-                    "v.StartYear = @StartYear",
-                    "@StartYear",
-                    dto.Filters.StartYear.Value));
-            }
-
-            if (!string.IsNullOrWhiteSpace(dto.Filters.Type))
-            {
-                filters.Add((
-                    "v.Type = @Type",
-                    "@Type",
-                    dto.Filters.Type));
-            }
-            if (_Session.ApplyFilter)
-            {
-                filters.Add((
-                    "EXISTS (SELECT 1 FROM vProgramDataSecurityGroups d WHERE d.ProgramFK = v.Id AND d.ParticipantId = @regCode)",
-                    "@regCode", _Session.RegCode));
-            }
-
-            FilterDataResult<ProgramLatest> result =
-                await _db.FilterDataCursor<
-                    ProgramLatest,
-                    ShowProgramFilterDTO>(
-                        tableName: "vProgramLatest",
-                        dto: dto,
-                        filter: filters,
-                        keyColumn: "Id",
-                        descending: true,
-                        includeTotal: true,
-                        ct: cancellationToken);
-
-            if (result.HasError)
-            {
-                return new BadRequestObjectResult(
-                    new ErrorResult
-                    {
-                        Title = "Pagination error",
-                        Message =
-                            result.ToString() ??
-                            "Unable to retrieve the records."
-                    });
-            }
-
-            return Ok(result.Data);
         }
         
         [HttpPost]

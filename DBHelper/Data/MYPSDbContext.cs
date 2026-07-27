@@ -3,8 +3,10 @@ using DBHelper.Models.Functions.Program;
 using DBHelper.Models.Functions.Project;
 using DBHelper.Models.Table.Lookups;
 using DBHelper.Models.Table.Lookups.Project;
+using DBHelper.Models.Table.Permission;
 using DBHelper.Models.Table.Program;
 using DBHelper.Models.Table.Project;
+using DBHelper.Models.Table.User;
 using DBHelper.Models.Views;
 using DBHelper.Models.Views.Program;
 using DBHelper.Models.Views.Project;
@@ -224,14 +226,14 @@ namespace DBHelper.Data
         #region Users and User Access
 
         #region Tables
-        public DbSet<Models.Table.Users> tUsers { get; set; }
-        public DbSet<Models.Table.AppModules> tAppModules { get; set; }
-        public DbSet<Models.Table.PermissionControllers> tPermissionControllers { get; set; }
-        public DbSet<Models.Table.PermissionActions> tPermissionActions { get; set; }
-        public DbSet<Models.Table.PermissionViews> tPermissionViews { get; set; }
-        public DbSet<Models.Table.GroupRoles> tGroupRoles { get; set; }
-        public DbSet<Models.Table.UserGroups> tUserGroups { get; set; }
-        public DbSet<Models.Table.Groups> tGroups { get; set; }
+        public DbSet<Models.Table.User.Users> tUsers { get; set; }
+        public DbSet<Models.Table.Permission.AppModules> tAppModules { get; set; }
+        public DbSet<ApiControllers> tPermissionControllers { get; set; }
+        public DbSet<ApiActions> tPermissionActions { get; set; }
+        public DbSet<AppViews> tAppViews { get; set; }
+        public DbSet<GroupRoles> tGroupRoles { get; set; }
+        public DbSet<Models.Table.User.UserGroups> tUserGroups { get; set; }
+        public DbSet<Groups> tGroups { get; set; }
         #endregion
 
         #region Views

@@ -5,18 +5,19 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DBHelper.Models.Table
+namespace DBHelper.Models.Table.Permission
 {
-    public class PermissionActions
+    public class AppViews
     {
         [Key]
         public int Id { get; set; }
-        [Required]
         [MaxLength(50)]
-        public string ControllerName { get; set; } = string.Empty;
-        [Required]
+        public string? ModuleName { get; set; }
         [MaxLength(50)]
-        public string ActionName { get; set; } = string.Empty;
+        public string? RouteName { get; set; }
+        [Required]
+        [MaxLength(100)]
+        public string RoutePath { get; set; } = string.Empty;
         [MaxLength(200)]
         public string? Description { get; set; }
     }

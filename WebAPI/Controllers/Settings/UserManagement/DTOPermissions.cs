@@ -1,5 +1,5 @@
 ﻿using DBHelper.Models.Enums;
-using DBHelper.Models.Table;
+using DBHelper.Models.Table.Permission;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -22,7 +22,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
         public string RouteName { get; set; } = string.Empty;
         public string path { get; set; } = string.Empty;
     }
-    public class UpdateViewPermissionDetailsDTO : PermissionViews { }
+    public class UpdateViewPermissionDetailsDTO : AppViews { }
     public class ShowPermissionsDTO : EnumPagination<ShowPermissionFilterDTO> { }
     public class ShowPermissionFilterDTO
     {
@@ -30,7 +30,7 @@ namespace WebAPI.Controllers.Settings.UserManagement
         public string? ActionName { get; set; }
         public string? ControllerDescription { get; set; }
     }
-    public class UpdatePermissionControllerDetailsDTO : PermissionControllers { }
-    public class UpdatePermissionActionDetailsDTO : PermissionActions { }
-    public class DeletePermissionActionDetailsDTO : PermissionActions { }
+    public class UpdatePermissionControllerDetailsDTO : ApiControllers { }
+    public class UpdatePermissionActionDetailsDTO : ApiActions { }
+    public class DeletePermissionActionDetailsDTO : ApiActions { }
 }

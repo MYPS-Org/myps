@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DBHelper.Models.Table
+namespace DBHelper.Models.Table.User
 {
     public class GroupRoles
     {

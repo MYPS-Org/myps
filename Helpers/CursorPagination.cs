@@ -207,7 +207,7 @@ namespace Helpers
             }
             catch (Exception ex)
             {
-                return Error<T>(ex.ToString());
+                return Error<T>(ex.Message);
             }
         }
 
