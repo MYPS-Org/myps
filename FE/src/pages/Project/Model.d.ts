@@ -1,10 +1,5 @@
 import type { ProgramList } from "../Program/Model";
 
-export interface ProjectPagination extends PaginationParams {
-  filters?: ProjectFilter;
-  sortField?: string; // Remove the = 'Id' default value - this is invalid in TypeScript interfaces
-  sortDirection?: 0 | 1;
-}
 export interface ProjectFilter {
   ProgramId?: string;
   ProjectId?: string;

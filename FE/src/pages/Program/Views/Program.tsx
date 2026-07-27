@@ -48,7 +48,7 @@ const Program: React.FC = () => {
     // Shared pagination hook — replaces the hand-rolled ProgramData/ProgramFilters/isLoading
     // state and the Paginate() function. Uses StartYear (renamed from YearStart in ProgramFilter).
     const pagination = usePagination<ProgramFilter, ProgramLatest>(fetchProgram, {
-        initialFilters: { Name: '', StartYear: null, GroupName: '', StageName: '' },
+        initialFilters: { Name: '', StartYear: null, Type: '', StageName: '' },
         limit: 10,
     });
 
@@ -212,9 +212,9 @@ const Program: React.FC = () => {
                                 >
                                     <FunnelIcon className="w-4 h-4 mr-1 text-white" />
                                     Filters
-                                    {(pagination.currentFilters?.StartYear || pagination.currentFilters?.GroupName || pagination.currentFilters?.StageName) && (
+                                    {(pagination.currentFilters?.StartYear || pagination.currentFilters?.Type || pagination.currentFilters?.StageName) && (
                                         <span className="ml-1.5 bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                                            {[pagination.currentFilters?.StartYear, pagination.currentFilters?.GroupName, pagination.currentFilters?.StageName].filter(Boolean).length}
+                                            {[pagination.currentFilters?.StartYear, pagination.currentFilters?.Type, pagination.currentFilters?.StageName].filter(Boolean).length}
                                         </span>
                                     )}
                                 </Button>
@@ -370,7 +370,7 @@ const Program: React.FC = () => {
             <FilterDialogProgramList
                 isOpen={isFilterDialogOpen}
                 onClose={() => setIsFilterDialogOpen(false)}
-                currentFilters={pagination.currentFilters ?? { Name: '', StartYear: null, GroupName: '', StageName: '' }}
+                currentFilters={pagination.currentFilters ?? { Name: '', StartYear: null, Type: '', StageName: '' }}
                 programEnums={programEnums || undefined}
                 onApplyFilters={handleApplyFilters}
             />

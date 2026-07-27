@@ -121,10 +121,7 @@ export interface TableEnum {
 export interface ProgramFilter {
   Name?: string;
   StartYear?: number | null;
-  YearEnd?: string;
   StageName?: string;
-  GroupName?: string;
-  Status?: string;
   Type?: string;
 }
 

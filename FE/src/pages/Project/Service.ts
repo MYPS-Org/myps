@@ -1,9 +1,9 @@
 import { httpClient, gisClient, type ApiResponse } from "../../services/httpClient";
 import type { ProgramList } from "../Program/Model";
-import type { ProjectLists, ComponentCost, ProjectDetails, MajorItemOfWork, MajorItemLocations, FundingProfile, ProjectNote, ProjectEnums, ProjectFormPayload, ProjectPagination, AddNotes, InfraData, ProjectSupportingDocs, ProjectRevisionList, ComponentCostPerYear, ImportProjectDTO } from "./Model.d";
+import type { ProjectLists, ComponentCost, ProjectDetails, MajorItemOfWork, MajorItemLocations, FundingProfile, ProjectNote, ProjectEnums, ProjectFormPayload, ProjectFilter, AddNotes, InfraData, ProjectSupportingDocs, ProjectRevisionList, ComponentCostPerYear, ImportProjectDTO } from "./Model.d";
 
 // #region INITIALIZE Project Lists
-export const fetchProject = async (data: ProjectPagination) => {
+export const fetchProject = async (data: PaginatedRequest<ProjectFilter>) => {
     try {
         const response = await httpClient.post<PaginationResponse<ProjectLists>>(`/Project/showprojects`, data, {
             preloaderMessage: 'Loading project details...'
