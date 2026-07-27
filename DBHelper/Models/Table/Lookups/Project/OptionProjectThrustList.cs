@@ -9,7 +9,6 @@ using System.Threading.Tasks;
 
 namespace DBHelper.Models.Table.Lookups.Project
 {
-    [Table("dbo.tOptionProjectThrustList")]
     public class OptionProjectThrustList
     {
         [Key]

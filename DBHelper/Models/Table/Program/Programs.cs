@@ -4,7 +4,6 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DBHelper.Models.Table.Program
 {
-    [Table("dbo.tPrograms")]
     public class Programs
     {
         [Key]

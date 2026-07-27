@@ -10,7 +10,6 @@ using System.Threading.Tasks;
 
 namespace DBHelper.Models.Table.Program
 {
-    [Table("dbo.tProgramStages")]
     public class ProgramStages
     {
         [Key]

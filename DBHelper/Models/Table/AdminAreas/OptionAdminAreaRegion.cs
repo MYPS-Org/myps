@@ -9,7 +9,6 @@ using System.Threading.Tasks;
 
 namespace DBHelper.Models.Table.AdminAreas
 {
-    [Table("dbo.tOptionAdminAreaRegion")]
     public class OptionAdminAreaRegion
     {
         [Key]

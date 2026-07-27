@@ -9,7 +9,6 @@ using System.Threading.Tasks;
 
 namespace DBHelper.Models.Table.Lookups.Project
 {
-    [Table("dbo.tOptionProjectTier")]
     public class OptionProjectTier
     {
         [Key]

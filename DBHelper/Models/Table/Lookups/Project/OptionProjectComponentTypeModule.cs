@@ -10,7 +10,6 @@ using System.Threading.Tasks;
 
 namespace DBHelper.Models.Table.Lookups
 {
-    [Table("dbo.tOptionProjectComponentTypeModule")]
     public class OptionProjectComponentTypeModule
     {
         [Key]

@@ -9,7 +9,6 @@ using System.Threading.Tasks;
 
 namespace DBHelper.Models.Table.Project
 {
-    [Table("dbo.tProjectComponentCost")]
     public class ProjectComponentCost
     {
         [Key]

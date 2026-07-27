@@ -9,7 +9,6 @@ using System.Threading.Tasks;
 
 namespace DBHelper.Models.Table.Project
 {
-    [Table("dbo.tProjectFundingProfile")]
     public class ProjectFundingProfile
     {
         [Key]

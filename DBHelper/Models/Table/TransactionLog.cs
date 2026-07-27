@@ -8,7 +8,6 @@ using System.Threading.Tasks;
 
 namespace DBHelper.Models.Table
 {
-    [Table("dbo.tTransactionLog")]
     public class TransactionLog
     {
         [Key]
