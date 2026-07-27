@@ -1,41 +1,36 @@
 "use-client";
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchProgram, fetchProgramEnums, fetchStagesByProgramId } from '../Service'; // Adjust the import path as necessary
-import type { ProgramEnums, ParentProgram, ProgramPagination, StageList } from '../Model.d'; // Adjust the import path as necessary
-import { Pagination, PaginationPrevious, PaginationNext, PaginationPage, PaginationList } from '../../../components/tailwindui/pagination'; // Adjust the import path as necessary
+import { fetchProgram, fetchProgramEnums, fetchStagesByProgramId } from '../Service';
+import type { ProgramEnums, ProgramLatest, ProgramFilter, StageList } from '../Model.d';
+import { usePagination } from '../../../hooks/usePagination';
+import { PaginationBar } from '../../../components/tailwindui/PaginationBar';
 
-// Define local interface for pagination response
-interface PaginationResponse<T> {
-    lists: T[];
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-}
-
-import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '../../../components/tailwindui/table'; // Adjust the import path as necessary
-import { CollapsibleTable, ExpandToggleButton, ExpandedPanel } from '../../../components/tailwindui/collapsible-table'; // Adjust the import path as necessary
+import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from '../../../components/tailwindui/table';
+import { CollapsibleTable, ExpandToggleButton, ExpandedPanel } from '../../../components/tailwindui/collapsible-table';
 
 // #region Import Dialogs
 import { AddProgramDialog, DeleteProgramDialog, FilterDialogProgramList } from '../dialogs';
 // #endregion
 
-import { Button } from '../../../components/tailwindui/button'; // Adjust the import path as necessary
+import { Button } from '../../../components/tailwindui/button';
 import {
     PlusIcon,
     MagnifyingGlassIcon,
     TrashIcon,
     XMarkIcon,
     FunnelIcon
-} from '@heroicons/react/24/outline'; // Adjust the import path as necessary
+} from '@heroicons/react/24/outline';
 import type { TableEnum } from '../../Project/Model';
 
 const Program: React.FC = () => {
     const navigate = useNavigate();
-    const [isLoading, setIsLoading] = useState(false);
+
+    // isEnumsLoading is separate from pagination.isLoading — it covers the enum-fetch
+    // that happens when the user opens the Add Program dialog or Filter dialog for the first time.
+    const [isEnumsLoading, setIsEnumsLoading] = useState(false);
+
     const [programEnums, setProgramEnums] = useState<{
-        // Statuses: ProgramEnums[];
         Stages: TableEnum[];
         Types: TableEnum[];
         Groups: ProgramEnums[];
@@ -45,60 +40,30 @@ const Program: React.FC = () => {
     const [isAddProgramOpen, setIsAddProgramOpen] = useState(false);
     const [isDeleteProgramOpen, setIsDeleteProgramOpen] = useState(false);
     const [isFilterDialogOpen, setIsFilterDialogOpen] = useState(false);
-    const [selectedProgram, setSelectedProgram] = useState<string | null>(); // Initialize with an empty string or a default value
-    const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set()); // Track expanded rows
-    const [stageLists, setStageLists] = useState<Record<string, StageList>>({}); // Store stages per program ID
-    const [searchInput, setSearchInput] = useState<string>(''); // Separate state for search input
+    const [selectedProgram, setSelectedProgram] = useState<string | null>();
+    const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+    const [stageLists, setStageLists] = useState<Record<string, StageList>>({});
+    const [searchInput, setSearchInput] = useState<string>('');
 
-    useEffect(() => {
-        const getPrograms = async () => {
-            setIsLoading(true);
-            try {
-                const response = await fetchProgram(ProgramFilters);
-                setProgramData(response.Data);
-            } catch (error) {
-                console.error('Error fetching programs:', error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        getPrograms();
-    }, []);
-
-    const [ProgramData, setProgramData] = useState<PaginationResponse<ParentProgram>>({
-        total: 0,
-        page: 1,
+    // Shared pagination hook — replaces the hand-rolled ProgramData/ProgramFilters/isLoading
+    // state and the Paginate() function. Uses StartYear (renamed from YearStart in ProgramFilter).
+    const pagination = usePagination<ProgramFilter, ProgramLatest>(fetchProgram, {
+        initialFilters: { Name: '', StartYear: null, GroupName: '', StageName: '' },
         limit: 10,
-        totalPages: 0,
-        lists: []
-    });
-
-    const [ProgramFilters, setProgramFilters] = useState<ProgramPagination>({
-        filters: {
-            Name: '',
-            YearStart: '',
-            GroupName: '',
-            StageName: '',
-        },
-        sortField: '',
-        sortDirection: 1,
-        page: 1,
-        limit: 10
     });
 
     const handleOpenDialog = async () => {
         try {
-            setIsLoading(true);
+            setIsEnumsLoading(true);
             const response = await fetchProgramEnums();
-            setProgramEnums(response.Data); // this will be passed as prop
-            setIsAddProgramOpen(true); // this shows the dialog
-            setIsLoading(false);
+            setProgramEnums(response.Data);
+            setIsAddProgramOpen(true);
+            setIsEnumsLoading(false);
         } catch (error) {
             console.error('Error fetching programs:', error);
-            setIsLoading(false);
+            setIsEnumsLoading(false);
         }
     };
-
 
     const getStatusBadge = (status: string) => {
         const statusColors = {
@@ -108,9 +73,9 @@ const Program: React.FC = () => {
             'Rejected': 'bg-red-100 text-red-800 border-red-200',
             'Proposed': 'bg-blue-100 text-blue-800 border-blue-200',
         };
-        
+
         const colorClass = statusColors[status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800 border-gray-200';
-        
+
         return (
             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${colorClass}`}>
                 {status}
@@ -121,12 +86,10 @@ const Program: React.FC = () => {
     const handleDropDownTable = async (programId?: string) => {
         try {
             if (programId) {
-                // Check if the row is already expanded
                 const isCurrentlyExpanded = expandedRows.has(programId);
-                
-                // Toggle the expanded state for this row
+
                 if (isCurrentlyExpanded) {
-                    setExpandedRows(new Set())
+                    setExpandedRows(new Set());
                 } else {
                     setExpandedRows(new Set([programId]));
                     if (!stageLists[programId]) {
@@ -137,28 +100,6 @@ const Program: React.FC = () => {
                         }));
                     }
                 }
-                /**
-                 * use this code to allow multiple rows expanded at the same time
-                 */
-                /** setExpandedRows(prev => {
-                    const newExpanded = new Set(prev);
-                    if (newExpanded.has(programId)) {
-                        newExpanded.delete(programId);
-                    } else {
-                        newExpanded.add(programId);
-                    }
-                    return newExpanded;
-                });
-
-                Only fetch data if we're expanding (not collapsing) and data doesn't already exist
-                if (!isCurrentlyExpanded && !stageLists[programId]) {
-                    const response = await fetchStagesByProgramId(programId);
-                    setStageLists(prev => ({
-                        ...prev,
-                        [programId]: response.Data
-                    }));
-                }
-                */
             }
         } catch (error) {
             console.error('Error toggling program details:', error);
@@ -177,110 +118,47 @@ const Program: React.FC = () => {
     };
 
     const handleSearchChange = (value: string) => {
-        // Only update the input state, don't trigger API call
         setSearchInput(value);
     };
 
-    const handleSearchSubmit = async () => {
-        // Update the filter state and trigger API call
-        const updatedFilters = {
-            ...ProgramFilters,
-            filters: {
-                ...ProgramFilters.filters,
-                Name: searchInput
-            },
-            page: 1 // Reset to first page when searching
-        };
-        
-        setProgramFilters(updatedFilters);
-
-        // Fetch programs with the new filter
-        try {
-            setIsLoading(true);
-            const response = await fetchProgram(updatedFilters);
-            setProgramData(response.Data);
-        } catch (error) {
-            console.error('Error filtering programs:', error);
-        } finally {
-            setIsLoading(false);
-        }
+    const handleSearchSubmit = () => {
+        pagination.applyFilters({
+            ...(pagination.currentFilters ?? {}),
+            Name: searchInput,
+        });
     };
 
-    const handleClearSearch = async () => {
+    const handleClearSearch = () => {
         setSearchInput('');
-        const updatedFilters = {
-            ...ProgramFilters,
-            filters: {
-                ...ProgramFilters.filters,
-                Name: ''
-            },
-            page: 1
-        };
-        
-        setProgramFilters(updatedFilters);
-
-        // Fetch programs with cleared filter
-        try {
-            setIsLoading(true);
-            const response = await fetchProgram(updatedFilters);
-            setProgramData(response.Data);
-        } catch (error) {
-            console.error('Error clearing search:', error);
-        } finally {
-            setIsLoading(false);
-        }
+        pagination.applyFilters({
+            ...(pagination.currentFilters ?? {}),
+            Name: '',
+        });
     };
 
     const handleOpenFilterDialog = async () => {
         try {
             if (!programEnums) {
-                setIsLoading(true);
+                setIsEnumsLoading(true);
                 const response = await fetchProgramEnums();
                 setProgramEnums(response.Data);
-                setIsLoading(false);
+                setIsEnumsLoading(false);
             }
             setIsFilterDialogOpen(true);
         } catch (error) {
             console.error('Error fetching program enums:', error);
-            setIsLoading(false);
+            setIsEnumsLoading(false);
         }
     };
 
-    const handleApplyFilters = async (filters: ProgramPagination) => {
-        setProgramFilters(filters);
-        try {
-            setIsLoading(true);
-            const response = await fetchProgram(filters);
-            setProgramData(response.Data);
-        } catch (error) {
-            console.error('Error applying filters:', error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const Paginate = async (page: number) => {
-        try {
-            const response = await fetchProgram({
-                ...ProgramFilters,
-                page: page
-            });
-            setProgramData(response.Data);
-        } catch (error) {
-            console.error('Error fetching programs:', error);
-        }
+    // Receives a ProgramFilter from the dialog; passes straight into the hook
+    // which resets page 1 and clears keyset cursors before fetching.
+    const handleApplyFilters = (filters: ProgramFilter) => {
+        pagination.applyFilters(filters);
     };
 
     return (
-        
         <div className="max-w-10xl mx-auto p-6 space-y-6">
-            {/* Breadcrumb */}
-            {/* <nav className="text-sm text-left text-gray-500 mb-4">
-                <span>Program Management</span>
-                <span className="mx-2">&gt;</span>
-                <span>Programs</span>
-                <span className="mx-2">&gt;</span>
-            </nav> */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200">
                 <div className="overflow-hidden">
                     <div className="px-6 py-4 border-b border-gray-200">
@@ -288,27 +166,6 @@ const Program: React.FC = () => {
                             <h3 className="text-lg font-medium text-gray-900">Programs</h3>
                             <div className="flex items-center space-x-3">
                                 <div className="flex items-center space-x-2">
-                                    {/* <Button 
-                                        color={groupByCreatedDate ? "blue" : "zinc"}
-                                        onClick={() => setGroupByCreatedDate(!groupByCreatedDate)}
-                                        className="text-xs px-3 py-1.5"
-                                    >
-                                        {groupByCreatedDate ? "Group by Created Date" : "Group by Start Year"}
-                                    </Button>
-                                    <Button 
-                                        color="zinc"
-                                        onClick={expandAllYears}
-                                        className="text-xs px-3 py-1.5"
-                                    >
-                                        Expand All
-                                    </Button>
-                                    <Button 
-                                        color="zinc"
-                                        onClick={collapseAllYears}
-                                        className="text-xs px-3 py-1.5"
-                                    >
-                                        Collapse All
-                                    </Button> */}
                                 </div>
                                 <div className="flex items-center space-x-2">
                                     <div className="relative">
@@ -326,20 +183,20 @@ const Program: React.FC = () => {
                                             className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                         />
                                     </div>
-                                    <Button 
-                                        color="blue" 
+                                    <Button
+                                        color="blue"
                                         onClick={handleSearchSubmit}
-                                        disabled={isLoading}
+                                        disabled={pagination.isLoading}
                                         className="text-xs px-3 py-1.5"
                                     >
                                         <MagnifyingGlassIcon className="w-4 h-4 mr-1" />
                                         Search
                                     </Button>
-                                    {(searchInput || ProgramFilters.filters?.Name) && (
-                                        <Button 
-                                            color="red" 
+                                    {(searchInput || pagination.currentFilters?.Name) && (
+                                        <Button
+                                            color="red"
                                             onClick={handleClearSearch}
-                                            disabled={isLoading}
+                                            disabled={pagination.isLoading}
                                             className="text-xs px-3 py-1.5"
                                         >
                                             <XMarkIcon className="w-4 h-4 mr-1" />
@@ -347,34 +204,34 @@ const Program: React.FC = () => {
                                         </Button>
                                     )}
                                 </div>
-                                <Button 
-                                    color="yellow" 
+                                <Button
+                                    color="yellow"
                                     onClick={handleOpenFilterDialog}
-                                    disabled={isLoading}
+                                    disabled={isEnumsLoading || pagination.isLoading}
                                     className="text-xs px-3 py-1.5"
                                 >
                                     <FunnelIcon className="w-4 h-4 mr-1 text-white" />
                                     Filters
-                                    {(ProgramFilters.filters?.YearStart || ProgramFilters.filters?.GroupName || ProgramFilters.filters?.StageName) && (
+                                    {(pagination.currentFilters?.StartYear || pagination.currentFilters?.GroupName || pagination.currentFilters?.StageName) && (
                                         <span className="ml-1.5 bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                                            {[ProgramFilters.filters?.YearStart, ProgramFilters.filters?.GroupName, ProgramFilters.filters?.StageName].filter(Boolean).length}
+                                            {[pagination.currentFilters?.StartYear, pagination.currentFilters?.GroupName, pagination.currentFilters?.StageName].filter(Boolean).length}
                                         </span>
                                     )}
                                 </Button>
-                                <Button color="blue" onClick={handleOpenDialog} disabled={isLoading} className="text-xs px-3 py-1.5">
+                                <Button color="blue" onClick={handleOpenDialog} disabled={isEnumsLoading} className="text-xs px-3 py-1.5">
                                     <PlusIcon className="w-4 h-4 mr-1" />
-                                    {isLoading ? 'Loading...' : 'Add Program'}
+                                    {isEnumsLoading ? 'Loading...' : 'Add Program'}
                                 </Button>
                             </div>
                         </div>
                     </div>
-                <CollapsibleTable<ParentProgram>
+                <CollapsibleTable<ProgramLatest>
                     className="px-5"
                     striped
-                    data={ProgramData.lists}
+                    data={pagination.data.lists}
                     rowKey={(program, idx) => `${program.Id}-${idx}`}
-                    isRowExpanded={(program) => expandedRows.has(program.ProgramId || '')}
-                    onToggleRow={(program) => handleDropDownTable(program.ProgramId)}
+                    isRowExpanded={(program) => expandedRows.has(program.ProgramPK || '')}
+                    onToggleRow={(program) => handleDropDownTable(program.ProgramPK)}
                     columns={[
                         {
                             header: 'Name',
@@ -385,19 +242,19 @@ const Program: React.FC = () => {
                         { header: 'Status', render: (program) => program.Status },
                         { header: 'Program Type', render: (program) => getStatusBadge(program.Type || '') },
                         { header: 'No. of Projects', render: (program) => (program.NumberOfProjects !== undefined ? program.NumberOfProjects : 'N/A') },
-                        { header: 'Start Year', render: (program) => program.YearStart },
+                        { header: 'Start Year', render: (program) => program.StartYear },
                         {
                             header: 'Actions',
                             render: (program) => (
                                 <div className="flex items-center space-x-1">
                                     <Button
                                         color="orange"
-                                        onClick={() => handleViewDetails(program.ProgramId, program.StageName)}
+                                        onClick={() => handleViewDetails(program.ProgramPK, program.StageName)}
                                         className="text-xs px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded"
                                     >
                                         View
                                     </Button>
-                                    <Button color="red" onClick={() => {setIsDeleteProgramOpen(true); setSelectedProgram(program.ProgramId);}} className="text-xs px-3 py-1.5 bg-red-500 hover:bg-red-600 rounded">
+                                    <Button color="red" onClick={() => {setIsDeleteProgramOpen(true); setSelectedProgram(program.ProgramPK);}} className="text-xs px-3 py-1.5 bg-red-500 hover:bg-red-600 rounded">
                                         <TrashIcon stroke='white' className="h-5 w-5 text-gray-900" />
                                     </Button>
                                 </div>
@@ -407,7 +264,7 @@ const Program: React.FC = () => {
                     renderExpandedContent={(program) => (
                         <ExpandedPanel
                             title={`Program Stages under "${program.Name}"`}
-                            badge={`${stageLists[program.ProgramId || '']?.Stages?.length || 0} stages`}
+                            badge={`${stageLists[program.ProgramPK || '']?.Stages?.length || 0} stages`}
                         >
                             <Table className="mb-0">
                                 <TableHead>
@@ -421,7 +278,7 @@ const Program: React.FC = () => {
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    {stageLists[program.ProgramId || '']?.Stages?.map((stage) => (
+                                    {stageLists[program.ProgramPK || '']?.Stages?.map((stage) => (
                                         <TableRow key={stage.Id}>
                                             <TableCell className="font-medium text-sm text-center">{stage.StageName}</TableCell>
                                             <TableCell className="text-sm text-gray-600 text-center">{stage.TypeName}</TableCell>
@@ -454,71 +311,31 @@ const Program: React.FC = () => {
                         </ExpandedPanel>
                     )}
                 />
-                <Pagination className="my-6">
-                    {
-                        ProgramData.totalPages > 1 && (
-                            <>
-                                <PaginationPrevious 
-                                    onClick={async () => {
-                                        Paginate(1);
-                                    }}
-                                    disabled={ProgramData.page <= 1}
-                                >
-                                    First
-                                </PaginationPrevious>
-                                <PaginationList>
-                                    {Array.from({ length: Math.min(7, ProgramData.totalPages) }, (_, index) => {
-                                        const pageNum = Math.max(1, ProgramData.page - 3) + index;
-                                        if (pageNum > ProgramData.totalPages) return null;
 
-                                        if (pageNum === ProgramData.page) {
-                                            return (
-                                                <PaginationPage
-                                                    key={pageNum}
-                                                    current
-                                                >
-                                                    {pageNum}
-                                                </PaginationPage>
-                                            );
-                                        } else {
-                                            return (
-                                                <PaginationPage
-                                                    key={pageNum}
-                                                    onClick={() => {
-                                                        Paginate(pageNum);
-                                                    }}
-                                                >
-                                                    {pageNum}
-                                                </PaginationPage>
-                                            );
-                                        }
-                                    })}
-                                </PaginationList>
-                                <PaginationNext 
-                                    onClick={async () => {
-                                        Paginate(ProgramData.totalPages);
-                                    }}
-                                    disabled={ProgramData.page >= ProgramData.totalPages}
-                                >
-                                    Last
-                                </PaginationNext>
-                            </>
+                {/* Pagination bar — keyset Next/Previous + plain page-jump First/Last/numbered */}
+                <PaginationBar
+                    currentPage={pagination.data.page}
+                    totalPages={pagination.data.totalPages}
+                    hasPrevious={pagination.hasPrevious}
+                    hasNext={pagination.hasNext}
+                    onGoToPage={pagination.goToPage}
+                    onNext={pagination.goNext}
+                    onPrevious={pagination.goPrevious}
+                />
+
+                <div className='mb-3.5 text-center'>
+                    {
+                        pagination.data.lists.length > 0 ? (
+                            <p className="text-sm text-gray-500">
+                                Showing {pagination.data.limit * (pagination.data.page - 1) + 1} to {Math.min(pagination.data.limit * pagination.data.page, pagination.data.total)} of {pagination.data.total} programs
+                            </p>
+                        ) : (
+                            <p className="text-sm text-gray-500">
+                                No programs found
+                            </p>
                         )
                     }
-                </Pagination>
-                    <div className='mb-3.5 text-center'>
-                        {
-                            ProgramData.lists.length > 0 ? (
-                                <p className="text-sm text-gray-500">
-                                    Showing {ProgramData.limit * (ProgramData.page - 1) + 1} to {Math.min(ProgramData.limit * ProgramData.page, ProgramData.total)} of {ProgramData.total} programs
-                                </p>
-                            ) : (
-                                <p className="text-sm text-gray-500">
-                                    No programs found
-                                </p>
-                            )
-                        }
-                    </div>
+                </div>
                 </div>
             </div>
 
@@ -527,15 +344,12 @@ const Program: React.FC = () => {
                 isOpen={isAddProgramOpen}
                 onClose={() => setIsAddProgramOpen(false)}
                 programEnums={programEnums || undefined}
-                onSubmit={(newProgram: any) => {
-                    // Handle the new program submission
-                    setProgramData(prev => ({
-                        ...prev,
-                        lists: [...prev.lists, newProgram],
-                        total: prev.total + 1
-                    }));
+                onSubmit={() => {
+                    // Refresh current page so the newly added program appears
+                    pagination.refresh();
                 }}
             />
+
             {/* Delete Program Dialog */}
             {selectedProgram && (
                 <DeleteProgramDialog
@@ -544,11 +358,10 @@ const Program: React.FC = () => {
                         setIsDeleteProgramOpen(false);
                         setSelectedProgram(null);
                     }}
-                    program={ProgramData.lists?.find((program: any) => program.ProgramId === selectedProgram) as any}
-                    onDeleteSuccess={async () => {
-                        // Refresh program list after deletion
-                        const response = await fetchProgram(ProgramFilters);
-                        setProgramData(response.Data);
+                    program={pagination.data.lists?.find((program: any) => program.ProgramPK === selectedProgram) as any}
+                    onDeleteSuccess={() => {
+                        // Re-fetch current page/filters without keyset cursors — safe after delete
+                        pagination.refresh();
                     }}
                 />
             )}
@@ -557,12 +370,12 @@ const Program: React.FC = () => {
             <FilterDialogProgramList
                 isOpen={isFilterDialogOpen}
                 onClose={() => setIsFilterDialogOpen(false)}
-                currentFilters={ProgramFilters}
+                currentFilters={pagination.currentFilters ?? { Name: '', StartYear: null, GroupName: '', StageName: '' }}
                 programEnums={programEnums || undefined}
                 onApplyFilters={handleApplyFilters}
             />
         </div>
     );
-}
+};
 
 export default Program;

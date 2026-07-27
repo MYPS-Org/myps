@@ -60,16 +60,17 @@ navigate(`/programs/programdetails/${program.ProgramId}:${program.StageName}`);
 | Interface | Purpose |
 |-----------|---------|
 | `ProgramModel` | Payload for creating a new program (`AddProgram`) |
-| `ProgramList` | Row in the programs list table (`showprogram` response item) |
-| `ParentProgram` | Same as `ProgramList` — used in the paginated list response |
+| `ProgramList` | Row shape used elsewhere (e.g. Project module's selected program header) |
+| `ProgramLatest` | Row in the programs list table — `showprogram` response item (replaces `ParentProgram`); `ProgramPK` is the actual identifier (what `ProgramId` used to mean) |
 | `ProgramDetails` | Full editable details for a single program revision |
 | `ProgramDetailsEnums` | Full `ProgramDetails` page response: `{ Details, Projects, IsActive, Dropdowns }` |
 | `ProgramDetailsWithStages` | Row in the expandable stages sub-table |
 | `StageList` | Response from `ShowProgramStages`: `{ Stages: ProgramDetailsWithStages[] }` |
 | `ProgramEnums` | Dropdown option for Groups/DataSecurity (participant-based) |
 | `TableEnum` | Generic dropdown option `{ Id, NameId, Name, Description? }` |
-| `ProgramPagination` | Pagination + filters payload for `showprogram` |
-| `ProgramFilter` | Filter fields: Name, YearStart, YearEnd, StageName, GroupName, Status, Type |
+| `ProgramFilter` | Filter fields: Name, StartYear, YearEnd, StageName, GroupName, Status, Type |
+
+> Pagination + filter payloads are now carried by the shared ambient type `PaginatedRequest<TFilters>` (defined in `FE/src/types/Pagination.d.ts`). `ProgramPagination` has been removed.
 
 ### AIP Report Interfaces
 
@@ -94,7 +95,7 @@ navigate(`/programs/programdetails/${program.ProgramId}:${program.StageName}`);
 | Function | Endpoint | Payload | Notes |
 |----------|----------|---------|-------|
 | `fetchProgramEnums()` | `POST /Program/InitAddProgram` | null | Returns `{ Stages, Types, Groups, DataSecurity }` |
-| `fetchProgram(ProgramPagination)` | `POST /program/showprogram` | pagination + filters | Returns `PaginationResponse<ParentProgram>` |
+| `fetchProgram(PaginatedRequest<ProgramFilter>)` | `POST /program/showprogram` | `PaginatedRequest<ProgramFilter>` | Returns `PaginationResponse<ProgramLatest>` (now includes `HasNext`, `HasPrevious`, `NextFilteredId`, `PreviousFilteredId`) |
 | `fetchProgramById(programId, StageName)` | `POST /Program/ProgramDetails` | `{ ProgramId, StageName }` | Returns `ProgramDetailsEnums` |
 | `addProgram(ProgramModel)` | `POST /Program/AddProgram` | `ProgramModel` | Returns new `ProgramModel` with `Id` |
 | `editProgram(ProgramDetails)` | `POST /Program/UpdateProgramDetails` | `ProgramDetails` | |
@@ -151,8 +152,8 @@ AIP/AIP02 payloads include all filter fields; RBP/RBPTier/RBPComponents/RDIP sen
 
 | State | Type | Purpose |
 |-------|------|---------|
-| `ProgramData` | `PaginationResponse<ParentProgram>` | Current page of programs |
-| `ProgramFilters` | `ProgramPagination` | Active pagination + filter state |
+| `pagination` | `ReturnType<typeof usePagination>` | All pagination state — data, active filters, loading flag, and navigation functions — owned by the `usePagination` hook. Replaces the former `ProgramData`, `ProgramFilters`, and combined `isLoading` local state. |
+| `isEnumsLoading` | `boolean` | Loading state for the enum fetch triggered when the user first opens the Add Program or Filter dialog. Separate from `pagination.isLoading`. |
 | `searchInput` | `string` | Controlled search input (separate from applied filter) |
 | `programEnums` | `{ Stages, Types, Groups, DataSecurity }` | Lazy-loaded on first filter/add dialog open |
 | `expandedRows` | `Set<string>` | Only one row expanded at a time |
@@ -161,13 +162,13 @@ AIP/AIP02 payloads include all filter fields; RBP/RBPTier/RBPComponents/RDIP sen
 
 **Key behaviors**
 
-- Initial load: `fetchProgram(ProgramFilters)` on mount
-- Search: `handleSearchChange` updates input only; `handleSearchSubmit` or Enter fires `fetchProgram` with updated Name filter
-- Clear button: visible when `searchInput` or `ProgramFilters.filters.Name` is set
-- Filters badge count: counts non-empty YearStart / GroupName / StageName values
+- Initial load: `usePagination` calls `fetchProgram` with `initialFilters` on mount
+- Search: `handleSearchChange` updates input only; `handleSearchSubmit` or Enter calls `pagination.applyFilters` with updated Name filter (resets to page 1)
+- Clear button: visible when `searchInput` or `pagination.currentFilters.Name` is set
+- Filters badge count: counts non-empty StartYear / GroupName / StageName values
 - Row expand: clicking program name toggles expanded state; stage data fetched once and cached
 - Status badge colors: Working=orange, Approved=green, Pending=yellow, Rejected=red, Proposed=blue (applies to `TypeName` column via `getStatusBadge`)
-- Pagination: `Paginate(page)` re-calls `fetchProgram` with updated page
+- Pagination: `pagination.goToPage(n)` / `pagination.goNext()` / `pagination.goPrevious()` surfaced via `<PaginationBar />`; Next/Previous send the backend's keyset cursor (`NextFilteredId` / `PreviousFilteredId` + `Direction`), page-jump sends a plain page number
 
 **Main table columns:** Name (expandable) | Status | Program Type | No. of Projects | Start Year | Actions (View + Delete)
 
@@ -249,8 +250,9 @@ IsActive && Details.StageId < 10
 
 ### `FilterDialogProgramList`
 
-- **Filters:** YearStart (2000 to current+10), GroupName (from enums), StageName (from enums)
-- **Clear:** resets YearStart/GroupName/StageName but preserves Name search term
+- **Props:** `currentFilters: ProgramFilter` / `onApplyFilters: (filters: ProgramFilter) => void` (previously typed as `ProgramPagination`; now uses `ProgramFilter` directly — no more nested `.filters` wrapper)
+- **Filters:** StartYear (2000 to current+10), GroupName (from enums), StageName (from enums)
+- **Clear:** resets StartYear/GroupName/StageName but preserves Name search term
 - **Active filter badge:** counts non-empty filter values on the Filters button
 
 ### `NextStageDialog`
@@ -383,6 +385,8 @@ Programs flow through stages managed by `StageId`:
 | `../../components/toaster/ToasterContext` | `useToast` in all dialogs |
 | `../../components/ui/CheckboxList` | User Groups and Data Security multi-select |
 | `../../components/tailwindui/*` | `Table`, `Button`, `Pagination`, `Select`, `Field` |
+| `../../hooks/usePagination` | Pagination state + navigation for `Program.tsx` (`usePagination` hook) |
+| `../../components/tailwindui/PaginationBar` | Shared pagination UI component used in `Program.tsx` |
 
 ---
 

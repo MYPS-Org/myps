@@ -28,24 +28,21 @@ export interface ProgramEnums {
 	RegionParticipantId: string;
 }
 
-export interface ParentProgram {
+export interface ProgramLatest {
 	Id: number;
 	RevisionId: number;
+	StageFKId: number;
+	ProgramPK: string;
 	ProgramId: string;
-	NumberOfProjects?: number;
+	StageId: number;
 	StageName: string;
 	Name: string;
-	GroupName?: string;
-	RegionCode: string;
 	Status?: string;
 	Type?: string;
-	Cost?: number;
-	YearStart: number;
-	YearEnd: number;
-	CreatedBy: string;
-	CreatedDate: string;
-	IsPublished: boolean = true;
-	// Stages: ProgramList[];
+	DataSecurityGroup: string;
+	UserGroup: string;
+	NumberOfProjects?: number;
+	StartYear: number;
 }
 
 export interface ProgramDetails {
@@ -121,14 +118,9 @@ export interface TableEnum {
 	Description?: string;
 }
 
-export interface ProgramPagination extends PaginationParams {
-  filters?: ProgramFilter;
-  sortField?: string; // Remove the = 'Id' default value - this is invalid in TypeScript interfaces
-  sortDirection?: 0 | 1;
-}
 export interface ProgramFilter {
   Name?: string;
-  YearStart?: string;
+  StartYear?: number | null;
   YearEnd?: string;
   StageName?: string;
   GroupName?: string;

@@ -4,7 +4,7 @@ import type { TableEnum } from './Model';
 import type { ImportProjectDTO } from '../Project/Model';
 
 
-import type { ProgramModel, ProgramEnums, ProgramPagination, ProgramList, ProgramDetailsEnums, ProgramDetails, ParentProgram, StageList, AIPReportParams, AIPReportDropdowns, AIPReportType } from './Model';
+import type { ProgramModel, ProgramEnums, ProgramFilter, ProgramList, ProgramDetailsEnums, ProgramDetails, ProgramLatest, StageList, AIPReportParams, AIPReportDropdowns, AIPReportType } from './Model';
 
 export const fetchProgramEnums = async () => {
     try {
@@ -22,9 +22,9 @@ export const fetchProgramEnums = async () => {
     }
 };
 
-export const fetchProgram = async (data: ProgramPagination) => {
+export const fetchProgram = async (data: PaginatedRequest<ProgramFilter>) => {
     try {
-        const response = await httpClient.post<PaginationResponse<ParentProgram>>('/program/showprogram', data, {
+        const response = await httpClient.post<PaginationResponse<ProgramLatest>>('/program/showprogram', data, {
             preloaderMessage: 'Loading program...'
         });
         return response;
